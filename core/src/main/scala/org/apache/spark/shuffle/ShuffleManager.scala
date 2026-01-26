@@ -109,9 +109,16 @@ private[spark] object ShuffleManager {
   }
 
   def getShuffleManagerClassName(conf: SparkConf): String = {
+    // Coexistence Strategy: Both shuffle managers can coexist within the same Spark deployment.
+    // - "sort" / "tungsten-sort": The default, production-stable SortShuffleManager.
+    // - "streaming": Opt-in StreamingShuffleManager for reduced latency on shuffle-heavy workloads.
+    //   StreamingShuffleManager internally delegates to SortShuffleManager as a fallback when
+    //   streaming conditions are not met (e.g., memory pressure, network saturation, or when
+    //   spark.shuffle.streaming.enabled=false). This ensures zero regression for existing workloads.
     val shortShuffleMgrNames = Map(
       "sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName,
-      "tungsten-sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName)
+      "tungsten-sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName,
+      "streaming" -> classOf[org.apache.spark.shuffle.streaming.StreamingShuffleManager].getName)
 
     val shuffleMgrName = conf.get(config.SHUFFLE_MANAGER)
     shortShuffleMgrNames.getOrElse(shuffleMgrName.toLowerCase(Locale.ROOT), shuffleMgrName)
