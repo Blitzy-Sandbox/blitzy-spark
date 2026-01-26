@@ -18,15 +18,12 @@
 package org.apache.spark.shuffle.streaming
 
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.{AtomicLong, AtomicBoolean}
-
-import scala.jdk.CollectionConverters._
+import java.util.concurrent.atomic.AtomicBoolean
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.shuffle._
 import org.apache.spark.shuffle.sort.SortShuffleManager
-import org.apache.spark.storage.BlockManager
 import org.apache.spark.util.collection.OpenHashSet
 
 /**
@@ -347,19 +344,19 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
    * @return true if sustained consumer slowdown is detected, false otherwise
    */
   private def checkConsumerSlowdown(shuffleId: Int): Boolean = {
-    val slowdownStartTime = consumerSlowdownTracker.get(shuffleId)
-    if (slowdownStartTime != null && slowdownStartTime > 0) {
-      val slowdownDuration = System.currentTimeMillis() - slowdownStartTime
-      val thresholdExceeded = slowdownDuration > DEFAULT_CONSUMER_SLOWDOWN_THRESHOLD_MS
-      
-      if (thresholdExceeded && config.isDebug) {
-        logDebug(s"Shuffle $shuffleId: Consumer slowdown exceeded threshold " +
-          s"(${slowdownDuration}ms > ${DEFAULT_CONSUMER_SLOWDOWN_THRESHOLD_MS}ms)")
-      }
-      
-      thresholdExceeded
-    } else {
-      false
+    Option(consumerSlowdownTracker.get(shuffleId)) match {
+      case Some(slowdownStartTime) if slowdownStartTime > 0 =>
+        val slowdownDuration = System.currentTimeMillis() - slowdownStartTime
+        val thresholdExceeded = slowdownDuration > DEFAULT_CONSUMER_SLOWDOWN_THRESHOLD_MS
+        
+        if (thresholdExceeded && config.isDebug) {
+          logDebug(s"Shuffle $shuffleId: Consumer slowdown exceeded threshold " +
+            s"(${slowdownDuration}ms > ${DEFAULT_CONSUMER_SLOWDOWN_THRESHOLD_MS}ms)")
+        }
+        
+        thresholdExceeded
+      case _ =>
+        false
     }
   }
 
@@ -651,7 +648,7 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
     consumerSlowdownTracker.remove(shuffleId)
     
     // If this shuffle was handled by SortShuffleManager, clean up there too
-    if (fallbackShuffles.remove(shuffleId) != null) {
+    if (Option(fallbackShuffles.remove(shuffleId)).isDefined) {
       sortShuffleManager.unregisterShuffle(shuffleId)
     }
 
