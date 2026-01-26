@@ -1371,6 +1371,28 @@ These metrics are exposed by Spark executors.
     - shuffleMergedLocalBytesRead
     - shuffleRemoteReqsDuration
     - shuffleMergedRemoteReqsDuration
+  - Metrics related to streaming shuffle (new feature in Spark 4.2.0):
+    - **note:** These metrics are only available when `spark.shuffle.streaming.enabled=true`.
+      Streaming shuffle metrics are designed to have <1% CPU overhead per implementation requirements.
+    - shuffle.streaming.bufferUtilizationPercent (Gauge) - Real-time buffer occupancy percentage.
+      Reports the current percentage of allocated streaming shuffle buffer memory in use.
+      Values approaching 80% indicate memory pressure and potential spill triggers.
+    - shuffle.streaming.spillCount (Counter) - Disk spill event frequency.
+      Counts the number of times streaming shuffle buffers were spilled to disk due to memory pressure.
+      High values may indicate undersized buffer configuration or excessive shuffle data volume.
+    - shuffle.streaming.backpressureEvents (Counter) - Consumer rate limiting incidents.
+      Counts occurrences when backpressure protocol throttled data transfer due to slow consumers.
+      Sustained increases may indicate consumer-side bottlenecks or network congestion.
+    - shuffle.streaming.partialReadInvalidations (Counter) - Producer failure detection count.
+      Counts invalidations of partial reads due to producer task failures detected via connection timeout.
+      Non-zero values indicate shuffle recomputation was triggered.
+    - shuffle.streaming.bytesStreamed (Counter) - Total bytes transferred via streaming.
+      Cumulative count of bytes successfully streamed from producers to consumers.
+      Use with bytesWritten to calculate streaming efficiency ratio.
+    - shuffle.streaming.fallbackCount (Counter) - Automatic fallback to sort-based shuffle.
+      Counts shuffles that reverted from streaming to traditional sort-based shuffle.
+      Common causes include sustained consumer slowdown (>60s at 2x slower than producer),
+      memory pressure preventing buffer allocation, or protocol compatibility issues.
   - succeededTasks.count
   - threadpool.activeTasks
   - threadpool.completeTasks
@@ -1521,6 +1543,265 @@ Note: applies to the shuffle service
 - ignoredBlockBytes - size of the pushed block data that was transferred to ESS, but ignored.
   The pushed block data are considered as ignored when: 1. it was received after the shuffle
   was finalized; 2. when a push request is for a duplicate block; 3. ESS was unable to write the block.
+
+## Streaming Shuffle Telemetry Dashboard Templates
+
+This section provides recommended dashboard configurations for monitoring streaming shuffle performance
+and health. These templates are designed for Grafana with Prometheus as the data source.
+
+**Note:** Streaming shuffle metrics are only available when `spark.shuffle.streaming.enabled=true`.
+All streaming shuffle metrics are designed to maintain <1% CPU overhead per implementation requirements.
+
+### Recommended Dashboard Panels
+
+#### Buffer Utilization Panel (Gauge)
+Monitors real-time memory buffer usage across executors. Critical for detecting memory pressure
+before spill events occur.
+
+```promql
+# Average buffer utilization across all executors
+avg(spark_executor_shuffle_streaming_bufferUtilizationPercent)
+
+# Maximum buffer utilization (identifies hot executors)
+max(spark_executor_shuffle_streaming_bufferUtilizationPercent) by (executor_id)
+
+# Buffer utilization distribution (histogram)
+histogram_quantile(0.95, spark_executor_shuffle_streaming_bufferUtilizationPercent)
+```
+
+**Thresholds:**
+- Green: 0-60% (healthy operation)
+- Yellow: 60-80% (elevated usage, monitor closely)
+- Red: 80-95% (spill threshold, action recommended)
+
+#### Spill Rate Panel (Counter Rate)
+Tracks disk spill frequency. High spill rates impact performance and indicate memory pressure.
+
+```promql
+# Spill events per minute across cluster
+sum(rate(spark_executor_shuffle_streaming_spillCount[1m])) * 60
+
+# Spill rate by executor (identify problematic executors)
+rate(spark_executor_shuffle_streaming_spillCount[5m]) by (executor_id)
+```
+
+**Interpretation:**
+- Occasional spills during peak load are normal
+- Sustained high spill rates suggest increasing `spark.shuffle.streaming.bufferSizePercent`
+- Correlate with buffer utilization to understand spill triggers
+
+#### Backpressure Events Panel (Counter Rate)
+Monitors consumer-side rate limiting incidents, indicating producer-consumer speed mismatches.
+
+```promql
+# Backpressure events per minute
+sum(rate(spark_executor_shuffle_streaming_backpressureEvents[1m])) * 60
+
+# Backpressure trend over time
+sum(increase(spark_executor_shuffle_streaming_backpressureEvents[1h]))
+```
+
+**Interpretation:**
+- Isolated events are normal during bursty workloads
+- Sustained backpressure may indicate consumer bottleneck or network congestion
+- Consider tuning `spark.shuffle.streaming.maxBandwidthMBps` if network-limited
+
+#### Streaming Throughput Panel (Counter Rate)
+Measures bytes successfully transferred via streaming protocol.
+
+```promql
+# Current streaming throughput (MB/s)
+sum(rate(spark_executor_shuffle_streaming_bytesStreamed[1m])) / 1048576
+
+# Streaming efficiency ratio (streamed vs total shuffle bytes)
+sum(rate(spark_executor_shuffle_streaming_bytesStreamed[5m])) /
+sum(rate(spark_executor_shuffleBytesWritten_count[5m]))
+```
+
+#### Fallback Rate Panel (Counter)
+Tracks automatic fallbacks from streaming to sort-based shuffle.
+
+```promql
+# Total fallbacks
+sum(spark_executor_shuffle_streaming_fallbackCount)
+
+# Fallback rate trend
+sum(increase(spark_executor_shuffle_streaming_fallbackCount[1h]))
+```
+
+**Interpretation:**
+- Non-zero values indicate streaming conditions not consistently met
+- Review `spark.shuffle.streaming.*` configuration if fallbacks are frequent
+- Check for sustained consumer slowdown or memory pressure
+
+#### Producer Failure Detection Panel (Counter)
+Monitors partial read invalidations due to producer task failures.
+
+```promql
+# Partial read invalidations
+sum(spark_executor_shuffle_streaming_partialReadInvalidations)
+
+# Invalidation rate (indicates failure frequency)
+rate(spark_executor_shuffle_streaming_partialReadInvalidations[5m])
+```
+
+### Sample Grafana Dashboard JSON
+
+A complete Grafana dashboard JSON template for streaming shuffle monitoring is available at:
+`docs/monitoring/streaming-shuffle-dashboard.json` (when configured).
+
+To import into Grafana:
+1. Navigate to Dashboards → Import
+2. Upload the JSON file or paste the dashboard JSON
+3. Configure the Prometheus data source
+4. Adjust executor labels to match your deployment naming conventions
+
+## Streaming Shuffle Alerting Recommendations
+
+This section provides recommended alerting rules for streaming shuffle monitoring. Configure these
+alerts in your monitoring system (Prometheus Alertmanager, Grafana Alerts, or equivalent) to
+proactively detect streaming shuffle issues.
+
+### Critical Alerts
+
+#### Memory Exhaustion Alert
+Triggers when buffer utilization exceeds 95%, indicating imminent memory pressure.
+
+```yaml
+# Prometheus Alertmanager rule
+- alert: StreamingShuffleMemoryExhaustion
+  expr: max(spark_executor_shuffle_streaming_bufferUtilizationPercent) > 95
+  for: 1m
+  labels:
+    severity: critical
+  annotations:
+    summary: "Streaming shuffle buffer memory critically high"
+    description: "Buffer utilization exceeds 95% on executor {{ $labels.executor_id }}. Immediate spill expected. Consider increasing spark.shuffle.streaming.bufferSizePercent or reducing shuffle partition count."
+```
+
+**Escalation Procedure:**
+1. Check executor memory allocation and GC pressure
+2. Verify `spark.shuffle.streaming.spillThreshold` setting (default 80%)
+3. Consider temporary fallback via `spark.shuffle.streaming.enabled=false`
+4. Review job partition count and data skew
+
+#### Connection Timeout Spike Alert
+Detects sudden increase in backpressure events indicating network or consumer issues.
+
+```yaml
+- alert: StreamingShuffleBackpressureSpike
+  expr: sum(rate(spark_executor_shuffle_streaming_backpressureEvents[5m])) * 300 > 100
+  for: 2m
+  labels:
+    severity: warning
+  annotations:
+    summary: "High streaming shuffle backpressure detected"
+    description: "Backpressure events exceeding 100 per 5 minutes. Consumer executors may be overloaded or network congestion detected."
+```
+
+**Escalation Procedure:**
+1. Check consumer executor resource utilization (CPU, memory)
+2. Verify network connectivity and bandwidth between executors
+3. Review `spark.shuffle.streaming.heartbeatTimeoutMs` setting
+4. Check for GC pauses on consumer executors
+
+#### Checksum Failure Alert (Data Corruption)
+Monitors for any indication of data corruption via checksum validation failures.
+This metric is tracked internally and exposed when validation fails.
+
+```yaml
+- alert: StreamingShuffleChecksumFailure
+  expr: sum(increase(spark_executor_shuffle_streaming_checksumFailures[5m])) > 0
+  for: 0s
+  labels:
+    severity: critical
+  annotations:
+    summary: "Streaming shuffle data corruption detected"
+    description: "Checksum validation failure detected. Possible data corruption during network transfer. Immediate investigation required."
+```
+
+**Escalation Procedure:**
+1. Check network hardware for errors (NIC, switches)
+2. Verify no memory corruption on affected executors
+3. Review executor logs for detailed failure information
+4. Consider disabling streaming shuffle until root cause identified
+
+#### High Fallback Rate Alert
+Indicates streaming shuffle conditions consistently not being met.
+
+```yaml
+- alert: StreamingShuffleHighFallbackRate
+  expr: sum(increase(spark_executor_shuffle_streaming_fallbackCount[1h])) > 10
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Frequent streaming shuffle fallbacks detected"
+    description: "More than 10 fallbacks to sort-based shuffle in the past hour. Streaming conditions may not be suitable for current workload."
+```
+
+**Escalation Procedure:**
+1. Review fallback trigger conditions (consumer slowdown >60s, memory pressure)
+2. Analyze workload characteristics (shuffle data size, partition count)
+3. Consider workload-specific streaming shuffle configuration
+4. Evaluate if sort-based shuffle is more appropriate for the workload
+
+### Warning Alerts
+
+#### Elevated Spill Rate Alert
+Warns when disk spills exceed expected thresholds.
+
+```yaml
+- alert: StreamingShuffleElevatedSpillRate
+  expr: sum(rate(spark_executor_shuffle_streaming_spillCount[5m])) * 300 > 50
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Elevated streaming shuffle spill rate"
+    description: "More than 50 spill events per 5 minutes. Performance may be impacted. Consider increasing buffer size or reducing shuffle volume."
+```
+
+#### Producer Failure Detection Alert
+Monitors for increased partial read invalidations.
+
+```yaml
+- alert: StreamingShuffleProducerFailures
+  expr: sum(increase(spark_executor_shuffle_streaming_partialReadInvalidations[10m])) > 5
+  for: 2m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Multiple streaming shuffle producer failures"
+    description: "More than 5 producer failures detected in 10 minutes. Upstream task stability may be impacted."
+```
+
+### Alert Threshold Reference Table
+
+| Alert | Metric | Threshold | Duration | Severity |
+|-------|--------|-----------|----------|----------|
+| Memory Exhaustion | bufferUtilizationPercent | > 95% | 1 min | Critical |
+| Backpressure Spike | backpressureEvents rate | > 100/5min | 2 min | Warning |
+| Checksum Failure | checksumFailures increase | > 0 | Immediate | Critical |
+| High Fallback Rate | fallbackCount increase | > 10/hour | 5 min | Warning |
+| Elevated Spill Rate | spillCount rate | > 50/5min | 5 min | Warning |
+| Producer Failures | partialReadInvalidations | > 5/10min | 2 min | Warning |
+
+### Integration with Existing Spark Alerting
+
+These streaming shuffle alerts should be integrated with your existing Spark monitoring and alerting
+infrastructure. Key integration points:
+
+1. **Prometheus Alertmanager:** Add rules to your existing Spark alerting rule files
+2. **Grafana Alerts:** Configure alert conditions on streaming shuffle dashboard panels
+3. **PagerDuty/OpsGenie:** Route critical alerts to on-call rotation
+4. **Slack/Teams:** Send warning alerts to #spark-alerts channel
+
+For comprehensive Spark monitoring, combine streaming shuffle alerts with:
+- Executor memory and GC alerts
+- Task failure rate alerts
+- Shuffle fetch failure alerts
+- Stage completion time alerts
 
 # Advanced Instrumentation
 
