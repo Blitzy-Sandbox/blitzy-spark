@@ -4193,3 +4193,89 @@ Push-based shuffle helps improve the reliability and performance of spark shuffl
   <td>3.3.0</td>
 </tr>
 </table>
+
+# Streaming Shuffle Overview
+
+Streaming shuffle eliminates shuffle materialization latency by streaming data directly from producers (map tasks) to consumers (reduce tasks) with memory buffering and backpressure protocols. This feature targets 30-50% end-to-end latency reduction for shuffle-heavy workloads (10GB+ data, 100+ partitions) while maintaining complete backward compatibility.
+
+**Key Features:**
+- Direct producer-to-consumer data streaming without waiting for shuffle materialization
+- Memory buffer management with automatic disk spill when needed
+- Backpressure protocol for flow control between producers and consumers
+- Automatic fallback to sort-based shuffle when streaming conditions are not optimal
+- Zero data loss guarantee under all failure scenarios
+
+**Important Notes:**
+- Streaming shuffle is opt-in and disabled by default
+- Configuration changes require executor restart (no dynamic reconfiguration)
+- Coexists with existing SortShuffleManager which remains the production-stable fallback
+
+### Streaming Shuffle Configuration Options
+
+<table class="spark-config">
+<thead><tr><th>Property Name</th><th>Default</th><th>Meaning</th><th>Since Version</th></tr></thead>
+<tr>
+  <td><code>spark.shuffle.streaming.enabled</code></td>
+  <td><code>false</code></td>
+  <td>
+    Enable streaming shuffle mode for reduced latency. When set to true, Spark will use StreamingShuffleManager instead of the default SortShuffleManager. The streaming shuffle eliminates shuffle materialization latency by streaming data directly from producers to consumers.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
+  <td><code>20</code></td>
+  <td>
+    Percentage of executor memory to allocate for streaming shuffle buffers (range 1-50). Higher values allow more data buffering before disk spill but consume more executor memory. Formula: Buffer per partition = (executorMemory * bufferSizePercent) / numPartitions.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.spillThreshold</code></td>
+  <td><code>80</code></td>
+  <td>
+    Memory utilization percentage threshold to trigger automatic disk spill (range 50-95). When buffer utilization exceeds this threshold, the MemorySpillManager will select largest partitions for LRU eviction and spill to disk. Memory must be released within 100ms of spill trigger.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
+  <td><code>0</code> (unlimited)</td>
+  <td>
+    Maximum bandwidth in MB/s for streaming data transfer. When set to a positive value, implements token bucket rate limiting at 80% of the specified bandwidth. Use this to limit network utilization when streaming shuffle competes with other network traffic. Value of 0 means no bandwidth limiting.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.heartbeatTimeoutMs</code></td>
+  <td><code>5000</code></td>
+  <td>
+    Heartbeat timeout in milliseconds for producer failure detection. If a consumer does not receive data from a producer within this timeout, the producer is considered failed and partial reads are invalidated. The consumer will then trigger upstream recomputation via FetchFailedException.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.ackTimeoutMs</code></td>
+  <td><code>10000</code></td>
+  <td>
+    Acknowledgment timeout in milliseconds for consumer failure detection. If a producer does not receive acknowledgment from a consumer within this timeout, data is buffered in memory (or spilled to disk if memory pressure exists). Streaming will resume when consumer reconnects.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.debug</code></td>
+  <td><code>false</code></td>
+  <td>
+    Enable debug logging for streaming shuffle events. When enabled, detailed logs about buffer allocation, spill events, backpressure signals, and streaming transfers will be emitted. Warning: Enable only for debugging as it may increase log volume beyond the normal &lt;10MB/hour limit.
+  </td>
+  <td>4.2.0</td>
+</tr>
+</table>
+
+**Automatic Fallback Conditions:**
+
+The streaming shuffle will automatically fall back to sort-based shuffle under these conditions:
+- Consumer is 2x slower than producer for >60 seconds
+- Memory pressure prevents buffer allocation
+- Network saturation exceeds 90% link capacity
+- Producer/consumer protocol version mismatch
