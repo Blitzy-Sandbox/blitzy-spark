@@ -2919,4 +2919,77 @@ package object config {
       .checkValue(v => v.forall(Set("stdout", "stderr").contains),
         "The value only can be one or more of 'stdout, stderr'.")
       .createWithDefault(Seq("stdout", "stderr"))
+
+  // ==============================================================================================
+  // Streaming Shuffle Configuration
+  // ==============================================================================================
+
+  private[spark] val SHUFFLE_STREAMING_ENABLED =
+    ConfigBuilder("spark.shuffle.streaming.enabled")
+      .doc("Enable streaming shuffle mode for reduced latency. When enabled, shuffle data is " +
+        "streamed directly from producers to consumers with memory buffering and backpressure " +
+        "protocols, eliminating shuffle materialization latency. This feature targets 30-50% " +
+        "end-to-end latency reduction for shuffle-heavy workloads (10GB+ data, 100+ partitions).")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  private[spark] val SHUFFLE_STREAMING_BUFFER_SIZE_PERCENT =
+    ConfigBuilder("spark.shuffle.streaming.bufferSizePercent")
+      .doc("Percentage of executor memory allocated for streaming shuffle buffers. " +
+        "Per-partition buffer size is calculated as (executorMemory * bufferPercent) / numPartitions. " +
+        "Higher values improve throughput but increase memory pressure.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(v => v >= 1 && v <= 50, "Must be between 1 and 50")
+      .createWithDefault(20)
+
+  private[spark] val SHUFFLE_STREAMING_SPILL_THRESHOLD =
+    ConfigBuilder("spark.shuffle.streaming.spillThreshold")
+      .doc("Buffer utilization percentage that triggers disk spill. When buffer utilization " +
+        "exceeds this threshold, the MemorySpillManager initiates LRU eviction to disk. " +
+        "Lower values provide more headroom but increase spill frequency.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(v => v >= 50 && v <= 95, "Must be between 50 and 95")
+      .createWithDefault(80)
+
+  private[spark] val SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS =
+    ConfigBuilder("spark.shuffle.streaming.maxBandwidthMBps")
+      .doc("Maximum bandwidth for streaming shuffle in MB/s. When set, token bucket rate " +
+        "limiting is applied at 80% of this value to prevent network saturation. " +
+        "If not set, no bandwidth limiting is applied.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(_ > 0, "Must be positive")
+      .createOptional
+
+  private[spark] val SHUFFLE_STREAMING_HEARTBEAT_TIMEOUT_MS =
+    ConfigBuilder("spark.shuffle.streaming.heartbeatTimeoutMs")
+      .doc("Heartbeat timeout for flow control in milliseconds. If no heartbeat is received " +
+        "from a consumer within this interval, the producer considers the consumer stalled " +
+        "and may trigger backpressure protocols or fallback to disk-based shuffle.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(_ > 0, "Must be positive")
+      .createWithDefault(5000)
+
+  private[spark] val SHUFFLE_STREAMING_ACK_TIMEOUT_MS =
+    ConfigBuilder("spark.shuffle.streaming.ackTimeoutMs")
+      .doc("Acknowledgment timeout for consumer liveness in milliseconds. If no acknowledgment " +
+        "is received for transmitted blocks within this interval, the producer buffers " +
+        "unacknowledged data in memory or spills to disk for potential retransmission.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(_ > 0, "Must be positive")
+      .createWithDefault(10000)
+
+  private[spark] val SHUFFLE_STREAMING_DEBUG =
+    ConfigBuilder("spark.shuffle.streaming.debug")
+      .doc("Enable debug logging for streaming shuffle events. When enabled, detailed logs " +
+        "are emitted for buffer allocation, spill events, backpressure signals, and data " +
+        "transfer operations. Note: Debug logging may impact performance and increase log volume.")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
 }
