@@ -19,13 +19,10 @@ package org.apache.spark.shuffle.streaming
 
 import java.io.File
 import java.nio.ByteBuffer
-import java.util.UUID
 import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
-import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
+import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection.mutable
-
-import org.mockito.ArgumentMatchers.{any, anyInt, anyLong}
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.concurrent.Eventually
@@ -33,7 +30,7 @@ import org.scalatest.time.{Milliseconds, Seconds, Span}
 import org.scalatestplus.mockito.MockitoSugar
 
 import org.apache.spark.{SparkConf, SparkFunSuite}
-import org.apache.spark.memory.{MemoryMode, TaskMemoryManager, TestMemoryManager}
+import org.apache.spark.memory.{TaskMemoryManager, TestMemoryManager}
 import org.apache.spark.storage.{BlockManager, DiskBlockManager, TempShuffleBlockId}
 import org.apache.spark.util.Utils
 
