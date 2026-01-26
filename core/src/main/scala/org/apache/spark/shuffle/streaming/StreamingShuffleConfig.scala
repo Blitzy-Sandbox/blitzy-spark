@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle.streaming
 
 import org.apache.spark.SparkConf
-import org.apache.spark.internal.config.ConfigBuilder
+import org.apache.spark.internal.config._
 
 /**
  * Configuration wrapper class that parses and validates all spark.shuffle.streaming.* parameters.
@@ -55,7 +55,7 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
    *
    * @return true if streaming shuffle is enabled, false otherwise
    */
-  def isEnabled: Boolean = conf.get(StreamingShuffleConfig.STREAMING_ENABLED)
+  def isEnabled: Boolean = conf.get(SHUFFLE_STREAMING_ENABLED)
 
   /**
    * Returns the percentage of executor memory allocated for streaming buffers.
@@ -68,7 +68,7 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
    *
    * @return buffer size as percentage of executor memory
    */
-  def bufferSizePercent: Int = conf.get(StreamingShuffleConfig.BUFFER_SIZE_PERCENT)
+  def bufferSizePercent: Int = conf.get(SHUFFLE_STREAMING_BUFFER_SIZE_PERCENT)
 
   /**
    * Returns the buffer utilization threshold percentage that triggers disk spill.
@@ -82,20 +82,20 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
    *
    * @return spill threshold as percentage of buffer utilization
    */
-  def spillThresholdPercent: Int = conf.get(StreamingShuffleConfig.SPILL_THRESHOLD)
+  def spillThresholdPercent: Int = conf.get(SHUFFLE_STREAMING_SPILL_THRESHOLD)
 
   /**
    * Returns the maximum bandwidth in MB/s for streaming shuffle transfers.
    * 
    * Token bucket rate limiting is applied at 80% of this value to prevent
-   * network saturation. A value of 0 means unlimited bandwidth.
+   * network saturation. A value of 0 means unlimited bandwidth (config not set).
    * 
-   * Valid range: >= 0
-   * Default: 0 (unlimited)
+   * Valid range: > 0 when set, 0 means unlimited
+   * Default: 0 (unlimited - config not set)
    *
    * @return maximum bandwidth in MB/s, or 0 for unlimited
    */
-  def maxBandwidthMBps: Int = conf.get(StreamingShuffleConfig.MAX_BANDWIDTH_MBPS)
+  def maxBandwidthMBps: Int = conf.get(SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS).getOrElse(0)
 
   /**
    * Returns the heartbeat timeout in milliseconds for producer failure detection.
@@ -109,7 +109,7 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
    *
    * @return heartbeat timeout in milliseconds
    */
-  def heartbeatTimeoutMs: Int = conf.get(StreamingShuffleConfig.HEARTBEAT_TIMEOUT_MS)
+  def heartbeatTimeoutMs: Int = conf.get(SHUFFLE_STREAMING_HEARTBEAT_TIMEOUT_MS)
 
   /**
    * Returns the acknowledgment timeout in milliseconds for consumer failure detection.
@@ -123,7 +123,7 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
    *
    * @return acknowledgment timeout in milliseconds
    */
-  def ackTimeoutMs: Int = conf.get(StreamingShuffleConfig.ACK_TIMEOUT_MS)
+  def ackTimeoutMs: Int = conf.get(SHUFFLE_STREAMING_ACK_TIMEOUT_MS)
 
   /**
    * Returns whether debug logging is enabled for streaming shuffle events.
@@ -136,7 +136,7 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
    *
    * @return true if debug logging is enabled, false otherwise
    */
-  def isDebug: Boolean = conf.get(StreamingShuffleConfig.DEBUG)
+  def isDebug: Boolean = conf.get(SHUFFLE_STREAMING_DEBUG)
 
   /**
    * Validates that the configuration is internally consistent.
@@ -190,11 +190,11 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 }
 
 /**
- * Companion object containing ConfigEntry definitions for streaming shuffle configuration.
+ * Companion object providing aliases to config entries and factory method.
  * 
- * All configuration entries follow Apache Spark's ConfigBuilder pattern with proper
- * validation, documentation, and version tracking. These entries integrate with
- * Spark's configuration system for consistent parameter handling.
+ * The actual ConfigEntry definitions are in org.apache.spark.internal.config package
+ * to follow Spark's convention of centralizing all configuration entries.
+ * This object provides convenient aliases for use within the streaming shuffle package.
  *
  * Configuration Naming Convention:
  * All streaming shuffle configuration parameters use the prefix "spark.shuffle.streaming."
@@ -212,146 +212,46 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 private[spark] object StreamingShuffleConfig {
 
   /**
+   * Alias for SHUFFLE_STREAMING_ENABLED config entry.
    * Main feature flag for streaming shuffle mode.
-   * 
-   * When set to true, eligible shuffles will use the streaming shuffle path
-   * for reduced latency. When false (default), the existing SortShuffleManager
-   * behavior is preserved with zero impact.
-   *
-   * Target Improvement:
-   * - 30-50% end-to-end latency reduction for shuffle-heavy workloads (10GB+ data, 100+ partitions)
-   * - 5-10% improvement for CPU-bound workloads through reduced scheduler overhead
    */
-  val STREAMING_ENABLED = ConfigBuilder("spark.shuffle.streaming.enabled")
-    .doc("Enable streaming shuffle mode for reduced latency. " +
-      "When enabled, eligible shuffles will stream data directly from producers to consumers " +
-      "with memory buffering and backpressure protocols, eliminating shuffle materialization latency. " +
-      "Default is false (opt-in) to ensure zero impact on existing deployments.")
-    .version("4.2.0")
-    .booleanConf
-    .createWithDefault(false)
+  val STREAMING_ENABLED = SHUFFLE_STREAMING_ENABLED
 
   /**
+   * Alias for SHUFFLE_STREAMING_BUFFER_SIZE_PERCENT config entry.
    * Percentage of executor memory allocated for streaming shuffle buffers.
-   * 
-   * This determines the total memory budget for all streaming shuffle buffers
-   * within an executor. Per-partition buffer size is calculated as:
-   * (executorMemory * bufferSizePercent / 100) / numPartitions
-   *
-   * Lower values reduce memory pressure but may trigger more frequent disk spills.
-   * Higher values improve streaming throughput but increase memory footprint.
    */
-  val BUFFER_SIZE_PERCENT = ConfigBuilder("spark.shuffle.streaming.bufferSizePercent")
-    .doc("Percentage of executor memory allocated for streaming shuffle buffers. " +
-      "Per-partition buffer size is calculated as (executorMemory * bufferSizePercent) / numPartitions. " +
-      "Valid range: 1-50. Default: 20.")
-    .version("4.2.0")
-    .intConf
-    .checkValue(v => v >= 1 && v <= 50, "Must be between 1 and 50 percent")
-    .createWithDefault(20)
+  val BUFFER_SIZE_PERCENT = SHUFFLE_STREAMING_BUFFER_SIZE_PERCENT
 
   /**
+   * Alias for SHUFFLE_STREAMING_SPILL_THRESHOLD config entry.
    * Buffer utilization threshold percentage that triggers disk spill.
-   * 
-   * When buffer utilization exceeds this threshold, MemorySpillManager will
-   * automatically spill the largest buffered partitions to disk using LRU eviction.
-   * The spill response time is guaranteed to be <100ms from threshold trigger.
-   *
-   * Lower values trigger spills earlier, reducing memory pressure but increasing I/O.
-   * Higher values maximize memory usage but risk memory exhaustion under pressure.
    */
-  val SPILL_THRESHOLD = ConfigBuilder("spark.shuffle.streaming.spillThreshold")
-    .doc("Buffer utilization percentage threshold that triggers automatic disk spill. " +
-      "When buffer utilization exceeds this threshold, the largest buffered partitions " +
-      "are spilled to disk using LRU eviction with <100ms response time. " +
-      "Valid range: 50-95. Default: 80.")
-    .version("4.2.0")
-    .intConf
-    .checkValue(v => v >= 50 && v <= 95, "Must be between 50 and 95 percent")
-    .createWithDefault(80)
+  val SPILL_THRESHOLD = SHUFFLE_STREAMING_SPILL_THRESHOLD
 
   /**
+   * Alias for SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS config entry.
    * Maximum bandwidth in MB/s for streaming shuffle transfers.
-   * 
-   * Token bucket rate limiting is applied at 80% of this value to prevent
-   * network saturation while ensuring fair sharing among concurrent shuffles.
-   * A value of 0 disables bandwidth limiting (unlimited).
-   *
-   * Use this to prevent streaming shuffle from saturating network links
-   * that are shared with other applications or Spark components.
    */
-  val MAX_BANDWIDTH_MBPS = ConfigBuilder("spark.shuffle.streaming.maxBandwidthMBps")
-    .doc("Maximum bandwidth in MB/s for streaming shuffle transfers. " +
-      "Token bucket rate limiting is applied at 80% of this value to prevent network saturation. " +
-      "Set to 0 for unlimited bandwidth. Default: 0 (unlimited).")
-    .version("4.2.0")
-    .intConf
-    .checkValue(v => v >= 0, "Must be non-negative (0 for unlimited)")
-    .createWithDefault(0)
+  val MAX_BANDWIDTH_MBPS = SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS
 
   /**
+   * Alias for SHUFFLE_STREAMING_HEARTBEAT_TIMEOUT_MS config entry.
    * Heartbeat timeout in milliseconds for producer failure detection.
-   * 
-   * StreamingShuffleReader uses this timeout to detect when a producer has failed.
-   * If no heartbeat is received within this timeout, the consumer invalidates
-   * all partial reads from the failed producer and triggers upstream recomputation
-   * via FetchFailedException.
-   *
-   * Shorter values enable faster failure detection but increase false positives
-   * during GC pauses or temporary network issues.
    */
-  val HEARTBEAT_TIMEOUT_MS = ConfigBuilder("spark.shuffle.streaming.heartbeatTimeoutMs")
-    .doc("Heartbeat timeout in milliseconds for producer failure detection. " +
-      "If no heartbeat is received from a producer within this timeout, " +
-      "the consumer will detect the producer as failed and trigger upstream recomputation. " +
-      "Default: 5000 (5 seconds).")
-    .version("4.2.0")
-    .intConf
-    .checkValue(v => v > 0, "Must be positive")
-    .createWithDefault(5000)
+  val HEARTBEAT_TIMEOUT_MS = SHUFFLE_STREAMING_HEARTBEAT_TIMEOUT_MS
 
   /**
+   * Alias for SHUFFLE_STREAMING_ACK_TIMEOUT_MS config entry.
    * Acknowledgment timeout in milliseconds for consumer failure detection.
-   * 
-   * StreamingShuffleWriter uses this timeout to detect when a consumer has failed
-   * or is significantly slower than expected. If no acknowledgment is received
-   * within this timeout, the producer buffers unacknowledged data and may trigger
-   * disk spill if memory pressure increases.
-   *
-   * Consumer slowdown (2x slower than producer for >60s) triggers automatic
-   * fallback to SortShuffleManager for the affected shuffle.
    */
-  val ACK_TIMEOUT_MS = ConfigBuilder("spark.shuffle.streaming.ackTimeoutMs")
-    .doc("Acknowledgment timeout in milliseconds for consumer failure detection. " +
-      "If no acknowledgment is received from a consumer within this timeout, " +
-      "the producer will buffer unacknowledged data and potentially trigger disk spill. " +
-      "Default: 10000 (10 seconds).")
-    .version("4.2.0")
-    .intConf
-    .checkValue(v => v > 0, "Must be positive")
-    .createWithDefault(10000)
+  val ACK_TIMEOUT_MS = SHUFFLE_STREAMING_ACK_TIMEOUT_MS
 
   /**
+   * Alias for SHUFFLE_STREAMING_DEBUG config entry.
    * Enable debug logging for streaming shuffle events.
-   * 
-   * When enabled, additional debug-level logs are emitted including:
-   * - Buffer allocation and deallocation events
-   * - Spill trigger and completion events
-   * - Backpressure signal events
-   * - Heartbeat and acknowledgment events
-   * - Producer/consumer failure detection events
-   *
-   * Note: Log volume is capped at <10MB/hour per executor to prevent log exhaustion.
-   * Telemetry overhead must be limited to <1% CPU utilization.
    */
-  val DEBUG = ConfigBuilder("spark.shuffle.streaming.debug")
-    .doc("Enable debug logging for streaming shuffle events. " +
-      "When enabled, additional debug-level logs are emitted for buffer allocation, " +
-      "spill events, backpressure signals, and failure detection. " +
-      "Log volume is capped at <10MB/hour per executor. Default: false.")
-    .version("4.2.0")
-    .booleanConf
-    .createWithDefault(false)
+  val DEBUG = SHUFFLE_STREAMING_DEBUG
 
   /**
    * Creates a StreamingShuffleConfig instance from the given SparkConf.
