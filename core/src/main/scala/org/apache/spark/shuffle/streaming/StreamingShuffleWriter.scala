@@ -27,9 +27,8 @@ import scala.collection.mutable
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.{MemoryConsumer, MemoryMode, TaskMemoryManager}
-import org.apache.spark.network.client.{TransportClient, TransportClientFactory}
 import org.apache.spark.scheduler.MapStatus
-import org.apache.spark.serializer.{SerializationStream, SerializerInstance}
+import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.shuffle.{ShuffleWriteMetricsReporter, ShuffleWriter}
 import org.apache.spark.storage.{BlockManager, ShuffleBlockId}
 
@@ -843,7 +842,7 @@ private[spark] class StreamingShuffleWriter[K, V, C](
         blockResolver.markBlockSpilled(
           blockId,
           spillInfo.file,
-          spillInfo.spillOffset,
+          0L,  // Data starts at beginning of spill file
           spillInfo.size
         )
       }
