@@ -267,6 +267,42 @@ private[spark] class BackpressureProtocol(
     math.max(allocatedBandwidth, minAllocation)
   }
 
+  /**
+   * Gets the current fair bandwidth allocation for a shuffle based on all registered shuffles.
+   *
+   * This method calculates what the fair share would be given the current set of registered
+   * shuffles. This is useful for querying allocations after all concurrent shuffles have been
+   * registered to get the actual fair shares.
+   *
+   * @param shuffleId The shuffle ID to query allocation for
+   * @return The current fair bandwidth allocation in bytes per second, or 0 if not registered
+   */
+  def getCurrentBandwidthAllocation(shuffleId: Int): Long = {
+    // If bandwidth limiting is disabled, return maximum
+    if (maxBandwidthMBps <= 0) {
+      return Long.MaxValue
+    }
+
+    val (priorityScore, totalScore) = priorityLock.synchronized {
+      val score = shufflePriorityScores.getOrElse(shuffleId, 0.0)
+      val total = shufflePriorityScores.values.sum
+      (score, total)
+    }
+
+    // Not registered
+    if (priorityScore <= 0 || totalScore <= 0) {
+      return 0L
+    }
+
+    // Calculate this shuffle's share of total bandwidth
+    val share = priorityScore / totalScore
+    val allocatedBandwidth = (config.effectiveBandwidthBytesPerSecond * share).toLong
+
+    // Ensure minimum allocation to prevent starvation
+    val minAllocation = 1024L * 1024L  // 1MB/s minimum
+    math.max(allocatedBandwidth, minAllocation)
+  }
+
   // ============================================================================
   // Acknowledgment Processing
   // ============================================================================
@@ -342,7 +378,8 @@ private[spark] class BackpressureProtocol(
 
     // Calculate consumer consumption rate
     val elapsedMs = currentTime - info.startTime
-    if (elapsedMs <= 0) {
+    if (elapsedMs < 0) {
+      // Only return false if time went backwards (clock skew), not for 0ms elapsed
       return false
     }
 
@@ -534,7 +571,14 @@ private[spark] class BackpressureProtocol(
     val lastAck = info.lastAckTime.get()
     if (lastAck == 0L) {
       // No ack received yet - use start time as reference
-      return (currentTime - info.startTime) > ackTimeoutMs
+      val elapsed = currentTime - info.startTime
+      val timedOut = elapsed > ackTimeoutMs
+      if (timedOut) {
+        logWarning(s"Acknowledgment timeout detected for consumer $consumerId. " +
+          s"No ack received since registration, elapsed: ${elapsed}ms, timeout threshold: ${ackTimeoutMs}ms")
+        metrics.incBackpressureEvents()
+      }
+      return timedOut
     }
     
     val elapsed = currentTime - lastAck

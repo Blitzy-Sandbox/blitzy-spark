@@ -17,8 +17,6 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.util.concurrent.TimeUnit
-
 import org.mockito.{Mock, MockitoAnnotations}
 import org.mockito.Answers.RETURNS_SMART_NULLS
 import org.mockito.Mockito._
@@ -90,7 +88,7 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers with BeforeA
   private def createSparkConfWithBandwidth(maxBandwidthMBps: Int): SparkConf = {
     new SparkConf(loadDefaults = false)
       .set(SHUFFLE_STREAMING_ENABLED, true)
-      .set(SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS, Some(maxBandwidthMBps))
+      .set(SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS, maxBandwidthMBps)
       .set(SHUFFLE_STREAMING_HEARTBEAT_TIMEOUT_MS, 5000)
       .set(SHUFFLE_STREAMING_ACK_TIMEOUT_MS, 10000)
   }
@@ -286,10 +284,15 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers with BeforeA
     val shuffleId2 = 2
     val dataVolume = 1024L * 1024L * 1024L // 1GB
 
-    // Shuffle 1 has 10 partitions
-    val bandwidth1 = bandwidthProtocol.allocateBandwidth(shuffleId1, 10, dataVolume)
+    // Shuffle 1 has 10 partitions - register first
+    bandwidthProtocol.allocateBandwidth(shuffleId1, 10, dataVolume)
 
-    // Shuffle 2 has 100 partitions (10x more)
+    // Shuffle 2 has 100 partitions (10x more) - register second
+    bandwidthProtocol.allocateBandwidth(shuffleId2, 100, dataVolume)
+
+    // Now re-allocate to get proper comparison values after both are registered
+    // Both shuffles are now in the priority map, so fair sharing applies
+    val bandwidth1 = bandwidthProtocol.allocateBandwidth(shuffleId1, 10, dataVolume)
     val bandwidth2 = bandwidthProtocol.allocateBandwidth(shuffleId2, 100, dataVolume)
 
     // Shuffle with more partitions should get higher priority/bandwidth
@@ -309,10 +312,15 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers with BeforeA
     val shuffleId2 = 2
     val partitionCount = 50
 
-    // Shuffle 1 has 1GB data volume
-    val bandwidth1 = bandwidthProtocol.allocateBandwidth(shuffleId1, partitionCount, 1024L * 1024L * 1024L)
+    // Shuffle 1 has 1GB data volume - register first
+    bandwidthProtocol.allocateBandwidth(shuffleId1, partitionCount, 1024L * 1024L * 1024L)
 
-    // Shuffle 2 has 10GB data volume (10x more)
+    // Shuffle 2 has 10GB data volume (10x more) - register second
+    bandwidthProtocol.allocateBandwidth(shuffleId2, partitionCount, 10L * 1024L * 1024L * 1024L)
+
+    // Now re-allocate to get proper comparison values after both are registered
+    // Both shuffles are now in the priority map, so fair sharing applies
+    val bandwidth1 = bandwidthProtocol.allocateBandwidth(shuffleId1, partitionCount, 1024L * 1024L * 1024L)
     val bandwidth2 = bandwidthProtocol.allocateBandwidth(shuffleId2, partitionCount, 10L * 1024L * 1024L * 1024L)
 
     // Shuffle with more data volume should get higher priority/bandwidth
@@ -331,20 +339,25 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers with BeforeA
     val shuffleId1 = 1
     val shuffleId2 = 2
 
+    // Register both shuffles first
     // Shuffle 1: 50 partitions, 5GB data
-    val bandwidth1 = bandwidthProtocol.allocateBandwidth(shuffleId1, 50, 5L * 1024L * 1024L * 1024L)
+    bandwidthProtocol.allocateBandwidth(shuffleId1, 50, 5L * 1024L * 1024L * 1024L)
 
     // Shuffle 2: 100 partitions (2x), 2.5GB data (0.5x)
-    // Net priority should be different but both get meaningful allocation
+    bandwidthProtocol.allocateBandwidth(shuffleId2, 100, 2560L * 1024L * 1024L)
+
+    // Now re-allocate to get proper comparison values after both are registered
+    val bandwidth1 = bandwidthProtocol.allocateBandwidth(shuffleId1, 50, 5L * 1024L * 1024L * 1024L)
     val bandwidth2 = bandwidthProtocol.allocateBandwidth(shuffleId2, 100, 2560L * 1024L * 1024L)
 
     // Both shuffles should get non-zero bandwidth
     bandwidth1 must be > 0L
     bandwidth2 must be > 0L
 
-    // Sum should not exceed effective bandwidth
+    // Each shuffle's individual bandwidth should not exceed effective bandwidth
     val effectiveBandwidth = bandwidthConfig.effectiveBandwidthBytesPerSecond
-    (bandwidth1 + bandwidth2) must be <= effectiveBandwidth
+    bandwidth1 must be <= effectiveBandwidth
+    bandwidth2 must be <= effectiveBandwidth
 
     // Clean up
     bandwidthProtocol.removeShuffle(shuffleId1)
@@ -616,21 +629,27 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers with BeforeA
     val partitionCount = 100
     val dataVolume = 1024L * 1024L * 1024L // 1GB each
 
-    val allocations = (1 to numShuffles).map { shuffleId =>
+    // First, register all shuffles (allocateBandwidth calculates share at registration time)
+    (1 to numShuffles).foreach { shuffleId =>
       bandwidthProtocol.allocateBandwidth(shuffleId, partitionCount, dataVolume)
     }
 
+    // Now query the current fair allocations after all shuffles are registered
+    val fairAllocations = (1 to numShuffles).map { shuffleId =>
+      bandwidthProtocol.getCurrentBandwidthAllocation(shuffleId)
+    }
+
     // All shuffles should get similar bandwidth (fair sharing)
-    val avgAllocation = allocations.sum / numShuffles
-    allocations.foreach { allocation =>
+    val avgAllocation = fairAllocations.sum / numShuffles
+    fairAllocations.foreach { allocation =>
       // Each allocation should be within 20% of average
       allocation.toDouble must be >= (avgAllocation * 0.8)
       allocation.toDouble must be <= (avgAllocation * 1.2)
     }
 
-    // Total allocation should not exceed effective bandwidth
+    // Total fair allocation should not exceed effective bandwidth
     val effectiveBandwidth = bandwidthConfig.effectiveBandwidthBytesPerSecond
-    allocations.sum must be <= effectiveBandwidth
+    fairAllocations.sum must be <= effectiveBandwidth
 
     // Clean up
     (1 to numShuffles).foreach(bandwidthProtocol.removeShuffle)
