@@ -28,11 +28,10 @@ import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.LogKeys.{BLOCK_ID, BYTE_SIZE, MAP_ID, NUM_BLOCKS, PARTITION_ID, SHUFFLE_ID}
-import org.apache.spark.internal.MDC
+import org.apache.spark.internal.LogKeys.{BLOCK_ID, BYTE_SIZE, CONSUMER, ELAPSED_TIME, ERROR, MAP_ID, NUM_BLOCKS, PARTITION_ID, SHUFFLE_ID, TIMEOUT}
 import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.{BaseShuffleHandle, FetchFailedException, ShuffleHandle, ShuffleReader, ShuffleReadMetricsReporter}
-import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleBlockId}
+import org.apache.spark.storage.{BlockId, BlockManager, ShuffleBlockId}
 import org.apache.spark.util.CompletionIterator
 
 /**
@@ -318,7 +317,8 @@ private[spark] class StreamingShuffleReader[K, C](
                     }
                   } catch {
                     case e: IOException =>
-                      logWarning(log"Failed to fetch block ${MDC(BLOCK_ID, blockId)}: ${e.getMessage}")
+                      logWarning(log"Failed to fetch block ${MDC(BLOCK_ID, blockId)}: " +
+                        log"${MDC(ERROR, e.getMessage)}")
                       // Will retry on next poll
                   }
                   
@@ -397,7 +397,8 @@ private[spark] class StreamingShuffleReader[K, C](
       
       logWarning(log"Producer failure detected for map ${MDC(MAP_ID, mapId)} " +
         log"in shuffle ${MDC(SHUFFLE_ID, shuffleId)}. " +
-        log"Last heartbeat: ${elapsed}ms ago, timeout: ${heartbeatTimeoutMs}ms")
+        log"Last heartbeat: ${MDC(ELAPSED_TIME, elapsed)}ms ago, " +
+        log"timeout: ${MDC(TIMEOUT, heartbeatTimeoutMs)}ms")
       
       // Check if we should use backpressure protocol for heartbeat check
       if (backpressureProtocol.checkHeartbeatTimeout(consumerId)) {
@@ -489,7 +490,7 @@ private[spark] class StreamingShuffleReader[K, C](
       return
     }
 
-    logWarning(log"Invalidating all partial reads for consumer $consumerId " +
+    logWarning(log"Invalidating all partial reads for consumer ${MDC(CONSUMER, consumerId)} " +
       log"in shuffle ${MDC(SHUFFLE_ID, shuffleId)}")
 
     // Count invalidated blocks for metrics
@@ -512,7 +513,7 @@ private[spark] class StreamingShuffleReader[K, C](
     metrics.incPartialReadInvalidations()
 
     logInfo(log"Invalidated ${MDC(NUM_BLOCKS, invalidatedBlockCount)} blocks " +
-      log"(${MDC(BYTE_SIZE, invalidatedBytes)} bytes) for consumer $consumerId")
+      log"(${MDC(BYTE_SIZE, invalidatedBytes)} bytes) for consumer ${MDC(CONSUMER, consumerId)}")
 
     // Unregister from backpressure protocol
     backpressureProtocol.unregisterConsumer(consumerId)
@@ -610,7 +611,7 @@ private[spark] class StreamingShuffleReader[K, C](
       startMapIndex.toLong
     } else {
       import scala.jdk.CollectionConverters._
-      failedProducers.keys().asScala.headOption.getOrElse(startMapIndex.toLong)
+      failedProducers.keys().asScala.nextOption().getOrElse(startMapIndex.toLong)
     }
 
     new FetchFailedException(
@@ -627,7 +628,7 @@ private[spark] class StreamingShuffleReader[K, C](
    * Cleanup resources after read completion or failure.
    */
   private def cleanup(): Unit = {
-    logInfo(log"Cleaning up StreamingShuffleReader for consumer $consumerId")
+    logInfo(log"Cleaning up StreamingShuffleReader for consumer ${MDC(CONSUMER, consumerId)}")
 
     // Unregister from backpressure protocol
     try {
