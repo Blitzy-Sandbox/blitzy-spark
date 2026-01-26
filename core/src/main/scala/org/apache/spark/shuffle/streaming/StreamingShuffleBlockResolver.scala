@@ -24,9 +24,12 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters._
 
-import org.apache.spark.{SecurityManager, SparkConf, SparkEnv}
-import org.apache.spark.internal.{Logging, LogKeys, MDC}
-import org.apache.spark.internal.LogKeys.{BLOCK_ID, PATH, SHUFFLE_ID, MAP_ID}
+import org.apache.spark.SecurityManager
+import org.apache.spark.SparkConf
+import org.apache.spark.SparkEnv
+import org.apache.spark.internal.Logging
+import org.apache.spark.internal.LogKeys
+import org.apache.spark.internal.LogKeys.{BLOCK_ID, BYTE_SIZE, CHECKSUM, MAP_ID, SHUFFLE_ID}
 import org.apache.spark.network.buffer.{FileSegmentManagedBuffer, ManagedBuffer, NioManagedBuffer}
 import org.apache.spark.network.netty.SparkTransportConf
 import org.apache.spark.network.shuffle.MergedBlockMeta
@@ -256,7 +259,7 @@ private[spark] class StreamingShuffleBlockResolver(
             case Some(file) =>
               if (file.exists()) {
                 logDebug(log"Resolving spilled block ${MDC(BLOCK_ID, blockId)} " +
-                  log"from ${MDC(PATH, file.getPath)}")
+                  log"from ${MDC(LogKeys.PATH, file.getPath)}")
                 new FileSegmentManagedBuffer(
                   transportConf,
                   file,
@@ -344,8 +347,8 @@ private[spark] class StreamingShuffleBlockResolver(
       dirs: Option[Array[String]]): Seq[ManagedBuffer] = {
     // Streaming shuffle does not support merged blocks
     // Return empty sequence - the caller should fall back to standard resolution
-    logDebug(log"getMergedBlockData called for ${MDC(BLOCK_ID, blockId)} " +
-      "- streaming shuffle does not support merged blocks")
+    logDebug(log"getMergedBlockData called for ${MDC(BLOCK_ID, blockId)} - " +
+      log"streaming shuffle does not support merged blocks")
     Seq.empty
   }
 
@@ -365,8 +368,8 @@ private[spark] class StreamingShuffleBlockResolver(
       blockId: ShuffleMergedBlockId,
       dirs: Option[Array[String]]): MergedBlockMeta = {
     // Streaming shuffle does not support merged blocks
-    logDebug(log"getMergedBlockMeta called for ${MDC(BLOCK_ID, blockId)} " +
-      "- streaming shuffle does not support merged blocks")
+    logDebug(log"getMergedBlockMeta called for ${MDC(BLOCK_ID, blockId)} - " +
+      log"streaming shuffle does not support merged blocks")
     null
   }
 
@@ -413,7 +416,7 @@ private[spark] class StreamingShuffleBlockResolver(
     }
 
     logDebug(log"Registered in-flight block ${MDC(BLOCK_ID, blockId)} " +
-      s"with ${buffer.remaining()} bytes, checksum=$checksum")
+      log"with ${MDC(BYTE_SIZE, buffer.remaining())} bytes, checksum=${MDC(CHECKSUM, checksum)}")
 
     info
   }
@@ -440,7 +443,8 @@ private[spark] class StreamingShuffleBlockResolver(
     if (info != null) {
       info.markSpilled(spillFile, offset, length)
       logDebug(log"Marked block ${MDC(BLOCK_ID, blockId)} as spilled to " +
-        log"${MDC(PATH, spillFile.getPath)}, offset=$offset, length=$length")
+        log"${MDC(LogKeys.PATH, spillFile.getPath)}, offset=${MDC(LogKeys.OFFSET, offset)}, " +
+        log"length=${MDC(LogKeys.BYTE_SIZE, length)}")
       true
     } else {
       logWarning(log"Attempted to mark non-existent block ${MDC(BLOCK_ID, blockId)} as spilled")
