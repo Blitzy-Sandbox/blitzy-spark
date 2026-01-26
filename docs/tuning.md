@@ -327,6 +327,189 @@ between each level can be configured individually or all together in one paramet
 You should increase these settings if your tasks are long and see poor locality, but the default
 usually works well.
 
+# Streaming Shuffle Tuning
+
+Streaming shuffle is an optional feature that can significantly reduce shuffle latency for certain workloads
+by streaming data directly from map (producer) tasks to reduce (consumer) tasks with memory buffering and
+backpressure protocols. This section covers how to enable, configure, and optimize streaming shuffle for
+your Spark applications.
+
+## When to Enable Streaming Shuffle
+
+Streaming shuffle is designed for shuffle-heavy workloads and provides the greatest benefit under specific
+conditions. Consider enabling streaming shuffle when:
+
+- **Shuffle-heavy workloads**: Your jobs process 10GB+ of shuffle data with 100+ partitions. These workloads
+  can see **30-50% latency reduction** compared to the default sort-based shuffle.
+- **Latency-critical jobs**: When end-to-end job completion time is critical, streaming shuffle eliminates
+  the shuffle materialization latency by pipelining data transfer.
+- **CPU-bound workloads**: Even for workloads that aren't shuffle-heavy, streaming shuffle can deliver
+  **5-10% improvement** through reduced scheduler overhead.
+
+**Important**: Streaming shuffle maintains zero performance regression for memory-bound workloads through
+automatic fallback to the sort-based shuffle when memory pressure is detected.
+
+To enable streaming shuffle, set the following configuration:
+
+```properties
+spark.shuffle.manager=streaming
+spark.shuffle.streaming.enabled=true
+```
+
+## Buffer Sizing Recommendations
+
+The `spark.shuffle.streaming.bufferSizePercent` configuration controls what percentage of executor memory
+is allocated for streaming shuffle buffers. The default is 20%, with a valid range of 1-50%.
+
+**Buffer allocation formula:**
+```
+Buffer per partition = (executorMemory * bufferSizePercent) / numPartitions
+```
+
+**Guidelines for buffer sizing:**
+
+| Scenario | Recommended Buffer Percentage | Rationale |
+|----------|-------------------------------|-----------|
+| Large partition counts (>500) | 30-40% | More partitions require more aggregate buffer space |
+| Limited memory environments | 10-15% | Preserves memory for other executor operations |
+| Data skew scenarios | Higher (30-40%) | Accommodates uneven partition sizes without frequent spills |
+| Default workloads | 20% (default) | Balanced allocation for typical shuffle patterns |
+
+**Rule of thumb**: Start with the default value of 20% and increase if you observe frequent disk spills
+(monitor the `shuffle.streaming.spillCount` metric). If memory pressure is observed in other parts of your
+application, consider reducing the buffer percentage.
+
+**Example configuration for large partition counts:**
+```properties
+spark.shuffle.streaming.bufferSizePercent=35
+spark.executor.memory=16g
+```
+
+## Spill Threshold Optimization
+
+The `spark.shuffle.streaming.spillThreshold` configuration determines when streaming shuffle triggers disk
+spills to prevent memory exhaustion. The default is 80%, with a valid range of 50-95%.
+
+**Threshold behavior:**
+- **Lower threshold (50-70%)**: More aggressive spilling occurs, which is suitable for memory-constrained
+  environments or when other memory consumers compete heavily for resources.
+- **Higher threshold (85-95%)**: Less spilling occurs, maximizing in-memory performance but with higher
+  risk of memory pressure during sudden data bursts.
+
+**Tuning recommendations based on metrics:**
+
+1. **Monitor `shuffle.streaming.spillCount`**: If this metric is high and impacting overall job performance,
+   consider one of the following:
+   - Increase the buffer size percentage (`spark.shuffle.streaming.bufferSizePercent`)
+   - Increase executor memory (`spark.executor.memory`)
+   
+2. **Monitor memory pressure**: If you observe frequent GC pauses or OOM conditions:
+   - Lower the spill threshold (e.g., from 80% to 65%)
+   - Reduce the buffer size percentage
+
+**Example configuration for memory-constrained environments:**
+```properties
+spark.shuffle.streaming.spillThreshold=65
+spark.shuffle.streaming.bufferSizePercent=15
+```
+
+## Memory Allocation Best Practices
+
+Streaming shuffle buffers compete with other memory consumers in the executor. Follow these best practices
+to achieve optimal performance:
+
+1. **Ensure adequate executor memory**: Streaming shuffle requires dedicated buffer space. When enabling
+   streaming shuffle, consider increasing `spark.executor.memory` proportionally to the buffer percentage
+   configured.
+
+2. **Balance memory allocation**: The streaming buffer allocation should be balanced against:
+   - Storage memory for cached RDDs
+   - Task execution memory for sorts, joins, and aggregations
+   - Overhead for JVM garbage collection
+   
+3. **Match buffers to network throughput**: Configure streaming buffers to match available network bandwidth.
+   If your network can sustain 1 Gbps (~125 MB/s), ensure your buffer configuration can produce data at
+   a similar rate.
+
+4. **Limit streaming rate for network contention**: If multiple shuffles compete for network bandwidth, use
+   `spark.shuffle.streaming.maxBandwidthMBps` to limit each shuffle's streaming rate:
+   ```properties
+   spark.shuffle.streaming.maxBandwidthMBps=100
+   ```
+
+5. **Consider partition count**: More partitions mean smaller per-partition buffers. For very high partition
+   counts (>1000), either increase the buffer percentage or consider reducing the partition count via
+   `spark.sql.shuffle.partitions`.
+
+**Memory sizing example for a typical configuration:**
+```properties
+spark.executor.memory=16g
+spark.shuffle.streaming.bufferSizePercent=20  # 3.2GB for streaming buffers
+spark.memory.fraction=0.6                      # Remaining execution/storage memory
+```
+
+## Troubleshooting Common Issues
+
+### High Backpressure Events
+
+**Symptom**: The `shuffle.streaming.backpressureEvents` metric shows frequent occurrences.
+
+**Causes and solutions**:
+- **Consumer processing is slow**: Check for task skew in reduce tasks. Consider increasing parallelism
+  via `spark.sql.shuffle.partitions` to reduce per-task data volume.
+- **Network congestion**: Reduce the streaming rate using `spark.shuffle.streaming.maxBandwidthMBps`.
+- **Insufficient consumer memory**: Increase executor memory for consumer tasks.
+
+### Frequent Fallbacks to Sort-Based Shuffle
+
+**Symptom**: The `shuffle.streaming.fallbackCount` metric shows many fallback events.
+
+**Causes and solutions**:
+- **Consumer consistently 2x slower than producer**: This triggers automatic fallback. Investigate task
+  skew or resource contention on consumer executors.
+- **Memory pressure**: Streaming shuffle falls back when buffer allocation fails. Reduce buffer percentage
+  or increase executor memory.
+- **Network saturation**: When network utilization exceeds 90%, streaming shuffle may fall back. Limit
+  concurrent shuffles or increase network capacity.
+
+### Memory Exhaustion
+
+**Symptom**: Executor OOM errors or excessive GC activity when streaming shuffle is enabled.
+
+**Solutions**:
+- Reduce `spark.shuffle.streaming.bufferSizePercent` (e.g., from 20% to 10-15%)
+- Lower `spark.shuffle.streaming.spillThreshold` (e.g., from 80% to 60-70%)
+- Increase `spark.executor.memory`
+- Ensure `spark.memory.fraction` leaves adequate headroom
+
+### Connection Timeouts
+
+**Symptom**: Shuffle failures with connection timeout errors.
+
+**Solutions**:
+- Verify network health between executors
+- Check for executor failures or heavy GC pauses
+- Increase the heartbeat timeout if network latency is high:
+  ```properties
+  spark.shuffle.streaming.heartbeatTimeoutMs=10000  # Default: 5000
+  ```
+- Increase the acknowledgment timeout for slower networks:
+  ```properties
+  spark.shuffle.streaming.ackTimeoutMs=20000  # Default: 10000
+  ```
+
+## Configuration Change Requirements
+
+**Important**: Streaming shuffle configuration changes require an executor restart to take effect.
+Dynamic reconfiguration is not supported in the current version.
+
+When modifying streaming shuffle parameters:
+1. Update the configuration in your Spark application or `spark-defaults.conf`
+2. Restart the Spark application or cluster
+3. Verify the new settings are active by checking the Spark UI's Environment tab
+
+This restart requirement applies to all `spark.shuffle.streaming.*` parameters.
+
 # Summary
 
 This has been a short guide to point out the main concerns you should know about when tuning a
