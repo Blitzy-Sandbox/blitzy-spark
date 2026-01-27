@@ -59,9 +59,9 @@ package org.apache.spark.shuffle
  * Streaming shuffle is configured via the following Spark configuration properties:
  *
  * - `spark.shuffle.streaming.enabled`: Enable/disable streaming shuffle (default: false)
- * - `spark.shuffle.streaming.bufferSizePercent`: Percentage of executor memory for buffers (default: 20)
- * - `spark.shuffle.streaming.spillThreshold`: Memory utilization threshold for spill (default: 80%)
- * - `spark.shuffle.streaming.heartbeatTimeoutMs`: Heartbeat timeout for failure detection (default: 5000)
+ * - `spark.shuffle.streaming.bufferSizePercent`: Executor memory % for buffers (default: 20)
+ * - `spark.shuffle.streaming.spillThreshold`: Memory threshold for spill (default: 80%)
+ * - `spark.shuffle.streaming.heartbeatTimeoutMs`: Heartbeat timeout (default: 5000)
  * - `spark.shuffle.streaming.ackTimeoutMs`: Acknowledgment timeout (default: 10000)
  *
  * == Failure Handling ==

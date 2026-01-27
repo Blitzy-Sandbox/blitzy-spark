@@ -19,8 +19,8 @@ package org.apache.spark.shuffle.streaming
 
 import java.io.IOException
 import java.nio.ByteBuffer
-import java.util.zip.CRC32C
 import java.util.concurrent.atomic.AtomicLong
+import java.util.zip.CRC32C
 
 import scala.collection.mutable
 
@@ -225,13 +225,13 @@ private[spark] class StreamingShuffleWriter[K, V, C](
    * Per-partition serialization streams for efficient record serialization.
    * Each stream wraps its corresponding partition buffer.
    */
-  private val partitionStreams: Array[PartitionBufferOutputStream] = 
+  private val partitionStreams: Array[PartitionBufferOutputStream] =
     new Array[PartitionBufferOutputStream](numPartitions)
 
   /**
    * Per-partition CRC32C checksums for data integrity validation.
    */
-  private val partitionChecksums: Array[CRC32C] = 
+  private val partitionChecksums: Array[CRC32C] =
     Array.fill(numPartitions)(new CRC32C())
 
   /**
@@ -284,8 +284,8 @@ private[spark] class StreamingShuffleWriter[K, V, C](
       s"perPartitionBufferSize=$perPartitionBufferSize, streamingThreshold=$streamingThreshold")
   }
 
-  logInfo(s"StreamingShuffleWriter created for shuffle $shuffleId with $numPartitions partitions, " +
-    s"buffer allocation: ${maxBufferMemory / 1024 / 1024}MB total, " +
+  logInfo(s"StreamingShuffleWriter created: shuffle=$shuffleId, partitions=$numPartitions, " +
+    s"buffer: ${maxBufferMemory / 1024 / 1024}MB total, " +
     s"${perPartitionBufferSize / 1024}KB per partition")
 
   // ============================================================================
@@ -465,7 +465,7 @@ private[spark] class StreamingShuffleWriter[K, V, C](
         if (buffer != null && buffer.position() > 0) {
           val spilledBytes = spillPartitionToDisk(partitionId)
           totalSpilled += spilledBytes
-          
+
           if (totalSpilled >= size) {
             // We've freed enough memory
             logDebug(s"Spilled enough memory ($totalSpilled bytes), stopping early")
@@ -758,16 +758,16 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   private def computeChecksum(buffer: ByteBuffer): Long = {
     val crc = new CRC32C()
     val duplicate = buffer.duplicate()
-    
+
     if (duplicate.hasArray) {
-      crc.update(duplicate.array(), duplicate.arrayOffset() + duplicate.position(), 
+      crc.update(duplicate.array(), duplicate.arrayOffset() + duplicate.position(),
         duplicate.remaining())
     } else {
       val bytes = new Array[Byte](duplicate.remaining())
       duplicate.get(bytes)
       crc.update(bytes)
     }
-    
+
     crc.getValue
   }
 

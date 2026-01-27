@@ -20,8 +20,10 @@ package org.apache.spark.shuffle.streaming
 import java.io.{File, IOException}
 import java.nio.ByteBuffer
 import java.nio.channels.Channels
-import java.util.{UUID, concurrent}
-import java.util.concurrent.{Executors, ScheduledExecutorService, ScheduledFuture, TimeUnit}
+import java.util.UUID
+import java.util.concurrent.{
+  Executors, ScheduledExecutorService, ScheduledFuture, ThreadFactory, TimeUnit
+}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import scala.collection.mutable
@@ -36,8 +38,8 @@ import org.apache.spark.storage.{BlockManager, TempShuffleBlockId}
  * memory safety guarantees.
  *
  * Key Features:
- *   - Monitors memory utilization at 100ms intervals (configurable via MEMORY_MONITORING_INTERVAL_MS)
- *   - Triggers disk spill when utilization exceeds 80% threshold (configurable via spillThresholdPercent)
+ *   - Monitors memory at 100ms intervals (via MEMORY_MONITORING_INTERVAL_MS)
+ *   - Triggers disk spill when utilization exceeds threshold (spillThresholdPercent)
  *   - Selects largest buffered partitions for LRU eviction when threshold is exceeded
  *   - Releases memory within 100ms of consumer acknowledgment
  *   - Coordinates with BlockManager.diskStore for spill persistence
@@ -139,7 +141,7 @@ private[spark] class MemorySpillManager(
    * regular monitoring at 100ms intervals.
    */
   private val scheduledExecutor: ScheduledExecutorService =
-    Executors.newSingleThreadScheduledExecutor(new concurrent.ThreadFactory {
+    Executors.newSingleThreadScheduledExecutor(new ThreadFactory {
       override def newThread(r: Runnable): Thread = {
         val thread = new Thread(r, "streaming-shuffle-memory-monitor")
         thread.setDaemon(true)
@@ -624,7 +626,8 @@ private[spark] class MemorySpillManager(
     }
 
     val currentBytes = totalAllocatedBytes.get()
-    val targetBytes = (capacity * spillThreshold * 0.9).toLong // Target 90% of threshold for headroom
+    // Target 90% of threshold for headroom
+    val targetBytes = (capacity * spillThreshold * 0.9).toLong
 
     if (currentBytes > targetBytes) {
       currentBytes - targetBytes

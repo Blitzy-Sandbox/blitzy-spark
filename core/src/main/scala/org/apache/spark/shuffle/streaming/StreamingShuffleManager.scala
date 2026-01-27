@@ -273,9 +273,9 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
       // Check if execution memory pool is severely constrained
       // A pool with less than 10% free capacity suggests memory pressure
       val executionMemoryUsed = memoryManager.executionMemoryUsed
-      val maxExecutionMemory = memoryManager.maxOnHeapStorageMemory + 
+      val maxExecutionMemory = memoryManager.maxOnHeapStorageMemory +
                                memoryManager.maxOffHeapStorageMemory
-      
+
       if (maxExecutionMemory > 0) {
         val usageRatio = executionMemoryUsed.toDouble / maxExecutionMemory.toDouble
         val isUnderPressure = usageRatio > 0.9
@@ -316,16 +316,17 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
     try {
       // Check if we have active streaming shuffles that might indicate saturation
       val activeStreamingShuffles = taskIdMapsForShuffle.size() - fallbackShuffles.size()
-      
+
       // Conservative heuristic: if we already have many concurrent streaming shuffles,
       // consider that as potential network pressure indicator
       val maxConcurrentStreamingShuffles = 10 // Reasonable default
       val isPotentiallySaturated = activeStreamingShuffles > maxConcurrentStreamingShuffles
-      
+
       if (isPotentiallySaturated && config.isDebug) {
-        logDebug(s"Potential network saturation: $activeStreamingShuffles active streaming shuffles")
+        logDebug(s"Potential network saturation: " +
+          s"$activeStreamingShuffles active streaming shuffles")
       }
-      
+
       isPotentiallySaturated
     } catch {
       case _: Exception =>
@@ -348,12 +349,12 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
       case Some(slowdownStartTime) if slowdownStartTime > 0 =>
         val slowdownDuration = System.currentTimeMillis() - slowdownStartTime
         val thresholdExceeded = slowdownDuration > DEFAULT_CONSUMER_SLOWDOWN_THRESHOLD_MS
-        
+
         if (thresholdExceeded && config.isDebug) {
           logDebug(s"Shuffle $shuffleId: Consumer slowdown exceeded threshold " +
             s"(${slowdownDuration}ms > ${DEFAULT_CONSUMER_SLOWDOWN_THRESHOLD_MS}ms)")
         }
-        
+
         thresholdExceeded
       case _ =>
         false
@@ -459,7 +460,8 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
 
         // Check for runtime fallback conditions
         if (shouldFallback(handle.shuffleId)) {
-          logWarning(s"Shuffle ${handle.shuffleId}: Runtime fallback to SortShuffleManager in getWriter")
+          logWarning(s"Shuffle ${handle.shuffleId}: " +
+            s"Runtime fallback to SortShuffleManager in getWriter")
           // Re-register with sort shuffle manager and get its writer
           // Note: This requires the handle to have a dependency reference
           sortShuffleManager.getWriter(
@@ -553,7 +555,8 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
       case streamingHandle: StreamingShuffleHandle[K @unchecked, _, C @unchecked] =>
         // Streaming shuffle path
         if (shouldFallback(handle.shuffleId)) {
-          logWarning(s"Shuffle ${handle.shuffleId}: Runtime fallback to SortShuffleManager in getReader")
+          logWarning(s"Shuffle ${handle.shuffleId}: " +
+            s"Runtime fallback to SortShuffleManager in getReader")
           // Re-register with sort shuffle manager and get its reader
           sortShuffleManager.getReader(
             sortShuffleManager.registerShuffle(
@@ -563,7 +566,7 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
         } else {
           // Create streaming reader
           createStreamingReader(
-            streamingHandle, startMapIndex, endMapIndex, 
+            streamingHandle, startMapIndex, endMapIndex,
             startPartition, endPartition, context, metrics)
         }
 
@@ -646,7 +649,7 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
 
     // Clean up tracking state
     consumerSlowdownTracker.remove(shuffleId)
-    
+
     // If this shuffle was handled by SortShuffleManager, clean up there too
     if (Option(fallbackShuffles.remove(shuffleId)).isDefined) {
       sortShuffleManager.unregisterShuffle(shuffleId)
@@ -697,11 +700,11 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
  *
  * | Parameter | Default | Description |
  * |-----------|---------|-------------|
- * | `spark.shuffle.streaming.enabled` | `false` | Enable streaming shuffle mode |
- * | `spark.shuffle.streaming.bufferSizePercent` | `20` | Buffer memory as % of executor memory (1-50) |
- * | `spark.shuffle.streaming.spillThreshold` | `80` | Memory % threshold for disk spill (50-95) |
- * | `spark.shuffle.streaming.heartbeatTimeoutMs` | `5000` | Heartbeat timeout in ms |
- * | `spark.shuffle.streaming.ackTimeoutMs` | `10000` | Acknowledgment timeout in ms |
+ * | `spark.shuffle.streaming.enabled` | `false` | Enable streaming mode |
+ * | `spark.shuffle.streaming.bufferSizePercent` | `20` | Buffer % of exec mem |
+ * | `spark.shuffle.streaming.spillThreshold` | `80` | Spill threshold (50-95) |
+ * | `spark.shuffle.streaming.heartbeatTimeoutMs` | `5000` | Heartbeat timeout ms |
+ * | `spark.shuffle.streaming.ackTimeoutMs` | `10000` | Ack timeout in ms |
  * | `spark.shuffle.streaming.debug` | `false` | Enable debug logging |
  *
  * @since 4.2.0

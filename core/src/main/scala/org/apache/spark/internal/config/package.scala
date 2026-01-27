@@ -2937,7 +2937,8 @@ package object config {
   private[spark] val SHUFFLE_STREAMING_BUFFER_SIZE_PERCENT =
     ConfigBuilder("spark.shuffle.streaming.bufferSizePercent")
       .doc("Percentage of executor memory allocated for streaming shuffle buffers. " +
-        "Per-partition buffer size is calculated as (executorMemory * bufferPercent) / numPartitions. " +
+        "Per-partition buffer size is calculated as " +
+        "(executorMemory * bufferPercent) / numPartitions. " +
         "Higher values improve throughput but increase memory pressure.")
       .version("4.2.0")
       .intConf

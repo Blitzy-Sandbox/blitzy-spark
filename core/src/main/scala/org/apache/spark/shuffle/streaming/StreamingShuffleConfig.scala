@@ -22,19 +22,19 @@ import org.apache.spark.internal.config._
 
 /**
  * Configuration wrapper class that parses and validates all spark.shuffle.streaming.* parameters.
- * 
+ *
  * This class provides typed accessors for streaming shuffle configuration parameters,
  * integrating with Spark's ConfigEntry system for proper validation and documentation.
  * All configuration changes require executor restart (no dynamic reconfiguration in v1).
  *
  * Configuration Parameters:
- * - spark.shuffle.streaming.enabled: Enable streaming shuffle mode (default: false)
- * - spark.shuffle.streaming.bufferSizePercent: Buffer size as percentage of executor memory (1-50, default: 20)
- * - spark.shuffle.streaming.spillThreshold: Buffer utilization percentage to trigger spill (50-95, default: 80)
- * - spark.shuffle.streaming.maxBandwidthMBps: Maximum bandwidth in MB/s (0 = unlimited, default: 0)
- * - spark.shuffle.streaming.heartbeatTimeoutMs: Heartbeat timeout for producer failure detection (default: 5000)
- * - spark.shuffle.streaming.ackTimeoutMs: Acknowledgment timeout for consumer failure detection (default: 10000)
- * - spark.shuffle.streaming.debug: Enable debug logging for streaming shuffle events (default: false)
+ * - spark.shuffle.streaming.enabled: Enable streaming shuffle (default: false)
+ * - spark.shuffle.streaming.bufferSizePercent: Buffer % of executor memory (1-50)
+ * - spark.shuffle.streaming.spillThreshold: Spill trigger threshold (50-95)
+ * - spark.shuffle.streaming.maxBandwidthMBps: Max bandwidth MB/s (0=unlimited)
+ * - spark.shuffle.streaming.heartbeatTimeoutMs: Heartbeat timeout (default: 5000)
+ * - spark.shuffle.streaming.ackTimeoutMs: Ack timeout (default: 10000)
+ * - spark.shuffle.streaming.debug: Enable debug logging (default: false)
  *
  * Coexistence Strategy:
  * The streaming shuffle configuration coexists with existing SortShuffleManager configuration.
@@ -49,7 +49,7 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 
   /**
    * Returns whether streaming shuffle mode is enabled.
-   * 
+   *
    * When enabled, eligible shuffles will use the streaming shuffle path for reduced latency.
    * Default is false (opt-in) to ensure zero impact on existing deployments.
    *
@@ -59,10 +59,10 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 
   /**
    * Returns the percentage of executor memory allocated for streaming buffers.
-   * 
+   *
    * Per-partition buffer size is calculated as:
    * (executorMemory * bufferSizePercent / 100) / numPartitions
-   * 
+   *
    * Valid range: 1-50 (percent)
    * Default: 20 (percent)
    *
@@ -72,11 +72,11 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 
   /**
    * Returns the buffer utilization threshold percentage that triggers disk spill.
-   * 
+   *
    * When buffer utilization exceeds this threshold, the MemorySpillManager will
    * trigger automatic disk spill using LRU eviction to prevent memory exhaustion.
    * Response time is guaranteed to be <100ms from threshold trigger.
-   * 
+   *
    * Valid range: 50-95 (percent)
    * Default: 80 (percent)
    *
@@ -86,10 +86,10 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 
   /**
    * Returns the maximum bandwidth in MB/s for streaming shuffle transfers.
-   * 
+   *
    * Token bucket rate limiting is applied at 80% of this value to prevent
    * network saturation. A value of 0 means unlimited bandwidth (config not set).
-   * 
+   *
    * Valid range: > 0 when set, 0 means unlimited
    * Default: 0 (unlimited - config not set)
    *
@@ -99,11 +99,11 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 
   /**
    * Returns the heartbeat timeout in milliseconds for producer failure detection.
-   * 
+   *
    * If no heartbeat is received from a producer within this timeout,
    * the consumer will detect the producer as failed and trigger upstream
    * recomputation via FetchFailedException.
-   * 
+   *
    * Valid range: > 0
    * Default: 5000 (5 seconds)
    *
@@ -113,11 +113,11 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 
   /**
    * Returns the acknowledgment timeout in milliseconds for consumer failure detection.
-   * 
+   *
    * If no acknowledgment is received from a consumer within this timeout,
    * the producer will buffer unacknowledged data and potentially trigger
    * disk spill if memory pressure increases.
-   * 
+   *
    * Valid range: > 0
    * Default: 10000 (10 seconds)
    *
@@ -127,11 +127,11 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 
   /**
    * Returns whether debug logging is enabled for streaming shuffle events.
-   * 
+   *
    * When enabled, additional debug-level logs are emitted for streaming shuffle
    * operations including buffer allocation, spill events, and backpressure signals.
    * Note: Log volume is capped at <10MB/hour per executor when debug is enabled.
-   * 
+   *
    * Default: false
    *
    * @return true if debug logging is enabled, false otherwise
@@ -140,7 +140,7 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 
   /**
    * Validates that the configuration is internally consistent.
-   * 
+   *
    * This method performs additional cross-parameter validation beyond
    * the individual ConfigEntry validators.
    *
@@ -162,7 +162,7 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 
   /**
    * Calculates the effective bandwidth limit for token bucket rate limiting.
-   * 
+   *
    * The effective bandwidth is 80% of the configured maximum to prevent
    * network saturation while still allowing efficient streaming.
    *
@@ -191,7 +191,7 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
 
 /**
  * Companion object providing aliases to config entries and factory method.
- * 
+ *
  * The actual ConfigEntry definitions are in org.apache.spark.internal.config package
  * to follow Spark's convention of centralizing all configuration entries.
  * This object provides convenient aliases for use within the streaming shuffle package.

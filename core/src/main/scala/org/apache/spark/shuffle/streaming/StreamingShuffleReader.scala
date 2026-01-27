@@ -28,9 +28,15 @@ import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.LogKeys.{BLOCK_ID, BYTE_SIZE, CONSUMER, ELAPSED_TIME, ERROR, MAP_ID, NUM_BLOCKS, PARTITION_ID, SHUFFLE_ID, TIMEOUT}
+import org.apache.spark.internal.LogKeys.{
+  BLOCK_ID, BYTE_SIZE, CONSUMER, ELAPSED_TIME, ERROR, MAP_ID, NUM_BLOCKS,
+  PARTITION_ID, SHUFFLE_ID, TIMEOUT
+}
 import org.apache.spark.serializer.SerializerManager
-import org.apache.spark.shuffle.{BaseShuffleHandle, FetchFailedException, ShuffleHandle, ShuffleReader, ShuffleReadMetricsReporter}
+import org.apache.spark.shuffle.{
+  BaseShuffleHandle, FetchFailedException, ShuffleHandle, ShuffleReader,
+  ShuffleReadMetricsReporter
+}
 import org.apache.spark.storage.{BlockId, BlockManager, ShuffleBlockId}
 import org.apache.spark.util.CompletionIterator
 
@@ -143,7 +149,7 @@ private[spark] class StreamingShuffleReader[K, C](
    * Unique consumer ID for backpressure tracking.
    * Format: "reader-{shuffleId}-{partitionId}-{taskAttemptId}"
    */
-  private val consumerId: String = 
+  private val consumerId: String =
     s"reader-$shuffleId-$startPartition-${context.taskAttemptId()}"
 
   // ============================================================================
@@ -274,45 +280,46 @@ private[spark] class StreamingShuffleReader[K, C](
             // Poll for available blocks for each partition
             for (partitionId <- startPartition until endPartition) {
               val blockId = ShuffleBlockId(shuffleId, mapId.toLong, partitionId)
-              
+
               // Check block state in resolver
               val blockState = blockResolver.getBlockState(blockId)
-              
+
               blockState match {
                 case Some(InFlight) | Some(Spilled) =>
                   // Block is available - fetch and process
                   try {
                     val managedBuffer = blockResolver.getBlockData(blockId)
                     val buffer = managedBuffer.nioByteBuffer()
-                    
+
                     // Get expected checksum from block info
                     val blockInfo = blockResolver.getBlockInfo(blockId)
                     val expectedChecksum = blockInfo.map(_.checksum).getOrElse(0L)
-                    
+
                     // Validate checksum
                     if (validateChecksum(buffer, expectedChecksum)) {
                       // Record partial read
                       recordPartialRead(mapId.toLong, blockId, buffer, expectedChecksum)
-                      
+
                       // Send acknowledgment via backpressure protocol
                       backpressureProtocol.processAck(consumerId, blockId)
-                      
+
                       // Send heartbeat to indicate consumer is alive and processing
                       backpressureProtocol.sendHeartbeat(consumerId)
-                      
+
                       // Update metrics
                       val bytesRead = buffer.remaining()
                       metrics.incBytesStreamed(bytesRead)
                       readMetrics.incRemoteBytesRead(bytesRead)
-                      
+
                       // Update producer heartbeat
                       producerLastHeartbeat.put(mapId.toLong, System.currentTimeMillis())
-                      
+
                       if (isDebug) {
                         logDebug(log"Successfully polled block ${MDC(BLOCK_ID, blockId)}")
                       }
                     } else {
-                      logWarning(log"Checksum validation failed for block ${MDC(BLOCK_ID, blockId)}")
+                      logWarning(log"Checksum validation failed: " +
+                        log"block ${MDC(BLOCK_ID, blockId)}")
                       // Request retransmission by not acknowledging
                     }
                   } catch {
@@ -321,12 +328,12 @@ private[spark] class StreamingShuffleReader[K, C](
                         log"${MDC(ERROR, e.getMessage)}")
                       // Will retry on next poll
                   }
-                  
+
                 case Some(Completed) =>
                   if (isDebug) {
                     logDebug(log"Block ${MDC(BLOCK_ID, blockId)} already completed")
                   }
-                  
+
                 case None =>
                   // Block not yet available
                   if (isDebug) {
@@ -394,17 +401,17 @@ private[spark] class StreamingShuffleReader[K, C](
     if (elapsed > heartbeatTimeoutMs) {
       // Mark producer as failed
       failedProducers.put(mapId, java.lang.Boolean.TRUE)
-      
+
       logWarning(log"Producer failure detected for map ${MDC(MAP_ID, mapId)} " +
         log"in shuffle ${MDC(SHUFFLE_ID, shuffleId)}. " +
         log"Last heartbeat: ${MDC(ELAPSED_TIME, elapsed)}ms ago, " +
         log"timeout: ${MDC(TIMEOUT, heartbeatTimeoutMs)}ms")
-      
+
       // Check if we should use backpressure protocol for heartbeat check
       if (backpressureProtocol.checkHeartbeatTimeout(consumerId)) {
         logWarning(s"Backpressure protocol also detected timeout for $consumerId")
       }
-      
+
       true
     } else {
       false
@@ -435,13 +442,13 @@ private[spark] class StreamingShuffleReader[K, C](
 
     try {
       val crc = new CRC32C()
-      
+
       // Create a duplicate to avoid modifying position
       val duplicate = block.duplicate()
-      
+
       if (duplicate.hasArray) {
         // Use array-based update for efficiency
-        crc.update(duplicate.array(), duplicate.arrayOffset() + duplicate.position(), 
+        crc.update(duplicate.array(), duplicate.arrayOffset() + duplicate.position(),
                    duplicate.remaining())
       } else {
         // Direct buffer - need to copy to array
@@ -549,11 +556,11 @@ private[spark] class StreamingShuffleReader[K, C](
         case e: Exception =>
           lastException = e
           attempt += 1
-          
+
           if (attempt < maxRetryAttempts) {
             logWarning(s"$operation failed (attempt $attempt/$maxRetryAttempts), " +
               s"retrying in ${delayMs}ms: ${e.getMessage}")
-            
+
             try {
               Thread.sleep(delayMs)
             } catch {
@@ -561,7 +568,7 @@ private[spark] class StreamingShuffleReader[K, C](
                 Thread.currentThread().interrupt()
                 throw new IOException(s"$operation interrupted during retry", e)
             }
-            
+
             // Exponential backoff
             delayMs = delayMs * 2
           }
@@ -584,14 +591,14 @@ private[spark] class StreamingShuffleReader[K, C](
       blockId: BlockId,
       buffer: ByteBuffer,
       checksum: Long): Unit = {
-    
+
     val blocks = partialReads.get(mapId)
     if (blocks != null) {
       blocks.synchronized {
         // Create a copy of the buffer data for storage
         val data = new Array[Byte](buffer.remaining())
         buffer.duplicate().get(data)
-        
+
         blocks += PartialBlockData(
           blockId = blockId,
           data = data,
@@ -661,7 +668,7 @@ private[spark] class StreamingShuffleReader[K, C](
    * 4. Falls back to completed blocks when streaming is exhausted
    */
   private class StreamingRecordIterator extends Iterator[Product2[K, C]] {
-    
+
     /**
      * Buffer holding deserialized records ready for consumption.
      */
@@ -773,12 +780,12 @@ private[spark] class StreamingShuffleReader[K, C](
      */
     private def processPartialReads(): Unit = {
       import scala.jdk.CollectionConverters._
-      
+
       partialReads.asScala.foreach { case (mapId, blocks) =>
         if (!failedProducers.containsKey(mapId)) {
           blocks.synchronized {
             val processedIndices = new ArrayBuffer[Int]()
-            
+
             blocks.zipWithIndex.foreach { case (blockData, index) =>
               try {
                 // Deserialize records from block data
@@ -787,7 +794,7 @@ private[spark] class StreamingShuffleReader[K, C](
                   recordBuffer.enqueue(record.asInstanceOf[Product2[K, C]])
                 }
                 processedIndices += index
-                
+
                 // Check if this is a completed block
                 val blockState = blockResolver.getBlockState(blockData.blockId)
                 if (blockState.contains(Completed)) {
@@ -800,7 +807,7 @@ private[spark] class StreamingShuffleReader[K, C](
                   logWarning(s"Failed to deserialize block ${blockData.blockId}: ${e.getMessage}")
               }
             }
-            
+
             // Remove processed blocks (in reverse order to maintain indices)
             processedIndices.reverse.foreach(blocks.remove)
           }
@@ -823,7 +830,7 @@ private[spark] class StreamingShuffleReader[K, C](
 
         // Create input stream from data
         val inputStream = new java.io.ByteArrayInputStream(data)
-        
+
         // Wrap with serializer manager for potential decompression
         val wrappedStream = serializerManager.wrapStream(
           ShuffleBlockId(shuffleId, 0, 0), // BlockId for compression detection
@@ -858,7 +865,7 @@ private[streaming] case class PartialBlockData(
     data: Array[Byte],
     checksum: Long,
     timestamp: Long) {
-  
+
   /**
    * Returns the size of the data in bytes.
    */
@@ -877,10 +884,8 @@ private[spark] object StreamingShuffleReader {
    * are obtained from the active SparkEnv.
    *
    * @param handle The shuffle handle
-   * @param startMapIndex Starting map index
-   * @param endMapIndex Ending map index
-   * @param startPartition Starting partition
-   * @param endPartition Ending partition
+   * @param mapRange Tuple of (startMapIndex, endMapIndex)
+   * @param partitionRange Tuple of (startPartition, endPartition)
    * @param context Task context
    * @param readMetrics Metrics reporter
    * @param config Streaming shuffle configuration
@@ -891,23 +896,21 @@ private[spark] object StreamingShuffleReader {
    */
   def apply[K, C](
       handle: ShuffleHandle,
-      startMapIndex: Int,
-      endMapIndex: Int,
-      startPartition: Int,
-      endPartition: Int,
+      mapRange: (Int, Int),
+      partitionRange: (Int, Int),
       context: TaskContext,
       readMetrics: ShuffleReadMetricsReporter,
       config: StreamingShuffleConfig,
       blockResolver: StreamingShuffleBlockResolver,
       backpressureProtocol: BackpressureProtocol,
       metrics: StreamingShuffleMetrics): StreamingShuffleReader[K, C] = {
-    
+
     new StreamingShuffleReader[K, C](
       handle,
-      startMapIndex,
-      endMapIndex,
-      startPartition,
-      endPartition,
+      mapRange._1,
+      mapRange._2,
+      partitionRange._1,
+      partitionRange._2,
       context,
       readMetrics,
       config,

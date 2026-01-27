@@ -159,7 +159,7 @@ private[spark] class BackpressureProtocol(
   def sendHeartbeat(consumerId: String): Unit = {
     val currentTime = System.currentTimeMillis()
     val info = consumerStatus.get(consumerId)
-    
+
     if (info != null) {
       info.updateLastHeartbeatTime(currentTime)
       if (isDebug) {
@@ -183,16 +183,16 @@ private[spark] class BackpressureProtocol(
   def checkHeartbeatTimeout(consumerId: String): Boolean = {
     val currentTime = System.currentTimeMillis()
     val info = consumerStatus.get(consumerId)
-    
+
     if (info == null) {
       logWarning(s"Checking heartbeat timeout for unregistered consumer: $consumerId")
       return false
     }
-    
+
     val lastHeartbeat = info.lastHeartbeatTime
     val elapsed = currentTime - lastHeartbeat
     val timedOut = elapsed > heartbeatTimeoutMs
-    
+
     if (timedOut) {
       logWarning(s"Heartbeat timeout detected for consumer $consumerId. " +
         s"Last heartbeat: ${elapsed}ms ago, timeout threshold: ${heartbeatTimeoutMs}ms")
@@ -200,7 +200,7 @@ private[spark] class BackpressureProtocol(
     } else if (isDebug) {
       logDebug(s"Heartbeat check for consumer $consumerId: ${elapsed}ms since last heartbeat")
     }
-    
+
     timedOut
   }
 
@@ -324,7 +324,7 @@ private[spark] class BackpressureProtocol(
   def processAck(consumerId: String, blockId: BlockId): Unit = {
     val currentTime = System.currentTimeMillis()
     val info = consumerStatus.get(consumerId)
-    
+
     if (info == null) {
       logWarning(s"Received acknowledgment from unregistered consumer: $consumerId " +
         s"for block ${blockId.name}")
@@ -333,11 +333,11 @@ private[spark] class BackpressureProtocol(
 
     // Update acknowledgment timestamp and bytes acknowledged
     info.updateLastAckTime(currentTime)
-    
+
     // Extract block size from BlockId name if possible (for metrics)
     // For now, we just mark that an ack was received
     info.incrementAcknowledgedBlocks()
-    
+
     if (isDebug) {
       logDebug(s"Acknowledgment processed from consumer $consumerId for block ${blockId.name}")
     }
@@ -371,7 +371,7 @@ private[spark] class BackpressureProtocol(
   def detectSlowConsumer(consumerId: String): Boolean = {
     val currentTime = System.currentTimeMillis()
     val info = consumerStatus.get(consumerId)
-    
+
     if (info == null) {
       return false
     }
@@ -410,8 +410,9 @@ private[spark] class BackpressureProtocol(
       // Check if slowdown has persisted beyond threshold
       val slowdownDuration = currentTime - info.slowdownDetectedTime.get()
       if (slowdownDuration > DEFAULT_CONSUMER_SLOWDOWN_THRESHOLD_MS) {
+        val thresholdMs = DEFAULT_CONSUMER_SLOWDOWN_THRESHOLD_MS
         logWarning(s"Sustained consumer slowdown detected for $consumerId: " +
-          s"slowdown duration = ${slowdownDuration}ms, threshold = ${DEFAULT_CONSUMER_SLOWDOWN_THRESHOLD_MS}ms")
+          s"slowdown duration = ${slowdownDuration}ms, threshold = ${thresholdMs}ms")
         metrics.incBackpressureEvents()
         return true
       }
@@ -452,7 +453,7 @@ private[spark] class BackpressureProtocol(
       startTime = currentTime,
       slowdownDetectedTime = new AtomicLong(0L)
     )
-    
+
     val existing = consumerStatus.putIfAbsent(consumerId, info)
     if (existing != null) {
       logWarning(s"Consumer $consumerId is already registered, keeping existing entry")
@@ -563,33 +564,33 @@ private[spark] class BackpressureProtocol(
   def checkAckTimeout(consumerId: String): Boolean = {
     val currentTime = System.currentTimeMillis()
     val info = consumerStatus.get(consumerId)
-    
+
     if (info == null) {
       return false
     }
-    
+
     val lastAck = info.lastAckTime.get()
     if (lastAck == 0L) {
       // No ack received yet - use start time as reference
       val elapsed = currentTime - info.startTime
       val timedOut = elapsed > ackTimeoutMs
       if (timedOut) {
-        logWarning(s"Acknowledgment timeout detected for consumer $consumerId. " +
-          s"No ack received since registration, elapsed: ${elapsed}ms, timeout threshold: ${ackTimeoutMs}ms")
+        logWarning(s"Acknowledgment timeout for consumer $consumerId. " +
+          s"No ack since registration, elapsed: ${elapsed}ms, timeout: ${ackTimeoutMs}ms")
         metrics.incBackpressureEvents()
       }
       return timedOut
     }
-    
+
     val elapsed = currentTime - lastAck
     val timedOut = elapsed > ackTimeoutMs
-    
+
     if (timedOut) {
       logWarning(s"Acknowledgment timeout detected for consumer $consumerId. " +
         s"Last ack: ${elapsed}ms ago, timeout threshold: ${ackTimeoutMs}ms")
       metrics.incBackpressureEvents()
     }
-    
+
     timedOut
   }
 
@@ -801,7 +802,7 @@ private[spark] class TokenBucket(
     // Attempt atomic allocation
     var success = false
     var currentTokens = availableTokens.get()
-    
+
     while (currentTokens >= bytes && !success) {
       success = availableTokens.compareAndSet(currentTokens, currentTokens - bytes)
       if (!success) {

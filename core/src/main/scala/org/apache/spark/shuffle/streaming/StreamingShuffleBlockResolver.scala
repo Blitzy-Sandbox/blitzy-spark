@@ -34,7 +34,7 @@ import org.apache.spark.network.buffer.{FileSegmentManagedBuffer, ManagedBuffer,
 import org.apache.spark.network.netty.SparkTransportConf
 import org.apache.spark.network.shuffle.MergedBlockMeta
 import org.apache.spark.shuffle.ShuffleBlockResolver
-import org.apache.spark.storage.{BlockId, BlockManager, ShuffleBlockId, ShuffleBlockBatchId, ShuffleMergedBlockId}
+import org.apache.spark.storage.{BlockId, BlockManager, ShuffleBlockBatchId, ShuffleBlockId, ShuffleMergedBlockId}
 
 /**
  * Block state enumeration for tracking the lifecycle of streaming shuffle blocks.

@@ -146,8 +146,8 @@ private[spark] class StreamingShuffleMetrics extends Source with Logging {
 
   // Log registration completion
   logInfo("StreamingShuffleMetrics registered with metrics system")
-  logDebug(s"Registered metrics: bufferUtilizationPercent (gauge), " +
-    "spillCount, backpressureEvents, partialReadInvalidations, bytesStreamed, fallbackCount (counters)")
+  logDebug(s"Registered metrics: bufferUtilizationPercent (gauge), spillCount, " +
+    "backpressureEvents, partialReadInvalidations, bytesStreamed, fallbackCount")
 
   // ============================================================================
   // Metric Update Methods
@@ -198,7 +198,8 @@ private[spark] class StreamingShuffleMetrics extends Source with Logging {
    */
   def incPartialReadInvalidations(): Unit = {
     partialReadInvalidationsCounter.inc()
-    logDebug(s"Partial read invalidations incremented to ${partialReadInvalidationsCounter.getCount}")
+    val count = partialReadInvalidationsCounter.getCount
+    logDebug(s"Partial read invalidations incremented to $count")
   }
 
   /**
@@ -228,7 +229,8 @@ private[spark] class StreamingShuffleMetrics extends Source with Logging {
    */
   def incFallbackCount(): Unit = {
     fallbackCountCounter.inc()
-    logInfo(s"Streaming shuffle fallback triggered, total fallbacks: ${fallbackCountCounter.getCount}")
+    val count = fallbackCountCounter.getCount
+    logInfo(s"Streaming shuffle fallback triggered, total fallbacks: $count")
   }
 
   // ============================================================================
