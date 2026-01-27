@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle.streaming
 
-import org.mockito.Mockito.{doReturn, mock, reset, when}
+import org.mockito.Mockito.mock
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.scalatest.BeforeAndAfterEach
@@ -26,9 +26,8 @@ import org.scalatest.matchers.must.Matchers
 import org.apache.spark._
 import org.apache.spark.internal.config._
 import org.apache.spark.memory.MemoryTestingUtils
-import org.apache.spark.serializer.{JavaSerializer, KryoSerializer}
-import org.apache.spark.shuffle.{BaseShuffleHandle, ShuffleHandle}
-import org.apache.spark.shuffle.sort.SortShuffleManager
+import org.apache.spark.serializer.KryoSerializer
+import org.apache.spark.shuffle.BaseShuffleHandle
 
 /**
  * Unit tests for [[StreamingShuffleManager]] verifying manager lifecycle, writer/reader creation,
@@ -446,12 +445,12 @@ class StreamingShuffleManagerSuite
 
       if (handle.isInstanceOf[StreamingShuffleHandle[_, _, _]]) {
         val context = MemoryTestingUtils.fakeTaskContext(SparkEnv.get)
-        val metrics = context.taskMetrics().shuffleReadMetrics
+        val metrics = context.taskMetrics().createTempShuffleReadMetrics()
 
         val reader = manager.getReader[Any, Any](
           handle,
           0, // startMapIndex
-          Int.MaxValue, // endMapIndex
+          10, // endMapIndex (reasonable number for test)
           0, // startPartition
           10, // endPartition
           context,
