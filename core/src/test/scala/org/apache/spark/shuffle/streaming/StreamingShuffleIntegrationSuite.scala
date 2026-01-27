@@ -29,6 +29,7 @@ import org.scalatest.matchers.must.Matchers
 
 import org.apache.spark._
 import org.apache.spark.internal.config._
+import org.apache.spark.shuffle.streaming._
 import org.apache.spark.util.Utils
 
 /**
