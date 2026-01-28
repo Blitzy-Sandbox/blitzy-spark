@@ -44,17 +44,19 @@ private[spark] trait ShuffleReadMetricsReporter {
   private[spark] def incRemoteReqsDuration(v: Long): Unit
   private[spark] def incRemoteMergedReqsDuration(v: Long): Unit
 
-  // Streaming shuffle metrics
+  // Streaming shuffle metrics - default no-op implementations for backward compatibility
+  // with existing ShuffleReadMetricsReporter implementations that don't use streaming shuffle
+
   /** Increment the count of bytes currently held in streaming shuffle buffers */
-  private[spark] def incStreamingBufferBytes(v: Long): Unit
+  private[spark] def incStreamingBufferBytes(v: Long): Unit = {}
   /** Decrement the count of bytes currently held in streaming shuffle buffers */
-  private[spark] def decStreamingBufferBytes(v: Long): Unit
+  private[spark] def decStreamingBufferBytes(v: Long): Unit = {}
   /** Increment the count of backpressure events received from producers */
-  private[spark] def incBackpressureEvents(v: Long): Unit
+  private[spark] def incBackpressureEvents(v: Long): Unit = {}
   /** Increment the count of partial reads from incomplete shuffle data */
-  private[spark] def incPartialReads(v: Long): Unit
+  private[spark] def incPartialReads(v: Long): Unit = {}
   /** Increment the count of block retransmissions due to corruption or failure */
-  private[spark] def incRetransmissions(v: Long): Unit
+  private[spark] def incRetransmissions(v: Long): Unit = {}
 }
 
 
@@ -72,11 +74,13 @@ private[spark] trait ShuffleWriteMetricsReporter {
   private[spark] def decBytesWritten(v: Long): Unit
   private[spark] def decRecordsWritten(v: Long): Unit
 
-  // Streaming shuffle metrics
+  // Streaming shuffle metrics - default no-op implementations for backward compatibility
+  // with existing ShuffleWriteMetricsReporter implementations that don't use streaming shuffle
+
   /** Increment the count of bytes currently held in streaming shuffle buffers */
-  private[spark] def incStreamingBufferBytes(v: Long): Unit
+  private[spark] def incStreamingBufferBytes(v: Long): Unit = {}
   /** Decrement the count of bytes currently held in streaming shuffle buffers */
-  private[spark] def decStreamingBufferBytes(v: Long): Unit
+  private[spark] def decStreamingBufferBytes(v: Long): Unit = {}
   /** Increment the count of backpressure events sent to consumers */
-  private[spark] def incBackpressureEvents(v: Long): Unit
+  private[spark] def incBackpressureEvents(v: Long): Unit = {}
 }
