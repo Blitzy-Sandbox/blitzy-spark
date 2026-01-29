@@ -169,6 +169,45 @@ building for particular Hive and Hive Thriftserver distributions.
 Please refer to the [Configuration Guide](https://spark.apache.org/docs/latest/configuration.html)
 in the online documentation for an overview on how to configure Spark.
 
+## Streaming Shuffle (Experimental)
+
+Spark includes an experimental **streaming shuffle** capability that provides an opt-in
+alternative shuffle mechanism. Instead of fully materializing shuffle output to disk
+before consumers can read, streaming shuffle streams data directly from producer (map)
+tasks to consumer (reduce) tasks as it becomes available.
+
+### Key Benefits
+
+- **30-50% latency reduction** for shuffle-heavy workloads (e.g., 10GB+ data with 100+ partitions)
+- **Overlapped execution**: Producer writes and consumer reads happen concurrently
+- **Graceful degradation**: Automatic fallback to disk-based spilling when memory pressure exceeds configurable thresholds (default 80%)
+
+### Enabling Streaming Shuffle
+
+To enable streaming shuffle, set the following configuration:
+
+```properties
+spark.shuffle.manager=streaming
+spark.shuffle.streaming.enabled=true
+```
+
+Additional tuning parameters are available:
+
+| Configuration | Default | Description |
+|--------------|---------|-------------|
+| `spark.shuffle.streaming.bufferSizePercent` | 20 | Percentage of executor memory for streaming buffers (1-50) |
+| `spark.shuffle.streaming.spillThreshold` | 80 | Memory utilization percentage that triggers spilling (50-95) |
+| `spark.shuffle.streaming.maxBandwidthMBps` | -1 | Maximum bandwidth per executor in MB/s (-1 for unlimited) |
+
+### Documentation
+
+For detailed architecture, tuning guidance, and troubleshooting, see:
+- [Streaming Shuffle Architecture](docs/streaming-shuffle-architecture.md)
+
+> **Note**: Streaming shuffle is an experimental feature. The existing sort-based shuffle
+> remains the production-stable default and serves as an automatic fallback when streaming
+> shuffle cannot be used or encounters issues.
+
 ## Contributing
 
 Please review the [Contribution to Spark guide](https://spark.apache.org/contributing.html)
