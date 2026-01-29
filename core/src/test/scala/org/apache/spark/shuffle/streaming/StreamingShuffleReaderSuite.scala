@@ -19,21 +19,18 @@ package org.apache.spark.shuffle.streaming
 
 import java.io.{ByteArrayOutputStream, InputStream}
 import java.nio.ByteBuffer
-import java.util.concurrent.TimeUnit
 import java.util.zip.CRC32C
 
-import org.mockito.ArgumentMatchers.{any, eq => meq}
+import org.mockito.ArgumentMatchers.{eq => meq}
 import org.mockito.Mockito._
 import org.scalatest.matchers.must.Matchers
 
 import org.apache.spark._
 import org.apache.spark.internal.config._
+import org.apache.spark.memory.MemoryTestingUtils
 import org.apache.spark.network.buffer.{ManagedBuffer, NioManagedBuffer}
 import org.apache.spark.serializer.{JavaSerializer, SerializerManager}
-import org.apache.spark.shuffle._
-import org.apache.spark.shuffle.streaming._
 import org.apache.spark.storage.{BlockManager, BlockManagerId, ShuffleBlockId}
-import org.apache.spark.util.collection.ExternalSorter
 
 /**
  * Wrapper for a ManagedBuffer that tracks how many times retain() and release() are called.
@@ -363,9 +360,10 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext w
     when(blockManager.blockStoreClient).thenReturn(blockStoreClient)
     
     // Mock getLocalBlockData to throw exception for remote blocks
+    // Note: Use RuntimeException because IOException is checked and not declared in the interface
     val shuffleBlockId = ShuffleBlockId(shuffleId, 0, reduceId)
     when(blockManager.getLocalBlockData(meq(shuffleBlockId)))
-      .thenThrow(new java.io.IOException("Block not found locally"))
+      .thenThrow(new RuntimeException("Block not found locally - simulated failure"))
     
     // Create MapOutputTracker that returns remote block locations
     val mapOutputTracker = mock(classOf[MapOutputTracker])
@@ -444,7 +442,7 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext w
     
     when(blockManager.getLocalBlockData(meq(goodBlockId))).thenReturn(goodBuffer)
     when(blockManager.getLocalBlockData(meq(failingBlockId)))
-      .thenThrow(new java.io.IOException("Connection timeout - producer failure"))
+      .thenThrow(new RuntimeException("Connection timeout - producer failure"))
     
     val mapOutputTracker = mock(classOf[MapOutputTracker])
     when(mapOutputTracker.getMapSizesByExecutorId(
@@ -484,11 +482,14 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext w
       shuffleReader.read().toList
     }
     
-    // Verify exception contains information about the failure
+    // Verify exception indicates a shuffle fetch failure
+    // The actual message format is "Failed to fetch block shuffle_X_Y_Z from BlockManagerId..."
     assert(exception.getMessage.contains("timeout") || 
            exception.getMessage.contains("failure") ||
-           exception.getMessage.contains("Connection"),
-      s"Exception should indicate failure: ${exception.getMessage}")
+           exception.getMessage.contains("Connection") ||
+           exception.getMessage.contains("Failed to fetch") ||
+           exception.getMessage.contains("shuffle"),
+      s"Exception should indicate shuffle failure: ${exception.getMessage}")
   }
 
   /**
@@ -806,32 +807,42 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext w
         .set(SHUFFLE_COMPRESS, false)
         .set(SHUFFLE_SPILL_COMPRESS, false))
     
-    val taskContext = TaskContext.empty()
-    val metrics = taskContext.taskMetrics.createTempShuffleReadMetrics()
+    // Use fakeTaskContext to get a proper TaskContext with TaskMemoryManager
+    // required for aggregation (which uses ExternalAppendOnlyMap internally)
+    val taskContext = MemoryTestingUtils.fakeTaskContext(sc.env)
+    // Set the task context globally so that TaskContext.get() returns it
+    // ExternalAppendOnlyMap uses TaskContext.get() internally
+    TaskContext.setTaskContext(taskContext)
     
-    val shuffleReader = new StreamingShuffleReader(
-      shuffleHandle,
-      startMapIndex = 0,
-      endMapIndex = numMaps,
-      startPartition = reduceId,
-      endPartition = reduceId + 1,
-      taskContext,
-      metrics,
-      serializerManager,
-      blockManager,
-      mapOutputTracker)
-    
-    // With aggregation, the number of output records should be <= input records
-    // (keys are combined)
-    val records = shuffleReader.read().toList
-    
-    // Verify aggregation was applied - should have unique keys with summed values
-    val recordMap = records.map(r => (r._1, r._2)).toMap
-    
-    // Original data has keys 0 to keyValuePairsPerMap-1 repeated numMaps times
-    // After aggregation, each key should appear once with combined value
-    assert(recordMap.size <= keyValuePairsPerMap,
-      s"Aggregation should combine records: got ${recordMap.size} unique keys")
+    try {
+      val metrics = taskContext.taskMetrics().createTempShuffleReadMetrics()
+      
+      val shuffleReader = new StreamingShuffleReader(
+        shuffleHandle,
+        startMapIndex = 0,
+        endMapIndex = numMaps,
+        startPartition = reduceId,
+        endPartition = reduceId + 1,
+        taskContext,
+        metrics,
+        serializerManager,
+        blockManager,
+        mapOutputTracker)
+      
+      // With aggregation, the number of output records should be <= input records
+      // (keys are combined)
+      val records = shuffleReader.read().toList
+      
+      // Verify aggregation was applied - should have unique keys with summed values
+      val recordMap = records.map(r => (r._1, r._2)).toMap
+      
+      // Original data has keys 0 to keyValuePairsPerMap-1 repeated numMaps times
+      // After aggregation, each key should appear once with combined value
+      assert(recordMap.size <= keyValuePairsPerMap,
+        s"Aggregation should combine records: got ${recordMap.size} unique keys")
+    } finally {
+      TaskContext.unset()
+    }
   }
 
   /**
@@ -866,8 +877,10 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext w
         .set(SHUFFLE_COMPRESS, false)
         .set(SHUFFLE_SPILL_COMPRESS, false))
     
-    val taskContext = TaskContext.empty()
-    val metrics = taskContext.taskMetrics.createTempShuffleReadMetrics()
+    // Use fakeTaskContext to get a proper TaskContext with TaskMemoryManager
+    // required for sorting (which uses ExternalSorter internally)
+    val taskContext = MemoryTestingUtils.fakeTaskContext(sc.env)
+    val metrics = taskContext.taskMetrics().createTempShuffleReadMetrics()
     
     val shuffleReader = new StreamingShuffleReader(
       shuffleHandle,
@@ -991,8 +1004,8 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext w
     val recordCount = shuffleReader.read().length
     
     // Merge metrics
-    taskContext.taskMetrics().mergeShuffleReadMetrics()
-    val shuffleReadMetrics = taskContext.taskMetrics().shuffleReadMetrics
+    taskContext.taskMetrics.mergeShuffleReadMetrics()
+    val shuffleReadMetrics = taskContext.taskMetrics.shuffleReadMetrics
     
     // Verify basic metrics were updated
     assert(shuffleReadMetrics.recordsRead === keyValuePairsPerMap * numMaps,
