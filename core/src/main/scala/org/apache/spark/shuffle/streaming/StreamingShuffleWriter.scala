@@ -17,13 +17,11 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.io.{ByteArrayOutputStream, IOException}
+import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import java.util.zip.CRC32C
 
-import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 
 import org.apache.spark._
@@ -346,31 +344,55 @@ private[spark] class StreamingShuffleWriter[K, V, C](
 
   /**
    * Gets or creates a StreamingBuffer for the specified partition.
+   * If an existing buffer has been released (e.g., due to spilling), a new buffer is created.
    *
    * @param partitionId The partition ID
    * @return The StreamingBuffer for the partition
    */
   private def getOrCreateBuffer(partitionId: Int): StreamingBuffer = {
-    partitionBuffers.computeIfAbsent(partitionId, _ => {
-      // Acquire memory for the new buffer
-      val acquired = memorySpillManager.acquireBufferMemory(
-        partitionId, 
-        perPartitionBufferCapacity
-      )
-      
-      if (acquired <= 0) {
-        // Memory pressure - trigger spill before creating buffer
-        memorySpillManager.checkAndTriggerSpill()
-        // Retry acquisition
-        memorySpillManager.acquireBufferMemory(partitionId, perPartitionBufferCapacity)
-      }
+    // First check if there's an existing buffer
+    var buffer = partitionBuffers.get(partitionId)
+    
+    // If buffer exists but has been released (due to spilling), remove it and create a new one
+    if (buffer != null && buffer.isReleased) {
+      logDebug(s"Buffer for partition $partitionId was released, creating new buffer")
+      partitionBuffers.remove(partitionId, buffer)
+      buffer = null
+    }
+    
+    // If no valid buffer exists, create one
+    if (buffer == null) {
+      buffer = partitionBuffers.computeIfAbsent(partitionId, _ => {
+        // Acquire memory for the new buffer
+        val acquired = memorySpillManager.acquireBufferMemory(
+          partitionId, 
+          perPartitionBufferCapacity
+        )
+        
+        if (acquired <= 0) {
+          // Memory pressure - trigger spill before creating buffer
+          memorySpillManager.checkAndTriggerSpill()
+          // Retry acquisition
+          memorySpillManager.acquireBufferMemory(partitionId, perPartitionBufferCapacity)
+        }
 
-      val buffer = new StreamingBuffer(partitionId, perPartitionBufferCapacity, taskMemoryManager)
-      memorySpillManager.registerBuffer(partitionId, buffer)
+        val newBuffer = new StreamingBuffer(partitionId, perPartitionBufferCapacity, taskMemoryManager)
+        memorySpillManager.registerBuffer(partitionId, newBuffer)
+        
+        logDebug(s"Created new buffer for partition $partitionId with capacity $perPartitionBufferCapacity")
+        newBuffer
+      })
       
-      logDebug(s"Created new buffer for partition $partitionId with capacity $perPartitionBufferCapacity")
-      buffer
-    })
+      // Double-check the buffer returned by computeIfAbsent in case of race condition
+      if (buffer.isReleased) {
+        logDebug(s"Race condition: buffer for partition $partitionId was released during creation")
+        partitionBuffers.remove(partitionId, buffer)
+        // Recursively try again
+        return getOrCreateBuffer(partitionId)
+      }
+    }
+    
+    buffer
   }
 
   /**

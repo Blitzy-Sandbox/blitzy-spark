@@ -274,6 +274,13 @@ private[spark] class StreamingBuffer(
   }
 
   /**
+   * Checks if this buffer has been released.
+   *
+   * @return true if the buffer has been released and should not be used
+   */
+  def isReleased: Boolean = released
+
+  /**
    * Updates the last access timestamp for LRU eviction tracking.
    *
    * This method should be called whenever the buffer is accessed
