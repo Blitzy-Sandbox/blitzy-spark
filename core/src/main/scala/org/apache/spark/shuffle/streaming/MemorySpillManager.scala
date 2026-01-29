@@ -18,14 +18,14 @@
 package org.apache.spark.shuffle.streaming
 
 import java.io.{File, FileInputStream, FileOutputStream, IOException}
-import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.jdk.CollectionConverters._
 
 import org.apache.spark.{SparkConf, SparkEnv, TaskContext}
-import org.apache.spark.internal.{Logging, LogKeys, MDC}
+import org.apache.spark.internal.Logging
+import org.apache.spark.internal.LogKeys._
 import org.apache.spark.internal.config._
 import org.apache.spark.memory.{MemoryConsumer, MemoryMode, TaskMemoryManager}
 import org.apache.spark.storage.{TempShuffleBlockId}
@@ -130,8 +130,8 @@ private[spark] class MemorySpillManager(
       Runtime.getRuntime.maxMemory() / 2
     }
     val budget = (totalExecutionMemory * bufferSizePercent / 100.0).toLong
-    logInfo(log"MemorySpillManager initialized with budget: ${MDC(LogKeys.MEMORY_SIZE, 
-      Utils.bytesToString(budget))}, spillThreshold: ${MDC(LogKeys.COUNT, 
+    logInfo(log"MemorySpillManager initialized with budget: ${MDC(MEMORY_SIZE, 
+      Utils.bytesToString(budget))}, spillThreshold: ${MDC(COUNT, 
       (spillThreshold * 100).toInt)}%")
     budget
   }
@@ -163,8 +163,8 @@ private[spark] class MemorySpillManager(
     var freedBytes: Long = 0L
     var spilledPartitionCount: Int = 0
 
-    logInfo(log"Thread ${MDC(LogKeys.THREAD_ID, Thread.currentThread().getId)} " +
-      log"starting spill operation, requested: ${MDC(LogKeys.MEMORY_SIZE, 
+    logInfo(log"Thread ${MDC(THREAD_ID, Thread.currentThread().getId)} " +
+      log"starting spill operation, requested: ${MDC(MEMORY_SIZE, 
         Utils.bytesToString(size))}")
 
     try {
@@ -195,20 +195,20 @@ private[spark] class MemorySpillManager(
 
     } catch {
       case e: IOException =>
-        logError(log"Error during spill operation: ${MDC(LogKeys.ERROR, e.getMessage)}")
+        logError(log"Error during spill operation: ${MDC(ERROR, e.getMessage)}")
         throw e
     }
 
     val spillDurationMs = (System.nanoTime() - spillStartTime) / 1000000
-    logInfo(log"Thread ${MDC(LogKeys.THREAD_ID, Thread.currentThread().getId)} " +
-      log"spilled ${MDC(LogKeys.NUM_PARTITIONS, spilledPartitionCount)} partitions, " +
-      log"freed ${MDC(LogKeys.MEMORY_SIZE, Utils.bytesToString(freedBytes))} " +
-      log"in ${MDC(LogKeys.COUNT, spillDurationMs)}ms " +
-      log"(${MDC(LogKeys.NUM_SPILLS, spillCount.get())} spills total)")
+    logInfo(log"Thread ${MDC(THREAD_ID, Thread.currentThread().getId)} " +
+      log"spilled ${MDC(NUM_PARTITIONS, spilledPartitionCount)} partitions, " +
+      log"freed ${MDC(MEMORY_SIZE, Utils.bytesToString(freedBytes))} " +
+      log"in ${MDC(COUNT, spillDurationMs)}ms " +
+      log"(${MDC(NUM_SPILLS, spillCount.get())} spills total)")
 
     // Log warning if spill took longer than target 100ms
     if (spillDurationMs > 100) {
-      logWarning(log"Spill operation exceeded 100ms target: ${MDC(LogKeys.COUNT, spillDurationMs)}ms")
+      logWarning(log"Spill operation exceeded 100ms target: ${MDC(COUNT, spillDurationMs)}ms")
     }
 
     freedBytes
@@ -292,8 +292,8 @@ private[spark] class MemorySpillManager(
 
     } catch {
       case e: IOException =>
-        logError(log"Failed to spill partition ${MDC(LogKeys.PARTITION_ID, partitionId)}: " +
-          log"${MDC(LogKeys.ERROR, e.getMessage)}")
+        logError(log"Failed to spill partition ${MDC(PARTITION_ID, partitionId)}: " +
+          log"${MDC(ERROR, e.getMessage)}")
         // Clean up partial file on failure
         if (file.exists()) {
           file.delete()
@@ -305,7 +305,7 @@ private[spark] class MemorySpillManager(
           outputStream.close()
         } catch {
           case e: IOException =>
-            logWarning(log"Error closing output stream: ${MDC(LogKeys.ERROR, e.getMessage)}")
+            logWarning(log"Error closing output stream: ${MDC(ERROR, e.getMessage)}")
         }
       }
     }
@@ -393,8 +393,8 @@ private[spark] class MemorySpillManager(
     val usageRatio = if (memoryBudget > 0) currentUsage.toDouble / memoryBudget else 0.0
 
     if (usageRatio >= spillThreshold) {
-      logInfo(log"Memory usage (${MDC(LogKeys.COUNT, (usageRatio * 100).toInt)}%) " +
-        log"exceeds threshold (${MDC(LogKeys.COUNT, (spillThreshold * 100).toInt)}%), " +
+      logInfo(log"Memory usage (${MDC(COUNT, (usageRatio * 100).toInt)}%) " +
+        log"exceeds threshold (${MDC(COUNT, (spillThreshold * 100).toInt)}%), " +
         log"triggering spill")
 
       // Calculate how much memory to free to get below threshold
@@ -403,12 +403,12 @@ private[spark] class MemorySpillManager(
 
       try {
         val freedBytes = spill(bytesToFree, this)
-        logInfo(log"Proactive spill freed ${MDC(LogKeys.MEMORY_SIZE, 
+        logInfo(log"Proactive spill freed ${MDC(MEMORY_SIZE, 
           Utils.bytesToString(freedBytes))}")
         return freedBytes > 0
       } catch {
         case e: IOException =>
-          logError(log"Failed to trigger proactive spill: ${MDC(LogKeys.ERROR, e.getMessage)}")
+          logError(log"Failed to trigger proactive spill: ${MDC(ERROR, e.getMessage)}")
       }
     }
 
@@ -461,8 +461,8 @@ private[spark] class MemorySpillManager(
 
     val file = spillInfo.file
     if (!file.exists()) {
-      logWarning(log"Spill file for partition ${MDC(LogKeys.PARTITION_ID, partitionId)} " +
-        log"not found: ${MDC(LogKeys.PATH, file.getAbsolutePath)}")
+      logWarning(log"Spill file for partition ${MDC(PARTITION_ID, partitionId)} " +
+        log"not found: ${MDC(PATH, file.getAbsolutePath)}")
       spilledPartitions.remove(partitionId)
       return null
     }
@@ -483,9 +483,9 @@ private[spark] class MemorySpillManager(
 
       if (offset != data.length) {
         logWarning(log"Incomplete read from spill file for partition " +
-          log"${MDC(LogKeys.PARTITION_ID, partitionId)}: " +
-          log"expected ${MDC(LogKeys.BYTE_SIZE, spillInfo.size)}, " +
-          log"got ${MDC(LogKeys.BYTE_SIZE, offset)}")
+          log"${MDC(PARTITION_ID, partitionId)}: " +
+          log"expected ${MDC(BYTE_SIZE, spillInfo.size)}, " +
+          log"got ${MDC(BYTE_SIZE, offset)}")
         return null
       }
 
@@ -496,7 +496,7 @@ private[spark] class MemorySpillManager(
     } catch {
       case e: IOException =>
         logError(log"Failed to read spilled data for partition " +
-          log"${MDC(LogKeys.PARTITION_ID, partitionId)}: ${MDC(LogKeys.ERROR, e.getMessage)}")
+          log"${MDC(PARTITION_ID, partitionId)}: ${MDC(ERROR, e.getMessage)}")
         null
     } finally {
       if (inputStream != null) {
@@ -504,7 +504,7 @@ private[spark] class MemorySpillManager(
           inputStream.close()
         } catch {
           case e: IOException =>
-            logWarning(log"Error closing input stream: ${MDC(LogKeys.ERROR, e.getMessage)}")
+            logWarning(log"Error closing input stream: ${MDC(ERROR, e.getMessage)}")
         }
       }
     }
@@ -529,8 +529,8 @@ private[spark] class MemorySpillManager(
       cleanedUp = true
     }
 
-    logInfo(log"Cleaning up MemorySpillManager: ${MDC(LogKeys.NUM_PARTITIONS, 
-      partitionBuffers.size())} buffers, ${MDC(LogKeys.NUM_PARTITIONS, 
+    logInfo(log"Cleaning up MemorySpillManager: ${MDC(NUM_PARTITIONS, 
+      partitionBuffers.size())} buffers, ${MDC(NUM_PARTITIONS, 
       spilledPartitions.size())} spill files")
 
     // Release all registered buffers
@@ -543,7 +543,7 @@ private[spark] class MemorySpillManager(
       } catch {
         case e: Exception =>
           logWarning(log"Error releasing buffer for partition " +
-            log"${MDC(LogKeys.PARTITION_ID, partitionId)}: ${MDC(LogKeys.ERROR, e.getMessage)}")
+            log"${MDC(PARTITION_ID, partitionId)}: ${MDC(ERROR, e.getMessage)}")
       }
     }
     partitionBuffers.clear()
@@ -557,14 +557,14 @@ private[spark] class MemorySpillManager(
               s"${spillInfo.file.getAbsolutePath}")
           } else {
             logWarning(log"Failed to delete spill file for partition " +
-              log"${MDC(LogKeys.PARTITION_ID, partitionId)}: " +
-              log"${MDC(LogKeys.PATH, spillInfo.file.getAbsolutePath)}")
+              log"${MDC(PARTITION_ID, partitionId)}: " +
+              log"${MDC(PATH, spillInfo.file.getAbsolutePath)}")
           }
         }
       } catch {
         case e: Exception =>
           logWarning(log"Error deleting spill file for partition " +
-            log"${MDC(LogKeys.PARTITION_ID, partitionId)}: ${MDC(LogKeys.ERROR, e.getMessage)}")
+            log"${MDC(PARTITION_ID, partitionId)}: ${MDC(ERROR, e.getMessage)}")
       }
     }
     spilledPartitions.clear()
@@ -577,8 +577,8 @@ private[spark] class MemorySpillManager(
     }
 
     logInfo(log"MemorySpillManager cleanup complete. Total spilled: " +
-      log"${MDC(LogKeys.MEMORY_SIZE, Utils.bytesToString(totalBytesSpilled.get()))}, " +
-      log"spill count: ${MDC(LogKeys.NUM_SPILLS, spillCount.get())}")
+      log"${MDC(MEMORY_SIZE, Utils.bytesToString(totalBytesSpilled.get()))}, " +
+      log"spill count: ${MDC(NUM_SPILLS, spillCount.get())}")
   }
 
   /**
@@ -689,7 +689,7 @@ private[spark] class MemorySpillManager(
       } catch {
         case e: Exception =>
           logWarning(log"Error removing spilled partition " +
-            log"${MDC(LogKeys.PARTITION_ID, partitionId)}: ${MDC(LogKeys.ERROR, e.getMessage)}")
+            log"${MDC(PARTITION_ID, partitionId)}: ${MDC(ERROR, e.getMessage)}")
           false
       }
     } else {
