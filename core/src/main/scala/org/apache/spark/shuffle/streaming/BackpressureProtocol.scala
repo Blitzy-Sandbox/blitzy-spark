@@ -388,7 +388,7 @@ private[spark] class BackpressureProtocol(conf: SparkConf) extends Logging {
     // Weight formula: partition count * (1 + log10(data volume in MB + 1))
     // This gives reasonable weight to both small and large shuffles
     val volumeMB = dataVolume / (1024L * 1024L)
-    val volumeWeight = math.log10(volumeMB + 1) + 1
+    val volumeWeight = math.log10((volumeMB + 1).toDouble) + 1.0
     (partitionCount * volumeWeight).toLong
   }
 
