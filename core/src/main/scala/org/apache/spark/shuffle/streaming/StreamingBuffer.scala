@@ -50,8 +50,10 @@ private[spark] class StreamingBuffer(
   extends Logging {
 
   // Internal byte array output stream for storing serialized data
+  // Use a small initial size (64KB) and let it grow dynamically - do NOT pre-allocate full capacity
+  // This prevents OOM during buffer creation when many partitions are used
   private val buffer: ByteArrayOutputStream = new ByteArrayOutputStream(
-    math.min(capacity, Int.MaxValue).toInt
+    math.min(64 * 1024L, capacity).toInt
   )
 
   // CRC32C checksum calculator for block integrity validation

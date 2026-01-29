@@ -60,6 +60,13 @@ class StreamingShuffleWriterSuite
     with PrivateMethodTester
     with ShuffleChecksumTestHelper {
 
+  // Configure SparkContext to use StreamingShuffleManager for proper block resolver
+  override val conf: SparkConf = new SparkConf()
+    .set("spark.shuffle.manager", "streaming")
+    .set(SHUFFLE_STREAMING_ENABLED.key, "true")
+    .set(SHUFFLE_STREAMING_BUFFER_SIZE_PERCENT.key, "20")
+    .set(SHUFFLE_STREAMING_SPILL_THRESHOLD.key, "80")
+
   @Mock(answer = RETURNS_SMART_NULLS)
   private var blockManager: BlockManager = _
 

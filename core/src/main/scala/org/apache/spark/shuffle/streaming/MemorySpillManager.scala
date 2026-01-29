@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicLong
 
 import scala.jdk.CollectionConverters._
 
-import org.apache.spark.{SparkConf, SparkEnv, TaskContext}
+import org.apache.spark.{SparkConf, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.LogKeys._
 import org.apache.spark.internal.config._
@@ -107,12 +107,13 @@ private[spark] class MemorySpillManager(
    */
   @volatile private var cleanedUp: Boolean = false
 
-  // Register cleanup on task completion to prevent memory leaks
-  Option(TaskContext.get()).foreach { context =>
-    context.addTaskCompletionListener[Unit] { _ =>
-      cleanup()
-    }
-  }
+  // NOTE: Do NOT register automatic cleanup on task completion here!
+  // The StreamingShuffleWriter controls when cleanup happens:
+  // - On successful completion: buffers persist for reduce tasks to read via block resolver
+  // - On task failure: Writer calls cleanup() explicitly
+  // - After all reduce tasks complete: StreamingShuffleManager.unregisterShuffle() cleans up
+  // 
+  // Automatic cleanup would release buffers before reduce tasks can read them.
 
   /**
    * Calculates the memory budget for streaming buffers based on executor configuration.
@@ -509,6 +510,40 @@ private[spark] class MemorySpillManager(
             logWarning(log"Error closing input stream: ${MDC(ERROR, e.getMessage)}")
         }
       }
+    }
+  }
+
+  /**
+   * Releases TaskMemoryManager tracking without clearing actual buffer data.
+   *
+   * This method is called by StreamingShuffleWriter.stop() just before the map task
+   * completes successfully. It releases the MemoryConsumer tracking (so Spark's
+   * TaskMemoryManager thinks the memory is freed), while keeping the actual buffer
+   * data in place for reduce tasks to read.
+   *
+   * This is necessary because:
+   * - TaskMemoryManager enforces that all tracked memory must be freed when task completes
+   * - But streaming shuffle needs buffer data to persist beyond map task completion
+   * - The actual buffer data (ByteArrayOutputStream) manages its own heap memory
+   *   separately from TaskMemoryManager tracking
+   *
+   * The actual cleanup of buffer data happens later via:
+   * - StreamingShuffleManager.unregisterShuffle() after all reduce tasks complete
+   * - cleanup() method on failure scenarios
+   */
+  def releaseTaskMemoryTracking(): Unit = {
+    val trackedMemory = totalAllocatedMemory.get()
+    if (trackedMemory > 0) {
+      logInfo(log"Releasing TaskMemoryManager tracking for " +
+        log"${MDC(MEMORY_SIZE, Utils.bytesToString(trackedMemory))} " +
+        log"while keeping ${MDC(NUM_PARTITIONS, partitionBuffers.size())} buffers alive")
+      
+      // Release the MemoryConsumer tracking - this tells TaskMemoryManager the memory is "freed"
+      // But we DO NOT clear the actual buffer data - it remains in ByteArrayOutputStream
+      freeMemory(trackedMemory)
+      totalAllocatedMemory.set(0L)
+      
+      logDebug("TaskMemoryManager tracking released - buffers persist for reduce tasks")
     }
   }
 

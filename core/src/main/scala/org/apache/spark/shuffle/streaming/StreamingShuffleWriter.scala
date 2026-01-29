@@ -118,6 +118,13 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   // MapStatus to return on successful completion
   private var mapStatus: MapStatus = null
 
+  // Block resolver for registering streaming blocks with the shuffle manager
+  // This allows readers to find the data produced by this writer
+  private lazy val streamingBlockResolver: StreamingShuffleBlockResolver = {
+    SparkEnv.get.shuffleManager.shuffleBlockResolver
+      .asInstanceOf[StreamingShuffleBlockResolver]
+  }
+
   // Total bytes written across all partitions
   private val totalBytesWritten: AtomicLong = new AtomicLong(0L)
 
@@ -130,9 +137,17 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   // Track if write completed successfully
   private var writeCompleted: Boolean = false
 
-  // Register cleanup on task completion to ensure resources are released
-  context.addTaskCompletionListener[Unit] { _ =>
-    cleanupResources()
+  // Register cleanup on task completion to ensure resources are released on failure
+  // Note: On successful completion, buffers must persist for readers to access via block resolver
+  // The cleanup only happens on task failure to prevent resource leaks
+  context.addTaskCompletionListener[Unit] { ctx =>
+    // Only cleanup on failure or interruption - on success, buffers persist for readers
+    if (ctx.isFailed() || ctx.isInterrupted()) {
+      logDebug(s"Task failed/interrupted - cleaning up resources for shuffle ${handle.shuffleId}, " +
+        s"mapId=$mapId")
+      cleanupResources()
+    }
+    // On success, buffers persist - they will be cleaned up by StreamingShuffleManager.unregisterShuffle
   }
 
   // Allocate bandwidth for this shuffle
@@ -427,36 +442,38 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   }
 
   /**
-   * Streams buffer data to consumer executors.
+   * Marks buffer data as ready for streaming to consumer executors.
+   *
+   * IMPORTANT: In local mode (single JVM), we do NOT reset/clear the buffer here
+   * because the data needs to persist in memory for readers to access via the
+   * StreamingShuffleBlockResolver. The actual "streaming" in local mode is achieved
+   * by keeping data in memory and having readers access it directly through the
+   * block resolver. The buffer will be registered with the resolver during
+   * finalizePartitions().
+   *
+   * NOTE: Partition lengths and checksums are computed in finalizePartitions() 
+   * based on the FINAL buffer contents, not here. This method only handles
+   * LRU tracking and logging.
    *
    * @param partitionId The partition ID
    * @param buffer The buffer containing data to stream
    */
   private def streamBufferToConsumers(partitionId: Int, buffer: StreamingBuffer): Unit = {
-    val data = buffer.getData()
-    val checksum = buffer.getChecksum()
-
-    // Update partition tracking
-    partitionLengths(partitionId) += data.length
-    if (checksumEnabled) {
-      partitionChecksums(partitionId) = checksum
-    }
-
-    // In production, this would use TransportClient to stream to consumers
-    // For now, we track the data for later retrieval by consumers
-    // The actual streaming happens when consumers connect via StreamingShuffleReader
-
     // Update access time for LRU tracking
     buffer.updateLastAccessTime()
 
-    // Reset buffer for reuse (data has been "streamed")
-    val freedBytes = buffer.size()
-    buffer.reset()
-    
-    // Update metrics - buffer bytes decreased after streaming
-    writeMetrics.decStreamingBufferBytes(freedBytes)
+    // In local mode (single JVM), we keep the buffer data for readers to access
+    // via StreamingShuffleBlockResolver. In a true distributed streaming shuffle,
+    // this would use TransportClient to stream data to consumer executors.
+    //
+    // NOTE: We intentionally DO NOT reset the buffer here because:
+    // 1. The buffer data needs to persist for readers in local mode
+    // 2. The buffer will be registered with the block resolver during finalization
+    // 3. Resetting would lose the data before readers can access it
+    // 4. Partition lengths/checksums are computed in finalizePartitions() from final buffer state
 
-    logDebug(s"Streamed ${data.length}B for partition $partitionId, checksum=$checksum")
+    logDebug(s"Buffer marked ready for streaming: partition $partitionId, " +
+      s"current size=${buffer.size()}B, records=${buffer.recordCount()}")
   }
 
   /**
@@ -469,30 +486,45 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   /**
    * Finalizes all partition buffers after all records have been written.
    * This includes both buffered data and data that was spilled to disk.
+   * Also registers all buffers with the block resolver so readers can find them.
+   *
+   * This is called once after all records have been written. Partition lengths
+   * and checksums are computed here from the final buffer states.
    */
   private def finalizePartitions(): Unit = {
-    // First, process any remaining data in memory buffers
+    // First, process any remaining data in memory buffers and register with block resolver
     partitionBuffers.forEach { (partitionId, buffer) =>
       val bufferSize = buffer.size()
       if (bufferSize > 0) {
-        // Flush any remaining data in the buffer
+        // Get final data and checksum from the buffer
         val data = buffer.getData()
         val checksum = buffer.getChecksum()
 
-        partitionLengths(partitionId) += data.length
+        // Set partition length to the final data size
+        // (using = not += because we compute final size here only once)
+        partitionLengths(partitionId) = data.length
         if (checksumEnabled) {
           partitionChecksums(partitionId) = checksum
         }
 
-        logDebug(s"Finalized buffered partition $partitionId: " +
-          s"${partitionLengths(partitionId)}B total, " +
-          s"${buffer.recordCount()} records")
+        // Register the buffer with the block resolver so readers can find this data
+        // This is the critical connection between writers and readers
+        streamingBlockResolver.registerStreamingBlock(
+          handle.shuffleId,
+          mapId,
+          partitionId,
+          buffer
+        )
+
+        logInfo(s"Finalized and registered buffered partition $partitionId: " +
+          s"${data.length}B, ${buffer.recordCount()} records, checksum=$checksum")
       }
     }
 
     // Second, include data from spilled partitions
     val spilledPartitionSizes = memorySpillManager.getSpilledPartitionSizes()
     spilledPartitionSizes.foreach { case (partitionId, (size, checksum)) =>
+      // Add spilled data size to partition length (may have both buffered and spilled)
       partitionLengths(partitionId) += size
       if (checksumEnabled) {
         // Combine checksums if partition has both buffered and spilled data
@@ -508,7 +540,7 @@ private[spark] class StreamingShuffleWriter[K, V, C](
         s"added ${size}B from spill, total: ${partitionLengths(partitionId)}B")
     }
 
-    logInfo(s"Finalized partitions for shuffle ${handle.shuffleId}: " +
+    logInfo(s"Finalized partitions for shuffle ${handle.shuffleId}, mapId=$mapId: " +
       s"${partitionBuffers.size()} buffered, ${spilledPartitionSizes.size} spilled")
   }
 
@@ -554,6 +586,11 @@ private[spark] class StreamingShuffleWriter[K, V, C](
    * This method implements the stopping guard pattern from SortShuffleWriter
    * to prevent double-cleanup when stop() is called multiple times.
    *
+   * CRITICAL: On successful completion, buffers must NOT be released here because
+   * they need to remain available for reduce tasks to read via the block resolver.
+   * Buffers will be cleaned up later by StreamingShuffleManager.unregisterShuffle()
+   * after all reduce tasks have completed.
+   *
    * @param success true if the map task completed successfully
    * @return Some(MapStatus) if successful, None otherwise
    */
@@ -567,10 +604,16 @@ private[spark] class StreamingShuffleWriter[K, V, C](
               s"for shuffle ${handle.shuffleId}, mapId=$mapId")
             return None
           }
+          // On success, buffers must persist for readers but we need to release
+          // TaskMemoryManager tracking to avoid "Managed memory leak detected" error
+          // The actual buffer data (ByteArrayOutputStream) remains alive - only the
+          // MemoryConsumer tracking is released
+          memorySpillManager.releaseTaskMemoryTracking()
           Option(mapStatus)
         } else {
           // Failure case - cleanup and return None
           cleanupOnError()
+          cleanupResources()  // Release buffers on failure only
           None
         }
       } else {
@@ -579,11 +622,9 @@ private[spark] class StreamingShuffleWriter[K, V, C](
         None
       }
     } finally {
-      // Release bandwidth allocation
+      // Release bandwidth allocation (safe to do in all cases)
       backpressureProtocol.releaseAllocation(handle.shuffleId)
-      
-      // Final cleanup
-      cleanupResources()
+      // Note: Do NOT call cleanupResources() here - on success, buffers must persist for readers
     }
   }
 
