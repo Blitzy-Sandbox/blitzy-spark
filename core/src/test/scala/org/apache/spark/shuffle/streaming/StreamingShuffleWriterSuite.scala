@@ -26,18 +26,17 @@ import scala.util.Random
 
 import org.mockito.{Mock, MockitoAnnotations}
 import org.mockito.Answers.RETURNS_SMART_NULLS
-import org.mockito.ArgumentMatchers.{any, anyInt, anyLong}
+import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
 import org.scalatest.PrivateMethodTester
 import org.scalatest.matchers.must.Matchers
 
 import org.apache.spark._
-import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.internal.config
 import org.apache.spark.internal.config._
 import org.apache.spark.memory.{MemoryTestingUtils, TaskMemoryManager, TestMemoryManager}
 import org.apache.spark.serializer.JavaSerializer
-import org.apache.spark.shuffle.{BaseShuffleHandle, ShuffleChecksumTestHelper}
+import org.apache.spark.shuffle.ShuffleChecksumTestHelper
 import org.apache.spark.storage.{BlockId, BlockManager, DiskBlockManager, TempShuffleBlockId}
 import org.apache.spark.util.Utils
 
@@ -384,7 +383,8 @@ class StreamingShuffleWriterSuite
     // Partition lengths should sum to bytes written
     val partitionLengths = writer.getPartitionLengths()
     assert(partitionLengths.sum === writeMetrics.bytesWritten,
-      "Partition lengths should equal total bytes written")
+      s"Partition lengths should equal total bytes written. " +
+      s"Got sum=${partitionLengths.sum}, bytesWritten=${writeMetrics.bytesWritten}")
   }
 
   // ============================================================================

@@ -468,10 +468,13 @@ private[spark] class StreamingShuffleWriter[K, V, C](
 
   /**
    * Finalizes all partition buffers after all records have been written.
+   * This includes both buffered data and data that was spilled to disk.
    */
   private def finalizePartitions(): Unit = {
+    // First, process any remaining data in memory buffers
     partitionBuffers.forEach { (partitionId, buffer) =>
-      if (buffer.size() > 0) {
+      val bufferSize = buffer.size()
+      if (bufferSize > 0) {
         // Flush any remaining data in the buffer
         val data = buffer.getData()
         val checksum = buffer.getChecksum()
@@ -481,13 +484,32 @@ private[spark] class StreamingShuffleWriter[K, V, C](
           partitionChecksums(partitionId) = checksum
         }
 
-        logDebug(s"Finalized partition $partitionId: " +
+        logDebug(s"Finalized buffered partition $partitionId: " +
           s"${partitionLengths(partitionId)}B total, " +
           s"${buffer.recordCount()} records")
       }
     }
 
-    logInfo(s"Finalized ${partitionBuffers.size()} partitions for shuffle ${handle.shuffleId}")
+    // Second, include data from spilled partitions
+    val spilledPartitionSizes = memorySpillManager.getSpilledPartitionSizes()
+    spilledPartitionSizes.foreach { case (partitionId, (size, checksum)) =>
+      partitionLengths(partitionId) += size
+      if (checksumEnabled) {
+        // Combine checksums if partition has both buffered and spilled data
+        if (partitionChecksums(partitionId) != 0L) {
+          // XOR the checksums together for combining
+          partitionChecksums(partitionId) = partitionChecksums(partitionId) ^ checksum
+        } else {
+          partitionChecksums(partitionId) = checksum
+        }
+      }
+
+      logDebug(s"Finalized spilled partition $partitionId: " +
+        s"added ${size}B from spill, total: ${partitionLengths(partitionId)}B")
+    }
+
+    logInfo(s"Finalized partitions for shuffle ${handle.shuffleId}: " +
+      s"${partitionBuffers.size()} buffered, ${spilledPartitionSizes.size} spilled")
   }
 
   /**

@@ -389,8 +389,10 @@ private[spark] class MemorySpillManager(
    * @return true if spill was triggered, false otherwise
    */
   def checkAndTriggerSpill(): Boolean = {
-    val currentUsage = totalAllocatedMemory.get()
-    val usageRatio = if (memoryBudget > 0) currentUsage.toDouble / memoryBudget else 0.0
+    // Use actual buffer data sizes instead of allocated capacity for spill decisions
+    // This prevents false triggers when buffers are allocated but not full
+    val actualBufferUsage = partitionBuffers.asScala.values.map(_.size()).sum
+    val usageRatio = if (memoryBudget > 0) actualBufferUsage.toDouble / memoryBudget else 0.0
 
     if (usageRatio >= spillThreshold) {
       logInfo(log"Memory usage (${MDC(COUNT, (usageRatio * 100).toInt)}%) " +
@@ -399,7 +401,7 @@ private[spark] class MemorySpillManager(
 
       // Calculate how much memory to free to get below threshold
       val targetUsage = (memoryBudget * (spillThreshold - 0.1)).toLong // Target 10% below threshold
-      val bytesToFree = currentUsage - targetUsage
+      val bytesToFree = actualBufferUsage - targetUsage
 
       try {
         val freedBytes = spill(bytesToFree, this)
@@ -637,6 +639,20 @@ private[spark] class MemorySpillManager(
    * @return true if the partition is spilled, false otherwise
    */
   def isSpilled(partitionId: Int): Boolean = spilledPartitions.containsKey(partitionId)
+
+  /**
+   * Returns a map of spilled partition IDs to their sizes and checksums.
+   *
+   * This method provides access to spilled partition information for partition
+   * length tracking and integrity validation purposes.
+   *
+   * @return A map of partitionId -> (size in bytes, checksum)
+   */
+  def getSpilledPartitionSizes(): Map[Int, (Long, Long)] = {
+    spilledPartitions.asScala.toMap.map { case (partitionId, spillInfo) =>
+      partitionId -> (spillInfo.size, spillInfo.checksum)
+    }
+  }
 
   /**
    * Checks if a partition is currently buffered in memory.
