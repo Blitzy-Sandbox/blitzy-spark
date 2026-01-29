@@ -17,8 +17,7 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.io.{ByteArrayInputStream, InputStream, IOException}
-import java.nio.ByteBuffer
+import java.io.{InputStream, IOException}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import java.util.concurrent.atomic.AtomicLong
 import java.util.zip.CRC32C
@@ -28,7 +27,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
 
 import org.apache.spark._
-import org.apache.spark.internal.{config, Logging}
+import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.network.buffer.ManagedBuffer
 import org.apache.spark.serializer.SerializerManager
@@ -185,7 +184,7 @@ private[spark] class StreamingShuffleReader[K, C](
    * Gets shuffle block locations from MapOutputTracker.
    * Returns an iterator of (BlockManagerId, Seq[(BlockId, size, mapIndex)]) tuples.
    */
-  private def getBlocksByAddress(): Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])] = {
+  private def getBlocksByAddress(): Iterator[(BlockManagerId, scala.collection.Seq[(BlockId, Long, Int)])] = {
     val shuffleId = handle.shuffleId
     
     // Query MapOutputTracker for block locations
@@ -207,7 +206,7 @@ private[spark] class StreamingShuffleReader[K, C](
    * @return Iterator of (BlockId, InputStream) pairs for deserialization
    */
   private def createStreamingFetchIterator(
-      blocksByAddress: Iterator[(BlockManagerId, Seq[(BlockId, Long, Int)])]
+      blocksByAddress: Iterator[(BlockManagerId, scala.collection.Seq[(BlockId, Long, Int)])]
     ): Iterator[(BlockId, InputStream)] = {
     
     new Iterator[(BlockId, InputStream)] {
@@ -406,12 +405,11 @@ private[spark] class StreamingShuffleReader[K, C](
    * Fetches a local block from the block manager.
    */
   private def fetchLocalBlock(blockId: BlockId): InputStream = {
-    val localBlockResult = blockManager.getLocalBlockData(blockId)
-    if (localBlockResult != null) {
-      localBlockResult.data().nioByteBuffer()
-      val buffer = localBlockResult.data()
-      // Wrap the managed buffer in an input stream
-      new ManagedBufferInputStream(buffer)
+    val managedBuffer = blockManager.getLocalBlockData(blockId)
+    if (managedBuffer != null) {
+      // ManagedBuffer provides createInputStream() directly
+      // Wrap the managed buffer in our input stream wrapper for consistent handling
+      new ManagedBufferInputStream(managedBuffer)
     } else {
       throw new IOException(s"Local block $blockId not found")
     }
@@ -565,10 +563,10 @@ private[spark] class StreamingShuffleReader[K, C](
     invalidatePartialReads(bmAddress)
     
     // Clear buffer tracking for invalidated blocks
-    val invalidatedBytes = partialReadOffsets.get(blockId)
-    if (invalidatedBytes != null && invalidatedBytes > 0) {
-      currentBufferBytes.addAndGet(-invalidatedBytes)
-      streamingMetrics.decStreamingBufferBytes(invalidatedBytes)
+    val invalidatedBytesOrNull: java.lang.Long = partialReadOffsets.get(blockId)
+    if (invalidatedBytesOrNull != null && invalidatedBytesOrNull > 0L) {
+      currentBufferBytes.addAndGet(-invalidatedBytesOrNull)
+      streamingMetrics.decStreamingBufferBytes(invalidatedBytesOrNull)
     }
     partialReadOffsets.remove(blockId)
     
