@@ -19,8 +19,6 @@ package org.apache.spark.shuffle.streaming
 
 import java.util.concurrent.ConcurrentHashMap
 
-import scala.jdk.CollectionConverters._
-
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
@@ -68,8 +66,6 @@ import org.apache.spark.util.collection.OpenHashSet
  */
 private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   extends ShuffleManager with Logging {
-
-  import StreamingShuffleManager._
 
   /**
    * Alternate constructor for compatibility with standard ShuffleManager instantiation.
