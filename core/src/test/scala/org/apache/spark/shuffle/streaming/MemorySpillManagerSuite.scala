@@ -17,10 +17,7 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.io.File
-import java.lang.{Long => JLong}
 import java.util.concurrent.{ConcurrentHashMap, CountDownLatch, Executors, TimeUnit}
-import java.util.concurrent.atomic.AtomicInteger
 
 import org.mockito.Mockito.when
 import org.scalatest.matchers.must.Matchers
@@ -31,8 +28,6 @@ import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.internal.config._
 import org.apache.spark.internal.config.Tests._
 import org.apache.spark.memory._
-import org.apache.spark.serializer.JavaSerializer
-import org.apache.spark.storage.BlockManager
 import org.apache.spark.util.Utils
 
 /**
@@ -231,8 +226,10 @@ class MemorySpillManagerSuite
     buffer0.updateLastAccessTime()
 
     // Verify access time ordering: buffer0 should be most recent
-    buffer0.getLastAccessTime() must be >= buffer1.getLastAccessTime()
-    buffer1.getLastAccessTime() must be >= buffer2.getLastAccessTime()
+    // After touching buffer0, its time is highest
+    // Registration order was: buffer1 (oldest) -> buffer2 -> buffer3 (newest before buffer0 touch)
+    buffer0.getLastAccessTime() must be >= buffer3.getLastAccessTime()
+    buffer1.getLastAccessTime() must be <= buffer2.getLastAccessTime()
     buffer2.getLastAccessTime() must be <= buffer3.getLastAccessTime()
 
     // When LRU eviction happens, buffer1 should be evicted first (oldest access time)
