@@ -21,10 +21,10 @@ import java.util.zip.CRC32C
 
 import scala.util.Random
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkConf
 import org.apache.spark.benchmark.{Benchmark, BenchmarkBase}
 import org.apache.spark.internal.config._
-import org.apache.spark.memory.{MemoryMode, TaskMemoryManager, UnifiedMemoryManager}
+import org.apache.spark.memory.{TaskMemoryManager, UnifiedMemoryManager}
 import org.apache.spark.serializer.JavaSerializer
 
 /**
