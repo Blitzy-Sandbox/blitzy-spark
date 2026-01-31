@@ -26,7 +26,7 @@ import org.scalatest.matchers.must.Matchers
 import org.apache.spark._
 import org.apache.spark.internal.config._
 import org.apache.spark.serializer.{JavaSerializer, KryoSerializer, Serializer}
-import org.apache.spark.shuffle.{BaseShuffleHandle, ShuffleHandle}
+import org.apache.spark.shuffle.BaseShuffleHandle
 
 /**
  * Unit tests for [[StreamingShuffleManager]] verifying lifecycle methods,
