@@ -384,6 +384,32 @@ private[spark] class BackpressureProtocol(conf: SparkConf) extends Logging {
   }
 
   /**
+   * Check if fallback should be triggered for any registered consumer.
+   * Returns true if ANY consumer has sustained lag that exceeds thresholds.
+   *
+   * Used by StreamingShuffleManager.shouldFallbackToSort() to determine
+   * if the shuffle should fall back to sort-based shuffle mode.
+   *
+   * @return true if fallback is recommended due to consumer lag
+   */
+  def shouldFallbackAny(): Boolean = {
+    consumers.values().asScala.exists { state =>
+      val lagRatio = getConsumerLagRatio(state.consumerId)
+      val lagDuration = getConsumerLagDuration(state.consumerId)
+      lagRatio >= FALLBACK_LAG_RATIO_THRESHOLD && lagDuration >= FALLBACK_LAG_DURATION_MS
+    }
+  }
+
+  /**
+   * Get all registered consumer IDs.
+   *
+   * @return iterable of registered consumer BlockManagerIds
+   */
+  def getRegisteredConsumerIds: Iterable[BlockManagerId] = {
+    consumers.keySet().asScala
+  }
+
+  /**
    * Register a shuffle for priority arbitration.
    *
    * @param shuffleId           the shuffle identifier

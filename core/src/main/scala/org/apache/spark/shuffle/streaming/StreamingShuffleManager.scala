@@ -24,6 +24,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.shuffle._
 import org.apache.spark.shuffle.sort.SortShuffleManager
+import org.apache.spark.util.collection.OpenHashSet
 
 /**
  * A pluggable ShuffleManager implementation that streams serialized partition data
@@ -69,19 +70,52 @@ import org.apache.spark.shuffle.sort.SortShuffleManager
  */
 private[spark] class StreamingShuffleManager(conf: SparkConf) extends ShuffleManager with Logging {
 
-  // Check if streaming is enabled
+  // ============================================================================
+  // Configuration
+  // ============================================================================
+
+  /** Check if streaming is enabled via configuration. */
   private val streamingEnabled = conf.get(SHUFFLE_STREAMING_ENABLED)
 
-  // Create fallback manager for graceful degradation
+  // ============================================================================
+  // Map Task ID Tracking (Following SortShuffleManager Pattern)
+  // ============================================================================
+  // Track map task IDs per shuffle for proper cleanup during unregisterShuffle.
+  // This follows the same pattern as SortShuffleManager to ensure consistent
+  // resource management and cleanup semantics.
+
+  /**
+   * Mapping from shuffle IDs to the task IDs of mappers producing output for those shuffles.
+   * Used for cleanup during unregisterShuffle to remove all map outputs for the shuffle.
+   */
+  private[this] val taskIdMapsForShuffle = new ConcurrentHashMap[Int, OpenHashSet[Long]]()
+
+  // ============================================================================
+  // Streaming Infrastructure Components
+  // ============================================================================
+  // These components are lazily initialized to defer creation until first use.
+  // This allows the manager to be created without a full SparkEnv (e.g., on driver).
+
+  /** Fallback manager for graceful degradation to sort-based shuffle. */
   private lazy val sortShuffleManager = new SortShuffleManager(conf)
 
-  // Streaming infrastructure components (lazy to defer initialization)
+  /** Memory spill manager for buffer persistence when memory threshold exceeded. */
   private lazy val spillManager = new MemorySpillManager(conf)
+
+  /** Flow control protocol for rate limiting and consumer liveness detection. */
   private lazy val backpressureProtocol = new BackpressureProtocol(conf)
+
+  /** Block resolver for streaming shuffle blocks. */
   private lazy val blockResolver = new StreamingShuffleBlockResolver(conf)
+
+  /** Metrics source for streaming shuffle telemetry. */
   private lazy val metricsSource = new StreamingShuffleMetricsSource()
 
-  // Track registered shuffles
+  // ============================================================================
+  // Shuffle Registration Tracking
+  // ============================================================================
+
+  /** Track registered shuffles for type-based dispatch in getWriter/getReader. */
   private val registeredShuffles = new ConcurrentHashMap[Int, ShuffleHandle]()
 
   // Initialization flag
@@ -170,6 +204,12 @@ private[spark] class StreamingShuffleManager(conf: SparkConf) extends ShuffleMan
 
     ensureInitialized()
 
+    // Track map task ID for this shuffle (following SortShuffleManager pattern)
+    // This enables proper cleanup during unregisterShuffle
+    val mapTaskIds = taskIdMapsForShuffle.computeIfAbsent(
+      handle.shuffleId, _ => new OpenHashSet[Long](16))
+    mapTaskIds.synchronized { mapTaskIds.add(mapId) }
+
     handle match {
       case streamingHandle: StreamingShuffleHandle[K @unchecked, V @unchecked, _] =>
         logDebug(s"Creating StreamingShuffleWriter for shuffle ${handle.shuffleId}, map $mapId")
@@ -255,12 +295,24 @@ private[spark] class StreamingShuffleManager(conf: SparkConf) extends ShuffleMan
     val handle = registeredShuffles.remove(shuffleId)
     val result = handle match {
       case _: StreamingShuffleHandle[_, _, _] =>
+        // Clean up map outputs for this shuffle using taskIdMapsForShuffle
+        // This follows the SortShuffleManager pattern for consistent cleanup
+        Option(taskIdMapsForShuffle.remove(shuffleId)).foreach { mapTaskIds =>
+          mapTaskIds.synchronized {
+            mapTaskIds.iterator.foreach { mapTaskId =>
+              blockResolver.removeDataByMap(shuffleId, mapTaskId)
+            }
+          }
+        }
+
         // Clean up streaming shuffle resources
         spillManager.cleanupShuffle(shuffleId)
         backpressureProtocol.unregisterShuffle(shuffleId)
         true
 
       case _ =>
+        // Also remove from taskIdMapsForShuffle if exists (for sort-based handles)
+        taskIdMapsForShuffle.remove(shuffleId)
         // Delegate to sort-based shuffle
         sortShuffleManager.unregisterShuffle(shuffleId)
     }
@@ -344,6 +396,76 @@ private[spark] class StreamingShuffleManager(conf: SparkConf) extends ShuffleMan
     }
 
     true
+  }
+
+  // ============================================================================
+  // Public Fallback Detection API
+  // ============================================================================
+
+  /**
+   * Check if fallback to sort-based shuffle should be triggered for a shuffle.
+   *
+   * This method evaluates dynamic fallback conditions at runtime:
+   * - Consumer lag ratio exceeds [[FALLBACK_LAG_RATIO_THRESHOLD]] (2x slower)
+   *   for more than [[FALLBACK_LAG_DURATION_MS]] (60 seconds)
+   * - Memory pressure indicates OOM risk (buffer utilization at maximum)
+   * - Network saturation exceeds [[NETWORK_SATURATION_THRESHOLD]] (90%)
+   *
+   * Called by StreamingShuffleWriter to decide whether to continue streaming
+   * or fall back to sort-based shuffle for the remainder of the task.
+   *
+   * == Coexistence with Sort-Based Shuffle ==
+   *
+   * When this method returns true, the caller should:
+   * 1. Spill all in-memory buffers to disk
+   * 2. Switch to sort-based shuffle writer for remaining records
+   * 3. Coordinate with block resolver for seamless block serving
+   *
+   * @param shuffleId the shuffle identifier to check
+   * @return true if fallback to sort-based shuffle is recommended
+   */
+  def shouldFallbackToSort(shuffleId: Int): Boolean = {
+    // Only consider fallback for streaming shuffles
+    val handle = registeredShuffles.get(shuffleId)
+    if (handle == null || !handle.isInstanceOf[StreamingShuffleHandle[_, _, _]]) {
+      return false
+    }
+
+    // Check consumer lag ratio from backpressure protocol
+    // If any consumer is 2x slower than producer for >60 seconds, recommend fallback
+    if (backpressureProtocol.shouldFallbackAny()) {
+      logWarning(s"Consumer lag ratio exceeds threshold ${FALLBACK_LAG_RATIO_THRESHOLD} " +
+        s"for more than ${FALLBACK_LAG_DURATION_MS}ms, " +
+        s"recommending fallback to sort-based shuffle for shuffle $shuffleId")
+      return true
+    }
+
+    // Check memory pressure - if buffer utilization is at maximum, recommend fallback
+    val bufferUtilization = spillManager.getBufferUtilization
+    if (bufferUtilization >= 95) {
+      logWarning(s"Buffer utilization at $bufferUtilization%, OOM risk detected, " +
+        s"recommending fallback to sort-based shuffle for shuffle $shuffleId")
+      return true
+    }
+
+    // Network saturation check would require additional network monitoring
+    // infrastructure - this is a placeholder for future enhancement
+    // For now, the backpressure protocol handles rate limiting
+
+    false
+  }
+
+  /**
+   * Check if fallback should be triggered based on shuffle dependency characteristics.
+   *
+   * This is a static check at registration time, separate from the dynamic
+   * runtime check performed by shouldFallbackToSort(shuffleId).
+   *
+   * @param dependency the shuffle dependency to evaluate
+   * @return true if sort-based shuffle should be used instead of streaming
+   */
+  def shouldFallbackToSort[K, V, C](dependency: ShuffleDependency[K, V, C]): Boolean = {
+    !shouldUseStreaming(dependency)
   }
 
   /**
