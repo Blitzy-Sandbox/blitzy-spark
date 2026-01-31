@@ -31,7 +31,7 @@ import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.serializer.{SerializationStream, Serializer, SerializerInstance}
 import org.apache.spark.shuffle.{ShuffleWriteMetricsReporter, ShuffleWriter}
 import org.apache.spark.shuffle.checksum.RowBasedChecksum
-import org.apache.spark.storage.{BlockManagerId, StreamingShuffleBlockId}
+import org.apache.spark.storage.{BlockManagerId, ShuffleBlockId, StreamingShuffleBlockId}
 
 /**
  * Per-partition buffer state for streaming shuffle.
@@ -39,16 +39,22 @@ import org.apache.spark.storage.{BlockManagerId, StreamingShuffleBlockId}
  * Tracks buffer contents, serialization state, record counts, and checksum
  * information for a single partition during streaming shuffle write.
  *
- * @param partitionId   the partition ID (reduce partition)
- * @param buffer        output stream for buffered serialized data
- * @param serStream     serialization stream writing to buffer
- * @param checksum      CRC32C checksum computer for data integrity verification
- * @param recordCount   number of records buffered so far
- * @param chunkIndex    current chunk index for multi-chunk partitions
+ * The stream stack is: buffer (ByteArrayOutputStream) -> wrappedStream (compression/encryption)
+ * -> serStream (serialization). This ensures data is properly compressed for readers that
+ * expect compressed shuffle data.
+ *
+ * @param partitionId    the partition ID (reduce partition)
+ * @param buffer         output stream for buffered serialized data
+ * @param wrappedStream  compression/encryption wrapped stream (writes to buffer)
+ * @param serStream      serialization stream writing to wrappedStream
+ * @param checksum       CRC32C checksum computer for data integrity verification
+ * @param recordCount    number of records buffered so far
+ * @param chunkIndex     current chunk index for multi-chunk partitions
  */
 private[streaming] class PartitionBufferState(
     val partitionId: Int,
     val buffer: ByteArrayOutputStream,
+    var wrappedStream: java.io.OutputStream,
     var serStream: SerializationStream,
     val checksum: CRC32C,
     var recordCount: Long = 0,
@@ -80,14 +86,17 @@ private[streaming] class PartitionBufferState(
   }
   
   /**
-   * Close the serialization stream to finalize any pending data.
+   * Close the serialization stream (and wrapped compression stream) to finalize any pending data.
    * 
    * CRITICAL: This must be called before extracting data when using compression
    * codecs (like LZ4) that need to write frame-end markers. Without closing,
    * the compressed data will appear corrupted when deserialized.
    */
   def closeStream(): Unit = {
+    // Close serialization stream first, which flushes its data to wrapped stream
     serStream.close()
+    // Then close the wrapped stream to finalize compression
+    wrappedStream.close()
   }
 
   /**
@@ -101,10 +110,12 @@ private[streaming] class PartitionBufferState(
    * Reset buffer for reuse after flushing a chunk.
    * Increments the chunk index for the next chunk.
    *
+   * @param newWrappedStream new wrapped (compression) stream for the next chunk
    * @param newSerStream new serialization stream for the next chunk
    */
-  def reset(newSerStream: SerializationStream): Unit = {
+  def reset(newWrappedStream: java.io.OutputStream, newSerStream: SerializationStream): Unit = {
     buffer.reset()
+    wrappedStream = newWrappedStream
     serStream = newSerStream
     // Note: checksum is cumulative across chunks for the partition
     chunkIndex += 1
@@ -115,9 +126,12 @@ private[streaming] class PartitionBufferState(
    * Does NOT reset the buffer (caller should do that before calling this).
    * Increments the chunk index for the next chunk.
    *
+   * @param newWrappedStream new wrapped (compression) stream for the next chunk
    * @param newSerStream new serialization stream for the next chunk
    */
-  def resetForNextChunk(newSerStream: SerializationStream): Unit = {
+  def resetForNextChunk(newWrappedStream: java.io.OutputStream, 
+                        newSerStream: SerializationStream): Unit = {
+    wrappedStream = newWrappedStream
     serStream = newSerStream
     recordCount = 0
     // Note: checksum is cumulative across chunks for the partition
@@ -130,6 +144,7 @@ private[streaming] class PartitionBufferState(
   def close(): Unit = {
     try {
       serStream.close()
+      wrappedStream.close()
     } catch {
       case _: Exception => // Ignore exceptions on close
     }
@@ -220,6 +235,9 @@ private[spark] class StreamingShuffleWriter[K, V, C](
 
   /** Memory manager for buffer allocation tracking. */
   private lazy val memoryManager = SparkEnv.get.memoryManager
+
+  /** Serializer manager for compression/encryption wrapping. */
+  private lazy val serializerManager = SparkEnv.get.serializerManager
 
   /** 
    * Block resolver for registering streaming blocks so readers can find them.
@@ -482,6 +500,10 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   /**
    * Get or create a buffer for the specified partition.
    *
+   * The buffer stack is: ByteArrayOutputStream -> compression/encryption -> serialization
+   * This ensures the serialized data is properly compressed, which readers expect when
+   * they use serializerManager.wrapStream for decompression.
+   *
    * @param partitionId the partition to buffer
    * @return buffer state for the partition
    */
@@ -490,14 +512,24 @@ private[spark] class StreamingShuffleWriter[K, V, C](
       // Estimate initial buffer size: min of chunk size or 1MB
       val initialSize = math.min(chunkSize, 1024 * 1024)
       val buffer = new ByteArrayOutputStream(initialSize)
-      val serStream = serializerInstance.serializeStream(buffer)
+      
+      // Create a dummy ShuffleBlockId to determine compression settings.
+      // The reader will use ShuffleBlockId (not StreamingShuffleBlockId) when fetching,
+      // so we need to match the compression expectations.
+      val dummyBlockId = ShuffleBlockId(shuffleId, mapId, partitionId)
+      
+      // Wrap with compression/encryption to match what readers expect
+      val wrappedStream = serializerManager.wrapStream(dummyBlockId, buffer)
+      
+      // Create serialization stream on top of the wrapped (compressed) stream
+      val serStream = serializerInstance.serializeStream(wrappedStream)
       val checksum = new CRC32C()
 
       // Track memory acquisition (simplified tracking without explicit MemoryManager call)
       acquiredMemory.addAndGet(initialSize)
 
       logDebug(s"Created buffer for partition $partitionId with initial size $initialSize")
-      new PartitionBufferState(partitionId, buffer, serStream, checksum)
+      new PartitionBufferState(partitionId, buffer, wrappedStream, serStream, checksum)
     })
   }
 
@@ -560,10 +592,14 @@ private[spark] class StreamingShuffleWriter[K, V, C](
       writeMetrics.incBytesWritten(bytes)
       writeMetrics.incRecordsWritten(state.recordCount)
 
-      // Reset buffer and create new serialization stream for next chunk
+      // Reset buffer and create new wrapped + serialization streams for next chunk
       state.buffer.reset()
-      val newSerStream = serializerInstance.serializeStream(state.buffer)
-      state.resetForNextChunk(newSerStream)
+      
+      // Create new wrapped stream with compression/encryption for the next chunk
+      val dummyBlockId = ShuffleBlockId(shuffleId, mapId, partitionId)
+      val newWrappedStream = serializerManager.wrapStream(dummyBlockId, state.buffer)
+      val newSerStream = serializerInstance.serializeStream(newWrappedStream)
+      state.resetForNextChunk(newWrappedStream, newSerStream)
 
       val flushTime = System.nanoTime() - startTime
       writeMetrics.incWriteTime(flushTime)

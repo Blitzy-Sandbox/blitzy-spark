@@ -29,7 +29,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.{ShuffleReader, ShuffleReadMetricsReporter}
-import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, StreamingShuffleBlockId}
+import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleBlockFetcherIterator, StreamingShuffleBlockId}
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
@@ -185,7 +185,7 @@ private[spark] class StreamingShuffleReader[K, C](
    *
    * This is the main entry point for consuming shuffle data. The implementation:
    * 1. Gets block locations from MapOutputTracker (supporting in-progress shuffles)
-   * 2. Creates a streaming block fetcher iterator with checksum validation
+   * 2. Uses ShuffleBlockFetcherIterator for proper local and remote block fetching
    * 3. Wraps streams for compression/encryption handling
    * 4. Deserializes records using the configured serializer
    * 5. Applies aggregation if defined in the ShuffleDependency
@@ -201,26 +201,41 @@ private[spark] class StreamingShuffleReader[K, C](
       mapOutputTracker.getMapSizesByExecutorId(
         handle.shuffleId, startMapIndex, endMapIndex, startPartition, endPartition)
 
-    // Create streaming block fetcher iterator that handles:
-    // - Block fetching with timeout handling
-    // - Checksum validation
-    // - Acknowledgment sending
-    // - Producer failure detection
-    val wrappedStreams: Iterator[(BlockId, InputStream)] =
-      createBlockFetcherIterator(blocksByAddress)
+    // Use ShuffleBlockFetcherIterator for proper block fetching
+    // This handles both local and remote shuffle blocks correctly, including:
+    // - Local block retrieval via shuffle block resolver
+    // - Remote block fetching via BlockTransferService
+    // - Proper throttling to avoid memory pressure
+    // - Correct handling of shuffle block locations
+    val wrappedStreams = new ShuffleBlockFetcherIterator(
+      context,
+      blockManager.blockStoreClient,
+      blockManager,
+      mapOutputTracker,
+      blocksByAddress,
+      serializerManager.wrapStream,
+      // Note: we use getSizeAsMb when no suffix is provided for backwards compatibility
+      conf.get(REDUCER_MAX_SIZE_IN_FLIGHT) * 1024 * 1024,
+      conf.get(REDUCER_MAX_REQS_IN_FLIGHT),
+      conf.get(REDUCER_MAX_BLOCKS_IN_FLIGHT_PER_ADDRESS),
+      conf.get(MAX_REMOTE_BLOCK_SIZE_FETCH_TO_MEM),
+      conf.get(SHUFFLE_MAX_ATTEMPTS_ON_NETTY_OOM),
+      conf.get(SHUFFLE_DETECT_CORRUPT),
+      conf.get(SHUFFLE_DETECT_CORRUPT_MEMORY),
+      conf.get(SHUFFLE_CHECKSUM_ENABLED),
+      conf.get(SHUFFLE_CHECKSUM_ALGORITHM),
+      readMetrics,
+      doBatchFetch = false).toCompletionIterator
 
     // Create serializer instance for deserialization
     val serializerInstance = dep.serializer.newInstance()
 
     // Create a key/value iterator for each stream
-    // IMPORTANT: Streaming shuffle data is serialized directly without SerializerManager
-    // wrapping (no compression/encryption at the serialization layer). The streaming shuffle
-    // writer uses serializerInstance.serializeStream(buffer) directly, so we must
-    // deserialize directly without wrapStream to avoid compression/encryption mismatch.
-    val recordIter = wrappedStreams.flatMap { case (blockId, inputStream) =>
-      // Deserialize the stream directly - streaming shuffle doesn't use SerializerManager
-      // wrapping for compression. The asKeyValueIterator closes the stream when exhausted.
-      serializerInstance.deserializeStream(inputStream).asKeyValueIterator
+    // ShuffleBlockFetcherIterator wraps streams with SerializerManager for compression/encryption,
+    // so we deserialize directly. The asKeyValueIterator closes the stream when exhausted.
+    val recordIter = wrappedStreams.flatMap { case (blockId, wrappedStream) =>
+      // Deserialize the wrapped stream (already has compression/encryption handling)
+      serializerInstance.deserializeStream(wrappedStream).asKeyValueIterator
     }
 
     // Update context task metrics for each record read and track count
