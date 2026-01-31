@@ -29,6 +29,9 @@ private[spark] object InternalAccumulator {
   val OUTPUT_METRICS_PREFIX = METRICS_PREFIX + "output."
   val INPUT_METRICS_PREFIX = METRICS_PREFIX + "input."
   val SHUFFLE_PUSH_READ_METRICS_PREFIX = METRICS_PREFIX + "shuffle.push.read."
+  // Prefix for streaming shuffle metrics - part of the streaming shuffle capability
+  // that enables incremental data streaming with backpressure and fault tolerance
+  val STREAMING_SHUFFLE_METRICS_PREFIX = METRICS_PREFIX + "shuffle.streaming."
 
   // Names of internal task level metrics
   val EXECUTOR_DESERIALIZE_TIME = METRICS_PREFIX + "executorDeserializeTime"
@@ -74,6 +77,21 @@ private[spark] object InternalAccumulator {
     val BYTES_WRITTEN = SHUFFLE_WRITE_METRICS_PREFIX + "bytesWritten"
     val RECORDS_WRITTEN = SHUFFLE_WRITE_METRICS_PREFIX + "recordsWritten"
     val WRITE_TIME = SHUFFLE_WRITE_METRICS_PREFIX + "writeTime"
+  }
+
+  // Names of streaming shuffle metrics
+  // These metrics support the streaming shuffle capability that enables incremental
+  // data streaming between map and reduce tasks with sophisticated backpressure
+  // and fault tolerance mechanisms. Coexists with existing sort-based shuffle.
+  object streamingShuffle {
+    // Percentage of streaming buffer memory currently in use (0-100)
+    val BUFFER_UTILIZATION = STREAMING_SHUFFLE_METRICS_PREFIX + "bufferUtilization"
+    // Count of times streaming buffers were spilled to disk due to memory pressure
+    val SPILL_COUNT = STREAMING_SHUFFLE_METRICS_PREFIX + "spillCount"
+    // Count of backpressure events triggered by slow consumers
+    val BACKPRESSURE_EVENTS = STREAMING_SHUFFLE_METRICS_PREFIX + "backpressureEvents"
+    // Count of partial read invalidations due to producer failures
+    val PARTIAL_READ_INVALIDATIONS = STREAMING_SHUFFLE_METRICS_PREFIX + "partialReadInvalidations"
   }
 
   // Names of output metrics
