@@ -32,6 +32,9 @@ class ShuffleWriteMetrics private[spark] () extends ShuffleWriteMetricsReporter 
   private[executor] val _bytesWritten = new LongAccumulator
   private[executor] val _recordsWritten = new LongAccumulator
   private[executor] val _writeTime = new LongAccumulator
+  // Streaming shuffle metrics - only populated when spark.shuffle.manager=streaming
+  private[executor] val _streamingSpillCount = new LongAccumulator
+  private[executor] val _streamingBackpressureEvents = new LongAccumulator
 
   /**
    * Number of bytes written for the shuffle by this task.
@@ -48,6 +51,18 @@ class ShuffleWriteMetrics private[spark] () extends ShuffleWriteMetricsReporter 
    */
   def writeTime: Long = _writeTime.sum
 
+  /**
+   * Number of times streaming shuffle buffers were spilled to disk due to memory pressure.
+   * Only populated when using streaming shuffle mode (spark.shuffle.manager=streaming).
+   */
+  def streamingSpillCount: Long = _streamingSpillCount.sum
+
+  /**
+   * Number of backpressure events received from consumers during streaming shuffle.
+   * Only populated when using streaming shuffle mode (spark.shuffle.manager=streaming).
+   */
+  def streamingBackpressureEvents: Long = _streamingBackpressureEvents.sum
+
   private[spark] override def incBytesWritten(v: Long): Unit = _bytesWritten.add(v)
   private[spark] override def incRecordsWritten(v: Long): Unit = _recordsWritten.add(v)
   private[spark] override def incWriteTime(v: Long): Unit = _writeTime.add(v)
@@ -57,4 +72,8 @@ class ShuffleWriteMetrics private[spark] () extends ShuffleWriteMetricsReporter 
   private[spark] override def decRecordsWritten(v: Long): Unit = {
     _recordsWritten.setValue(recordsWritten - v)
   }
+  // Streaming shuffle metric incrementers
+  private[spark] override def incStreamingSpillCount(v: Long): Unit = _streamingSpillCount.add(v)
+  private[spark] override def incStreamingBackpressureEvents(v: Long): Unit =
+    _streamingBackpressureEvents.add(v)
 }

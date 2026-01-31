@@ -267,6 +267,9 @@ class TaskMetrics private[spark] () extends Serializable {
     shuffleWrite.BYTES_WRITTEN -> shuffleWriteMetrics._bytesWritten,
     shuffleWrite.RECORDS_WRITTEN -> shuffleWriteMetrics._recordsWritten,
     shuffleWrite.WRITE_TIME -> shuffleWriteMetrics._writeTime,
+    // Streaming shuffle metrics - only populated when spark.shuffle.manager=streaming
+    streamingShuffle.SPILL_COUNT -> shuffleWriteMetrics._streamingSpillCount,
+    streamingShuffle.BACKPRESSURE_EVENTS -> shuffleWriteMetrics._streamingBackpressureEvents,
     input.BYTES_READ -> inputMetrics._bytesRead,
     input.RECORDS_READ -> inputMetrics._recordsRead,
     output.BYTES_WRITTEN -> outputMetrics._bytesWritten,

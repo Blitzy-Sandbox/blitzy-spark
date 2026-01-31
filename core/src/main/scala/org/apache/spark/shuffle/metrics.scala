@@ -43,6 +43,9 @@ private[spark] trait ShuffleReadMetricsReporter {
   private[spark] def incLocalMergedBytesRead(v: Long): Unit
   private[spark] def incRemoteReqsDuration(v: Long): Unit
   private[spark] def incRemoteMergedReqsDuration(v: Long): Unit
+  // Streaming shuffle metrics - only active when spark.shuffle.manager=streaming
+  private[spark] def incStreamingBufferUtilization(v: Long): Unit
+  private[spark] def incStreamingPartialReadInvalidations(v: Long): Unit
 }
 
 
@@ -59,4 +62,7 @@ private[spark] trait ShuffleWriteMetricsReporter {
   private[spark] def incWriteTime(v: Long): Unit
   private[spark] def decBytesWritten(v: Long): Unit
   private[spark] def decRecordsWritten(v: Long): Unit
+  // Streaming shuffle metrics - only active when spark.shuffle.manager=streaming
+  private[spark] def incStreamingSpillCount(v: Long): Unit
+  private[spark] def incStreamingBackpressureEvents(v: Long): Unit
 }

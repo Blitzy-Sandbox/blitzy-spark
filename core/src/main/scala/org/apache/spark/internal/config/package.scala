@@ -1747,6 +1747,70 @@ package object config {
       .stringConf
       .createWithDefault("sort")
 
+  // Streaming Shuffle Configuration - These settings control the optional streaming shuffle mode
+  // that coexists with the default sort-based shuffle. Streaming shuffle is activated via
+  // spark.shuffle.manager=streaming and these configs only take effect in streaming mode.
+
+  private[spark] val SHUFFLE_STREAMING_ENABLED =
+    ConfigBuilder("spark.shuffle.streaming.enabled")
+      .doc("Enable streaming shuffle for reduced latency by streaming serialized partition " +
+        "data directly to consumer executors rather than materializing complete shuffle files. " +
+        "Requires spark.shuffle.manager=streaming to be effective.")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  private[spark] val SHUFFLE_STREAMING_BUFFER_SIZE_PERCENT =
+    ConfigBuilder("spark.shuffle.streaming.bufferSizePercent")
+      .doc("Percent of executor memory allocated for streaming shuffle buffers. " +
+        "Per-partition buffer size is calculated as (executorMemory * bufferPercent) / numPartitions.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(v => v >= 1 && v <= 50, "Must be between 1 and 50")
+      .createWithDefault(20)
+
+  private[spark] val SHUFFLE_STREAMING_SPILL_THRESHOLD =
+    ConfigBuilder("spark.shuffle.streaming.spillThreshold")
+      .doc("Buffer utilization percentage threshold that triggers automatic disk spill. " +
+        "When streaming buffer utilization exceeds this threshold, LRU-based partition eviction begins.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(v => v >= 50 && v <= 95, "Must be between 50 and 95")
+      .createWithDefault(80)
+
+  private[spark] val SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS =
+    ConfigBuilder("spark.shuffle.streaming.maxBandwidthMBps")
+      .doc("Maximum bandwidth in MB/s for streaming shuffle transfers. " +
+        "If not set, bandwidth is unlimited. Used for token bucket rate limiting.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(v => v > 0, "Must be positive")
+      .createOptional
+
+  private[spark] val SHUFFLE_STREAMING_CONNECTION_TIMEOUT =
+    ConfigBuilder("spark.shuffle.streaming.connectionTimeout")
+      .doc("Connection timeout in seconds for streaming shuffle connections. " +
+        "If producer does not respond within this time, it is marked as failed.")
+      .version("4.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("5s")
+
+  private[spark] val SHUFFLE_STREAMING_HEARTBEAT_INTERVAL =
+    ConfigBuilder("spark.shuffle.streaming.heartbeatInterval")
+      .doc("Heartbeat interval in seconds for liveness detection between streaming shuffle " +
+        "producers and consumers. Used for failure detection and buffer retention decisions.")
+      .version("4.2.0")
+      .timeConf(TimeUnit.SECONDS)
+      .createWithDefaultString("10s")
+
+  private[spark] val SHUFFLE_STREAMING_DEBUG =
+    ConfigBuilder("spark.shuffle.streaming.debug")
+      .doc("Enable debug logging for streaming shuffle. Provides detailed logs for " +
+        "buffer allocation, spill events, backpressure signals, and acknowledgments.")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
   private[spark] val SHUFFLE_REDUCE_LOCALITY_ENABLE =
     ConfigBuilder("spark.shuffle.reduceLocality.enabled")
       .doc("Whether to compute locality preferences for reduce tasks")
