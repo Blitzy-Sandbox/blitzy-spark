@@ -177,14 +177,13 @@ private[spark] class StreamingShuffleManager(conf: SparkConf) extends ShuffleMan
         // Wrap metrics with streaming-specific tracking
         val wrappedMetrics = new StreamingShuffleWriteMetrics(metrics, metricsSource)
 
-        new StreamingShuffleWriter[K, V](
-          streamingHandle.asInstanceOf[StreamingShuffleHandle[K, V, _]],
+        new StreamingShuffleWriter[K, V, Any](
+          streamingHandle.asInstanceOf[StreamingShuffleHandle[K, V, Any]],
           mapId,
           context,
           wrappedMetrics,
           spillManager,
-          backpressureProtocol,
-          blockResolver)
+          backpressureProtocol)
 
       case _ =>
         // Delegate to sort-based shuffle
