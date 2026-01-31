@@ -67,6 +67,9 @@ private[streaming] class PartitionBufferState(
    * Flush serialization stream and return buffer content.
    * Updates the checksum with the flushed data.
    *
+   * Note: For complete data extraction (especially with compression), 
+   * prefer closeStream() followed by buffer.toByteArray.
+   *
    * @return the serialized data as byte array
    */
   def flush(): Array[Byte] = {
@@ -74,6 +77,17 @@ private[streaming] class PartitionBufferState(
     val data = buffer.toByteArray
     checksum.update(data)
     data
+  }
+  
+  /**
+   * Close the serialization stream to finalize any pending data.
+   * 
+   * CRITICAL: This must be called before extracting data when using compression
+   * codecs (like LZ4) that need to write frame-end markers. Without closing,
+   * the compressed data will appear corrupted when deserialized.
+   */
+  def closeStream(): Unit = {
+    serStream.close()
   }
 
   /**
@@ -92,6 +106,20 @@ private[streaming] class PartitionBufferState(
   def reset(newSerStream: SerializationStream): Unit = {
     buffer.reset()
     serStream = newSerStream
+    // Note: checksum is cumulative across chunks for the partition
+    chunkIndex += 1
+  }
+  
+  /**
+   * Reset for next chunk after a flush+close cycle.
+   * Does NOT reset the buffer (caller should do that before calling this).
+   * Increments the chunk index for the next chunk.
+   *
+   * @param newSerStream new serialization stream for the next chunk
+   */
+  def resetForNextChunk(newSerStream: SerializationStream): Unit = {
+    serStream = newSerStream
+    recordCount = 0
     // Note: checksum is cumulative across chunks for the partition
     chunkIndex += 1
   }
@@ -192,6 +220,20 @@ private[spark] class StreamingShuffleWriter[K, V, C](
 
   /** Memory manager for buffer allocation tracking. */
   private lazy val memoryManager = SparkEnv.get.memoryManager
+
+  /** 
+   * Block resolver for registering streaming blocks so readers can find them.
+   * We access this through the shuffle manager to ensure we get the streaming resolver.
+   */
+  private lazy val blockResolver: StreamingShuffleBlockResolver = {
+    SparkEnv.get.shuffleManager.shuffleBlockResolver match {
+      case resolver: StreamingShuffleBlockResolver => resolver
+      case other =>
+        logWarning(s"Expected StreamingShuffleBlockResolver but got ${other.getClass.getName}, " +
+          "creating dedicated resolver")
+        new StreamingShuffleBlockResolver(conf)
+    }
+  }
 
   // ============================================================================
   // Buffer Configuration
@@ -476,6 +518,10 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   /**
    * Flush a partition buffer, streaming data to consumers.
    *
+   * CRITICAL: We must CLOSE the serialization stream (not just flush) to ensure that
+   * compression codecs (like LZ4) finalize their frames properly. Without this, the
+   * data will appear corrupted when deserialized because the compression frame is incomplete.
+   *
    * @param partitionId the partition ID
    * @param state       the buffer state
    */
@@ -483,8 +529,13 @@ private[spark] class StreamingShuffleWriter[K, V, C](
     val startTime = System.nanoTime()
 
     try {
-      // Flush serialization stream and get data
-      val data = state.flush()
+      // CRITICAL: Close the serialization stream to finalize compression frames
+      // This is essential for LZ4 and other compression codecs that need to write
+      // frame-end markers. Without closing, the data will be corrupted.
+      state.closeStream()
+      
+      // Get the finalized data from the buffer
+      val data = state.buffer.toByteArray
       val checksumValue = computeChecksum(data)
 
       // Update partition-level checksum
@@ -509,9 +560,10 @@ private[spark] class StreamingShuffleWriter[K, V, C](
       writeMetrics.incBytesWritten(bytes)
       writeMetrics.incRecordsWritten(state.recordCount)
 
-      // Prepare for next chunk
+      // Reset buffer and create new serialization stream for next chunk
+      state.buffer.reset()
       val newSerStream = serializerInstance.serializeStream(state.buffer)
-      state.reset(newSerStream)
+      state.resetForNextChunk(newSerStream)
 
       val flushTime = System.nanoTime() - startTime
       writeMetrics.incWriteTime(flushTime)
@@ -594,13 +646,17 @@ private[spark] class StreamingShuffleWriter[K, V, C](
     // Record bytes sent for flow control tracking
     backpressureProtocol.recordSentBytes(localConsumerId, data.length)
 
-    // In a full implementation, we would:
+    // CRITICAL: Register the block with the StreamingShuffleBlockResolver
+    // This makes the data available for readers to fetch. Without this registration,
+    // readers will not find the data when they call blockManager.getLocalBlockData().
+    blockResolver.registerInProgressBlock(blockId, data, checksum)
+
+    // In a full distributed implementation, we would:
     // 1. Push data to consumers via NettyBlockTransferService
     // 2. Wait for acknowledgments
     // 3. Release buffers after acknowledgment
 
-    // For now, data is available via the block manager
-    logDebug(s"Block ${blockId.name} ready for consumer fetch: ${data.length} bytes")
+    logDebug(s"Block ${blockId.name} registered and ready for consumer fetch: ${data.length} bytes")
   }
 
   // ============================================================================

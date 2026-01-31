@@ -58,24 +58,44 @@ private[streaming] case class InProgressBlockData(
  * == Coexistence with Sort-Based Shuffle ==
  *
  * This resolver handles StreamingShuffleBlockId blocks specifically. For other block
- * types (e.g., ShuffleDataBlockId from sort-based shuffle), it provides minimal
- * compatibility by delegating to the standard block manager.
+ * types (e.g., ShuffleBlockId, ShuffleDataBlockId from sort-based shuffle), it
+ * delegates to the sort-based [[IndexShuffleBlockResolver]] for proper resolution.
+ *
+ * IMPORTANT: We cannot use blockManager.getLocalBlockData() for shuffle blocks because
+ * that would create an infinite loop - the block manager calls back to the shuffle
+ * manager's resolver, which is this class.
  *
  * == Thread Safety ==
  *
  * All operations are thread-safe via concurrent data structures.
  *
- * @param conf          SparkConf containing configuration
- * @param _blockManager optional explicit BlockManager (for testing)
+ * @param conf                 SparkConf containing configuration
+ * @param _blockManager        optional explicit BlockManager (for testing)
+ * @param _sortBlockResolver   optional explicit sort-based resolver (for testing)
  */
 private[spark] class StreamingShuffleBlockResolver(
     conf: SparkConf,
-    var _blockManager: BlockManager = null)
+    var _blockManager: BlockManager = null,
+    var _sortBlockResolver: ShuffleBlockResolver = null)
   extends ShuffleBlockResolver with Logging {
 
   // Lazily access block manager (not available at construction in some contexts)
   private lazy val blockManager: BlockManager =
     Option(_blockManager).getOrElse(SparkEnv.get.blockManager)
+
+  // Lazily access the sort-based block resolver for fallback delegated resolution.
+  // This MUST be accessed through the sort shuffle manager, NOT through the block manager
+  // or current shuffle manager to avoid infinite delegation loops.
+  private lazy val sortBlockResolver: ShuffleBlockResolver = {
+    Option(_sortBlockResolver).getOrElse {
+      // Create a dedicated IndexShuffleBlockResolver for sort-based shuffle blocks.
+      // We cannot use SparkEnv.get.shuffleManager.shuffleBlockResolver because that
+      // returns this StreamingShuffleBlockResolver, causing an infinite loop.
+      import org.apache.spark.shuffle.sort.SortShuffleManager
+      val sortManager = new SortShuffleManager(conf)
+      sortManager.shuffleBlockResolver
+    }
+  }
 
   // In-progress blocks held in memory
   private val inProgressBlocks = new ConcurrentHashMap[StreamingShuffleBlockId, InProgressBlockData]()
@@ -85,6 +105,18 @@ private[spark] class StreamingShuffleBlockResolver(
 
   /**
    * Get block data for the specified block ID.
+   *
+   * This method handles multiple block ID types to support both streaming shuffle
+   * and fallback to sort-based shuffle:
+   *
+   * - StreamingShuffleBlockId: Native streaming shuffle blocks (in-memory or spilled)
+   * - ShuffleBlockId: Regular shuffle blocks (used by sort-based shuffle after fallback)
+   * - ShuffleDataBlockId: Sort-based shuffle data blocks
+   * - ShuffleIndexBlockId: Sort-based shuffle index blocks
+   *
+   * IMPORTANT: For sort-based shuffle blocks, we MUST delegate to the sort block resolver
+   * directly, NOT through blockManager.getLocalBlockData(). The block manager calls back to
+   * the shuffle manager's resolver (which is us), creating an infinite loop.
    *
    * @param blockId the block identifier
    * @param dirs    optional directories to search (unused for streaming blocks)
@@ -98,13 +130,88 @@ private[spark] class StreamingShuffleBlockResolver(
       case streamingId: StreamingShuffleBlockId =>
         getStreamingBlockData(streamingId)
 
+      case shuffleId: ShuffleBlockId =>
+        // First check if we have streaming data for this shuffle block.
+        // Streaming shuffle stores data with StreamingShuffleBlockId which includes chunkIndex,
+        // but the reader requests ShuffleBlockId. We need to look up all chunks for this
+        // (shuffleId, mapId, reduceId) and combine them.
+        val streamingData = getStreamingDataForShuffleBlock(shuffleId)
+        if (streamingData.isDefined) {
+          logDebug(s"Found streaming data for ShuffleBlockId $shuffleId")
+          streamingData.get
+        } else {
+          // Delegate to sort-based resolver for regular shuffle blocks (used after fallback to sort)
+          // This enables coexistence with sort-based shuffle when streaming falls back.
+          // CRITICAL: Do NOT use blockManager.getLocalBlockData() - it creates an infinite loop!
+          logDebug(s"Delegating ShuffleBlockId $shuffleId to sort block resolver (sort-based fallback)")
+          sortBlockResolver.getBlockData(shuffleId, dirs)
+        }
+
       case shuffleDataId: ShuffleDataBlockId =>
-        // Fallback to standard shuffle block resolution for sort-based shuffle blocks
-        getSpilledShuffleBlockData(shuffleDataId, dirs)
+        // Delegate to sort-based resolver for shuffle data blocks
+        logDebug(s"Delegating ShuffleDataBlockId $shuffleDataId to sort block resolver")
+        sortBlockResolver.getBlockData(shuffleDataId, dirs)
+
+      case shuffleIndexId: ShuffleIndexBlockId =>
+        // Delegate to sort-based resolver for index blocks
+        logDebug(s"Delegating ShuffleIndexBlockId $shuffleIndexId to sort block resolver")
+        sortBlockResolver.getBlockData(shuffleIndexId, dirs)
 
       case _ =>
         throw new IllegalArgumentException(
           s"Unexpected block ID type for streaming shuffle: $blockId")
+    }
+  }
+  
+  /**
+   * Look up streaming data for a ShuffleBlockId by finding all matching StreamingShuffleBlockId chunks.
+   * 
+   * When the reader requests data via ShuffleBlockId (shuffleId, mapId, reduceId), we need to
+   * find all streaming chunks that match and combine them into a single buffer.
+   *
+   * @param blockId the ShuffleBlockId to look up
+   * @return Some(ManagedBuffer) if streaming data exists, None otherwise
+   */
+  private def getStreamingDataForShuffleBlock(blockId: ShuffleBlockId): Option[ManagedBuffer] = {
+    // Find all streaming blocks that match this (shuffleId, mapId, reduceId)
+    val matchingBlocks = inProgressBlocks.keySet().asScala.filter { streamingId =>
+      streamingId.shuffleId == blockId.shuffleId &&
+        streamingId.mapId == blockId.mapId &&
+        streamingId.reduceId == blockId.reduceId
+    }.toSeq.sortBy(_.chunkIndex)
+    
+    if (matchingBlocks.isEmpty) {
+      // Also check spilled blocks
+      val spilledMatches = spilledBlocks.keySet().asScala.filter { streamingId =>
+        streamingId.shuffleId == blockId.shuffleId &&
+          streamingId.mapId == blockId.mapId &&
+          streamingId.reduceId == blockId.reduceId
+      }.toSeq.sortBy(_.chunkIndex)
+      
+      if (spilledMatches.isEmpty) {
+        None
+      } else {
+        // Combine spilled chunks
+        val combined = spilledMatches.flatMap { streamingId =>
+          Option(spilledBlocks.get(streamingId)).filter(_.exists()).map { file =>
+            java.nio.file.Files.readAllBytes(file.toPath)
+          }
+        }
+        if (combined.isEmpty) None
+        else Some(new NioManagedBuffer(ByteBuffer.wrap(combined.flatten.toArray)))
+      }
+    } else {
+      // Combine in-progress chunks
+      val combined = matchingBlocks.flatMap { streamingId =>
+        Option(inProgressBlocks.get(streamingId)).map { data =>
+          val buf = data.buffer.duplicate()
+          val arr = new Array[Byte](buf.remaining())
+          buf.get(arr)
+          arr
+        }
+      }
+      if (combined.isEmpty) None
+      else Some(new NioManagedBuffer(ByteBuffer.wrap(combined.flatten.toArray)))
     }
   }
 
@@ -318,16 +425,6 @@ private[spark] class StreamingShuffleBlockResolver(
     }.getOrElse {
       throw new IllegalStateException(s"Block $blockId not found in streaming resolver")
     }
-  }
-
-  /**
-   * Get data for a sort-based shuffle block (fallback path).
-   */
-  private def getSpilledShuffleBlockData(
-      blockId: ShuffleDataBlockId,
-      dirs: Option[Array[String]]): ManagedBuffer = {
-    // Delegate to block manager for sort-based shuffle blocks
-    blockManager.getLocalBlockData(blockId)
   }
 }
 

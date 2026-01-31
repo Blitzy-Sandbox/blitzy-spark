@@ -213,14 +213,14 @@ private[spark] class StreamingShuffleReader[K, C](
     val serializerInstance = dep.serializer.newInstance()
 
     // Create a key/value iterator for each stream
-    // Apply serializerManager wrapping for compression/encryption
+    // IMPORTANT: Streaming shuffle data is serialized directly without SerializerManager
+    // wrapping (no compression/encryption at the serialization layer). The streaming shuffle
+    // writer uses serializerInstance.serializeStream(buffer) directly, so we must
+    // deserialize directly without wrapStream to avoid compression/encryption mismatch.
     val recordIter = wrappedStreams.flatMap { case (blockId, inputStream) =>
-      // Wrap stream with compression/encryption if configured
-      val wrappedStream = serializerManager.wrapStream(blockId, inputStream)
-
-      // Deserialize the stream and return key-value iterator
-      // The asKeyValueIterator closes the stream when exhausted
-      serializerInstance.deserializeStream(wrappedStream).asKeyValueIterator
+      // Deserialize the stream directly - streaming shuffle doesn't use SerializerManager
+      // wrapping for compression. The asKeyValueIterator closes the stream when exhausted.
+      serializerInstance.deserializeStream(inputStream).asKeyValueIterator
     }
 
     // Update context task metrics for each record read and track count
