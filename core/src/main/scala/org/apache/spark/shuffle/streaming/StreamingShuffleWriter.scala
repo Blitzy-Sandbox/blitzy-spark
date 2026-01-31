@@ -574,24 +574,25 @@ private[spark] class StreamingShuffleWriter[K, V, C](
       partitionId: Int): Unit = {
 
     // Check for backpressure before sending
-    // In production, we would have specific consumer IDs; here we use a placeholder
-    val dummyConsumerId = BlockManagerId("driver", "localhost", 7077, None)
+    // In a full distributed implementation, consumer IDs would come from MapOutputTracker
+    // For the local case, we use a representative consumer ID for flow control
+    val localConsumerId = BlockManagerId("driver", "localhost", 7077, None)
 
     // Check if we should throttle due to backpressure
-    if (backpressureProtocol.shouldThrottle(dummyConsumerId, data.length)) {
+    if (backpressureProtocol.shouldThrottle(localConsumerId, data.length)) {
       backpressureEventCount.incrementAndGet()
       writeMetrics.incStreamingBackpressureEvents(1)
       logDebug(s"Backpressure active for partition $partitionId, may delay streaming")
     }
 
     // Check consumer liveness
-    if (!backpressureProtocol.isConsumerAlive(dummyConsumerId)) {
+    if (!backpressureProtocol.isConsumerAlive(localConsumerId)) {
       // Consumer may be dead, but we continue anyway (data will be available from disk if spilled)
       logDebug(s"Consumer liveness check failed, continuing with local buffering")
     }
 
     // Record bytes sent for flow control tracking
-    backpressureProtocol.recordSentBytes(dummyConsumerId, data.length)
+    backpressureProtocol.recordSentBytes(localConsumerId, data.length)
 
     // In a full implementation, we would:
     // 1. Push data to consumers via NettyBlockTransferService
