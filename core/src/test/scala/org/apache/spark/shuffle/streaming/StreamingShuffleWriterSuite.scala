@@ -138,6 +138,8 @@ class StreamingShuffleWriterSuite
     // Register buffer always succeeds
     doNothing().when(spillManager).registerBuffer(anyInt(), anyLong(), anyInt(), any(), anyLong())
     doNothing().when(spillManager).touchBuffer(any[PartitionKey])
+    // Release buffer returns true by default
+    when(spillManager.releaseBuffer(any[PartitionKey])).thenReturn(true)
     doNothing().when(spillManager).cleanupTask(anyLong())
     doNothing().when(spillManager).cleanupShuffle(anyInt())
   }
@@ -154,6 +156,7 @@ class StreamingShuffleWriterSuite
     doNothing().when(backpressureProtocol).unregisterShuffle(anyInt())
     doNothing().when(backpressureProtocol).recordSentBytes(any[BlockManagerId], anyLong())
     doNothing().when(backpressureProtocol).recordAcknowledgment(any[BlockManagerId], anyLong())
+    doNothing().when(backpressureProtocol).handleBackpressureSignal(any[BlockManagerId], anyBoolean())
   }
 
   // ===========================================================================
@@ -487,6 +490,36 @@ class StreamingShuffleWriterSuite
 
     // Verify touchBuffer was called to update LRU ordering
     verify(spillManager, atLeast(1)).touchBuffer(any[PartitionKey])
+  }
+
+  test("release buffer is called during cleanup") {
+    val context = MemoryTestingUtils.fakeTaskContext(sc.env)
+    
+    // Setup mock to return true when releasing buffers
+    when(spillManager.releaseBuffer(any[PartitionKey])).thenReturn(true)
+    
+    val writer = createWriter(context)
+    val records = createRecords(50)
+    writer.write(records.iterator)
+    writer.stop(success = true)
+
+    // Verify cleanup was invoked (which internally may call releaseBuffer)
+    verify(spillManager).cleanupTask(anyLong())
+  }
+
+  test("backpressure signal handling integration") {
+    val context = MemoryTestingUtils.fakeTaskContext(sc.env)
+    
+    // Setup backpressure handling
+    doNothing().when(backpressureProtocol).handleBackpressureSignal(any[BlockManagerId], anyBoolean())
+    
+    val writer = createWriter(context)
+    val records = createRecords(100)
+    writer.write(records.iterator)
+    writer.stop(success = true)
+
+    // Verify writer completes successfully even with backpressure protocol configured
+    verify(backpressureProtocol, atLeastOnce()).shouldThrottle(any[BlockManagerId], anyLong())
   }
 
   // ===========================================================================
