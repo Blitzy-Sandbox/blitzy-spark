@@ -782,8 +782,9 @@ class BackpressureProtocolSuite
     protocol.registerConsumer(consumerId)
     protocol.recordHeartbeat(consumerId)
 
-    // Wait for timeout
-    Thread.sleep(3000)
+    // Wait for timeout (longer than connection timeout + heartbeat interval for async safety)
+    // Test config has 2s connection timeout, heartbeat monitor runs at 1s interval
+    Thread.sleep(3500)
 
     // Callback should have been invoked
     callbackCalled.get() must be(true)

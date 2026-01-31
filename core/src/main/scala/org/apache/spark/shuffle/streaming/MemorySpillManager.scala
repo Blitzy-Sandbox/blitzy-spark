@@ -201,14 +201,15 @@ private[spark] class MemorySpillManager(conf: SparkConf) extends Logging {
     accessOrder.remove(key)
 
     // Also delete spill file if exists
-    Option(spilledPartitions.remove(key)).foreach { file =>
-      if (file.exists()) {
-        file.delete()
-        logDebug(s"Deleted spill file for $key")
-      }
+    val spillFile = spilledPartitions.remove(key)
+    val hadSpillFile = spillFile != null && spillFile.exists()
+    if (hadSpillFile) {
+      spillFile.delete()
+      logDebug(s"Deleted spill file for $key")
     }
 
-    buffer != null
+    // Return true if buffer was in memory OR was spilled to disk
+    buffer != null || hadSpillFile
   }
 
   /**

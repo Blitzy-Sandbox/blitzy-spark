@@ -20,15 +20,12 @@ package org.apache.spark.shuffle.streaming
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 
-import org.mockito.ArgumentMatchers._
-import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers
 import org.scalatestplus.mockito.MockitoSugar
 
 import org.apache.spark._
 import org.apache.spark.internal.config._
-import org.apache.spark.storage.{BlockId, BlockManager, DiskBlockManager, TempLocalBlockId}
 import org.apache.spark.util.Utils
 
 /**
