@@ -1,0 +1,25 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: blitzy-spark
+  description: "Apache Spark streaming shuffle implementation — reduced latency for large-scale data processing pipelines"
+  tags:
+    - java
+    - infrastructure
+    - performance
+  labels:
+    blitzy.com/language: java
+  annotations:
+    github.com/project-slug: Blitzy-Sandbox/blitzy-spark
+    backstage.io/source-location: url:https://github.com/Blitzy-Sandbox/blitzy-spark/tree/master/
+  links:
+    - url: https://github.com/Blitzy-Sandbox/blitzy-spark
+      title: GitHub Repository
+    - url: https://github.com/Blitzy-Sandbox/blitzy-spark/pull/3
+      title: "PR #3: Streaming Shuffle for Apache Spark"
+      icon: github
+spec:
+  type: library
+  lifecycle: production
+  owner: blitzy-sandbox
+  system: blitzy-java
