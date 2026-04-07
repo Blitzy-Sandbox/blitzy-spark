@@ -1,6 +1,9 @@
+docs_dir: blitzy-docs
 site_name: 'blitzy-spark'
 nav:
   - Home: index.md
+  - Project Guide: project-guide.md
+  - Technical Specifications: technical-specifications.md
 plugins:
   - techdocs-core
   - mermaid2
