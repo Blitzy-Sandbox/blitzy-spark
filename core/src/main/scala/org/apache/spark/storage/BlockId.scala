@@ -43,7 +43,8 @@ sealed abstract class BlockId {
   def isRDD: Boolean = isInstanceOf[RDDBlockId]
   def isShuffle: Boolean = {
     (isInstanceOf[ShuffleBlockId] || isInstanceOf[ShuffleBlockBatchId] ||
-     isInstanceOf[ShuffleDataBlockId] || isInstanceOf[ShuffleIndexBlockId])
+     isInstanceOf[ShuffleDataBlockId] || isInstanceOf[ShuffleIndexBlockId] ||
+     isInstanceOf[StreamingShuffleBlockId])
   }
   def isShuffleChunk: Boolean = isInstanceOf[ShuffleBlockChunkId]
   def isBroadcast: Boolean = isInstanceOf[BroadcastBlockId]
@@ -100,6 +101,27 @@ case class ShuffleIndexBlockId(shuffleId: Int, mapId: Long, reduceId: Int) exten
 @DeveloperApi
 case class ShuffleChecksumBlockId(shuffleId: Int, mapId: Long, reduceId: Int) extends BlockId {
   override def name: String = "shuffle_" + shuffleId + "_" + mapId + "_" + reduceId + ".checksum"
+}
+
+/**
+ * Block ID for streaming shuffle blocks, including chunk index for incremental data transfer.
+ * Used by streaming shuffle mode (spark.shuffle.manager=streaming) to identify in-progress
+ * shuffle blocks being streamed to consumers before map task completion.
+ *
+ * @param shuffleId the shuffle ID
+ * @param mapId the map task ID (Long for large clusters)
+ * @param reduceId the reduce partition ID
+ * @param chunkIndex the chunk index within this partition for streaming chunks
+ */
+@Since("4.2.0")
+@DeveloperApi
+case class StreamingShuffleBlockId(
+    shuffleId: Int,
+    mapId: Long,
+    reduceId: Int,
+    chunkIndex: Int) extends BlockId {
+  override def name: String =
+    "streaming_shuffle_" + shuffleId + "_" + mapId + "_" + reduceId + "_" + chunkIndex
 }
 
 @Since("3.2.0")
@@ -277,6 +299,7 @@ object BlockId {
   val SHUFFLE_MERGED_META =
     "shuffleMerged_([_A-Za-z0-9]*)_([0-9]+)_([0-9]+)_([0-9]+).meta".r
   val SHUFFLE_CHUNK = "shuffleChunk_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)".r
+  val STREAMING_SHUFFLE = "streaming_shuffle_([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)".r
   val BROADCAST = "broadcast_([0-9]+)([_A-Za-z0-9]*)".r
   val TASKRESULT = "taskresult_([0-9]+)".r
   val STREAM = "input-([0-9]+)-([0-9]+)".r
@@ -314,6 +337,8 @@ object BlockId {
     case SHUFFLE_CHUNK(shuffleId, shuffleMergeId, reduceId, chunkId) =>
       ShuffleBlockChunkId(shuffleId.toInt, shuffleMergeId.toInt, reduceId.toInt,
         chunkId.toInt)
+    case STREAMING_SHUFFLE(shuffleId, mapId, reduceId, chunkIndex) =>
+      StreamingShuffleBlockId(shuffleId.toInt, mapId.toLong, reduceId.toInt, chunkIndex.toInt)
     case BROADCAST(broadcastId, field) =>
       BroadcastBlockId(broadcastId.toLong, field.stripPrefix("_"))
     case TASKRESULT(taskId) =>

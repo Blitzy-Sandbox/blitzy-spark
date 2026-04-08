@@ -261,6 +261,9 @@ private[spark] class TempShuffleReadMetrics extends ShuffleReadMetricsReporter {
   private[this] var _localMergedBytesRead = 0L
   private[this] var _remoteReqsDuration = 0L
   private[this] var _remoteMergedReqsDuration = 0L
+  // Streaming shuffle metrics - only populated when spark.shuffle.manager=streaming
+  private[this] var _streamingBufferUtilization = 0L
+  private[this] var _streamingPartialReadInvalidations = 0L
 
   override def incRemoteBlocksFetched(v: Long): Unit = _remoteBlocksFetched += v
   override def incLocalBlocksFetched(v: Long): Unit = _localBlocksFetched += v
@@ -279,6 +282,10 @@ private[spark] class TempShuffleReadMetrics extends ShuffleReadMetricsReporter {
   override def incLocalMergedBytesRead(v: Long): Unit = _localMergedBytesRead += v
   override def incRemoteReqsDuration(v: Long): Unit = _remoteReqsDuration += v
   override def incRemoteMergedReqsDuration(v: Long): Unit = _remoteMergedReqsDuration += v
+  // Streaming shuffle metric incrementers
+  override def incStreamingBufferUtilization(v: Long): Unit = _streamingBufferUtilization += v
+  override def incStreamingPartialReadInvalidations(v: Long): Unit =
+    _streamingPartialReadInvalidations += v
 
   def remoteBlocksFetched: Long = _remoteBlocksFetched
   def localBlocksFetched: Long = _localBlocksFetched
@@ -297,4 +304,7 @@ private[spark] class TempShuffleReadMetrics extends ShuffleReadMetricsReporter {
   def localMergedBytesRead: Long = _localMergedBytesRead
   def remoteReqsDuration: Long = _remoteReqsDuration
   def remoteMergedReqsDuration: Long = _remoteMergedReqsDuration
+  // Streaming shuffle getters
+  def streamingBufferUtilization: Long = _streamingBufferUtilization
+  def streamingPartialReadInvalidations: Long = _streamingPartialReadInvalidations
 }

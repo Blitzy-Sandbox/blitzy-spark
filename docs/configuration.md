@@ -1446,6 +1446,78 @@ Apart from these, the following properties are also available, and may be useful
   </td>
   <td>3.4.0</td>
 </tr>
+<!-- Streaming Shuffle Configuration -->
+<tr>
+  <td><code>spark.shuffle.streaming.enabled</code></td>
+  <td>false</td>
+  <td>
+    When set to true (and <code>spark.shuffle.manager=streaming</code>), enables streaming shuffle
+    for reduced latency. Streaming shuffle streams serialized partition data directly to consumer
+    executors rather than materializing complete shuffle files, reducing shuffle latency by 30-50%
+    for shuffle-heavy workloads.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
+  <td>20</td>
+  <td>
+    Percentage of executor memory (1-50) allocated for streaming shuffle buffers. Per-partition
+    buffers are calculated as (executorMemory * bufferSizePercent / 100) / numPartitions. Higher
+    values improve streaming throughput but reduce memory available for other tasks.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.spillThreshold</code></td>
+  <td>80</td>
+  <td>
+    Buffer utilization percentage (50-95) at which streaming shuffle triggers automatic disk spill.
+    When buffer utilization exceeds this threshold, the MemorySpillManager selects partitions using
+    LRU-based eviction for spill to disk. Lower values reduce memory pressure but increase disk I/O.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
+  <td>(none)</td>
+  <td>
+    Maximum bandwidth in MB/s for streaming shuffle data transfer. When set, token bucket rate
+    limiting is applied at 80% of the specified capacity to prevent network saturation. Leave
+    unset for unlimited bandwidth.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.connectionTimeout</code></td>
+  <td>5s</td>
+  <td>
+    Timeout for establishing and maintaining connections between streaming shuffle producers and
+    consumers. If a consumer does not respond within this timeout, the producer assumes the consumer
+    has failed. Used for failure detection and partial read invalidation.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.heartbeatInterval</code></td>
+  <td>10s</td>
+  <td>
+    Interval between heartbeat messages for streaming shuffle liveness detection. Consumers send
+    heartbeats to producers to indicate they are still alive and processing data. If heartbeats
+    are missed for twice this interval, the producer may throttle or disconnect.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.debug</code></td>
+  <td>false</td>
+  <td>
+    Enable debug logging for streaming shuffle operations. When enabled, detailed logs about buffer
+    allocation, spill operations, acknowledgments, and backpressure events are written. Warning:
+    may significantly increase log volume.
+  </td>
+  <td>4.2.0</td>
+</tr>
 </table>
 
 ### Spark UI

@@ -284,6 +284,114 @@ support tasks as short as 200 ms, because it reuses one executor JVM across many
 a low task launching cost, so you can safely increase the level of parallelism to more than the
 number of cores in your clusters.
 
+## Streaming Shuffle Tuning
+
+Streaming shuffle is an alternative to the default sort-based shuffle that streams serialized partition
+data directly to consumer executors rather than materializing complete shuffle files on disk. This approach
+reduces shuffle latency by enabling overlapped computation between map and reduce tasks, allowing consumers
+to begin processing data before the producer task fully completes.
+
+### When to Use Streaming Shuffle
+
+Streaming shuffle provides the most benefit for the following workload characteristics:
+
+* **Shuffle-heavy workloads**: Jobs with large shuffle data volumes (100MB+) see the greatest improvement
+  since the incremental streaming approach avoids the full materialization overhead.
+* **Multi-partition shuffles**: Workloads with 10 or more shuffle partitions benefit from parallel
+  streaming across partitions.
+* **Latency-sensitive applications**: When job completion time is more important than maximum throughput,
+  streaming shuffle's overlapped execution model can significantly reduce end-to-end latency.
+* **Expected performance**: For shuffle-heavy workloads, expect 30-50% latency reduction compared to
+  the default sort-based shuffle.
+
+To enable streaming shuffle, set the following configuration:
+
+{% highlight scala %}
+spark.conf.set("spark.shuffle.manager", "streaming")
+{% endhighlight %}
+
+### Memory Configuration
+
+Streaming shuffle uses executor memory for buffering partition data before streaming to consumers.
+The following configurations control memory allocation and spill behavior:
+
+* **`spark.shuffle.streaming.bufferSizePercent`** (default: 20): Percentage of executor memory reserved
+  for streaming shuffle buffers. This memory is shared across all partitions being streamed. Increase
+  this value for shuffles with many partitions or large data volumes, but be mindful of leaving
+  sufficient memory for task execution and caching.
+
+* **`spark.shuffle.streaming.spillThreshold`** (default: 80): Buffer utilization percentage that
+  triggers automatic spill to disk. When the streaming buffer reaches this threshold, the largest
+  partitions are spilled to disk using LRU eviction to maintain memory pressure below critical levels.
+  Lower values provide more headroom but may increase spill frequency; higher values maximize memory
+  utilization but risk OOM under sudden memory pressure.
+
+**Tuning guidance:**
+
+* For memory-constrained executors, reduce `bufferSizePercent` to 10-15% to leave more memory for
+  task execution.
+* For shuffle-heavy workloads with large executors, increase `bufferSizePercent` to 25-30% to
+  reduce spill frequency.
+* If you observe frequent disk spills, consider lowering `spillThreshold` to 70% for more gradual
+  memory release, or increase `bufferSizePercent` if executor memory allows.
+
+### Performance Expectations
+
+Streaming shuffle provides different levels of benefit depending on workload characteristics:
+
+* **Shuffle-heavy workloads (100MB+)**: Expect 30-50% reduction in shuffle stage latency due to
+  overlapped execution between map and reduce tasks.
+* **Large partition counts (10+)**: Greater benefit from parallel streaming across multiple partitions.
+* **Small shuffles (<100MB)**: Minimal benefit; the overhead of streaming coordination may offset
+  the latency improvement.
+* **CPU-bound workloads**: Lower improvement since the bottleneck is computation rather than
+  shuffle I/O.
+
+### Automatic Fallback Behavior
+
+Streaming shuffle automatically falls back to the traditional sort-based shuffle when it detects
+conditions that would degrade performance or risk data integrity:
+
+* **Consumer lag**: When a consumer processes data at less than half the producer's rate for more
+  than 60 seconds, streaming falls back to sort-based shuffle to prevent unbounded buffer growth.
+* **Memory pressure**: When memory allocation failures indicate OOM risk, all streaming buffers
+  are spilled to disk and the shuffle falls back to sort-based mode.
+* **Network saturation**: When network utilization exceeds 90% of available bandwidth, the system
+  switches to sort-based shuffle to allow batch transfers that are more efficient under congestion.
+* **Version mismatch**: When executors running different Spark versions cannot negotiate a compatible
+  streaming protocol, the shuffle falls back to sort-based mode for compatibility.
+
+Fallback is seamless and preserves all data - buffered data is persisted to disk before switching
+to sort-based shuffle, ensuring zero data loss during the transition.
+
+### When to Use Sort-Based Shuffle Instead
+
+While streaming shuffle improves latency for many workloads, the traditional sort-based shuffle
+remains preferable in certain scenarios:
+
+* **Very small shuffles**: For shuffles under 100MB, the coordination overhead of streaming may
+  exceed its benefits. The default sort-based shuffle is more efficient for small data volumes.
+* **Memory-constrained environments**: When executors have limited memory and cannot spare 10-20%
+  for streaming buffers, sort-based shuffle's file-based approach uses less memory.
+* **High producer-consumer lag**: If consumers consistently cannot keep up with producers (e.g.,
+  complex aggregations), sort-based shuffle avoids the fallback overhead by materializing data upfront.
+* **Maximum throughput priority**: When throughput is more important than latency (e.g., batch
+  processing where job completion time variance is acceptable), sort-based shuffle may provide
+  higher aggregate throughput.
+
+To explicitly use sort-based shuffle, set:
+
+{% highlight scala %}
+spark.conf.set("spark.shuffle.manager", "sort")
+{% endhighlight %}
+
+### Additional Resources
+
+For a complete list of streaming shuffle configuration options, see the
+[configuration guide](configuration.html#streaming-shuffle). For a comprehensive overview of
+streaming shuffle architecture, monitoring, and troubleshooting, see the
+[Streaming Shuffle Guide](streaming-shuffle-guide.html).
+
 ## Broadcasting Large Variables
 
 Using the [broadcast functionality](rdd-programming-guide.html#broadcast-variables)
