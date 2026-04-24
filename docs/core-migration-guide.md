@@ -25,6 +25,7 @@ license: |
 ## Upgrading from Core 4.1 to 4.2
 
 - Since Spark 4.2, Spark will allocate executor pods with a batch size of `20`. To restore the legacy behavior, you can set `spark.kubernetes.allocation.batch.size` to `10`.
+- Since Spark 4.2, an opt-in streaming shuffle implementation is available via `spark.shuffle.manager=streaming`. The default remains `sort`, so **no migration action is required for existing applications** and behavior of the default `SortShuffleManager` is unchanged. When opting in, note that configuration changes to streaming-shuffle settings require an executor restart (no dynamic reconfiguration is supported in v1). Users enabling `spark.dynamicAllocation.enabled=true` alongside `spark.shuffle.manager=streaming` must independently satisfy the Shuffle-Preservation Gate by enabling the External Shuffle Service, `spark.dynamicAllocation.shuffleTracking.enabled`, decommissioning with `spark.storage.decommission.shuffleBlocks.enabled`, or a reliable `ShuffleDataIO` plug-in. See the `Shuffle Behavior` section of the [configuration page](configuration.html#shuffle-behavior) for the new `spark.shuffle.streaming.*` properties.
 
 ## Upgrading from Core 4.0 to 4.1
 
