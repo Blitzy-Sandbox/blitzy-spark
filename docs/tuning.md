@@ -284,6 +284,79 @@ support tasks as short as 200 ms, because it reuses one executor JVM across many
 a low task launching cost, so you can safely increase the level of parallelism to more than the
 number of cores in your clusters.
 
+## Streaming Shuffle
+
+Spark 4.2 introduces an opt-in **streaming shuffle** implementation as a coexisting alternative to
+the default sort-based shuffle. Streaming shuffle pipelines map-output bytes directly from producer
+executors to consumer executors with in-memory buffering, consumer-driven backpressure, and graceful
+spill to disk, eliminating the latency of full shuffle materialization. The sort-based
+`SortShuffleManager` remains the default and continues to serve as the automatic fallback target, so
+there is **no risk of regression for workloads that do not opt in**.
+
+Enable streaming shuffle by setting `spark.shuffle.manager=streaming`. See the
+[Shuffle Behavior](configuration.html#shuffle-behavior) section of the configuration guide for the
+full list of `spark.shuffle.streaming.*` properties and their defaults.
+
+### When to enable streaming shuffle
+
+Streaming shuffle is expected to deliver:
+
+- **30-50% end-to-end latency reduction** on shuffle-heavy workloads with at least 100 MB of
+  intermediate data and at least 10 partitions, where producer and consumer rates are stable and
+  roughly symmetric.
+- **5-10% latency improvement** on CPU-bound workloads, attributable to reduced scheduler overhead
+  from pipelined dispatch.
+- **Zero performance regression** for memory-bound workloads, because the runtime automatically
+  falls back to sort-based shuffle when degradation is detected.
+
+Workloads that fit this profile are good candidates to enable streaming shuffle:
+
+- Wide transformations (`groupByKey`, `reduceByKey`, `join`, `sortByKey`) over datasets that
+  comfortably exceed 100 MB of intermediate data.
+- Stages with 10 or more reduce partitions and producer/consumer rates that do not exhibit large
+  skew.
+- Interactive or iterative workloads where shuffle materialization latency is the dominant
+  contributor to end-to-end wall clock time.
+
+### When to stay on sort-based shuffle
+
+The default `spark.shuffle.manager=sort` is preferred for:
+
+- CPU-bound workloads where shuffle cost is a small fraction of total execution time.
+- Small-data shuffles (well under 100 MB of intermediate data), where streaming overhead outweighs
+  its benefits.
+- Workloads known to exhibit asymmetric producer/consumer rates, particularly where the consumer is
+  sustained at less than half the producer rate.
+- Memory-bound workloads where the executor is already near its memory budget and cannot afford
+  additional per-partition buffering.
+
+### Automatic fallback conditions
+
+When streaming shuffle is enabled, the runtime continuously monitors the execution for the
+following degradation signals. On any of them, the active shuffle is transparently delegated to the
+sort-based `SortShuffleManager` for the remainder of its lifetime — the DAG scheduler, task
+lifecycle, and user-facing APIs are unaffected:
+
+- Consumer sustained 2x slower than producer for more than 60 seconds.
+- Memory pressure prevents buffer allocation (OOM risk).
+- Network saturation exceeds 90% of link capacity.
+- Producer/consumer version mismatch (compatibility check).
+
+### Operational notes
+
+- Streaming buffers consume up to 20% of executor memory by default
+  (`spark.shuffle.streaming.bufferSizePercent`, valid range 1-50). Per-partition buffer size is
+  computed as `(executorMemory * bufferSizePercent) / numPartitions`.
+- Spill to `BlockManager` disk storage is triggered at 80% buffer utilization by default
+  (`spark.shuffle.streaming.spillThreshold`, valid range 50-95), with sub-100 ms response time.
+- Outbound bandwidth is optionally capped per executor via
+  `spark.shuffle.streaming.maxBandwidthMBps` using a token-bucket rate limiter.
+- Configuration changes to any `spark.shuffle.streaming.*` property require an executor restart;
+  dynamic reconfiguration is not supported in the initial release.
+- Debug-level logging for the streaming shuffle subsystem is disabled by default to honor the per
+  executor log volume cap; enable it with `spark.shuffle.streaming.debug=true` when diagnosing
+  streaming-specific behavior.
+
 ## Broadcasting Large Variables
 
 Using the [broadcast functionality](rdd-programming-guide.html#broadcast-variables)
