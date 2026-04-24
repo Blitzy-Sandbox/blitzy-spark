@@ -257,7 +257,7 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers
 
   test("recordHeartbeat of an unregistered producer still records the entry") {
     val protocol = newProtocol()
-    // Contract is lenient — record even for unknown producer to allow out-of-order
+    // Contract is lenient -- record even for unknown producer to allow out-of-order
     // wire messages (heartbeat arriving before register) to be preserved rather
     // than dropped. See BackpressureProtocol#recordHeartbeat scaladoc.
     protocol.recordHeartbeat("executor-99", 42L)
@@ -287,7 +287,7 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers
   test("acknowledgeReceipt updates existing entries with the max of current and new") {
     // The implementation uses `merge` with Math.max to preserve a monotonic
     // non-decreasing watermark under out-of-order RPC delivery. For strictly
-    // increasing inputs (100L → 500L) the final value is the latest (500L).
+    // increasing inputs (100L -> 500L) the final value is the latest (500L).
     val protocol = newProtocol()
     protocol.acknowledgeReceipt("block-1", 100L)
     protocol.acknowledgeReceipt("block-1", 500L)
@@ -521,7 +521,7 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers
   // All three state tables are ConcurrentHashMap; currentRateBytesPerSec and
   // the diagnostic counters are Atomic* primitives. These tests exercise the
   // lock-free discipline mandated by AAP section 0.7.4 ("Telemetry overhead
-  // MUST remain <1% CPU utilization" → lock-free AtomicLong.getAndIncrement()
+  // MUST remain <1% CPU utilization" -> lock-free AtomicLong.getAndIncrement()
   // and ConcurrentHashMap).
   // ==========================================================================
 
@@ -675,7 +675,7 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers
   // thread, and must guarantee that no further scheduler iterations run.
   // ==========================================================================
 
-  test("stop() is idempotent — second call does not throw") {
+  test("stop() is idempotent -- second call does not throw") {
     val protocol = newProtocol()
     protocol.stop()
     noException must be thrownBy protocol.stop()

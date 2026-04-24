@@ -351,24 +351,27 @@ class StreamingShuffleMetricsSuite extends SparkFunSuite with Matchers {
     (0 until 2).foreach { _ =>
       executor.submit(new Runnable {
         override def run(): Unit = {
-          try (0 until perThread).foreach(_ => m.incrementSpillCount())
-          finally latch.countDown()
+          try {
+            (0 until perThread).foreach(_ => m.incrementSpillCount())
+          } finally latch.countDown()
         }
       })
     }
     (0 until 2).foreach { _ =>
       executor.submit(new Runnable {
         override def run(): Unit = {
-          try (0 until perThread).foreach(_ => m.incrementBackpressureEvents())
-          finally latch.countDown()
+          try {
+            (0 until perThread).foreach(_ => m.incrementBackpressureEvents())
+          } finally latch.countDown()
         }
       })
     }
     (0 until 2).foreach { _ =>
       executor.submit(new Runnable {
         override def run(): Unit = {
-          try (0 until perThread).foreach(_ => m.incrementPartialReadInvalidations())
-          finally latch.countDown()
+          try {
+            (0 until perThread).foreach(_ => m.incrementPartialReadInvalidations())
+          } finally latch.countDown()
         }
       })
     }

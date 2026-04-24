@@ -91,6 +91,21 @@ import org.apache.spark.internal.LogKeys.{REASON, SHUFFLE_ID}
  *      streaming buffers. Falling back delegates the sanity-check handling to
  *      the existing sort path, which surfaces the same error through its
  *      own validation in a way already exercised in production.
+ *   8. '''v1 transport-readiness safety guard''' &mdash; ACTIVE CHECK.
+ *      Compile-time invariant that forces sort-path fallback for every
+ *      otherwise-passing shuffle while [[STREAMING_TRANSPORT_READY_V1]] is
+ *      `false`. In v1, the streaming-shuffle network transport is still
+ *      under construction and [[StreamingShuffleReader.read]] returns an
+ *      empty iterator as its "correct degenerate-case answer" (see that
+ *      reader's class-level scaladoc). Without this guard, a user-opted
+ *      streaming shuffle would silently return zero records and violate
+ *      AAP section 0.1.1 "Zero data loss under all failure scenarios". The
+ *      guard is evaluated LAST in [[evaluate]] so it acts only when every
+ *      other condition passes; users who intentionally disable streaming
+ *      via the explicit kill switch or trigger one of the other fallback
+ *      conditions continue to see those reasons surfaced first. When
+ *      sibling agents complete the transport, they flip the constant from
+ *      `false` to `true` and this guard becomes a no-op.
  *
  * Note on correctness of deferral: Deferring the runtime-based conditions
  * (1, 3, 4) does not compromise correctness &mdash; the sort path remains the
@@ -148,24 +163,111 @@ private[spark] object StreamingShuffleFallbackPolicy extends Logging {
     "insufficient-executor-memory"
 
   /**
+   * Reason code returned when the streaming-shuffle network transport is not
+   * yet operational. In the v1 landing this reason is emitted for EVERY
+   * otherwise-passing shuffle because the direct producer-to-consumer
+   * pipeline ([[org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport]]
+   * and friends) is still under construction by sibling agents (see
+   * [[StreamingShuffleReader]] class-level scaladoc, lines documenting
+   * "v1 implementation note"). Without the transport, a streaming shuffle
+   * would silently return an empty iterator on the reader side &mdash; which
+   * would violate the AAP section 0.1.1 "Zero data loss under all failure
+   * scenarios" success criterion. This reason code unconditionally routes
+   * every streaming-eligible shuffle to the held `SortShuffleManager` so
+   * user workloads continue to observe correct results while the transport
+   * is being wired.
+   *
+   * When the transport becomes operational, the hard-coded guard
+   * [[STREAMING_TRANSPORT_READY_V1]] is flipped from `false` to `true` and
+   * this reason stops being emitted. No config key is exposed for this
+   * readiness state because the guard is a compile-time safety invariant
+   * &mdash; an operator MUST NOT be able to misconfigure themselves into
+   * silent data loss by toggling a flag.
+   */
+  private val REASON_STREAMING_TRANSPORT_UNAVAILABLE_V1: String =
+    "streaming-transport-unavailable-v1"
+
+  /**
    * Minimum executor memory (MiB) required to safely run the streaming
-   * shuffle path. 256 MiB is chosen conservatively:
-   *   - 20&percnt; of 256 MiB &equiv; ~51 MiB of streaming-buffer budget
+   * shuffle path. 512 MiB is chosen as a realistic safety margin that
+   * aligns with Spark's own internal executor-memory floor:
+   *   - The Unified Memory Manager reserves 300 MiB as a fixed floor and
+   *     enforces a 450 MiB minimum slot plus ~21 MiB of off-heap overhead,
+   *     making Spark's effective minimum executor memory ~471 MiB. Any
+   *     threshold below 471 MiB is dead code because Spark refuses to
+   *     start executors that small (see
+   *     `core/src/main/scala/org/apache/spark/memory/UnifiedMemoryManager.scala`
+   *     for the reserved-memory constant and
+   *     `core/src/main/scala/org/apache/spark/SparkConf.scala` for the
+   *     `validateExecutorMemory` guard that enforces the 450 MiB slot).
+   *   - 20&percnt; of 512 MiB &equiv; ~102 MiB of streaming-buffer budget
    *     (the default `spark.shuffle.streaming.bufferSizePercent = 20`).
-   *   - Below this threshold, a single over-sized partition can monopolize
-   *     the buffer pool, leaving no room for concurrent shuffles, which
-   *     in turn triggers aggressive spilling and defeats the latency-reduction
-   *     benefit streaming is meant to provide.
-   *   - Executor JVMs below 256 MiB are also prone to OOM under the baseline
-   *     300 MiB reserved-memory floor of Unified Memory Manager; that floor
-   *     alone exceeds the configured executor size, so streaming shuffle
-   *     would have zero usable budget anyway.
+   *   - At 512 MiB the buffer budget sits well above the block-size limit
+   *     (2 MiB per AAP section 0.1.2) so concurrent shuffles each have
+   *     headroom for at least dozens of in-flight blocks without thrashing
+   *     the 80&percnt; spill threshold.
+   *   - 512 MiB clears the ~471 MiB Spark-minimum floor with enough margin
+   *     that reasonable garbage-collection pause spikes and Netty direct-buffer
+   *     allocations do not cause the check to flicker at the boundary.
    *
    * Operators who deliberately choose smaller executors for test clusters
    * should either leave `spark.shuffle.manager` at its default (`sort`) or
-   * raise the executor memory above this threshold.
+   * raise the executor memory above this threshold. QA checkpoint #4
+   * recorded the `256L` predecessor as dead-code (Spark's own 471 MiB floor
+   * masked the policy's 256 MiB check end-to-end); this threshold lifts the
+   * value above 471 MiB so the fallback condition is actually reachable on
+   * executor configurations that intentionally sit just above Spark's
+   * minimum but below the streaming-viability floor.
    */
-  private val MINIMUM_EXECUTOR_MEMORY_MIB: Long = 256L
+  private val MINIMUM_EXECUTOR_MEMORY_MIB: Long = 512L
+
+  /**
+   * Compile-time safety invariant indicating whether the streaming-shuffle
+   * network transport is operational in this build of Apache Spark.
+   *
+   * Set to `false` for v1 because the end-to-end producer-to-consumer
+   * pipeline (the `org.apache.spark.shuffle.streaming.network` sub-package)
+   * is still being landed by sibling agents. Until that work is complete,
+   * [[StreamingShuffleReader.read]] returns an empty iterator (see its
+   * class-level scaladoc for the rationale of the "correct degenerate-case
+   * answer"). Returning an empty iterator to a user-visible `reduceByKey`
+   * would silently discard shuffle data &mdash; a direct violation of AAP
+   * section 0.1.1 "Zero data loss under all failure scenarios".
+   *
+   * By emitting [[REASON_STREAMING_TRANSPORT_UNAVAILABLE_V1]] for every
+   * otherwise-passing shuffle while this flag is `false`, the policy forces
+   * [[StreamingShuffleManager]] to delegate every shuffle to the held
+   * `SortShuffleManager`. Users who opt into `spark.shuffle.manager=streaming`
+   * and `spark.shuffle.streaming.enabled=true` continue to observe correct
+   * results from the sort path; the feature flags remain meaningful as
+   * forward-looking opt-ins, but production data integrity is preserved.
+   *
+   * Design rationale for a hard-coded constant rather than a config key:
+   *   - Operators MUST NOT be able to misconfigure themselves into silent
+   *     data loss by toggling a boolean they do not understand. Exposing
+   *     readiness as a config key would create a foot-gun.
+   *   - The transport's readiness is a build-time property of the Spark
+   *     binary, not a deployment-time policy decision &mdash; when the
+   *     transport lands, it ships as part of the same jar.
+   *   - Compile-time constants participate in dead-code elimination and
+   *     impose zero runtime cost in the default path.
+   *
+   * Flip procedure: when the `StreamingShuffleTransport` (in the sub-package
+   * `org.apache.spark.shuffle.streaming.network`, file
+   * `StreamingShuffleTransport.scala`) is production-ready and
+   * end-to-end-verified by its own integration suite, the sibling agent that
+   * finalizes the transport should:
+   *   1. Flip this constant from `false` to `true` in one focused PR.
+   *   2. Update [[StreamingShuffleFallbackPolicySuite]] test expectations
+   *      (the v1-transport-unavailable assertions become happy-path `None`
+   *      assertions).
+   *   3. Update the v1-only guard test in that suite to verify the flipped
+   *      behavior.
+   *   4. Re-run [[StreamingShuffleIntegrationTest]] to confirm end-to-end
+   *      `reduceByKey` returns correct results via the actual streaming
+   *      path rather than the fallback delegate.
+   */
+  private val STREAMING_TRANSPORT_READY_V1: Boolean = false
 
   /**
    * Routing decision for a single shuffle registration. Returns `None` when
@@ -184,6 +286,13 @@ private[spark] object StreamingShuffleFallbackPolicy extends Logging {
    *   2. Push-based shuffle mutual exclusion (cheap boolean lookup).
    *   3. Partition-count sanity (cheap integer comparison).
    *   4. Executor-memory sanity (cheap long comparison).
+   *   5. v1 transport-readiness safety guard (constant-time check against
+   *      the compile-time [[STREAMING_TRANSPORT_READY_V1]] invariant). This
+   *      check is LAST so that explicit user opt-outs and misconfigurations
+   *      (conditions 1-4) surface their specific reason codes ahead of the
+   *      generic "v1 transport not ready" reason. When the transport lands,
+   *      flipping the constant makes this check a no-op without disturbing
+   *      any of the preceding checks.
    *
    * On a fallback decision, the method emits a single structured INFO-level
    * log record keyed by the shuffle ID and the reason code, so that log
@@ -298,6 +407,34 @@ private[spark] object StreamingShuffleFallbackPolicy extends Logging {
     val executorMemMiB = conf.get(config.EXECUTOR_MEMORY)
     if (executorMemMiB < MINIMUM_EXECUTOR_MEMORY_MIB) {
       return fallback(shuffleId, REASON_INSUFFICIENT_EXECUTOR_MEMORY)
+    }
+
+    // ----------------------------------------------------------------------
+    // Check 5: v1 transport-readiness safety guard.
+    //
+    // The streaming-shuffle network transport is still under construction in
+    // v1. [[StreamingShuffleReader.read]] intentionally returns an empty
+    // iterator as its correct degenerate-case answer while the producer-to-
+    // consumer pipeline is being wired by sibling agents. Routing a live
+    // user shuffle through that empty iterator would silently discard every
+    // record and violate AAP section 0.1.1 "Zero data loss under all failure
+    // scenarios" -- silent data loss is strictly worse than an exception,
+    // because downstream analytics would proceed on empty output without
+    // any surfaced error.
+    //
+    // Evaluating this check LAST preserves the specificity of the earlier
+    // reason codes: users who disable streaming explicitly still see
+    // `streaming-disabled-by-config`, users on push-based shuffle still
+    // see `push-based-shuffle-active`, and so on. The v1-transport reason
+    // only surfaces when every other pre-registration condition has
+    // cleared, i.e. when streaming would otherwise be selected.
+    //
+    // When the transport becomes operational, the sibling agent flips
+    // [[STREAMING_TRANSPORT_READY_V1]] from `false` to `true` and this
+    // check becomes a no-op without touching any other call site.
+    // ----------------------------------------------------------------------
+    if (!STREAMING_TRANSPORT_READY_V1) {
+      return fallback(shuffleId, REASON_STREAMING_TRANSPORT_UNAVAILABLE_V1)
     }
 
     // ----------------------------------------------------------------------

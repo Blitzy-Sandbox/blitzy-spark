@@ -450,6 +450,92 @@ Principal-Persona (Staff Engineer / Gate Keeper)
 
 <!-- no handoff events recorded yet -->
 
+## QA Checkpoint 4 Remediation Log
+
+This section records the formal disposition of findings raised by QA Testing Execution against StreamingShuffleManager orchestrator end-to-end runtime verification (Checkpoint 4). Each finding is recorded with its severity, the root cause analysis, the remediation applied, and the verification evidence. This log is referenced by Phase 7 (Principal Reviewer) when consolidating the overall verdict.
+
+### Summary
+
+| # | Severity | Category | Status | File(s) Modified |
+|---|----------|----------|--------|------------------|
+| 1 | CRITICAL | Build / Integration | RESOLVED | `BackpressureProtocolSuite.scala`, `StreamingShuffleMetricsSuite.scala` |
+| 2 | CRITICAL | Functional / Data Integrity | RESOLVED | `StreamingShuffleFallbackPolicy.scala`, `StreamingShuffleFallbackPolicySuite.scala` |
+| 3 | MINOR | Design / Configuration | RESOLVED | `StreamingShuffleFallbackPolicy.scala`, `StreamingShuffleFallbackPolicySuite.scala` |
+| 4 | MINOR | Implementation Discipline | DOCUMENTED (no action) | — (pre-existing branch artefacts) |
+| 5 | INFO | Pre-existing | NO ACTION | — (not caused by F-001) |
+
+### Issue 1 — SBT `core/Test/compile` fails due to non-ASCII characters and parser error
+
+- **Severity**: CRITICAL
+- **Category**: Build / Integration
+- **Root Cause**: Four non-ASCII characters (em-dash U+2014 at lines 260 and 678; rightwards-arrow U+2192 at lines 290 and 524) in `BackpressureProtocolSuite.scala` triggered the Scalastyle `nonascii.message` rule. Three `try (expr).foreach(...) finally` expressions at lines 354, 362, 370 of `StreamingShuffleMetricsSuite.scala` triggered a Scala parser error because `.foreach` chained onto a bare `try` expression is not well-formed at those positions. SBT wires `scalaStyleOnTest` to `(Test / compile).value`, so both classes of defect blocked `core/Test/compile`; Maven bypasses Scalastyle on the `Test` scope and therefore did not surface the problem.
+- **Remediation**: Replaced em-dashes with ASCII double-hyphen (`--`) and arrows with ASCII `->` in `BackpressureProtocolSuite.scala`. Wrapped each `try (expr).foreach(...)` in explicit braces so the compiler parses a single block expression inside the `try` in `StreamingShuffleMetricsSuite.scala`.
+- **Evidence**: `./build/sbt -mem 5632 "core/Test/compile"` completes in 32 s with `[success]`. Scalastyle check (`./build/mvn -B -pl core scalastyle:check`) passes with 632 files, 0 errors, 0 warnings, 0 infos.
+
+### Issue 2 — `StreamingShuffleReader.read()` returns `Iterator.empty`, causing silent data loss when the streaming path is active
+
+- **Severity**: CRITICAL
+- **Category**: Functional / Data Integrity (AAP §0.1.1 "Zero data loss under all failure scenarios")
+- **Root Cause**: In v1, the streaming-shuffle network transport (`org.apache.spark.shuffle.streaming.network.*`) is still under construction. `StreamingShuffleReader.read()` therefore returns an empty iterator as its documented "correct degenerate-case answer" until the transport is wired. Before remediation, an operator who opted into `spark.shuffle.manager=streaming` + `spark.shuffle.streaming.enabled=true` and was not caught by conditions 1-4 of `StreamingShuffleFallbackPolicy.evaluate()` would have their shuffle routed to the empty reader, silently discarding every record without raising an exception — the worst possible failure mode for a data-integrity gate.
+- **Remediation**: Introduced a compile-time safety invariant in `StreamingShuffleFallbackPolicy`:
+  - Added constant `REASON_STREAMING_TRANSPORT_UNAVAILABLE_V1: String = "streaming-transport-unavailable-v1"` alongside the other `REASON_*` codes.
+  - Added constant `STREAMING_TRANSPORT_READY_V1: Boolean = false` with extensive scaladoc explaining why it is a hard-coded `Boolean` rather than a config key (operators must not be able to misconfigure themselves into silent data loss).
+  - Added `Check 5` in `evaluate()` after Check 4 (insufficient-executor-memory) that, when `STREAMING_TRANSPORT_READY_V1 == false`, returns the new reason code. Every otherwise-passing streaming shuffle is therefore delegated to the held `SortShuffleManager` via the existing `registerShuffle`/`getReader` dispatch logic in `StreamingShuffleManager`.
+  - Added class-level scaladoc condition `8` documenting the v1 safety guard in the enumerated fallback conditions list.
+  - Updated the fallback-policy evaluation-order scaladoc to list Check 5 explicitly and note its intentional position as the last check so earlier condition-specific reason codes surface first.
+  - Adjusted `StreamingShuffleFallbackPolicySuite.scala` to replace the prior "no fallback needed when no conditions met" happy-path assertion with a "v1 transport guard returns the correct reason" assertion, and added a dedicated test case verifying the v1 reason emission when all earlier checks clear. The suite still covers the precedence ordering of reasons 1-4 before reason 5.
+- **Evidence** (Runtime Re-Verification):
+  - End-to-end `reduceByKey` with `spark.shuffle.manager=streaming` and `spark.shuffle.streaming.enabled=true` returns `E2E_RESULT_COUNT=10` and `E2E_SUM=500500` (expected per AAP §0.1.1 zero-data-loss criterion).
+  - Reflection on the running `StreamingShuffleManager.fallbackShuffles` map after the job reports `Map(0 -> streaming-transport-unavailable-v1)`, confirming the shuffle was routed through the sort-path delegate for the correct reason.
+  - Sort-path regression (default `spark.shuffle.manager=sort`) continues to return 10 keys / sum 500500, unchanged.
+  - Explicit opt-out (`spark.shuffle.streaming.enabled=false`) continues to surface `Map(0 -> streaming-disabled-by-config)` with 10 keys / sum 500500.
+- **Flip procedure** (when the transport lands): A sibling agent flips `STREAMING_TRANSPORT_READY_V1` from `false` to `true` in one focused PR, updates the corresponding `StreamingShuffleFallbackPolicySuite` assertions, and runs `StreamingShuffleIntegrationTest` to confirm the true streaming path produces correct results.
+
+### Issue 3 — `MINIMUM_EXECUTOR_MEMORY_MIB = 256L` below Spark's own minimum executor memory (~471 MiB), rendering the fallback condition dead code at runtime
+
+- **Severity**: MINOR
+- **Category**: Design / Configuration
+- **Root Cause**: Spark's Unified Memory Manager reserves 300 MiB and enforces a 450 MiB slot plus approximately 21 MiB of off-heap overhead, giving an effective minimum executor memory of about 471 MiB. Spark rejects any executor launched below that floor with `SparkIllegalArgumentException[INVALID_EXECUTOR_MEMORY]` before the `StreamingShuffleFallbackPolicy` is consulted. A threshold of 256 MiB was therefore never reachable in a realistic deployment — unit tests exercised it correctly, but the branch was end-to-end dead code.
+- **Remediation**: Raised `MINIMUM_EXECUTOR_MEMORY_MIB` from `256L` to `512L`. The new threshold is above Spark's ~471 MiB floor, so operators who intentionally size executors just above Spark's own minimum but below the streaming-viability floor will now correctly fall back to sort-based shuffle. The accompanying scaladoc was expanded to explain Spark's 471 MiB floor, the chosen 512 MiB safety margin, the default buffer-budget math (20% of 512 MiB ≈ 102 MiB), and the reason the value was lifted from 256 MiB. `StreamingShuffleFallbackPolicySuite.scala` boundary tests were updated to assert that 511 MiB triggers the fallback and 512 MiB does not.
+- **Evidence**: Unit tests in `StreamingShuffleFallbackPolicySuite` pass 22/22 including the updated 511/512 MiB boundary pair. Reflection on the loaded policy class confirms the new constant value.
+
+### Issue 4 — Four files outside the feature's strict AAP scope were modified in the F-001 branch's historical git range
+
+- **Severity**: MINOR
+- **Category**: Implementation Discipline (AAP §0.7.1)
+- **Scope of this finding**: The QA report identified four files — `catalog-info.yaml`, `docs/index.md`, `mkdocs.yml`, and `common/utils-java/src/main/java/org/apache/spark/internal/LogKeys.java` — as modified by the F-001 PR's historical commit range (34 commits) but not strictly listed under AAP §0.6.1 "Exhaustively In Scope".
+- **Disposition**: **DOCUMENTED — no remediation required.**
+  - The four files are **pre-existing** in the branch before the QA Checkpoint 4 feedback cycle. None of my Checkpoint-4 remediation edits for Issues 1-3 modify any of these files. My Checkpoint-4 edits are confined to four files, all of which are in-scope streaming-shuffle sources:
+    - `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleFallbackPolicy.scala` (in scope per AAP §0.6.1)
+    - `core/src/test/scala/org/apache/spark/shuffle/streaming/BackpressureProtocolSuite.scala` (in scope per AAP §0.6.1)
+    - `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleFallbackPolicySuite.scala` (in scope per AAP §0.6.1)
+    - `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleMetricsSuite.scala` (in scope per AAP §0.6.1)
+  - On each pre-existing file the QA report itself acknowledges a benign rationale:
+    - `catalog-info.yaml`, `docs/index.md`, and `mkdocs.yml` are Backstage / TechDocs service-discovery and build infrastructure files. They do not modify any user-facing API, scheduler, task lifecycle, memory model, network transport, or shuffle code path. Their inclusion in the branch is a branch-cut hygiene artefact: the feature branch was cut atop a parent that had already introduced these chore changes. Reverting them in this PR would require reopening unrelated infra work and is explicitly out of scope for a Checkpoint-4 remediation cycle.
+    - `common/utils-java/src/main/java/org/apache/spark/internal/LogKeys.java` is the actual repo-current path for LogKeys (the AAP-referenced Scala path `common/utils/src/main/scala/org/apache/spark/internal/LogKey.scala` predates an upstream migration to the Java variant; this drift was formally recorded in the Setup Status Log: "AAP points to `common/utils/.../LogKey.scala` but in this repo the file is actually the Java version at `common/utils-java/.../LogKey.java`"). The four new LogKey entries (`BUFFER_UTILIZATION_PERCENT`, `SPILL_COUNT`, `BACKPRESSURE_EVENTS`, `PARTIAL_READ_INVALIDATIONS`) were correctly appended to the Java file; the AAP §0.5.1.2 intent is honoured even though the literal path reference is stale.
+  - Recommended forward path (non-blocking): If the release manager prefers strict branch hygiene, the three TechDocs/Backstage infrastructure commits may be cherry-picked out of the F-001 PR into a separate infrastructure PR before merge. This is a release-engineering decision, not a code-quality decision, and does not affect correctness or quality of the streaming-shuffle implementation.
+- **Evidence**: `git status --porcelain` after all Checkpoint-4 remediation edits shows exactly four modified files, all inside `core/src/*/scala/org/apache/spark/shuffle/streaming/`. No new out-of-scope edits were introduced by this remediation cycle.
+
+### Issue 5 — Pre-existing MiMa binary compatibility failures across multiple modules
+
+- **Severity**: INFO
+- **Category**: Pre-existing Infrastructure
+- **Disposition**: **NO ACTION REQUIRED.** The 13 MiMa issues reported under `core/mimaReportBinaryIssues` are unrelated to the streaming shuffle feature — none touch the `org.apache.spark.shuffle.streaming` package. The affected classes (`ShuffleStatus.addMapOutput`, `BasePythonRunner#MonitorThread`, `NoopRpcEndpointRef`, `ProxyRedirectHandler`, `TaskDetailsClassNames`, `CompletionIterator`, `VersionUtils`) are pre-existing deltas between the Spark 4.0.0 MiMa baseline and the 4.2.0-SNAPSHOT `HEAD`, introduced by unrelated upstream commits (e.g., SPARK-54870, SPARK-47086, SPARK-53138, the Jetty migration for `ProxyRedirectHandler`, the Python worker internals refactor). The F-001 commit range did not modify `project/MimaExcludes.scala` and AAP §0.7.8 non-negotiable invariant "Zero entries added to `project/MimaExcludes.scala`" remains satisfied. Resolution of these pre-existing failures is a Spark-platform release-engineering concern and is explicitly outside the scope of F-001 and this remediation cycle.
+- **Evidence**: `./build/sbt -batch -mem 5632 "core/mimaReportBinaryIssues"` output scanned for `shuffle\.streaming` returns zero matches.
+
+### Static and Runtime Validation Summary (post-remediation)
+
+| Gate | Command | Result |
+|------|---------|--------|
+| SBT core test compilation | `./build/sbt -mem 5632 "core/Test/compile"` | `[success] Total time: 32 s` |
+| Scalastyle | `./build/mvn -B -pl core scalastyle:check` | `Processed 632 file(s). Found 0 errors, 0 warnings, 0 infos.` |
+| Streaming unit suites | `./build/mvn -B -pl core -Dtest=none -Dsuites="...StreamingShuffleFallbackPolicySuite,...StreamingShuffleHandleSuite,...StreamingShuffleMetricsSuite,...BackpressureProtocolSuite,...MemorySpillManagerSuite,...StreamingShuffleReaderSuite" test` | 136 tests run, 136 succeeded, 3 ignored (pre-existing) |
+| Sort-path regression suites | `./build/mvn -B -pl core -Dtest=none -Dsuites="...SortShuffleManagerSuite,...SortShuffleWriterSuite,...BypassMergeSortShuffleWriterSuite,...LocalDiskShuffleMapOutputWriterSuite,...IndexShuffleBlockResolverSuite,...BlockStoreShuffleReaderSuite,...ShuffleDriverComponentsSuite" test` | 29 tests run, 29 succeeded |
+| E2E reduceByKey (streaming + enabled) | spark-shell `local[2]` with `spark.shuffle.manager=streaming`, `spark.shuffle.streaming.enabled=true` | `E2E_RESULT_COUNT=10`, `E2E_SUM=500500`, `fallbackShuffles=Map(0 -> streaming-transport-unavailable-v1)` |
+| E2E reduceByKey (sort-path default) | spark-shell `local[2]` default config | `SORT_RESULT_COUNT=10`, `SORT_SUM=500500` |
+| E2E reduceByKey (streaming + disabled) | spark-shell `local[2]` with `spark.shuffle.manager=streaming`, `spark.shuffle.streaming.enabled=false` | `FALLBACK_DISABLED_RESULT=10`, `FALLBACK_DISABLED_SUM=500500`, `REASONS=Map(0 -> streaming-disabled-by-config)` |
+| MiMa binary compatibility | `./build/sbt -batch -mem 5632 "core/mimaReportBinaryIssues"` | 13 pre-existing issues; zero in `shuffle.streaming` |
+
 ## Global Quality Gates
 
 Each of these gates is reproduced from AAP §0.7.6 and must be checked before the Principal Reviewer renders `APPROVED`.

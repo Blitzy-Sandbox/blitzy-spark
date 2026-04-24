@@ -30,7 +30,7 @@ import org.apache.spark.internal.config
  * decision-only routing oracle that tells `StreamingShuffleManager` whether a
  * newly registered shuffle should use the streaming path or fall back to the
  * held `SortShuffleManager`. The suite validates, in precedence order, each of
- * the four active pre-registration conditions plus the happy path:
+ * the five active pre-registration conditions plus the happy path:
  *
  *   1. `spark.shuffle.streaming.enabled = false` &rarr;
  *      `Some("streaming-disabled-by-config")`.
@@ -38,9 +38,17 @@ import org.apache.spark.internal.config
  *      push-based shuffle) &rarr; `Some("push-based-shuffle-active")`.
  *   3. `numPartitions <= 0` (defensive partitioner-sanity check) &rarr;
  *      `Some("invalid-partition-count")`.
- *   4. `spark.executor.memory < 256 MiB` (streaming-buffer-budget sanity) &rarr;
+ *   4. `spark.executor.memory < 512 MiB` (streaming-buffer-budget sanity) &rarr;
  *      `Some("insufficient-executor-memory")`.
- *   5. All four conditions clear &rarr; `None` (streaming path is selected).
+ *   5. v1 transport-readiness safety guard: while the compile-time invariant
+ *      `STREAMING_TRANSPORT_READY_V1 = false` &rarr;
+ *      `Some("streaming-transport-unavailable-v1")`. This is evaluated LAST so
+ *      the earlier, more specific reason codes keep their precedence.
+ *   6. All conditions clear AND transport is ready &rarr; `None` (streaming
+ *      path is selected). In the v1 codebase this outcome is unreachable
+ *      because [[StreamingShuffleFallbackPolicy.STREAMING_TRANSPORT_READY_V1]]
+ *      is hard-coded to `false`; the happy-path `None` assertion is deferred
+ *      to the sibling agent that lands the transport and flips the constant.
  *
  * Test ownership and hygiene:
  *   - Every test is pure in-JVM logic: no `SparkContext`, no executor bootstrap,
@@ -116,15 +124,22 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
   }
 
   /**
-   * Base `SparkConf` where all four pre-registration conditions are
-   * satisfied, so `StreamingShuffleFallbackPolicy.evaluate` would return
-   * `None` (streaming path selected):
+   * Base `SparkConf` where all four config-driven pre-registration conditions
+   * are satisfied, so `StreamingShuffleFallbackPolicy.evaluate` would reach
+   * the v1 transport-readiness safety guard (condition #5) and return
+   * `Some("streaming-transport-unavailable-v1")` in this build:
    *
    *   - `spark.shuffle.streaming.enabled = true` (kill switch on).
    *   - `spark.shuffle.push.enabled = false` (ADR-005 mutually exclusive;
    *     push disabled so streaming can proceed).
-   *   - `spark.executor.memory = 1024 MiB` (well above the 256 MiB
+   *   - `spark.executor.memory = 1024 MiB` (well above the 512 MiB
    *     `MINIMUM_EXECUTOR_MEMORY_MIB` threshold).
+   *
+   * The v1 transport-readiness guard is a compile-time constant that cannot
+   * be overridden via SparkConf; tests therefore verify that `goodConf`
+   * produces the `streaming-transport-unavailable-v1` fallback reason, and
+   * defer the happy-path `None` assertion to the release that wires up the
+   * transport.
    *
    * `loadDefaults = false` suppresses any `spark.*` system properties that
    * may be present on the host JVM, making the test hermetic.
@@ -183,7 +198,7 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
   }
 
   test("evaluate returns Some('insufficient-executor-memory') when " +
-    "EXECUTOR_MEMORY < 256 MiB") {
+    "EXECUTOR_MEMORY < 512 MiB") {
     val conf = goodConf().set(config.EXECUTOR_MEMORY, 128L)
     val dep = depWithPartitions(10)
     val metrics = new StreamingShuffleMetrics()
@@ -193,33 +208,43 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
     result must be(Some("insufficient-executor-memory"))
   }
 
-  test("evaluate returns None when all conditions pass (streaming proceeds)") {
+  test("evaluate returns Some('streaming-transport-unavailable-v1') when all " +
+    "config conditions pass (v1 transport-readiness guard)") {
+    // In v1 the streaming transport is not yet wired, so the policy returns
+    // `Some("streaming-transport-unavailable-v1")` even when every config-
+    // driven condition is satisfied. When sibling agents land the transport
+    // and flip `STREAMING_TRANSPORT_READY_V1` to `true`, this assertion
+    // becomes `result must be(None)`.
     val conf = goodConf()
     val dep = depWithPartitions(10)
     val metrics = new StreamingShuffleMetrics()
 
     val result = StreamingShuffleFallbackPolicy.evaluate(0, dep, conf, metrics)
 
-    result must be(None)
+    result must be(Some("streaming-transport-unavailable-v1"))
   }
 
   // ==========================================================================
   // Group 2: Boundary values for integer-ranged conditions
   // ==========================================================================
 
-  test("evaluate returns None for exactly 256 MiB executor memory (boundary pass)") {
-    val conf = goodConf().set(config.EXECUTOR_MEMORY, 256L)
+  test("evaluate returns Some('streaming-transport-unavailable-v1') for exactly " +
+    "512 MiB executor memory (memory boundary pass; v1 transport still unwired)") {
+    // 512 MiB is exactly on the `MINIMUM_EXECUTOR_MEMORY_MIB` boundary, so
+    // the executor-memory check passes. The policy proceeds to the v1
+    // transport-readiness guard, which fires in this build.
+    val conf = goodConf().set(config.EXECUTOR_MEMORY, 512L)
     val dep = depWithPartitions(10)
     val metrics = new StreamingShuffleMetrics()
 
     val result = StreamingShuffleFallbackPolicy.evaluate(0, dep, conf, metrics)
 
-    result must be(None)
+    result must be(Some("streaming-transport-unavailable-v1"))
   }
 
-  test("evaluate returns Some('insufficient-executor-memory') for 255 MiB " +
-    "executor memory (boundary fail)") {
-    val conf = goodConf().set(config.EXECUTOR_MEMORY, 255L)
+  test("evaluate returns Some('insufficient-executor-memory') for 511 MiB " +
+    "executor memory (memory boundary fail)") {
+    val conf = goodConf().set(config.EXECUTOR_MEMORY, 511L)
     val dep = depWithPartitions(10)
     val metrics = new StreamingShuffleMetrics()
 
@@ -228,14 +253,18 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
     result must be(Some("insufficient-executor-memory"))
   }
 
-  test("evaluate returns None for partitionCount = 1 (smallest valid)") {
+  test("evaluate returns Some('streaming-transport-unavailable-v1') for " +
+    "partitionCount = 1 (smallest valid; v1 transport still unwired)") {
+    // partitionCount = 1 is the smallest valid partition count, so the
+    // partition-count check passes. The policy proceeds to the v1
+    // transport-readiness guard, which fires in this build.
     val conf = goodConf()
     val dep = depWithPartitions(1)
     val metrics = new StreamingShuffleMetrics()
 
     val result = StreamingShuffleFallbackPolicy.evaluate(0, dep, conf, metrics)
 
-    result must be(None)
+    result must be(Some("streaming-transport-unavailable-v1"))
   }
 
   // ==========================================================================
@@ -319,6 +348,50 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
     result must be(Some("invalid-partition-count"))
   }
 
+  test("insufficient-memory precedence over streaming-transport-unavailable-v1") {
+    // With memory at 128 MiB (below the 512 MiB threshold) the insufficient-
+    // memory check triggers BEFORE the v1 transport-readiness guard. This
+    // confirms the v1 guard is evaluated LAST, preserving specificity of
+    // the earlier reason codes.
+    val conf = goodConf().set(config.EXECUTOR_MEMORY, 128L)
+    val dep = depWithPartitions(10)
+    val metrics = new StreamingShuffleMetrics()
+
+    val result = StreamingShuffleFallbackPolicy.evaluate(0, dep, conf, metrics)
+
+    result must be(Some("insufficient-executor-memory"))
+  }
+
+  test("streaming-disabled precedence over streaming-transport-unavailable-v1") {
+    val conf = goodConf().set(config.SHUFFLE_STREAMING_ENABLED, false)
+    val dep = depWithPartitions(10)
+    val metrics = new StreamingShuffleMetrics()
+
+    val result = StreamingShuffleFallbackPolicy.evaluate(0, dep, conf, metrics)
+
+    result must be(Some("streaming-disabled-by-config"))
+  }
+
+  test("push-enabled precedence over streaming-transport-unavailable-v1") {
+    val conf = goodConf().set("spark.shuffle.push.enabled", "true")
+    val dep = depWithPartitions(10)
+    val metrics = new StreamingShuffleMetrics()
+
+    val result = StreamingShuffleFallbackPolicy.evaluate(0, dep, conf, metrics)
+
+    result must be(Some("push-based-shuffle-active"))
+  }
+
+  test("invalid-partition-count precedence over streaming-transport-unavailable-v1") {
+    val conf = goodConf()
+    val dep = depWithPartitions(0)
+    val metrics = new StreamingShuffleMetrics()
+
+    val result = StreamingShuffleFallbackPolicy.evaluate(0, dep, conf, metrics)
+
+    result must be(Some("invalid-partition-count"))
+  }
+
   // ==========================================================================
   // Group 4: Determinism and null safety
   // ==========================================================================
@@ -335,7 +408,10 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
       StreamingShuffleFallbackPolicy.evaluate(0, dep, conf, metrics))
 
     results.distinct.size must be(1)
-    results.head must be(None)
+    // `goodConf` produces the v1 transport-readiness fallback in the current
+    // build. If/when sibling agents wire up the transport and flip
+    // `STREAMING_TRANSPORT_READY_V1` to `true`, this assertion becomes `None`.
+    results.head must be(Some("streaming-transport-unavailable-v1"))
   }
 
   test("evaluate with null metrics does not throw") {
@@ -347,7 +423,11 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
 
     noException must be thrownBy {
       val r = StreamingShuffleFallbackPolicy.evaluate(0, dep, conf, null)
-      r must be(None)
+      // `goodConf` produces the v1 transport-readiness fallback in the
+      // current build. If/when sibling agents wire up the transport and flip
+      // `STREAMING_TRANSPORT_READY_V1` to `true`, this assertion becomes
+      // `None`.
+      r must be(Some("streaming-transport-unavailable-v1"))
     }
   }
 
