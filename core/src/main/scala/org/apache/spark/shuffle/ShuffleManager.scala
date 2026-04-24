@@ -109,19 +109,18 @@ private[spark] object ShuffleManager {
   }
 
   def getShuffleManagerClassName(conf: SparkConf): String = {
+    // Short-name aliases for the pluggable shuffle manager. "sort" (default) and
+    // "tungsten-sort" both resolve to SortShuffleManager; "streaming" resolves to the
+    // opt-in StreamingShuffleManager introduced by feature F-001 (AAP section 0.1.2),
+    // which COEXISTS with SortShuffleManager and holds the latter as a delegate for
+    // per-shuffle fallback routing. Operators may continue to supply a fully-qualified
+    // class name via spark.shuffle.manager to select any custom implementation; short
+    // names are a convenience layer on top of that.
     val shortShuffleMgrNames = Map(
       "sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName,
-      "tungsten-sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName)
-    // Note: The "streaming" short-name entry that maps to
-    // org.apache.spark.shuffle.streaming.StreamingShuffleManager is intentionally
-    // deferred until StreamingShuffleManager.scala is introduced in a later
-    // checkpoint. Until then, users may still select the streaming manager (once
-    // the class exists) by supplying its fully-qualified class name via
-    // spark.shuffle.manager; the short-name alias will be registered alongside
-    // the StreamingShuffleManager class so that this file and its dependency are
-    // added in the same checkpoint. This preserves the "Make only changes
-    // necessary" implementation discipline (AAP section 0.1.2) and keeps the
-    // codebase compilable through every intermediate checkpoint.
+      "tungsten-sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName,
+      "streaming" ->
+        classOf[org.apache.spark.shuffle.streaming.StreamingShuffleManager].getName)
     val shuffleMgrName = conf.get(config.SHUFFLE_MANAGER)
     shortShuffleMgrNames.getOrElse(shuffleMgrName.toLowerCase(Locale.ROOT), shuffleMgrName)
   }
