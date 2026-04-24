@@ -111,7 +111,12 @@ private[spark] object ShuffleManager {
   def getShuffleManagerClassName(conf: SparkConf): String = {
     val shortShuffleMgrNames = Map(
       "sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName,
-      "tungsten-sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName)
+      "tungsten-sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName,
+      // "streaming" selects the opt-in StreamingShuffleManager that coexists with the default
+      // sort-based shuffle path. The "sort" and "tungsten-sort" entries remain unchanged and
+      // both continue to resolve to SortShuffleManager as the production-stable default and
+      // the automatic fallback target for the streaming path.
+      "streaming" -> classOf[org.apache.spark.shuffle.streaming.StreamingShuffleManager].getName)
 
     val shuffleMgrName = conf.get(config.SHUFFLE_MANAGER)
     shortShuffleMgrNames.getOrElse(shuffleMgrName.toLowerCase(Locale.ROOT), shuffleMgrName)
