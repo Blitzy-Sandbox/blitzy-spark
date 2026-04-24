@@ -20,7 +20,10 @@ package org.apache.spark.shuffle.streaming
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
-import org.apache.spark.{ShuffleDependency, SparkConf, SparkContext, SparkEnv, SparkException, TaskContext}
+import org.apache.logging.log4j.{Level, LogManager}
+import org.apache.logging.log4j.core.LoggerContext
+
+import org.apache.spark.{ShuffleDependency, SparkConf, SparkEnv, SparkException, TaskContext}
 import org.apache.spark.internal.{config, Logging, LogKeys}
 import org.apache.spark.internal.LogKeys._
 import org.apache.spark.shuffle.{ShuffleBlockResolver, ShuffleHandle, ShuffleManager, ShuffleReader, ShuffleReadMetricsReporter, ShuffleWriteMetricsReporter, ShuffleWriter}
@@ -71,10 +74,14 @@ import org.apache.spark.shuffle.sort.SortShuffleManager
  *   - Construction: invoked on both the driver and every executor because
  *     [[org.apache.spark.SparkEnv#initializeShuffleManager]] calls
  *     [[org.apache.spark.shuffle.ShuffleManager#create]] with the driver/executor context
- *     determined by [[SparkContext#DRIVER_IDENTIFIER]]. Driver-side construction MUST NOT
- *     register the [[StreamingShuffleMetrics]] source (the driver has no per-executor
- *     [[org.apache.spark.metrics.MetricsSystem]] audience for streaming-shuffle instruments).
- *     The executor-only guard is enforced below.
+ *     determined by [[SparkContext#DRIVER_IDENTIFIER]]. The [[StreamingShuffleMetrics]]
+ *     source is registered with [[org.apache.spark.metrics.MetricsSystem]] on every non-null
+ *     [[SparkEnv]] (QA checkpoint 6 Issue #4 fix). The prior driver-only exclusion caused
+ *     local / local-cluster mode (where driver and executor share a JVM) to miss
+ *     registration and violated the AAP Observability Rule's "Working in local development
+ *     environment" criterion; [[org.apache.spark.metrics.MetricsSystem#registerSource]]
+ *     already handles the duplicate-name edge case internally, so universal registration
+ *     is safe.
  *   - Stop: invoked by [[SparkEnv#stop]] on shutdown. [[java.util.concurrent.atomic.AtomicBoolean]]
  *     guards idempotency; repeat invocations are no-ops. The delegate `SortShuffleManager.stop()`
  *     is always called so that its [[org.apache.spark.shuffle.IndexShuffleBlockResolver]]
@@ -147,11 +154,12 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
     new ConcurrentHashMap[Int, String]()
 
   /**
-   * Executor-scoped streaming shuffle metrics source. Lazily initialized by the executor-only
-   * bootstrap block below. Remains `null` on the driver, where no
-   * [[org.apache.spark.metrics.MetricsSystem]] audience exists for per-executor
-   * streaming-shuffle instruments. Every downstream consumer (writer, reader, fallback policy)
-   * null-guards this reference before use.
+   * Streaming shuffle metrics source. Initialized by the bootstrap block below on every
+   * non-null [[SparkEnv]] construction (QA checkpoint 6 Issue #4 fix &mdash; previously this
+   * initialization was guarded by an executor-only check that broke local / local-cluster
+   * mode visibility). Remains `null` only when the manager is constructed under a unit test
+   * that explicitly sets `SparkEnv.set(null)`; every downstream consumer (writer, reader,
+   * fallback policy) null-guards this reference before use so those tests continue to work.
    *
    * Marked `@volatile` so that publication of the reference from the constructor thread is
    * visible to any subsequent `getWriter` / `getReader` call on a different thread &mdash; the
@@ -187,9 +195,21 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
   private val blockResolver: ShuffleBlockResolver = fallbackManager.shuffleBlockResolver
 
   // ---------------------------------------------------------------------------
-  // Bootstrap block. Runs at construction time on BOTH driver and executors,
-  // but the executor-only guard below restricts side effects (metrics-source
-  // registration) to executor-side construction.
+  // Bootstrap block. Runs at construction time on BOTH driver and executors.
+  // Two side effects below:
+  //   1. Metrics-source registration (executed on every non-null SparkEnv so
+  //      local / local-cluster deployments and the driver's own JMX sinks
+  //      both observe the `shuffle.streaming.*` instruments - QA checkpoint 6
+  //      Issue #4 fix). The MetricsSystem registry is idempotent against
+  //      duplicate names (see MetricsSystem.registerSource, which catches
+  //      IllegalArgumentException), so multi-registration within one JVM
+  //      degrades to at-most-once registration automatically.
+  //   2. Optional log-level elevation for the `org.apache.spark.shuffle.
+  //      streaming` logger when `spark.shuffle.streaming.debug=true` (QA
+  //      checkpoint 6 Issue #2 fix). Without this wiring the flag would be
+  //      purely decorative; AAP IC-17 intent ("enable via
+  //      `spark.shuffle.streaming.debug=true`") requires the flag to actually
+  //      elevate runtime verbosity.
   // ---------------------------------------------------------------------------
 
   // Emit a structured INFO record with the five streaming-shuffle configuration values so
@@ -223,25 +243,91 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
     log"spark.shuffle.streaming.debug=" +
     log"${MDC(LogKeys.CONFIG5, bootstrapDebugEnabled.toString)}")
 
-  // Executor-only initialization: register the Dropwizard metrics source so that the four
-  // shuffle.streaming.* instruments become visible in every configured sink (JMX, Prometheus,
-  // Graphite, CSV, Slf4jSink). This MUST NOT execute on the driver, because:
-  //   1. The driver has no per-executor `MetricsSystem` audience for these instruments.
-  //   2. Registering on both driver and executor would duplicate the instrument names under
-  //      the same JMX ObjectName pattern, causing Dropwizard to raise
-  //      javax.management.InstanceAlreadyExistsException.
+  // ---------------------------------------------------------------------------
+  // QA Checkpoint 6 Issue #2 fix: wire `spark.shuffle.streaming.debug=true`
+  // to an actual Log4j2 logger-level elevation for the
+  // `org.apache.spark.shuffle.streaming` logger. Before this change, the flag
+  // was read into `bootstrapDebugEnabled` and included in the INFO line above
+  // but did NOT influence runtime verbosity, so operators who set the flag
+  // saw no DEBUG output (AAP IC-17 intent contravened). The code path below
+  // uses the Log4j2 Configurator API (identical pattern to `Utils.setLogLevel`
+  // at core/src/main/scala/org/apache/spark/util/Utils.scala:2334) scoped to
+  // the streaming sub-package, so the elevation affects exactly this feature's
+  // classes and never the root logger or other Spark subsystems. Failures are
+  // swallowed at WARN level because logging misconfiguration must not abort
+  // shuffle manager construction - data plane stability always beats
+  // observability perfection.
+  // ---------------------------------------------------------------------------
+  if (bootstrapDebugEnabled) {
+    try {
+      val ctx = LogManager.getContext(false).asInstanceOf[LoggerContext]
+      val loggerName = "org.apache.spark.shuffle.streaming"
+      val loggerConfig = ctx.getConfiguration.getLoggerConfig(loggerName)
+      // If there is no dedicated LoggerConfig for our package, getLoggerConfig
+      // returns the nearest ancestor (typically the root logger). Mutating the
+      // root in place would be a cross-cutting concern; instead, we attach a
+      // new additive LoggerConfig at DEBUG level exactly when no
+      // package-scoped config pre-exists. This mirrors how operators would
+      // express `logger.shuffle_streaming.level=DEBUG` in log4j2.properties.
+      if (loggerConfig.getName != loggerName) {
+        val newLoggerConfig = new org.apache.logging.log4j.core.config.LoggerConfig(
+          loggerName, Level.DEBUG, true)
+        ctx.getConfiguration.addLogger(loggerName, newLoggerConfig)
+      } else {
+        loggerConfig.setLevel(Level.DEBUG)
+      }
+      ctx.updateLoggers()
+      logInfo(log"Streaming shuffle debug logging ENABLED for " +
+        log"${MDC(LogKeys.CLASS_NAME, loggerName)} via " +
+        log"spark.shuffle.streaming.debug=true")
+    } catch {
+      // Logging configuration failure is a degraded-observability condition,
+      // not a data-plane correctness issue. Swallow and continue with the
+      // default INFO level so the shuffle path remains fully functional.
+      case t: Throwable =>
+        logWarning(log"Failed to elevate log level for " +
+          log"org.apache.spark.shuffle.streaming to DEBUG despite " +
+          log"spark.shuffle.streaming.debug=true; continuing with default " +
+          log"log level. Operators can work around this by configuring " +
+          log"log4j2 directly (logger.shuffle_streaming.level=DEBUG).", t)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // QA Checkpoint 6 Issue #4 fix: auto-register the Dropwizard metrics source
+  // with `SparkEnv.get.metricsSystem` on EVERY non-null-SparkEnv construction
+  // (both driver and executor). The four shuffle.streaming.* instruments then
+  // become visible in every configured sink (JMX, Prometheus, Graphite, CSV,
+  // Slf4jSink) without requiring operators to hand-wire registration.
   //
-  // The guard uses both a null check on `SparkEnv.get` (to tolerate unit-test contexts that
-  // instantiate the manager without a `SparkEnv`) and the `DRIVER_IDENTIFIER` comparison (to
-  // distinguish driver-side construction from executor-side construction per
-  // AAP section 0.7.5).
-  if (SparkEnv.get != null &&
-      SparkEnv.get.executorId != SparkContext.DRIVER_IDENTIFIER) {
+  // Rationale for removing the prior driver-only exclusion (see git history):
+  //   - Local / local-cluster mode collapses driver and executor into one
+  //     JVM; the prior guard's `executorId != DRIVER_IDENTIFIER` check
+  //     skipped registration in that topology and broke the AAP Observability
+  //     Rule's "Working in local development environment" success criterion
+  //     (AAP section 0.7.7). QA checkpoint 6 verified this regression
+  //     empirically (`getSourcesByName("shuffle.streaming")` returned count=0
+  //     immediately after SparkEnv bootstrap).
+  //   - Duplicate-registration risk is already handled by
+  //     `MetricsSystem.registerSource` itself: that method catches
+  //     IllegalArgumentException raised by the CodaHale MetricRegistry when
+  //     two sources share a name (core/src/main/scala/org/apache/spark/
+  //     metrics/MetricsSystem.scala:168-170), so we cannot corrupt the
+  //     registry by registering twice.
+  //   - In cluster mode, the driver JVM has its own MetricsSystem instance
+  //     (separate from every executor JVM), so there is no cross-JVM name
+  //     collision to worry about either.
+  //
+  // The null guard on `SparkEnv.get` is retained so that unit tests that
+  // construct the manager without a `SparkEnv` (e.g. the Pure Mockito tests
+  // in `StreamingShuffleManagerSuite`) continue to work.
+  // ---------------------------------------------------------------------------
+  if (SparkEnv.get != null) {
     try {
       metricsSource = new StreamingShuffleMetrics()
       SparkEnv.get.metricsSystem.registerSource(metricsSource)
-      logInfo(log"StreamingShuffleMetrics registered with the executor MetricsSystem " +
-        log"for executor ${MDC(LogKeys.EXECUTOR_ID, SparkEnv.get.executorId)}")
+      logInfo(log"StreamingShuffleMetrics registered with the MetricsSystem " +
+        log"for ${MDC(LogKeys.EXECUTOR_ID, SparkEnv.get.executorId)}")
     } catch {
       // Telemetry registration failure must not abort the shuffle manager construction.
       // AAP section 0.7.4: "Telemetry overhead limited to <1% CPU utilization" &mdash; and the
@@ -327,18 +413,36 @@ private[spark] class StreamingShuffleManager(conf: SparkConf)
         // Record the fallback decision so unregisterShuffle can later surface a DEBUG line
         // tagged with the reason and so introspection tooling can classify shuffles.
         fallbackShuffles.put(shuffleId, reason)
-        logInfo(log"Routing shuffle ${MDC(SHUFFLE_ID, shuffleId)} to sort-based fallback: " +
+        // QA Checkpoint 6 Issue #1 (IC-15 log volume) fix: this per-shuffle log is
+        // emitted at DEBUG level rather than INFO. StreamingShuffleFallbackPolicy.fallback
+        // already emits a first-seen INFO per unique reason and a per-shuffle DEBUG for
+        // subsequent occurrences; emitting a second INFO here would double the per-shuffle
+        // log volume and push saturated workloads over the AAP IC-15 `<10 MB/hr` budget.
+        // Operators who want per-shuffle visibility enable
+        // `spark.shuffle.streaming.debug=true`, which elevates the
+        // `org.apache.spark.shuffle.streaming` logger level to DEBUG and restores both
+        // the policy's per-shuffle DEBUG line and this DEBUG line to the log stream.
+        logDebug(log"Routing shuffle ${MDC(SHUFFLE_ID, shuffleId)} to sort-based fallback: " +
           log"${MDC(REASON, reason)}")
         // Delegate to the held SortShuffleManager. The returned handle is a sort-path type
         // and will be dispatched to fallbackManager by getWriter / getReader via type-match.
         fallbackManager.registerShuffle(shuffleId, dependency)
       case None =>
-        // Streaming path selected: emit a structured log and construct a StreamingShuffleHandle.
+        // Streaming path selected: construct a StreamingShuffleHandle.
         // The `asInstanceOf[ShuffleDependency[K, V, V]]` cast mirrors SortShuffleManager's
         // handle construction at lines 99-100 and 103-104; the third type parameter collapses
         // from C to V because StreamingShuffleHandle does not carry a combiner type (streaming
         // pipelines records without map-side aggregation).
-        logInfo(log"Streaming path active for shuffle " +
+        //
+        // QA Checkpoint 6 Issue #1 (IC-15 log volume) fix: this per-shuffle log is emitted
+        // at DEBUG level rather than INFO. Under saturated shuffle rates (>=5 shuffles/sec)
+        // the original INFO emission contributed ~1/3 of the 43.88 MB/hr overflow measured
+        // by QA. Aggregate observability is preserved through the four
+        // `shuffle.streaming.*` Dropwizard counters (gauge + 3 counters exposed via JMX and
+        // Prometheus), which carry the same per-shuffle signal in a bounded-volume form;
+        // operators who need the line-per-shuffle signal enable
+        // `spark.shuffle.streaming.debug=true`.
+        logDebug(log"Streaming path active for shuffle " +
           log"${MDC(SHUFFLE_ID, shuffleId)} with " +
           log"${MDC(NUM_PARTITIONS, numPartitions)} partitions")
         new StreamingShuffleHandle[K, V](

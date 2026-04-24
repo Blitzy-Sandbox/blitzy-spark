@@ -17,9 +17,12 @@
 
 package org.apache.spark.shuffle.streaming
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
+
 import org.apache.spark.{ShuffleDependency, SparkConf}
 import org.apache.spark.internal.{config, Logging}
-import org.apache.spark.internal.LogKeys.{REASON, SHUFFLE_ID}
+import org.apache.spark.internal.LogKeys.{COUNT, REASON, SHUFFLE_ID}
 
 /**
  * Pure decision-only routing oracle that answers a single question on behalf of
@@ -34,10 +37,16 @@ import org.apache.spark.internal.LogKeys.{REASON, SHUFFLE_ID}
  *     AAP section 0.4.1.4 "Streaming Shuffle &mdash; Executor Bootstrap and Runtime
  *     Wiring"). The result determines routing for the entire lifetime of that
  *     shuffle.
- *   - The policy is stateless: identical inputs always produce identical
- *     outputs, and no instance state survives between calls. This makes it
- *     safe to invoke concurrently from multiple DAG-scheduler threads
- *     registering independent shuffles.
+ *   - The policy is stateless on its RETURN VALUE: identical inputs always
+ *     produce identical [[Option]][[String]] outputs, and no instance state
+ *     influences the routing decision. This makes it safe to invoke
+ *     concurrently from multiple DAG-scheduler threads registering
+ *     independent shuffles. Side-effect-only state exists for log-volume
+ *     deduplication (see [[fallback]] Scaladoc); that state is
+ *     lock-free-accessible but DOES NOT influence return values &mdash; it
+ *     only controls log emission level (INFO for first-seen reasons, DEBUG
+ *     for subsequent repeats) so that saturated workloads stay within the
+ *     AAP IC-15 &lt;10 MB/hour per-executor budget.
  *   - The `SortShuffleManager` is NEVER modified by this policy; fallback is
  *     purely a routing decision at the `StreamingShuffleManager` level. When
  *     [[evaluate]] returns `Some(reason)`, the manager stores the reason and
@@ -294,12 +303,15 @@ private[spark] object StreamingShuffleFallbackPolicy extends Logging {
    *      flipping the constant makes this check a no-op without disturbing
    *      any of the preceding checks.
    *
-   * On a fallback decision, the method emits a single structured INFO-level
-   * log record keyed by the shuffle ID and the reason code, so that log
-   * aggregators can build time-series of fallback counts by reason without
-   * parsing free-form text. On an OK decision, no log is emitted to keep
-   * log volume under the user's `<10 MB/hour per executor` budget (AAP
-   * section 0.1.2).
+   * On a fallback decision, the method emits a structured log record keyed
+   * by the shuffle ID and the reason code, so that log aggregators can build
+   * time-series of fallback counts by reason without parsing free-form text.
+   * The record is emitted at INFO level the FIRST time each distinct reason
+   * is observed per JVM and at DEBUG level for every subsequent occurrence
+   * of the same reason (see [[fallback]] Scaladoc for the full dedup
+   * contract). On an OK decision, no log is emitted. This two-level policy
+   * keeps log volume under the user's `<10 MB/hour per executor` budget
+   * (AAP section 0.1.2 / IC-15) even under saturated shuffle rates.
    *
    * Thread-safety: this method is pure (no instance state, no mutation of its
    * arguments). It is safe to invoke concurrently from any thread, including
@@ -489,25 +501,129 @@ private[spark] object StreamingShuffleFallbackPolicy extends Logging {
   // Private helper: centralizes structured-log emission on fallback so the
   // INFO record format stays consistent across every reason code. Always
   // returns `Some(reason)` to keep the `evaluate` call sites one-liners.
+  //
+  // LOG VOLUME DEDUPLICATION (AAP IC-15 compliance, QA checkpoint 6 finding):
+  //   The user's binding non-functional requirement is `<10 MB/hour per
+  //   executor for streaming events` (AAP section 0.1.2). QA checkpoint 6
+  //   measured 43.88 MB/hr under a saturated stress workload (>=5 shuffles/sec)
+  //   when this helper emitted one unconditional INFO line per invocation.
+  //   Because fallback reasons are stable for the lifetime of a SparkConf
+  //   (e.g. "streaming-transport-unavailable-v1" trips for EVERY shuffle in
+  //   v1), saturating workloads amplified each reason-string into thousands
+  //   of identical INFO records per hour.
+  //
+  //   The fix below retains first-occurrence observability by emitting INFO
+  //   the FIRST time each reason is seen per JVM, then demoting subsequent
+  //   same-reason fallbacks to DEBUG (suppressed at default INFO log level)
+  //   while still maintaining a lock-free per-reason counter for optional
+  //   periodic summary emission. The dedup state is side-effect-only and
+  //   does NOT influence the return value, so the policy's stateless-on-
+  //   return-value contract documented at the class-level Scaladoc
+  //   (lines 37-39) remains intact: identical inputs always produce
+  //   identical `Option[String]` outputs.
   // --------------------------------------------------------------------------
 
   /**
-   * Emits a single structured-logging INFO record documenting the fallback
-   * decision and returns the reason wrapped in `Some(...)`. The MDC keys
+   * Per-reason first-seen tracker used by [[fallback]] to emit INFO the first
+   * time each reason is observed and DEBUG for every subsequent occurrence of
+   * the same reason. The value carries the running count of fallbacks for
+   * that reason so diagnostic tooling can introspect the suppressed-log
+   * volume via `getReasonCount` without parsing log files.
+   *
+   * Thread-safety: [[ConcurrentHashMap#computeIfAbsent]] is lock-free in the
+   * common case (present key) and guarantees at-most-once initialization in
+   * the race case (new key), so concurrent `evaluate` calls from multiple
+   * DAG-scheduler threads cannot emit more than one INFO line per unique
+   * reason. The [[AtomicLong]] increment is lock-free on every path.
+   *
+   * JVM-lifetime scope: this map lives for the lifetime of the policy
+   * object (which is a Scala `object`, i.e. a singleton loaded once per
+   * classloader). Memory cost is bounded by the number of distinct reason
+   * strings (currently five: four user-specified plus the v1 transport
+   * safety guard), each paired with a single [[AtomicLong]] &mdash;
+   * constant-size overhead independent of shuffle count.
+   */
+  private val reasonCounts: ConcurrentHashMap[String, AtomicLong] =
+    new ConcurrentHashMap[String, AtomicLong]()
+
+  /**
+   * Emits a structured-logging record documenting the fallback decision and
+   * returns the reason wrapped in `Some(...)`. The MDC keys
    * [[LogKeys.SHUFFLE_ID]] and [[LogKeys.REASON]] are the canonical
    * structured-log keys defined in
    * `common/utils-java/src/main/java/org/apache/spark/internal/LogKeys.java`;
    * downstream log aggregators can group fallback events by reason without
    * parsing the free-form message text.
    *
+   * Log-level policy (AAP IC-15 compliance, QA checkpoint 6 IC-15 fix):
+   *   - FIRST occurrence of a reason (per JVM): INFO &mdash; the reason is
+   *     emitted to default-configured sinks so operators discover the
+   *     fallback condition without enabling DEBUG.
+   *   - SUBSEQUENT occurrences of the same reason: DEBUG &mdash; suppressed
+   *     at the default INFO log level so saturated workloads do not
+   *     overflow the 10 MB/hour per-executor budget. Operators seeking
+   *     per-shuffle visibility can enable DEBUG via
+   *     `spark.shuffle.streaming.debug=true` (see
+   *     [[StreamingShuffleManager]] bootstrap), which elevates the
+   *     `org.apache.spark.shuffle.streaming` logger level and restores
+   *     per-shuffle log lines for debugging.
+   *
    * @param shuffleId the shuffle identifier being registered.
    * @param reason    the fallback reason code (one of the REASON_* constants).
    * @return          `Some(reason)` for direct return from [[evaluate]].
    */
   private def fallback(shuffleId: Int, reason: String): Option[String] = {
-    logInfo(log"Streaming shuffle fallback engaged for shuffle " +
-      log"${MDC(SHUFFLE_ID, shuffleId)}: ${MDC(REASON, reason)}. " +
-      log"Routing this shuffle to the sort-based SortShuffleManager.")
+    // computeIfAbsent returns the existing AtomicLong on repeat calls and
+    // constructs a fresh one on first-seen; the return value is the counter
+    // we increment below. getAndIncrement's pre-increment return value lets
+    // us distinguish first-seen (0 -> INFO) from subsequent (>=1 -> DEBUG)
+    // without a second map lookup.
+    val counter = reasonCounts.computeIfAbsent(reason, _ => new AtomicLong(0L))
+    val prior = counter.getAndIncrement()
+    if (prior == 0L) {
+      logInfo(log"Streaming shuffle fallback engaged for shuffle " +
+        log"${MDC(SHUFFLE_ID, shuffleId)}: ${MDC(REASON, reason)}. " +
+        log"Routing this shuffle to the sort-based SortShuffleManager. " +
+        log"Subsequent fallbacks with reason=${MDC(REASON, reason)} will log " +
+        log"at DEBUG level to stay within the AAP IC-15 log volume budget; " +
+        log"enable spark.shuffle.streaming.debug=true to restore per-shuffle INFO.")
+    } else {
+      logDebug(log"Streaming shuffle fallback engaged for shuffle " +
+        log"${MDC(SHUFFLE_ID, shuffleId)}: ${MDC(REASON, reason)} " +
+        log"(occurrence #${MDC(COUNT, prior + 1L)} of this reason). " +
+        log"Routing this shuffle to the sort-based SortShuffleManager.")
+    }
     Some(reason)
+  }
+
+  /**
+   * Testing / diagnostic accessor that returns the running count of fallbacks
+   * observed for the given reason since JVM start. Unit tests that assert on
+   * the dedup behavior use this to verify that N invocations produce 1 INFO
+   * line plus (N-1) DEBUG lines without relying on log-capture plumbing.
+   *
+   * Package-private to honor the encapsulation documented at the field
+   * declaration above: the map is a log-emission side-effect optimization,
+   * not part of the policy's public contract.
+   *
+   * @param reason a REASON_* code (e.g. `"streaming-disabled-by-config"`)
+   * @return       the number of fallback invocations observed for that
+   *               reason since the JVM started; 0 if the reason has never
+   *               been triggered in this JVM.
+   */
+  private[streaming] def getReasonCount(reason: String): Long = {
+    val counter = reasonCounts.get(reason)
+    if (counter == null) 0L else counter.get()
+  }
+
+  /**
+   * Testing-only helper that resets the per-reason dedup counters so that
+   * the next invocation of [[fallback]] emits an INFO line as if the JVM
+   * had just started. Unit tests use this to exercise the first-seen path
+   * multiple times within a single test run. Not exposed publicly because
+   * operators have no reason to reset the dedup state at runtime.
+   */
+  private[streaming] def resetReasonCountsForTesting(): Unit = {
+    reasonCounts.clear()
   }
 }
