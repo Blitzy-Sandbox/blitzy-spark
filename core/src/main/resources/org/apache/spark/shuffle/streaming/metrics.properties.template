@@ -1,0 +1,154 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# =============================================================================
+# Streaming Shuffle Metrics -- Operator Template
+# =============================================================================
+#
+# This file is a supplemental, classpath-resolvable metrics template for the
+# Streaming Shuffle feature. It is packaged inside the spark-core JAR under
+# src/main/resources and can be retrieved at runtime via:
+#
+#     ClassLoader.getResource(
+#         "org/apache/spark/shuffle/streaming/metrics.properties.template")
+#
+# It is INERT by default -- every configuration entry below is commented out
+# with a leading '#'. This file is not loaded by Spark's MetricsSystem
+# automatically. Operators are expected to copy the desired entries into
+# their active metrics configuration file (see "Usage" below).
+#
+# -----------------------------------------------------------------------------
+# Relationship to conf/metrics.properties.template
+# -----------------------------------------------------------------------------
+#
+# The cluster-wide metrics template shipped with Spark is
+# conf/metrics.properties.template. That template is the canonical operator
+# reference for enabling sinks and sources across all of Spark's components.
+#
+# This streaming-shuffle template is a supplemental reference focused
+# exclusively on the four Dropwizard instruments exposed by the
+# StreamingShuffleMetrics source (class
+# org.apache.spark.shuffle.streaming.StreamingShuffleMetrics). Operators who
+# already maintain a conf/metrics.properties file should append the entries
+# below into that file rather than use this one directly.
+#
+# -----------------------------------------------------------------------------
+# Activation conditions
+# -----------------------------------------------------------------------------
+#
+# Streaming shuffle metrics are emitted ONLY when the streaming shuffle manager
+# is active, i.e. the SparkConf contains:
+#
+#     spark.shuffle.manager=streaming
+#
+# When Spark runs with its default sort-based shuffle manager
+# (spark.shuffle.manager=sort, or the synonymous "tungsten-sort"), the
+# StreamingShuffleMetrics source is NOT registered with the MetricsSystem and
+# none of the shuffle.streaming.* metrics below are exposed to any sink.
+# Enabling this template's source entry on an executor that is not running
+# with the streaming shuffle manager is a no-op with no side effects.
+#
+# -----------------------------------------------------------------------------
+# Usage
+# -----------------------------------------------------------------------------
+#
+# 1. Copy any desired line from the "Template entries" block below into your
+#    active metrics configuration file -- typically one of:
+#        conf/metrics.properties
+#        $SPARK_CONF_DIR/metrics.properties
+#        the file named by -Dspark.metrics.conf=<path>
+# 2. Strip the leading '# ' from the copied line so the entry becomes an
+#    active property.
+# 3. Restart all executors. Streaming shuffle configuration is bound once
+#    per executor lifetime and cannot be reconfigured dynamically in v1 --
+#    configuration changes require an executor restart to take effect.
+#
+# -----------------------------------------------------------------------------
+# Instruments exposed by StreamingShuffleMetrics
+# -----------------------------------------------------------------------------
+#
+# The StreamingShuffleMetrics source exposes the following four instruments
+# under the metric name prefix "shuffle.streaming.". Each metric's JMX,
+# Prometheus, Graphite, and CSV representation follows Dropwizard's standard
+# naming conventions (instance + source + instrument).
+#
+#   1. shuffle.streaming.bufferUtilizationPercent  (Gauge[Double], 0.0 - 100.0)
+#        Current buffer occupancy expressed as a percentage of the total
+#        per-partition allocation. The streaming writer's per-partition
+#        buffer is sized as
+#            (executorMemory * spark.shuffle.streaming.bufferSizePercent)
+#                / numPartitions
+#        and this gauge reports the instantaneous fill level of that buffer
+#        relative to its allocation. Operators use this gauge to correlate
+#        spill events with actual buffer pressure.
+#
+#   2. shuffle.streaming.spillCount                (Counter)
+#        Cumulative number of spill-to-disk events triggered by the
+#        MemorySpillManager when buffer occupancy crosses the threshold
+#        configured by spark.shuffle.streaming.spillThreshold (default 80).
+#        A sustained non-zero rate on this counter indicates the streaming
+#        shuffle is under memory pressure and is evicting buffered partitions
+#        to the BlockManager's on-disk store.
+#
+#   3. shuffle.streaming.backpressureEvents        (Counter)
+#        Cumulative number of backpressure throttle actions applied by the
+#        BackpressureProtocol's token-bucket rate limiter. Each increment
+#        indicates that at least one producer send was delayed because the
+#        per-executor rate cap (80% of link capacity, or the explicit limit
+#        from spark.shuffle.streaming.maxBandwidthMBps) was reached.
+#
+#   4. shuffle.streaming.partialReadInvalidations  (Counter)
+#        Cumulative number of partial-read invalidations performed by the
+#        StreamingShuffleReader in response to producer failure detected via
+#        connection timeout (default 5 seconds). Each increment corresponds
+#        to an atomic discard of all blocks previously consumed from a failed
+#        producer, triggering upstream recomputation through the DAG
+#        scheduler's existing fault-recovery path.
+#
+# =============================================================================
+# Template entries
+# =============================================================================
+#
+# The four lines below are the canonical entries for enabling the
+# StreamingShuffleMetrics source and exporting it via the JMX and
+# Prometheus sinks. All four lines are commented with a leading '# ' so
+# this template is inert by default.
+
+# Register the StreamingShuffleMetrics Dropwizard Source with the MetricsSystem
+# on every JVM instance (driver + all executors). On executors where
+# spark.shuffle.manager=streaming is active, this source publishes the four
+# shuffle.streaming.* instruments described above. The wildcard '*' applies
+# this binding to all instances; scope can be narrowed to "executor." if only
+# executor-side emission is desired.
+# *.source.shuffle.streaming.class=org.apache.spark.shuffle.streaming.StreamingShuffleMetrics
+
+# Enable the JMX sink on every JVM instance. Exposes every registered metric
+# (including the four shuffle.streaming.* instruments above) through the
+# platform MBeanServer so JConsole, VisualVM, Prometheus JMX Exporter, and
+# other JMX-aware monitoring integrations can scrape them.
+# *.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
+
+# Enable the Prometheus servlet sink on every JVM instance. Mounts a servlet
+# that renders all registered metrics in Prometheus exposition format, making
+# the four shuffle.streaming.* instruments available to a Prometheus scrape
+# job targeting the driver or executor UI port.
+# *.sink.prometheusServlet.class=org.apache.spark.metrics.sink.PrometheusServlet
+
+# Configure the Prometheus servlet sink to serve the metrics document at the
+# default Spark Prometheus path. Override this property to mount the servlet
+# at a different path if an alternative scrape URL is required.
+# *.sink.prometheusServlet.path=/metrics/prometheus
