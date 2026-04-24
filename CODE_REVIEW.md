@@ -641,7 +641,7 @@ This table maps every AAP-mandated deliverable to its repository path, its initi
 | Streaming shuffle integration test | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleIntegrationTest.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
 | Streaming shuffle failure-injection suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleFailureInjectionSuite.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
 | Streaming shuffle stress suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleStressSuite.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
-| Streaming shuffle performance benchmark | `core/benchmarks/StreamingShufflePerformanceBenchmark.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
+| Streaming shuffle performance benchmark | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShufflePerformanceBenchmark.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
 | Configuration docs (modified) | `docs/configuration.md` | PENDING_REVIEW | Phase 5 — Business/Domain |
 | Tuning docs (modified) | `docs/tuning.md` | PENDING_REVIEW | Phase 5 — Business/Domain |
 | Core migration guide (modified) | `docs/core-migration-guide.md` | PENDING_REVIEW | Phase 5 — Business/Domain |

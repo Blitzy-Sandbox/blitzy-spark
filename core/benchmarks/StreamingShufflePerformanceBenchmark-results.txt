@@ -1,0 +1,64 @@
+================================================================================================
+Shuffle Performance - 100MB / 10 partitions (primary success criterion)
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.18+8-Ubuntu-124.04.1 on Linux 6.6.113+
+Intel(R) Xeon(R) CPU @ 2.60GHz
+groupByKey on 100MB across 10 partitions:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort-based shuffle (baseline)                       716            822         178          1.5         683.2       1.0X
+streaming shuffle (opt-in)                          548            613          66          1.9         522.5       1.3X
+
+
+================================================================================================
+Shuffle Performance - Varying Partition Counts on 100MB
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.18+8-Ubuntu-124.04.1 on Linux 6.6.113+
+Intel(R) Xeon(R) CPU @ 2.60GHz
+groupByKey on 100MB across 10 partitions:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort-based shuffle (baseline)                       548            695         128          1.9         522.2       1.0X
+streaming shuffle (opt-in)                          752            788          58          1.4         717.0       0.7X
+
+OpenJDK 64-Bit Server VM 17.0.18+8-Ubuntu-124.04.1 on Linux 6.6.113+
+Intel(R) Xeon(R) CPU @ 2.60GHz
+groupByKey on 100MB across 50 partitions:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort-based shuffle (baseline)                      1176           1306         113          0.9        1121.6       1.0X
+streaming shuffle (opt-in)                         1204           1617         385          0.9        1147.9       1.0X
+
+OpenJDK 64-Bit Server VM 17.0.18+8-Ubuntu-124.04.1 on Linux 6.6.113+
+Intel(R) Xeon(R) CPU @ 2.60GHz
+groupByKey on 100MB across 200 partitions:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+-------------------------------------------------------------------------------------------------------------------------
+sort-based shuffle (baseline)                       5239           5403         226          0.2        4996.1       1.0X
+streaming shuffle (opt-in)                          5181           7599        4175          0.2        4940.7       1.0X
+
+
+================================================================================================
+Shuffle Performance - Varying Data Volumes on 10 partitions
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.18+8-Ubuntu-124.04.1 on Linux 6.6.113+
+Intel(R) Xeon(R) CPU @ 2.60GHz
+groupByKey on 100MB across 10 partitions:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort-based shuffle (baseline)                       477            584          90          2.2         455.3       1.0X
+streaming shuffle (opt-in)                          475            560         122          2.2         453.2       1.0X
+
+OpenJDK 64-Bit Server VM 17.0.18+8-Ubuntu-124.04.1 on Linux 6.6.113+
+Intel(R) Xeon(R) CPU @ 2.60GHz
+groupByKey on 200MB across 10 partitions:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort-based shuffle (baseline)                      1159           1788         555          1.8         552.6       1.0X
+streaming shuffle (opt-in)                          983           1188         266          2.1         468.8       1.2X
+
+OpenJDK 64-Bit Server VM 17.0.18+8-Ubuntu-124.04.1 on Linux 6.6.113+
+Intel(R) Xeon(R) CPU @ 2.60GHz
+groupByKey on 500MB across 10 partitions:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort-based shuffle (baseline)                      1791           2232         612          2.9         341.7       1.0X
+streaming shuffle (opt-in)                         1859           2723         788          2.8         354.6       1.0X
+
+
