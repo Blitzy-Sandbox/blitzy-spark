@@ -327,18 +327,31 @@ private[spark] class BackpressureProtocol(
    * the most-recent entry to decide when a buffered block's memory can be reclaimed,
    * honoring the user-mandated 100 ms reclamation window (AAP section 0.1.1).
    *
-   * If the consumer sends multiple acknowledgments for the same `blockId` (which can
-   * happen in a retransmission scenario), the latest `consumerPos` overwrites the
-   * previous entry. This is the correct semantics because `consumerPos` is
-   * monotonically non-decreasing for a given block and the most-recent value is the
-   * highest watermark.
+   * The stored position is guaranteed to be the MAXIMUM of the current value (if any)
+   * and the incoming `consumerPos`. Under out-of-order RPC delivery (e.g. a fast
+   * network re-ordering a stale acknowledgment behind a newer one) this preserves the
+   * monotonic non-decreasing watermark semantics the writer relies on, so buffer
+   * reclamation is never rewound. This is the correct semantics because `consumerPos`
+   * is monotonically non-decreasing for a given block and the most-recent watermark is
+   * the highest one.
+   *
+   * See decision-log entry D19 in `blitzy-docs/streaming-shuffle-decision-log.md` for
+   * the rationale behind choosing `merge` with `Math.max` over unconditional `put`.
    *
    * @param blockId the opaque block identifier matching the one sent by the writer
    * @param consumerPos the consumer's current position within that block (or within
    *                    the overall stream, depending on the caller's convention)
    */
   def acknowledgeReceipt(blockId: String, consumerPos: Long): Unit = {
-    ackTable.put(blockId, java.lang.Long.valueOf(consumerPos))
+    // Use `merge` with `Math.max` to guarantee monotonic non-decreasing consumerPos
+    // under out-of-order RPC delivery. A BiFunction<Long, Long, Long> is supplied
+    // inline; the `ConcurrentHashMap.merge` contract atomically inserts the new value
+    // when the key is absent and invokes the merge function otherwise.
+    ackTable.merge(
+      blockId,
+      java.lang.Long.valueOf(consumerPos),
+      (existing: java.lang.Long, incoming: java.lang.Long) =>
+        java.lang.Long.valueOf(Math.max(existing.longValue(), incoming.longValue())))
     acknowledgmentCount.getAndIncrement()
     if (log.isTraceEnabled) {
       log.trace("acknowledgeReceipt(blockId={}, consumerPos={})",
@@ -353,9 +366,26 @@ private[spark] class BackpressureProtocol(
    * is expected from `producerId`; subsequent liveness is maintained by
    * [[recordHeartbeat]].
    *
-   * Idempotent: calling with an already-registered `producerId` simply refreshes the
-   * heartbeat timestamp, which is the correct behavior when a producer is re-registered
-   * after a transient disconnect-reconnect cycle.
+   * Both the [[producerHeartbeats]] and [[producerPriorities]] registries are populated
+   * atomically with respect to this call: the heartbeat receives the current wall-clock
+   * time, and the priority is initialized to `0L` (neutral). This preserves the invariant
+   * that every producer present in the heartbeat registry also has a valid priority
+   * entry, so that priority-arbitration code (e.g. the memory allocator or
+   * spill-arbitration policy consuming [[prioritySnapshot]]) never observes a registered
+   * producer as "unknown". `unregisterProducer` performs the symmetric cleanup on both
+   * tables. Priority is updated to a non-zero value via [[setProducerPriority]] once the
+   * partition count and data volume for the producer are known.
+   *
+   * Idempotent: calling with an already-registered `producerId` refreshes the heartbeat
+   * timestamp and re-initializes the priority to `0L`. Callers that have already
+   * installed a non-zero priority via [[setProducerPriority]] should NOT re-invoke
+   * [[registerProducer]] for the same producer without calling [[setProducerPriority]]
+   * again afterward. In practice, registration happens exactly once per producer session
+   * before the first [[setProducerPriority]] call, so this caveat does not arise on the
+   * steady-state path.
+   *
+   * See decision-log entry D19 in `blitzy-docs/streaming-shuffle-decision-log.md` for
+   * the rationale behind the two-table register/unregister symmetry.
    *
    * @param producerId the opaque producer identifier (typically the producer's
    *                   executor ID)
@@ -363,6 +393,11 @@ private[spark] class BackpressureProtocol(
   def registerProducer(producerId: String): Unit = {
     producerHeartbeats.put(producerId,
       java.lang.Long.valueOf(System.currentTimeMillis()))
+    // Initialize the priority entry to the neutral value 0L so that the
+    // `(producerHeartbeats, producerPriorities)` pair remains in lock-step with the
+    // matching `unregisterProducer` cleanup. Priority-arbitration code can safely
+    // assume that every registered producer has a valid priority entry.
+    producerPriorities.put(producerId, java.lang.Long.valueOf(0L))
     logDebug(log"Registered streaming shuffle producer " +
       log"${MDC(LogKeys.EXECUTOR_ID, producerId)} for backpressure tracking.")
   }

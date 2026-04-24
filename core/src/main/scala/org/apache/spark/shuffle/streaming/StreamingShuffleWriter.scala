@@ -577,6 +577,33 @@ private[spark] class StreamingShuffleWriter[K, V](
       streamingMetrics.incrementSpillCount()
     }
 
+    // Emit a structured INFO log exposing the per-partition buffer utilization that
+    // triggered this spill. This satisfies the Observability Rule (AAP section 0.7.7)
+    // by surfacing the `BUFFER_UTILIZATION_PERCENT` LogKey (declared in CP1) to the
+    // executor log stream, so operators can correlate spill frequency with the actual
+    // buffer pressure at the decision point.
+    //
+    // Utilization is computed against `perPartitionBudgetBytes` -- the same reference
+    // point used to derive `spillTriggerBytes = perPartitionBudgetBytes *
+    // spillThreshold / 100` -- so an emitted value of, e.g., 82.4 directly corresponds
+    // to "we crossed the configured 80% spill trigger by 2.4 points". Log volume
+    // impact is negligible: spill is a low-frequency event (tens per hour under
+    // steady load), well within the AAP IC-15 budget of <10 MB/hour per executor.
+    //
+    // `perPartitionBudgetBytes` is guarded against zero at construction time
+    // (`math.max(1L, ...)`), so the divisor is always strictly positive.
+    val utilizationPercent: Double = data.length.toDouble * 100.0 /
+      perPartitionBudgetBytes.toDouble
+    logInfo(log"Streaming shuffle partition spilled to disk: " +
+      log"shuffle=${MDC(LogKeys.SHUFFLE_ID, handle.shuffleId)}, " +
+      log"map=${MDC(LogKeys.MAP_ID, mapId)}, " +
+      log"partition=${MDC(LogKeys.REDUCE_ID, partitionId)}, " +
+      log"bytes=${MDC(LogKeys.NUM_BYTES, data.length)}, " +
+      log"budgetBytes=${MDC(LogKeys.MAX_SIZE, perPartitionBudgetBytes)}, " +
+      log"utilizationPercent=" +
+      log"${MDC(LogKeys.BUFFER_UTILIZATION_PERCENT, utilizationPercent)}, " +
+      log"spillThresholdPercent=${MDC(LogKeys.THRESHOLD, spillThreshold)}")
+
     // Reset the buffer so subsequent writes to this partition start fresh. This
     // releases the internal array's write position but does NOT shrink the backing
     // byte[] (which remains allocated for amortized reuse). `reset` is effectively a

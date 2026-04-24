@@ -236,7 +236,11 @@ class StreamingShuffleMetricsSuite extends SparkFunSuite with Matchers {
 
   test("concurrent incrementSpillCount produces exact final count under contention") {
     val m = newMetrics()
-    val threads = 10
+    // 50 threads x 1000 ops = 50_000 total increments. The 50-thread count matches
+    // the checkpoint 2 test-rigor specification (finding #9) and stress-tests the
+    // lock-free counter update path under higher contention than the previous
+    // 10-thread variant.
+    val threads = 50
     val perThread = 1000
     val executor = Executors.newFixedThreadPool(threads)
     val latch = new CountDownLatch(threads)
@@ -258,7 +262,9 @@ class StreamingShuffleMetricsSuite extends SparkFunSuite with Matchers {
 
   test("concurrent incrementBackpressureEvents produces exact final count under contention") {
     val m = newMetrics()
-    val threads = 10
+    // 50 threads x 1000 ops = 50_000 total increments; see the comment in the
+    // `incrementSpillCount` concurrency test for the rationale.
+    val threads = 50
     val perThread = 1000
     val executor = Executors.newFixedThreadPool(threads)
     val latch = new CountDownLatch(threads)
@@ -280,7 +286,9 @@ class StreamingShuffleMetricsSuite extends SparkFunSuite with Matchers {
 
   test("concurrent incrementPartialReadInvalidations produces exact final count under contention") {
     val m = newMetrics()
-    val threads = 10
+    // 50 threads x 1000 ops = 50_000 total increments; see the comment in the
+    // `incrementSpillCount` concurrency test for the rationale.
+    val threads = 50
     val perThread = 1000
     val executor = Executors.newFixedThreadPool(threads)
     val latch = new CountDownLatch(threads)
@@ -302,7 +310,11 @@ class StreamingShuffleMetricsSuite extends SparkFunSuite with Matchers {
 
   test("concurrent setBufferUtilizationPercent does not throw and leaves a valid value") {
     val m = newMetrics()
-    val threads = 10
+    // 50 threads x 500 ops = 25_000 total set operations. The 50-thread count
+    // matches the checkpoint 2 test-rigor specification (finding #9). The per-thread
+    // count remains 500 (as in CP1) to keep the gauge-set path's cumulative work
+    // proportional to the counter-increment path above.
+    val threads = 50
     val perThread = 500
     val executor = Executors.newFixedThreadPool(threads)
     val latch = new CountDownLatch(threads)
