@@ -359,14 +359,20 @@ private[spark] class MemorySpillManager(
   }
 
   /**
-   * Stops the poll thread and clears all coordinator state. Idempotent: safe to call
-   * multiple times, and safe to call from any thread (including the poll thread itself,
-   * though that would cause a best-effort interruption).
+   * Stops the poll thread. Idempotent: safe to call multiple times, and safe to call from
+   * any thread (including the poll thread itself, though that would cause a best-effort
+   * interruption).
    *
    * After `stop()` returns:
-   *   - No further poll iterations will run.
-   *   - No further spill callbacks will be invoked from this manager.
-   *   - All tables are cleared to promptly release memory.
+   *   - No further poll iterations will run (scheduler is shut down).
+   *   - No further spill callbacks will be invoked from the poll loop of this manager.
+   *   - Internal state tables (budget, per-buffer usage, last-access timestamps, and
+   *     spill callbacks) are PRESERVED so that diagnostic queries such as
+   *     [[currentUtilizationPercent]] continue to return meaningful values after
+   *     shutdown. The scheduler thread is the only resource released; the in-memory
+   *     state tables are small (bounded by the number of concurrent partitions on the
+   *     executor) and are reclaimed by the garbage collector when the manager itself
+   *     becomes unreachable.
    *
    * Called by [[StreamingShuffleManager#stop]] on manager shutdown (task, stage, or
    * application teardown).
@@ -375,12 +381,9 @@ private[spark] class MemorySpillManager(
     // shutdownNow() requests immediate termination of the executor and interrupts the
     // poll thread if it is currently running. Returns any pending tasks, which we
     // discard because the next bound-to-fire task is just another poll iteration.
+    // Subsequent calls to shutdownNow() on an already-terminated scheduler are safe
+    // no-ops, preserving the idempotent contract of this method.
     scheduler.shutdownNow()
-    perBufferUsage.clear()
-    lastAccessMillis.clear()
-    spillCallbacks.clear()
-    totalBudgetBytes.set(0L)
-    currentUsageBytes.set(0L)
   }
 
   // --------------------------------------------------------------------------
