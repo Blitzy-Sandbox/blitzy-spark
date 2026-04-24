@@ -310,14 +310,17 @@ The streaming shuffle path falls back to sort-based shuffle at per-shuffle
 granularity by delegating to the held `SortShuffleManager` instance when any
 of the four conditions below fires. Fallback is evaluated by
 `StreamingShuffleFallbackPolicy` at `StreamingShuffleManager.registerShuffle()`
-time and is logged with the structured `LogKey.FALLBACK_REASON` variable.
+time and is logged with a structured `reason` field (logging key introduced
+alongside `StreamingShuffleFallbackPolicy` in a later checkpoint; not part of
+the four CP1 `LogKey` additions `BUFFER_UTILIZATION_PERCENT`, `SPILL_COUNT`,
+`BACKPRESSURE_EVENTS`, `PARTIAL_READ_INVALIDATIONS`).
 
 | # | Trigger Condition (verbatim from AAP §0.1.2) | Detection Method | Response | Metric Emission |
 |---|------------------------------------------------|------------------|----------|-----------------|
 | 1 | Consumer sustained 2x slower than producer for >60 seconds | `BackpressureProtocol` rolling window comparing `consumedBytes` rate vs. `producedBytes` rate per shuffle | Mark shuffle for fallback; subsequent `getWriter` / `getReader` calls for this `shuffleId` return sort-path implementations | `backpressureEvents` counter incremented with `reason=consumer-slow` label |
-| 2 | Memory pressure prevents buffer allocation (OOM risk) | `MemorySpillManager` detects `acquireExecutionMemory` returns less than requested, OR `UnifiedMemoryManager` reports >= `spillThreshold` for >10s | Mark shuffle for fallback; log `FALLBACK_REASON=memory-pressure` | `backpressureEvents` counter incremented with `reason=memory-pressure` label |
+| 2 | Memory pressure prevents buffer allocation (OOM risk) | `MemorySpillManager` detects `acquireExecutionMemory` returns less than requested, OR `UnifiedMemoryManager` reports >= `spillThreshold` for >10s | Mark shuffle for fallback; log structured `reason=memory-pressure` | `backpressureEvents` counter incremented with `reason=memory-pressure` label |
 | 3 | Network saturation exceeds 90% link capacity | `BackpressureProtocol` token-bucket rate hitting consistently over 90% of `maxBandwidthMBps` | Mark shuffle for fallback; throttle remaining streaming shuffles | `backpressureEvents` counter incremented with `reason=network-saturation` label |
-| 4 | Producer/consumer version mismatch (compatibility check) | Version handshake at `openConsumerStream` fails (envelope schema version mismatch) | Mark shuffle for fallback immediately; log `FALLBACK_REASON=version-mismatch` | `backpressureEvents` counter incremented with `reason=version-mismatch` label |
+| 4 | Producer/consumer version mismatch (compatibility check) | Version handshake at `openConsumerStream` fails (envelope schema version mismatch) | Mark shuffle for fallback immediately; log structured `reason=version-mismatch` | `backpressureEvents` counter incremented with `reason=version-mismatch` label |
 
 Fallback is **sticky per `shuffleId`** — once a shuffle has been routed to the
 sort path it remains there for its entire lifetime. New shuffles registered
@@ -376,10 +379,10 @@ feature-local summary.
 | Property | Default | Range | Description | Since |
 |----------|---------|-------|-------------|-------|
 | `spark.shuffle.manager` | `sort` | `sort`, `tungsten-sort`, `streaming`, or FQCN | Selects the ShuffleManager implementation. Set to `streaming` to activate the feature. | pre-4.2 (extended) |
-| `spark.shuffle.streaming.enabled` | `true` | boolean | Master switch for streaming logic; honored by `StreamingShuffleManager` at `registerShuffle` time. When `false`, every shuffle falls back to the held `SortShuffleManager`. | 4.2.0 |
+| `spark.shuffle.streaming.enabled` | `false` | boolean | Master switch for streaming logic; honored by `StreamingShuffleManager` at `registerShuffle` time. When `false`, every shuffle falls back to the held `SortShuffleManager`. Opt-in default (`false`) preserves the production-stable sort path for existing applications. | 4.2.0 |
 | `spark.shuffle.streaming.bufferSizePercent` | `20` | `1`-`50` | Per-executor memory percentage allocated to streaming shuffle buffers (IC-1). | 4.2.0 |
 | `spark.shuffle.streaming.spillThreshold` | `80` | `50`-`95` | Buffer utilization percentage triggering spill (IC-2). | 4.2.0 |
-| `spark.shuffle.streaming.maxBandwidthMBps` | unlimited | positive integer | Maximum outbound bandwidth per executor for streaming shuffle; fed to the token-bucket `setRate`. When unset, rate-limiting is disabled. | 4.2.0 |
+| `spark.shuffle.streaming.maxBandwidthMBps` | `0` (unlimited) | non-negative integer; `0` = unlimited | Maximum outbound bandwidth per executor for streaming shuffle; fed to the token-bucket `setRate`. Setting `0` disables the rate limiter entirely. | 4.2.0 |
 | `spark.shuffle.streaming.debug` | `false` | boolean | Enables DEBUG-level logging for the `org.apache.spark.shuffle.streaming` logger (IC-17). | 4.2.0 |
 
 **Operational note**: Changes to these keys require an executor restart

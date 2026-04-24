@@ -56,26 +56,21 @@ import org.apache.spark.metrics.source.Source
  *     The four instruments here are supplementary streaming-shuffle-specific
  *     telemetry, not a replacement for any existing instrument.
  *
- * Thread-safety and overhead &mdash; AAP section 0.7.4 ("telemetry overhead limited to
- * <1% CPU utilization") is satisfied by making every mutation path lock-free:
+ * Thread-safety contract &mdash; every mutation path is lock-free:
  *   - Dropwizard `Counter.inc()` is internally backed by `java.util.concurrent.
- *     atomic.LongAdder`; writers contend only on thread-local cells, so
- *     contention is sub-nanosecond on hot paths.
- *   - A mirroring [[java.util.concurrent.atomic.AtomicLong]] per counter is kept
- *     as a direct-read fast path for in-JVM decision logic (for example,
- *     `StreamingShuffleFallbackPolicy`, `BackpressureProtocol`, or unit tests
- *     that assert on counter state). A single volatile read on `AtomicLong.get()`
- *     is strictly cheaper than `Counter.getCount` (which calls `LongAdder.sum()`
- *     and may iterate all cells); keeping both avoids a hidden O(N) cost when
- *     the fallback policy polls counter state on every `registerShuffle` call.
+ *     atomic.LongAdder`; writers contend only on thread-local cells.
+ *   - A mirroring [[java.util.concurrent.atomic.AtomicLong]] per counter is
+ *     exposed as a direct-read fast path for in-JVM decision logic (for
+ *     example, `StreamingShuffleFallbackPolicy`, `BackpressureProtocol`, or
+ *     unit tests that assert on counter state).
  *   - The buffer-utilization gauge is backed by an
- *     [[java.util.concurrent.atomic.AtomicReference]] of `java.lang.Double` so
- *     writes are a single CAS and reads are a single volatile load, mirroring
- *     Dropwizard's own `CachedGauge` pattern without the cache-expiry cost.
+ *     [[java.util.concurrent.atomic.AtomicReference]] of `java.lang.Double`.
  *
  * Binary compatibility (MiMa F-017): this class is `private[spark]` and lives in
  * a brand-new sub-package, so it introduces no public SPI signature and requires
- * no entry in `project/MimaExcludes.scala`.
+ * no entry in `project/MimaExcludes.scala`. See
+ * `blitzy-docs/streaming-shuffle-decision-log.md` for the full design rationale
+ * (dual-update pattern, lock-free discipline, direct-read mirror choice).
  */
 private[spark] class StreamingShuffleMetrics extends Source {
 
@@ -106,36 +101,27 @@ private[spark] class StreamingShuffleMetrics extends Source {
    * Most-recent buffer-utilization percent observed by `MemorySpillManager`
    * (domain: 0.0 .. 100.0). Exposed to sinks through the `bufferUtilizationPercent`
    * Gauge below. Initial value 0.0 reflects an idle executor before any streaming
-   * shuffle has begun.
-   *
-   * Boxed as `java.lang.Double` because Dropwizard's `Gauge[T]` is a Java
-   * generic; a Scala `Double` would unbox through `BoxesRunTime.unboxToDouble`,
-   * introducing a tiny allocation on every read. Using `java.lang.Double` keeps
-   * the read path allocation-free after the initial boxing on `set`.
+   * shuffle has begun. Typed as `java.lang.Double` to match the Dropwizard
+   * `Gauge[T]` type parameter.
    */
   private val bufferUtilizationPercent: AtomicReference[java.lang.Double] =
     new AtomicReference[java.lang.Double](java.lang.Double.valueOf(0.0))
 
   /**
-   * Direct-read mirror of `spillCountCounter`. Maintained because
-   * `AtomicLong.get()` is strictly cheaper than `Counter.getCount` (which calls
-   * `LongAdder.sum()` and may iterate all cells). Used by internal decision
-   * logic and tests via `spillCountValue`.
+   * Direct-read mirror of `spillCountCounter`. Read by internal decision logic
+   * (fallback policy, backpressure protocol) and tests via `spillCountValue`.
    */
   private val spillCount: AtomicLong = new AtomicLong(0L)
 
-  /** Direct-read mirror of `backpressureEventsCounter`. See `spillCount` rationale. */
+  /** Direct-read mirror of `backpressureEventsCounter`. */
   private val backpressureEvents: AtomicLong = new AtomicLong(0L)
 
-  /** Direct-read mirror of `partialReadInvalidationsCounter`. See `spillCount` rationale. */
+  /** Direct-read mirror of `partialReadInvalidationsCounter`. */
   private val partialReadInvalidations: AtomicLong = new AtomicLong(0L)
 
   // --------------------------------------------------------------------------
-  // Dropwizard instruments registered against `metricRegistry`.
-  //
-  // Instruments are registered eagerly in the class body (not lazily) so that
-  // `MetricsSystem.registerSource` sees all four metrics the first time it
-  // enumerates this source. Order of registration does not affect sink output.
+  // Dropwizard instruments registered eagerly against `metricRegistry` so that
+  // `MetricsSystem.registerSource` enumerates all four metrics immediately.
   // --------------------------------------------------------------------------
 
   metricRegistry.register(
@@ -146,8 +132,8 @@ private[spark] class StreamingShuffleMetrics extends Source {
 
   /**
    * `MetricRegistry.counter` lazily registers a fresh `Counter` backed by
-   * `LongAdder`. This is the idiomatic Spark pattern &mdash; see
-   * `ExecutorSource` (lines 86+) and `LiveListenerBus` (line 275).
+   * `LongAdder`. Pattern matches `ExecutorSource` (lines 86+) and
+   * `LiveListenerBus` (line 275).
    */
   private val spillCountCounter: Counter =
     metricRegistry.counter(MetricRegistry.name("spillCount"))
@@ -159,13 +145,8 @@ private[spark] class StreamingShuffleMetrics extends Source {
     metricRegistry.counter(MetricRegistry.name("partialReadInvalidations"))
 
   // --------------------------------------------------------------------------
-  // Public mutation API. Every call is lock-free and allocation-free.
-  //
-  // Dual-update pattern: AtomicLong mirror + Dropwizard Counter. Both are
-  // strictly lock-free (AtomicLong via single CAS; Counter via LongAdder cell
-  // array). Total cost per increment is two volatile writes plus a cell-hash
-  // computation &mdash; well below the 1% CPU utilization budget even at the
-  // millions-of-events-per-second rate the streaming path can generate.
+  // Public mutation API. Every call updates both the AtomicLong mirror and the
+  // Dropwizard Counter; both paths are lock-free and allocation-free.
   // --------------------------------------------------------------------------
 
   /**
@@ -217,8 +198,7 @@ private[spark] class StreamingShuffleMetrics extends Source {
   // --------------------------------------------------------------------------
   // Public read-access helpers. Used by internal decision logic (fallback
   // policy, backpressure protocol) and unit tests. Each reads the `AtomicLong`
-  // mirror or the `AtomicReference` directly, bypassing `LongAdder.sum()` and
-  // its associated O(N_cells) cost. All reads are a single volatile load.
+  // mirror or the `AtomicReference` directly.
   // --------------------------------------------------------------------------
 
   /** Current value of the `shuffle.streaming.spillCount` counter. */

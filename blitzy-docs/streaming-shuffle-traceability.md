@@ -311,7 +311,7 @@ back to the new-file catalogue.
 | Class | Method | Purpose | Requirement IDs Satisfied |
 |-------|--------|---------|---------------------------|
 | `StreamingShuffleFallbackPolicy` | `shouldFallback(shuffleId: Int, dependency: ShuffleDependency[_,_,_]): Option[FallbackReason]` | Evaluates the four user-specified fallback conditions (consumer 2× slower >60s, memory pressure, network saturation >90%, version mismatch); returns `None` to proceed with streaming | SC-3, FB-1, FB-2, FB-3, FB-4, ID-2 |
-| `StreamingShuffleFallbackPolicy` | `FallbackReason` enum (`ConsumerSlowdown`, `MemoryPressure`, `NetworkSaturation`, `VersionMismatch`) | Typed fallback reason logged via `FALLBACK_REASON` `LogKey`; surfaces to `CODE_REVIEW.md` audit | ID-5, FB-1, FB-2, FB-3, FB-4 |
+| `StreamingShuffleFallbackPolicy` | `FallbackReason` enum (`ConsumerSlowdown`, `MemoryPressure`, `NetworkSaturation`, `VersionMismatch`) | Typed fallback reason logged as a structured `reason` field on the `StreamingShuffleFallbackPolicy` logger; surfaces to `CODE_REVIEW.md` audit. The dedicated `LogKey` enum entry for this reason is introduced alongside `StreamingShuffleFallbackPolicy` in a later checkpoint; the four CP1 `LogKey` additions are `BUFFER_UTILIZATION_PERCENT`, `SPILL_COUNT`, `BACKPRESSURE_EVENTS`, and `PARTIAL_READ_INVALIDATIONS` only | ID-5, FB-1, FB-2, FB-3, FB-4 |
 
 ### N9 — `StreamingBlockEnvelope` (`core/src/main/scala/org/apache/spark/shuffle/streaming/network/StreamingBlockEnvelope.scala`)
 
@@ -357,10 +357,10 @@ back to the new-file catalogue.
 | `core/src/main/scala/org/apache/spark/internal/config/package.scala` | `SHUFFLE_STREAMING_SPILL_THRESHOLD` `ConfigBuilder` | Integer 50-95, default 80, `.checkValue(v => v >= 50 && v <= 95, ...)`; `version("4.2.0")` | IC-2, CR-S-2, CR-W-3 |
 | `core/src/main/scala/org/apache/spark/internal/config/package.scala` | `SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS` `ConfigBuilder` | Integer, default unlimited; consumed by `TokenBucketRateLimiter.setRate` | IC-5, CR-B-2 |
 | `core/src/main/scala/org/apache/spark/internal/config/package.scala` | `SHUFFLE_STREAMING_DEBUG` `ConfigBuilder` | Boolean, default `false`; consumed by `StreamingShuffleManager` constructor to gate DEBUG log level | IC-17 |
-| `common/utils-java/src/main/java/org/apache/spark/internal/LogKey.java` (per setup note; AAP pointed to `common/utils/src/main/scala/.../LogKey.scala`) | `BUFFER_UTILIZATION_PERCENT` enum entry | Structured logging key emitted by `BackpressureProtocol.checkThreshold` and `MemorySpillManager.pollMemory` | CR-B-3, CR-S-1 |
-| `common/utils-java/src/main/java/org/apache/spark/internal/LogKey.java` | `SPILL_COUNT` enum entry | Structured logging key emitted by `MemorySpillManager.recordSpillMetrics` | CR-S-5 |
-| `common/utils-java/src/main/java/org/apache/spark/internal/LogKey.java` | `BACKPRESSURE_EVENTS` enum entry | Structured logging key emitted by `BackpressureProtocol.emitBackpressureEvent` | CR-B-5 |
-| `common/utils-java/src/main/java/org/apache/spark/internal/LogKey.java` | `PARTIAL_READ_INVALIDATIONS` enum entry | Structured logging key emitted by `StreamingShuffleReader.invalidatePartialReads` | IC-12, FH-P-2, CR-R-2 |
+| `common/utils-java/src/main/java/org/apache/spark/internal/LogKeys.java` (per setup note; AAP pointed to `common/utils/src/main/scala/.../LogKey.scala`, but in this repository the enum entries live in `LogKeys.java` — the sibling `LogKey.java` file defines only the base interface) | `BUFFER_UTILIZATION_PERCENT` enum entry | Structured logging key emitted by `BackpressureProtocol.checkThreshold` and `MemorySpillManager.pollMemory` | CR-B-3, CR-S-1 |
+| `common/utils-java/src/main/java/org/apache/spark/internal/LogKeys.java` | `SPILL_COUNT` enum entry | Structured logging key emitted by `MemorySpillManager.recordSpillMetrics` | CR-S-5 |
+| `common/utils-java/src/main/java/org/apache/spark/internal/LogKeys.java` | `BACKPRESSURE_EVENTS` enum entry | Structured logging key emitted by `BackpressureProtocol.emitBackpressureEvent` | CR-B-5 |
+| `common/utils-java/src/main/java/org/apache/spark/internal/LogKeys.java` | `PARTIAL_READ_INVALIDATIONS` enum entry | Structured logging key emitted by `StreamingShuffleReader.invalidatePartialReads` | IC-12, FH-P-2, CR-R-2 |
 
 ### Operator-Facing Artifacts (Not Runtime Code)
 
@@ -530,7 +530,7 @@ Every modified existing file listed in AAP §0.4.1.1 has at least one row:
 |---------------|---------------------------|
 | `core/src/main/scala/org/apache/spark/shuffle/ShuffleManager.scala` | ✓ (shortShuffleMgrNames map row) |
 | `core/src/main/scala/org/apache/spark/internal/config/package.scala` | ✓ (5 ConfigBuilder rows) |
-| `common/utils-java/src/main/java/org/apache/spark/internal/LogKey.java` | ✓ (4 enum-entry rows) |
+| `common/utils-java/src/main/java/org/apache/spark/internal/LogKeys.java` | ✓ (4 enum-entry rows) |
 
 **Result**: Every implementation artifact traces back to at least one user
 requirement. **No orphan-implementation invariant satisfied.**

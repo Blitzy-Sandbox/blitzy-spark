@@ -656,7 +656,7 @@
         <div class="two-col">
           <ul>
             <li><strong>Full map-side materialization</strong> blocks reducers until writers commit index files.</li>
-            <li><strong>Disk round-trip</strong> adds seek latency even when data fits in executor memory.</li>
+            <li><strong>Disk round-trip</strong> adds seek latency even in memory.</li>
             <li><strong>Stage boundary stall</strong> forces consumers to idle during producer flush.</li>
             <li><strong>CPU overhead</strong> from sort and spill dominates small-record pipelines.</li>
           </ul>

@@ -49,25 +49,10 @@
         "iconColor": "rgba(0, 211, 255, 1)",
         "name": "Annotations & Alerts",
         "type": "dashboard"
-      },
-      {
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${DS_PROMETHEUS}"
-        },
-        "enable": true,
-        "expr": "changes(shuffle_streaming_fallbackActivations{executor_id=~\"$executor\"}[1m]) > 0",
-        "hide": false,
-        "iconColor": "red",
-        "name": "Fallback Activated",
-        "showIn": 0,
-        "step": "",
-        "titleFormat": "StreamingShuffleFallbackPolicy triggered",
-        "textFormat": "Streaming shuffle fell back to sort-based shuffle for executor {{executor_id}}"
       }
     ]
   },
-  "description": "Observability dashboard for Apache Spark Streaming Shuffle (opt-in ShuffleManager selected via spark.shuffle.manager=streaming). Displays the four shuffle.streaming.* Dropwizard metrics surfaced via Prometheus: bufferUtilizationPercent (Gauge), spillCount (Counter), backpressureEvents (Counter), partialReadInvalidations (Counter). Also includes fallback activation annotations emitted by StreamingShuffleFallbackPolicy. Template dashboard — import and select your Prometheus data source. Generated as part of the Streaming Shuffle Observability Rule deliverable (AAP §0.7.7).",
+  "description": "Observability dashboard for Apache Spark Streaming Shuffle (opt-in ShuffleManager selected via spark.shuffle.manager=streaming). Displays the four shuffle.streaming.* Dropwizard metrics surfaced via Prometheus: bufferUtilizationPercent (Gauge), spillCount (Counter), backpressureEvents (Counter), partialReadInvalidations (Counter). Template dashboard — import and select your Prometheus data source. Generated as part of the Streaming Shuffle Observability Rule deliverable (AAP §0.7.7).",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -450,94 +435,6 @@
         "x": 12,
         "y": 8
       }
-    },
-    {
-      "id": 5,
-      "type": "timeseries",
-      "title": "Fallback Activation Events",
-      "description": "Events where StreamingShuffleFallbackPolicy delegated a shuffle to the held SortShuffleManager. Forward-compatible metric: panel will remain empty until StreamingShuffleFallbackPolicy starts emitting shuffle_streaming_fallbackActivations. The dashboard-level annotation 'Fallback Activated' overlays marker pins on every time series when a fallback event occurs.",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
-          },
-          "expr": "changes(shuffle_streaming_fallbackActivations{executor_id=~\"$executor\"}[5m])",
-          "legendFormat": "{{executor_id}} fallbacks/5m",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "decimals": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "red",
-                "value": 1
-              }
-            ]
-          },
-          "custom": {
-            "drawStyle": "bars",
-            "lineWidth": 1,
-            "fillOpacity": 60,
-            "gradientMode": "none",
-            "lineInterpolation": "linear",
-            "showPoints": "never",
-            "spanNulls": false,
-            "axisPlacement": "auto",
-            "axisLabel": "Fallback activations",
-            "axisGridShow": true,
-            "pointSize": 5,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            },
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "mappings": [],
-          "color": {
-            "mode": "palette-classic"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true,
-          "calcs": []
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 16
-      }
     }
   ],
   "refresh": "30s",
@@ -574,34 +471,6 @@
         "definition": "label_values(shuffle_streaming_bufferUtilizationPercent, executor_id)",
         "query": {
           "query": "label_values(shuffle_streaming_bufferUtilizationPercent, executor_id)",
-          "refId": "StandardVariableQuery"
-        },
-        "refresh": 2,
-        "sort": 1,
-        "multi": true,
-        "includeAll": true,
-        "allValue": ".*",
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
-        },
-        "options": [],
-        "hide": 0,
-        "skipUrlSync": false
-      },
-      {
-        "name": "shuffle_id",
-        "type": "query",
-        "label": "Shuffle ID",
-        "description": "Filter the dashboard to one or more shuffle IDs when the shuffle_id Prometheus label is exposed. Defaults to 'All' (regex '.*').",
-        "datasource": {
-          "type": "prometheus",
-          "uid": "${DS_PROMETHEUS}"
-        },
-        "definition": "label_values(shuffle_streaming_spillCount{executor_id=~\"$executor\"}, shuffle_id)",
-        "query": {
-          "query": "label_values(shuffle_streaming_spillCount{executor_id=~\"$executor\"}, shuffle_id)",
           "refId": "StandardVariableQuery"
         },
         "refresh": 2,
