@@ -297,6 +297,38 @@ Enable streaming shuffle by setting `spark.shuffle.manager=streaming`. See the
 [Shuffle Behavior](configuration.html#shuffle-behavior) section of the configuration guide for the
 full list of `spark.shuffle.streaming.*` properties and their defaults.
 
+### Initial release note (v1)
+
+The streaming-shuffle transport is **not yet wired** in this release. When `spark.shuffle.manager=streaming`
+is set (with or without `spark.shuffle.streaming.enabled=true`), every shuffle is currently routed
+through the sort-based fallback path with the structured reason `streaming-transport-unavailable-v1`,
+rather than streaming bytes between executors. This is a deliberate compile-time safety guard that
+keeps the v1 release production-safe while the transport, the in-progress reader, and the runtime
+fallback signals are completed and independently reviewed. It has the following user-visible
+consequences:
+
+- **Results remain correct** — they are produced by the proven sort-based shuffle path, identical to
+  the default `spark.shuffle.manager=sort` behavior. There is no functional regression.
+- **The documented latency benefit will not materialize until a future release activates the transport.**
+  Workloads that meet the "good candidate" profile in the next subsection should expect sort-based
+  performance today and the streaming-shuffle latency reduction once the v2 transport ships.
+- **The four runtime fallback conditions described in [Automatic fallback conditions](#automatic-fallback-conditions)
+  below are pre-empted by this v1 guard** and therefore will not be observed at runtime today; they
+  describe the steady-state v2 behavior so that operator playbooks, dashboards, and capacity planning
+  can be authored ahead of activation.
+- **Operators can verify the guard is engaged** in two ways: (a) the `StreamingShuffleManager` records
+  a per-shuffle bookkeeping entry of the form `fallbackShuffles=Map(<shuffleId> -> streaming-transport-unavailable-v1)`,
+  and (b) every counter under the `shuffle.streaming.*` Dropwizard / JMX / Prometheus namespace remains
+  at zero because the streaming path is never exercised.
+- **Forward-looking opt-in is supported.** The five `spark.shuffle.streaming.*` properties may be set
+  today against the v1 binaries; their values are captured at executor bootstrap and will take effect
+  automatically once the transport is activated in a future release. No configuration migration is
+  required at that point.
+
+When the transport is activated, the streaming shuffle path is selected automatically for any shuffle
+whose registration-time and runtime conditions clear; no opt-in change is required beyond the
+existing `spark.shuffle.manager=streaming` setting.
+
 ### When to enable streaming shuffle
 
 Streaming shuffle is expected to deliver:
@@ -341,6 +373,12 @@ lifecycle, and user-facing APIs are unaffected:
 - Memory pressure prevents buffer allocation (OOM risk).
 - Network saturation exceeds 90% of link capacity.
 - Producer/consumer version mismatch (compatibility check).
+
+> **v1 note:** Per the [Initial release note (v1)](#initial-release-note-v1) above, the four runtime
+> conditions in this list describe the steady-state behavior that activates once the streaming
+> transport ships in a future release. In v1, the compile-time `streaming-transport-unavailable-v1`
+> guard pre-empts every streaming shuffle ahead of these runtime checks, so operators will not
+> observe these conditions firing today.
 
 ### Operational notes
 

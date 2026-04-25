@@ -258,7 +258,7 @@ QA-Persona (Test Strategy Lead)
 
 ### Scope
 
-- Verify the ten new test files exist at their expected paths per AAP §0.5.1.3 and extend `SparkFunSuite`: `StreamingShuffleManagerSuite`, `StreamingShuffleWriterSuite`, `BackpressureProtocolSuite`, `StreamingShuffleReaderSuite`, `MemorySpillManagerSuite`, `StreamingShuffleFallbackPolicySuite`, `StreamingShuffleIntegrationTest`, `StreamingShuffleFailureInjectionSuite`, `StreamingShuffleStressSuite`, and `StreamingShufflePerformanceBenchmark`.
+- Verify the ten new test files exist at their expected paths per AAP §0.5.1.3 and extend `SparkFunSuite`: `StreamingShuffleManagerSuite`, `StreamingShuffleWriterSuite`, `BackpressureProtocolSuite`, `StreamingShuffleReaderSuite`, `MemorySpillManagerSuite`, `StreamingShuffleFallbackPolicySuite`, `StreamingShuffleIntegrationTest` _(deferred per RW-1)_, `StreamingShuffleFailureInjectionSuite` _(deferred per RW-2)_, `StreamingShuffleStressSuite` _(deferred per RW-3)_, and `StreamingShufflePerformanceBenchmark`. The three CP3-deferred test classes annotated above do not exist on disk in this checkpoint and the Phase 4 reviewer should treat their existence as a future-checkpoint verification step rather than a CP4 blocker; the Remaining Work Items registry below is the authoritative tracking surface for this deferral.
 - Verify unit-test coverage greater than 85% for the new `org.apache.spark.shuffle.streaming.*` sub-package (AAP §0.7.6 quality gate).
 - Verify all unit suites pass with zero failures and zero flakiness under 100 consecutive runs of the integration test.
 - Verify `StreamingShuffleIntegrationTest` exercises all five user-specified scenarios: 100 MB / 10-partition shuffle with 30% latency reduction assertion; producer failure mid-shuffle with partial-read invalidation; consumer 50% slowdown with automatic spill; network partition with timeout and fallback; 5 concurrent shuffles with buffer allocation arbitration.
@@ -631,16 +631,16 @@ This table maps every AAP-mandated deliverable to its repository path, its initi
 | Metrics properties template | `core/src/main/resources/org/apache/spark/shuffle/streaming/metrics.properties.template` | PENDING_REVIEW | Phase 1 — Infrastructure/DevOps |
 | Manager short-name registration (modified) | `core/src/main/scala/org/apache/spark/shuffle/ShuffleManager.scala` | PENDING_REVIEW | Phase 3 — Backend Architecture |
 | Config entries (modified) | `core/src/main/scala/org/apache/spark/internal/config/package.scala` | PENDING_REVIEW | Phase 3 — Backend Architecture |
-| Log keys (modified) | `common/utils/src/main/scala/org/apache/spark/internal/LogKey.scala` | PENDING_REVIEW | Phase 3 — Backend Architecture |
+| Log keys (modified) | `common/utils/src/main/scala/org/apache/spark/internal/LogKey.scala` _(stale path — actual file is `common/utils-java/src/main/java/org/apache/spark/internal/LogKeys.java`; see Issue 4 disposition note above for the upstream Scala→Java migration that produced the drift)_ | PENDING_REVIEW | Phase 3 — Backend Architecture |
 | Streaming shuffle manager suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleManagerSuite.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
 | Streaming shuffle writer suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleWriterSuite.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
 | Backpressure protocol suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/BackpressureProtocolSuite.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
 | Streaming shuffle reader suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleReaderSuite.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
 | Memory spill manager suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/MemorySpillManagerSuite.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
 | Fallback policy suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleFallbackPolicySuite.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
-| Streaming shuffle integration test | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleIntegrationTest.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
-| Streaming shuffle failure-injection suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleFailureInjectionSuite.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
-| Streaming shuffle stress suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleStressSuite.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
+| Streaming shuffle integration test | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleIntegrationTest.scala` _(deferred per RW-1 — file does not yet exist on disk in this checkpoint)_ | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
+| Streaming shuffle failure-injection suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleFailureInjectionSuite.scala` _(deferred per RW-2 — file does not yet exist on disk in this checkpoint)_ | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
+| Streaming shuffle stress suite | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleStressSuite.scala` _(deferred per RW-3 — file does not yet exist on disk in this checkpoint)_ | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
 | Streaming shuffle performance benchmark | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShufflePerformanceBenchmark.scala` | PENDING_REVIEW | Phase 4 — QA/Test Integrity |
 | Configuration docs (modified) | `docs/configuration.md` | PENDING_REVIEW | Phase 5 — Business/Domain |
 | Tuning docs (modified) | `docs/tuning.md` | PENDING_REVIEW | Phase 5 — Business/Domain |

@@ -1465,6 +1465,22 @@ is not supported in the initial release. See the
 [Streaming Shuffle tuning guide](tuning.html#streaming-shuffle) for workload guidance and fallback
 behavior.
 
+**Initial release note (v1).** The streaming-shuffle transport is **not yet wired** in this
+release. When <code>spark.shuffle.manager=streaming</code> is set (with or without
+<code>spark.shuffle.streaming.enabled=true</code>), every shuffle is currently routed through the
+sort-based fallback path with the structured reason <code>streaming-transport-unavailable-v1</code>.
+Results remain correct (identical to the default <code>spark.shuffle.manager=sort</code> behavior),
+but the documented latency benefit will not materialize until a future release activates the
+transport. The five <code>spark.shuffle.streaming.*</code> properties documented below may be set
+today as forward-looking opt-ins; their values are captured at executor bootstrap and will take
+effect automatically once the transport is activated. Operators can verify the guard is engaged by
+inspecting the per-shuffle bookkeeping entry
+<code>fallbackShuffles=Map(&lt;shuffleId&gt; -&gt; streaming-transport-unavailable-v1)</code> on the
+<code>StreamingShuffleManager</code>, or by observing that every counter under the
+<code>shuffle.streaming.*</code> Dropwizard / JMX / Prometheus namespace remains at zero. See the
+[Initial release note (v1)](tuning.html#initial-release-note-v1) section of the tuning guide for the
+full operator playbook.
+
 <table class="spark-config">
 <thead><tr><th>Property Name</th><th>Default</th><th>Meaning</th><th>Since Version</th></tr></thead>
 <tr>
