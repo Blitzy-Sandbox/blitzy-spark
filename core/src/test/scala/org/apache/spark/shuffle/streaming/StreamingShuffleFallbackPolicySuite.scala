@@ -479,4 +479,235 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
     val conf = new SparkConf(loadDefaults = false)
     StreamingShuffleFallbackPolicy.isPushShuffleActive(conf) must be(false)
   }
+
+  // ==========================================================================
+  // Group: RW-7 runtime observer infrastructure
+  // --------------------------------------------------------------------------
+  // Tests for the consumer-lag, network-saturation, and version-mismatch
+  // observer hooks added per Refine PR work item RW-7. These are scaffolding
+  // for the v2 transport (RW-4/RW-5); v1 callsites do not invoke
+  // `evaluateRuntime` because `evaluate` short-circuits to the
+  // streaming-transport-unavailable-v1 reason ahead of any runtime
+  // observation.
+  //
+  // Each test resets the singleton observer state via
+  // `resetObserversForTesting()` to keep cases hermetic.
+  // ==========================================================================
+
+  override def beforeEach(): Unit = {
+    super.beforeEach()
+    StreamingShuffleFallbackPolicy.resetObserversForTesting()
+  }
+
+  // Group RW-7.1: recordConsumerLag / isConsumerLagging semantics
+
+  test("isConsumerLagging returns false for an unobserved shuffle") {
+    StreamingShuffleFallbackPolicy.isConsumerLagging(42, 1000L) must be(false)
+  }
+
+  test("isConsumerLagging returns false when ratio is below 2.0") {
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 1.5, 1000L)
+    // A sub-threshold sample should NOT start a lag run; predicate is false.
+    StreamingShuffleFallbackPolicy.isConsumerLagging(42, 999999L) must be(false)
+  }
+
+  test("isConsumerLagging returns false immediately after a >=2.0 sample " +
+    "before sustained duration elapses") {
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 2.0, 1000L)
+    // 30 seconds elapsed -> not yet >60s, so predicate is still false.
+    StreamingShuffleFallbackPolicy.isConsumerLagging(42, 31000L) must be(false)
+  }
+
+  test("isConsumerLagging returns true after sustained 2.0+ lag exceeds 60s") {
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 2.0, 1000L)
+    // 61 seconds elapsed -> beyond the 60_000 ms threshold.
+    StreamingShuffleFallbackPolicy.isConsumerLagging(42, 62001L) must be(true)
+  }
+
+  test("isConsumerLagging at exactly the 60s boundary is false (strict >)") {
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 2.0, 1000L)
+    // 60s exactly: 1000 + 60000 = 61000.
+    StreamingShuffleFallbackPolicy.isConsumerLagging(42, 61000L) must be(false)
+  }
+
+  test("isConsumerLagging returns true at 60s + 1 ms (strict > boundary)") {
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 2.0, 1000L)
+    StreamingShuffleFallbackPolicy.isConsumerLagging(42, 61001L) must be(true)
+  }
+
+  test("recordConsumerLag with ratio >= 2.0 preserves the original start " +
+    "timestamp on contiguous threshold-met observations") {
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 2.5, 1000L)
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 3.0, 30000L)
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 4.0, 50000L)
+    // start anchor is still 1000L; elapsed = 62001 - 1000 = 61001 > 60000.
+    StreamingShuffleFallbackPolicy.isConsumerLagging(42, 62001L) must be(true)
+  }
+
+  test("recordConsumerLag with ratio < 2.0 resets the sustained-lag timer") {
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 2.5, 1000L)
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 1.0, 30000L)
+    // The sub-threshold sample reset the timer; the next >=2.0 anchor is
+    // 50000L; elapsed = 110000 - 50000 = 60000 (exactly threshold, not >).
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 2.5, 50000L)
+    StreamingShuffleFallbackPolicy.isConsumerLagging(42, 110000L) must be(false)
+    // 60001 ms after the new start IS strictly >60000.
+    StreamingShuffleFallbackPolicy.isConsumerLagging(42, 110001L) must be(true)
+  }
+
+  test("recordConsumerLag is per-shuffle: shuffleA lag does not affect " +
+    "shuffleB") {
+    StreamingShuffleFallbackPolicy.recordConsumerLag(101, 3.0, 1000L)
+    StreamingShuffleFallbackPolicy.isConsumerLagging(101, 100000L) must be(true)
+    StreamingShuffleFallbackPolicy.isConsumerLagging(202, 100000L) must be(false)
+  }
+
+  // Group RW-7.2: recordNetworkUtilization / isNetworkSaturated semantics
+
+  test("isNetworkSaturated returns false when no observation has been recorded") {
+    StreamingShuffleFallbackPolicy.isNetworkSaturated(1000L) must be(false)
+  }
+
+  test("isNetworkSaturated returns false at exactly the 90% threshold " +
+    "(strict > boundary)") {
+    StreamingShuffleFallbackPolicy.recordNetworkUtilization(0.90, 1000L)
+    StreamingShuffleFallbackPolicy.isNetworkSaturated(1000L) must be(false)
+  }
+
+  test("isNetworkSaturated returns true above the 90% threshold") {
+    StreamingShuffleFallbackPolicy.recordNetworkUtilization(0.91, 1000L)
+    StreamingShuffleFallbackPolicy.isNetworkSaturated(1000L) must be(true)
+  }
+
+  test("isNetworkSaturated reflects the most recent observation only") {
+    // Initially saturated...
+    StreamingShuffleFallbackPolicy.recordNetworkUtilization(0.99, 1000L)
+    StreamingShuffleFallbackPolicy.isNetworkSaturated(1000L) must be(true)
+    // ...then desaturated by a fresh observation.
+    StreamingShuffleFallbackPolicy.recordNetworkUtilization(0.50, 2000L)
+    StreamingShuffleFallbackPolicy.isNetworkSaturated(2000L) must be(false)
+  }
+
+  // Group RW-7.3: markVersionMismatch / clearVersionMismatch / isVersionMismatched
+
+  test("isVersionMismatched returns false for an unflagged producer") {
+    StreamingShuffleFallbackPolicy.isVersionMismatched("exec-1") must be(false)
+  }
+
+  test("markVersionMismatch then isVersionMismatched returns true") {
+    StreamingShuffleFallbackPolicy.markVersionMismatch("exec-1")
+    StreamingShuffleFallbackPolicy.isVersionMismatched("exec-1") must be(true)
+  }
+
+  test("markVersionMismatch is idempotent") {
+    StreamingShuffleFallbackPolicy.markVersionMismatch("exec-1")
+    StreamingShuffleFallbackPolicy.markVersionMismatch("exec-1")
+    StreamingShuffleFallbackPolicy.markVersionMismatch("exec-1")
+    StreamingShuffleFallbackPolicy.isVersionMismatched("exec-1") must be(true)
+  }
+
+  test("markVersionMismatch is per-producer: exec-1 mismatch does not affect " +
+    "exec-2") {
+    StreamingShuffleFallbackPolicy.markVersionMismatch("exec-1")
+    StreamingShuffleFallbackPolicy.isVersionMismatched("exec-1") must be(true)
+    StreamingShuffleFallbackPolicy.isVersionMismatched("exec-2") must be(false)
+  }
+
+  test("clearVersionMismatch removes the flag") {
+    StreamingShuffleFallbackPolicy.markVersionMismatch("exec-1")
+    StreamingShuffleFallbackPolicy.isVersionMismatched("exec-1") must be(true)
+    StreamingShuffleFallbackPolicy.clearVersionMismatch("exec-1")
+    StreamingShuffleFallbackPolicy.isVersionMismatched("exec-1") must be(false)
+  }
+
+  test("clearVersionMismatch on an unflagged producer is a silent no-op") {
+    noException must be thrownBy {
+      StreamingShuffleFallbackPolicy.clearVersionMismatch("never-marked")
+    }
+    StreamingShuffleFallbackPolicy.isVersionMismatched("never-marked") must be(false)
+  }
+
+  // Group RW-7.4: evaluateRuntime composite predicate
+
+  test("evaluateRuntime returns None when no runtime conditions trigger") {
+    StreamingShuffleFallbackPolicy.evaluateRuntime(
+      shuffleId = 42, producerId = Some("exec-1"), asOfMillis = 1000L
+    ) must be(None)
+  }
+
+  test("evaluateRuntime returns Some('runtime-version-mismatch') when " +
+    "producer is flagged") {
+    StreamingShuffleFallbackPolicy.markVersionMismatch("exec-1")
+    StreamingShuffleFallbackPolicy.evaluateRuntime(
+      shuffleId = 42, producerId = Some("exec-1"), asOfMillis = 1000L
+    ) must be(Some("runtime-version-mismatch"))
+  }
+
+  test("evaluateRuntime ignores version mismatch when producerId is None") {
+    StreamingShuffleFallbackPolicy.markVersionMismatch("exec-1")
+    StreamingShuffleFallbackPolicy.evaluateRuntime(
+      shuffleId = 42, producerId = None, asOfMillis = 1000L
+    ) must be(None)
+  }
+
+  test("evaluateRuntime returns Some('runtime-network-saturated') when " +
+    "network exceeds 90%") {
+    StreamingShuffleFallbackPolicy.recordNetworkUtilization(0.95, 500L)
+    StreamingShuffleFallbackPolicy.evaluateRuntime(
+      shuffleId = 42, producerId = Some("exec-1"), asOfMillis = 1000L
+    ) must be(Some("runtime-network-saturated"))
+  }
+
+  test("evaluateRuntime returns Some('runtime-consumer-lag') when sustained " +
+    "lag exceeds 60s") {
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 3.0, 1000L)
+    StreamingShuffleFallbackPolicy.evaluateRuntime(
+      shuffleId = 42, producerId = Some("exec-1"), asOfMillis = 70000L
+    ) must be(Some("runtime-consumer-lag"))
+  }
+
+  test("evaluateRuntime evaluates version-mismatch first when multiple " +
+    "conditions are active") {
+    StreamingShuffleFallbackPolicy.markVersionMismatch("exec-1")
+    StreamingShuffleFallbackPolicy.recordNetworkUtilization(0.99, 500L)
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 3.0, 1000L)
+    StreamingShuffleFallbackPolicy.evaluateRuntime(
+      shuffleId = 42, producerId = Some("exec-1"), asOfMillis = 70000L
+    ) must be(Some("runtime-version-mismatch"))
+  }
+
+  test("evaluateRuntime evaluates network saturation second (before " +
+    "consumer-lag)") {
+    StreamingShuffleFallbackPolicy.recordNetworkUtilization(0.99, 500L)
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 3.0, 1000L)
+    StreamingShuffleFallbackPolicy.evaluateRuntime(
+      shuffleId = 42, producerId = Some("exec-1"), asOfMillis = 70000L
+    ) must be(Some("runtime-network-saturated"))
+  }
+
+  test("resetObserversForTesting clears all three observer fields") {
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 3.0, 1000L)
+    StreamingShuffleFallbackPolicy.recordNetworkUtilization(0.99, 1000L)
+    StreamingShuffleFallbackPolicy.markVersionMismatch("exec-1")
+
+    StreamingShuffleFallbackPolicy.resetObserversForTesting()
+
+    StreamingShuffleFallbackPolicy.isConsumerLagging(42, 100000L) must be(false)
+    StreamingShuffleFallbackPolicy.isNetworkSaturated(100000L) must be(false)
+    StreamingShuffleFallbackPolicy.isVersionMismatched("exec-1") must be(false)
+  }
+
+  test("evaluate is unaffected by observer state -- pre-registration policy " +
+    "remains independent of runtime observers") {
+    // Set runtime observers to "everything is broken"...
+    StreamingShuffleFallbackPolicy.markVersionMismatch("exec-1")
+    StreamingShuffleFallbackPolicy.recordNetworkUtilization(0.99, 1000L)
+    StreamingShuffleFallbackPolicy.recordConsumerLag(42, 3.0, 1000L)
+    // ...but evaluate (the pre-registration policy) does not consult observer
+    // state. With goodConf() it still returns the v1 transport-unavailable
+    // reason because the registration-time policy is observer-independent.
+    val result = StreamingShuffleFallbackPolicy.evaluate(
+      42, depWithPartitions(8), goodConf(), new StreamingShuffleMetrics())
+    result must be(Some("streaming-transport-unavailable-v1"))
+  }
 }

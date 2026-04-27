@@ -18,11 +18,11 @@
 package org.apache.spark.shuffle.streaming
 
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
 import org.apache.spark.{ShuffleDependency, SparkConf}
 import org.apache.spark.internal.{config, Logging}
-import org.apache.spark.internal.LogKeys.{COUNT, REASON, SHUFFLE_ID}
+import org.apache.spark.internal.LogKeys.{COUNT, EXECUTOR_ID, REASON, SHUFFLE_ID}
 
 /**
  * Pure decision-only routing oracle that answers a single question on behalf of
@@ -58,30 +58,33 @@ import org.apache.spark.internal.LogKeys.{COUNT, REASON, SHUFFLE_ID}
  * Fallback conditions evaluated (user-specified plus ADR-005 mutual-exclusion):
  *
  *   1. '''Consumer sustained 2&times; slower than producer for >60 s''' &mdash;
- *      deferred to v2. Requires runtime acknowledgment-rate history that does
- *      not yet exist at `registerShuffle` time. The runtime
- *      [[BackpressureProtocol]] already detects this condition dynamically and
- *      will synthesize a backpressure event; future adaptive re-evaluation can
- *      surface a fallback trigger by re-invoking [[evaluate]] on re-registration.
+ *      OBSERVER INFRASTRUCTURE LANDED (RW-7). Pre-registration `evaluate` does
+ *      not yet consult observer state because the v1 transport is not yet
+ *      live. The observer hooks ([[recordConsumerLag]], [[isConsumerLagging]],
+ *      [[evaluateRuntime]]) provide a stable API surface so v2 transport
+ *      authors can begin feeding telemetry without churning call sites.
  *   2. '''Memory pressure preventing buffer allocation (OOM risk)''' &mdash;
  *      ACTIVE CHECK. Approximated at registration time by examining the
  *      configured executor memory (MiB): if the executor is too small to
  *      host the 20&percnt; streaming-shuffle buffer budget plus a safe
  *      working-set headroom, streaming is not viable and we fall back.
  *   3. '''Network saturation exceeds 90&percnt; link capacity''' &mdash;
- *      deferred to v2. Requires runtime network telemetry (per-interface byte
- *      counters) that does not yet exist at `registerShuffle` time. The runtime
- *      [[BackpressureProtocol]] already enforces an 80&percnt; token-bucket cap
- *      that moderates the live send rate; further automatic fallback on
- *      sustained >90&percnt; saturation is a v2 refinement.
- *   4. '''Producer / consumer version mismatch''' &mdash; deferred. Not applicable
- *      within a single cluster where every executor runs the identical
- *      Apache Spark binary. Cross-version scenarios (SQL migration, Spark
- *      Connect mixing) are explicitly declared out of scope by the AAP section
- *      0.6.2 "Cross-version Spark Connect mixing". If/when multi-version
- *      executors become supported, a runtime handshake in
- *      [[BackpressureProtocol]] will exchange version magic bytes and feed this
- *      method.
+ *      OBSERVER INFRASTRUCTURE LANDED (RW-7). Per AAP, the runtime
+ *      [[BackpressureProtocol]] already enforces an 80&percnt; token-bucket
+ *      cap that moderates the live send rate; the observer hooks
+ *      ([[recordNetworkUtilization]], [[isNetworkSaturated]],
+ *      [[evaluateRuntime]]) extend that with a >90&percnt; auto-fallback API
+ *      surface ready to consume v2 transport telemetry.
+ *   4. '''Producer / consumer version mismatch''' &mdash; OBSERVER
+ *      INFRASTRUCTURE LANDED (RW-7). Not applicable within a single cluster
+ *      where every executor runs the identical Apache Spark binary;
+ *      cross-version scenarios (SQL migration, Spark Connect mixing) are
+ *      explicitly declared out of scope by the AAP section 0.6.2
+ *      "Cross-version Spark Connect mixing". The observer hooks
+ *      ([[markVersionMismatch]], [[clearVersionMismatch]],
+ *      [[isVersionMismatched]], [[evaluateRuntime]]) are nonetheless
+ *      provided so future multi-version executor support can integrate
+ *      without churning call sites.
  *   5. '''ADR-005 mutual exclusion with push-based shuffle''' &mdash; ACTIVE CHECK.
  *      Streaming shuffle and push-based shuffle are mutually exclusive per
  *      active shuffle; when `spark.shuffle.push.enabled=true` the shuffle MUST
@@ -195,6 +198,73 @@ private[spark] object StreamingShuffleFallbackPolicy extends Logging {
    */
   private val REASON_STREAMING_TRANSPORT_UNAVAILABLE_V1: String =
     "streaming-transport-unavailable-v1"
+
+  /**
+   * Reason code returned when [[isConsumerLagging]] reports that a consumer has
+   * sustained a `ratio &gt;= 2.0` (i.e., 2&times; slower than its producer) for
+   * longer than [[CONSUMER_LAG_SUSTAINED_DURATION_MILLIS]] milliseconds. This
+   * code is emitted from [[evaluateRuntime]] only; the registration-time
+   * [[evaluate]] entry-point cannot observe this condition because it has no
+   * runtime telemetry at registration time.
+   *
+   * AAP source (section 0.1.2 "automatic fallback conditions"):
+   * "Consumer sustained 2x slower than producer for >60 seconds"
+   */
+  private val REASON_RUNTIME_CONSUMER_LAG: String = "runtime-consumer-lag"
+
+  /**
+   * Reason code returned when [[isNetworkSaturated]] reports that the most
+   * recent observed network utilization exceeds
+   * [[NETWORK_SATURATION_PERCENT_THRESHOLD]] (90&percnt;). Emitted from
+   * [[evaluateRuntime]] only.
+   *
+   * AAP source (section 0.1.2 "automatic fallback conditions"):
+   * "Network saturation exceeds 90% link capacity"
+   */
+  private val REASON_RUNTIME_NETWORK_SATURATED: String =
+    "runtime-network-saturated"
+
+  /**
+   * Reason code returned when [[isVersionMismatched]] reports that a remote
+   * producer (or consumer) has been flagged with an incompatible Apache Spark
+   * binary version. Emitted from [[evaluateRuntime]] only.
+   *
+   * AAP source (section 0.1.2 "automatic fallback conditions"):
+   * "Producer/consumer version mismatch (compatibility check)"
+   */
+  private val REASON_RUNTIME_VERSION_MISMATCH: String =
+    "runtime-version-mismatch"
+
+  /**
+   * Threshold ratio for the "consumer 2&times; slower than producer" runtime
+   * fallback condition. A consumer-lag observation with `ratio &gt;= 2.0`
+   * counts toward the sustained-lag check; ratios below this threshold reset
+   * the per-shuffle sustained-lag start timestamp.
+   *
+   * Direct verbatim quote from AAP section 0.1.2 ("automatic fallback
+   * conditions"): "Consumer sustained 2x slower than producer for >60 seconds".
+   */
+  val CONSUMER_LAG_RATIO_THRESHOLD: Double = 2.0
+
+  /**
+   * Sustained-lag duration threshold in milliseconds. The
+   * [[isConsumerLagging]] predicate reports `true` only after a per-shuffle
+   * `ratio &gt;= 2.0` has been continuously observed for longer than this
+   * many milliseconds.
+   *
+   * Direct verbatim quote from AAP section 0.1.2: "for >60 seconds".
+   */
+  val CONSUMER_LAG_SUSTAINED_DURATION_MILLIS: Long = 60000L
+
+  /**
+   * Threshold for the "network saturation > 90%" runtime fallback condition.
+   * Expressed as a fraction in `[0.0, 1.0]` rather than a percentage to match
+   * the conventional ratio-style API.
+   *
+   * Direct verbatim quote from AAP section 0.1.2: "Network saturation
+   * exceeds 90% link capacity".
+   */
+  val NETWORK_SATURATION_PERCENT_THRESHOLD: Double = 0.90
 
   /**
    * Minimum executor memory (MiB) required to safely run the streaming
@@ -625,5 +695,356 @@ private[spark] object StreamingShuffleFallbackPolicy extends Logging {
    */
   private[streaming] def resetReasonCountsForTesting(): Unit = {
     reasonCounts.clear()
+  }
+
+  // ==========================================================================
+  // Runtime observer infrastructure (RW-7)
+  // --------------------------------------------------------------------------
+  // The user-specified four "automatic fallback conditions" (AAP section 0.1.2)
+  // include three runtime-only signals that the registration-time `evaluate`
+  // method cannot observe: consumer 2x lag for >60 s, network saturation
+  // >90 %, and producer/consumer version mismatch. These signals are produced
+  // by *runtime* subsystems &mdash; the not-yet-landed v2 [[StreamingShuffleReader]]
+  // measures consumer rate, the not-yet-landed v2 transport layer measures
+  // network utilization, and the not-yet-landed handshake protocol detects
+  // version mismatches. Per Refine PR work item RW-7, this observer
+  // infrastructure ships ahead of the runtime subsystems so that:
+  //
+  //   1. The RW-4/RW-5 transport implementers have a stable API surface
+  //      (`recordConsumerLag`, `recordNetworkUtilization`, `markVersionMismatch`)
+  //      to call as soon as their telemetry is available.
+  //   2. Unit tests can drive these conditions deterministically without
+  //      booting a full executor JVM.
+  //   3. The composite `evaluateRuntime` evaluator can be wired in by sibling
+  //      code at the moment [[STREAMING_TRANSPORT_READY_V1]] flips to `true`
+  //      (RW-9) without churning call sites.
+  //
+  // Observer state lives in process-global concurrent collections. Per-shuffle
+  // state is keyed by `shuffleId`; per-producer state is keyed by an opaque
+  // producer identifier. Network utilization is global (per-executor) since
+  // every shuffle on the same executor competes for the same NIC bandwidth.
+  //
+  // Thread-safety: every state mutation goes through a thread-safe primitive
+  // (ConcurrentHashMap, AtomicReference). No external synchronization is
+  // required for callers; concurrent calls from the runtime telemetry threads
+  // and the DAG-scheduler threads coexist safely.
+  //
+  // No log emission is performed from the recording paths because telemetry
+  // input is high-volume; log emission is centralized in `evaluateRuntime` (or
+  // in `fallback` if `evaluateRuntime` decides to fall back).
+  //
+  // Forward-compat note: when [[STREAMING_TRANSPORT_READY_V1]] flips to `true`
+  // (RW-9), call sites that already check `evaluate` may layer a periodic
+  // `evaluateRuntime` re-evaluation on top to enable mid-shuffle fallback
+  // without modifying [[evaluate]] itself.
+  // ==========================================================================
+
+  /**
+   * Per-shuffle "first observed sustained-lag start" timestamp. The map is
+   * keyed by shuffleId; the value is the wall-clock millis at which the most
+   * recent contiguous run of `ratio &gt;= [[CONSUMER_LAG_RATIO_THRESHOLD]]`
+   * began (i.e., the timestamp of the first sample whose ratio met the
+   * threshold without any intervening sub-threshold sample resetting the
+   * timer).
+   *
+   * Sentinel value `0L` means "no contiguous lag run is currently active for
+   * this shuffle". The map preserves entries for the lifetime of the JVM
+   * (or until [[resetObserversForTesting]] is called), so steady-state
+   * shuffles that never lag carry a single `0L` entry rather than allocating
+   * fresh storage on every observation.
+   */
+  private val consumerLagStart: ConcurrentHashMap[Integer, java.lang.Long] =
+    new ConcurrentHashMap[Integer, java.lang.Long]()
+
+  /**
+   * Most-recent network-utilization observation. The pair is `(timestampMillis,
+   * utilizationFraction)` where `utilizationFraction` is in `[0.0, 1.0]`.
+   * Network saturation is a per-executor signal because every shuffle on the
+   * same executor competes for the same NIC, so a single `AtomicReference`
+   * captures the global view rather than a per-shuffle map.
+   *
+   * Initial value is `(0L, 0.0)`, which both
+   * [[isNetworkSaturated]] and [[evaluateRuntime]] interpret as "no
+   * observation yet" &mdash; producing `false` and `None` respectively.
+   */
+  private val mostRecentNetworkUtilization: AtomicReference[(Long, Double)] =
+    new AtomicReference[(Long, Double)]((0L, 0.0))
+
+  /**
+   * Set of producer (or consumer) identifiers flagged as version-mismatched.
+   * Keyed by the opaque executor identifier (`SparkEnv.get.executorId`-style
+   * string). Membership in the map indicates "this remote endpoint is
+   * version-incompatible and any shuffle using it must fall back".
+   *
+   * The value field is unused (always [[java.lang.Boolean.TRUE]]) because
+   * `ConcurrentHashMap` does not support a true `Set` view with the
+   * concurrent-mutation guarantees we require; using the map's
+   * [[ConcurrentHashMap#putIfAbsent]] semantics achieves the same effect.
+   */
+  private val versionMismatchedProducers:
+      ConcurrentHashMap[String, java.lang.Boolean] =
+    new ConcurrentHashMap[String, java.lang.Boolean]()
+
+  /**
+   * Records a single consumer-lag observation for the given shuffle.
+   *
+   * Semantics:
+   *   - If `ratio &lt; [[CONSUMER_LAG_RATIO_THRESHOLD]]`, the per-shuffle
+   *     sustained-lag start timestamp is reset to `0L`. This represents
+   *     "the consumer is no longer keeping up at less than half producer
+   *     rate", which interrupts the contiguous lag run.
+   *   - If `ratio &gt;= [[CONSUMER_LAG_RATIO_THRESHOLD]]`:
+   *       - If the per-shuffle entry is absent or `0L`, the start timestamp
+   *         is set to `timestamp`. This marks the beginning of a new
+   *         contiguous lag run.
+   *       - Otherwise the existing start timestamp is preserved, allowing
+   *         [[isConsumerLagging]] to compute the elapsed sustained duration.
+   *
+   * Idempotent in the sense that recording the same observation twice in a
+   * row is a no-op when the second observation shares the same threshold-side
+   * (above or below), preserving the start timestamp.
+   *
+   * Caller discipline: observation timestamps are expected to be
+   * monotonically non-decreasing for a single shuffle. The implementation
+   * tolerates out-of-order observations defensively but will report a
+   * "no current lag" state if an out-of-order &lt;-threshold sample arrives
+   * after a &gt;=-threshold sample.
+   *
+   * Callable contexts (anticipated v2 wiring):
+   *   - [[StreamingShuffleReader]]: when comparing local read-rate to
+   *     remote producer-rate snapshot.
+   *   - [[BackpressureProtocol]]: when consumer acknowledgment cadence
+   *     drifts below half producer send cadence.
+   *
+   * @param shuffleId the shuffle identifier whose lag is being observed.
+   * @param ratio     the consumer-to-producer rate ratio. `0.0` means the
+   *                  consumer has stalled; `1.0` means parity; `2.0` means
+   *                  the consumer is half as fast as the producer (i.e., 2x
+   *                  slower); higher values indicate worse lag.
+   * @param timestamp the wall-clock millisecond timestamp of the
+   *                  observation. Callers typically pass
+   *                  `System.currentTimeMillis()` but tests may pass a
+   *                  deterministic value for reproducibility.
+   */
+  def recordConsumerLag(shuffleId: Int, ratio: Double, timestamp: Long): Unit = {
+    val key: Integer = java.lang.Integer.valueOf(shuffleId)
+    if (ratio < CONSUMER_LAG_RATIO_THRESHOLD) {
+      // Consumer is keeping up (or close to it). Reset the sustained-lag
+      // timer so a future >= 2.0 sample starts a fresh contiguous run.
+      consumerLagStart.put(key, java.lang.Long.valueOf(0L))
+    } else {
+      // Consumer is at least 2x slower. If no run is in progress (entry
+      // absent OR previously reset to 0L), start a new one anchored at this
+      // timestamp. Otherwise preserve the existing start so the elapsed
+      // duration accumulates across this and future >= 2.0 samples.
+      consumerLagStart.merge(
+        key,
+        java.lang.Long.valueOf(timestamp),
+        (existing, candidate) => {
+          if (existing == null || existing.longValue() == 0L) {
+            candidate
+          } else {
+            existing
+          }
+        }
+      )
+    }
+  }
+
+  /**
+   * Records a single network-utilization observation. Only the most recent
+   * observation is retained because network bandwidth is a globally shared
+   * resource on the executor and the most recent measurement is the only
+   * one that materially affects routing decisions.
+   *
+   * @param utilizationFraction the observed network-utilization fraction in
+   *                            `[0.0, 1.0]`. Values &gt; 1.0 are not
+   *                            theoretically meaningful but are stored as-is
+   *                            (the predicate [[isNetworkSaturated]] simply
+   *                            compares against the threshold).
+   * @param timestamp           the wall-clock millisecond timestamp of the
+   *                            observation.
+   */
+  def recordNetworkUtilization(utilizationFraction: Double, timestamp: Long): Unit = {
+    mostRecentNetworkUtilization.set((timestamp, utilizationFraction))
+  }
+
+  /**
+   * Marks the given producer (or consumer) executor as version-mismatched
+   * with the local executor. Subsequent calls to [[isVersionMismatched]] for
+   * the same `producerId` return `true` until [[clearVersionMismatch]] is
+   * invoked or [[resetObserversForTesting]] is called.
+   *
+   * Idempotent &mdash; repeated calls have the same effect as a single call.
+   * Logged at INFO once per producer per JVM (deduplicated via the existing
+   * structured-log infrastructure) so operators can correlate fallback
+   * decisions with version-handshake outcomes.
+   *
+   * @param producerId an opaque executor identifier (e.g.,
+   *                   `SparkEnv.get.executorId`).
+   */
+  def markVersionMismatch(producerId: String): Unit = {
+    val priorEntry =
+      versionMismatchedProducers.putIfAbsent(producerId, java.lang.Boolean.TRUE)
+    if (priorEntry == null) {
+      // First-time mismatch for this producer; INFO emission is appropriate
+      // because version mismatches are rare-but-significant events that
+      // deserve operator visibility. Subsequent calls are no-ops.
+      logInfo(log"Streaming shuffle observer recorded version mismatch for " +
+        log"producer ${MDC(EXECUTOR_ID, producerId)}; subsequent shuffles " +
+        log"using this producer will fall back to sort path.")
+    }
+  }
+
+  /**
+   * Removes the version-mismatch flag for the given producer. Called when a
+   * producer becomes compatible (e.g., after a rolling cluster upgrade).
+   * Calls for unflagged producers are silent no-ops.
+   *
+   * @param producerId an opaque executor identifier.
+   */
+  def clearVersionMismatch(producerId: String): Unit = {
+    versionMismatchedProducers.remove(producerId)
+  }
+
+  /**
+   * Predicate: has the consumer for `shuffleId` sustained `ratio &gt;= 2.0`
+   * for longer than [[CONSUMER_LAG_SUSTAINED_DURATION_MILLIS]] milliseconds
+   * as of `asOfMillis`?
+   *
+   * Returns `false` when no lag run is currently active for the shuffle
+   * (entry absent OR previously reset to `0L` by a sub-threshold sample).
+   *
+   * Returns `true` when a lag run is active AND the elapsed duration since
+   * the start of that run exceeds the sustained-lag threshold.
+   *
+   * @param shuffleId   the shuffle identifier to query.
+   * @param asOfMillis  the wall-clock millisecond timestamp at which to
+   *                    evaluate the predicate. Callers typically pass
+   *                    `System.currentTimeMillis()`; tests pass a
+   *                    deterministic value for reproducibility.
+   * @return `true` iff the consumer has been continuously lagging for longer
+   *         than the threshold duration.
+   */
+  def isConsumerLagging(shuffleId: Int, asOfMillis: Long): Boolean = {
+    val key: Integer = java.lang.Integer.valueOf(shuffleId)
+    val start = consumerLagStart.get(key)
+    if (start == null) {
+      false
+    } else {
+      val startMillis = start.longValue()
+      if (startMillis == 0L) {
+        false
+      } else {
+        (asOfMillis - startMillis) > CONSUMER_LAG_SUSTAINED_DURATION_MILLIS
+      }
+    }
+  }
+
+  /**
+   * Predicate: was the most recently observed network-utilization fraction
+   * strictly greater than [[NETWORK_SATURATION_PERCENT_THRESHOLD]]?
+   *
+   * The `asOfMillis` parameter is reserved for future "is the observation
+   * still fresh?" gating; v1 always evaluates the strict-greater comparison
+   * regardless of observation age, which preserves a deterministic predicate
+   * for unit tests that drive observations and assertions immediately
+   * back-to-back.
+   *
+   * @param asOfMillis the current wall-clock millisecond timestamp; reserved
+   *                   for future freshness gating, currently unused by the
+   *                   predicate body.
+   * @return `true` iff the most recent observation exceeds the saturation
+   *         threshold.
+   */
+  def isNetworkSaturated(asOfMillis: Long): Boolean = {
+    val _ = asOfMillis  // reserved for future freshness gating
+    val (_, utilization) = mostRecentNetworkUtilization.get()
+    utilization > NETWORK_SATURATION_PERCENT_THRESHOLD
+  }
+
+  /**
+   * Predicate: has [[markVersionMismatch]] flagged the given producer?
+   *
+   * @param producerId an opaque executor identifier.
+   * @return `true` iff the producer is currently flagged as
+   *         version-incompatible.
+   */
+  def isVersionMismatched(producerId: String): Boolean = {
+    versionMismatchedProducers.containsKey(producerId)
+  }
+
+  /**
+   * Composite runtime fallback evaluator. Returns the first-failing runtime
+   * fallback reason as `Some(reasonCode)`, or `None` if all runtime
+   * conditions pass.
+   *
+   * Evaluation order (earliest match wins):
+   *   1. [[isVersionMismatched]] &mdash;
+   *      [[REASON_RUNTIME_VERSION_MISMATCH]]. Evaluated first because
+   *      version incompatibility is permanent until cleared and admits no
+   *      retry strategy.
+   *   2. [[isNetworkSaturated]] &mdash;
+   *      [[REASON_RUNTIME_NETWORK_SATURATED]]. Evaluated before consumer
+   *      lag because saturation often manifests as consumer lag and we
+   *      want the more specific reason.
+   *   3. [[isConsumerLagging]] &mdash;
+   *      [[REASON_RUNTIME_CONSUMER_LAG]]. Evaluated last because the
+   *      consumer-lag check requires the longest sustained duration to
+   *      trigger.
+   *
+   * On a fallback decision, the same per-reason log-dedup infrastructure
+   * used by [[evaluate]] is invoked through the shared [[fallback]] helper,
+   * so the runtime-detected fallbacks share the &lt;10 MB/hour log-volume
+   * budget with the registration-time fallbacks.
+   *
+   * v1 callsite status: this method is provided as scaffolding for the
+   * not-yet-landed v2 transport. v1 does not invoke it on the hot path
+   * because [[evaluate]] short-circuits to the v1 transport-unavailable
+   * fallback ahead of any runtime observation. Tests exercise the method
+   * directly to validate the observer infrastructure independently of the
+   * routing wiring.
+   *
+   * @param shuffleId   the shuffle being evaluated.
+   * @param producerId  the producer identifier whose version compatibility
+   *                    should be checked. `None` skips the version check
+   *                    (e.g., when the policy is being asked about a
+   *                    shuffle in pure-driver scope without a remote
+   *                    producer).
+   * @param asOfMillis  the wall-clock millisecond timestamp at which to
+   *                    evaluate the consumer-lag predicate.
+   * @return            `None` if all runtime conditions pass; otherwise
+   *                    `Some(reasonCode)` carrying one of the
+   *                    `runtime-*` reason strings declared above.
+   */
+  def evaluateRuntime(
+      shuffleId: Int,
+      producerId: Option[String],
+      asOfMillis: Long): Option[String] = {
+    producerId match {
+      case Some(id) if isVersionMismatched(id) =>
+        return fallback(shuffleId, REASON_RUNTIME_VERSION_MISMATCH)
+      case _ => ()
+    }
+    if (isNetworkSaturated(asOfMillis)) {
+      return fallback(shuffleId, REASON_RUNTIME_NETWORK_SATURATED)
+    }
+    if (isConsumerLagging(shuffleId, asOfMillis)) {
+      return fallback(shuffleId, REASON_RUNTIME_CONSUMER_LAG)
+    }
+    None
+  }
+
+  /**
+   * Testing-only helper that resets every observer state field so that the
+   * next observation begins from a fresh slate. Tests in
+   * `StreamingShuffleFallbackPolicySuite` use this between cases to keep
+   * the singleton's state isolated. Not exposed publicly because operators
+   * have no reason to reset observer state at runtime.
+   */
+  private[streaming] def resetObserversForTesting(): Unit = {
+    consumerLagStart.clear()
+    mostRecentNetworkUtilization.set((0L, 0.0))
+    versionMismatchedProducers.clear()
   }
 }
