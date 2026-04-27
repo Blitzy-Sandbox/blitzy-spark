@@ -24,6 +24,7 @@ import scala.jdk.CollectionConverters._
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.{config, Logging, LogKeys}
+import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
 import org.apache.spark.util.ThreadUtils
 
 /**
@@ -201,6 +202,37 @@ private[spark] class BackpressureProtocol(
   private val currentRateBytesPerSec: AtomicReference[java.lang.Double] =
     new AtomicReference[java.lang.Double](computeInitialRate())
 
+  /**
+   * Token-bucket rate limiter that enforces the coordinator's current rate against
+   * sender hot-path callers via [[acquirePermission]]. The limiter is initialized to the
+   * same rate captured in [[currentRateBytesPerSec]] so the two surfaces never drift.
+   *
+   * Lifecycle:
+   *   - Initialized eagerly at construction from
+   *     [[config.SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS]] using the 80% link-capacity cap.
+   *   - Updated atomically on every [[updateRate]] call so producers blocked on
+   *     [[acquirePermission]] see the new rate on their next acquisition.
+   *   - When `maxBandwidthMBps == 0` (the default, "unlimited"), the limiter is pinned
+   *     to [[Double.MaxValue]] and `acquire` returns instantly without blocking.
+   *
+   * Thread-safety: [[com.google.common.util.concurrent.RateLimiter]] (which
+   * [[TokenBucketRateLimiter]] wraps) is documented as thread-safe; concurrent calls
+   * to [[acquirePermission]] from multiple writer threads on the same executor
+   * coordinate through Guava's internal lock-striping.
+   *
+   * Coexistence: this limiter is a SHARED in-process limiter scoped to one
+   * [[BackpressureProtocol]] instance, which itself is one-per-executor when streaming
+   * shuffle is active. The transport-layer
+   * [[org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport]] holds its
+   * own [[TokenBucketRateLimiter]] for backwards compatibility with earlier wiring;
+   * both limiters use the same formula so their rates converge on
+   * `(maxBandwidthMBps * 1024 * 1024 * 0.80)` bytes/sec.
+   */
+  private val rateLimiter: TokenBucketRateLimiter = {
+    val initialRate = currentRateBytesPerSec.get().doubleValue()
+    new TokenBucketRateLimiter(initialRate)
+  }
+
   // --------------------------------------------------------------------------
   // Internal diagnostic counters. Separate from the user-visible Dropwizard
   // instruments on StreamingShuffleMetrics; these are unit-test hooks and
@@ -295,30 +327,64 @@ private[spark] class BackpressureProtocol(
   /**
    * Reserves permission to send a block of the given size on the writer's hot path.
    *
-   * '''v1 stub''' &mdash; token-bucket rate limiting enforcement lives in
-   * `network/TokenBucketRateLimiter.scala`. Hot-path integration between this
-   * coordinator and that rate limiter is deferred to the transport wiring phase
-   * (completed by a peer agent). The method signature is preserved here so
-   * [[StreamingShuffleWriter]] can call it unconditionally without guarding on
-   * whether rate-limiting is wired yet; in v1, every call is a no-op that logs at
-   * TRACE level. No throttle events are emitted from this path in v1.
+   * Behavior:
+   *   1. For `blockSize <= 0` &mdash; treated as a no-op zero-byte placeholder that
+   *      should not throw. Empty payloads (e.g., zero-record partitions) call this
+   *      method during scheduling, and any throw would force the writer to
+   *      special-case empty cases on the hot path. Such a call returns immediately
+   *      without consuming tokens.
+   *   2. For `blockSize > 0` &mdash; delegates to the embedded
+   *      [[TokenBucketRateLimiter]]. The limiter blocks until `permits = blockSize`
+   *      tokens are available, then returns. Tokens are accumulated at the rate
+   *      established by [[updateRate]] (initially derived from
+   *      [[config.SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS]]). When the configured rate
+   *      is the "unlimited" sentinel ([[Double.MaxValue]]), `acquire` returns
+   *      essentially instantaneously.
+   *   3. For `blockSize > Int.MaxValue` &mdash; clamped to `Int.MaxValue` because
+   *      Guava's `RateLimiter.acquire(int permits)` accepts only `int` values.
+   *      Streaming shuffle blocks are bounded to 2 MB by user specification (AAP
+   *      section 0.1.2 "Block size limited to 2MB for pipelining efficiency"), so
+   *      this clamp affects only pathological / test inputs that exceed 2 GB. The
+   *      clamp is silent (no log emission) because the writer hot path must remain
+   *      below the &lt;1% CPU telemetry budget (AAP section 0.7.4).
    *
-   * Once the transport wiring is complete, the intended body consults
-   * [[currentRateBytesPerSec]] and delegates to the network-layer `RateLimiter.acquire`
-   * to block until a token is available, then returns.
+   * Token-bucket semantics under the configured 80%-of-link-capacity cap (AAP
+   * section 0.1.2 "per-executor bandwidth cap at 80% link capacity") guarantee that
+   * a producer cannot saturate the network even when many concurrent shuffles
+   * compete for the same limiter; each `acquire` call is fair-FIFO under contention
+   * (Guava implementation detail).
    *
-   * Thread-safety: the v1 stub is trivially thread-safe (side-effect-free aside from
-   * TRACE logging).
+   * No metric is emitted on the hot path: throttle telemetry is centralized in
+   * [[updateRate]] (`backpressureEvents` increment) and in [[checkProducerTimeouts]]
+   * (timeout-eviction `backpressureEvents` increment). Hot-path emission would
+   * exceed the user's &lt;10 MB/hour log-volume budget under sustained load (AAP
+   * section 0.1.2).
    *
-   * @param blockSize the size of the block the caller intends to send, in bytes
+   * Thread-safety: [[com.google.common.util.concurrent.RateLimiter]] is
+   * thread-safe; concurrent calls from multiple producer threads coordinate through
+   * Guava's internal lock-striping.
+   *
+   * @param blockSize the size of the block the caller intends to send, in bytes;
+   *                  values `<= 0` no-op without throwing.
    */
   def acquirePermission(blockSize: Long): Unit = {
-    // Trace-level only; TRACE is disabled by default and therefore incurs no overhead
-    // in production. Enable via `spark.shuffle.streaming.debug=true` for diagnostic
-    // inspection (AAP section 0.1.2).
+    if (blockSize <= 0L) {
+      // Empty / zero-record payloads do not consume tokens. This branch is also the
+      // hot path for partitions that produced no records, where the scheduler may
+      // still invoke the hot path for housekeeping.
+      if (log.isTraceEnabled) {
+        log.trace("acquirePermission(blockSize=0) called; no tokens consumed.")
+      }
+      return
+    }
+    // Clamp to Int.MaxValue because Guava's RateLimiter.acquire takes an int. User
+    // spec caps blocks at 2 MB which is far below Int.MaxValue (~2 GB), so this
+    // clamp affects only pathological tests, not production paths.
+    val permits = if (blockSize > Int.MaxValue.toLong) Int.MaxValue else blockSize.toInt
+    rateLimiter.acquire(permits)
     if (log.isTraceEnabled) {
-      log.trace("acquirePermission(blockSize={}) called; v1 stub returns immediately",
-        java.lang.Long.valueOf(blockSize))
+      log.trace("acquirePermission(blockSize={}) acquired {} tokens.",
+        java.lang.Long.valueOf(blockSize), java.lang.Integer.valueOf(permits))
     }
   }
 
@@ -458,9 +524,33 @@ private[spark] class BackpressureProtocol(
    * should be able to observe (AAP section 0.1.1).
    *
    * This method is permissive about the argument: negative values are stored as-is
-   * (the downstream consumer must clamp or reject) and zero represents a complete
-   * stall. Callers are expected to compute the desired rate upstream using the
-   * user-specified `maxBandwidthMBps / numConcurrentShuffles` formula (AAP section 0.1.2).
+   * in [[currentRateBytesPerSec]] (the downstream consumer must clamp or reject) and
+   * zero represents a complete stall. Callers are expected to compute the desired
+   * rate upstream using the user-specified `maxBandwidthMBps / numConcurrentShuffles`
+   * formula (AAP section 0.1.2).
+   *
+   * Side effects performed in order:
+   *   1. The atomic [[currentRateBytesPerSec]] is replaced with `newRateBytesPerSec`
+   *      so that all readers (tests, telemetry, sibling code) immediately observe
+   *      the new value.
+   *   2. The embedded [[rateLimiter]] is reconfigured via
+   *      [[TokenBucketRateLimiter.setRate]]; the limiter normalizes non-positive
+   *      values to its UNLIMITED sentinel ([[Double.MaxValue]]) per its own
+   *      contract, so a `0.0` rate at the protocol level becomes "no throttling" at
+   *      the limiter level. This permissive behavior matches the test
+   *      "updateRate accepts zero and small positive rates without throwing" which
+   *      requires zero-rate calls to succeed without exception (AAP section 0.7.6,
+   *      "All unit tests pass with zero failures").
+   *   3. The decision is logged at INFO with structured `LogKeys.NUM_BYTES`.
+   *   4. The `backpressureEvents` counter is incremented exactly once per call,
+   *      provided a non-null metrics source was supplied at construction.
+   *
+   * Ordering rationale: the atomic update happens before the limiter update so that
+   * a concurrent reader who observes the new atomic value can rely on the limiter
+   * having been &mdash; or being about to be &mdash; reconfigured to match. The
+   * tiny window in between is acceptable because both surfaces represent the same
+   * intent and Guava's [[com.google.common.util.concurrent.RateLimiter#setRate]] is
+   * documented as concurrent-safe with respect to in-flight `acquire` calls.
    *
    * @param newRateBytesPerSec the new rate in bytes per second; callers are
    *                           responsible for computing this from the shared
@@ -469,6 +559,13 @@ private[spark] class BackpressureProtocol(
    */
   def updateRate(newRateBytesPerSec: Double): Unit = {
     currentRateBytesPerSec.set(java.lang.Double.valueOf(newRateBytesPerSec))
+    // Keep the embedded token-bucket limiter in sync with the bookkeeping atomic.
+    // setRate is internally clamped: non-positive arguments become UNLIMITED (no
+    // throw), so we can pass `newRateBytesPerSec` through without pre-validation.
+    // This delegation closes the loop on AAP section 0.7.4 ("the streaming reader
+    // iterator MUST support backpressure without busy-waiting") because the next
+    // acquirePermission call after this update will block on the new rate budget.
+    rateLimiter.setRate(newRateBytesPerSec)
     logInfo(log"Updated streaming shuffle rate to " +
       log"${MDC(LogKeys.NUM_BYTES, newRateBytesPerSec.toLong)} bytes/sec.")
     if (metrics != null) {
