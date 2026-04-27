@@ -40,7 +40,34 @@ object MimaExcludes {
     // [SPARK-47086][BUILD][CORE][WEBUI] Upgrade Jetty to 12.1.4
     ProblemFilters.exclude[MissingTypesProblem]("org.apache.spark.ui.ProxyRedirectHandler$ResponseWrapper"),
     ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.ui.ProxyRedirectHandler#ResponseWrapper.sendRedirect"),
-    ProblemFilters.exclude[IncompatibleMethTypeProblem]("org.apache.spark.ui.ProxyRedirectHandler#ResponseWrapper.this")
+    ProblemFilters.exclude[IncompatibleMethTypeProblem]("org.apache.spark.ui.ProxyRedirectHandler#ResponseWrapper.this"),
+    // [SPARK-47086][BUILD][CORE][WEBUI] Upgrade Jetty to 12.1.4 - ProxyRedirectHandler hierarchy
+    // and `handle` method signature changed because Jetty 12 reshaped the AbstractHandler /
+    // HandlerWrapper / ContainerLifeCycle base hierarchy.
+    ProblemFilters.exclude[MissingTypesProblem]("org.apache.spark.ui.ProxyRedirectHandler"),
+    ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.ui.ProxyRedirectHandler.handle"),
+    // [SPARK-49530][CORE] ShuffleStatus.addMapOutput now returns Boolean for success/failure
+    // signaling so the DAG scheduler can detect duplicate registration races.
+    ProblemFilters.exclude[IncompatibleResultTypeProblem]("org.apache.spark.ShuffleStatus.addMapOutput"),
+    // [SPARK-49419][CORE][PYTHON] BasePythonRunner internal classes moved to NIO SocketChannel
+    // for direct-buffer support; constructor and method signatures shifted accordingly.
+    // These are Spark-internal nested classes consumed only by BasePythonRunner itself.
+    ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.api.python.BasePythonRunner#MonitorThread.this"),
+    ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.api.python.BasePythonRunner#ReaderInputStream.this"),
+    ProblemFilters.exclude[IncompatibleMethTypeProblem]("org.apache.spark.api.python.BasePythonRunner#Writer.barrierAndServe"),
+    // [SPARK-49475][CORE] NoopRpcEndpointRef removed; consolidated into RpcEndpointRef
+    // factory that handles unreachable endpoints uniformly.
+    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.storage.NoopRpcEndpointRef"),
+    // [SPARK-49521][WEBUI] TaskDetailsClassNames removed; unused remnant from pre-React UI.
+    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.ui.jobs.TaskDetailsClassNames"),
+    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.ui.jobs.TaskDetailsClassNames$"),
+    // [SPARK-49476][CORE] CompletionIterator moved to org.apache.spark.util.collection
+    // package as part of util folder reorganization.
+    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.util.CompletionIterator"),
+    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.util.CompletionIterator$"),
+    // [SPARK-53138][BUILD] VersionUtils relocated to common/utils-java module.
+    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.util.VersionUtils"),
+    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.util.VersionUtils$")
   )
 
   // Exclude rules for 4.1.x from 4.0.0
