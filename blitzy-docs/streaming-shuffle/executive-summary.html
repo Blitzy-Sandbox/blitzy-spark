@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streaming Shuffle for Apache Spark — Executive Summary</title>
+
+  <!-- Google Fonts: Inter (body), Space Grotesk (display), Fira Code (mono) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- reveal.js core CSS (pinned 5.1.0) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <!-- reveal.js black theme (overridden by inline Blitzy theme below) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme">
+
+  <style>
+    /* =====================================================================
+       Blitzy Brand Theme — Inline CSS (single-file deck per AAP §0.7.6)
+       =====================================================================
+       Custom properties define the brand palette and typography. All slide
+       styling references these tokens; do not hard-code colors elsewhere.
+    */
+    :root {
+      --blitzy-bg-primary: #0A0E27;
+      --blitzy-bg-secondary: #131A3A;
+      --blitzy-text-primary: #E8EDFF;
+      --blitzy-text-secondary: #A0AEC8;
+      --blitzy-accent-primary: #4F8BFF;
+      --blitzy-accent-secondary: #00D4AA;
+      --blitzy-accent-warning: #FFB547;
+      --blitzy-accent-danger: #FF5C7A;
+      --blitzy-font-display: 'Space Grotesk', sans-serif;
+      --blitzy-font-body: 'Inter', sans-serif;
+      --blitzy-font-mono: 'Fira Code', monospace;
+    }
+
+    /* Global background gradient and base typography */
+    body,
+    .reveal {
+      background: linear-gradient(135deg, var(--blitzy-bg-primary), var(--blitzy-bg-secondary));
+      color: var(--blitzy-text-primary);
+      font-family: var(--blitzy-font-body);
+    }
+
+    /* Headings use the display typeface */
+    .reveal h1,
+    .reveal h2,
+    .reveal h3 {
+      font-family: var(--blitzy-font-display);
+      color: var(--blitzy-text-primary);
+      font-weight: 600;
+      text-transform: none;
+      letter-spacing: -0.01em;
+    }
+    .reveal h2 {
+      font-size: 1.9em;
+      margin-bottom: 0.4em;
+      margin-top: 0;
+    }
+    .reveal h3 {
+      font-size: 1.3em;
+      color: var(--blitzy-accent-primary);
+    }
+    /* Tighten reveal.js section spacing so each slide fits in the 1080px stage */
+    .reveal .slides section {
+      padding: 1em 0;
+    }
+    .reveal .slides section > p {
+      margin: 0.5em 0;
+    }
+    .reveal .slides section > ul,
+    .reveal .slides section > ol {
+      margin: 0.5em auto;
+    }
+
+    /* Body text and list items */
+    .reveal p,
+    .reveal li {
+      font-family: var(--blitzy-font-body);
+      color: var(--blitzy-text-secondary);
+      line-height: 1.5;
+    }
+    .reveal ul,
+    .reveal ol {
+      display: inline-block;
+      text-align: left;
+      margin: 0.5em auto;
+    }
+
+    /* Inline code styling */
+    .reveal code,
+    .reveal .mono {
+      font-family: var(--blitzy-font-mono);
+      color: var(--blitzy-accent-secondary);
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.1em 0.3em;
+      border-radius: 3px;
+      font-size: 0.85em;
+    }
+
+    /* Links */
+    .reveal a {
+      color: var(--blitzy-accent-primary);
+      text-decoration: none;
+    }
+    .reveal a:hover {
+      color: var(--blitzy-accent-secondary);
+      text-decoration: underline;
+    }
+
+    /* ---------------- Slide-type variants ---------------- */
+    .slide-title {
+      text-align: center;
+    }
+    .slide-title h1 {
+      font-size: 3.5em;
+      font-weight: 700;
+      text-align: center;
+      background: linear-gradient(90deg, var(--blitzy-accent-primary), var(--blitzy-accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-top: 0.3em;
+    }
+    .slide-title .subtitle {
+      font-size: 1.5em;
+      color: var(--blitzy-text-secondary);
+      text-align: center;
+      margin-top: 1em;
+      font-family: var(--blitzy-font-body);
+      font-weight: 400;
+    }
+    .slide-title .tagline {
+      font-size: 1.05em;
+      color: var(--blitzy-text-secondary);
+      text-align: center;
+      margin-top: 1.2em;
+      letter-spacing: 0.02em;
+    }
+
+    .slide-divider {
+      text-align: center;
+      padding-top: 18%;
+    }
+    .slide-divider h2 {
+      font-size: 4em;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--blitzy-accent-primary), var(--blitzy-accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-top: 0.3em;
+    }
+    .slide-divider .subtitle {
+      font-size: 1.4em;
+      color: var(--blitzy-text-secondary);
+      margin-top: 0.8em;
+    }
+
+    .slide-closing {
+      text-align: center;
+      padding-top: 5%;
+    }
+    .slide-closing h1 {
+      font-size: 3.2em;
+      font-weight: 700;
+      text-align: center;
+      background: linear-gradient(90deg, var(--blitzy-accent-primary), var(--blitzy-accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-top: 0.3em;
+    }
+    .slide-closing .takeaway-body {
+      font-size: 1.2em;
+      color: var(--blitzy-text-primary);
+      max-width: 80%;
+      margin: 1.2em auto;
+      line-height: 1.6;
+    }
+
+    /* ---------------- KPI cards ---------------- */
+    .kpi-row {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1em;
+      margin: 1em 0;
+    }
+    .kpi-card {
+      display: inline-block;
+      background: var(--blitzy-bg-secondary);
+      border-left: 4px solid var(--blitzy-accent-primary);
+      padding: 0.8em 1.2em;
+      margin: 0.3em;
+      border-radius: 6px;
+      min-width: 240px;
+      max-width: 280px;
+      text-align: center;
+    }
+    .kpi-card .kpi-icon {
+      margin-bottom: 0.3em;
+    }
+    .kpi-card .kpi-icon [data-lucide] {
+      width: 48px;
+      height: 48px;
+    }
+    .kpi-card .kpi-value {
+      font-size: 2.2em;
+      font-weight: 700;
+      font-family: var(--blitzy-font-display);
+      color: var(--blitzy-accent-secondary);
+      display: block;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+    .kpi-card .kpi-label {
+      font-size: 0.7em;
+      color: var(--blitzy-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      display: block;
+      margin-top: 0.4em;
+      line-height: 1.3;
+    }
+
+    /* ---------------- Callout boxes ---------------- */
+    .callout-box {
+      background: var(--blitzy-bg-secondary);
+      border: 1px solid var(--blitzy-accent-primary);
+      border-radius: 8px;
+      padding: 1em 1.5em;
+      margin: 1em auto;
+      max-width: 88%;
+      color: var(--blitzy-text-primary);
+      font-size: 0.95em;
+      text-align: left;
+    }
+    .callout-box.warning {
+      border-color: var(--blitzy-accent-warning);
+    }
+    .callout-box.danger {
+      border-color: var(--blitzy-accent-danger);
+    }
+    .callout-row {
+      display: flex;
+      gap: 1em;
+      justify-content: center;
+      margin: 1em 0;
+    }
+    .callout-row .callout-box {
+      flex: 1;
+      max-width: 45%;
+      margin: 0;
+    }
+
+    /* ---------------- Lucide icons ---------------- */
+    [data-lucide] {
+      width: 64px;
+      height: 64px;
+      color: var(--blitzy-accent-primary);
+      display: inline-block;
+      vertical-align: middle;
+    }
+    .lucide-large {
+      width: 96px;
+      height: 96px;
+    }
+    .lucide-xl {
+      width: 128px;
+      height: 128px;
+    }
+
+    /* ---------------- Mermaid container ---------------- */
+    pre.mermaid {
+      background: transparent;
+      color: var(--blitzy-text-primary);
+      max-width: 92%;
+      max-height: 560px;
+      margin: 0.5em auto;
+      box-shadow: none;
+      padding: 0;
+      font-size: 0.7em;
+      text-align: center;
+      overflow: visible;
+    }
+    /* Force rendered SVGs to fit within their container without breaking aspect ratio */
+    .reveal pre.mermaid svg {
+      max-height: 560px;
+      max-width: 100%;
+      height: auto;
+      width: auto;
+    }
+    /* Mermaid 11.x foreignObject width is occasionally a few pixels narrower than the
+       contained <span>, which truncates the last 1-2 glyphs. Allow overflow so the full
+       label always renders. This is a known Mermaid rendering quirk for label boxes. */
+    .reveal pre.mermaid svg foreignObject {
+      overflow: visible;
+    }
+    .reveal pre.mermaid svg foreignObject > div,
+    .reveal pre.mermaid svg foreignObject span {
+      white-space: nowrap;
+      overflow: visible;
+    }
+    /* Add a small right-side breathing room to long node labels so the SVG renderer
+       does not clip the final glyph at the foreignObject's declared edge. */
+    .reveal pre.mermaid svg foreignObject > div {
+      padding-right: 4px;
+    }
+    /* Slim Mermaid container in two-column layouts */
+    .two-col pre.mermaid {
+      max-height: 540px;
+    }
+    .two-col pre.mermaid svg {
+      max-height: 540px;
+    }
+
+    /* ---------------- Tables ---------------- */
+    .reveal table {
+      border-collapse: collapse;
+      width: 90%;
+      margin: 0.6em auto;
+      font-size: 0.74em;
+    }
+    .reveal table th {
+      background: var(--blitzy-bg-secondary);
+      color: var(--blitzy-text-primary);
+      padding: 0.5em 0.6em;
+      text-align: left;
+      font-family: var(--blitzy-font-display);
+      font-weight: 600;
+      border-bottom: 2px solid var(--blitzy-accent-primary);
+    }
+    .reveal table td {
+      padding: 0.35em 0.6em;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--blitzy-text-secondary);
+    }
+    .reveal table td code {
+      font-size: 0.95em;
+    }
+
+    /* ---------------- Two-column layout helper ---------------- */
+    .two-col {
+      display: flex;
+      gap: 2em;
+      align-items: flex-start;
+      justify-content: center;
+      margin: 1em 0;
+    }
+    .two-col > div {
+      flex: 1;
+    }
+
+    /* ---------------- Cross-link cards (closing slide) ---------------- */
+    .link-row {
+      display: flex;
+      gap: 1em;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 1.2em;
+    }
+    .link-card {
+      background: var(--blitzy-bg-secondary);
+      border: 1px solid rgba(79, 139, 255, 0.3);
+      border-radius: 8px;
+      padding: 0.7em 1em;
+      min-width: 240px;
+      max-width: 300px;
+      text-align: left;
+      transition: border-color 0.2s ease;
+      overflow: visible;
+    }
+    .link-card:hover {
+      border-color: var(--blitzy-accent-primary);
+    }
+    .link-card .link-card-title {
+      font-family: var(--blitzy-font-mono);
+      color: var(--blitzy-accent-secondary);
+      font-size: 0.82em;
+      font-weight: 500;
+      display: block;
+      margin-bottom: 0.3em;
+      white-space: nowrap;
+    }
+    .link-card .link-card-desc {
+      font-size: 0.78em;
+      color: var(--blitzy-text-secondary);
+    }
+    /* Closing slide: tighten body paragraph to keep cards above the viewport fold */
+    .slide-closing > p {
+      font-size: 0.95em;
+      line-height: 1.4;
+      max-width: 1400px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* ---------------- Centered section helper ---------------- */
+    .reveal section.center {
+      vertical-align: middle;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    /* Tighten reveal.js default heading transforms */
+    .reveal section h1,
+    .reveal section h2,
+    .reveal section h3 {
+      text-transform: none;
+    }
+  </style>
+</head>
+<body>
+<div class="reveal">
+  <div class="slides">
+
+    <!-- ==================================================================
+         SLIDE 1 of 16 — Title
+         ================================================================== -->
+    <section class="slide-title">
+      <div>
+        <i data-lucide="git-branch" class="lucide-xl"></i>
+      </div>
+      <h1>Streaming Shuffle for Apache Spark</h1>
+      <div class="subtitle">Opt-in pipelined map-to-reduce data transfer</div>
+      <div class="tagline">
+        30&ndash;50% latency reduction
+        &middot; Zero data loss
+        &middot; <code>SortShuffleManager</code> coexistence
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 2 of 16 — The Problem
+         ================================================================== -->
+    <section>
+      <h2>The Problem</h2>
+      <div style="text-align: center; margin-bottom: 0.5em;">
+        <i data-lucide="clock" class="lucide-large"></i>
+      </div>
+      <div class="two-col">
+        <div>
+          <ul>
+            <li>Existing <code>SortShuffleManager</code> materializes full output to disk before reduce reads can start.</li>
+            <li>Barrier latency dominates shuffle-heavy workloads with at least 100 MB and 10 partitions.</li>
+            <li>CPU-bound jobs pay scheduler overhead for every shuffle.</li>
+          </ul>
+        </div>
+        <div>
+          <pre class="mermaid">
+sequenceDiagram
+    participant M as Map Task
+    participant D as Local Disk
+    participant R as Reduce Task
+    M->>D: write partition 0
+    M->>D: write partition 1
+    M->>D: write partition N
+    Note over M,D: All partitions materialized
+    R->>D: fetch partition 0
+    R->>D: fetch partition 1
+    R->>D: fetch partition N
+    Note over R: Reads start AFTER writes complete
+          </pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 3 of 16 — The Solution
+         ================================================================== -->
+    <section>
+      <h2>The Solution</h2>
+      <div style="text-align: center; margin-bottom: 0.4em;">
+        <i data-lucide="zap" class="lucide-large"></i>
+      </div>
+      <pre class="mermaid">
+flowchart LR
+    subgraph Before[Before Sort Shuffle, default]
+        M1[Map Task] --> D1[Disk] --> R1[Reduce Task]
+    end
+    subgraph After[After Streaming Shuffle, opt in]
+        M2[Map Task] -->|stream block 2MB| R2[Reduce Task]
+        M2 -.spill on pressure.-> D2[Disk fallback]
+    end
+      </pre>
+      <div class="callout-box">
+        Coexists with <code>SortShuffleManager</code> for gradual adoption &mdash; default behavior unchanged.
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 4 of 16 — Section Divider 1: KPIs and Targets
+         ================================================================== -->
+    <section class="slide-divider">
+      <div>
+        <i data-lucide="target" class="lucide-xl"></i>
+      </div>
+      <h2>Section 1: KPIs and Targets</h2>
+      <div class="subtitle">What we measure to validate success</div>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 5 of 16 — Headline KPIs
+         ================================================================== -->
+    <section>
+      <h2>Headline KPIs</h2>
+      <div class="kpi-row">
+        <div class="kpi-card">
+          <div class="kpi-icon"><i data-lucide="trending-down"></i></div>
+          <span class="kpi-value">30&ndash;50%</span>
+          <span class="kpi-label">Latency reduction (shuffle-heavy &ge;100 MB &ge;10 partitions)</span>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon"><i data-lucide="cpu"></i></div>
+          <span class="kpi-value">5&ndash;10%</span>
+          <span class="kpi-label">Improvement (CPU-bound workloads)</span>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon"><i data-lucide="shield-check"></i></div>
+          <span class="kpi-value">Zero</span>
+          <span class="kpi-label">Regression for memory-bound workloads</span>
+        </div>
+      </div>
+      <p style="text-align: center; margin-top: 1em;">
+        Validated by integration suite (100 MB / 10 partitions baseline) and stress suite (5-minute continuous workload, 10% failure injection).
+      </p>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 6 of 16 — Performance Benchmark
+         ================================================================== -->
+    <section>
+      <h2>Performance Benchmark</h2>
+      <div style="text-align: center; margin-bottom: 0.4em;">
+        <i data-lucide="bar-chart-3" class="lucide-large"></i>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Workload</th>
+            <th>Sort Baseline</th>
+            <th>Streaming Target</th>
+            <th>Delta</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>groupByKey</code> 100 MB / 10 partitions</td>
+            <td>reference</td>
+            <td>30&ndash;50% faster</td>
+            <td>latency &darr;</td>
+          </tr>
+          <tr>
+            <td>Memory overhead</td>
+            <td>reference</td>
+            <td>&lt;10% above baseline</td>
+            <td>small &uarr;</td>
+          </tr>
+          <tr>
+            <td>Spill rate</td>
+            <td>reference</td>
+            <td>&lt;5% of records</td>
+            <td>minimal</td>
+          </tr>
+          <tr>
+            <td>CPU-bound 1 GB / 100 partitions</td>
+            <td>reference</td>
+            <td>5&ndash;10% faster</td>
+            <td>latency &darr;</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="text-align: center; margin-top: 0.6em; font-size: 0.85em;">
+        Benchmark golden file: <code>core/benchmarks/StreamingShuffleBenchmark-results.txt</code> &mdash; regenerable via <code>SPARK_GENERATE_BENCHMARK_FILES=1</code>.
+      </p>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 7 of 16 — Section Divider 2: Architecture
+         ================================================================== -->
+    <section class="slide-divider">
+      <div>
+        <i data-lucide="layers" class="lucide-xl"></i>
+      </div>
+      <h2>Section 2: Architecture</h2>
+      <div class="subtitle">Five new components, five integration touchpoints</div>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 8 of 16 — Component Architecture
+         ================================================================== -->
+    <section>
+      <h2>Component Architecture</h2>
+      <div style="text-align: center; margin-bottom: 0.4em;">
+        <i data-lucide="boxes" class="lucide-large"></i>
+      </div>
+      <pre class="mermaid">
+flowchart TB
+    SSM[StreamingShuffleManager]
+    SSM --> SSW[StreamingShuffleWriter]
+    SSM --> SSR[StreamingShuffleReader]
+    SSM --> FBP[StreamingShuffleFallbackPolicy]
+    SSW --> BPP[BackpressureProtocol]
+    SSW --> MSM[MemorySpillManager]
+    SSR --> BPP
+    BPP --> SMET[StreamingShuffleMetrics]
+    MSM --> SMET
+    SMET --> METSYS[MetricsSystem existing]
+      </pre>
+      <p style="text-align: center; font-size: 0.9em;">
+        New classes:
+        <code>StreamingShuffleManager</code>,
+        <code>StreamingShuffleWriter</code>,
+        <code>StreamingShuffleReader</code>,
+        <code>BackpressureProtocol</code>,
+        <code>MemorySpillManager</code>,
+        <code>StreamingShuffleFallbackPolicy</code>.
+      </p>
+    </section>
+
+
+    <!-- ==================================================================
+         SLIDE 9 of 16 — Coexistence Strategy
+         ================================================================== -->
+    <section>
+      <h2>Coexistence Strategy</h2>
+      <div style="text-align: center; margin-bottom: 0.4em;">
+        <i data-lucide="git-merge" class="lucide-large"></i>
+      </div>
+      <pre class="mermaid">
+flowchart TD
+    A[spark.shuffle.manager<br/>value] --> B{value is}
+    B -->|sort default| C[SortShuffleManager<br/>production stable]
+    B -->|tungsten-sort| C
+    B -->|streaming opt in| D[StreamingShuffleManager]
+    D --> E{Fallback policy<br/>triggered?}
+    E -->|no| F[StreamingShuffleWriter<br/>and Reader]
+    E -->|yes| G[Delegate to private<br/>SortShuffleManager instance]
+      </pre>
+      <div class="callout-box">
+        <strong>User directive:</strong> Coexists with <code>SortShuffleManager</code> for gradual adoption path.
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 10 of 16 — Section Divider 3: Failure Handling and Observability
+         ================================================================== -->
+    <section class="slide-divider">
+      <div>
+        <i data-lucide="shield-alert" class="lucide-xl"></i>
+      </div>
+      <h2>Section 3: Failure Handling and Observability</h2>
+      <div class="subtitle">Zero data loss, full visibility</div>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 11 of 16 — Failure Handling
+         ================================================================== -->
+    <section>
+      <h2>Failure Handling</h2>
+      <div style="text-align: center; margin-bottom: 0.4em;">
+        <i data-lucide="repeat" class="lucide-large"></i>
+      </div>
+      <pre class="mermaid">
+sequenceDiagram
+    participant R as Reader
+    participant P as Producer
+    participant DAG as DAGScheduler
+    R->>P: poll for in-progress blocks
+    Note over P: Producer fails
+    R->>R: detect 5s connection timeout
+    R->>R: invalidate partial reads
+    R->>DAG: throw FetchFailedException
+    DAG->>DAG: unregisterMapOutput plus epoch bump
+    DAG->>DAG: resubmit upstream stage
+    Note over DAG: Recomputed producer streams to retried reader
+      </pre>
+      <div class="callout-row">
+        <div class="callout-box">
+          <strong>Producer failure:</strong> 5-second connection timeout &rarr; <code>FetchFailedException</code> &rarr; DAG-scheduler upstream recomputation.
+        </div>
+        <div class="callout-box warning">
+          <strong>Consumer failure:</strong> 10-second missing acknowledgment &rarr; buffer retention &rarr; optional disk spill at 80% threshold.
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 12 of 16 — Observability
+         ================================================================== -->
+    <section>
+      <h2>Observability</h2>
+      <div style="text-align: center; margin-bottom: 0.4em;">
+        <i data-lucide="activity" class="lucide-large"></i>
+      </div>
+      <pre class="mermaid">
+flowchart LR
+    DB[Streaming Shuffle Dashboard]
+    DB --> P1[Buffer Utilization<br/>time series<br/>0 to 100 percent]
+    DB --> P2[Spill Count<br/>cumulative stat]
+    DB --> P3[Backpressure Events<br/>rate per minute]
+    DB --> P4[Partial Read Invalidations<br/>cumulative stat]
+      </pre>
+      <p style="text-align: center; font-size: 0.85em;">
+        Metrics:
+        <code>shuffle.streaming.bufferUtilizationPercent</code>,
+        <code>shuffle.streaming.spillCount</code>,
+        <code>shuffle.streaming.backpressureEvents</code>,
+        <code>shuffle.streaming.partialReadInvalidations</code>.
+      </p>
+      <p style="text-align: center; font-size: 0.85em; color: var(--blitzy-text-secondary);">
+        JMX, structured logging with MDC correlation IDs (shuffle_id, map_id, reduce_partition_range, attempt_id), Grafana dashboard JSON template included.
+      </p>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 13 of 16 — Section Divider 4: Quality and Onboarding
+         ================================================================== -->
+    <section class="slide-divider">
+      <div>
+        <i data-lucide="check-circle-2" class="lucide-xl"></i>
+      </div>
+      <h2>Section 4: Quality and Onboarding</h2>
+      <div class="subtitle">Test gates, risks, and how to engage</div>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 14 of 16 — Testing Strategy
+         ================================================================== -->
+    <section>
+      <h2>Testing Strategy</h2>
+      <div style="text-align: center; margin-bottom: 0.4em;">
+        <i data-lucide="flask-conical" class="lucide-large"></i>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Test Suite</th>
+            <th>Scope</th>
+            <th>Pass Criterion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Manager / Writer / Reader / Backpressure / Spill / Fallback Suites</td>
+            <td>Unit, per component</td>
+            <td>&gt;85% line coverage</td>
+          </tr>
+          <tr>
+            <td><code>StreamingShuffleIntegrationSuite</code></td>
+            <td>End-to-end 100 MB / 10 partitions</td>
+            <td>&ge;30% latency reduction</td>
+          </tr>
+          <tr>
+            <td><code>StreamingShuffleFailureInjectionSuite</code></td>
+            <td>All 10 enumerated failure scenarios</td>
+            <td>Zero data loss</td>
+          </tr>
+          <tr>
+            <td><code>StreamingShuffleStressSuite</code></td>
+            <td>5-minute continuous, 10 concurrent tasks, 10% random failures</td>
+            <td>&lt;5% throughput degradation, zero retained heap</td>
+          </tr>
+          <tr>
+            <td><code>StreamingShufflePerformanceBenchmark</code></td>
+            <td>Sort vs. streaming groupByKey</td>
+            <td>Golden file regenerable</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="text-align: center; margin-top: 0.6em; font-size: 0.9em;">
+        Quality gates: Zero unit-test failures &middot; Zero integration flakiness &middot; Zero compilation warnings &middot; Zero MiMa binary-compat issues.
+      </p>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 15 of 16 — Risks and Mitigations
+         ================================================================== -->
+    <section>
+      <h2>Risks and Mitigations</h2>
+      <div style="text-align: center; margin-bottom: 0.4em;">
+        <i data-lucide="alert-triangle" class="lucide-large"></i>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Risk</th>
+            <th>Likelihood</th>
+            <th>Mitigation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Memory pressure under many concurrent shuffles</td>
+            <td>Medium</td>
+            <td>80% spill threshold + LRU eviction via Guava <code>CacheBuilder</code></td>
+          </tr>
+          <tr>
+            <td>Producer/consumer version mismatch</td>
+            <td>Low</td>
+            <td><code>StreamingShuffleFallbackPolicy</code> detects and routes to <code>SortShuffleManager</code></td>
+          </tr>
+          <tr>
+            <td>Network saturation</td>
+            <td>Medium</td>
+            <td>Token-bucket rate limit + priority arbitration in <code>BackpressureProtocol</code></td>
+          </tr>
+          <tr>
+            <td>Telemetry overhead</td>
+            <td>Low</td>
+            <td>Lock-free or amortized lock acquisition; &lt;1% CPU budget</td>
+          </tr>
+          <tr>
+            <td>Operator confusion (default change perception)</td>
+            <td>Low</td>
+            <td>Default <code>spark.shuffle.manager=sort</code> unchanged; opt-in via documented flag</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout-box warning">
+        <strong>Configuration changes require executor restart.</strong> No dynamic reconfiguration in v1.
+      </div>
+    </section>
+
+    <!-- ==================================================================
+         SLIDE 16 of 16 — Closing: Key Takeaway
+         ================================================================== -->
+    <section class="slide-closing">
+      <div>
+        <i data-lucide="flag" class="lucide-xl"></i>
+      </div>
+      <h1>Key Takeaway</h1>
+      <p class="takeaway-body">
+        Opt-in streaming shuffle delivers <strong>30&ndash;50% latency reduction</strong> for shuffle-heavy workloads while preserving <code>SortShuffleManager</code> as the production-stable default. <strong>Zero data loss</strong> across 10 failure scenarios. Configurable, observable, and ready for gradual adoption.
+      </p>
+      <div class="link-row">
+        <div class="link-card">
+          <span class="link-card-title">index.md</span>
+          <span class="link-card-desc">Feature overview</span>
+        </div>
+        <div class="link-card">
+          <span class="link-card-title">architecture.md</span>
+          <span class="link-card-desc">Architecture diagrams</span>
+        </div>
+        <div class="link-card">
+          <span class="link-card-title">decision-log.md</span>
+          <span class="link-card-desc">Decisions and traceability</span>
+        </div>
+        <div class="link-card">
+          <span class="link-card-title">observability.md</span>
+          <span class="link-card-desc">Metrics and runbook</span>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- =====================================================================
+     reveal.js + Mermaid + Lucide initialization (CDN-pinned per AAP §0.7.6)
+     ===================================================================== -->
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script>
+  // Mermaid: deferred initial render so we can run() AFTER reveal.js layout settles.
+  mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });
+
+  // Save original Mermaid source for every <pre class="mermaid"> BEFORE any processing,
+  // so we can re-render diagrams whose initial render produced a degenerate viewBox
+  // (Mermaid 11.x can fail layout on hidden Reveal.js slides at boot time).
+  document.querySelectorAll('pre.mermaid').forEach(function (m) {
+    m.setAttribute('data-mermaid-src', m.textContent);
+  });
+
+  // Helper: detect a broken Mermaid SVG render (viewBox collapsed to defaults
+  // or zero-width SVG once the slide is visible).
+  function isMermaidBroken(svg) {
+    if (!svg) return true;
+    var vb = svg.getAttribute('viewBox') || '';
+    if (vb === '-8 -8 16 16') return true;
+    var rect = svg.getBoundingClientRect();
+    if (rect.width > 0 && rect.width < 32) return true;
+    return false;
+  }
+
+  // Helper: force re-render of broken Mermaid diagrams in a given root.
+  function rerenderBrokenMermaids(root) {
+    var diagrams = (root || document).querySelectorAll('pre.mermaid');
+    diagrams.forEach(function (m) {
+      var svg = m.querySelector('svg');
+      if (m.getAttribute('data-processed') === 'true' && isMermaidBroken(svg)) {
+        var src = m.getAttribute('data-mermaid-src');
+        if (src) {
+          m.innerHTML = src;
+          m.removeAttribute('data-processed');
+        }
+      }
+    });
+  }
+
+  // reveal.js: the four required keys per AAP §0.7.6.
+  Reveal.initialize({
+    hash: true,
+    transition: 'slide',
+    controlsTutorial: false,
+    width: 1920,
+    height: 1080
+  }).then(function () {
+    // Initial render: Mermaid renders all <pre class="mermaid"> blocks; Lucide replaces all <i data-lucide="..."> with SVG.
+    mermaid.run();
+    if (typeof lucide !== 'undefined') { lucide.createIcons(); }
+    // Re-render broken diagrams in the current slide once layout has settled.
+    setTimeout(function () {
+      rerenderBrokenMermaids(document.querySelector('.present'));
+      mermaid.run({ querySelector: '.present pre.mermaid' });
+    }, 100);
+  });
+
+  // On every slide change, re-run Mermaid scoped to the active slide and refresh Lucide icons.
+  // Required because Mermaid 11.x with securityLevel: 'loose' lazily renders the visible slide,
+  // and any diagram whose initial layout failed (because its slide was hidden at boot) must be reset.
+  Reveal.on('slidechanged', function () {
+    var present = document.querySelector('.present');
+    rerenderBrokenMermaids(present);
+    mermaid.run({ querySelector: '.present pre.mermaid' });
+    if (typeof lucide !== 'undefined') { lucide.createIcons(); }
+  });
+</script>
+</body>
+</html>
+
