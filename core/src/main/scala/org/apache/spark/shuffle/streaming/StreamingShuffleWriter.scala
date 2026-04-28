@@ -29,7 +29,7 @@ import org.apache.spark.memory.{MemoryConsumer, MemoryManager, MemoryMode}
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.serializer.SerializationStream
 import org.apache.spark.shuffle.{ShuffleWriteMetricsReporter, ShuffleWriter}
-import org.apache.spark.storage.BlockManager
+import org.apache.spark.storage.{BlockManager, ShuffleBlockId, StorageLevel}
 import org.apache.spark.util.io.ChunkedByteBuffer
 
 /**
@@ -83,23 +83,52 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  * wraps the partition's `ByteArrayOutputStream`; the checked-output-stream interceptor
  * threads the per-partition cumulative CRC32C through every byte the serializer emits.
  *
- * == Wire Format Invariant ==
- * Each block emitted onto the network constitutes a complete, independently
- * deserializable serialization stream (header + records + footer). This invariant is
- * required by [[StreamingShuffleReader]] which deserializes each block independently
- * via `serializerInstance.deserializeStream(blockBytes).asKeyValueIterator`. To
- * uphold the invariant, [[flushBlock]] and [[maybeSpill]] both close the partition's
- * serialization stream BEFORE draining the buffer (the close call writes any buffered
- * serializer state and the stream-footer marker into the buffer through the
- * MutableCheckedOutputStream interceptor); the next [[ensurePartitionStream]] call
- * for that partition lazily allocates a fresh stream that writes a fresh header into
- * the now-empty buffer.
+ * == Dual-Channel Wire/Persist Format Invariant ==
+ * The writer maintains two parallel serialization channels per partition: a *wire-
+ * format channel* (block-by-block) and a *persist channel* (single continuous stream).
+ * Each record written by `write()` is serialized through BOTH channels.
  *
- * Per-record overhead is therefore bounded by the cost of one `SerializationStream`
- * construction per block (NOT per record) plus the cost of the actual `writeKey` /
- * `writeValue` calls. For typical workloads (e.g. a 100 MB shuffle / 10 partitions =
- * 10 MB per partition / 2 MB blocks = 5 blocks per partition) this amounts to 5
- * stream constructions per partition rather than one per record.
+ *   1. The wire-format channel is materialized as
+ *      [[org.apache.spark.serializer.SerializationStream]] instances stored in
+ *      `partitionSerStreams`, wrapping the partition's
+ *      [[org.apache.spark.io.MutableCheckedOutputStream]]
+ *      which in turn wraps the partition's [[ByteArrayOutputStream]]
+ *      (`partitionBuffers`). The wire-format channel close-and-reopens at every block
+ *      boundary (driven by [[flushBlock]] / [[maybeSpill]]) so that each drained block
+ *      constitutes a complete, independently deserializable serialization stream
+ *      (header + records + footer). This invariant exists so that a future v2
+ *      streaming-transport-layer extension can deserialize each in-flight block
+ *      independently via `serializerInstance.deserializeStream(blockBytes).asKeyValueIterator`
+ *      WITHOUT receiving the full partition.
+ *
+ *   2. The persist channel is materialized as
+ *      [[org.apache.spark.serializer.SerializationStream]] instances stored in
+ *      `partitionPersistSerStreams`, wrapping the partition's persist accumulator
+ *      [[ByteArrayOutputStream]] (`partitionPersistBuffers`). The persist channel stays
+ *      OPEN for the entire `write()` lifetime and is closed exactly once per partition
+ *      by [[closeAllPartitionPersistStreams]] just before [[persistPartitionsForReader]]
+ *      runs. The result is a single continuous (header + all records + footer)
+ *      serialization stream per partition -- the format the [[StreamingShuffleReader]]
+ *      requires when it calls `serializerInstance.deserializeStream(blockBytes).asKeyValueIterator`
+ *      ONCE over the whole fetched partition (since the v1 reader fetches the entire
+ *      partition as a single block via `BlockManager.fetchBlockSync`).
+ *
+ * Per-record overhead is therefore bounded by the cost of TWO `SerializationStream`
+ * `writeKey`/`writeValue` calls. The wire-format channel constructs one
+ * `SerializationStream` per block (NOT per record); the persist channel constructs
+ * exactly one `SerializationStream` per partition. For typical workloads (e.g. a
+ * 100 MB shuffle / 10 partitions = 10 MB per partition / 2 MB blocks = 5 blocks per
+ * partition) this amounts to (5 wire-format + 1 persist) = 6 stream constructions per
+ * partition rather than one per record.
+ *
+ * Records are serialized twice (once into each channel) but the same `SerializerInstance`
+ * is reused for both, so the cost is bounded by JVM memory bandwidth rather than
+ * additional serializer-state construction. This trade-off is acceptable for v1 because
+ * (a) streaming-shuffle is opt-in, (b) the persist channel is the primary data plane
+ * (the v1 wire-format channel does NOT perform actual network I/O --
+ * [[BackpressureProtocol#recordTransmission]] is bookkeeping only), and (c) eliminating
+ * the persist channel would require the reader to deserialize per-block streams in
+ * sequence, complicating its `asKeyValueIterator` contract.
  *
  * == Cumulative vs. Per-Block CRC32C ==
  * The per-partition cumulative CRC32C captures every byte written to the partition
@@ -240,6 +269,50 @@ private[spark] class StreamingShuffleWriter[K, V](
     Array.fill(numPartitions)(new ByteArrayOutputStream(INITIAL_BAOS_CAPACITY))
 
   /**
+   * Per-partition cumulative byte accumulators that capture EVERY serialized byte
+   * drained from [[partitionBuffers]] across the entire lifetime of [[write]] -- the
+   * cumulative source consumed by [[persistPartitionsForReader]] to publish each
+   * partition's complete output to the executor's [[BlockManager]] under the
+   * streaming-shuffle blockId pattern `ShuffleBlockId(shuffleId, mapId, reduceId)` so
+   * that downstream [[StreamingShuffleReader]] fetches via
+   * `BlockManager.getLocalBlockData` resolve through this manager's
+   * [[StreamingShuffleManager.shuffleBlockResolver]].
+   *
+   * Both [[flushBlock]] (block-boundary network flush path) and [[maybeSpill]]
+   * (spill-threshold disk-spill path) append the bytes they drain from
+   * `partitionBuffers(i)` into `partitionPersistBuffers(i)` so the accumulator
+   * captures the full per-partition wire stream regardless of which code path drained
+   * the in-flight buffer. The accumulator is populated as a SIDE EFFECT of those
+   * existing flush/spill operations and does not perturb their semantics: the network
+   * transmission via [[BackpressureProtocol]] (in `flushBlock`) and the in-progress
+   * spill via [[MemorySpillManager]] (in `maybeSpill`) continue to operate exactly as
+   * before. The accumulator is consumed exactly once at the end of [[write]] by
+   * [[persistPartitionsForReader]] which converts each partition's accumulated bytes
+   * into a [[ChunkedByteBuffer]] and stores it via [[BlockManager#putBytes]] under the
+   * disk-only storage level. Because [[MemorySpillManager#checkAndSpill]] also stores
+   * spilled bytes under the same `ShuffleBlockId(shuffleId, mapId, reduceId)`,
+   * [[persistPartitionsForReader]] calls [[BlockManager#removeBlock]] defensively
+   * before [[BlockManager#putBytes]] so the cumulative bytes replace any prior partial
+   * spill -- the reader always sees one canonical block per
+   * `(shuffleId, mapId, reduceId)`.
+   *
+   * Memory cost: each accumulator grows to the partition's full byte total over the
+   * lifetime of `write`. In workloads that fit in memory the writer therefore holds
+   * the partition output twice (once in `partitionBuffers` for the block/spill window,
+   * plus once in this accumulator) before `persistPartitionsForReader` runs and the
+   * accumulators become eligible for GC at the end of `write` once `putBytes` has
+   * copied the bytes into the [[org.apache.spark.storage.DiskStore]]. The accumulator
+   * slots are nulled in [[stop]] so the underlying byte arrays can be garbage-
+   * collected even if some other code retains a reference to this writer instance.
+   *
+   * Constructed with the small [[INITIAL_BAOS_CAPACITY]] (1 KB) initial capacity so
+   * total construction-time JVM-heap allocation is `INITIAL_BAOS_CAPACITY * numPartitions`,
+   * matching the construction-cost discipline applied to [[partitionBuffers]].
+   */
+  private val partitionPersistBuffers: Array[ByteArrayOutputStream] =
+    Array.fill(numPartitions)(new ByteArrayOutputStream(INITIAL_BAOS_CAPACITY))
+
+  /**
    * Per-partition CRC32C accumulators (one per reducer). Updated incrementally as each
    * record is serialized into [[partitionBuffers]] via the per-partition
    * [[org.apache.spark.io.MutableCheckedOutputStream]] interceptor, so that the
@@ -286,6 +359,87 @@ private[spark] class StreamingShuffleWriter[K, V](
    * for garbage collection.
    */
   private val partitionSerStreams: Array[SerializationStream] =
+    new Array[SerializationStream](numPartitions)
+
+  /**
+   * Per-partition long-lived [[org.apache.spark.serializer.SerializationStream]] that
+   * targets [[partitionPersistBuffers]] -- the persist-channel companion to
+   * [[partitionSerStreams]] (which targets [[partitionBuffers]] and is opened/closed at
+   * every block boundary).
+   *
+   * == Why a Separate Stream ==
+   * The wire-format stream chain (`partitionSerStreams`) closes at every
+   * [[BLOCK_SIZE_BYTES]] block boundary (in [[flushBlock]] and [[maybeSpill]]) so that
+   * EACH BLOCK on the wire is an independently deserializable stream -- the wire-format
+   * invariant required by [[StreamingShuffleReader]]'s per-block deserialization. This
+   * close-and-reopen cycle writes a Kryo (or Java) stream FOOTER before every drain and
+   * a fresh HEADER on the next [[ensurePartitionStream]] call, so the bytes drained from
+   * `partitionBuffers` across N flushes form N complete-with-header-and-footer streams
+   * concatenated together.
+   *
+   * If we attempted to populate [[partitionPersistBuffers]] from those drained-and-
+   * concatenated bytes (the prior implementation), the resulting per-partition byte
+   * total would be a CONCATENATION OF MULTIPLE STREAMS -- which the reader's
+   * `serializerInstance.deserializeStream(persistBytes).asKeyValueIterator` cannot
+   * deserialize as a single stream (it would read past the first stream's footer into
+   * the second stream's header and throw `KryoException: Stream is corrupted` or the
+   * Java-serializer equivalent).
+   *
+   * The persist channel therefore needs ITS OWN long-lived [[SerializationStream]] that
+   * stays open for the entire lifetime of [[write]] -- writing exactly ONE header at
+   * first record per partition, accumulating all subsequent records, and writing ONE
+   * footer when explicitly closed by [[closeAllPartitionPersistStreams]] just before
+   * [[persistPartitionsForReader]] runs. The resulting per-partition byte stream in
+   * [[partitionPersistBuffers]] is a single complete Kryo (or Java) stream that the
+   * reader can deserialize end-to-end.
+   *
+   * == Cost Trade-Off ==
+   * Each record is now serialized TWICE: once into the wire-format chain
+   * (`partitionSerStreams` -> `partitionCheckedStreams` -> `partitionBuffers`) and once
+   * into the persist chain (this field -> `partitionPersistBuffers`). This doubles
+   * per-record serialization CPU cost. For v1 the cost is acceptable because:
+   *   - the streaming-shuffle path is opt-in;
+   *   - the persist channel is the primary data plane consumed by the reader (the
+   *     wire-format channel's `BackpressureProtocol.recordTransmission` does NOT
+   *     perform actual network I/O in the v1 implementation -- it only records
+   *     rate-limit/heartbeat bookkeeping);
+   *   - the doubled cost remains bounded by the serializer's per-record amortized
+   *     cost, which is dominated by JVM memory bandwidth on the doubled-buffer write
+   *     and not by additional serializer state (the serializer instance is reused).
+   *
+   * A future v2 optimization could collapse the two chains into one by either
+   * (a) having the reader deserialize the wire-format multi-stream concatenation by
+   * peeking-EOF-and-reopening between records, or (b) having the writer produce a
+   * single continuous wire stream and emit byte-range delimiters out-of-band; both
+   * are out of scope for v1 per the AAP rule "*Make only changes necessary to
+   * implement streaming shuffle capability within ShuffleManager abstraction
+   * boundary.*"
+   *
+   * == Lifecycle ==
+   *   1. Slot is `null` at writer construction.
+   *   2. First call to [[ensurePartitionPersistStream]] for a partition (triggered by
+   *      the first write to that partition in [[write]]) lazily wraps
+   *      `serInstance.serializeStream(partitionPersistBuffers(partitionId))` and stores
+   *      the result in this slot. The serializer header is written into the BAOS.
+   *   3. Subsequent record writes call `ss.writeKey(k); ss.writeValue(v)` on the same
+   *      slot (NO close-and-reopen).
+   *   4. After the residual-drain `flushBlock` loop in [[write]] but before
+   *      [[persistPartitionsForReader]] runs, [[closeAllPartitionPersistStreams]]
+   *      closes each non-null slot which writes the serializer footer into the BAOS;
+   *      the slot is then nulled so [[stop]]'s defensive close-and-null pass observes
+   *      the closed state.
+   *   5. [[stop]] defensively closes any slot that survived an exception path through
+   *      [[write]] (e.g. a serializer error) so no `SerializationStream` reference
+   *      leaks beyond the writer's lifetime.
+   *
+   * == Memory Discipline ==
+   * Each `SerializationStream` reference is a thin object around the serializer's
+   * internal buffer plus a reference to `partitionPersistBuffers(i)`. Construction
+   * cost is `O(numActivePartitions)` (one per partition that observes records), not
+   * `O(numPartitions)` -- partitions that never receive a record never pay the
+   * ensurePartitionPersistStream cost.
+   */
+  private val partitionPersistSerStreams: Array[SerializationStream] =
     new Array[SerializationStream](numPartitions)
 
   /**
@@ -463,13 +617,38 @@ private[spark] class StreamingShuffleWriter[K, V](
         // spill-threshold evaluation.
         objOut.flush()
 
+        // Mirror the record write into the per-partition long-lived persist stream so
+        // [[partitionPersistBuffers]] accumulates one continuous, deserializable Kryo
+        // (or Java) stream per partition (header + all records + footer), regardless
+        // of how many block-boundary close/reopen cycles the wire-format chain
+        // performs above. Per the field-level Scaladoc on
+        // [[partitionPersistSerStreams]], this is the persist channel that backs the
+        // reader's `fetchBlockSync` round trip via [[StreamingShuffleManager.shuffleBlockResolver]]
+        // -- the reader's `serializerInstance.deserializeStream(blockBytes).asKeyValueIterator`
+        // requires the persisted bytes to be a single contiguous stream rather than a
+        // concatenation of multiple complete-with-header-and-footer streams.
+        //
+        // No per-record flush() here: the persist stream is only drained at end-of-
+        // write by [[closeAllPartitionPersistStreams]] which writes the footer once
+        // per partition and (along with any serializer-internal buffer flush done by
+        // close) lands all accumulated bytes into [[partitionPersistBuffers]].
+        val pStream = ensurePartitionPersistStream(partitionId, serInstance)
+        pStream.writeKey(key)
+        pStream.writeValue(value)
+
         // If the partition's accumulated bytes have crossed the 2 MB block boundary,
-        // flush a block onto the network. flushBlock closes the partition's
-        // serialization stream so the drained bytes form a complete stream with
-        // both header and footer; the next ensurePartitionStream call (triggered
-        // by the next record for this partition) lazily allocates a fresh stream
-        // that writes a fresh header into the now-empty buffer. partitionLengths
-        // is updated by flushBlock with the actual drained byte count.
+        // flush a block onto the (notional) network. flushBlock closes the partition's
+        // serialization stream so the drained bytes form a complete stream with both
+        // header and footer; the next ensurePartitionStream call (triggered by the
+        // next record for this partition) lazily allocates a fresh stream that writes
+        // a fresh header into the now-empty buffer.
+        //
+        // The persist channel is NOT closed at block boundaries -- only the wire-
+        // format channel is. This is the entire point of the persist channel's
+        // existence: per-partition single-stream invariant for reader correctness.
+        // partitionLengths is reconciled at end-of-write after persistPartitionsForReader
+        // so MapStatus reflects the actual persisted byte count regardless of how many
+        // wire-format blocks were emitted along the way.
         if (pBuf.size() >= BLOCK_SIZE_BYTES) {
           flushBlock(partitionId)
         }
@@ -495,6 +674,56 @@ private[spark] class StreamingShuffleWriter[K, V](
       while (i < numPartitions) {
         flushBlock(i)
         i += 1
+      }
+
+      // Close each per-partition long-lived persist stream so the serializer footer
+      // is written into [[partitionPersistBuffers]] EXACTLY ONCE per partition. After
+      // this call, each `partitionPersistBuffers(i)` contains a single complete and
+      // independently deserializable serialization stream (header + all records +
+      // footer) -- the format that
+      // [[StreamingShuffleReader]]'s `serializerInstance.deserializeStream(blockBytes)
+      // .asKeyValueIterator` requires for end-to-end deserialization.
+      //
+      // Distinct from the wire-format channel's residual-drain `flushBlock` loop above
+      // (which closed-and-reopened the wire-format streams at every block boundary
+      // throughout the loop), the persist channel's streams are closed here for the
+      // first and only time. Per the [[partitionPersistSerStreams]] field Scaladoc.
+      closeAllPartitionPersistStreams()
+
+      // Publish each partition's cumulative bytes to the executor's [[BlockManager]]
+      // under the streaming-shuffle blockId pattern
+      // `ShuffleBlockId(dep.shuffleId, mapId, partitionId)`. This is the data plane
+      // that exposes streaming-shuffle output to downstream
+      // [[StreamingShuffleReader]] fetches: the reader's `fetchBlockSync` call routes
+      // through `BlockManager.getLocalBlockData` which dispatches shuffle block lookups
+      // to `shuffleManager.shuffleBlockResolver.getBlockData` -- and
+      // [[StreamingShuffleManager.shuffleBlockResolver]] is a custom resolver that
+      // serves blocks from the [[org.apache.spark.storage.DiskStore]] populated by
+      // this call. This MUST happen before the MapStatus is published (the next
+      // statement) because the DAG scheduler treats the MapStatus as the signal that
+      // the map output is available for fetch -- if the bytes were not yet on disk,
+      // a reader on the same executor could observe a missing block.
+      persistPartitionsForReader()
+
+      // Reconcile [[partitionLengths]] to match the actual byte counts persisted to
+      // [[org.apache.spark.storage.BlockManager]] by [[persistPartitionsForReader]].
+      // The per-partition wire-format byte counts incremented in [[flushBlock]] and
+      // [[maybeSpill]] reflect the wire-format channel's [header+records+footer]-per-
+      // block sequence; the persisted bytes (single Kryo stream per partition: one
+      // header + all records + one footer) have a slightly different length. Setting
+      // [[partitionLengths]] to the persisted byte count ensures
+      // [[org.apache.spark.scheduler.MapStatus.getSizeForBlock]] returns the value
+      // the reader will actually fetch via `BlockManager.fetchBlockSync` -- making
+      // [[org.apache.spark.shuffle.metrics.ShuffleReadMetricsReporter#incRemoteBytesRead]]
+      // accurate and ensuring [[org.apache.spark.scheduler.HighlyCompressedMapStatus]]'
+      // average-size heuristic reflects the actual fetched byte volume.
+      var k = 0
+      while (k < numPartitions) {
+        val acc = partitionPersistBuffers(k)
+        if (acc != null) {
+          partitionLengths(k) = acc.size().toLong
+        }
+        k += 1
       }
 
       val durationNs = System.nanoTime() - startNs
@@ -558,6 +787,16 @@ private[spark] class StreamingShuffleWriter[K, V](
       // an exception bypassed the normal-path drain loop in `write`). Catch and log
       // any close-time error to honor the framework expectation that `stop` is
       // best-effort: throwing from cleanup masks the original failure cause.
+      //
+      // Two parallel close loops: (1) the wire-format channel via [[partitionSerStreams]]
+      // which closes-and-reopens per block during normal writes -- in stop's failure
+      // path the loop's last block may still be open; and (2) the persist channel via
+      // [[partitionPersistSerStreams]] which is normally closed by
+      // [[closeAllPartitionPersistStreams]] just before [[persistPartitionsForReader]]
+      // in the success path -- in failure paths the persist streams may still be open.
+      // Both are closed defensively here so JVM file-descriptor and direct-memory
+      // resources held by the underlying serializers (e.g. Kryo's pooled buffers) are
+      // released regardless of write-path success or failure.
       var i = 0
       while (i < numPartitions) {
         val ss = partitionSerStreams(i)
@@ -574,12 +813,38 @@ private[spark] class StreamingShuffleWriter[K, V](
           }
           partitionSerStreams(i) = null
         }
-        // Null per-partition buffer / checksum / interceptor slots so their underlying
-        // byte arrays and references become eligible for GC even if some other code
-        // retains a reference to this writer instance.
+        // Defensively close any still-open persist channel SerializationStream slot.
+        // In the success path [[closeAllPartitionPersistStreams]] already nulled this
+        // slot before [[persistPartitionsForReader]] ran; in failure paths the slot
+        // may still be non-null so we close it here to release serializer-internal
+        // resources. As with the wire-format close above we catch and log any error
+        // because `stop` must be best-effort.
+        val ps = partitionPersistSerStreams(i)
+        if (ps != null) {
+          try {
+            ps.close()
+          } catch {
+            case t: Throwable =>
+              logWarning(log"Failed to close per-partition persist " +
+                log"SerializationStream " +
+                log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
+                log"mapId=${MDC(MAP_ID, mapId)} " +
+                log"reduceId=${MDC(REDUCE_ID, i)}: " +
+                log"${MDC(ERROR, Option(t.getMessage).getOrElse("(no message)"))}")
+          }
+          partitionPersistSerStreams(i) = null
+        }
+        // Null per-partition buffer / checksum / interceptor / persist-accumulator
+        // slots so their underlying byte arrays and references become eligible for GC
+        // even if some other code retains a reference to this writer instance. The
+        // persist accumulator is nulled here AFTER `persistPartitionsForReader` ran
+        // (during write) so the cumulative bytes for the partition were already
+        // copied into the [[org.apache.spark.storage.DiskStore]] via
+        // `BlockManager.putBytes`; the in-memory accumulator is no longer needed.
         partitionBuffers(i) = null
         partitionCheckedStreams(i) = null
         partitionChecksums(i) = null
+        partitionPersistBuffers(i) = null
         i += 1
       }
     }
@@ -697,13 +962,140 @@ private[spark] class StreamingShuffleWriter[K, V](
   }
 
   /**
-   * Flush the accumulated bytes for one partition as a single block (up to
-   * [[BLOCK_SIZE_BYTES]] = 2 MB). Closes the partition's per-block
+   * Lazily allocate the per-partition long-lived persist [[SerializationStream]] on
+   * first use. Unlike [[ensurePartitionStream]] (the wire-format channel which
+   * close-and-reopens at every block boundary), this stream stays open for the entire
+   * `write()` lifetime and accumulates all records for the partition into a single
+   * [header + records + footer] sequence inside [[partitionPersistBuffers]] -- the
+   * exact format the downstream [[StreamingShuffleReader]] expects when it calls
+   * `serializerInstance.deserializeStream(blockBytes).asKeyValueIterator` once over the
+   * whole fetched partition.
+   *
+   * Constructs the stream by wrapping [[partitionPersistBuffers]] (a
+   * [[java.io.ByteArrayOutputStream]]) via
+   * [[org.apache.spark.serializer.SerializerManager#wrapStream]] BEFORE handing the
+   * resulting [[java.io.OutputStream]] to `serInstance.serializeStream(...)`. This
+   * write-side wrap is REQUIRED for symmetry with the reader: the
+   * [[StreamingShuffleReader#read]] path applies
+   * `serializerManager.wrapStream(blockId, byteStream)` on the input side BEFORE
+   * `serializerInstance.deserializeStream(...)`, so the bytes emitted into
+   * `partitionPersistBuffers(partitionId)` MUST be in the post-wrap encoding (encrypted
+   * if `spark.io.encryption.enabled=true`, then LZ4-compressed if `spark.shuffle.compress=true`,
+   * the Spark default). Without the symmetric write-side wrap, the LZ4 decompressor on
+   * the read side reports `Stream is corrupted` because raw Kryo bytes lack LZ4's magic
+   * header. No `MutableCheckedOutputStream` is interposed because the persist channel
+   * does NOT participate in per-block CRC32C computation -- those checksums are computed
+   * by the wire-format channel via [[partitionCheckedStreams]] for in-flight integrity
+   * validation, and the persist channel's bytes are fetched via
+   * [[org.apache.spark.storage.BlockManager]] which has its own integrity guarantees
+   * (atomic file rename + at-most-once block id).
+   *
+   * Idempotent: calling for a partition whose persist stream is already non-null is a
+   * no-op (returns the existing stream).
+   *
+   * Memory discipline: the stream's buffer is the partition's
+   * [[partitionPersistBuffers]] [[java.io.ByteArrayOutputStream]] which grows as
+   * records are appended. The buffer is released at end-of-write by
+   * [[persistPartitionsForReader]] (after the bytes are published to
+   * [[org.apache.spark.storage.BlockManager]]) and on failure by [[stop]].
+   *
+   * @param partitionId  the reduce partition whose persist stream is being ensured
+   * @param serInstance  the [[org.apache.spark.serializer.SerializerInstance]] used to
+   *                     wrap the buffer; must be the same instance used for the
+   *                     wire-format channel so both channels produce binary-equivalent
+   *                     records (the bytes differ only in the wire-format channel's
+   *                     close-and-reopen markers vs. the persist channel's single
+   *                     contiguous stream)
+   * @return the long-lived [[SerializationStream]] for `partitionId`
+   */
+  private def ensurePartitionPersistStream(
+      partitionId: Int,
+      serInstance: org.apache.spark.serializer.SerializerInstance): SerializationStream = {
+    var ss = partitionPersistSerStreams(partitionId)
+    if (ss == null) {
+      // Wrap the persist accumulator via the SerializerManager so the persisted bytes are
+      // encrypted (if shuffle encryption is enabled) and compressed (if
+      // `spark.shuffle.compress=true`, the default) prior to Kryo/Java serialization.
+      // The downstream [[StreamingShuffleReader#read]] applies the symmetric
+      // `serializerManager.wrapStream(blockId, byteStream)` on the input side BEFORE
+      // calling `deserializeStream`, so omitting this write-side wrap causes the LZ4
+      // (or other) compression codec on the read side to fail with
+      // `KryoException: java.io.IOException: Stream is corrupted` when the raw Kryo bytes
+      // lack the codec's magic header. The `blockId` here MUST match the blockId used by
+      // [[persistPartitionsForReader]] when handing the accumulator's bytes to
+      // [[BlockManager#putBytes]] (`ShuffleBlockId(dep.shuffleId, mapId, partitionId)`)
+      // because [[org.apache.spark.serializer.SerializerManager#shouldCompress]] dispatches
+      // on the blockId's runtime type and the reader uses the same blockId on the read side.
+      val blockId = ShuffleBlockId(dep.shuffleId, mapId, partitionId)
+      val wrappedOut: java.io.OutputStream = blockManager.serializerManager.wrapStream(
+        blockId, partitionPersistBuffers(partitionId))
+      ss = serInstance.serializeStream(wrappedOut)
+      partitionPersistSerStreams(partitionId) = ss
+    }
+    ss
+  }
+
+  /**
+   * Close every long-lived per-partition persist [[SerializationStream]] in
+   * [[partitionPersistSerStreams]] exactly once, writing the serializer footer (e.g.
+   * Kryo's stream-footer marker) into [[partitionPersistBuffers]] for each non-null
+   * slot, and nulls each slot.
+   *
+   * Called from `write()` after the residual-drain `flushBlock` loop and BEFORE
+   * [[persistPartitionsForReader]] so that, by the time bytes are handed to
+   * [[org.apache.spark.storage.BlockManager#putBytes]], each partition's accumulator
+   * holds a single complete and independently deserializable Kryo stream. Also called
+   * defensively from [[stop]]'s cleanup loop in case `write()` aborted before reaching
+   * this normal-path call.
+   *
+   * Per-stream errors during close are logged at warn level and execution continues so
+   * that one partition's close failure does not strand resources for other partitions.
+   * Memory accounting is unaffected by close (the underlying
+   * [[java.io.ByteArrayOutputStream]] retains its bytes until consumed by
+   * [[persistPartitionsForReader]] or released by [[releaseAcquiredMemory]]).
+   *
+   * Idempotent: re-invocation after the first call is a no-op (every slot is null).
+   */
+  private def closeAllPartitionPersistStreams(): Unit = {
+    var i = 0
+    while (i < numPartitions) {
+      val ss = partitionPersistSerStreams(i)
+      if (ss != null) {
+        try {
+          ss.close()
+        } catch {
+          case t: Throwable =>
+            logWarning(
+              s"Error closing persist stream for shuffle ${dep.shuffleId} mapId=$mapId " +
+                s"partition=$i; bytes already accumulated will still be persisted but the " +
+                s"stream footer may be missing", t)
+        }
+        partitionPersistSerStreams(i) = null
+      }
+      i += 1
+    }
+  }
+
+  /**
+   * Flush the accumulated bytes for one partition as a single wire-format block (up
+   * to [[BLOCK_SIZE_BYTES]] = 2 MB). Closes the partition's per-block
    * [[SerializationStream]] so the drained bytes form a complete, independently
    * deserializable stream (with header AND footer); computes a per-block CRC32C
    * checksum on the exact bytes flushed; hands the block to
-   * [[BackpressureProtocol#recordTransmission]]; and updates [[partitionLengths]] and
-   * the bytes-written metric.
+   * [[BackpressureProtocol#recordTransmission]]; and updates the bytes-written metric.
+   *
+   * NOTE: this method does NOT update [[partitionLengths]] -- the wire-format byte
+   * counts incremented per-block here are NOT used because [[partitionLengths]] is
+   * reconciled at end-of-write in `write()` to match the persist channel's actual
+   * persisted byte counts (see the dual-channel design in the class-level Scaladoc and
+   * the [[partitionPersistSerStreams]] field Scaladoc).
+   *
+   * NOTE: this method also does NOT append to the persist channel ([[partitionPersistBuffers]]).
+   * The persist channel maintains its own long-lived [[SerializationStream]] per
+   * partition (via [[ensurePartitionPersistStream]] called from `write()`) which
+   * accumulates a single contiguous [header + records + footer] sequence. Appending
+   * the wire-format multi-block byte sequence here would corrupt the persist channel's
+   * single-stream invariant.
    *
    * Note: per AAP Section 0.5.1.2 and the [[BackpressureProtocol#recordTransmission]]
    * Scaladoc, `recordTransmission` does NOT perform the actual network send -- it only
@@ -718,9 +1110,7 @@ private[spark] class StreamingShuffleWriter[K, V](
    * underlying buffer is reused for the next block. The next [[ensurePartitionStream]]
    * call for this partition (triggered by the next record write) lazily allocates a
    * fresh [[SerializationStream]] which writes a fresh stream header into the
-   * now-empty buffer -- this is the wire-format invariant required by
-   * [[StreamingShuffleReader]] which deserializes each block independently via
-   * `serializerInstance.deserializeStream(blockBytes).asKeyValueIterator`.
+   * now-empty buffer -- this is the wire-format invariant.
    *
    * @param partitionId the reduce partition whose accumulated bytes are to be flushed
    */
@@ -742,11 +1132,26 @@ private[spark] class StreamingShuffleWriter[K, V](
     val bytes = buf.toByteArray
     buf.reset()
 
-    // Update partitionLengths for this partition with the drained byte count. This
-    // captures the on-wire bytes (header + records + footer) for the block; summed
-    // across all flushes for a partition this yields the value carried in MapStatus
-    // and consumed by the reader to know how many bytes to expect per partition.
-    partitionLengths(partitionId) += bytes.length.toLong
+    // Note: the persist channel does NOT receive the drained wire-format bytes here.
+    // The drained `bytes` represent the wire-format channel's per-block sequence of
+    // [Kryo-header + records + footer], which when concatenated across multiple blocks
+    // would produce a multi-header byte sequence that downstream
+    // [[StreamingShuffleReader]] cannot deserialize as a single Kryo stream.
+    // Instead, the persist channel maintains its own long-lived [[SerializationStream]]
+    // per partition (via [[ensurePartitionPersistStream]] called from `write()`) which
+    // accumulates a single contiguous [header + all records + footer] sequence in
+    // [[partitionPersistBuffers]] -- the format the reader expects when it calls
+    // `serializerInstance.deserializeStream(blockBytes).asKeyValueIterator` once over
+    // the whole fetched partition. See the [[partitionPersistSerStreams]] field
+    // Scaladoc and [[ensurePartitionPersistStream]] for the dual-channel design.
+    //
+    // partitionLengths is reconciled at end-of-write in `write()` AFTER
+    // [[persistPartitionsForReader]] runs, by setting
+    // `partitionLengths(i) = partitionPersistBuffers(i).size().toLong` so MapStatus
+    // reflects the actual byte counts the reader will fetch from BlockManager. The
+    // wire-format byte counts incremented per-block here are NOT used because the
+    // wire-format channel does not perform network I/O in this checkpoint -- it exists
+    // for forward compatibility with a future streaming transport layer.
 
     // Compute per-block CRC32C on the exact bytes being flushed. A fresh CRC32C
     // instance per block ensures the per-block checksum is independent of the
@@ -821,12 +1226,27 @@ private[spark] class StreamingShuffleWriter[K, V](
       closePartitionStream(partitionId)
 
       val pendingBytes = buf.toByteArray
-      // Update partitionLengths for this partition with the spilled byte count so the
-      // MapStatus reflects the on-wire byte total (network-flushed + spilled). This
-      // happens before the spill call so accounting is updated atomically with the
-      // closePartitionStream + drain sequence even if the spill manager surfaces an
-      // exception (the bytes have already left the buffer).
-      partitionLengths(partitionId) += pendingBytes.length.toLong
+
+      // Note: the persist channel does NOT receive the drained wire-format bytes here.
+      // The persist channel maintains its own long-lived [[SerializationStream]] per
+      // partition (via [[ensurePartitionPersistStream]] called from `write()`) which
+      // continues to accumulate records into [[partitionPersistBuffers]] across
+      // close-and-reopen cycles of the wire-format channel. See
+      // [[partitionPersistSerStreams]] field Scaladoc and the equivalent comment in
+      // [[flushBlock]] for the dual-channel rationale: appending the wire-format
+      // multi-header bytes to the persist accumulator would corrupt the single-stream
+      // invariant the reader requires.
+      //
+      // Note on `MemorySpillManager#checkAndSpill` interaction: [[MemorySpillManager
+      // #checkAndSpill]] also writes to the same `ShuffleBlockId` via
+      // `BlockManager.putBytes`. [[persistPartitionsForReader]] runs at end-of-write
+      // and performs a defensive [[BlockManager#removeBlock]] before
+      // [[BlockManager#putBytes]] so the persisted persist-channel stream replaces any
+      // prior spill, ensuring the reader sees one canonical block per
+      // `(shuffleId, mapId, reduceId)`.
+      //
+      // partitionLengths is reconciled at end-of-write in `write()` AFTER
+      // [[persistPartitionsForReader]] runs.
 
       val chunked = new ChunkedByteBuffer(ByteBuffer.wrap(pendingBytes))
       try {
@@ -854,6 +1274,129 @@ private[spark] class StreamingShuffleWriter[K, V](
           log"pct=${MDC(NUM_BYTES, pct)} " +
           log"threshold=${MDC(THRESHOLD, handle.spillThreshold.toLong)}")
       }
+    }
+  }
+
+  /**
+   * Persist each partition's cumulative bytes from [[partitionPersistBuffers]] to the
+   * executor's [[BlockManager]] under the streaming-shuffle blockId pattern
+   * `ShuffleBlockId(dep.shuffleId, mapId, partitionId)`. This is the producer side of
+   * the streaming-shuffle data plane: each block stored here becomes addressable by
+   * the [[StreamingShuffleReader]] via
+   * [[BlockManager#blockTransferService]]`.fetchBlockSync(...)` calls which route
+   * (in local mode through Netty's loopback path or in cluster mode through the
+   * external shuffle service) back into `BlockManager.getLocalBlockData` which
+   * dispatches shuffle block requests to
+   * `shuffleManager.shuffleBlockResolver.getBlockData` -- and the resolver served by
+   * [[StreamingShuffleManager.shuffleBlockResolver]] is a custom resolver that reads
+   * from the [[org.apache.spark.storage.DiskStore]] entry populated by this call.
+   *
+   * Per-partition write sequence:
+   *   1. If the partition's accumulator is empty (no records were written for that
+   *      partition), skip -- the reader is allowed to observe a zero-byte partition
+   *      via [[org.apache.spark.scheduler.MapStatus]] returning 0L for that reducer.
+   *   2. Defensively call [[BlockManager#removeBlock]]`(blockId, tellMaster = false)`
+   *      to clear any prior block at the same blockId. This handles the case where
+   *      [[MemorySpillManager#checkAndSpill]] previously persisted a partial spill to
+   *      the same `ShuffleBlockId` (since both the spill path and this end-of-write
+   *      path target the same `ShuffleBlockId(shuffleId, mapId, reduceId)` namespace).
+   *      `tellMaster = false` skips publishing a "block removed" event to the
+   *      `BlockManagerMaster` so we do not generate a notification for a transient
+   *      pre-existing block that the master may not even know about. The
+   *      [[BlockManager#removeBlock]] call is itself idempotent and best-effort: if
+   *      the block does not exist it logs a warning and returns silently. We catch
+   *      and log any unexpected exception so a single partition's removal failure
+   *      does not abort the entire end-of-write persist sequence -- the immediately
+   *      following [[BlockManager#putBytes]] call will itself surface a meaningful
+   *      error if the block actually still exists.
+   *   3. Wrap the cumulative bytes in a [[ChunkedByteBuffer]] (zero-copy via
+   *      [[ByteBuffer#wrap]]) and call [[BlockManager#putBytes]] with
+   *      `StorageLevel.DISK_ONLY` and `tellMaster = true` -- mirroring the storage
+   *      semantics applied by [[MemorySpillManager#checkAndSpill]] so the
+   *      `BlockManagerMaster` tracks the produced block via the standard storage-
+   *      status reporting path. `tellMaster = true` is essential here because the
+   *      `MapOutputTracker` uses the block-existence reports to satisfy reader
+   *      lookups for non-local executors.
+   *   4. Dispose the [[ChunkedByteBuffer]] in a `finally` to release any direct-
+   *      memory reference held by the wrapper (the underlying byte array is still
+   *      referenced by the accumulator until [[stop]] nulls the slot, but `dispose`
+   *      releases any wrapper-internal state to be GC-friendly).
+   *
+   * Idempotency: if a caller invokes [[write]] a second time on the same writer
+   * instance (not a supported usage -- the SPI contract calls `write` once per
+   * writer), this method would re-publish the cumulative bytes and the defensive
+   * [[BlockManager#removeBlock]] would clear the prior block. In normal operation
+   * this method runs exactly once per writer instance from [[write]] just before
+   * `mapStatus` is built.
+   */
+  private def persistPartitionsForReader(): Unit = {
+    var i = 0
+    while (i < numPartitions) {
+      val accumulator = partitionPersistBuffers(i)
+      if (accumulator != null && accumulator.size() > 0) {
+        val bytes = accumulator.toByteArray
+        val blockId = ShuffleBlockId(dep.shuffleId, mapId, i)
+
+        // Step 2: defensive removeBlock so a prior partial spill (or a retry attempt
+        // of the same map task) does not block the putBytes that follows. The
+        // tellMaster = false flag suppresses a BlockManagerMaster update for a block
+        // that the master may not even have a record of.
+        try {
+          blockManager.removeBlock(blockId, tellMaster = false)
+        } catch {
+          case t: Throwable =>
+            // BlockManager.removeBlock is idempotent and best-effort; if the block
+            // is absent it logs a warning and returns. Any other exception (e.g.
+            // a lock-acquisition failure) is logged and absorbed -- the immediately
+            // following putBytes call surfaces the actionable error if the block
+            // still exists.
+            logDebug(log"removeBlock pre-cleanup failed for " +
+              log"${MDC(BLOCK_ID, blockId.toString)}: " +
+              log"${MDC(ERROR, Option(t.getMessage).getOrElse("(no message)"))}")
+        }
+
+        // Step 3: wrap and persist via BlockManager.putBytes(DISK_ONLY).
+        // ByteBuffer.wrap(bytes) produces a heap ByteBuffer with position = 0 which
+        // satisfies ChunkedByteBuffer's invariant.
+        val chunked = new ChunkedByteBuffer(ByteBuffer.wrap(bytes))
+        try {
+          val stored = blockManager.putBytes(
+            blockId,
+            chunked,
+            StorageLevel.DISK_ONLY,
+            tellMaster = true)(scala.reflect.ClassTag.Byte)
+          if (!stored) {
+            // BlockManager.putBytes returns false when the doPut path exited via the
+            // "block already exists" early return at BlockManager.scala:1576-1578 --
+            // i.e. the prior removeBlock did not succeed in clearing the block.
+            // The reader will observe whatever bytes are currently in the DiskStore;
+            // log a warning so operators can correlate this with the prior spill.
+            logWarning(log"BlockManager.putBytes reported block-already-exists for " +
+              log"${MDC(BLOCK_ID, blockId.toString)} " +
+              log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
+              log"mapId=${MDC(MAP_ID, mapId)} " +
+              log"reduceId=${MDC(REDUCE_ID, i)}; " +
+              log"reader may observe stale partial-spill bytes")
+          } else if (isTraceEnabled()) {
+            logTrace(log"Persisted ${MDC(BLOCK_ID, blockId.toString)} " +
+              log"size=${MDC(NUM_BYTES, bytes.length.toLong)} for streaming reader")
+          }
+        } finally {
+          // Step 4: dispose the ChunkedByteBuffer wrapper. This is a best-effort
+          // release; any retained direct memory is freed back to the buffer pool.
+          // Swallow exceptions so a single dispose failure does not abort the
+          // end-of-write persist sequence for the remaining partitions.
+          try {
+            chunked.dispose()
+          } catch {
+            case t: Throwable =>
+              logDebug(log"ChunkedByteBuffer.dispose failed for " +
+                log"${MDC(BLOCK_ID, blockId.toString)}: " +
+                log"${MDC(ERROR, Option(t.getMessage).getOrElse("(no message)"))}")
+          }
+        }
+      }
+      i += 1
     }
   }
 

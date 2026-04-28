@@ -98,6 +98,15 @@ class StreamingShuffleFailureInjectionSuite
    *     [[org.apache.spark.shuffle.ShuffleManager.getShuffleManagerClassName]].
    *   - `spark.shuffle.streaming.enabled=true` applies defense-in-depth for the
    *     `StreamingShuffleManager`'s internal opt-in check.
+   *   - `spark.testing=true` so that
+   *     [[org.apache.spark.memory.UnifiedMemoryManager.getMaxMemory]] bypasses the
+   *     production 300MB reserved-memory floor when individual tests configure a small
+   *     `spark.testing.memory` for memory-pressure scenarios. This is the canonical
+   *     Spark test pattern (see e.g. [[org.apache.spark.storage.BlockManagerSuite]]);
+   *     the surrounding Maven Surefire/Scalatest configuration normally injects this
+   *     flag via the `spark.testing` system property, but `loadDefaults = false`
+   *     intentionally suppresses system-property loading, so the flag must be set
+   *     explicitly on the conf.
    *   - `spark.ui.enabled=false` and `spark.ui.showConsoleProgress=false` prevent
    *     port 4040 binding contention across concurrent test runs and silence the
    *     console progress bar in CI logs.
@@ -111,6 +120,7 @@ class StreamingShuffleFailureInjectionSuite
       .setMaster("local[2]")
       .set("spark.shuffle.manager", "streaming")
       .set("spark.shuffle.streaming.enabled", "true")
+      .set("spark.testing", "true")
       .set("spark.ui.enabled", "false")
       .set("spark.ui.showConsoleProgress", "false")
   }
