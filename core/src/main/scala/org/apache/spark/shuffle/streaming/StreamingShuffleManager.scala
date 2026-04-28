@@ -26,10 +26,11 @@ import org.apache.spark.network.buffer.{ManagedBuffer, NioManagedBuffer}
 import org.apache.spark.network.client.StreamCallbackWithID
 import org.apache.spark.network.shuffle.MergedBlockMeta
 import org.apache.spark.serializer.SerializerManager
-import org.apache.spark.shuffle.{BaseShuffleHandle, MigratableResolver, ShuffleBlockInfo, ShuffleBlockResolver, ShuffleHandle, ShuffleManager, ShuffleReader, ShuffleReadMetricsReporter, ShuffleWriter, ShuffleWriteMetricsReporter}
+import org.apache.spark.shuffle.{BaseShuffleHandle, MigratableResolver, ShuffleBlockInfo, ShuffleBlockResolver, ShuffleHandle, ShuffleManager, ShuffleReader, ShuffleReadMetricsReporter, ShuffleWriteMetricsReporter, ShuffleWriter}
 import org.apache.spark.shuffle.sort.SortShuffleManager
 import org.apache.spark.storage.{BlockId, BlockManager, ShuffleBlockId, ShuffleMergedBlockId}
 
+// scalastyle:off classforname
 /**
  * Streaming shuffle manager -- opt-in alternative to
  * [[org.apache.spark.shuffle.sort.SortShuffleManager]] that pipelines map-side data
@@ -127,6 +128,7 @@ import org.apache.spark.storage.{BlockId, BlockManager, ShuffleBlockId, ShuffleM
  *                 on `isDriver` because `local` mode passes `isDriver = true` while
  *                 still operating the data plane in the same JVM.
  */
+// scalastyle:on classforname
 class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   extends ShuffleManager with Logging {
 
