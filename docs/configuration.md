@@ -1509,16 +1509,6 @@ executor restart; dynamic reconfiguration is not supported in this version.
   </td>
   <td>4.2.0</td>
 </tr>
-<tr>
-  <td><code>spark.shuffle.streaming.debug</code></td>
-  <td>false</td>
-  <td>
-    (Internal) Enables verbose <code>DEBUG</code>-level logging for streaming-shuffle
-    diagnostics. Defaults to <code>false</code> to keep streaming-shuffle log volume
-    below 10 MB/hour per executor.
-  </td>
-  <td>4.2.0</td>
-</tr>
 </table>
 
 ### Spark UI

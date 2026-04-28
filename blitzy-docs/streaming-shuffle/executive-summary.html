@@ -26,10 +26,29 @@ limitations under the License.
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 
+  <!--
+    reveal.js / Mermaid / Lucide CDN assets are pinned to exact versions per AAP §0.7.6.
+    Subresource Integrity (SRI) sha384 hashes are included as a defense-in-depth measure
+    so that a man-in-the-middle attacker (or a compromised CDN) cannot silently alter
+    these scripts/stylesheets. crossorigin="anonymous" is required for the browser to
+    perform the integrity check on a cross-origin resource. SRI hashes were computed
+    from the upstream CDN binaries that match the pinned version tags; if the CDN ever
+    serves a different binary (e.g., a re-published patch), the browser will refuse to
+    execute the resource and the deck will fail closed rather than render compromised
+    content.
+  -->
+
   <!-- reveal.js core CSS (pinned 5.1.0) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css"
+        integrity="sha384-YgvgKeZJykuztG+iQPoZHNZENTFZvOcOJ/uRzmJTje6GHYN9zAw+y5rx/L8MQKA/"
+        crossorigin="anonymous">
   <!-- reveal.js black theme (overridden by inline Blitzy theme below) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme">
+  <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css"
+        integrity="sha384-rGf1FAL+Buyw4LpDboONln7P/UqlyCftbnLG8bC6nNAaW3LcuHtUg5t5KYY3U+L8"
+        crossorigin="anonymous"
+        id="theme">
 
   <style>
     /* =====================================================================
@@ -879,9 +898,15 @@ flowchart LR
 <!-- =====================================================================
      reveal.js + Mermaid + Lucide initialization (CDN-pinned per AAP §0.7.6)
      ===================================================================== -->
-<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
-<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"
+        integrity="sha384-M/JtqCVlLcK9lwVnBnMXP0V577CBULkjodKsR/PITOe4MSKNbbwqCemEyluOw0+5"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"
+        integrity="sha384-Wm9qzEgq4j1jEnuFK2FxKTlwuhbV2QqtGhcchvjDoKxeJ7WWAW7fysBq+1s6myfX"
+        crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"
+        integrity="sha384-ieG+IKD0d/ZPXyCBTMVAbqsQdns8QGJR/e26WMw7M4fkaI/rHcS/YIoi+ah9WGge"
+        crossorigin="anonymous"></script>
 <script>
   // Mermaid: deferred initial render so we can run() AFTER reveal.js layout settles.
   mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'loose' });

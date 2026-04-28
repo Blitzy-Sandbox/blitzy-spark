@@ -1,5 +1,6 @@
 {
   "_license": "Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements. See the NOTICE file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file to You under the Apache License, Version 2.0 (the \"License\"); you may not use this file except in compliance with the License. You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0 . Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an \"AS IS\" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License.",
+  "_notes": "Streaming Shuffle Grafana dashboard template. Panel expressions match Spark's PrometheusServlet metric naming convention: 'metrics_<app-id>_<executor-id>_<source-name>_<metric-key>_<Suffix>{type=\"<group>\"}' where <metric-key> for streaming shuffle is 'shuffle_streaming_<metric-name>' (the dots in the AAP-mandated 'shuffle.streaming.<metric-name>' key are normalized to underscores by PrometheusServlet.normalizeKey). Gauge metrics expose '_Number' and '_Value' suffixes; Counter metrics expose '_Count' suffix. The wildcard '.+' across the application and executor segments aggregates every executor's instance of the named metric. The dashboard intentionally omits a per-executor template variable selector because Spark's PrometheusServlet emits only {type=\"...\"} labels (the executor identifier is encoded in the metric NAME, not a Prometheus label). Operators who require an 'executor' label (for filtering or grouping) MUST configure either: (a) a Prometheus relabel_config with a 'metric_relabel_configs' entry that extracts the executor segment from the metric name into a label, or (b) a JMX Exporter pattern rule that produces 'app_id' and 'executor' labels at the JMX-to-Prometheus conversion step. See blitzy-docs/streaming-shuffle/observability.md 'Dashboard Prerequisites' for concrete relabeling examples.",
   "title": "Streaming Shuffle",
   "uid": "blitzy-streaming-shuffle",
   "tags": [
@@ -9,7 +10,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "30s",
   "time": {
     "from": "now-1h",
@@ -30,19 +31,6 @@
           "value": "Prometheus"
         },
         "hide": 0
-      },
-      {
-        "name": "executor",
-        "type": "query",
-        "label": "Executor",
-        "datasource": "${DS_PROMETHEUS}",
-        "query": "label_values(executor_id)",
-        "multi": true,
-        "includeAll": true,
-        "current": {
-          "text": "All",
-          "value": "$__all"
-        }
       }
     ]
   },
@@ -54,6 +42,7 @@
       "id": 1,
       "type": "timeseries",
       "title": "Buffer Utilization Percent",
+      "description": "Per-executor streaming-shuffle buffer utilization (0-100). Sampled by MemorySpillManager at 100 ms intervals. Spill triggers at the configured spillThreshold (default 80%).",
       "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 8,
@@ -63,8 +52,8 @@
       },
       "targets": [
         {
-          "expr": "metrics_streamingShuffle_bufferUtilizationPercent{executor=~\"$executor\"}",
-          "legendFormat": "{{executor}}",
+          "expr": "metrics_.+_streamingShuffle_shuffle_streaming_bufferUtilizationPercent_Value{type=\"gauges\"}",
+          "legendFormat": "{{__name__}}",
           "refId": "A"
         }
       ],
@@ -104,6 +93,7 @@
       "id": 2,
       "type": "stat",
       "title": "Spill Count (cumulative)",
+      "description": "Cumulative count of spill events across all executors. Each event is emitted by MemorySpillManager when buffer utilization meets or exceeds spark.shuffle.streaming.spillThreshold.",
       "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 8,
@@ -113,7 +103,7 @@
       },
       "targets": [
         {
-          "expr": "sum(metrics_streamingShuffle_spillCount{executor=~\"$executor\"})",
+          "expr": "sum(metrics_.+_streamingShuffle_shuffle_streaming_spillCount_Count{type=\"counters\"})",
           "legendFormat": "Total spills",
           "refId": "A"
         }
@@ -151,6 +141,7 @@
       "id": 3,
       "type": "barchart",
       "title": "Backpressure Events (per minute)",
+      "description": "Rate of backpressure events emitted by BackpressureProtocol, summed across executors and rescaled to events-per-minute. Spikes correlate with rate-limit triggers, heartbeat misses, and priority arbitration events.",
       "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 8,
@@ -160,8 +151,8 @@
       },
       "targets": [
         {
-          "expr": "rate(metrics_streamingShuffle_backpressureEvents{executor=~\"$executor\"}[1m]) * 60",
-          "legendFormat": "{{executor}}",
+          "expr": "sum(rate(metrics_.+_streamingShuffle_shuffle_streaming_backpressureEvents_Count{type=\"counters\"}[1m])) * 60",
+          "legendFormat": "events/min",
           "refId": "A"
         }
       ],
@@ -186,6 +177,7 @@
       "id": 4,
       "type": "stat",
       "title": "Partial-Read Invalidations",
+      "description": "Cumulative count of producer-failure detections from StreamingShuffleReader triggering partial-read invalidation and FetchFailedException propagation. Any non-zero value indicates upstream-stage recomputation has been triggered at least once.",
       "datasource": "${DS_PROMETHEUS}",
       "gridPos": {
         "h": 8,
@@ -195,7 +187,7 @@
       },
       "targets": [
         {
-          "expr": "sum(metrics_streamingShuffle_partialReadInvalidations{executor=~\"$executor\"})",
+          "expr": "sum(metrics_.+_streamingShuffle_shuffle_streaming_partialReadInvalidations_Count{type=\"counters\"})",
           "legendFormat": "Invalidations",
           "refId": "A"
         }

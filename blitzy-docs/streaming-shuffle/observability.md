@@ -21,14 +21,28 @@ Streaming shuffle is observable through four Dropwizard metrics registered into 
 
 ## Metrics
 
-The four metrics below are registered through the `StreamingShuffleSource` class (extending `org.apache.spark.metrics.source.Source`) under the `streamingShuffle` source name. They appear automatically in the Spark Web UI's Executors tab, in JMX MBeans under `metrics:name=streamingShuffle.*`, and in any sink configured via `spark.metrics.conf`.
+The four metrics below are registered through the `StreamingShuffleSource` class (extending `org.apache.spark.metrics.source.Source`) under the `streamingShuffle` source name. They appear automatically in the Spark Web UI's Executors tab, in JMX MBeans, and in any sink configured via `spark.metrics.conf`.
+
+### JMX ObjectName composition
+
+Spark's `MetricsSystem.buildRegistryName` (see `core/src/main/scala/org/apache/spark/metrics/MetricsSystem.scala`) composes the fully-qualified registry name as `<application>.<executor-id>.<source-name>`, where `<source-name>` is `streamingShuffle` for streaming-shuffle metrics. The metric key returned by `StreamingShuffleMetrics.getMetrics()` itself begins with the AAP-mandated `shuffle.streaming.` namespace prefix (verbatim, embedded in the metric key — see the Scaladoc on `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleMetrics.scala`). Combined, the final JMX ObjectName exposed by Dropwizard's `JmxReporter` (used by Spark's `JmxSink`) is:
+
+```
+metrics:name=<application>.<executor-id>.streamingShuffle.shuffle.streaming.<metric-name>,type=<gauges|counters>
+```
+
+The `<application>` and `<executor-id>` fragments are bound to `spark.app.id` and `spark.executor.id` at runtime; on the driver, the source is registered against the driver instance and `<executor-id>` resolves to `driver`. The `,type=<gauges|counters>` qualifier is appended automatically by Dropwizard's `JmxReporter` based on the metric's Java type — `Gauge` instances use `type=gauges` and `Counter` instances use `type=counters`.
+
+### Metric reference
 
 | Metric Name | Type | JMX ObjectName Pattern | Description |
 |-------------|------|------------------------|-------------|
-| `shuffle.streaming.bufferUtilizationPercent` | `Gauge[Int]` | `metrics:name=streamingShuffle.bufferUtilizationPercent` | Current streaming buffer utilization 0–100, sampled by `MemorySpillManager` at 100 ms intervals. |
-| `shuffle.streaming.spillCount` | `Counter` | `metrics:name=streamingShuffle.spillCount` | Cumulative count of spill events triggered by `MemorySpillManager` when buffer utilization meets or exceeds `spark.shuffle.streaming.spillThreshold`. |
-| `shuffle.streaming.backpressureEvents` | `Counter` | `metrics:name=streamingShuffle.backpressureEvents` | Cumulative count of backpressure events emitted by `BackpressureProtocol` (rate-limit triggered, heartbeat missed, priority arbitrated). |
-| `shuffle.streaming.partialReadInvalidations` | `Counter` | `metrics:name=streamingShuffle.partialReadInvalidations` | Cumulative count of producer-failure detection events from `StreamingShuffleReader` triggering partial-read invalidation and `FetchFailedException` propagation. |
+| `shuffle.streaming.bufferUtilizationPercent` | `Gauge[Int]` | `metrics:name=<application>.<executor-id>.streamingShuffle.shuffle.streaming.bufferUtilizationPercent,type=gauges` | Current streaming buffer utilization 0–100, sampled by `MemorySpillManager` at 100 ms intervals. |
+| `shuffle.streaming.spillCount` | `Counter` | `metrics:name=<application>.<executor-id>.streamingShuffle.shuffle.streaming.spillCount,type=counters` | Cumulative count of spill events triggered by `MemorySpillManager` when buffer utilization meets or exceeds `spark.shuffle.streaming.spillThreshold`. |
+| `shuffle.streaming.backpressureEvents` | `Counter` | `metrics:name=<application>.<executor-id>.streamingShuffle.shuffle.streaming.backpressureEvents,type=counters` | Cumulative count of backpressure events emitted by `BackpressureProtocol` (rate-limit triggered, heartbeat missed, priority arbitrated). |
+| `shuffle.streaming.partialReadInvalidations` | `Counter` | `metrics:name=<application>.<executor-id>.streamingShuffle.shuffle.streaming.partialReadInvalidations,type=counters` | Cumulative count of producer-failure detection events from `StreamingShuffleReader` triggering partial-read invalidation and `FetchFailedException` propagation. |
+
+When matching MBeans through tooling that supports wildcards (e.g., `jmxterm`, `jconsole` "search by name", JMX Exporter `pattern` rules), the simpler wildcard form `metrics:name=*.shuffle.streaming.<metric-name>,type=<gauges|counters>` selects every executor's instance of the named metric without enumerating `<application>` or `<executor-id>`.
 
 All four metrics are populated lock-free or through amortized lock acquisition to honor the AAP §0.7.2.5 "Telemetry overhead MUST be < 1% of executor CPU utilization" budget. Histogram updates are batched to minimize hot-path overhead.
 
@@ -70,7 +84,72 @@ graph TD
 
 *Legend:* Each lettered node corresponds to a single Grafana panel in the 2x2 grid. The undirected edges (`---`) denote spatial adjacency on the dashboard canvas — top row `A`/`B`, bottom row `C`/`D`, left column `A`/`C`, right column `B`/`D`. Node labels avoid parentheses to ensure clean Mermaid 11.4.0 parsing across renderers.
 
-Import the dashboard via Grafana's *Dashboards → Import* flow with the `dashboard.json` file. Configure a Prometheus datasource referencing the JMX-exporter scrape endpoint on each Spark executor.
+Import the dashboard via Grafana's *Dashboards → Import* flow with the `dashboard.json` file. Configure a Prometheus datasource referencing the Spark executor metrics scrape endpoint (see *Dashboard Prerequisites* below for the supported scrape topologies).
+
+### Dashboard Panel Query Reference
+
+The dashboard's four panel expressions match the Spark `PrometheusServlet` metric naming convention exactly. The mapping below reconciles the AAP-mandated metric key (left) with the exported Prometheus time-series name (right) so an operator can verify each panel manually before importing the dashboard.
+
+| Metric Key | Prometheus Time-Series | Panel Expression |
+|------------|------------------------|------------------|
+| `shuffle.streaming.bufferUtilizationPercent` | `metrics_<app>_<exec>_streamingShuffle_shuffle_streaming_bufferUtilizationPercent_Value{type="gauges"}` | `metrics_.+_streamingShuffle_shuffle_streaming_bufferUtilizationPercent_Value{type="gauges"}` |
+| `shuffle.streaming.spillCount` | `metrics_<app>_<exec>_streamingShuffle_shuffle_streaming_spillCount_Count{type="counters"}` | `sum(metrics_.+_streamingShuffle_shuffle_streaming_spillCount_Count{type="counters"})` |
+| `shuffle.streaming.backpressureEvents` | `metrics_<app>_<exec>_streamingShuffle_shuffle_streaming_backpressureEvents_Count{type="counters"}` | `sum(rate(metrics_.+_streamingShuffle_shuffle_streaming_backpressureEvents_Count{type="counters"}[1m])) * 60` |
+| `shuffle.streaming.partialReadInvalidations` | `metrics_<app>_<exec>_streamingShuffle_shuffle_streaming_partialReadInvalidations_Count{type="counters"}` | `sum(metrics_.+_streamingShuffle_shuffle_streaming_partialReadInvalidations_Count{type="counters"})` |
+
+The `<app>` and `<exec>` fragments are replaced at runtime with the Spark application ID and executor ID respectively. Spark's `PrometheusServlet.normalizeKey` (see `core/src/main/scala/org/apache/spark/metrics/sink/PrometheusServlet.scala`) replaces every non-alphanumeric character (including the dots in `shuffle.streaming.<metric-name>`) with an underscore, then prepends `metrics_` and appends an underscore. Gauges add the `_Number` and `_Value` suffixes (with identical values per `PrometheusServlet` lines 71–72); counters add the `_Count` suffix.
+
+### Dashboard Prerequisites
+
+The dashboard is configured for two supported scrape topologies. Operators **must** select one before importing the dashboard.
+
+#### Topology A: Direct scrape of Spark's `PrometheusServlet`
+
+This is the simplest setup. Spark exposes a Prometheus-formatted endpoint at `/metrics/prometheus` on the driver UI (port 4040 by default) and on each executor's metrics port. Configure a Prometheus job with a single static target per Spark application or use Spark's discovery mechanisms (e.g., labels emitted by the Kubernetes/YARN cluster manager).
+
+Configuration sample (`prometheus.yml` excerpt):
+
+```yaml
+scrape_configs:
+  - job_name: 'spark-streaming-shuffle'
+    metrics_path: '/metrics/prometheus'
+    static_configs:
+      - targets: ['driver-host:4040']
+```
+
+In this topology, the executor identifier is encoded directly into the metric NAME (the `<exec>` fragment of `metrics_<app>_<exec>_streamingShuffle_...`). The dashboard panel expressions use the regex wildcard `.+` across the application and executor segments to aggregate every executor's instance of each metric. Per-executor breakdown is achievable by editing each panel's `expr` to substitute a specific executor ID for the second `.+`, for example: `metrics_.+_42_streamingShuffle_shuffle_streaming_bufferUtilizationPercent_Value{type="gauges"}` for executor 42.
+
+#### Topology B: JMX Exporter with relabeling
+
+Operators who prefer Prometheus labels (rather than encoding the executor ID in the metric name) should deploy the [JMX Exporter](https://github.com/prometheus/jmx_exporter) as a Java agent on each Spark process and configure pattern rules that extract `app_id`, `executor`, and the metric name into separate label and name components.
+
+Sample `jmx_exporter_config.yaml` excerpt for streaming shuffle:
+
+```yaml
+rules:
+  - pattern: 'metrics<>(\\S+)_(\\S+)_streamingShuffle_shuffle_streaming_(\\S+)_(Value|Count)<>(\\S+)'
+    name: 'spark_streaming_shuffle_$3'
+    labels:
+      app_id: '$1'
+      executor: '$2'
+      metric_kind: '$4'
+      type: '$5'
+```
+
+After applying this relabeling, panels can use cleaner expressions such as `spark_streaming_shuffle_bufferUtilizationPercent{metric_kind="Value"}` with a per-executor `executor` label that supports a Grafana `executor` template variable. To use this topology with the included dashboard, replace each panel's `expr` with the corresponding short-form query and add the `executor` template variable back:
+
+```json
+{
+  "name": "executor",
+  "type": "query",
+  "datasource": "${DS_PROMETHEUS}",
+  "query": "label_values(spark_streaming_shuffle_bufferUtilizationPercent, executor)",
+  "multi": true,
+  "includeAll": true
+}
+```
+
+Operators using only the upstream `JmxSink` (without the JMX Exporter) and external JMX-to-Prometheus bridges other than `PrometheusServlet` should consult their bridge's documentation for the exact name-and-label transformation.
 
 ## Runbook
 
