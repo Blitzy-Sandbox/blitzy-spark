@@ -1778,9 +1778,14 @@ package object config {
   private[spark] val STREAMING_SHUFFLE_MAX_BANDWIDTH_MBPS =
     ConfigBuilder("spark.shuffle.streaming.maxBandwidthMBps")
       .doc("Per-executor outbound bandwidth cap in megabytes per second for streaming " +
-        "shuffle. -1 means unlimited.")
+        "shuffle. Must be -1 (unlimited, the default sentinel per AAP Section 0.3.1.3) " +
+        "or a positive integer. Zero is rejected because it would block all streaming " +
+        "shuffle traffic; arbitrary negative values other than -1 are rejected to avoid " +
+        "ambiguous operator semantics.")
       .version("4.2.0")
       .intConf
+      .checkValue(v => v == -1 || v > 0,
+        "must be -1 (unlimited) or a positive integer")
       .createWithDefault(-1)
 
   private[spark] val STREAMING_SHUFFLE_DEBUG =

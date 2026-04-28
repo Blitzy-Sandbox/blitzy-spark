@@ -43,16 +43,24 @@ import com.codahale.metrics.{Counter, Gauge, Metric, MetricSet}
  *     [[org.apache.spark.shuffle.FetchFailedException]] path drives upstream recomputation).
  *
  * == Namespace ==
- * The metric names exposed via [[getMetrics]] are the bare names listed above. The
- * `streamingShuffle` source-name prefix is applied by `StreamingShuffleSource.sourceName`
- * when this set is registered with [[org.apache.spark.metrics.MetricsSystem]]. The Spark
- * `MetricsSystem` further composes the application/executor prefixes per its standard
- * convention so final JMX object names take the form
- * `<application>.<executor-id>.streamingShuffle.<metric-name>`. Composing the bare metric
- * names with the `streamingShuffle` source name reproduces the operator-facing namespace
- * `shuffle.streaming.<metric-name>` requested by the streaming-shuffle feature
- * specification, mirroring the existing `JVMCPUSource` precedent (bare `jvmCpuTime` plus
- * source `JVMCPU` yielding `JVMCPU.jvmCpuTime`).
+ * The metric keys returned by [[getMetrics]] include the AAP-required
+ * `"shuffle.streaming."` prefix verbatim:
+ *   - `shuffle.streaming.bufferUtilizationPercent`
+ *   - `shuffle.streaming.spillCount`
+ *   - `shuffle.streaming.backpressureEvents`
+ *   - `shuffle.streaming.partialReadInvalidations`
+ *
+ * Embedding the prefix in the metric key (rather than relying on the future
+ * `StreamingShuffleSource.sourceName` to supply it) keeps the AAP-mandated operator-facing
+ * namespace visible at the metric-set definition site and decouples the names from the
+ * source-name choice. When this set is registered with the executor
+ * [[org.apache.spark.metrics.MetricsSystem]] via `StreamingShuffleSource`, the Spark
+ * `MetricsSystem` composes the application/executor/source prefixes per its standard
+ * convention (see `MetricsSystem.buildRegistryName`), yielding final JMX object names of
+ * the form `<application>.<executor-id>.<source-name>.shuffle.streaming.<metric-name>`.
+ * The `shuffle.streaming.<metric-name>` substring -- the operator-facing namespace
+ * required by AAP Section 0.1.1 -- is preserved end-to-end regardless of which `sourceName`
+ * the future `StreamingShuffleSource` chooses.
  *
  * == Concurrency ==
  * Metric updates are received from multiple threads -- one per streaming writer instance,
@@ -209,14 +217,18 @@ private[spark] class StreamingShuffleMetrics extends MetricSet {
   def getPartialReadInvalidationsCount: Long = partialReadInvalidations.getCount
 
   /**
-   * Return all four streaming-shuffle metrics keyed by their bare metric name. The returned
+   * Return all four streaming-shuffle metrics keyed by their AAP-mandated operator-facing
+   * names (each prefixed with `"shuffle.streaming."` per AAP Section 0.1.1). The returned
    * map is unmodifiable per the [[MetricSet]] contract -- attempts to mutate it raise
    * [[UnsupportedOperationException]].
    *
-   * The `streamingShuffle` source-name prefix is applied by `StreamingShuffleSource` when
-   * this metric set is registered with the Spark `MetricsSystem`. Final JMX object names
-   * take the form `<application>.<executor-id>.streamingShuffle.<metric-name>` per Spark's
-   * standard metrics conventions.
+   * Including the `"shuffle.streaming."` prefix at the metric-key level guarantees the
+   * AAP-required substring appears in the final JMX object name regardless of which
+   * `sourceName` the future `StreamingShuffleSource` registers under. The Spark
+   * `MetricsSystem` will further compose the application, executor, and source prefixes
+   * per its standard convention (see `MetricsSystem.buildRegistryName`), producing final
+   * names of the form
+   * `<application>.<executor-id>.<source-name>.shuffle.streaming.<metric-name>`.
    *
    * The map is constructed fresh on every call rather than cached because Dropwizard
    * permits -- but does not require -- `getMetrics` to return a stable reference, and the
@@ -226,10 +238,10 @@ private[spark] class StreamingShuffleMetrics extends MetricSet {
    */
   override def getMetrics(): java.util.Map[String, Metric] = {
     val map = new java.util.HashMap[String, Metric]()
-    map.put("bufferUtilizationPercent", bufferUtilizationPercent)
-    map.put("spillCount", spillCount)
-    map.put("backpressureEvents", backpressureEvents)
-    map.put("partialReadInvalidations", partialReadInvalidations)
+    map.put("shuffle.streaming.bufferUtilizationPercent", bufferUtilizationPercent)
+    map.put("shuffle.streaming.spillCount", spillCount)
+    map.put("shuffle.streaming.backpressureEvents", backpressureEvents)
+    map.put("shuffle.streaming.partialReadInvalidations", partialReadInvalidations)
     java.util.Collections.unmodifiableMap(map)
   }
 }
