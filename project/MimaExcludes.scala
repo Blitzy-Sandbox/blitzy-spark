@@ -40,7 +40,11 @@ object MimaExcludes {
     // [SPARK-47086][BUILD][CORE][WEBUI] Upgrade Jetty to 12.1.4
     ProblemFilters.exclude[MissingTypesProblem]("org.apache.spark.ui.ProxyRedirectHandler$ResponseWrapper"),
     ProblemFilters.exclude[DirectMissingMethodProblem]("org.apache.spark.ui.ProxyRedirectHandler#ResponseWrapper.sendRedirect"),
-    ProblemFilters.exclude[IncompatibleMethTypeProblem]("org.apache.spark.ui.ProxyRedirectHandler#ResponseWrapper.this")
+    ProblemFilters.exclude[IncompatibleMethTypeProblem]("org.apache.spark.ui.ProxyRedirectHandler#ResponseWrapper.this"),
+    // [SPARK-XXXXX] Streaming shuffle — new opt-in shuffle path package (private[spark])
+    ProblemFilters.exclude[Problem]("org.apache.spark.shuffle.streaming.*"),
+    // [SPARK-XXXXX] Streaming shuffle — package object members and synthetic companions
+    ProblemFilters.exclude[MissingClassProblem]("org.apache.spark.shuffle.streaming.package*")
   )
 
   // Exclude rules for 4.1.x from 4.0.0
