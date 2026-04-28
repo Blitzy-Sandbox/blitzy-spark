@@ -116,7 +116,7 @@ stateDiagram-v2
     Spill --> Release: write failure, success false
 ```
 
-*Legend:* The `[*]` symbol denotes the start and end pseudo-states (Mermaid stateDiagram-v2 convention). The three `Release` transitions on `write failure` represent the `stop(success = false)` invocation path triggered by task abort, executor shutdown, or unrecoverable error inside `write(records)`. In every case, `Release` performs unconditional buffer reclamation through `TaskMemoryManager.releaseMemory` before exiting, ensuring zero retained heap per the AAP §0.7.2.2 memory-leak prevention requirement.
+*Legend:* The `[*]` symbol denotes the start and end pseudo-states (Mermaid stateDiagram-v2 convention). The three `Release` transitions on `write failure` represent the `stop(success = false)` invocation path triggered by task abort, executor shutdown, or unrecoverable error inside `write(records)`. In every case, `Release` performs unconditional buffer reclamation through `TaskMemoryManager.releaseExecutionMemory(long size, MemoryConsumer consumer)` (or, equivalently, `MemoryConsumer.freeMemory(long size)` from the consumer side) before exiting, ensuring zero retained heap per the AAP §0.7.2.2 memory-leak prevention requirement.
 
 ## Diagram 4: Read-Path Sequence Diagram
 

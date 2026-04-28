@@ -668,13 +668,13 @@ flowchart TB
       </div>
       <pre class="mermaid">
 flowchart TD
-    A[spark.shuffle.manager<br/>value] --> B{value is}
-    B -->|sort default| C[SortShuffleManager<br/>production stable]
+    A["spark.shuffle.manager<br/>value"] --> B{value is}
+    B -->|sort default| C["SortShuffleManager<br/>production stable"]
     B -->|tungsten-sort| C
     B -->|streaming opt in| D[StreamingShuffleManager]
-    D --> E{Fallback policy<br/>triggered?}
-    E -->|no| F[StreamingShuffleWriter<br/>and Reader]
-    E -->|yes| G[Delegate to private<br/>SortShuffleManager instance]
+    D --> E{"Fallback policy<br/>triggered?"}
+    E -->|no| F["StreamingShuffleWriter<br/>and Reader"]
+    E -->|yes| G["Delegate to private<br/>SortShuffleManager instance"]
       </pre>
       <div class="callout-box">
         <strong>User directive:</strong> Coexists with <code>SortShuffleManager</code> for gradual adoption path.
@@ -735,10 +735,10 @@ sequenceDiagram
       <pre class="mermaid">
 flowchart LR
     DB[Streaming Shuffle Dashboard]
-    DB --> P1[Buffer Utilization<br/>time series<br/>0 to 100 percent]
-    DB --> P2[Spill Count<br/>cumulative stat]
-    DB --> P3[Backpressure Events<br/>rate per minute]
-    DB --> P4[Partial Read Invalidations<br/>cumulative stat]
+    DB --> P1["Buffer Utilization<br/>time series<br/>0 to 100 percent"]
+    DB --> P2["Spill Count<br/>cumulative stat"]
+    DB --> P3["Backpressure Events<br/>rate per minute"]
+    DB --> P4["Partial Read Invalidations<br/>cumulative stat"]
       </pre>
       <p style="text-align: center; font-size: 0.85em;">
         Metrics:
@@ -914,18 +914,45 @@ flowchart LR
   // Save original Mermaid source for every <pre class="mermaid"> BEFORE any processing,
   // so we can re-render diagrams whose initial render produced a degenerate viewBox
   // (Mermaid 11.x can fail layout on hidden Reveal.js slides at boot time).
+  //
+  // We walk child nodes manually so that <br/> tags inside quote-escaped Mermaid
+  // labels (e.g., ["Buffer Utilization<br/>time series"]) are preserved as literal
+  // "<br/>" strings in the captured source. Using textContent alone would strip the
+  // <br> elements and produce concatenated single-line labels on any subsequent
+  // re-render via rerenderBrokenMermaids.
+  function captureMermaidSource(pre) {
+    var src = '';
+    pre.childNodes.forEach(function (node) {
+      if (node.nodeType === 1 && node.tagName === 'BR') {
+        src += '<br/>';
+      } else if (node.nodeType === 3) {
+        src += node.nodeValue;
+      } else if (node.nodeType === 1) {
+        // Defensive: fall back to textContent for any other element types.
+        src += node.textContent;
+      }
+    });
+    return src;
+  }
   document.querySelectorAll('pre.mermaid').forEach(function (m) {
-    m.setAttribute('data-mermaid-src', m.textContent);
+    m.setAttribute('data-mermaid-src', captureMermaidSource(m));
   });
 
-  // Helper: detect a broken Mermaid SVG render (viewBox collapsed to defaults
-  // or zero-width SVG once the slide is visible).
+  // Helper: detect a broken Mermaid SVG render. Three failure modes are
+  // caught: (1) viewBox collapsed to Mermaid's placeholder "-8 -8 16 16"
+  // when layout failed at boot on a hidden slide, (2) zero-width SVG once
+  // the slide is visible, and (3) a Mermaid error overlay (text.error-text
+  // saying "Syntax error in text") which Mermaid 11.4.0 emits when its
+  // dagre layout engine hits a NaN translate during edge-label positioning
+  // on a hidden Reveal.js slide — even though the source itself parses
+  // cleanly when re-rendered after the slide becomes visible.
   function isMermaidBroken(svg) {
     if (!svg) return true;
     var vb = svg.getAttribute('viewBox') || '';
     if (vb === '-8 -8 16 16') return true;
     var rect = svg.getBoundingClientRect();
     if (rect.width > 0 && rect.width < 32) return true;
+    if (svg.querySelector('text.error-text')) return true;
     return false;
   }
 
@@ -952,19 +979,29 @@ flowchart LR
     width: 1920,
     height: 1080
   }).then(function () {
-    // Initial render: Mermaid renders all <pre class="mermaid"> blocks; Lucide replaces all <i data-lucide="..."> with SVG.
-    mermaid.run();
+    // Initial render scoped to the currently visible slide only: rendering
+    // hidden Reveal.js slides at boot causes Mermaid 11.4.0's dagre layout
+    // engine to compute NaN translate transforms (hidden elements have zero
+    // dimensions during measurement), which produces console errors and
+    // partial-render error overlays. By restricting initial render to the
+    // .present slide and lazily rendering the rest on slidechanged, all
+    // diagrams render against a visible viewport with correct dimensions.
+    mermaid.run({ querySelector: '.present pre.mermaid' });
     if (typeof lucide !== 'undefined') { lucide.createIcons(); }
-    // Re-render broken diagrams in the current slide once layout has settled.
+    // Re-render any diagram that still produced a broken viewBox or error
+    // overlay even on the visible slide, once layout has fully settled.
     setTimeout(function () {
       rerenderBrokenMermaids(document.querySelector('.present'));
       mermaid.run({ querySelector: '.present pre.mermaid' });
     }, 100);
   });
 
-  // On every slide change, re-run Mermaid scoped to the active slide and refresh Lucide icons.
-  // Required because Mermaid 11.x with securityLevel: 'loose' lazily renders the visible slide,
-  // and any diagram whose initial layout failed (because its slide was hidden at boot) must be reset.
+  // On every slide change, render the active slide's diagrams (Mermaid skips
+  // any element whose data-processed === 'true', so previously rendered
+  // slides are not reprocessed) and re-render any diagram whose stored SVG
+  // is broken (degenerate viewBox or error-text overlay). Lucide icons are
+  // refreshed for any newly added <i data-lucide="..."> elements on the
+  // active slide.
   Reveal.on('slidechanged', function () {
     var present = document.querySelector('.present');
     rerenderBrokenMermaids(present);
