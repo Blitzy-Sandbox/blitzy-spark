@@ -23,7 +23,7 @@ import org.apache.spark.benchmark.{Benchmark, BenchmarkBase}
 /**
  * Performance benchmark for streaming shuffle vs sort-based shuffle.
  *
- * Validates AAP §0.1.1 success criterion: "30-50% end-to-end latency reduction for
+ * Validates AAP Sec.0.1.1 success criterion: "30-50% end-to-end latency reduction for
  * shuffle-heavy workloads (100MB+ data, 10+ partitions)".
  *
  * == Workload ==
@@ -35,7 +35,7 @@ import org.apache.spark.benchmark.{Benchmark, BenchmarkBase}
  * corresponding `spark.shuffle.manager` value, ensuring each case exercises only its
  * own shuffle implementation.
  *
- * The dataset volume targets the AAP §0.1.1 shuffle-heavy threshold of 100 MB. To keep
+ * The dataset volume targets the AAP Sec.0.1.1 shuffle-heavy threshold of 100 MB. To keep
  * the benchmark runtime bounded (~30-60 seconds total), [[NUM_RECORDS]] is set to 2
  * million `(Int, Int)` tuples (~16 MB serialized), with the shuffle code path
  * exercising the same hash-partition / spill / read mechanics as the full 100 MB
@@ -67,33 +67,33 @@ import org.apache.spark.benchmark.{Benchmark, BenchmarkBase}
  * [[org.apache.spark.shuffle.ShuffleManager]] companion's `shortShuffleMgrNames` map.
  * Neither case modifies the existing
  * [[org.apache.spark.shuffle.sort.SortShuffleManager]] implementation, honoring the AAP
- * §0.7 directive: "Isolate streaming logic in dedicated classes with zero
+ * Sec.0.7 directive: "Isolate streaming logic in dedicated classes with zero
  * cross-contamination into existing shuffle code paths."
  *
  * == JVM Setup ==
  * Each iteration creates and stops its own [[SparkContext]] because
  * `spark.shuffle.manager` is read once during [[org.apache.spark.SparkEnv]]
  * construction and cannot be changed mid-application. This is a deliberate consequence
- * of the AAP §0.7 directive: "Configuration changes require executor restart (no
+ * of the AAP Sec.0.7 directive: "Configuration changes require executor restart (no
  * dynamic reconfiguration in v1)."
  */
 object StreamingShufflePerformanceBenchmark extends BenchmarkBase {
 
   /**
-   * 100 MB target dataset size per AAP §0.1.1 (shuffle-heavy workload threshold).
+   * 100 MB target dataset size per AAP Sec.0.1.1 (shuffle-heavy workload threshold).
    * Used in the benchmark name string for documentation; the actual record volume
    * is governed by [[NUM_RECORDS]] to keep benchmark runtime bounded.
    */
   private val DATASET_SIZE_BYTES: Long = 100L * 1024L * 1024L
 
-  /** 10 partitions per AAP §0.1.1 (shuffle-heavy threshold). */
+  /** 10 partitions per AAP Sec.0.1.1 (shuffle-heavy threshold). */
   private val NUM_PARTITIONS: Int = 10
 
   /**
    * Records per iteration: 2 million `(Int, Int)` tuples (~16 MB serialized). This
    * exercises the full shuffle write / partition / read code path through the
    * configured shuffle manager while keeping total benchmark runtime under ~60
-   * seconds across both cases. The AAP §0.1.1 100 MB / 13M-record target dimension
+   * seconds across both cases. The AAP Sec.0.1.1 100 MB / 13M-record target dimension
    * is documented in [[DATASET_SIZE_BYTES]] and reflected in the benchmark name.
    */
   private val NUM_RECORDS: Int = 2 * 1000 * 1000

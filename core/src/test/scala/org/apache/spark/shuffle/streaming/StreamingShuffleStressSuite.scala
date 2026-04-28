@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.util.concurrent.{CountDownLatch, ExecutorService, Executors, TimeUnit}
+import java.util.concurrent.{CountDownLatch, Executors, ExecutorService, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong, AtomicReference}
 
 import scala.util.Random
@@ -31,14 +31,14 @@ import org.apache.spark.{HashPartitioner, LocalSparkContext, SparkConf, SparkCon
  * task threads, up to 5 concurrent shuffles per iteration, 10% failure injection, and
  * heap-leak detection.
  *
- * This suite implements the stress-test specification from AAP §0.5.1.6 (Group 6,
- * item 9) and AAP §0.1.2 (User Example, Stress Test Target):
+ * This suite implements the stress-test specification from AAP Sec.0.5.1.6 (Group 6,
+ * item 9) and AAP Sec.0.1.2 (User Example, Stress Test Target):
  *
  *   "5-minute continuous shuffle workload: 10 concurrent tasks with 5 concurrent
  *    shuffles, Random failure injection: 10% task failure rate, Performance
  *    degradation monitoring: <5% throughput reduction over test duration"
  *
- * Concretely, the suite validates the following AAP §0.7.2.6 quality gates:
+ * Concretely, the suite validates the following AAP Sec.0.7.2.6 quality gates:
  *   - '''Throughput stability''': measure the ops-per-second rate during the first
  *     minute (baseline window) and the fifth minute (final window). Assert that
  *     `(baseline - final) / baseline < 5%` so that monotonic memory accumulation,
@@ -70,7 +70,7 @@ import org.apache.spark.{HashPartitioner, LocalSparkContext, SparkConf, SparkCon
  *
  * == Coexistence ==
  * Per the user directive *"Isolate streaming logic in dedicated classes with zero
- * cross-contamination into existing shuffle code paths"* (AAP §0.1.2), this suite
+ * cross-contamination into existing shuffle code paths"* (AAP Sec.0.1.2), this suite
  * exercises the streaming-shuffle path exclusively via the `spark.shuffle.manager=
  * streaming` configuration knob. It does NOT touch any code path within
  * [[org.apache.spark.shuffle.sort.SortShuffleManager]] or its writers/readers.
@@ -79,18 +79,18 @@ import org.apache.spark.{HashPartitioner, LocalSparkContext, SparkConf, SparkCon
  * after every test method.
  *
  * == Design Rationale (key choices) ==
- * 1. '''Shared `SparkContext` across all worker threads''' — Spark is thread-safe at
+ * 1. '''Shared `SparkContext` across all worker threads''' -- Spark is thread-safe at
  *    the [[SparkContext]] level; concurrent submission of shuffle stages from
  *    multiple threads stresses the streaming-shuffle subsystem's concurrent-shuffle
  *    handling more than a per-thread isolated context would.
- * 2. '''Throughput windows''' — measuring rate in two distinct one-minute windows
+ * 2. '''Throughput windows''' -- measuring rate in two distinct one-minute windows
  *    (first vs last) catches degradation patterns that would not be visible from a
  *    single before/after measurement.
- * 3. '''Aggressive GC discipline for heap measurement''' — a single `System.gc()`
+ * 3. '''Aggressive GC discipline for heap measurement''' -- a single `System.gc()`
  *    is unreliable for breaking weak/soft references and may not promote tenured
  *    objects. Five iterations of `gc + 100 ms sleep` provides reasonable
  *    confidence that the JVM has settled before we read used heap.
- * 4. '''Synthetic workload shape''' — `parallelize -> map -> partitionBy ->
+ * 4. '''Synthetic workload shape''' -- `parallelize -> map -> partitionBy ->
  *    groupByKey -> count` with a varying partition count exercises multiple
  *    `getWriter`/`getReader` paths and prevents JIT over-specialization on a single
  *    partition count.
@@ -98,10 +98,10 @@ import org.apache.spark.{HashPartitioner, LocalSparkContext, SparkConf, SparkCon
 class StreamingShuffleStressSuite extends SparkFunSuite with LocalSparkContext {
 
   // ---------------------------------------------------------------------------
-  // Constants — knobs sized exactly to the AAP §0.5.1.6 specification.
+  // Constants -- knobs sized exactly to the AAP Sec.0.5.1.6 specification.
   // ---------------------------------------------------------------------------
 
-  /** Total stress duration: 5 minutes per AAP §0.5.1.6. */
+  /** Total stress duration: 5 minutes per AAP Sec.0.5.1.6. */
   private val STRESS_DURATION_MILLIS: Long = 5L * 60L * 1000L
 
   /** Number of concurrent task threads per AAP user spec ("10 concurrent tasks"). */
@@ -118,7 +118,7 @@ class StreamingShuffleStressSuite extends SparkFunSuite with LocalSparkContext {
   private val FAILURE_INJECTION_RATE: Double = 0.10
 
   /**
-   * Throughput-degradation tolerance threshold per AAP §0.5.1.6: the test passes if
+   * Throughput-degradation tolerance threshold per AAP Sec.0.5.1.6: the test passes if
    * the ratio `(baselineRate - finalRate) / baselineRate` is strictly less than this
    * value. AAP user spec: "<5% throughput reduction over test duration".
    */
@@ -160,7 +160,7 @@ class StreamingShuffleStressSuite extends SparkFunSuite with LocalSparkContext {
 
   /**
    * Number of [[System.gc]] cycles to perform when forcing a heap-stabilization
-   * point. Five iterations is conservative — sufficient to break weak and soft
+   * point. Five iterations is conservative -- sufficient to break weak and soft
    * references and to promote young-generation objects through a full minor + major
    * collection cycle.
    */
@@ -311,7 +311,7 @@ class StreamingShuffleStressSuite extends SparkFunSuite with LocalSparkContext {
     }
 
     // -------------------------------------------------------------------------
-    // 6. Throughput-degradation assertion (AAP §0.5.1.6 user spec):
+    // 6. Throughput-degradation assertion (AAP Sec.0.5.1.6 user spec):
     //    "<5% throughput reduction over test duration".
     // -------------------------------------------------------------------------
     val baselineRate = baselineWindowOps.get().toDouble / (WINDOW_MILLIS / 1000.0)
@@ -349,7 +349,94 @@ class StreamingShuffleStressSuite extends SparkFunSuite with LocalSparkContext {
     logInfo(s"Observed failure rate: $observedFailureRate (target: $FAILURE_INJECTION_RATE)")
 
     // -------------------------------------------------------------------------
-    // 8. Stop the SparkContext eagerly (instead of waiting for afterEach) so
+    // 8. Observability assertions (AAP Section 0.1.1, AAP Section 0.5.1.4):
+    //    the streaming-shuffle telemetry pipeline must surface non-zero, sensible
+    //    values for the 4 standard streaming-shuffle counters/gauges during a
+    //    5-minute stress run with 10% failure injection. Without these assertions
+    //    the telemetry pipeline could silently break (zero increments) and the
+    //    test would still pass on the throughput/heap gates alone.
+    //
+    //    Implementation discipline:
+    //      - All 4 metrics MUST be registered with the executor MetricsSystem
+    //        under the AAP Section 0.1.1 namespace `shuffle.streaming.<name>`. A
+    //        missing metric indicates a broken telemetry-registration path
+    //        (likely caused by a regression in `StreamingShuffleSource` or its
+    //        registration call site in `StreamingShuffleManager`).
+    //      - At least one of the cumulative counters (spillCount,
+    //        backpressureEvents, partialReadInvalidations) MUST observe > 0
+    //        events combined. Using the COMBINED count rather than per-metric
+    //        thresholds avoids flakiness from individually rare events while
+    //        still validating that the telemetry pipeline is operational under
+    //        stress -- a 5-minute run with 10% failure injection is expected to
+    //        trip at least one of these signals on any healthy implementation.
+    //      - The bufferUtilizationPercent gauge is a SNAPSHOT (current value at
+    //        measurement time) rather than a cumulative count, so it may
+    //        legitimately read 0 after all buffers have been reclaimed by the
+    //        time we measure post-shutdown. We log its final value for
+    //        inspection but do not assert a strict lower bound, again to avoid
+    //        flakiness while still surfacing the signal in CI logs.
+    //
+    //    This assertion path is exercised end-to-end once
+    //    `StreamingShuffleSource` is registered with the executor MetricsSystem
+    //    (per AAP Section 0.5.1.4). At earlier checkpoints where
+    //    `StreamingShuffleSource` is not yet wired, the test naturally fails at
+    //    SparkContext construction with `ClassNotFoundException` for
+    //    `StreamingShuffleManager`, so the metrics block below is not reached;
+    //    when wiring is complete the metrics block becomes the live regression
+    //    gate for the streaming-shuffle observability surface.
+    // -------------------------------------------------------------------------
+    val streamingSources = sc.env.metricsSystem.getSourcesByName("streamingShuffle")
+    assert(streamingSources.nonEmpty,
+      "StreamingShuffleSource was not registered with the executor MetricsSystem; " +
+        "the streaming-shuffle telemetry pipeline appears to be broken " +
+        "(no source found under sourceName='streamingShuffle')")
+    val streamingRegistry = streamingSources.head.metricRegistry
+    val counters = streamingRegistry.getCounters
+    val gauges = streamingRegistry.getGauges
+    val spillCount = Option(counters.get("shuffle.streaming.spillCount"))
+      .map(_.getCount).getOrElse {
+        fail("Counter shuffle.streaming.spillCount is missing from the executor " +
+          "MetricsSystem registry; AAP Section 0.1.1 requires this metric")
+      }
+    val backpressureCount = Option(counters.get("shuffle.streaming.backpressureEvents"))
+      .map(_.getCount).getOrElse {
+        fail("Counter shuffle.streaming.backpressureEvents is missing from the " +
+          "executor MetricsSystem registry; AAP Section 0.1.1 requires this metric")
+      }
+    val partialReadCount =
+      Option(counters.get("shuffle.streaming.partialReadInvalidations"))
+        .map(_.getCount).getOrElse {
+          fail("Counter shuffle.streaming.partialReadInvalidations is missing " +
+            "from the executor MetricsSystem registry; AAP Section 0.1.1 requires " +
+            "this metric")
+        }
+    val bufferUtilizationGauge =
+      Option(gauges.get("shuffle.streaming.bufferUtilizationPercent")).getOrElse {
+        fail("Gauge shuffle.streaming.bufferUtilizationPercent is missing from " +
+          "the executor MetricsSystem registry; AAP Section 0.1.1 requires this " +
+          "metric")
+      }
+    val bufferUtilizationValue = bufferUtilizationGauge.getValue match {
+      case n: Number => n.intValue()
+      case _ => -1
+    }
+    logInfo(s"Streaming-shuffle telemetry post-stress: spillCount=$spillCount, " +
+      s"backpressureEvents=$backpressureCount, " +
+      s"partialReadInvalidations=$partialReadCount, " +
+      s"bufferUtilizationPercent=$bufferUtilizationValue")
+    assert(bufferUtilizationValue >= 0,
+      "bufferUtilizationPercent gauge reports an invalid (negative) value; " +
+        s"observed=$bufferUtilizationValue")
+    val cumulativeEventCount = spillCount + backpressureCount + partialReadCount
+    assert(cumulativeEventCount > 0L,
+      "Streaming-shuffle telemetry surfaced zero cumulative events under the " +
+        s"5-minute / 10% failure stress workload (spillCount=$spillCount, " +
+        s"backpressureEvents=$backpressureCount, " +
+        s"partialReadInvalidations=$partialReadCount); telemetry pipeline " +
+        "appears broken")
+
+    // -------------------------------------------------------------------------
+    // 9. Stop the SparkContext eagerly (instead of waiting for afterEach) so
     //    that all spilled blocks, BlockManager state, and executor threads
     //    release their heap before the heap-leak measurement.
     //    LocalSparkContext.afterEach is still invoked and tolerates a null sc.
@@ -358,9 +445,9 @@ class StreamingShuffleStressSuite extends SparkFunSuite with LocalSparkContext {
     sc = null
 
     // -------------------------------------------------------------------------
-    // 9. Heap-leak assertion (AAP §0.7.2.2):
-    //    "Zero retained heap MUST exist after stress test completion".
-    //    The 50 MB tolerance accommodates JIT/class-loader overhead.
+    // 10. Heap-leak assertion (AAP Sec.0.7.2.2):
+    //     "Zero retained heap MUST exist after stress test completion".
+    //     The 50 MB tolerance accommodates JIT/class-loader overhead.
     // -------------------------------------------------------------------------
     forceGc()
     val finalHeap = computeUsedHeap()
@@ -373,7 +460,7 @@ class StreamingShuffleStressSuite extends SparkFunSuite with LocalSparkContext {
   }
 
   // ---------------------------------------------------------------------------
-  // Helper methods — kept private to the suite.
+  // Helper methods -- kept private to the suite.
   // ---------------------------------------------------------------------------
 
   /**

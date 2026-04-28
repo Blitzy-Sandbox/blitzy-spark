@@ -17,8 +17,6 @@
 
 package org.apache.spark.shuffle.streaming
 
-import org.scalatest.matchers.must.Matchers
-
 import org.apache.spark._
 
 /**
@@ -86,21 +84,7 @@ import org.apache.spark._
  * teardown ordering.
  */
 class StreamingShuffleFailureInjectionSuite
-  extends SparkFunSuite with LocalSparkContext with Matchers {
-
-  /**
-   * Mockito 5.12 helper that wraps the variadic `doReturn` overload to silence the
-   * deprecation warning emitted by the static `Mockito.doReturn(value)` form. The
-   * empty `Seq` is spread into the variadic remainder, making the call resolve to
-   * the explicitly-Seq-accepting overload preferred by Mockito 5.x.
-   *
-   * Mirrors the pattern at
-   * `core/src/test/scala/org/apache/spark/shuffle/sort/SortShuffleManagerSuite.scala`
-   * line 34. Retained as boilerplate so future test additions in this file can use
-   * Mockito stubbing without re-deriving the variadic-suppression idiom.
-   */
-  private def doReturn(value: Any): org.mockito.stubbing.Stubber =
-    org.mockito.Mockito.doReturn(value, Seq.empty: _*)
+  extends SparkFunSuite with LocalSparkContext {
 
   // ---------------------------------------------------------------------------
   // Test helpers
