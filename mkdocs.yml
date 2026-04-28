@@ -2,3 +2,12 @@ site_name: 'blitzy-spark'
 plugins:
   - techdocs-core
   - mermaid2
+nav:
+  - Home: index.md
+  - Streaming Shuffle:
+      - Overview: streaming-shuffle/index.md
+      - Configuration: streaming-shuffle/configuration.md
+      - Architecture: streaming-shuffle/architecture.md
+      - Observability: streaming-shuffle/observability.md
+      - Decision Log: streaming-shuffle/decision-log.md
+      - Executive Summary: streaming-shuffle/executive-summary.html
