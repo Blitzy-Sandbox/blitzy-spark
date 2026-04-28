@@ -1448,6 +1448,79 @@ Apart from these, the following properties are also available, and may be useful
 </tr>
 </table>
 
+### Streaming Shuffle (Experimental)
+
+The streaming shuffle is an opt-in experimental shuffle path that pipelines map-side
+output directly to reduce-side consumers with in-memory buffering, backpressure-based
+flow control, and graceful disk-spill fallback. It is intended to reduce end-to-end
+latency for shuffle-heavy workloads. The default sort-based shuffle
+(<code>SortShuffleManager</code>) remains the production-stable shuffle implementation
+and is unaffected unless the user opts in by setting
+<code>spark.shuffle.manager=streaming</code> (equivalently
+<code>spark.shuffle.streaming.enabled=true</code>). Configuration changes require an
+executor restart; dynamic reconfiguration is not supported in this version.
+
+<table class="spark-config">
+<thead><tr><th>Property Name</th><th>Default</th><th>Meaning</th><th>Since Version</th></tr></thead>
+<tr>
+  <td><code>spark.shuffle.streaming.enabled</code></td>
+  <td>false</td>
+  <td>
+    When <code>true</code>, enables the experimental streaming shuffle path that
+    pipelines map-side output directly to reduce-side consumers with in-memory
+    buffering, backpressure, and graceful disk-spill fallback. When <code>false</code>
+    (the default), Spark uses the production-stable
+    <code>SortShuffleManager</code>. Equivalent to setting
+    <code>spark.shuffle.manager=streaming</code>. Coexists with
+    <code>SortShuffleManager</code>; configuration changes require an executor
+    restart.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
+  <td>20</td>
+  <td>
+    Percent of executor execution memory reserved for streaming-shuffle buffers
+    (range 1&ndash;50). Per-partition buffer size is computed as
+    <code>(executorExecutionMemory * bufferSizePercent / 100) / numPartitions</code>.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.spillThreshold</code></td>
+  <td>80</td>
+  <td>
+    Buffer utilization percentage (range 50&ndash;95) that triggers disk spill via
+    the streaming-shuffle <code>MemorySpillManager</code>. Spilled blocks are written
+    via <code>BlockManager.diskBlockManager</code> with a target response time
+    under 100 ms.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
+  <td>-1</td>
+  <td>
+    Per-executor outbound bandwidth cap, in MB/s, for streaming-shuffle traffic,
+    enforced via a token-bucket rate limiter inside the streaming-shuffle
+    <code>BackpressureProtocol</code>. The default <code>-1</code> means
+    unlimited (token bucket disabled).
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.debug</code></td>
+  <td>false</td>
+  <td>
+    (Internal) Enables verbose <code>DEBUG</code>-level logging for streaming-shuffle
+    diagnostics. Defaults to <code>false</code> to keep streaming-shuffle log volume
+    below 10 MB/hour per executor.
+  </td>
+  <td>4.2.0</td>
+</tr>
+</table>
+
 ### Spark UI
 
 <table class="spark-config">
