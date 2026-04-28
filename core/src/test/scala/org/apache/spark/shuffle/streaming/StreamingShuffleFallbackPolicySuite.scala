@@ -427,21 +427,27 @@ class StreamingShuffleFallbackPolicySuite
 
   test("shouldFallback honors the 0.95 memory threshold across boundary values") {
     // Property: with no backpressure events and no spills, the only rule that can fire
-    // is memory pressure. Therefore shouldFallback must equal `utilization > 0.95` for
-    // every utilization value in [0.0, 1.0]. We use the asymmetric assertion form (assert
-    // only the positive direction) to avoid floating-point edge cases at exactly 0.95
-    // where the .toLong truncation in the mock could introduce a sub-ulp delta.
-    forAll(org.scalacheck.Gen.choose(0.0, 1.0)) { (utilization: Double) =>
+    // is memory pressure. Therefore shouldFallback must return true for every utilization
+    // value strictly above 0.95. We tighten the generator to [0.96, 1.0] (rather than
+    // [0.0, 1.0] with an asymmetric `if (expected)` guard) to eliminate boundary edge
+    // cases at exactly 0.95: the .toLong truncation in `mockMemoryManager` introduces
+    // a sub-ulp delta of ~1 byte / 2^30 bytes ≈ 9.3e-10 relative error which, while
+    // mathematically negligible, is not strictly impossible to cross the threshold.
+    // By starting the generator at 0.96 we are guaranteed `utilization > 0.95` even
+    // after truncation (the truncation can only reduce by < 1e-9, which is far less
+    // than 0.96 - 0.95 = 0.01). This converts the asymmetric assertion to an
+    // unconditional `assert(actual, ...)`, locking the positive-direction contract
+    // strictly. The complementary negative-direction property test ("shouldFallback
+    // returns false for memory utilization in [0.0, 0.95) ScalaCheck") covers
+    // [0.0, 0.94] (also tightened away from the 0.95 boundary by the same logic).
+    forAll(org.scalacheck.Gen.choose(0.96, 1.0)) { (utilization: Double) =>
       val mm = mockMemoryManager(utilization)
       val policy = new StreamingShuffleFallbackPolicy(baseConf(), mm)
       val handle = mockHandle()
       val metrics = makeMetrics(backpressureEvents = 0L)
-      val expected = utilization > 0.95
       val actual = policy.shouldFallback(handle, metrics)
-      if (expected) {
-        assert(actual,
-          s"Should fall back at utilization = $utilization (above 0.95)")
-      }
+      assert(actual,
+        s"Should fall back at utilization = $utilization (strictly above 0.95)")
     }
   }
 

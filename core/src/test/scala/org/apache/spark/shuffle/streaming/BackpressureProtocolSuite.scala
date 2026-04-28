@@ -228,9 +228,27 @@ class BackpressureProtocolSuite
   }
 
   // ---------------------------------------------------------------------------
-  // Test 7: Priority arbitration under concurrent shuffle load.
+  // Test 7: Thread-safety of `tryAcquire` under concurrent acquire pressure.
+  //
+  // Scope and naming rationale:
+  //   This test verifies that the lock-free CAS retry path inside
+  //   [[BackpressureProtocol#tryAcquire]] is internally correct under multi-threaded
+  //   contention. It does NOT verify weighted fair distribution of bandwidth across
+  //   concurrent shuffles -- the AAP Section 0.1.2 directive *"priority arbitration
+  //   across concurrent shuffles"* describes a feature that requires actual contention
+  //   between *different* shuffles (different bucket instances) competing for a
+  //   bounded resource. With 100 MB initial bucket capacity and 5 KB total demand,
+  //   no contention occurs at the bucket level: every acquire succeeds because each
+  //   thread's request is accommodated wait-free by the CAS loop.
+  //
+  //   Priority arbitration with actual weighted distribution is exercised in the
+  //   higher-level integration suites (StreamingShuffleIntegrationSuite,
+  //   StreamingShuffleStressSuite) which inject the realistic 5-concurrent-shuffle
+  //   workload mandated by AAP Section 0.5.1.6 ("5-concurrent-shuffle memory-arbitration
+  //   test"). This unit-level test purposefully stays narrow: it locks the
+  //   thread-safety contract of the lock-free token bucket implementation.
   // ---------------------------------------------------------------------------
-  test("priority arbitration distributes capacity across concurrent shuffles") {
+  test("tryAcquire is thread-safe under concurrent acquire") {
     // Configure a 100 MBps bandwidth cap and dispatch 5 worker threads to attempt a
     // 1 KB acquire each. With a 100 MB initial bucket and 5 KB total demand, all 5
     // acquires should succeed -- this exercises the lock-free CAS retry path under
@@ -263,14 +281,20 @@ class BackpressureProtocolSuite
     threads.foreach(_.start())
     assert(latch.await(5L, TimeUnit.SECONDS),
       "Concurrent acquires did not complete within the 5-second test deadline")
-    // At least one acquire must have succeeded (the AAP arbitration directive: tokens
-    // are "distributed" so that at least some concurrent shuffles make progress). At
-    // 100 MBps with 1 KB requests, the production hot path is wait-free so we expect
-    // strict positive success counts.
-    assert(successCount.get() > 0,
-      s"Expected some concurrent acquires to succeed; got ${successCount.get()}")
-    assert(totalBytesAcquired.get() > 0L,
-      s"Expected positive cumulative bytes acquired; got ${totalBytesAcquired.get()}")
+    // Thread-safety contract: under no-contention bucket conditions (100 MB cap,
+    // 5 KB total demand), every concurrent CAS must succeed without losing or
+    // double-counting tokens. We therefore assert exact success counts rather than
+    // ">0" -- a stronger contract that catches any future regression that would
+    // weaken the CAS loop's atomicity (e.g., switching to a non-atomic primitive
+    // without re-establishing equivalent thread-safety).
+    assert(successCount.get() === numConcurrent,
+      s"All concurrent CAS-based acquires must succeed when bucket capacity " +
+        s"exceeds total demand; got ${successCount.get()} successes out of " +
+        s"$numConcurrent attempts")
+    assert(totalBytesAcquired.get() === numConcurrent.toLong * acquireSize,
+      s"Cumulative bytes acquired must equal the wait-free aggregate of all " +
+        s"successful concurrent acquires; got ${totalBytesAcquired.get()}, " +
+        s"expected ${numConcurrent.toLong * acquireSize}")
   }
 
   // ---------------------------------------------------------------------------

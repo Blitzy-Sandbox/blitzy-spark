@@ -23,8 +23,11 @@ import java.util.zip.CRC32C
 
 import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.LogKeys._
+import org.apache.spark.io.MutableCheckedOutputStream
 import org.apache.spark.memory.{MemoryConsumer, MemoryManager, MemoryMode}
 import org.apache.spark.scheduler.MapStatus
+import org.apache.spark.serializer.SerializationStream
 import org.apache.spark.shuffle.{ShuffleWriteMetricsReporter, ShuffleWriter}
 import org.apache.spark.storage.BlockManager
 import org.apache.spark.util.io.ChunkedByteBuffer
@@ -60,6 +63,55 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  * aware of the streaming writer's footprint and may reject the request if execution
  * memory is exhausted (which the streaming-shuffle fallback policy observes as a
  * memory-pressure signal).
+ *
+ * To preserve unified-memory accounting strictly, each per-partition
+ * `ByteArrayOutputStream` is constructed with a small initial capacity
+ * ([[INITIAL_BAOS_CAPACITY]] = 1 KB) and grows on demand via the JDK's native
+ * `Arrays.copyOf` doubling growth. This keeps construction-time JVM-heap allocation
+ * negligible (proportional to `numPartitions * 1 KB`) so the executor's unified-memory
+ * model is the sole authority on the writer's aggregate buffer footprint -- the
+ * `acquireExecutionMemory` grant of `perPartitionBufferCap * numPartitions` bounds
+ * subsequent growth and, on memory exhaustion, the fallback policy diverts to the
+ * sort-based writer.
+ *
+ * == Per-Record Hot Path ==
+ * Each partition holds at most one [[org.apache.spark.serializer.SerializationStream]]
+ * at a time, scoped to the lifetime of one block: the stream is opened lazily on the
+ * first write to a partition (or on the first write following a [[flushBlock]] /
+ * [[maybeSpill]] close) and closed at the next block boundary. The serialization
+ * stream wraps a [[org.apache.spark.io.MutableCheckedOutputStream]] which in turn
+ * wraps the partition's `ByteArrayOutputStream`; the checked-output-stream interceptor
+ * threads the per-partition cumulative CRC32C through every byte the serializer emits.
+ *
+ * == Wire Format Invariant ==
+ * Each block emitted onto the network constitutes a complete, independently
+ * deserializable serialization stream (header + records + footer). This invariant is
+ * required by [[StreamingShuffleReader]] which deserializes each block independently
+ * via `serializerInstance.deserializeStream(blockBytes).asKeyValueIterator`. To
+ * uphold the invariant, [[flushBlock]] and [[maybeSpill]] both close the partition's
+ * serialization stream BEFORE draining the buffer (the close call writes any buffered
+ * serializer state and the stream-footer marker into the buffer through the
+ * MutableCheckedOutputStream interceptor); the next [[ensurePartitionStream]] call
+ * for that partition lazily allocates a fresh stream that writes a fresh header into
+ * the now-empty buffer.
+ *
+ * Per-record overhead is therefore bounded by the cost of one `SerializationStream`
+ * construction per block (NOT per record) plus the cost of the actual `writeKey` /
+ * `writeValue` calls. For typical workloads (e.g. a 100 MB shuffle / 10 partitions =
+ * 10 MB per partition / 2 MB blocks = 5 blocks per partition) this amounts to 5
+ * stream constructions per partition rather than one per record.
+ *
+ * == Cumulative vs. Per-Block CRC32C ==
+ * The per-partition cumulative CRC32C captures every byte written to the partition
+ * across all blocks (including each block's stream header AND footer). It is allocated
+ * at most once per partition by [[ensurePartitionStream]] and preserved across block
+ * boundaries; it is folded into the [[MapStatus]] aggregated checksum for cross-
+ * attempt determinism verification. Per-block CRC32C (used for transport-layer
+ * integrity validation in [[flushBlock]]) is computed independently from the bytes
+ * drained out of the partition buffer at flush time -- the per-partition cumulative
+ * checksum and the per-block checksum are intentionally distinct artifacts: the
+ * former enables retry-determinism detection, while the latter validates each on-the-
+ * wire block against transport corruption.
  *
  * == Failure Handling ==
  * On consumer-failure detection (10-second missing acknowledgment per
@@ -114,9 +166,16 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  *                         via [[MemorySpillManager#checkAndSpill]] when a partition's
  *                         buffer utilization crosses [[StreamingShuffleHandle.spillThreshold]]
  * @param streamingMetrics streaming-shuffle metric counters; passed downstream to
- *                         [[BackpressureProtocol]] and [[MemorySpillManager]] but also
- *                         retained here for any writer-local emission needs (e.g. future
- *                         per-writer emission of partial-flush events)
+ *                         [[BackpressureProtocol]] and [[MemorySpillManager]] which
+ *                         own the four canonical observability counters
+ *                         (`bufferUtilizationPercent`, `spillCount`, `backpressureEvents`,
+ *                         `partialReadInvalidations`). Retained on the writer instance as
+ *                         `private val` (not currently incremented by writer-local code
+ *                         paths) so the `StreamingShuffleManager`-managed lifetime
+ *                         contract is honored: the manager constructs the writer with the
+ *                         shared metrics handle so that any future v2 writer-local
+ *                         emission (e.g. partial-flush event tracking) can wire to the
+ *                         same registry instance without an SPI change.
  * @tparam K key type produced by the upstream stage
  * @tparam V value type produced by the upstream stage
  */
@@ -129,7 +188,7 @@ private[spark] class StreamingShuffleWriter[K, V](
     memoryManager: MemoryManager,
     backpressure: BackpressureProtocol,
     spillManager: MemorySpillManager,
-    streamingMetrics: StreamingShuffleMetrics)
+    private val streamingMetrics: StreamingShuffleMetrics)
   extends ShuffleWriter[K, V] with Logging {
 
   // -------------------------------------------------------------------------------
@@ -165,27 +224,69 @@ private[spark] class StreamingShuffleWriter[K, V](
    * (b) the per-partition spill threshold is crossed and the buffer is spilled to disk
    * via [[MemorySpillManager]].
    *
-   * Constructed with an initial capacity of [[BLOCK_SIZE_BYTES]] so the first 2 MB of
-   * data fits without a single internal `Arrays.copyOf` reallocation.
+   * Constructed with the small [[INITIAL_BAOS_CAPACITY]] (1 KB) initial capacity so
+   * total construction-time JVM-heap allocation is `INITIAL_BAOS_CAPACITY * numPartitions`
+   * (e.g. ~200 KB for 200 partitions, ~1 MB for 1 000 partitions). This keeps the
+   * pre-`acquireExecutionMemory` allocation negligible per AAP Section 0.7.2.2 -- the
+   * unified-memory model bounds subsequent buffer growth via the
+   * `acquireExecutionMemory(perPartitionBufferCap * numPartitions, ...)` grant in
+   * [[write]]. `ByteArrayOutputStream`'s native `Arrays.copyOf` doubling growth absorbs
+   * the actual record volume.
    *
    * Slots are nulled in [[stop]] so the underlying byte arrays can be garbage-collected
    * even if some other code retains a reference to this writer instance.
    */
   private val partitionBuffers: Array[ByteArrayOutputStream] =
-    Array.fill(numPartitions)(new ByteArrayOutputStream(BLOCK_SIZE_BYTES))
+    Array.fill(numPartitions)(new ByteArrayOutputStream(INITIAL_BAOS_CAPACITY))
 
   /**
-   * Per-partition CRC32C accumulators (one per reducer). Updated as each record is
-   * serialized into [[partitionBuffers]] so that the per-partition cumulative checksum
-   * is available for inclusion in [[aggregateChecksumValue]] when the writer commits.
+   * Per-partition CRC32C accumulators (one per reducer). Updated incrementally as each
+   * record is serialized into [[partitionBuffers]] via the per-partition
+   * [[org.apache.spark.io.MutableCheckedOutputStream]] interceptor, so that the
+   * per-partition cumulative checksum is available for inclusion in
+   * [[aggregateChecksumValue]] when the writer commits. Allocated lazily alongside
+   * [[partitionSerStreams]] in [[ensurePartitionStream]] so partitions that never
+   * receive a record do not pay the construction cost.
    *
    * NOTE: per-block CRC32C (the integrity validator transmitted alongside each 2 MB
    * block in [[flushBlock]]) is computed independently inside [[flushBlock]] from the
    * exact bytes flushed, since the per-partition cumulative checksum captures all
    * partition records (not just the current block).
    */
-  private val partitionChecksums: Array[CRC32C] =
-    Array.fill(numPartitions)(new CRC32C())
+  private val partitionChecksums: Array[CRC32C] = new Array[CRC32C](numPartitions)
+
+  /**
+   * Per-partition mutable-checksum interceptors. Each
+   * [[org.apache.spark.io.MutableCheckedOutputStream]] wraps the partition's
+   * [[ByteArrayOutputStream]] and threads the corresponding [[partitionChecksums]]
+   * `CRC32C` through every byte the serializer writes -- replacing the per-record
+   * `recordBytes`-then-`update` round-trip of an earlier hot-path implementation with
+   * a single in-stream interceptor that updates the checksum inline with each
+   * `write` call. Allocated lazily on first write to each partition by
+   * [[ensurePartitionStream]].
+   */
+  private val partitionCheckedStreams: Array[MutableCheckedOutputStream] =
+    new Array[MutableCheckedOutputStream](numPartitions)
+
+  /**
+   * Per-partition long-lived [[org.apache.spark.serializer.SerializationStream]]. Each
+   * stream wraps the partition's [[partitionCheckedStreams]] interceptor (which in turn
+   * wraps the partition's [[ByteArrayOutputStream]]). Allocated lazily on first write to
+   * each partition by [[ensurePartitionStream]].
+   *
+   * Retaining one persistent serializer per partition (rather than constructing a fresh
+   * one per record) ensures: (1) any per-stream header bytes the serializer emits are
+   * written exactly once per partition, producing a wire format the reduce side can
+   * deserialize as a single homogeneous stream; (2) per-record overhead is bounded to
+   * the serializer's `writeKey`/`writeValue` calls themselves, with no per-record
+   * `ByteArrayOutputStream` or `SerializationStream` construction or close cost.
+   *
+   * The streams are closed on `stop` (success or failure) and their slots nulled so the
+   * underlying serializer state and any retained `ClassTag` references become eligible
+   * for garbage collection.
+   */
+  private val partitionSerStreams: Array[SerializationStream] =
+    new Array[SerializationStream](numPartitions)
 
   /**
    * Final [[MapStatus]] populated by [[write]] on success. Returned by [[stop]] when
@@ -218,8 +319,14 @@ private[spark] class StreamingShuffleWriter[K, V](
    * available right now" -- mirroring the AAP Section 0.5.1.2 specification.
    */
   private val perPartitionBufferCap: Long = {
-    val executionMemory = memoryManager.maxOnHeapStorageMemory
-    val totalBuffer = (executionMemory * handle.bufferSizePercent) / 100L
+    // `maxOnHeapStorageMemory` returns the dynamic execution-memory ceiling under the
+    // unified-memory model -- it is the canonical "how much memory is available right
+    // now" accessor used elsewhere in the executor (e.g. `Spillable`). The variable is
+    // named `unifiedMemoryCeiling` to make this unified-memory semantic explicit at the
+    // call site, since "execution memory" alone could be misread as a separate
+    // execution-only pool under the deprecated split-memory model.
+    val unifiedMemoryCeiling = memoryManager.maxOnHeapStorageMemory
+    val totalBuffer = (unifiedMemoryCeiling * handle.bufferSizePercent) / 100L
     val divisor = math.max(1, numPartitions).toLong
     math.max(BLOCK_SIZE_BYTES.toLong, totalBuffer / divisor)
   }
@@ -316,9 +423,11 @@ private[spark] class StreamingShuffleWriter[K, V](
     val requested = perPartitionBufferCap * numPartitions.toLong
     acquiredMemoryBytes =
       context.taskMemoryManager().acquireExecutionMemory(requested, bufferConsumer)
-    logDebug(
-      s"StreamingShuffleWriter shuffle=${dep.shuffleId} mapId=$mapId " +
-      s"acquired=$acquiredMemoryBytes / requested=$requested execution memory")
+    logDebug(log"StreamingShuffleWriter " +
+      log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
+      log"mapId=${MDC(MAP_ID, mapId)} " +
+      log"acquired=${MDC(NUM_BYTES, acquiredMemoryBytes)} / " +
+      log"requested=${MDC(NUM_BYTES, requested)} execution memory")
 
     try {
       while (records.hasNext) {
@@ -330,30 +439,37 @@ private[spark] class StreamingShuffleWriter[K, V](
         val value: Any = record._2
         val partitionId = partitioner.getPartition(key)
 
-        // Serialize the (K, V) pair into a small temporary buffer; we then copy the
-        // resulting bytes into the per-partition buffer and update the per-partition
-        // checksum. A small initial-capacity (64 bytes) is sufficient for typical
-        // records and the buffer auto-grows for outliers without re-allocating the
-        // long-lived per-partition buffer.
-        val recordBytes: Array[Byte] = {
-          val tmp = new ByteArrayOutputStream(64)
-          val ss = serInstance.serializeStream(tmp)
-          try {
-            ss.writeKey(key)
-            ss.writeValue(value)
-          } finally {
-            ss.close()
-          }
-          tmp.toByteArray
-        }
-
         val pBuf = partitionBuffers(partitionId)
-        pBuf.write(recordBytes, 0, recordBytes.length)
-        partitionChecksums(partitionId).update(recordBytes, 0, recordBytes.length)
-        partitionLengths(partitionId) += recordBytes.length.toLong
+
+        // Lazily open a per-block SerializationStream + MutableCheckedOutputStream
+        // chain for this partition. The chain is opened on demand here and closed
+        // by `flushBlock` / `maybeSpill` (when a block boundary or spill threshold
+        // is crossed) or by the residual-drain `flushBlock` loop after the iterator
+        // is exhausted. Every block emitted on the wire therefore contains a single
+        // complete serialization stream (header + records + footer), satisfying the
+        // wire-format invariant required by `StreamingShuffleReader` whose
+        // per-block deserialization at `serializerInstance.deserializeStream(...)`
+        // .asKeyValueIterator requires each block to be independently
+        // deserializable. The MutableCheckedOutputStream interceptor updates the
+        // per-partition cumulative CRC32C inline with every byte the serializer
+        // emits, eliminating the per-record `update(recordBytes, 0, n)` round-trip
+        // present in the previous implementation.
+        val objOut = ensurePartitionStream(partitionId, serInstance)
+        objOut.writeKey(key)
+        objOut.writeValue(value)
+        // Flush the serializer so its accumulated bytes land in the partition buffer
+        // (and through the MutableCheckedOutputStream interceptor into the partition
+        // CRC32C) before we read the buffer's `size()` for block-boundary and
+        // spill-threshold evaluation.
+        objOut.flush()
 
         // If the partition's accumulated bytes have crossed the 2 MB block boundary,
-        // flush a block onto the network.
+        // flush a block onto the network. flushBlock closes the partition's
+        // serialization stream so the drained bytes form a complete stream with
+        // both header and footer; the next ensurePartitionStream call (triggered
+        // by the next record for this partition) lazily allocates a fresh stream
+        // that writes a fresh header into the now-empty buffer. partitionLengths
+        // is updated by flushBlock with the actual drained byte count.
         if (pBuf.size() >= BLOCK_SIZE_BYTES) {
           flushBlock(partitionId)
         }
@@ -362,15 +478,22 @@ private[spark] class StreamingShuffleWriter[K, V](
         writeMetrics.incRecordsWritten(1L)
 
         // Periodically check if memory pressure requires a spill of this partition.
+        // maybeSpill mirrors flushBlock's invariant: it closes the partition's
+        // serialization stream before draining so spilled bytes also form a
+        // complete stream (the spilled block is later read back and re-streamed
+        // to the consumer through the same per-block deserialization path).
         maybeSpill(partitionId)
       }
 
-      // Flush any residual buffers (size < BLOCK_SIZE_BYTES) as final partial blocks.
+      // Drain residual bytes for every partition by calling flushBlock. flushBlock
+      // is idempotent for empty partitions (early-returns when both the stream slot
+      // is null and the buffer is empty) and handles partitions with an open stream
+      // by closing it (writing the footer to the buffer) before draining. This
+      // consolidates the close-and-drain sequence in a single helper so the per-
+      // block wire-format invariant is enforced uniformly.
       var i = 0
       while (i < numPartitions) {
-        if (partitionBuffers(i).size() > 0) {
-          flushBlock(i)
-        }
+        flushBlock(i)
         i += 1
       }
 
@@ -383,10 +506,13 @@ private[spark] class StreamingShuffleWriter[K, V](
       mapStatus = Some(
         MapStatus(blockManager.shuffleServerId, partitionLengths, mapId, aggregatedChecksum))
 
-      logInfo(
-        s"StreamingShuffleWriter completed shuffle=${dep.shuffleId} mapId=$mapId " +
-        s"totalBytes=${partitionLengths.sum} numPartitions=$numPartitions " +
-        s"durationNs=$durationNs aggregatedChecksum=$aggregatedChecksum")
+      logInfo(log"StreamingShuffleWriter completed " +
+        log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
+        log"mapId=${MDC(MAP_ID, mapId)} " +
+        log"totalBytes=${MDC(NUM_BYTES, partitionLengths.sum)} " +
+        log"numPartitions=${MDC(NUM_PARTITIONS, numPartitions)} " +
+        log"durationNs=${MDC(DURATION, durationNs)} " +
+        log"aggregatedChecksum=${MDC(CHECKSUM, aggregatedChecksum)}")
     } catch {
       case t: Throwable =>
         // Release acquired memory eagerly on the failure path so the executor's
@@ -428,12 +554,31 @@ private[spark] class StreamingShuffleWriter[K, V](
       // if an exception bypassed the finally block, or if stop is called without
       // a prior successful write).
       releaseAcquiredMemory()
-      // Null per-partition buffer/checksum slots so their underlying byte arrays
-      // become eligible for GC even if some other code retains a reference to this
-      // writer instance.
+      // Best-effort close any still-open per-partition serialization streams (e.g. if
+      // an exception bypassed the normal-path drain loop in `write`). Catch and log
+      // any close-time error to honor the framework expectation that `stop` is
+      // best-effort: throwing from cleanup masks the original failure cause.
       var i = 0
       while (i < numPartitions) {
+        val ss = partitionSerStreams(i)
+        if (ss != null) {
+          try {
+            ss.close()
+          } catch {
+            case t: Throwable =>
+              logWarning(log"Failed to close per-partition SerializationStream " +
+                log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
+                log"mapId=${MDC(MAP_ID, mapId)} " +
+                log"reduceId=${MDC(REDUCE_ID, i)}: " +
+                log"${MDC(ERROR, Option(t.getMessage).getOrElse("(no message)"))}")
+          }
+          partitionSerStreams(i) = null
+        }
+        // Null per-partition buffer / checksum / interceptor slots so their underlying
+        // byte arrays and references become eligible for GC even if some other code
+        // retains a reference to this writer instance.
         partitionBuffers(i) = null
+        partitionCheckedStreams(i) = null
         partitionChecksums(i) = null
         i += 1
       }
@@ -456,10 +601,109 @@ private[spark] class StreamingShuffleWriter[K, V](
   // -------------------------------------------------------------------------------
 
   /**
+   * Ensure the per-block [[SerializationStream]] (and the
+   * [[org.apache.spark.io.MutableCheckedOutputStream]] interceptor that wraps it) is
+   * allocated for the given partition, creating them on first call and on every
+   * subsequent call after [[flushBlock]] / [[maybeSpill]] has closed and nulled out
+   * the slot.
+   *
+   * Construction order (innermost to outermost):
+   *   1. The partition's [[ByteArrayOutputStream]] (already allocated at writer
+   *      construction time with [[INITIAL_BAOS_CAPACITY]] initial capacity).
+   *   2. The per-partition cumulative [[CRC32C]] -- allocated at most once per
+   *      partition (on the first ensurePartitionStream call for that partition); on
+   *      subsequent calls (after a flushBlock/maybeSpill close-and-drain cycle) the
+   *      existing cumulative CRC32C from `partitionChecksums(partitionId)` is reused
+   *      so that the cumulative checksum captures every byte written to the partition
+   *      across all blocks (including each block's stream header AND footer). This
+   *      matches the determinism check that [[org.apache.spark.SparkContext]]
+   *      performs across map-task retries.
+   *   3. A [[org.apache.spark.io.MutableCheckedOutputStream]] wrapping the BAOS, with
+   *      the cumulative `CRC32C` registered via `setChecksum(...)` so that every byte
+   *      written through it is fed into both the BAOS and the checksum. A fresh
+   *      MutableCheckedOutputStream is allocated per block (cheap: a thin object
+   *      around the existing BAOS); the registered CRC32C is the long-lived per-
+   *      partition instance from step 2.
+   *   4. A [[org.apache.spark.serializer.SerializationStream]] obtained from the
+   *      caller-supplied `serInstance` and wrapping the checked stream. A fresh
+   *      stream is allocated per block; the serializer-stream header (if any) is
+   *      written into the now-empty BAOS during this construction so each block
+   *      drained by [[flushBlock]] / [[maybeSpill]] forms a complete, independently
+   *      deserializable serialization stream -- the wire-format invariant required
+   *      by [[StreamingShuffleReader]] which deserializes each block independently
+   *      via `serializerInstance.deserializeStream(blockBytes).asKeyValueIterator`.
+   *
+   * @param partitionId the reduce partition for which to obtain a serialization stream
+   * @param serInstance the dependency's serializer instance (resolved once per `write`
+   *                    invocation by the caller and threaded through to avoid repeated
+   *                    `dep.serializer.newInstance()` calls)
+   * @return the per-block [[SerializationStream]] for this partition (newly allocated
+   *         on this call if the partition's previous block was just flushed or spilled,
+   *         existing instance otherwise)
+   */
+  private def ensurePartitionStream(
+      partitionId: Int,
+      serInstance: org.apache.spark.serializer.SerializerInstance): SerializationStream = {
+    var ss = partitionSerStreams(partitionId)
+    if (ss == null) {
+      // Reuse the existing per-partition cumulative CRC32C if one was allocated by a
+      // prior block for this partition; otherwise allocate the cumulative checksum on
+      // first use. This invariant -- one CRC32C per partition spanning all blocks for
+      // that partition -- is what makes the determinism check in MapStatus reliable
+      // across map-task retries.
+      var cksum = partitionChecksums(partitionId)
+      if (cksum == null) {
+        cksum = new CRC32C()
+        partitionChecksums(partitionId) = cksum
+      }
+      val checked = new MutableCheckedOutputStream(partitionBuffers(partitionId))
+      checked.setChecksum(cksum)
+      partitionCheckedStreams(partitionId) = checked
+      ss = serInstance.serializeStream(checked)
+      partitionSerStreams(partitionId) = ss
+    }
+    ss
+  }
+
+  /**
+   * Close the per-partition [[SerializationStream]] (and null out its slot plus the
+   * companion [[org.apache.spark.io.MutableCheckedOutputStream]] slot) if the stream
+   * is currently open. The close call writes any buffered serializer state and the
+   * stream-footer marker (where applicable, e.g. [[org.apache.spark.serializer.JavaSerializer]]
+   * `ObjectOutputStream` writes a TC_RESET marker on close) through the
+   * [[org.apache.spark.io.MutableCheckedOutputStream]] interceptor and into the
+   * partition's [[ByteArrayOutputStream]], so that the bytes drained by the immediately
+   * following call to [[flushBlock]] or [[maybeSpill]] form a complete, independently
+   * deserializable serialization stream.
+   *
+   * The per-partition cumulative [[CRC32C]] in `partitionChecksums` is preserved across
+   * close/reopen cycles (the next [[ensurePartitionStream]] call wraps a fresh
+   * [[org.apache.spark.io.MutableCheckedOutputStream]] around the same `CRC32C` instance)
+   * so the cumulative checksum captures every byte written to the partition across all
+   * blocks for the determinism check that [[org.apache.spark.SparkContext]] performs
+   * across map-task retries.
+   *
+   * Idempotent: calling on a partition whose stream is already null is a no-op.
+   *
+   * @param partitionId the reduce partition whose serialization stream is closed
+   */
+  private def closePartitionStream(partitionId: Int): Unit = {
+    val ss = partitionSerStreams(partitionId)
+    if (ss != null) {
+      ss.close()
+      partitionSerStreams(partitionId) = null
+      partitionCheckedStreams(partitionId) = null
+    }
+  }
+
+  /**
    * Flush the accumulated bytes for one partition as a single block (up to
-   * [[BLOCK_SIZE_BYTES]] = 2 MB). Computes a per-block CRC32C checksum on the exact
-   * bytes flushed, hands the block to [[BackpressureProtocol#recordTransmission]], and
-   * updates the bytes-written metric.
+   * [[BLOCK_SIZE_BYTES]] = 2 MB). Closes the partition's per-block
+   * [[SerializationStream]] so the drained bytes form a complete, independently
+   * deserializable stream (with header AND footer); computes a per-block CRC32C
+   * checksum on the exact bytes flushed; hands the block to
+   * [[BackpressureProtocol#recordTransmission]]; and updates [[partitionLengths]] and
+   * the bytes-written metric.
    *
    * Note: per AAP Section 0.5.1.2 and the [[BackpressureProtocol#recordTransmission]]
    * Scaladoc, `recordTransmission` does NOT perform the actual network send -- it only
@@ -470,12 +714,26 @@ private[spark] class StreamingShuffleWriter[K, V](
    * and execution proceeds (the `MemorySpillManager` provides backpressure relief by
    * spilling to disk if the consumer is slow enough that buffers grow).
    *
-   * Resets the partition's [[ByteArrayOutputStream]] after extracting the bytes so
-   * the underlying buffer is reused for the next block.
+   * Resets the partition's [[ByteArrayOutputStream]] after extracting the bytes so the
+   * underlying buffer is reused for the next block. The next [[ensurePartitionStream]]
+   * call for this partition (triggered by the next record write) lazily allocates a
+   * fresh [[SerializationStream]] which writes a fresh stream header into the
+   * now-empty buffer -- this is the wire-format invariant required by
+   * [[StreamingShuffleReader]] which deserializes each block independently via
+   * `serializerInstance.deserializeStream(blockBytes).asKeyValueIterator`.
    *
    * @param partitionId the reduce partition whose accumulated bytes are to be flushed
    */
   private def flushBlock(partitionId: Int): Unit = {
+    // Close the partition's serialization stream FIRST so any buffered serializer
+    // state and the stream-footer marker are pushed through the
+    // MutableCheckedOutputStream interceptor (which feeds them into the per-partition
+    // cumulative CRC32C) and into the partition buffer. Doing this BEFORE draining
+    // ensures the bytes flushed onto the network constitute a complete,
+    // independently deserializable serialization stream -- the wire-format
+    // invariant required by StreamingShuffleReader's per-block deserialization.
+    closePartitionStream(partitionId)
+
     val buf = partitionBuffers(partitionId)
     if (buf == null || buf.size() == 0) {
       return
@@ -484,7 +742,15 @@ private[spark] class StreamingShuffleWriter[K, V](
     val bytes = buf.toByteArray
     buf.reset()
 
-    // Compute per-block CRC32C on the exact bytes being flushed.
+    // Update partitionLengths for this partition with the drained byte count. This
+    // captures the on-wire bytes (header + records + footer) for the block; summed
+    // across all flushes for a partition this yields the value carried in MapStatus
+    // and consumed by the reader to know how many bytes to expect per partition.
+    partitionLengths(partitionId) += bytes.length.toLong
+
+    // Compute per-block CRC32C on the exact bytes being flushed. A fresh CRC32C
+    // instance per block ensures the per-block checksum is independent of the
+    // per-partition cumulative checksum maintained by `partitionChecksums`.
     val blockCrc = new CRC32C()
     blockCrc.update(bytes, 0, bytes.length)
     val blockChecksum = blockCrc.getValue
@@ -503,10 +769,17 @@ private[spark] class StreamingShuffleWriter[K, V](
     writeMetrics.incBytesWritten(bytes.length.toLong)
 
     if (isTraceEnabled()) {
-      logTrace(
-        s"flushBlock shuffleId=${dep.shuffleId} mapId=$mapId reduceId=$partitionId " +
-        s"size=${bytes.length} crc32c=$blockChecksum acquired=$acquired " +
-        s"algorithm=$CHECKSUM_ALGORITHM")
+      // Note: the algorithm name (CHECKSUM_ALGORITHM = "CRC32C") is a compile-time
+      // constant documented in the package object; it is intentionally not emitted as
+      // an MDC field to keep per-flush log lines lean -- operators correlate
+      // consumer-side validation failures via the per-block checksum value alone.
+      logTrace(log"flushBlock " +
+        log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
+        log"mapId=${MDC(MAP_ID, mapId)} " +
+        log"reduceId=${MDC(REDUCE_ID, partitionId)} " +
+        log"size=${MDC(NUM_BYTES, bytes.length.toLong)} " +
+        log"crc32c=${MDC(CHECKSUM, blockChecksum)} " +
+        log"acquired=${MDC(NUM_BYTES, if (acquired) 1L else 0L)}")
     }
   }
 
@@ -538,7 +811,23 @@ private[spark] class StreamingShuffleWriter[K, V](
     val cap = math.max(1L, perPartitionBufferCap)
     val pct = (current * 100L) / cap
     if (pct >= handle.spillThreshold.toLong) {
+      // Close the partition's serialization stream FIRST so the spilled bytes form a
+      // complete, independently deserializable stream (with header AND footer). The
+      // close call writes any buffered serializer state and the stream-footer marker
+      // through the MutableCheckedOutputStream interceptor (which feeds them into the
+      // per-partition cumulative CRC32C) and into the partition buffer. This matches
+      // the wire-format invariant required when the spilled bytes are eventually read
+      // back and re-streamed to the consumer.
+      closePartitionStream(partitionId)
+
       val pendingBytes = buf.toByteArray
+      // Update partitionLengths for this partition with the spilled byte count so the
+      // MapStatus reflects the on-wire byte total (network-flushed + spilled). This
+      // happens before the spill call so accounting is updated atomically with the
+      // closePartitionStream + drain sequence even if the spill manager surfaces an
+      // exception (the bytes have already left the buffer).
+      partitionLengths(partitionId) += pendingBytes.length.toLong
+
       val chunked = new ChunkedByteBuffer(ByteBuffer.wrap(pendingBytes))
       try {
         spillManager.checkAndSpill(
@@ -556,10 +845,14 @@ private[spark] class StreamingShuffleWriter[K, V](
       }
 
       if (isTraceEnabled()) {
-        logTrace(
-          s"maybeSpill shuffleId=${dep.shuffleId} mapId=$mapId reduceId=$partitionId " +
-          s"bytesSpilled=${pendingBytes.length} cap=$cap pct=$pct " +
-          s"threshold=${handle.spillThreshold}")
+        logTrace(log"maybeSpill " +
+          log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
+          log"mapId=${MDC(MAP_ID, mapId)} " +
+          log"reduceId=${MDC(REDUCE_ID, partitionId)} " +
+          log"bytesSpilled=${MDC(NUM_BYTES, pendingBytes.length.toLong)} " +
+          log"cap=${MDC(NUM_BYTES, cap)} " +
+          log"pct=${MDC(NUM_BYTES, pct)} " +
+          log"threshold=${MDC(THRESHOLD, handle.spillThreshold.toLong)}")
       }
     }
   }
@@ -614,10 +907,11 @@ private[spark] class StreamingShuffleWriter[K, V](
           // Defensive: log and swallow so we never propagate cleanup failures out of
           // the normal-path finally blocks. The framework expects stop() to be best-
           // effort; throwing from cleanup masks the original failure cause.
-          logWarning(
-            s"Failed to release $toRelease bytes of execution memory for streaming " +
-            s"shuffle writer (shuffleId=${dep.shuffleId} mapId=$mapId): " +
-            s"${Option(t.getMessage).getOrElse("(no message)")}")
+          logWarning(log"Failed to release execution memory for streaming shuffle writer " +
+            log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
+            log"mapId=${MDC(MAP_ID, mapId)} " +
+            log"toRelease=${MDC(NUM_BYTES, toRelease)}: " +
+            log"${MDC(ERROR, Option(t.getMessage).getOrElse("(no message)"))}")
       }
     }
   }

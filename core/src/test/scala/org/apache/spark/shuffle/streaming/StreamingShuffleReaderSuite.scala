@@ -17,13 +17,16 @@
 
 package org.apache.spark.shuffle.streaming
 
+import java.util.concurrent.TimeoutException
 import java.util.zip.CRC32C
 
 import scala.collection
 
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.{anyInt, anyString, eq => meq, isNull}
-import org.mockito.Mockito.{atLeastOnce, doThrow, mock, never, reset, times, verify, when}
+import org.mockito.Mockito.{atLeastOnce, doAnswer, doThrow, mock, never, reset, times, verify, when}
+import org.mockito.invocation.InvocationOnMock
+import org.mockito.stubbing.Answer
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers
 
@@ -81,14 +84,29 @@ import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleB
  *   - [[BlockManager]] and [[MapOutputTracker]] are mocked via Mockito 5.12 to drive
  *     deterministic behavior at the reader's two integration boundaries.
  *   - The producer-failure path mocks
- *     `blockManager.blockTransferService.fetchBlockSync` to throw a
- *     [[RuntimeException]]; per the production source's catch chain in
- *     `fetchAndValidateBlock`, any non-fatal throwable is mapped to
- *     [[FetchFailedException]] via the `case NonFatal(e)` arm. Using a plain
- *     [[RuntimeException]] avoids checked-exception wrapping concerns in the Mockito
- *     mock proxy while preserving the same observable failure-handling behavior
- *     (metric increment + atomic `FetchFailedException` throw) as the
- *     [[java.util.concurrent.TimeoutException]] case.
+ *     `blockManager.blockTransferService.fetchBlockSync` to throw exceptions of
+ *     varying type. Two failure modes are exercised independently:
+ *     - [[RuntimeException]]: covers the generic-non-fatal arm via the production
+ *       source's `case NonFatal(e)` catch-handler in `fetchAndValidateBlock`. Used
+ *       in Test 2 (basic failure path), Test 4 (exact-delta metric attribution), and
+ *       Test 10 (transport-boundary invocation count).
+ *     - [[java.util.concurrent.TimeoutException]] (a checked exception): covers the
+ *       dedicated `case e: TimeoutException` catch-handler in the production source
+ *       at `StreamingShuffleReader.fetchAndValidateBlock` lines 474-479, which AAP
+ *       Section 0.7.2.4 requires for the *"Producer failure detection: connection
+ *       timeout MUST be 5 seconds"* contract. Used in Test 11. Mockito 5.12 strict-
+ *       stubbing rejects every form of stub install (`when().thenThrow`, `doThrow`,
+ *       `willThrow`) for checked exceptions that are not declared on the stubbed
+ *       method's bytecode-level `throws` clause -- and `BlockTransferService.fetch
+ *       BlockSync` declares no `throws` types. The canonical workaround is
+ *       `doAnswer(...)` paired with an [[org.mockito.stubbing.Answer]] whose
+ *       `answer(InvocationOnMock)` method itself declares `throws Throwable`; the
+ *       compiler-level checked-exception barrier is satisfied at the Answer SAM
+ *       boundary, allowing the body to throw any `Throwable` (including
+ *       [[TimeoutException]]). At runtime the JVM raises the throwable through the
+ *       mock's invocation handler exactly as a real fetch would, so the production
+ *       reader's `case e: TimeoutException` catch arm fires identically to a real-
+ *       world deadline event from the underlying `Promise[ManagedBuffer]`.
  *
  * == Coexistence Discipline (per User Directive) ==
  * Per the user directive *"Isolate streaming logic in dedicated classes with zero
@@ -677,7 +695,131 @@ class StreamingShuffleReaderSuite
   }
 
   // ---------------------------------------------------------------------------
-  // Test 11: TaskMetrics direct construction is permitted (regression test for
+  // Test 11: producer connection TimeoutException -- the exact failure mode
+  // referenced by AAP Section 0.7.2.4: "Producer failure detection: connection
+  // timeout MUST be 5 seconds". This complements Test 2 / Test 4 (which use
+  // RuntimeException to exercise the generic NonFatal arm) by driving the
+  // production source's dedicated `case e: TimeoutException` catch-handler at
+  // `StreamingShuffleReader.fetchAndValidateBlock` lines 474-479.
+  //
+  // Why a separate test? The TimeoutException arm is structurally distinct from
+  // the NonFatal arm: it produces a different log message ("Producer connection
+  // timeout fetching block...") and would diverge under future refactoring if
+  // not covered explicitly. Locking the contract here guards against an
+  // accidental collapse of the two arms during code-review-driven cleanup.
+  //
+  // doAnswer vs. doThrow: TimeoutException is a checked exception (extends
+  // Exception, not RuntimeException). Mockito 5.12 strict-stubbing rejects ALL
+  // forms of throw-stub install (`when().thenThrow`, `doThrow`, `willThrow`)
+  // for checked exceptions that are not declared on the stubbed method's
+  // bytecode-level `throws` clause -- the validation runs at INVOCATION time,
+  // not at stub-install time. `BlockTransferService.fetchBlockSync` carries no
+  // `throws` types in its bytecode signature (its source-level callers wrap
+  // the awaited Future via `ThreadUtils.awaitResult`), so a direct
+  // `doThrow(timeoutCause)` install raises:
+  //   org.mockito.exceptions.base.MockitoException:
+  //   Checked exception is invalid for this method!
+  //   Invalid: java.util.concurrent.TimeoutException
+  // The canonical workaround is `doAnswer(answer)` where the supplied
+  // [[org.mockito.stubbing.Answer]]'s `answer(InvocationOnMock)` method itself
+  // declares `throws Throwable`. The compiler-level checked-exception barrier
+  // is satisfied at the Answer SAM boundary, allowing the body to throw any
+  // Throwable (including TimeoutException). At runtime the JVM raises the
+  // throwable through the mock's invocation handler exactly as a real fetch
+  // would; the production reader's `case e: TimeoutException` catch arm fires
+  // identically to a real-world deadline event from the underlying
+  // `Promise[ManagedBuffer]` failed via `result.failure(timeoutCause)`.
+  // ---------------------------------------------------------------------------
+
+  test("producer connection TimeoutException raises FetchFailedException") {
+    val handle = buildHandle()
+    val taskContext = MemoryTestingUtils.fakeTaskContext(sc.env)
+    val readMetrics = taskContext.taskMetrics().createTempShuffleReadMetrics()
+
+    // Capture the metric value before invocation so we can assert exact-delta
+    // attribution to this single test invocation -- mirroring the strict-delta
+    // pattern in Test 4 and guarding against accidental double-increment.
+    val initialInvalidations = streamingMetrics.getPartialReadInvalidationsCount
+
+    val producer = BlockManagerId("timeout-producer", "host1", 7337)
+    when(mapOutputTracker.getMapSizesByExecutorId(
+      meq(0), anyInt(), anyInt(), anyInt(), anyInt()))
+      .thenReturn(singleBlockMapStatuses(producer))
+
+    // Install the checked-exception stub via the Answer SAM. doAnswer is the
+    // canonical workaround for stubbing a method that declares no `throws`
+    // types (per BlockTransferService.fetchBlockSync) to throw a checked
+    // exception (per java.util.concurrent.TimeoutException). The Answer's
+    // `answer(InvocationOnMock)` method declares `throws Throwable` so the
+    // compiler-level check is satisfied at the SAM boundary; at runtime the
+    // body throws the TimeoutException through the mock's invocation handler.
+    // The reader's catch chain at StreamingShuffleReader.scala:474-479
+    // specifically matches this type and increments
+    // partialReadInvalidations + throws FetchFailedException with the
+    // original TimeoutException attached as the cause.
+    val timeoutCause = new TimeoutException("simulated 5-second connection timeout")
+    doAnswer(new Answer[org.apache.spark.network.buffer.ManagedBuffer] {
+      override def answer(invocation: InvocationOnMock)
+        : org.apache.spark.network.buffer.ManagedBuffer = throw timeoutCause
+    }).when(transferService).fetchBlockSync(
+        anyString(), anyInt(), anyString(), anyString(),
+        isNull[DownloadFileManager]())
+
+    TaskContext.setTaskContext(taskContext)
+    try {
+      val reader = buildReader(handle, taskContext, readMetrics)
+      val ex = intercept[FetchFailedException] {
+        val iter = reader.read()
+        while (iter.hasNext) iter.next()
+      }
+      assert(ex != null,
+        "FetchFailedException must be thrown when the producer connection times out")
+
+      // The TimeoutException MUST be preserved as the FetchFailedException's
+      // cause so the existing `Utils.exceptionString(this)` chain in
+      // `FetchFailedException.toTaskFailedReason` (FetchFailedException.scala
+      // line 62) surfaces the original deadline event in the
+      // DAGScheduler-emitted task-failure reason, allowing operators to
+      // distinguish a 5-second connection deadline from a generic transport
+      // error.
+      assert(ex.getCause eq timeoutCause,
+        s"FetchFailedException's cause must be the original TimeoutException so " +
+          s"diagnostic surfaces preserve the deadline-event attribution; " +
+          s"actual cause: ${Option(ex.getCause).map(_.getClass.getName).getOrElse("<null>")}")
+
+      // The production source's TimeoutException catch arm uses a dedicated
+      // message prefix ("Producer connection timeout..."); locking the message
+      // contract here guards against a refactoring that would collapse this arm
+      // into the NonFatal arm and obscure the failure mode in operator-facing
+      // logs. We use `contains` rather than `equals` because the message
+      // includes block-id and address details whose exact format is a
+      // non-contract surface.
+      val msg = Option(ex.getMessage).getOrElse("")
+      assert(msg.contains("timeout") || msg.contains("Timeout"),
+        s"FetchFailedException's message must surface the timeout failure mode; " +
+          s"actual message: $msg")
+
+      // Strict-delta assertion (mirrors Test 4): exactly one invalidation per
+      // failed fetch attempt, guarding against accidental double-increment under
+      // future refactoring of the catch chain or the metrics emission path.
+      val finalInvalidations = streamingMetrics.getPartialReadInvalidationsCount
+      assert(finalInvalidations - initialInvalidations === 1L,
+        s"partialReadInvalidations should increment by exactly 1 per timeout " +
+          s"failure; observed delta=${finalInvalidations - initialInvalidations}")
+
+      // Sanity-check that the transport boundary was actually hit (the failure
+      // must not be a no-op that returns immediately without attempting the
+      // fetch).
+      verify(transferService, atLeastOnce()).fetchBlockSync(
+        anyString(), anyInt(), anyString(), anyString(),
+        isNull[DownloadFileManager]())
+    } finally {
+      TaskContext.unset()
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 12: TaskMetrics direct construction is permitted (regression test for
   // the agent_prompt's `new TaskMetrics().createTempShuffleReadMetrics()` form)
   // ---------------------------------------------------------------------------
 

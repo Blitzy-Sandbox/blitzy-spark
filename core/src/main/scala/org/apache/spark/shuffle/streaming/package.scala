@@ -96,6 +96,32 @@ package object streaming {
   private[streaming] val BLOCK_SIZE_BYTES: Int = 2 * 1024 * 1024
 
   /**
+   * Initial capacity (in bytes) of each per-partition `ByteArrayOutputStream` constructed by
+   * `StreamingShuffleWriter`.
+   *
+   * Per AAP Section 0.7.2.2, all streaming-shuffle buffer allocations must participate in
+   * unified-memory accounting via
+   * [[org.apache.spark.memory.TaskMemoryManager#acquireExecutionMemory]] before being
+   * allocated. Pre-sizing each per-partition `ByteArrayOutputStream` to the full 2 MB block
+   * size at construction time would allocate `BLOCK_SIZE_BYTES * numPartitions` bytes on the
+   * JVM heap *before* `acquireExecutionMemory` is called, bypassing the unified-memory model
+   * and risking executor OOM for high-partition-count shuffles (e.g. 200 partitions =
+   * 400 MB, 1 000 partitions = 2 GB upfront).
+   *
+   * To honor unified-memory accounting, the writer constructs each `ByteArrayOutputStream`
+   * with this small initial capacity (1 KB) and relies on `ByteArrayOutputStream`'s native
+   * `Arrays.copyOf` doubling-growth to expand each buffer up to the per-partition cap as
+   * records actually arrive. Aggregate growth is bounded by the `acquireExecutionMemory`
+   * grant (`perPartitionBufferCap * numPartitions`) so the unified-memory ceiling is
+   * respected throughout the writer's lifetime.
+   *
+   * The 1 KB value is small enough to make construction-time allocation negligible (e.g.
+   * 200 partitions = 200 KB upfront) yet large enough to absorb a typical first-record
+   * write without an immediate `Arrays.copyOf` reallocation.
+   */
+  private[streaming] val INITIAL_BAOS_CAPACITY: Int = 1024
+
+  /**
    * Memory-utilization polling cadence in milliseconds.
    *
    * Used by `MemorySpillManager` for the daemon scheduler tick interval. The 100 ms value
