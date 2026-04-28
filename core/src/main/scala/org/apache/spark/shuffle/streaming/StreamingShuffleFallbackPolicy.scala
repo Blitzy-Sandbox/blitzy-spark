@@ -379,7 +379,10 @@ private[spark] class StreamingShuffleFallbackPolicy(
       val firstSeen = firstSlowDetectionTime.compareAndSet(0L, nowMillis)
       val firstDetectionTime = if (firstSeen) nowMillis else firstSlowDetectionTime.get()
       val elapsed = nowMillis - firstDetectionTime
-      elapsed >= SLOW_CONSUMER_WINDOW_MILLIS
+      // AAP 0.1.1 specifies "Consumer sustained 2x slower than producer for >60 seconds"
+      // (strict greater-than). The boundary case `elapsed == SLOW_CONSUMER_WINDOW_MILLIS`
+      // does NOT trigger fallback per the AAP literal interpretation.
+      elapsed > SLOW_CONSUMER_WINDOW_MILLIS
     } else {
       // Reset the window: the proxy condition no longer holds, so the next time it
       // reappears we start a fresh sustained-window timer rather than counting

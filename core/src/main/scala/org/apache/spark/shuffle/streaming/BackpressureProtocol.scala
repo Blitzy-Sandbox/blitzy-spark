@@ -20,8 +20,11 @@ package org.apache.spark.shuffle.streaming
 import java.util.concurrent.{ConcurrentHashMap, ScheduledExecutorService, ScheduledFuture, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
+import scala.annotation.tailrec
+
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.LogKeys._
 import org.apache.spark.internal.config.STREAMING_SHUFFLE_MAX_BANDWIDTH_MBPS
 import org.apache.spark.util.ThreadUtils
 
@@ -39,11 +42,16 @@ import org.apache.spark.util.ThreadUtils
  * for the streaming-shuffle feature.
  *
  * == Token-Bucket Rate Limiter ==
- * Refill rate is `maxBandwidthMBps / numConcurrentShuffles` per AAP Section 0.7.2.3.
- * Bucket capacity defaults to one second of refill at peak rate. The token count is held in
- * a single [[AtomicLong]] and updated via `compareAndSet` so the hot-path acquire is
- * lock-free and wait-free under low contention -- satisfying the "telemetry overhead < 1%
- * CPU utilization" budget specified in AAP Section 0.7.2.5.
+ * Refill rate is `maxBandwidthMBps / numConcurrentShuffles` per AAP Section 0.7.2.3 -- where
+ * `numConcurrentShuffles` is the count of *distinct currently-active shuffle IDs*, not the
+ * count of transmitted blocks. Active shuffles are tracked through explicit
+ * [[registerShuffle]] / [[unregisterShuffle]] life-cycle calls invoked by the
+ * [[StreamingShuffleManager]] at `registerShuffle` and `unregisterShuffle` SPI boundaries
+ * respectively. Bucket capacity defaults to one second of refill at peak rate.
+ *
+ * The token count is held in a single [[AtomicLong]] and updated via `compareAndSet` so the
+ * hot-path acquire is lock-free and wait-free under low contention -- satisfying the
+ * "telemetry overhead < 1% CPU utilization" budget specified in AAP Section 0.7.2.5.
  *
  * Each token represents one byte of allowed transmission. When `maxBandwidthMBps == -1`
  * (the default sentinel for "unlimited" per AAP Section 0.5.1.5), the rate limiter is
@@ -52,11 +60,11 @@ import org.apache.spark.util.ThreadUtils
  *
  * == Priority Arbitration ==
  * Concurrent shuffles share the bucket, with the per-100-ms refill amount divided across
- * the active shuffle count -- so when N shuffles run concurrently, each receives roughly
- * `maxBandwidthMBps / N` of the configured bandwidth budget. Shuffles with more partitions
- * and larger data volume naturally consume more tokens per unit time and therefore drive
- * proportionally larger transmission rates, satisfying the "priority arbitration" directive
- * specified in AAP Section 0.5.1.3.
+ * the active shuffle count -- so when N distinct shuffles run concurrently, each receives
+ * roughly `maxBandwidthMBps / N` of the configured bandwidth budget. Shuffles with more
+ * partitions and larger data volume naturally consume more tokens per unit time and
+ * therefore drive proportionally larger transmission rates, satisfying the
+ * "priority arbitration" directive specified in AAP Section 0.5.1.3.
  *
  * == Telemetry Emission ==
  * Every backpressure event -- a rate-limit failure in [[tryAcquire]] or a missed heartbeat
@@ -78,8 +86,8 @@ import org.apache.spark.util.ThreadUtils
  * == Concurrency ==
  * All mutable state is held in `java.util.concurrent.atomic.*` primitives or
  * [[ConcurrentHashMap]]; there are no `synchronized` blocks on the hot paths
- * ([[tryAcquire]], [[transmitBlock]], [[recordConsumerAck]]). The scheduled refill and
- * heartbeat tasks run on a single dedicated daemon thread, so updates from those tasks
+ * ([[tryAcquire]], [[recordTransmission]], [[recordConsumerAck]]). The scheduled refill
+ * and heartbeat tasks run on a single dedicated daemon thread, so updates from those tasks
  * never contend with each other -- only with caller threads on `tokens` and the heartbeat
  * maps.
  *
@@ -99,6 +107,8 @@ private[spark] class BackpressureProtocol(
     metrics: StreamingShuffleMetrics,
     conf: SparkConf) extends Logging {
 
+  import BackpressureProtocol._
+
   /**
    * Configured maximum outbound bandwidth in megabytes per second. The value `-1` is the
    * "unlimited" sentinel per AAP Section 0.5.1.5; any other negative value is rejected by
@@ -107,19 +117,24 @@ private[spark] class BackpressureProtocol(
   private val maxBandwidthMBps: Int = conf.get(STREAMING_SHUFFLE_MAX_BANDWIDTH_MBPS)
 
   /**
-   * Number of currently-active shuffles, used as the divisor for the per-100-ms refill
-   * computation in [[refillTokens]]. Incremented in [[transmitBlock]] each time a block is
-   * scheduled for transmission. Per AAP Section 0.6.2.7 (deferred performance
-   * optimizations), this counter is monotonic in v1; a future enhancement may decrement it
-   * as shuffles complete to provide more accurate per-shuffle bandwidth allocation.
+   * Set of currently-active shuffle IDs. The size of this set is the divisor used by the
+   * per-100-ms refill computation in [[refillTokens]] -- per AAP Section 0.7.2.3, the refill
+   * rate is `maxBandwidthMBps / numConcurrentShuffles` where `numConcurrentShuffles` is the
+   * count of *distinct* currently-active shuffles, not the number of transmitted blocks.
+   *
+   * Mutated through [[registerShuffle]] / [[unregisterShuffle]] which are invoked by
+   * [[StreamingShuffleManager]] at the corresponding SPI boundaries. Implemented as a
+   * [[ConcurrentHashMap]] (used as a set with sentinel `Boolean.TRUE` values) so that
+   * `register/unregister` is lock-free and concurrent register/unregister calls from
+   * multiple driver-side threads remain race-free.
    */
-  private val numActiveShuffles = new AtomicLong(0L)
+  private val activeShuffleIds = new ConcurrentHashMap[java.lang.Integer, java.lang.Boolean]()
 
   /**
    * Token bucket -- current token count. Each token represents one byte of allowed
    * outbound transmission. Refilled by the scheduler at the 100 ms cadence based on the
-   * `maxBandwidthMBps / numActiveShuffles` formula. Decremented by [[tryAcquire]] using
-   * `compareAndSet` for lock-free, wait-free hot-path performance.
+   * `maxBandwidthMBps / activeShuffleIds.size` formula. Decremented by [[tryAcquire]]
+   * using `compareAndSet` for lock-free, wait-free hot-path performance.
    */
   private val tokens = new AtomicLong(0L)
 
@@ -134,24 +149,31 @@ private[spark] class BackpressureProtocol(
     else maxBandwidthMBps.toLong * 1024L * 1024L
 
   /**
-   * Map from `(shuffleId, mapId)`-encoded key to the timestamp of the last block-transmit
-   * call for that producer. Scanned at 1-second cadence by [[checkHeartbeats]]; entries
-   * older than [[org.apache.spark.shuffle.streaming.PRODUCER_TIMEOUT_MILLIS]] are removed
-   * and a backpressure event is recorded.
+   * Map from `(shuffleId, mapId)` [[ProducerKey]] to the timestamp of the last
+   * block-transmit call for that producer. Scanned at 1-second cadence by
+   * [[checkHeartbeats]]; entries older than
+   * [[org.apache.spark.shuffle.streaming.PRODUCER_TIMEOUT_MILLIS]] are removed and a
+   * backpressure event is recorded.
    *
-   * The value type is the boxed `java.lang.Long` rather than the unboxed primitive because
-   * [[ConcurrentHashMap]] requires reference types for its generic parameters; explicit
-   * boxing in `put` calls avoids any auto-boxing surprises.
+   * Uses a typed [[ProducerKey]] case class as the map key so the full 64-bit `mapId` is
+   * preserved -- this eliminates the bit-discarding collision risk that an encoded-Long
+   * key would exhibit when `mapId` exceeds 32 bits in long-running applications.
    */
-  private val producerLastSeen = new ConcurrentHashMap[Long, java.lang.Long]()
+  private val producerLastSeen =
+    new ConcurrentHashMap[ProducerKey, java.lang.Long]()
 
   /**
-   * Map from `(shuffleId, reduceId)`-encoded key to the timestamp of the last consumer
+   * Map from `(shuffleId, reduceId)` [[ConsumerKey]] to the timestamp of the last consumer
    * acknowledgment. Scanned at 1-second cadence by [[checkHeartbeats]]; entries older than
    * [[org.apache.spark.shuffle.streaming.CONSUMER_TIMEOUT_MILLIS]] are removed and a
    * backpressure event is recorded.
+   *
+   * Uses a typed [[ConsumerKey]] case class as the map key for consistency with
+   * [[producerLastSeen]] and to provide structured types for any future test harness or
+   * observability tooling that introspects the heartbeat state.
    */
-  private val consumerLastAck = new ConcurrentHashMap[Long, java.lang.Long]()
+  private val consumerLastAck =
+    new ConcurrentHashMap[ConsumerKey, java.lang.Long]()
 
   /**
    * Daemon scheduler for the periodic refill (100 ms cadence) and heartbeat scan (1 s
@@ -233,16 +255,16 @@ private[spark] class BackpressureProtocol(
         }
       }, 1000L, 1000L, TimeUnit.MILLISECONDS)
 
-    logInfo(
-      s"BackpressureProtocol started (maxBandwidthMBps=$maxBandwidthMBps, " +
-        s"bucketCapacity=$bucketCapacityBytes bytes)")
+    logInfo(log"BackpressureProtocol started " +
+      log"(maxBandwidthMBps=${MDC(NUM_BYTES, maxBandwidthMBps.toLong)}, " +
+      log"bucketCapacity=${MDC(NUM_BYTES, bucketCapacityBytes)} bytes)")
   }
 
   /**
    * Refill the token bucket. Computes the per-100-ms refill amount from the configured
-   * `maxBandwidthMBps` divided by the current `numActiveShuffles` count (with a `max(1, ...)`
-   * floor so the divisor is never zero), then adds that amount to the bucket up to the
-   * configured `bucketCapacityBytes` cap.
+   * `maxBandwidthMBps` divided by the current count of registered shuffles
+   * (`activeShuffleIds.size`), with a `max(1, ...)` floor so the divisor is never zero,
+   * then adds that amount to the bucket up to the configured `bucketCapacityBytes` cap.
    *
    * When `maxBandwidthMBps <= 0` (the unlimited sentinel), the bucket is held at capacity
    * unconditionally so [[tryAcquire]] always succeeds via the early-return shortcut.
@@ -258,7 +280,7 @@ private[spark] class BackpressureProtocol(
       tokens.set(bucketCapacityBytes)
       return
     }
-    val active = math.max(1L, numActiveShuffles.get())
+    val active = math.max(1L, activeShuffleIds.size().toLong)
     val refillBytesPerSecond = (maxBandwidthMBps.toLong * 1024L * 1024L) / active
     val refillBytesPer100Ms = refillBytesPerSecond / 10L
 
@@ -268,7 +290,44 @@ private[spark] class BackpressureProtocol(
   }
 
   /**
-   * Attempt to acquire `bytes` tokens from the bucket non-blockingly.
+   * Register a new shuffle as active. Increases the divisor in the token-bucket refill
+   * computation, giving each concurrent shuffle a proportional share of the configured
+   * bandwidth budget per AAP Section 0.7.2.3.
+   *
+   * Idempotent: calling this method multiple times for the same `shuffleId` is a no-op
+   * (the shuffle is registered exactly once).
+   *
+   * Called by [[StreamingShuffleManager.registerShuffle]] when a new shuffle is added to
+   * the streaming-shuffle path.
+   *
+   * @param shuffleId the shuffle identifier
+   */
+  def registerShuffle(shuffleId: Int): Unit = {
+    activeShuffleIds.put(java.lang.Integer.valueOf(shuffleId), java.lang.Boolean.TRUE)
+  }
+
+  /**
+   * Unregister a shuffle. Decreases the divisor in the token-bucket refill computation
+   * (a no-op if the shuffle was never registered or has already been unregistered).
+   *
+   * Called by [[StreamingShuffleManager.unregisterShuffle]] when a shuffle is removed
+   * from the streaming-shuffle path.
+   *
+   * @param shuffleId the shuffle identifier
+   */
+  def unregisterShuffle(shuffleId: Int): Unit = {
+    activeShuffleIds.remove(java.lang.Integer.valueOf(shuffleId))
+  }
+
+  /**
+   * @return a snapshot of the count of currently-active shuffles. Provided for tests and
+   *         observability tooling. The returned value is the size at the time of the call;
+   *         concurrent register/unregister calls may change the size before or after.
+   */
+  private[streaming] def numActiveShuffles: Int = activeShuffleIds.size()
+
+  /**
+   * Attempt to acquire `byteCount` tokens from the bucket non-blockingly.
    *
    * Returns `true` on success (tokens were sufficient and have been atomically deducted) or
    * `false` on failure (tokens were insufficient; the caller must back off and retry later,
@@ -276,11 +335,13 @@ private[spark] class BackpressureProtocol(
    * incremented so operators can observe rate-limit hits in dashboards.
    *
    * == Lock-Free Hot Path ==
-   * Uses `compareAndSet` for the token decrement, which is wait-free under low contention.
-   * On CAS failure (another thread updated `tokens` between the read and the CAS), the loop
-   * retries from the top -- re-reading the current value and re-checking the
-   * `current >= bytes` precondition. This is the standard optimistic-concurrency pattern
-   * for atomic counters.
+   * Implemented as a `@tailrec` recursion using `compareAndSet` for the token decrement,
+   * which is wait-free under low contention. On CAS failure (another thread updated
+   * `tokens` between the read and the CAS), the recursion retries from the top -- re-reading
+   * the current value and re-checking the `current >= byteCount` precondition. This is the
+   * standard optimistic-concurrency pattern for atomic counters; the `@tailrec` annotation
+   * ensures the compiler emits a bytecode-level loop rather than a recursive call, so no
+   * stack growth occurs even under sustained CAS contention.
    *
    * == Unlimited Bandwidth Shortcut ==
    * When `maxBandwidthMBps <= 0` (the unlimited sentinel), this method returns `true`
@@ -288,112 +349,108 @@ private[spark] class BackpressureProtocol(
    * overhead at effectively zero CPU when bandwidth limiting is disabled, which is the
    * default configuration.
    *
-   * @param bytes number of tokens to attempt to acquire (each token = 1 byte of bandwidth)
+   * @param byteCount number of tokens to attempt to acquire
+   *                  (each token = 1 byte of bandwidth); MUST be `>= 0`
    * @return `true` if the tokens were successfully acquired, `false` otherwise
+   * @throws IllegalArgumentException if `byteCount` is negative
    */
-  def tryAcquire(bytes: Long): Boolean = {
+  def tryAcquire(byteCount: Long): Boolean = {
+    require(byteCount >= 0L, s"byteCount must be non-negative, got $byteCount")
     if (maxBandwidthMBps <= 0) return true // unlimited bandwidth: no rate limiting
-    var spinning = true
-    while (spinning) {
-      val current = tokens.get()
-      if (current < bytes) {
-        // Insufficient tokens: record a backpressure event so operators can see this in
-        // dashboards, then signal failure to the caller for back-off.
-        metrics.incrementBackpressureEvents()
-        return false
-      }
-      if (tokens.compareAndSet(current, current - bytes)) return true
-      // CAS failed because another thread updated tokens between our read and our CAS.
-      // Retry from the top of the loop, re-reading the current value. The flag below is
-      // structural (it always holds true at this point because current >= bytes was just
-      // verified above) and exists only to give the loop a named termination condition for
-      // readability. Termination is guaranteed by the explicit return statements above.
-      spinning = current >= bytes
-    }
-    // Unreachable in practice (the loop only exits via `return`), but Scala's flow
-    // analysis cannot statically prove the loop always returns, so we provide a fallback
-    // value to satisfy the type checker.
-    false
+    if (byteCount == 0L) return true // zero-byte transmissions are trivially allowed
+    tryAcquireRec(byteCount)
   }
 
   /**
-   * Transmit a block to the consumer side of the streaming shuffle.
+   * Tail-recursive token acquisition with CAS retry. Implements the lock-free body of
+   * [[tryAcquire]]. Termination is guaranteed: every recursion either returns `false`
+   * (tokens insufficient) or attempts a `compareAndSet` which, on success, returns `true`;
+   * on CAS failure the recursion retries with a fresh read of `tokens.get()`.
    *
-   * In v1, this method's responsibilities are:
-   *   1. Acquire tokens from the rate limiter for the block's byte length, with bounded
-   *      back-off retries (up to ~100 ms total) when tokens are temporarily exhausted.
-   *   2. Update the producer-heartbeat timestamp so the heartbeat scanner does not
-   *      erroneously declare this producer as failed.
-   *   3. Update the active-shuffle counter used by the refill computation as the
-   *      priority-arbitration divisor.
-   *   4. Trace the transmission for debug-logging purposes.
+   * @param byteCount tokens to acquire (already validated as `>= 0` by the caller)
+   * @return `true` on successful CAS deduction, `false` on insufficient tokens
+   */
+  @tailrec
+  private def tryAcquireRec(byteCount: Long): Boolean = {
+    val current = tokens.get()
+    if (current < byteCount) {
+      // Insufficient tokens: record a backpressure event so operators can see this in
+      // dashboards, then signal failure to the caller for back-off.
+      metrics.incrementBackpressureEvents()
+      false
+    } else if (tokens.compareAndSet(current, current - byteCount)) {
+      true
+    } else {
+      // CAS failed because another thread updated tokens between our read and our CAS.
+      // Retry with a fresh `tokens.get()`. @tailrec ensures this is compiled to a loop.
+      tryAcquireRec(byteCount)
+    }
+  }
+
+  /**
+   * Record a transmission attempt for the given block. This is a non-blocking, fail-fast
+   * operation: a single [[tryAcquire]] is performed; if successful, the heartbeat is
+   * updated and `true` is returned; if unsuccessful, the heartbeat is still updated
+   * (the producer is alive and trying) and `false` is returned so the caller can decide
+   * how to react (typically: back off until the next refill tick, then retry from a higher
+   * level with exponential backoff per AAP Section 0.7.2.4).
    *
-   * == Network Send Out of Scope ==
-   * The actual network send is the responsibility of [[StreamingShuffleWriter]] -- this
-   * method only updates rate-limiter and heartbeat state. The writer calls this method
-   * before performing the network call so that rate limiting and heartbeat tracking are
-   * applied uniformly regardless of which transport primitive the writer chooses. This
-   * separation keeps the protocol class network-transport-agnostic and aligned with the
-   * user directive *"select approach requiring least modification to executor memory model
-   * and network transport layer"*.
+   * == Naming Note ==
+   * This method does NOT perform the network send. The actual block transmission is the
+   * responsibility of [[StreamingShuffleWriter]] -- this method only updates rate-limiter
+   * and heartbeat state. The writer calls this method before performing the network call
+   * so that rate limiting and heartbeat tracking are applied uniformly regardless of
+   * which transport primitive the writer chooses. The name `recordTransmission` reflects
+   * this accounting role and replaces the prior `transmitBlock` naming, which incorrectly
+   * suggested this method performed I/O.
    *
-   * == Back-Off Behavior ==
-   * If [[tryAcquire]] initially fails, this method sleeps for 10 ms and retries up to 10
-   * times (~100 ms total back-off). After 10 failed attempts the method falls through to
-   * update heartbeats and trace anyway -- in v1, rate limiting is a soft control, not a
-   * hard gate. Each `tryAcquire` failure during back-off increments the backpressure
-   * counter, so persistent rate-limit pressure is visible in dashboards.
+   * == Non-Blocking Design ==
+   * Per AAP Section 0.7.1 *"select approach requiring least modification to executor
+   * memory model and network transport layer"*, this method is non-blocking and
+   * never calls `Thread.sleep`. Bounded back-off retries (with sleep) violate the
+   * "no `Thread.sleep` outside test code" engineering rule; instead, the writer-level
+   * caller is responsible for retry/back-off using the existing Spark scheduling
+   * primitives (such as `ScheduledExecutorService.schedule`).
+   *
+   * == Producer Heartbeat Update ==
+   * The producer heartbeat is updated unconditionally on every call -- even when the rate
+   * limiter rejects the transmission -- because the heartbeat reflects "this producer is
+   * alive and trying to make progress", which is true regardless of the rate-limiter
+   * outcome. Without the unconditional update, a producer that is rate-limited for more
+   * than 5 seconds would be falsely declared as failed by [[checkHeartbeats]].
    *
    * @param shuffleId shuffle identifier from [[org.apache.spark.scheduler.DAGScheduler]]
    * @param mapId     map task identifier (typically `taskAttemptId`)
-   * @param reduceId  reduce-partition identifier
-   * @param bytes     the block bytes (used for length-based rate limiting; not stored)
-   * @param checksum  CRC32C checksum for the block (logged for debug; not validated here)
+   * @param reduceId  reduce-partition identifier (logged for trace correlation; reserved
+   *                  for future per-reducer backpressure tracking)
+   * @param byteCount the block byte count for length-based rate limiting; MUST be `>= 0`
+   * @param checksum  CRC32C checksum for the block (logged for debug correlation; not
+   *                  validated here)
+   * @return `true` if tokens were acquired and the network send is permitted; `false`
+   *         if the rate limiter rejected the acquire and the caller must back off
+   * @throws IllegalArgumentException if `byteCount` is negative
    */
-  def transmitBlock(
+  def recordTransmission(
       shuffleId: Int,
       mapId: Long,
       reduceId: Int,
-      bytes: Array[Byte],
-      checksum: Long): Unit = {
-    val len = bytes.length.toLong
-    // Try to acquire tokens; bounded back-off if rate-limited.
-    var acquired = tryAcquire(len)
-    var attempts = 0
-    while (!acquired && attempts < 10) {
-      try {
-        Thread.sleep(10L)
-      } catch {
-        case _: InterruptedException =>
-          // Restore the interrupt flag and abandon back-off so the caller can react.
-          Thread.currentThread().interrupt()
-          attempts = 10
-      }
-      if (attempts < 10) {
-        acquired = tryAcquire(len)
-        attempts += 1
-      }
-    }
+      byteCount: Long,
+      checksum: Long): Boolean = {
+    require(byteCount >= 0L, s"byteCount must be non-negative, got $byteCount")
+    val acquired = tryAcquire(byteCount)
 
-    // Update producer heartbeat unconditionally, even if the rate limiter could not be
-    // satisfied -- the heartbeat reflects "this producer is alive and trying to make
-    // progress", which is true regardless of rate-limiter outcome.
-    val producerKey = encodeProducerKey(shuffleId, mapId)
+    // Update producer heartbeat unconditionally, even if the rate limiter rejected --
+    // see the "Producer Heartbeat Update" Scaladoc note above for the rationale.
+    val producerKey = ProducerKey(shuffleId, mapId)
     producerLastSeen.put(producerKey, java.lang.Long.valueOf(System.currentTimeMillis()))
 
-    // Track that we're working on a shuffle (used as the divisor for token-bucket refill).
-    // Per AAP Section 0.6.2.7, this counter is monotonic in v1; a future enhancement may
-    // decrement it as shuffles complete for more accurate per-shuffle bandwidth allocation.
-    numActiveShuffles.incrementAndGet()
-
-    // The actual network send is the writer's responsibility -- see StreamingShuffleWriter.
-    // This method has now updated rate-limiter state and heartbeat metadata; the writer
-    // can safely perform the network call. The `reduceId` parameter is included in the
-    // trace log for operator-side correlation; a future enhancement will additionally use
-    // it for per-reducer backpressure tracking.
-    logTrace(
-      s"transmitBlock: shuffleId=$shuffleId map=$mapId reduce=$reduceId " +
-        s"len=$len crc32c=$checksum (acquired=$acquired)")
+    logTrace(log"recordTransmission: shuffleId=${MDC(SHUFFLE_ID, shuffleId)} " +
+      log"map=${MDC(MAP_ID, mapId)} " +
+      log"reduce=${MDC(REDUCE_ID, reduceId)} " +
+      log"len=${MDC(NUM_BYTES, byteCount)} " +
+      log"crc32c=${MDC(CHECKSUM, checksum)} " +
+      log"(acquired=${MDC(NUM_BYTES, if (acquired) 1L else 0L)})")
+    acquired
   }
 
   /**
@@ -409,34 +466,8 @@ private[spark] class BackpressureProtocol(
    * @param reduceId  reduce-partition identifier
    */
   def recordConsumerAck(shuffleId: Int, reduceId: Int): Unit = {
-    val key = encodeConsumerKey(shuffleId, reduceId)
+    val key = ConsumerKey(shuffleId, reduceId)
     consumerLastAck.put(key, java.lang.Long.valueOf(System.currentTimeMillis()))
-  }
-
-  /**
-   * Encode a `(shuffleId, mapId)` pair into a single `Long` key for [[ConcurrentHashMap]]
-   * access. The high 32 bits hold the `shuffleId`, the low 32 bits hold the lower 32 bits
-   * of `mapId`.
-   *
-   * == Collision Note ==
-   * `mapId` is typically a `taskAttemptId`, a long-counter monotonic over the lifetime of
-   * the application. Because we discard the high 32 bits of `mapId`, two map IDs that
-   * differ only above bit 31 collide in this encoding. In practice, the lifetime of a
-   * single `BackpressureProtocol` instance (one executor JVM) and the heartbeat-scan
-   * granularity (1 second) make such collisions extremely rare and operationally tolerable
-   * -- the worst-case effect is a single false-positive heartbeat reset.
-   */
-  private def encodeProducerKey(shuffleId: Int, mapId: Long): Long = {
-    (shuffleId.toLong << 32) | (mapId & 0xFFFFFFFFL)
-  }
-
-  /**
-   * Encode a `(shuffleId, reduceId)` pair into a single `Long` key for [[ConcurrentHashMap]]
-   * access. The high 32 bits hold the `shuffleId`, the low 32 bits hold the `reduceId`.
-   * No collision concerns -- both inputs are 32-bit `Int` values.
-   */
-  private def encodeConsumerKey(shuffleId: Int, reduceId: Int): Long = {
-    (shuffleId.toLong << 32) | (reduceId.toLong & 0xFFFFFFFFL)
   }
 
   /**
@@ -466,8 +497,11 @@ private[spark] class BackpressureProtocol(
       val entry = producerIter.next()
       if (entry.getValue.longValue() < producerCutoff) {
         metrics.incrementBackpressureEvents()
-        logInfo(s"Producer heartbeat missed for key=${entry.getKey} " +
-          s"(>${PRODUCER_TIMEOUT_MILLIS}ms)")
+        val key = entry.getKey
+        logInfo(log"Producer heartbeat missed for shuffleId=" +
+          log"${MDC(SHUFFLE_ID, key.shuffleId)} " +
+          log"mapId=${MDC(MAP_ID, key.mapId)} " +
+          log"timeoutMs=${MDC(TIMEOUT, PRODUCER_TIMEOUT_MILLIS)}")
         producerIter.remove()
       }
     }
@@ -477,8 +511,11 @@ private[spark] class BackpressureProtocol(
       val entry = consumerIter.next()
       if (entry.getValue.longValue() < consumerCutoff) {
         metrics.incrementBackpressureEvents()
-        logInfo(s"Consumer heartbeat missed for key=${entry.getKey} " +
-          s"(>${CONSUMER_TIMEOUT_MILLIS}ms)")
+        val key = entry.getKey
+        logInfo(log"Consumer heartbeat missed for shuffleId=" +
+          log"${MDC(SHUFFLE_ID, key.shuffleId)} " +
+          log"reduceId=${MDC(REDUCE_ID, key.reduceId)} " +
+          log"timeoutMs=${MDC(TIMEOUT, CONSUMER_TIMEOUT_MILLIS)}")
         consumerIter.remove()
       }
     }
@@ -503,7 +540,8 @@ private[spark] class BackpressureProtocol(
    *   2. Initiate orderly executor shutdown via `shutdown()`.
    *   3. Wait up to 2 seconds for in-flight tasks to complete; if not, force shutdown
    *      via `shutdownNow()`.
-   *   4. Clear the heartbeat-tracking maps so any retained references are released for GC.
+   *   4. Clear the heartbeat-tracking maps and active-shuffle set so any retained
+   *      references are released for GC.
    *
    * The 2-second wait window is generous given that both scheduled tasks complete in well
    * under a millisecond in normal operation; the timeout exists only to bound shutdown in
@@ -529,6 +567,37 @@ private[spark] class BackpressureProtocol(
     }
     producerLastSeen.clear()
     consumerLastAck.clear()
-    logInfo("BackpressureProtocol stopped")
+    activeShuffleIds.clear()
+    logInfo(log"BackpressureProtocol stopped")
   }
+}
+
+/**
+ * Companion object holding the typed key case classes used by the heartbeat
+ * [[ConcurrentHashMap]]s. Exposing these as `private[streaming]` rather than nested types
+ * keeps them syntactically lightweight at every call site within the subpackage.
+ */
+private[streaming] object BackpressureProtocol {
+
+  /**
+   * Typed key for the producer-heartbeat map. Replaces the earlier
+   * `(shuffleId.toLong << 32) | mapId.toLong` encoding so the full 64-bit `mapId` is
+   * preserved -- eliminating the bit-discarding collision risk for long-running
+   * applications where the cumulative `taskAttemptId` exceeds 32 bits.
+   *
+   * @param shuffleId the shuffle identifier
+   * @param mapId     the map task identifier (typically `taskAttemptId`)
+   */
+  case class ProducerKey(shuffleId: Int, mapId: Long)
+
+  /**
+   * Typed key for the consumer-heartbeat map. Used for symmetry with [[ProducerKey]]; both
+   * fields are 32-bit `Int` so collisions are not a structural concern, but the typed key
+   * provides better debuggability in heap dumps and structured-log output than an encoded
+   * `Long`.
+   *
+   * @param shuffleId the shuffle identifier
+   * @param reduceId  the reduce-partition identifier
+   */
+  case class ConsumerKey(shuffleId: Int, reduceId: Int)
 }

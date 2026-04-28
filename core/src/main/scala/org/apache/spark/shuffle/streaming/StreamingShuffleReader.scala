@@ -17,16 +17,23 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.io.ByteArrayInputStream
+import java.io.{ByteArrayInputStream, IOException}
+import java.net.SocketTimeoutException
 import java.util.concurrent.TimeoutException
 import java.util.zip.CRC32C
 
+import scala.collection
 import scala.collection.mutable
+import scala.util.control.NonFatal
 
-import org.apache.spark.{MapOutputTracker, SparkEnv, TaskContext}
+import org.apache.spark.{Aggregator, InterruptibleIterator, MapOutputTracker, SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.LogKeys._
+import org.apache.spark.serializer.{SerializerInstance, SerializerManager}
 import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader, ShuffleReadMetricsReporter}
 import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleBlockId}
+import org.apache.spark.util.CompletionIterator
+import org.apache.spark.util.collection.ExternalSorter
 
 /**
  * Streaming-shuffle reader: opens streaming connections to all assigned producer executors
@@ -36,14 +43,37 @@ import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleB
  * == Read Path Overview ==
  * `read()` first looks up producer locations via the existing
  * [[org.apache.spark.MapOutputTracker]] SPI (NOT modified). For each producer address, it
- * delegates to [[streamFromProducer]] which iterates over the assigned blocks, fetching
- * each block synchronously via
+ * lazily fetches each assigned block via
  * [[org.apache.spark.network.BlockTransferService.fetchBlockSync]] -- the same network
  * primitive used by the existing [[org.apache.spark.shuffle.BlockStoreShuffleReader]].
  * The streaming-aware optimization in v1 lives at the writer's flush cadence -- the reader
  * reuses the existing fetch primitive so that no new network protocol classes are introduced
  * (per AAP Section 0.7.2.3 *"Streaming MUST reuse `org.apache.spark.network.TransportContext`.
  * New network-protocol classes MUST NOT be added"*).
+ *
+ * Records are produced via a *lazy iterator chain* (Iterator.flatMap composition) rather
+ * than being eagerly materialized into an in-memory buffer. This preserves the streaming
+ * semantics required by AAP Section 0.1.1 *"pipelines data directly from map-side
+ * producer executors to reduce-side consumer executors"*: downstream consumers can begin
+ * processing the first record before the last block is even fetched. Per-block fetch,
+ * checksum validation, and deserialization happen on-demand as the consumer pulls
+ * elements through the iterator.
+ *
+ * == Aggregator and Sorter Integration ==
+ * To preserve byte-for-byte semantic equivalence with
+ * [[org.apache.spark.shuffle.BlockStoreShuffleReader]], this reader honors the
+ * dependency's `aggregator`, `keyOrdering`, and `mapSideCombine` settings. The lazy
+ * deserialized iterator is routed through:
+ *   - [[org.apache.spark.util.collection.ExternalSorter]] when `keyOrdering` is defined,
+ *     enabling on-disk sort-merge with optional aggregator-driven combine.
+ *   - [[org.apache.spark.Aggregator.combineCombinersByKey]] when only `aggregator` and
+ *     `mapSideCombine` are defined (records arrive pre-combined on the map side).
+ *   - [[org.apache.spark.Aggregator.combineValuesByKey]] when only `aggregator` is
+ *     defined and `mapSideCombine=false` (records arrive raw, combine happens here).
+ *   - Direct cast to `Iterator[(K, C)]` when no aggregator or ordering is defined.
+ * The dispatch logic mirrors `BlockStoreShuffleReader.read` exactly so that
+ * `reduceByKey`, `aggregateByKey`, `combineByKey`, and `sortByKey` produce identical
+ * output through both paths.
  *
  * == Failure Handling ==
  * On producer connection timeout (5 s, see [[PRODUCER_TIMEOUT_MILLIS]]), this reader
@@ -67,6 +97,26 @@ import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleB
  * recomputation. CRC32C is the only checksum algorithm permitted (per AAP Section 0.7.2.4
  * *"Checksum algorithm: CRC32C only"*).
  *
+ * The producer-supplied expected checksum is resolved through [[expectedChecksumFor]] and
+ * is represented as `Option[Long]`. `None` means "no expected checksum is available"
+ * (e.g., test path, `spark.shuffle.checksum.enabled=false`, or v1 deployments where the
+ * producer-side side-channel is not yet wired). `Some(value)` means the checksum is
+ * present and the comparison is performed. The `Option` representation eliminates the
+ * 1-in-2^32 false-skip that a sentinel-based design (e.g., `0L` meaning "absent") would
+ * exhibit when a legitimate computed checksum happens to equal the sentinel value. The
+ * v1 implementation of `expectedChecksumFor` returns `None` until the writer-side
+ * side-channel (deferred to a future checkpoint) supplies actual values; see the
+ * decision log entry "CRC32C side-channel deferred to v2" for the full v1 limitation.
+ *
+ * == Resource Management (ManagedBuffer Release) ==
+ * Each `fetchBlockSync` call returns a reference-counted
+ * [[org.apache.spark.network.buffer.ManagedBuffer]] that must be released exactly once
+ * after the bytes are extracted, mirroring the `currentResult.buf.release()` pattern in
+ * [[org.apache.spark.storage.ShuffleBlockFetcherIterator]]. Failure to release would leak
+ * Netty direct memory; this reader uses a `try { ... } finally { managedBuffer.release() }`
+ * envelope on every fetch (primary and retransmit) to guarantee release even when
+ * deserialization or checksum validation throws.
+ *
  * == Acknowledgment Design ==
  * Per AAP Section 0.4.3.2, consumer-position acknowledgments allow the producer's
  * `BackpressureProtocol` to reclaim buffer memory for already-consumed offsets. In v1 the
@@ -74,16 +124,20 @@ import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleB
  * consumption progress for prior offsets. This keeps the v1 network surface minimal (no
  * new RPC types) while preserving the buffer-reclamation contract. The `ackedPositions`
  * map tracks each producer's last-acked offset for telemetry and for any future
- * explicit-ack RPC implementation.
+ * explicit-ack RPC implementation. See the decision log entry "Consumer acknowledgment
+ * wiring deferred to v2" for the v1 limitation that an explicit ack RPC is not yet
+ * delivered (the writer's `BackpressureProtocol.recordConsumerAck` is therefore not yet
+ * invoked from this reader).
  *
  * == Single-Threaded Metrics-Reporter Contract ==
  * Per AAP Section 0.7.3.5, this reader honors the
  * [[org.apache.spark.shuffle.ShuffleReadMetricsReporter]] single-threaded contract: all
  * `inc*` calls on `readMetrics` happen on the task thread executing `read()` (no
  * background thread mutates the reporter). Cross-task aggregation occurs at task-completion
- * boundaries via the existing `TaskMetrics` swap-in path. The streaming-shuffle metric
- * counters in [[StreamingShuffleMetrics]] are a separate, lock-free metric set updated
- * from multiple threads concurrently -- those metrics are not subject to the
+ * boundaries via the existing `TaskMetrics` swap-in path, triggered through the
+ * [[org.apache.spark.util.CompletionIterator]] wrapping below. The streaming-shuffle
+ * metric counters in [[StreamingShuffleMetrics]] are a separate, lock-free metric set
+ * updated from multiple threads concurrently -- those metrics are not subject to the
  * single-threaded reporter contract.
  *
  * == Coexistence ==
@@ -100,7 +154,12 @@ import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleB
  * @param endMapIndex        exclusive end of the map range to read
  * @param startPartition     inclusive start of the reduce-partition range
  * @param endPartition       exclusive end of the reduce-partition range
- * @param context            the active TaskContext for cancellation support
+ * @param context            the active TaskContext for cancellation support; in production
+ *                           paths this is always non-null (the executor task runner
+ *                           always provides a TaskContext). A `null` is tolerated only as
+ *                           a defensive fallback for synthetic test harnesses that do not
+ *                           install a TaskContext; in such cases interruptible iteration
+ *                           and per-task metric merging are skipped (see [[read]]).
  * @param readMetrics        single-threaded shuffle-read metrics reporter
  * @param blockManager       executor block manager (for `blockTransferService` access)
  * @param mapOutputTracker   driver/executor map output tracker (for producer location lookup)
@@ -125,188 +184,203 @@ private[spark] class StreamingShuffleReader[K, C](
    * Per-producer last-acknowledged offset, used to drive [[acknowledgePosition]] and to
    * compute cumulative acked bytes per producer. The map key is the producer
    * [[BlockManagerId]]; the value is the cumulative byte offset acked back to that
-   * producer. Only mutated on the task thread executing [[streamFromProducer]] so no
+   * producer. Only mutated on the task thread executing the lazy iterator so no
    * synchronization is required.
    */
   private val ackedPositions = new mutable.HashMap[BlockManagerId, Long]()
 
   /**
-   * Read the combined key-values for this reduce task.
+   * Read the combined key-values for this reduce task as a *lazy* iterator.
    *
-   * Polls producers in turn, validating each block's CRC32C checksum as it arrives and
-   * deserializing the validated bytes through the standard
-   * [[org.apache.spark.serializer.SerializerManager]] path. Throws
-   * [[FetchFailedException]] on producer connection timeout (>5 s, per
-   * [[PRODUCER_TIMEOUT_MILLIS]]) to drive DAG-scheduler upstream recomputation through
-   * the existing `handleTaskCompletion` path.
+   * The returned iterator pulls data on-demand through a flatMap composition over the
+   * per-producer block fetch + deserialize pipeline. Per-block fetch, checksum
+   * validation, and deserialization occur as the consumer pulls elements -- this
+   * preserves the streaming semantics required by AAP Section 0.1.1 (no batch
+   * accumulation before consumer processing begins).
    *
-   * The returned iterator yields the deserialized records as `(K, C)` pairs typed as
-   * [[Product2]]. Records are accumulated into an in-memory buffer in v1 for
-   * implementation simplicity; future versions may switch to a lazy iterator chain to
-   * reduce peak memory footprint.
+   * The iterator chain mirrors [[org.apache.spark.shuffle.BlockStoreShuffleReader.read]]:
+   *   1. Lazy per-producer block iterator -> raw `(K, C)` records.
+   *   2. [[org.apache.spark.util.CompletionIterator]] wrapping for per-task metric
+   *      merging on iterator exhaustion.
+   *   3. [[org.apache.spark.InterruptibleIterator]] wrapping for `TaskContext`
+   *      cancellation support.
+   *   4. [[org.apache.spark.util.collection.ExternalSorter]] /
+   *      [[org.apache.spark.Aggregator]] dispatch based on `dep.keyOrdering` and
+   *      `dep.aggregator`.
+   *   5. Final `InterruptibleIterator` re-wrap so the consumer can cancel after
+   *      sorter/aggregator transformation.
    *
-   * @return an iterator over the combined key-value pairs from all assigned producers
+   * Records are deserialized through the standard
+   * [[org.apache.spark.serializer.SerializerManager.wrapStream]] path so byte-for-byte
+   * semantic equivalence with `BlockStoreShuffleReader` is preserved.
+   *
+   * @return a lazy iterator over the combined key-value pairs from all assigned producers
    * @throws FetchFailedException if any producer connection times out or experiences
-   *                              persistent CRC32C corruption
+   *                              persistent CRC32C corruption (constructed and thrown
+   *                              atomically per the SPARK-19276 contract)
    */
   override def read(): Iterator[Product2[K, C]] = {
     val shuffleId = handle.shuffleId
-    logInfo(
-      s"StreamingShuffleReader.read: shuffleId=$shuffleId, mapRange=[$startMapIndex, " +
-      s"$endMapIndex), partitionRange=[$startPartition, $endPartition)")
+    logInfo(log"StreamingShuffleReader.read: shuffleId=" +
+      log"${MDC(SHUFFLE_ID, shuffleId)}, " +
+      log"mapRange=[${MDC(MAP_ID, startMapIndex.toLong)}, " +
+      log"${MDC(MAP_ID, endMapIndex.toLong)}), " +
+      log"partitionRange=[${MDC(REDUCE_ID, startPartition)}, " +
+      log"${MDC(REDUCE_ID, endPartition)})")
 
     // Discover producer locations via the existing MapOutputTracker SPI (NOT modified).
     // The returned iterator yields (BlockManagerId, Seq[(BlockId, Long, Int)]) where the
     // third Int in each block tuple is the map index (NOT the map ID; the map ID is
-    // carried inside the BlockId when it is a ShuffleBlockId).
+    // carried inside the BlockId when it is a ShuffleBlockId). This iterator is itself
+    // lazy and our iterator chain extends that laziness end-to-end.
     val blocksByAddress = mapOutputTracker.getMapSizesByExecutorId(
       shuffleId, startMapIndex, endMapIndex, startPartition, endPartition)
 
-    // Accumulate deserialized records across all producers. Using ArrayBuffer in v1 for
-    // implementation simplicity; the AAP-required failure semantics are preserved.
-    val records = new mutable.ArrayBuffer[Product2[K, C]]()
+    val dep = handle.dependency
+    val serializerManager = SparkEnv.get.serializerManager
+    val serializerInstance = dep.serializer.newInstance()
 
-    blocksByAddress.foreach { case (address, blocks) =>
-      try {
-        streamFromProducer(address, shuffleId, blocks, records)
-      } catch {
-        case _: TimeoutException =>
-          // Producer connection timed out (>5 s). Increment invalidation counter, then
-          // throw FetchFailedException so the DAGScheduler triggers upstream recomputation.
-          // Per the SPARK-19276 contract, FetchFailedException must be constructed and
-          // thrown atomically -- no creating-then-deciding -- so that
-          // TaskContext.setFetchFailed (called inside the FetchFailedException constructor)
-          // is invoked exactly once per failure.
-          streamingMetrics.incrementPartialReadInvalidations()
-          logWarning(
-            s"Producer connection timeout for $address, shuffle $shuffleId; " +
-            s"invalidating partial reads (algorithm=$CHECKSUM_ALGORITHM, " +
-            s"timeoutMs=$PRODUCER_TIMEOUT_MILLIS)")
-          // Identify the first block's mapId/mapIndex for the exception payload. The
-          // mapId comes from the BlockId (ShuffleBlockId.mapId), not from the third tuple
-          // element which is the map *index*. If the producer's block list is empty
-          // (defensive case), we use sentinel -1 values which the FetchFailedException
-          // contract documents as acceptable.
-          val (mapId, mapIndex) = identifyFirstBlock(blocks)
-          throw new FetchFailedException(
-            address,
-            shuffleId,
-            mapId,
-            mapIndex,
-            startPartition,
-            s"Producer connection timeout after ${PRODUCER_TIMEOUT_MILLIS}ms")
+    // Lazy iterator chain: each producer's blocks are fetched on-demand as the consumer
+    // pulls. flatMap composes (BlockManagerId -> per-producer iter) so the final
+    // recordIter yields raw `(Any, Any)` records lazily across all producers.
+    val recordIter: Iterator[(Any, Any)] = blocksByAddress.flatMap {
+      case (address, blocks) =>
+        producerBlockIterator(
+          address, shuffleId, blocks, serializerManager, serializerInstance)
+    }
+
+    // Per-record metric tracking + per-task metric merge on iterator exhaustion. Mirrors
+    // BlockStoreShuffleReader exactly so the streaming reader integrates cleanly with the
+    // existing TaskMetrics swap-in path. CompletionIterator's completion callback runs
+    // when hasNext first observes the underlying iterator exhausted.
+    val metricIter = CompletionIterator[(Any, Any), Iterator[(Any, Any)]](
+      recordIter.map { record =>
+        readMetrics.incRecordsRead(1L)
+        record
+      },
+      // Defensive: only invoke mergeShuffleReadMetrics when we have a non-null
+      // TaskContext. Production task threads always have one; synthetic test harnesses
+      // may pass `null` via the constructor (see the @param documentation).
+      if (context != null) context.taskMetrics().mergeShuffleReadMetrics() else ())
+
+    // Wrap with InterruptibleIterator so the consumer can be canceled between records via
+    // TaskContext.killed() -- matches BlockStoreShuffleReader's cancellation contract.
+    val interruptibleIter: Iterator[(Any, Any)] =
+      if (context != null) new InterruptibleIterator[(Any, Any)](context, metricIter)
+      else metricIter
+
+    // Aggregator/sorter dispatch -- mirrors BlockStoreShuffleReader.read exactly so that
+    // `reduceByKey`, `aggregateByKey`, `combineByKey`, and `sortByKey` produce identical
+    // results regardless of which shuffle path (sort vs streaming) is active.
+    val resultIter: Iterator[Product2[K, C]] = {
+      if (dep.keyOrdering.isDefined) {
+        // Sort path: external sort-merge, optionally combining via aggregator.
+        val sorter: ExternalSorter[K, _, C] = if (dep.aggregator.isDefined) {
+          if (dep.mapSideCombine) {
+            new ExternalSorter[K, C, C](context,
+              Option(new Aggregator[K, C, C](identity,
+                dep.aggregator.get.mergeCombiners,
+                dep.aggregator.get.mergeCombiners)),
+              ordering = Some(dep.keyOrdering.get), serializer = dep.serializer)
+          } else {
+            new ExternalSorter[K, Nothing, C](context,
+              dep.aggregator.asInstanceOf[Option[Aggregator[K, Nothing, C]]],
+              ordering = Some(dep.keyOrdering.get), serializer = dep.serializer)
+          }
+        } else {
+          new ExternalSorter[K, C, C](context, ordering = Some(dep.keyOrdering.get),
+            serializer = dep.serializer)
+        }
+        sorter.insertAllAndUpdateMetrics(interruptibleIter.asInstanceOf[Iterator[(K, Nothing)]])
+      } else if (dep.aggregator.isDefined) {
+        if (dep.mapSideCombine) {
+          // Records already combined on the map side; combine combiners on the reduce side.
+          val combinedKeyValuesIterator = interruptibleIter.asInstanceOf[Iterator[(K, C)]]
+          dep.aggregator.get.combineCombinersByKey(combinedKeyValuesIterator, context)
+        } else {
+          // Records arrive raw; combine values to produce combined output type C.
+          val keyValuesIterator = interruptibleIter.asInstanceOf[Iterator[(K, Nothing)]]
+          dep.aggregator.get.combineValuesByKey(keyValuesIterator, context)
+        }
+      } else {
+        // No aggregator or ordering -- direct cast to (K, C) is structurally safe at
+        // the JVM level since Scala 2.13 tuples implement Product2.
+        interruptibleIter.asInstanceOf[Iterator[(K, C)]]
       }
     }
 
-    logDebug(
-      s"StreamingShuffleReader.read complete: shuffleId=$shuffleId, " +
-      s"records=${records.size}, producers=${ackedPositions.size}")
-    records.iterator
+    // Re-wrap with InterruptibleIterator if the aggregator/sorter consumed the prior
+    // interruptible iter. Mirrors BlockStoreShuffleReader's final wrap.
+    resultIter match {
+      case _: InterruptibleIterator[Product2[K, C]] @unchecked => resultIter
+      case _ if context != null =>
+        new InterruptibleIterator[Product2[K, C]](context, resultIter)
+      case _ =>
+        // Test path: no TaskContext available, so no cancellation support possible.
+        resultIter
+    }
   }
 
   /**
-   * Stream blocks from a single producer address. For each block:
+   * Build a lazy iterator that, for each block assigned to the given producer, fetches
+   * the bytes synchronously, validates the CRC32C checksum, releases the
+   * [[org.apache.spark.network.buffer.ManagedBuffer]], and yields a deserialized
+   * key-value iterator. The per-block fetch uses
+   * [[org.apache.spark.network.BlockTransferService.fetchBlockSync]] (the same primitive
+   * as [[org.apache.spark.shuffle.BlockStoreShuffleReader]]) so no new network
+   * primitives are introduced.
    *
-   *   1. Check the deadline; throw [[TimeoutException]] if the producer has not made
-   *      progress within [[PRODUCER_TIMEOUT_MILLIS]].
-   *   2. Fetch the block synchronously via
-   *      [[org.apache.spark.network.BlockTransferService.fetchBlockSync]] -- the same
-   *      primitive used by [[org.apache.spark.shuffle.BlockStoreShuffleReader]].
-   *   3. Validate the CRC32C checksum of the received bytes against the producer-supplied
-   *      expected checksum (resolved via [[expectedChecksumFor]]).
-   *   4. On checksum mismatch, request retransmission once. On persistent mismatch (after
-   *      retransmission), increment `partialReadInvalidations` and throw
-   *      [[FetchFailedException]] -- atomically per the SPARK-19276 contract.
-   *   5. Update the per-task `readMetrics` reporter (single-threaded contract honored).
-   *   6. Deserialize the validated bytes through the standard
-   *      [[org.apache.spark.serializer.SerializerManager]] path and accumulate the
-   *      resulting `(K, C)` records.
-   *   7. Update `ackedPositions` and trigger [[acknowledgePosition]] so the producer can
-   *      reclaim buffer memory for the consumed prefix.
+   * The returned iterator is lazy: a block is fetched only when the consumer pulls past
+   * the previous block's records. A producer-side timeout is tracked per call invocation
+   * via a deadline computed from [[PRODUCER_TIMEOUT_MILLIS]]. If the deadline passes
+   * before the next block is fetched, [[FetchFailedException]] is thrown atomically per
+   * the SPARK-19276 contract.
    *
-   * @param address     the producer's [[BlockManagerId]]
-   * @param shuffleId   the shuffle identifier (for FetchFailedException construction)
-   * @param blocks      the assigned blocks for this producer; each tuple is
-   *                    `(BlockId, length, mapIndex)`
-   * @param accumulator buffer into which deserialized records are appended
-   * @throws TimeoutException     on producer connection timeout (>5 s without progress)
-   *                              or any underlying network failure (which is mapped to
-   *                              `TimeoutException` so the outer catch can route it into
-   *                              `FetchFailedException`)
-   * @throws FetchFailedException on persistent checksum corruption (after retransmission)
+   * Specific exception types are translated into [[FetchFailedException]] with
+   * categorized messages: [[TimeoutException]] / [[SocketTimeoutException]] /
+   * [[IOException]] / `NonFatal`. Fatal errors (e.g., `OutOfMemoryError`,
+   * `InterruptedException`) propagate unwrapped.
+   *
+   * @param address             the producer's [[BlockManagerId]]
+   * @param shuffleId           the shuffle identifier (for FetchFailedException)
+   * @param blocks              the assigned blocks for this producer; each tuple is
+   *                            `(BlockId, length, mapIndex)`
+   * @param serializerManager   shared [[SerializerManager]] for stream wrapping
+   * @param serializerInstance  per-call [[SerializerInstance]] for deserialization
+   * @return a lazy iterator over `(K, C)` records produced by this producer
    */
-  private def streamFromProducer(
+  private def producerBlockIterator(
       address: BlockManagerId,
       shuffleId: Int,
-      blocks: scala.collection.Seq[(BlockId, Long, Int)],
-      accumulator: mutable.ArrayBuffer[Product2[K, C]]): Unit = {
+      blocks: collection.Seq[(BlockId, Long, Int)],
+      serializerManager: SerializerManager,
+      serializerInstance: SerializerInstance): Iterator[(Any, Any)] = {
     val deadline = System.currentTimeMillis() + PRODUCER_TIMEOUT_MILLIS
     var bytesReadTotal = 0L
 
-    blocks.foreach { case (blockId, length, mapIndex) =>
-      // Check the timeout deadline BEFORE every block fetch. This ensures a stuck or
-      // slow producer cannot exceed the contractual 5-second window before we trigger
-      // upstream recomputation.
+    blocks.iterator.flatMap { case (blockId, length, mapIndex) =>
+      // Check the timeout deadline BEFORE every block fetch. This ensures a stuck or slow
+      // producer cannot exceed the contractual 5-second window before we trigger upstream
+      // recomputation. The increment-and-throw is atomic per SPARK-19276.
       if (System.currentTimeMillis() > deadline) {
-        throw new TimeoutException(
-          s"Producer $address exceeded ${PRODUCER_TIMEOUT_MILLIS}ms timeout before " +
-          s"block $blockId")
+        streamingMetrics.incrementPartialReadInvalidations()
+        logWarning(log"Producer connection timeout for " +
+          log"${MDC(HOST_PORT, s"${address.host}:${address.port}")} " +
+          log"shuffleId=${MDC(SHUFFLE_ID, shuffleId)} " +
+          log"timeoutMs=${MDC(TIMEOUT, PRODUCER_TIMEOUT_MILLIS)}; " +
+          log"invalidating partial reads")
+        throw new FetchFailedException(
+          address,
+          shuffleId,
+          mapIdFromBlock(blockId),
+          mapIndex,
+          startPartition,
+          s"Producer $address exceeded ${PRODUCER_TIMEOUT_MILLIS}ms timeout " +
+            s"before block $blockId")
       }
 
-      // Fetch the block synchronously through the existing block transfer service.
-      // This reuses the same network path as BlockStoreShuffleReader; in v1 the streaming
-      // optimization lives in the writer's flush cadence rather than a new fetch protocol.
-      // Any underlying network failure is mapped into TimeoutException so that the outer
-      // read() catch block routes it consistently into FetchFailedException.
-      val managedBuffer = try {
-        blockManager.blockTransferService.fetchBlockSync(
-          address.host, address.port, address.executorId, blockId.name, null)
-      } catch {
-        case e: Exception =>
-          val timeoutEx = new TimeoutException(
-            s"Failed to fetch block $blockId from $address: ${e.getMessage}")
-          timeoutEx.initCause(e)
-          throw timeoutEx
-      }
-
-      // Read all bytes from the ManagedBuffer's NIO ByteBuffer. The buffer ownership
-      // contract requires us to copy the bytes out before any subsequent operation that
-      // might release the underlying memory.
-      val nioBuffer = managedBuffer.nioByteBuffer()
-      val bytes = new Array[Byte](nioBuffer.remaining())
-      nioBuffer.get(bytes)
-
-      // Validate CRC32C checksum of the received bytes BEFORE deserialization. The
-      // expected checksum is carried out-of-band by the existing shuffle checksum
-      // side-channel; if no checksum is available (test path or checksum disabled),
-      // expectedChecksumFor returns 0L which causes the comparison to be skipped.
-      val computed = computeCrc32c(bytes)
-      val expected = expectedChecksumFor(blockId)
-      val validatedBytes = if (expected != 0L && computed != expected) {
-        // Checksum mismatch -- request retransmission once before giving up.
-        logWarning(
-          s"$CHECKSUM_ALGORITHM checksum mismatch for block $blockId from $address " +
-          s"(expected=$expected, got=$computed); requesting retransmission")
-        val retryBytes = retransmitBlock(address, blockId)
-        val retryComputed = computeCrc32c(retryBytes)
-        if (retryComputed != expected) {
-          // Persistent corruption -- invalidate the partial read and trigger upstream
-          // recomputation. The increment-and-throw must be atomic per SPARK-19276 so that
-          // TaskContext.setFetchFailed is called exactly once per failure.
-          streamingMetrics.incrementPartialReadInvalidations()
-          throw new FetchFailedException(
-            address,
-            shuffleId,
-            mapIdFromBlock(blockId),
-            mapIndex,
-            startPartition,
-            s"Persistent $CHECKSUM_ALGORITHM corruption on block $blockId after " +
-              s"retransmission (expected=$expected, got=$retryComputed)")
-        }
-        retryBytes
-      } else {
-        bytes
-      }
+      val validatedBytes =
+        fetchAndValidateBlock(address, shuffleId, blockId, length, mapIndex)
 
       // Update local read metrics. The single-threaded contract documented on
       // ShuffleReadMetricsReporter is honored: this method is the sole accumulator for
@@ -315,12 +389,6 @@ private[spark] class StreamingShuffleReader[K, C](
       readMetrics.incRemoteBlocksFetched(1L)
       bytesReadTotal += length
 
-      // Deserialize the validated bytes through the standard SerializerManager path so
-      // that the streaming-shuffle reader is byte-for-byte compatible with the
-      // BlockStoreShuffleReader's deserialization pipeline. Compression/encryption
-      // wrapping (if configured) is applied by SerializerManager.wrapStream.
-      deserializeBlock(blockId, validatedBytes, accumulator)
-
       // Acknowledge the consumed position so the producer can reclaim buffer memory.
       // Per the v1 acknowledgment design, this is an implicit ack carried via the next
       // fetch request; no explicit RPC is sent. The ackedPositions map is updated so
@@ -328,10 +396,155 @@ private[spark] class StreamingShuffleReader[K, C](
       val newPos = ackedPositions.getOrElse(address, 0L) + length
       ackedPositions(address) = newPos
       acknowledgePosition(address, newPos)
+
+      // Deserialize the validated bytes through the standard SerializerManager pipeline.
+      // Returns a NextIterator that closes the underlying DeserializationStream when the
+      // record iterator is exhausted (asKeyValueIterator's contract).
+      val byteStream = new ByteArrayInputStream(validatedBytes)
+      val wrappedStream = serializerManager.wrapStream(blockId, byteStream)
+      serializerInstance.deserializeStream(wrappedStream).asKeyValueIterator
+    } ++ producerCompletionLogger(address)
+
+    // Note: the trailing `++ producerCompletionLogger(...)` is a zero-element iterator
+    // whose hasNext side-effect emits a debug log line when the producer's blocks are
+    // fully consumed. This preserves the per-producer log emitted by the prior eager
+    // implementation without introducing a Phase-3 hot-path scan over the records.
+  }
+
+  /**
+   * Zero-element iterator whose only side effect is logging the per-producer completion
+   * record. Returned by [[producerBlockIterator]] so the existing per-producer DEBUG
+   * trace is preserved in the lazy implementation.
+   *
+   * @param address the producer whose iteration just completed
+   * @return an empty `Iterator[(Any, Any)]` that logs on first `hasNext`
+   */
+  private def producerCompletionLogger(
+      address: BlockManagerId): Iterator[(Any, Any)] = new Iterator[(Any, Any)] {
+    private var logged = false
+    override def hasNext: Boolean = {
+      if (!logged) {
+        logged = true
+        val acked = ackedPositions.getOrElse(address, 0L)
+        logDebug(log"Consumed all blocks from producer " +
+          log"${MDC(HOST_PORT, s"${address.host}:${address.port}")}, " +
+          log"bytesAcked=${MDC(NUM_BYTES, acked)}")
+      }
+      false
+    }
+    override def next(): (Any, Any) = throw new NoSuchElementException
+  }
+
+  /**
+   * Fetch the bytes of a single block and validate its CRC32C checksum. Translates any
+   * fetch-time failure into [[FetchFailedException]] with a categorized message so that
+   * the existing `DAGScheduler.handleTaskCompletion` path drives upstream recomputation.
+   *
+   * The [[org.apache.spark.network.buffer.ManagedBuffer]] returned by `fetchBlockSync`
+   * is released exactly once via a `try { ... } finally { release() }` envelope --
+   * matching the established pattern in
+   * [[org.apache.spark.storage.ShuffleBlockFetcherIterator]]. Failure to release would
+   * leak Netty direct memory and exhaust the executor's direct-memory budget under
+   * sustained streaming workloads.
+   *
+   * On checksum mismatch, retransmission is attempted exactly once. Persistent
+   * corruption (mismatch after retransmission) increments
+   * `partialReadInvalidations` and throws [[FetchFailedException]] atomically.
+   *
+   * @param address    the producer's [[BlockManagerId]]
+   * @param shuffleId  the shuffle identifier (for FetchFailedException)
+   * @param blockId    the block being fetched
+   * @param length     the expected block length (used for read-metrics accounting)
+   * @param mapIndex   the map index for this block (third tuple element)
+   * @return the validated block bytes
+   */
+  private def fetchAndValidateBlock(
+      address: BlockManagerId,
+      shuffleId: Int,
+      blockId: BlockId,
+      length: Long,
+      mapIndex: Int): Array[Byte] = {
+    // Fetch with categorized exception classification. Fatal errors (OOM, etc.) propagate
+    // unwrapped so the JVM-level diagnostics are preserved. NonFatal errors are mapped
+    // into FetchFailedException so the DAGScheduler triggers upstream recomputation.
+    val managedBuffer = try {
+      blockManager.blockTransferService.fetchBlockSync(
+        address.host, address.port, address.executorId, blockId.name, null)
+    } catch {
+      case e: TimeoutException =>
+        streamingMetrics.incrementPartialReadInvalidations()
+        throw new FetchFailedException(
+          address, shuffleId, mapIdFromBlock(blockId), mapIndex, startPartition,
+          s"Producer connection timeout fetching block $blockId from $address: " +
+            s"${e.getMessage}", e)
+      case e: SocketTimeoutException =>
+        streamingMetrics.incrementPartialReadInvalidations()
+        throw new FetchFailedException(
+          address, shuffleId, mapIdFromBlock(blockId), mapIndex, startPartition,
+          s"Socket timeout fetching block $blockId from $address: ${e.getMessage}", e)
+      case e: IOException =>
+        streamingMetrics.incrementPartialReadInvalidations()
+        throw new FetchFailedException(
+          address, shuffleId, mapIdFromBlock(blockId), mapIndex, startPartition,
+          s"I/O failure fetching block $blockId from $address: ${e.getMessage}", e)
+      case NonFatal(e) =>
+        streamingMetrics.incrementPartialReadInvalidations()
+        throw new FetchFailedException(
+          address, shuffleId, mapIdFromBlock(blockId), mapIndex, startPartition,
+          s"Failed to fetch block $blockId from $address: ${e.getMessage}", e)
+      // Fatal errors (OutOfMemoryError, InterruptedException) propagate unwrapped.
     }
 
-    logDebug(
-      s"Consumed ${blocks.size} blocks ($bytesReadTotal bytes) from producer $address")
+    // Extract bytes, then ALWAYS release the ManagedBuffer in a finally block. This
+    // matches the currentResult.buf.release() pattern in ShuffleBlockFetcherIterator
+    // and prevents Netty direct-memory leaks under sustained shuffle workloads.
+    val bytes = try {
+      val nio = managedBuffer.nioByteBuffer()
+      val arr = new Array[Byte](nio.remaining())
+      nio.get(arr)
+      arr
+    } finally {
+      managedBuffer.release()
+    }
+
+    // CRC32C verification (Castagnoli polynomial 0x1EDC6F41). When no expected checksum
+    // is available (Option None) verification is skipped -- this is the v1 default
+    // because the producer-side side-channel is not yet wired (see Scaladoc on
+    // expectedChecksumFor and the decision-log entry "CRC32C side-channel deferred to
+    // v2"). When an expected checksum IS available, retransmission is attempted exactly
+    // once on mismatch; persistent mismatch triggers FetchFailedException.
+    expectedChecksumFor(blockId) match {
+      case Some(expected) =>
+        val computed = computeCrc32c(bytes)
+        if (computed != expected) {
+          logWarning(log"CRC32C checksum mismatch for blockId=" +
+            log"${MDC(BLOCK_ID, blockId.name)} " +
+            log"from ${MDC(HOST_PORT, s"${address.host}:${address.port}")} " +
+            log"(expected=${MDC(CHECKSUM, expected)}, " +
+            log"got=${MDC(CHECKSUM, computed)}); requesting retransmission")
+          val retryBytes = retransmitBlock(address, blockId)
+          val retryComputed = computeCrc32c(retryBytes)
+          if (retryComputed != expected) {
+            // Persistent corruption -- invalidate partial read and trigger upstream
+            // recomputation. The increment-and-throw is atomic per SPARK-19276.
+            streamingMetrics.incrementPartialReadInvalidations()
+            throw new FetchFailedException(
+              address,
+              shuffleId,
+              mapIdFromBlock(blockId),
+              mapIndex,
+              startPartition,
+              s"Persistent $CHECKSUM_ALGORITHM corruption on block $blockId after " +
+                s"retransmission (expected=$expected, got=$retryComputed)")
+          }
+          retryBytes
+        } else {
+          bytes
+        }
+      case None =>
+        // No expected checksum available -- v1 default. Skip verification.
+        bytes
+    }
   }
 
   /**
@@ -339,6 +552,10 @@ private[spark] class StreamingShuffleReader[K, C](
    * of the retransmitted block. Network failures during retransmission are propagated
    * to the caller (which will treat them as persistent corruption and throw
    * [[FetchFailedException]]).
+   *
+   * The [[org.apache.spark.network.buffer.ManagedBuffer]] from the retransmit fetch is
+   * released in a finally block (same pattern as the primary fetch in
+   * [[fetchAndValidateBlock]]) to prevent Netty direct-memory leaks on retry.
    *
    * Extracted as a helper so that the retransmission code path is independently testable
    * (e.g., a test can override this method to inject corrupted retry data).
@@ -350,61 +567,13 @@ private[spark] class StreamingShuffleReader[K, C](
   private def retransmitBlock(address: BlockManagerId, blockId: BlockId): Array[Byte] = {
     val retryBuffer = blockManager.blockTransferService.fetchBlockSync(
       address.host, address.port, address.executorId, blockId.name, null)
-    val retryNio = retryBuffer.nioByteBuffer()
-    val retryBytes = new Array[Byte](retryNio.remaining())
-    retryNio.get(retryBytes)
-    retryBytes
-  }
-
-  /**
-   * Deserialize a single block's bytes into `(K, C)` records and append them to
-   * `accumulator`. Uses the standard
-   * [[org.apache.spark.serializer.SerializerManager]] wrapping path (compression and
-   * encryption decoding) followed by the dependency's serializer's
-   * [[org.apache.spark.serializer.SerializerInstance.deserializeStream]] yielding a
-   * key-value iterator -- the same pipeline as the existing
-   * [[org.apache.spark.shuffle.BlockStoreShuffleReader]]. The resulting `(Any, Any)` pairs
-   * are cast to `Product2[K, C]` per the
-   * [[org.apache.spark.shuffle.ShuffleReader]] contract.
-   *
-   * Per-record metric tracking (`incRecordsRead`) honors the single-threaded
-   * [[ShuffleReadMetricsReporter]] contract; the increments occur on the task thread
-   * driving `read()`.
-   *
-   * @param blockId      identifier of the block being deserialized
-   * @param bytes        validated raw bytes (CRC32C already verified)
-   * @param accumulator  buffer into which the deserialized records are appended
-   */
-  private def deserializeBlock(
-      blockId: BlockId,
-      bytes: Array[Byte],
-      accumulator: mutable.ArrayBuffer[Product2[K, C]]): Unit = {
-    val dep = handle.dependency
-    val serializerManager = SparkEnv.get.serializerManager
-    val byteStream = new ByteArrayInputStream(bytes)
-    val wrappedStream = serializerManager.wrapStream(blockId, byteStream)
-    val deserStream = dep.serializer.newInstance().deserializeStream(wrappedStream)
     try {
-      val recordIter = deserStream.asKeyValueIterator
-      while (recordIter.hasNext) {
-        val record = recordIter.next()
-        // Update per-record metrics on the task thread (single-threaded contract).
-        readMetrics.incRecordsRead(1L)
-        // The record is typed (Any, Any) by Serializer; cast to Product2[K, C] per the
-        // ShuffleReader[K, C] contract. Tuples in Scala 2.13 implement Product2 so the
-        // cast is structurally safe at the JVM level.
-        accumulator += record.asInstanceOf[Product2[K, C]]
-      }
+      val retryNio = retryBuffer.nioByteBuffer()
+      val retryBytes = new Array[Byte](retryNio.remaining())
+      retryNio.get(retryBytes)
+      retryBytes
     } finally {
-      // Always close the deserialization stream to release any underlying resources
-      // (compression buffers, encryption ciphers). Errors during close are logged but
-      // not propagated -- a fetch-time failure has higher priority for the caller.
-      try {
-        deserStream.close()
-      } catch {
-        case e: Exception =>
-          logDebug(s"Error closing deserialization stream for $blockId: ${e.getMessage}")
-      }
+      retryBuffer.release()
     }
   }
 
@@ -428,28 +597,45 @@ private[spark] class StreamingShuffleReader[K, C](
   }
 
   /**
-   * Resolve the expected CRC32C checksum for the given block, retrieved out-of-band from
-   * the producer's checksum metadata established via the existing shuffle checksum
-   * side-channel. Returns `0L` when no checksum is available -- this causes the validator
-   * in [[streamFromProducer]] to skip the comparison rather than fail, which is the
-   * correct behavior for both:
+   * Resolve the expected CRC32C checksum for the given block as `Option[Long]`.
    *
-   *   - test paths that do not populate checksums, and
-   *   - production deployments where `spark.shuffle.checksum.enabled=false`.
+   *   - `Some(checksum)` -- a producer-supplied checksum is available; the validator in
+   *     [[fetchAndValidateBlock]] performs the comparison and triggers retransmission /
+   *     [[FetchFailedException]] on mismatch.
+   *   - `None` -- no expected checksum is available; verification is skipped. This is
+   *     the correct behavior for: test paths that do not populate checksums, production
+   *     deployments where `spark.shuffle.checksum.enabled=false`, and v1 deployments
+   *     where the producer-side side-channel is not yet wired.
    *
-   * In v1 the actual side-channel exchange is implementation-specific to the writer's
-   * flush cadence; this method is the integration point that tests can override to
-   * inject expected values.
+   * == v1 Limitation: CRC32C Side-Channel Deferred to v2 ==
+   * The full CRC32C side-channel implementation -- where the producer supplies expected
+   * checksums via an out-of-band header in the shuffle-block stream or via an extension
+   * to the [[org.apache.spark.scheduler.MapStatus]] payload -- is deferred to a future
+   * Spark version. v1 of streaming shuffle returns `None` here unconditionally,
+   * effectively making CRC32C verification a no-op in production. The verification code
+   * path remains intact and reachable via the `Option[Long]` API so that:
+   *   - Test harnesses can override this method to inject expected values and exercise
+   *     the verification + retransmission logic end-to-end.
+   *   - The v2 implementation can wire the side-channel into this method without
+   *     changing any other call site.
+   * The decision to ship v1 with verification deferred is recorded in the streaming
+   * shuffle decision log under "CRC32C side-channel deferred to v2"; operators should
+   * rely on TCP-level integrity in the v1 deployment.
+   *
+   * Using `Option[Long]` instead of a sentinel value (e.g., `0L` meaning "absent")
+   * eliminates the 1-in-2^32 false-skip that a sentinel design would exhibit when a
+   * legitimate computed CRC32C happens to equal the sentinel.
    *
    * @param blockId identifier of the block whose checksum is being looked up
-   * @return the expected CRC32C value, or `0L` if no checksum is available
+   * @return `Some(checksum)` if a producer-supplied checksum exists, else `None`
    */
-  private def expectedChecksumFor(blockId: BlockId): Long = {
+  private def expectedChecksumFor(blockId: BlockId): Option[Long] = {
     // Reference the parameter to avoid an unused-parameter warning under strict scalastyle
-    // and to keep the integration-point signature stable for future implementations that
+    // and to keep the integration-point signature stable for v2 implementations that
     // need the BlockId to look up per-block checksums in a producer-supplied side channel.
-    logTrace(s"Resolving expected $CHECKSUM_ALGORITHM checksum for block $blockId")
-    0L
+    logTrace(log"Resolving expected CRC32C checksum for blockId=" +
+      log"${MDC(BLOCK_ID, blockId.name)} (v1: returns None)")
+    None
   }
 
   /**
@@ -457,19 +643,29 @@ private[spark] class StreamingShuffleReader[K, C](
    * producer can reclaim buffer memory for blocks whose cumulative offset is &le;
    * `position`.
    *
-   * Per the v1 acknowledgment design (AAP Section 0.4.3.2), the acknowledgment is
-   * implicit: the producer's `BackpressureProtocol` observes the next fetch request as
-   * proof of consumption progress and reclaims buffer memory for the prior offsets. No
-   * explicit RPC is sent in v1, keeping the network surface minimal.
+   * == v1 Limitation: Acknowledgment Wiring Deferred to v2 ==
+   * Per AAP Section 0.4.3.2, the v1 acknowledgment is *implicit*: the producer's
+   * `BackpressureProtocol` is intended to observe the next fetch request as proof of
+   * consumption progress and reclaim buffer memory for the prior offsets. However, the
+   * v1 producer-side wiring -- where `BackpressureProtocol.recordConsumerAck(...)` is
+   * invoked from this reader (or from the network handler observing the next fetch
+   * request) -- is NOT yet delivered. The implication is that the 10-second
+   * consumer-failure detection in `BackpressureProtocol` is not yet exercisable
+   * end-to-end through this reader. The decision to defer the explicit RPC to v2 is
+   * recorded in the streaming shuffle decision log under "Consumer acknowledgment
+   * wiring deferred to v2".
    *
    * The position is logged at TRACE level for operator-side debugging when
-   * `spark.shuffle.streaming.debug=true`.
+   * `spark.shuffle.streaming.debug=true`. The `ackedPositions` map (mutated before this
+   * call) tracks each producer's last-acked offset so a future explicit-ack RPC has the
+   * cumulative offset to send.
    *
    * @param producerId the producer's [[BlockManagerId]]
    * @param position   the cumulative byte offset acked back to the producer
    */
   private def acknowledgePosition(producerId: BlockManagerId, position: Long): Unit = {
-    logTrace(s"Acked position $position for producer $producerId")
+    logTrace(log"Acked position=${MDC(NUM_BYTES, position)} for producerId=" +
+      log"${MDC(HOST_PORT, s"${producerId.host}:${producerId.port}")}")
   }
 
   /**
@@ -488,32 +684,6 @@ private[spark] class StreamingShuffleReader[K, C](
   }
 
   /**
-   * Identify the (mapId, mapIndex) pair to use in a [[FetchFailedException]] payload
-   * when reporting a producer-level failure. The exception payload semantics:
-   *
-   *   - `mapId` (Long): the map task identifier, extracted from the first block's
-   *     [[ShuffleBlockId]] when present, or `-1L` if the producer's block list is empty.
-   *   - `mapIndex` (Int): the map task index, taken from the third tuple element of the
-   *     first block, or `-1` if the producer's block list is empty.
-   *
-   * The empty-list case is defensive: in normal operation, an entry in the
-   * `blocksByAddress` map always carries at least one block. If the list is empty for
-   * any reason (e.g., a test with synthetic data), we fall back to the
-   * [[FetchFailedException]]-permitted sentinel values rather than throwing here, which
-   * would mask the original timeout root cause.
-   *
-   * @param blocks the assigned blocks for the failed producer
-   * @return the `(mapId, mapIndex)` pair for the FetchFailedException payload
-   */
-  private def identifyFirstBlock(
-      blocks: scala.collection.Seq[(BlockId, Long, Int)]): (Long, Int) = {
-    blocks.headOption match {
-      case Some((blockId, _, mapIndex)) => (mapIdFromBlock(blockId), mapIndex)
-      case None => (-1L, -1)
-    }
-  }
-
-  /**
    * @return a snapshot of the current per-producer acked-position map. Provided for
    *         tests and observability tooling that need to verify acknowledgment progress
    *         without exposing the mutable internal map. The returned map is an immutable
@@ -522,15 +692,15 @@ private[spark] class StreamingShuffleReader[K, C](
   private[streaming] def ackedPositionsSnapshot: scala.collection.Map[BlockManagerId, Long] =
     ackedPositions.toMap
 
-  // Reference the constructor-injected TaskContext at instantiation so the parameter is
-  // not flagged as unused by strict scalastyle/scalafmt rules. The TaskContext is
-  // captured for future cancellation-aware iterator wrapping (e.g., InterruptibleIterator
-  // analogous to BlockStoreShuffleReader); v1 of the streaming reader returns a plain
-  // iterator from an ArrayBuffer where cancellation is observed at the next-block
-  // boundary inside streamFromProducer's deadline check rather than on a per-record
-  // basis.
+  // Defensive null check for the constructor-injected TaskContext at instantiation. In
+  // production task threads the TaskContext is ALWAYS non-null (the executor task runner
+  // installs it before invoking shuffle reads). A `null` TaskContext is tolerated only
+  // for synthetic test harnesses; in such cases interruptible iteration and per-task
+  // metric merging are skipped (see read()). The DEBUG log here is the documented
+  // signal that the reader is operating in test mode -- production deployments will
+  // never emit this line.
   if (context == null) {
-    logDebug("StreamingShuffleReader instantiated with null TaskContext; cancellation " +
-      "checks will be skipped (test path)")
+    logDebug(log"StreamingShuffleReader instantiated with null TaskContext; " +
+      log"cancellation checks and per-task metric merging will be skipped (test path)")
   }
 }

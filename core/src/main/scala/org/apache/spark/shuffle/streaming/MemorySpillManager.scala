@@ -23,10 +23,11 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import scala.jdk.CollectionConverters._
 
-import com.google.common.cache.{Cache, CacheBuilder}
+import com.google.common.cache.{Cache, CacheBuilder, RemovalCause, RemovalListener, RemovalNotification}
 
 import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.LogKeys._
 import org.apache.spark.internal.config.STREAMING_SHUFFLE_SPILL_THRESHOLD
 import org.apache.spark.memory.MemoryManager
 import org.apache.spark.storage.{BlockManager, ShuffleBlockId, StorageLevel}
@@ -37,16 +38,16 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  * Memory-polling spill manager: polls the executor's [[MemoryManager]] at 100 ms intervals
  * (per [[SPILL_POLL_INTERVAL_MILLIS]]); when buffer utilization exceeds the configured
  * spill threshold (default 80%, configurable 50-95% via
- * [[STREAMING_SHUFFLE_SPILL_THRESHOLD]]), evicts the largest accumulated partition buffer
- * via Guava-backed LRU and persists it through the existing [[BlockManager#putBytes]] API
- * at `StorageLevel.DISK_ONLY`. NO new block-ID type or storage level is introduced.
+ * [[STREAMING_SHUFFLE_SPILL_THRESHOLD]]), evicts the largest tracked partition buffer via
+ * the Guava-backed registry and persists it through the existing [[BlockManager#putBytes]]
+ * API at `StorageLevel.DISK_ONLY`. NO new block-ID type or storage level is introduced.
  *
  * == Coexistence ==
- * Spilled blocks are persisted as `ShuffleBlockId(shuffleId, mapId, reduceId)` instances
- * -- the same block-ID type used by the existing sort-based shuffle. The on-disk layout is
+ * Spilled blocks are persisted as `ShuffleBlockId(shuffleId, mapId, reduceId)` instances --
+ * the same block-ID type used by the existing sort-based shuffle. The on-disk layout is
  * therefore compatible with the existing `IndexShuffleBlockResolver` lookup path, though
  * the streaming reader does not currently consume from disk (the spill exists primarily
- * as failsafe to absorb consumer slowdowns and prevent OOM during sustained backpressure).
+ * as a failsafe to absorb consumer slowdowns and prevent OOM during sustained backpressure).
  *
  * Per the user directive *"Isolate streaming logic in dedicated classes with zero
  * cross-contamination into existing shuffle code paths."* this class lives entirely within
@@ -55,27 +56,68 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  * accessor; it does not modify any existing shuffle, storage, or memory-management
  * code path.
  *
+ * == Buffer Ownership Contract (Writer-Manager) ==
+ * The writer (`StreamingShuffleWriter`, authored in a subsequent checkpoint) interacts with
+ * this manager through three explicit ownership-transfer boundaries:
+ *   - [[trackBuffer]]: the writer registers a `ChunkedByteBuffer` reference with the
+ *     manager for memory-pressure-driven eviction. After this call the manager OWNS the
+ *     reference and is responsible for either persisting (via [[evictLargestBuffer]] or
+ *     [[checkAndSpill]]) or releasing (via [[reclaim]]) the underlying memory. The writer
+ *     MUST NOT continue to hold or mutate the registered buffer; it should drop its
+ *     reference immediately after [[trackBuffer]] returns.
+ *   - [[checkAndSpill]]: the writer pushes a `ChunkedByteBuffer` for explicit per-partition
+ *     spill (typically when its own partition-level threshold is crossed before this
+ *     manager's polling loop notices). Ownership transfers to this manager which persists
+ *     the buffer via `BlockManager.putBytes` then disposes it.
+ *   - [[reclaim]]: invoked from the consumer-ack path (via `BackpressureProtocol`) when
+ *     the consumer has durably consumed bytes; this manager removes the registered buffer
+ *     (when fully reclaimed) and disposes the underlying memory.
+ *
+ * This contract resolves the writer-manager ownership ambiguity flagged in the
+ * Checkpoint-4 review (cross-file Issue 3) by making the manager the sole owner of any
+ * registered buffer reference. The contract is documented at the [[trackBuffer]],
+ * [[checkAndSpill]], and [[reclaim]] method-level Scaladoc as well.
+ *
  * == Reclamation Path ==
- * Consumer acknowledgments arrive through `BackpressureProtocol` and trigger [[reclaim]]
- * within 100 ms (the polling cadence) per the streaming-shuffle "buffer reclamation
- * within 100 ms of consumer acknowledgment" specification.
+ * Consumer acknowledgments arrive through `BackpressureProtocol.recordConsumerAck` and
+ * trigger [[reclaim]] within 100 ms (the polling cadence) per the streaming-shuffle
+ * "buffer reclamation within 100 ms of consumer acknowledgment" specification. In v1 the
+ * reader uses the implicit-ack design (the next fetch request serves as proof of
+ * consumption progress for prior offsets, see [[StreamingShuffleReader#acknowledgePosition]]
+ * Scaladoc); the explicit out-of-band ack RPC is deferred to a follow-on milestone.
  *
  * == Spill Decision ==
  * Two paths can trigger a spill:
  *   - [[checkAndSpill]]: per-partition push from `StreamingShuffleWriter#maybeSpill` when a
- *     single partition's buffer crosses the threshold. The writer hands the pending bytes
- *     to this class, which persists them via [[BlockManager#putBytes]].
+ *     single partition's buffer crosses the threshold. The writer hands the buffer to this
+ *     class, which persists it via [[BlockManager#putBytes]] and disposes it.
  *   - [[evictLargestBuffer]] (private): pull from the polling loop when the global
  *     buffer-utilization percent (computed in [[pollOnce]]) exceeds the configured
  *     threshold. The polling path selects the largest tracked buffer for eviction, on the
- *     pragmatic basis that the largest buffer relieves the most pressure per eviction.
+ *     pragmatic basis that the largest buffer relieves the most pressure per eviction;
+ *     the manager's owned `ChunkedByteBuffer` reference is persisted via
+ *     [[BlockManager#putBytes]] and disposed.
+ *
+ * == Memory-Pressure Sampling: Pool Choice ==
+ * [[pollOnce]] computes utilization as `totalBytes / memoryManager.maxOnHeapStorageMemory`.
+ * In Spark's unified-memory model the on-heap execution pool is dynamically rebalanced
+ * with the on-heap storage pool, so neither pool's published capacity is a clean upper
+ * bound for buffer-tracking purposes. The streaming-shuffle path uses storage-pool
+ * capacity here for two reasons: (a) `maxOnHeapStorageMemory` is the only public accessor
+ * exposed by [[MemoryManager]] for the on-heap budget (the corresponding
+ * `maxOnHeapExecutionMemory` accessor does NOT exist on the public API surface, so a
+ * symmetric self-consistent ratio is not directly achievable in v1); and (b) the resulting
+ * ratio is directionally correct as a pressure signal -- when this ratio crosses the
+ * configured spill threshold, the executor IS under memory pressure relative to the
+ * unified-memory budget, regardless of which pool's capacity served as the denominator.
+ * This trade-off is documented in `blitzy-docs/streaming-shuffle/decision-log.md`.
  *
  * == Concurrency ==
  * The polling thread runs concurrently with writer threads that call [[checkAndSpill]],
  * [[trackBuffer]], and [[reclaim]] from arbitrary task threads. Thread-safety is achieved
  * through:
- *   - [[partitionLruCache]]: thread-safe Guava `Cache` with concurrent `put`, `getIfPresent`,
- *     and `invalidate` operations.
+ *   - [[partitionBufferRegistry]]: thread-safe Guava `Cache` with concurrent `put`,
+ *     `getIfPresent`, and `invalidate` operations.
  *   - [[totalBytes]] and [[totalSpills]]: lock-free [[AtomicLong]] counters with
  *     `addAndGet` and `incrementAndGet` operations.
  *   - [[pollingFuture]]: `@volatile` so [[stop]] reads the latest value published by the
@@ -88,12 +130,37 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  * satisfying the streaming-shuffle "telemetry overhead < 1% executor CPU utilization"
  * budget.
  *
+ * == Race-Condition Tolerance in [[evictLargestBuffer]] ==
+ * The private [[evictLargestBuffer]] method snapshots the cache via
+ * `partitionBufferRegistry.asMap.asScala`, which yields a weakly-consistent view per
+ * Guava's documented `ConcurrentMap` semantics. A buffer added between the snapshot and
+ * the eviction decision will not be considered for eviction *this round*; it will be
+ * picked up by the next polling tick (within 100 ms). This is benign because:
+ *   - The "largest" determination is approximate by design -- the goal is to relieve as
+ *     much pressure as possible per eviction, not to find the optimum.
+ *   - Concurrent [[trackBuffer]] / [[reclaim]] / [[checkAndSpill]] calls update the
+ *     `totalBytes` counter atomically, so the next polling tick's pressure decision
+ *     observes the post-update state.
+ *   - Concurrent [[invalidate]] calls (from [[reclaim]] or another [[evictLargestBuffer]]
+ *     invocation -- the latter is impossible given the single-threaded scheduler) are
+ *     handled via a defensive `getIfPresent` re-check before the chosen buffer is
+ *     persisted, so a buffer that was removed between snapshot and eviction is skipped
+ *     without an NPE or double-spill.
+ *
  * == Lifecycle ==
  * Constructed once per [[StreamingShuffleManager]] instance (i.e., once per executor JVM
  * when streaming shuffle is opted in). The polling executor is started on construction
  * and runs as a daemon thread, so a missing [[stop]] call cannot prevent JVM shutdown.
  * The lifetime of this instance equals the lifetime of the streaming-shuffle code path
  * on this executor.
+ *
+ * == Constructor Parameter Ordering ==
+ * The constructor parameter order is `(blockManager, memoryManager, metrics, conf)`
+ * following the project convention of "infrastructure dependencies first, configuration
+ * last". This convention is documented in
+ * `blitzy-docs/streaming-shuffle/decision-log.md`. The Checkpoint-4 review captured a doc
+ * drift between this implementation and the checkpoint-instruction text; the convention
+ * documented in the decision log is the authoritative source.
  *
  * @param blockManager  executor block manager for `putBytes` access
  * @param memoryManager unified memory manager for utilization sampling
@@ -107,8 +174,8 @@ private[spark] class MemorySpillManager(
     conf: SparkConf) extends Logging {
 
   /**
-   * Composite key for the LRU cache: tracks one partition buffer's accumulation. The
-   * auto-generated `equals` and `hashCode` from case-class semantics satisfy the Guava
+   * Composite key for the partition buffer registry: identifies one partition's buffer.
+   * The auto-generated `equals` and `hashCode` from case-class semantics satisfy the Guava
    * `Cache` key-equality contract; the `toString` is used in log diagnostics in
    * [[evictLargestBuffer]] and [[reclaim]] without further formatting.
    *
@@ -120,46 +187,100 @@ private[spark] class MemorySpillManager(
   private case class BufferKey(shuffleId: Int, mapId: Long, reduceId: Int)
 
   /**
-   * LRU cache keyed on `(shuffleId, mapId, reduceId)` tuples; value is the accumulated
-   * buffer size in bytes for that partition. `expireAfterAccess` is intentionally NOT set
-   * -- entries remain until explicitly invalidated after spill or reclamation -- because
-   * eviction policy is driven by memory pressure (via [[pollOnce]] -> [[evictLargestBuffer]])
+   * Cached spill threshold percent (default 80%, configurable 50-95% via
+   * [[STREAMING_SHUFFLE_SPILL_THRESHOLD]]). Resolved once at construction time so the
+   * polling loop's hot path does not re-read [[SparkConf]] (a HashMap traversal + value
+   * parsing) on every 100 ms tick. Configuration is treated as immutable for the
+   * application lifetime per the streaming-shuffle "configuration changes require executor
+   * restart" specification (AAP Section 0.7.2.5).
+   */
+  private val spillThresholdPercent: Int = conf.get(STREAMING_SHUFFLE_SPILL_THRESHOLD)
+
+  /**
+   * Buffer registry keyed on `(shuffleId, mapId, reduceId)` tuples; value is the actual
+   * `ChunkedByteBuffer` reference owned by this manager for memory-pressure-driven
+   * eviction. `expireAfterAccess` is intentionally NOT set -- entries remain until
+   * explicitly invalidated by [[checkAndSpill]], [[reclaim]], or [[evictLargestBuffer]] --
+   * because eviction is driven by memory pressure (via [[pollOnce]] -> [[evictLargestBuffer]])
    * and consumer acknowledgments (via [[reclaim]]), not by a timer.
    *
-   * The `maximumSize(10000)` cap is an operational ceiling for the number of distinct
-   * partitions tracked simultaneously. A typical Spark executor handles fewer concurrent
-   * shuffles than this in practice (the streaming-shuffle "5 concurrent shuffles" stress
-   * test target multiplied by partition counts in the hundreds is well within 10k); the
-   * cap exists to bound the cache's memory footprint in pathological cases. Guava's
-   * `maximumSize` policy uses an LRU eviction order, but this class's correctness does not
-   * depend on any specific eviction order beyond "do not retain unbounded entries."
+   * == No `maximumSize` Cap ==
+   * The Checkpoint-4 review (Issue 5) flagged the prior `maximumSize(10000L)` cap as a
+   * source of silent eviction without [[totalBytes]] decrement. The cap is removed in this
+   * revision because the manager's primary bounding mechanism is memory-pressure-driven
+   * eviction in [[evictLargestBuffer]] -- the cap was redundant defense and introduced
+   * silent-eviction risk. To still detect the pathological case of unbounded entry
+   * growth, the [[RemovalListener]] below logs a WARN if Guava ever evicts an entry for
+   * a non-explicit reason (cause != EXPLICIT && cause != REPLACED).
+   *
+   * == [[RemovalListener]] ==
+   * Attached so that buffer disposal and `totalBytes` accounting remain consistent under
+   * any eviction path, including hypothetical implicit evictions (as a defense-in-depth
+   * safeguard if a future code change re-introduces a `maximumSize` cap or adds
+   * `expireAfterWrite`). The listener:
+   *   - On EXPLICIT cause (caller-driven `invalidate`): no-op; the calling method already
+   *     handled `totalBytes` accounting and (where applicable) buffer disposal.
+   *   - On REPLACED cause (caller `put` replacing an existing entry): no-op; the calling
+   *     method handled `totalBytes` accounting and the OLD buffer is still accessible by
+   *     the caller for explicit disposal.
+   *   - On any other cause (SIZE, EXPIRED, COLLECTED): logs a WARN with the buffer's size,
+   *     decrements `totalBytes` by that size, and disposes the buffer to release native
+   *     memory. This path should be unreachable in v1 (no `maximumSize`/`expireAfter*`)
+   *     but the listener guards against future configuration drift.
    *
    * `recordStats()` enables the cache's internal statistics tracking, exposed via the
    * `Cache#stats` accessor in the [[stop]] log message for post-mortem diagnostics
    * (per the AAP Section 0.5.1.3 "LRU partition selection backed by a Guava
-   * `CacheBuilder.newBuilder().recordStats().build()`" specification).
-   *
-   * The value type is the boxed `java.lang.Long` rather than the unboxed `Long` because
-   * Guava's generic type parameters require reference types; explicit boxing in `put`
-   * calls via [[java.lang.Long#valueOf]] avoids any auto-boxing surprises.
+   * `CacheBuilder.newBuilder().recordStats().build()`" specification -- the streaming
+   * spec uses "LRU" loosely; this manager's actual eviction policy is "evict-largest" for
+   * pressure-relief, with the registry's underlying access-order machinery providing the
+   * weakly-consistent snapshot semantics).
    */
-  private val partitionLruCache: Cache[BufferKey, java.lang.Long] = CacheBuilder.newBuilder()
-    .maximumSize(10000L)
-    .recordStats()
-    .build()
+  private val partitionBufferRegistry: Cache[BufferKey, ChunkedByteBuffer] =
+    CacheBuilder.newBuilder()
+      .recordStats()
+      .removalListener(new RemovalListener[BufferKey, ChunkedByteBuffer] {
+        override def onRemoval(notification: RemovalNotification[BufferKey, ChunkedByteBuffer])
+            : Unit = {
+          val cause = notification.getCause
+          if (cause != RemovalCause.EXPLICIT && cause != RemovalCause.REPLACED) {
+            // Implicit eviction (SIZE, EXPIRED, or COLLECTED) -- defensive accounting.
+            // In v1 this branch is unreachable because no maximumSize/expireAfter* is
+            // configured; it exists to keep totalBytes and buffer lifecycle correct in
+            // case a future revision adds an implicit-eviction cause.
+            val buf = notification.getValue
+            val key = notification.getKey
+            if (buf != null) {
+              val size = buf.size
+              totalBytes.addAndGet(-size)
+              try buf.dispose() catch {
+                case t: Throwable =>
+                  logWarning(log"ChunkedByteBuffer dispose threw on implicit eviction for " +
+                    log"key=${MDC(BLOCK_ID, key.toString)}", t)
+              }
+              logWarning(log"Implicit cache eviction " +
+                log"(cause=${MDC(EXIT_CODE, cause.toString)}) " +
+                log"for key=${MDC(BLOCK_ID, key.toString)} " +
+                log"size=${MDC(NUM_BYTES, size)}; v1 should not exercise this path")
+            }
+          }
+        }
+      })
+      .build()
 
   /**
    * Total accumulated bytes across all currently tracked partitions; sampled by the
    * polling thread to compute buffer-utilization percent. Updated lock-free by
    * [[trackBuffer]] (positive delta), [[reclaim]] (negative delta), [[checkAndSpill]]
-   * (negative delta on successful spill), and [[evictLargestBuffer]] (negative delta on
+   * (negative delta on successful spill), [[evictLargestBuffer]] (negative delta on
+   * eviction), and the [[RemovalListener]] (negative delta on hypothetical implicit
    * eviction). The `addAndGet` operations are wait-free under low contention and offer
    * orders-of-magnitude lower overhead than a `synchronized` block on the hot path.
    */
   private val totalBytes = new AtomicLong(0L)
 
   /**
-   * Cumulative count of spill events (both `checkAndSpill` and `evictLargestBuffer`
+   * Cumulative count of spill events (both [[checkAndSpill]] and [[evictLargestBuffer]]
    * paths) over the lifetime of this instance. Used in the [[stop]] log message for
    * post-mortem diagnostics; the operator-facing counter is the
    * [[StreamingShuffleMetrics#spillCount]] Dropwizard counter, which is incremented in
@@ -218,21 +339,23 @@ private[spark] class MemorySpillManager(
           case t: Throwable =>
             // Polling errors should not kill the executor or cancel the schedule; log and
             // continue so the next tick proceeds normally.
-            logWarning("MemorySpillManager poll error (continuing)", t)
+            logWarning(log"MemorySpillManager poll error (continuing)", t)
         }
       }
     }
     pollingFuture = pollingExecutor.scheduleWithFixedDelay(
       task, SPILL_POLL_INTERVAL_MILLIS, SPILL_POLL_INTERVAL_MILLIS, TimeUnit.MILLISECONDS)
-    logInfo(s"MemorySpillManager polling started at ${SPILL_POLL_INTERVAL_MILLIS}ms interval")
+    logInfo(log"MemorySpillManager polling started at " +
+      log"${MDC(TIMEOUT, SPILL_POLL_INTERVAL_MILLIS)}ms interval " +
+      log"(spillThresholdPercent=${MDC(THRESHOLD, spillThresholdPercent.toLong)})")
   }
 
   /**
    * One iteration of the polling loop. Samples the global buffer-utilization percent
    * ([[totalBytes]] divided by [[MemoryManager#maxOnHeapStorageMemory]]) and updates the
    * [[StreamingShuffleMetrics#bufferUtilizationPercent]] gauge. If utilization meets or
-   * exceeds the configured spill threshold (default 80%, configurable 50-95% via
-   * [[STREAMING_SHUFFLE_SPILL_THRESHOLD]]), evicts the largest tracked buffer.
+   * exceeds the configured spill threshold (cached at construction in
+   * [[spillThresholdPercent]]), evicts the largest tracked buffer.
    *
    * == Visibility ==
    * Marked `private[streaming]` rather than `private` so that
@@ -256,189 +379,381 @@ private[spark] class MemorySpillManager(
     val pct = ((used.toDouble / maxOnHeap.toDouble) * 100.0).toInt
     metrics.updateBufferUtilization(pct)
 
-    // Spill threshold default 80% per the streaming-shuffle memory-discipline contract;
-    // configurable in [50, 95] via STREAMING_SHUFFLE_SPILL_THRESHOLD.
-    val thresholdPercent = conf.get(STREAMING_SHUFFLE_SPILL_THRESHOLD)
-    if (pct >= thresholdPercent) {
+    if (pct >= spillThresholdPercent) {
       evictLargestBuffer()
     }
   }
 
   /**
-   * Persist a partition's pending buffer bytes to disk via [[BlockManager#putBytes]] and
-   * update bookkeeping. Called from `StreamingShuffleWriter#maybeSpill` when a single
-   * partition's buffer crosses the threshold. The writer is expected to reset its
-   * in-memory buffer for this partition after this call returns; this class invalidates
-   * the corresponding LRU entry and decrements [[totalBytes]] on successful spill.
+   * Persist a partition's pending buffer to disk via [[BlockManager#putBytes]] and update
+   * bookkeeping. Called from `StreamingShuffleWriter#maybeSpill` when a single
+   * partition's buffer crosses the threshold. Ownership of `buffer` transfers to this
+   * manager: on success the buffer is disposed and bookkeeping is updated; on failure the
+   * buffer remains in the registry so a retry path observes the same state.
    *
    * == Failure Handling ==
    *   - When [[BlockManager#putBytes]] returns `false` (block-write declined), this method
-   *     logs a warning and leaves the LRU bookkeeping untouched so the writer can retry.
+   *     logs a WARN and leaves the registry bookkeeping untouched so the writer can retry.
    *   - When [[BlockManager#putBytes]] throws an exception (disk failure, IO error,
    *     interrupt), the exception is caught and logged at WARN. The buffer remains in
-   *     memory and may be retried by the caller; the bookkeeping is left untouched so a
-   *     retry observes the same state as the original call.
+   *     memory, the registry is left untouched, and `totalBytes` is unchanged so a retry
+   *     observes the same state as the original call. The buffer is NOT disposed in this
+   *     case because the writer may legitimately retry the spill.
    *
    * == No-Op Inputs ==
-   * Null or empty `pendingBytes` returns immediately without touching the cache or the
-   * block manager; this protects callers from accidentally registering empty spills that
-   * would inflate the spill counter without persisting any data.
+   * Null `buffer` returns immediately without touching the registry or the block manager;
+   * this protects callers from accidentally registering empty spills that would inflate
+   * the spill counter without persisting any data. Empty buffers (size == 0) are similarly
+   * treated as no-ops.
    *
-   * @param shuffleId    shuffle ID
-   * @param mapId        map task ID
-   * @param reduceId     reduce partition ID
-   * @param pendingBytes the accumulated buffer bytes to spill (must be non-null and
-   *                     non-empty for the spill to proceed)
+   * == Buffer Ownership ==
+   * Per the writer-manager ownership contract (see class-level Scaladoc), the manager
+   * takes ownership of `buffer` on entry. The writer MUST NOT continue to read or modify
+   * the buffer after this call. On successful spill the manager calls `buffer.dispose()`.
+   * On failure the buffer is preserved in the registry for retry; ownership remains with
+   * the manager.
+   *
+   * @param shuffleId shuffle ID
+   * @param mapId     map task ID
+   * @param reduceId  reduce partition ID
+   * @param buffer    the accumulated buffer to spill (must be non-null and non-empty for
+   *                  the spill to proceed)
    */
   def checkAndSpill(
       shuffleId: Int,
       mapId: Long,
       reduceId: Int,
-      pendingBytes: Array[Byte]): Unit = {
-    if (pendingBytes == null || pendingBytes.isEmpty) return
+      buffer: ChunkedByteBuffer): Unit = {
+    require(shuffleId >= 0, s"shuffleId must be non-negative, got $shuffleId")
+    require(mapId >= 0L, s"mapId must be non-negative, got $mapId")
+    require(reduceId >= 0, s"reduceId must be non-negative, got $reduceId")
+    if (buffer == null || buffer.size == 0L) return
 
     val key = BufferKey(shuffleId, mapId, reduceId)
     val blockId = ShuffleBlockId(shuffleId, mapId, reduceId)
-    // Wrap the byte array via ByteBuffer.wrap (zero-copy) and pass to the single-buffer
-    // ChunkedByteBuffer convenience constructor; this matches the existing pattern used
-    // by org.apache.spark.storage.memory.MemoryStore for serialized-entry persistence.
-    val byteBuf = ByteBuffer.wrap(pendingBytes)
-    val chunked = new ChunkedByteBuffer(byteBuf)
+    val byteCount = buffer.size
+
+    // If the buffer is not yet registered, register it now before attempting the spill so
+    // the totalBytes counter reflects the buffer's footprint. This handles the case where
+    // the writer pushes a buffer for direct spill without prior trackBuffer.
+    val existing = partitionBufferRegistry.getIfPresent(key)
+    if (existing == null) {
+      partitionBufferRegistry.put(key, buffer)
+      totalBytes.addAndGet(byteCount)
+    } else if (existing ne buffer) {
+      // Different buffer reference for same key: replace and adjust totalBytes.
+      // This is unusual (writer should reclaim previous buffer first) but supported.
+      partitionBufferRegistry.put(key, buffer)
+      totalBytes.addAndGet(byteCount - existing.size)
+      try existing.dispose() catch {
+        case t: Throwable =>
+          logWarning(log"ChunkedByteBuffer dispose threw for replaced entry " +
+            log"key=${MDC(BLOCK_ID, key.toString)}", t)
+      }
+    }
+    // (else: existing eq buffer; no registry update needed)
 
     try {
       // ClassTag.Byte is supplied explicitly because the BlockManager#putBytes signature
-      // takes a context-bound type parameter `[T: ClassTag]`. The bytes are an Array[Byte],
+      // takes a context-bound type parameter `[T: ClassTag]`. The buffer is byte data,
       // so Byte is the natural ClassTag. tellMaster=true ensures the block-manager master
       // tracks this spilled block for the standard storage-status reporting paths.
       val stored = blockManager.putBytes(
-        blockId, chunked, StorageLevel.DISK_ONLY, tellMaster = true)(scala.reflect.ClassTag.Byte)
+        blockId, buffer, StorageLevel.DISK_ONLY, tellMaster = true)(scala.reflect.ClassTag.Byte)
 
       if (stored) {
         totalSpills.incrementAndGet()
         metrics.incrementSpillCount()
-        partitionLruCache.invalidate(key)
-        totalBytes.addAndGet(-pendingBytes.length.toLong)
-        logDebug(
-          s"Spilled $blockId (${pendingBytes.length} bytes) to disk via BlockManager")
+        // Remove from registry and decrement totalBytes; then dispose the buffer to release
+        // any native memory backing the chunks.
+        partitionBufferRegistry.invalidate(key)
+        totalBytes.addAndGet(-byteCount)
+        try buffer.dispose() catch {
+          case t: Throwable =>
+            logWarning(log"ChunkedByteBuffer dispose threw after successful spill for " +
+              log"blockId=${MDC(BLOCK_ID, blockId.toString)}", t)
+        }
+        logDebug(log"Spilled ${MDC(BLOCK_ID, blockId.toString)} " +
+          log"(${MDC(NUM_BYTES, byteCount)} bytes) to disk via BlockManager")
       } else {
-        logWarning(
-          s"Failed to spill $blockId via BlockManager.putBytes (returned false)")
+        logWarning(log"Failed to spill ${MDC(BLOCK_ID, blockId.toString)} via " +
+          log"BlockManager.putBytes (returned false)")
       }
     } catch {
       case e: Exception =>
-        // Spill failure is recoverable -- the buffer remains in memory and may be retried.
-        // Bookkeeping is left untouched so retry observes the same state.
-        logWarning(s"Spill failure for $blockId: ${e.getMessage}", e)
+        // Spill failure is recoverable -- the buffer remains in the registry and may be
+        // retried by the caller. Bookkeeping is left untouched so retry observes the same
+        // state. Buffer is NOT disposed because the writer may retry.
+        logWarning(log"Spill failure for ${MDC(BLOCK_ID, blockId.toString)}: " +
+          log"${MDC(ERROR, Option(e.getMessage).getOrElse("(no message)"))}", e)
     }
   }
 
   /**
-   * Update the LRU cache and [[totalBytes]] counter when a writer accumulates more bytes
-   * for a partition buffer. Called by `StreamingShuffleWriter` after each block flush so
-   * this manager has up-to-date visibility into pending memory pressure across all
-   * tracked partitions.
+   * Register a `ChunkedByteBuffer` reference with the manager for memory-pressure-driven
+   * eviction. After this call the manager OWNS the reference and is responsible for either
+   * persisting (via [[evictLargestBuffer]] or [[checkAndSpill]]) or releasing (via
+   * [[reclaim]]) the underlying memory.
    *
-   * == Accumulation Semantics ==
-   * The new value is `previous + bytes` -- this method records cumulative bytes for the
-   * partition since the last invalidation (which occurs on spill via [[checkAndSpill]] or
-   * eviction via [[evictLargestBuffer]] or full reclamation via [[reclaim]]). Callers
-   * passing negative `bytes` are accepted but discouraged; for releases use [[reclaim]].
+   * == Buffer Ownership ==
+   * Per the writer-manager ownership contract (see class-level Scaladoc), the writer MUST
+   * NOT continue to hold or mutate the registered buffer after this call. The writer
+   * should drop its reference immediately so that the buffer's lifetime is fully managed
+   * by this class.
    *
-   * @param shuffleId shuffle ID
-   * @param mapId     map task ID
-   * @param reduceId  reduce partition ID
-   * @param bytes     incremental bytes to add to this partition's tracked buffer
+   * == Replacement Semantics ==
+   * If a buffer is already registered for the same `(shuffleId, mapId, reduceId)` key,
+   * this call REPLACES the prior buffer. The prior buffer is disposed to release its
+   * native memory. The `totalBytes` counter is adjusted by the size delta
+   * `(new.size - old.size)`. This is the natural semantic when the writer accumulates
+   * additional bytes for a partition: it constructs a new (larger) buffer and re-registers.
+   *
+   * == No-Op Inputs ==
+   * Null or empty `buffer` returns immediately without touching the registry. Negative
+   * `shuffleId`, `mapId`, or `reduceId` raise `IllegalArgumentException` (defensive input
+   * validation per `Sec5` of the Checkpoint-4 review).
+   *
+   * @param shuffleId shuffle ID (must be `>= 0`)
+   * @param mapId     map task ID (must be `>= 0`)
+   * @param reduceId  reduce partition ID (must be `>= 0`)
+   * @param buffer    the buffer to register (must be non-null for tracking to occur)
+   * @throws IllegalArgumentException if any of `shuffleId`, `mapId`, `reduceId` is negative
    */
-  def trackBuffer(shuffleId: Int, mapId: Long, reduceId: Int, bytes: Long): Unit = {
+  def trackBuffer(
+      shuffleId: Int,
+      mapId: Long,
+      reduceId: Int,
+      buffer: ChunkedByteBuffer): Unit = {
+    require(shuffleId >= 0, s"shuffleId must be non-negative, got $shuffleId")
+    require(mapId >= 0L, s"mapId must be non-negative, got $mapId")
+    require(reduceId >= 0, s"reduceId must be non-negative, got $reduceId")
+    if (buffer == null || buffer.size == 0L) return
+
     val key = BufferKey(shuffleId, mapId, reduceId)
-    val previous = Option(partitionLruCache.getIfPresent(key)).map(_.longValue()).getOrElse(0L)
-    partitionLruCache.put(key, java.lang.Long.valueOf(previous + bytes))
-    totalBytes.addAndGet(bytes)
+    val previous = partitionBufferRegistry.getIfPresent(key)
+    partitionBufferRegistry.put(key, buffer)
+
+    if (previous != null) {
+      // Replace semantics: adjust totalBytes by the size delta and dispose the old buffer
+      // so its native memory is freed.
+      totalBytes.addAndGet(buffer.size - previous.size)
+      if (previous ne buffer) {
+        try previous.dispose() catch {
+          case t: Throwable =>
+            logWarning(log"ChunkedByteBuffer dispose threw for replaced entry " +
+              log"key=${MDC(BLOCK_ID, key.toString)}", t)
+        }
+      }
+    } else {
+      totalBytes.addAndGet(buffer.size)
+    }
+    logTrace(log"Tracked buffer key=${MDC(BLOCK_ID, key.toString)} " +
+      log"size=${MDC(NUM_BYTES, buffer.size)} " +
+      log"(totalBytes=${MDC(TOTAL_SIZE, totalBytes.get())})")
   }
 
   /**
-   * Find the largest tracked buffer and evict it. Used by the polling loop when global
-   * utilization exceeds the threshold (cf. [[checkAndSpill]] which is per-partition,
-   * triggered by the writer with the buffer's bytes already in hand).
+   * Convenience overload that wraps a raw `Array[Byte]` into a [[ChunkedByteBuffer]] and
+   * invokes [[trackBuffer(Int, Long, Int, ChunkedByteBuffer)]]. Provided so writers that
+   * already have a flat byte array (a common case after serializer flush) can register
+   * without manually constructing a [[ChunkedByteBuffer]].
+   *
+   * The wrapped buffer uses [[ByteBuffer#wrap]] for zero-copy backing; the manager then
+   * owns the wrapped buffer and the underlying `bytes` array becomes part of the buffer's
+   * lifecycle. Callers should not retain or mutate `bytes` after this call.
+   *
+   * @param shuffleId shuffle ID (must be `>= 0`)
+   * @param mapId     map task ID (must be `>= 0`)
+   * @param reduceId  reduce partition ID (must be `>= 0`)
+   * @param bytes     the bytes to register (must be non-null and non-empty)
+   * @throws IllegalArgumentException if any of `shuffleId`, `mapId`, `reduceId` is negative
+   */
+  def trackBuffer(
+      shuffleId: Int,
+      mapId: Long,
+      reduceId: Int,
+      bytes: Array[Byte]): Unit = {
+    if (bytes == null || bytes.isEmpty) return
+    trackBuffer(shuffleId, mapId, reduceId, new ChunkedByteBuffer(ByteBuffer.wrap(bytes)))
+  }
+
+  /**
+   * Find the largest tracked buffer and persist it to disk via [[BlockManager#putBytes]].
+   * Used by the polling loop when global utilization exceeds the threshold (cf.
+   * [[checkAndSpill]] which is per-partition, triggered by the writer with the buffer's
+   * bytes already in hand).
    *
    * == Eviction Strategy ==
-   * Per AAP Section 0.5.1.3 the cache is "LRU partition selection backed by a Guava
-   * CacheBuilder.newBuilder().recordStats().build()". For runtime spill decisions the
+   * Per AAP Section 0.5.1.3 the registry is "LRU partition selection backed by a Guava
+   * `CacheBuilder.newBuilder().recordStats().build()`". For runtime spill decisions the
    * largest buffer is preferred over strict access-order LRU because relieving the most
-   * pressure per eviction reduces the frequency of subsequent evictions; the LRU
-   * machinery (Guava's `maximumSize` policy) still bounds the cache footprint.
+   * pressure per eviction reduces the frequency of subsequent evictions; the recorded
+   * stats are surfaced via the [[stop]] log message for post-mortem diagnostics.
    *
-   * == Operational Note ==
-   * Unlike [[checkAndSpill]] this method does NOT call [[BlockManager#putBytes]] -- it
-   * has no copy of the buffer's bytes (the writer holds them; this manager only tracks
-   * sizes). Eviction here invalidates the LRU entry and decrements [[totalBytes]],
-   * signalling to the writer that the partition is no longer counted toward global
-   * pressure. The writer observes the missing entry on its next [[trackBuffer]] call and
-   * starts a fresh accumulation; the actual disk-spill of the bytes happens when the
-   * writer next invokes [[checkAndSpill]] for that partition.
+   * == Concrete Behavior ==
+   * Unlike the prior implementation -- which only invalidated the registry entry without
+   * persisting bytes -- this method NOW:
+   *   1. Snapshots the registry into a Scala immutable map (weakly consistent per Guava
+   *      `ConcurrentMap` semantics).
+   *   2. Selects the entry with the largest `ChunkedByteBuffer.size`.
+   *   3. Persists that buffer via `BlockManager.putBytes(ShuffleBlockId, buffer,
+   *      StorageLevel.DISK_ONLY, tellMaster = true)`.
+   *   4. On success: invalidates the registry entry, decrements `totalBytes`, increments
+   *      the spill counter, and disposes the buffer.
+   *   5. On failure: logs a WARN and leaves the registry untouched so a future polling
+   *      tick or explicit [[checkAndSpill]] retry observes the same state.
    *
-   * Returns immediately if the cache is empty (no tracked buffers to evict).
+   * This addresses Checkpoint-4 review Issue 1 ("polling-driven spill mechanism is
+   * non-functional") by making the polling-driven spill path actually transfer bytes to
+   * disk.
+   *
+   * == Concurrency ==
+   * Concurrent [[invalidate]] calls (from [[reclaim]] or [[checkAndSpill]]) may remove
+   * the chosen buffer between snapshot and persistence. A defensive `getIfPresent` re-check
+   * before the persistence call skips a removed buffer cleanly without a spill or NPE.
+   *
+   * Returns immediately if the registry is empty (no tracked buffers to evict).
    */
   private def evictLargestBuffer(): Unit = {
-    // Snapshot the cache to a Scala immutable map to avoid concurrent-modification
+    // Snapshot the registry to a Scala immutable map to avoid concurrent-modification
     // artifacts during the maxBy traversal. The Guava Cache.asMap is a live ConcurrentMap
     // view, but iterating it directly via Scala converters yields a weakly-consistent
     // snapshot that is fine for the maxBy probe -- subsequent entries may have been
     // updated, but the maxBy result is still a valid eviction candidate at the moment
     // of selection.
-    val snapshot = partitionLruCache.asMap().asScala
+    val snapshot = partitionBufferRegistry.asMap().asScala
     if (snapshot.isEmpty) return
 
-    // maxBy on the value (java.lang.Long) compares by the unboxed long count.
-    val largest = snapshot.maxBy { case (_, v) => v.longValue() }
-    val key = largest._1
-    val bytes = largest._2.longValue()
+    // maxBy on the value compares by ChunkedByteBuffer.size.
+    val (key, buffer) = snapshot.maxBy { case (_, buf) => buf.size }
 
-    // Invalidate the LRU entry; the writer will see a missing entry on next
-    // trackBuffer/checkAndSpill and re-track or spill accordingly. Decrement the global
-    // counter to reflect that this partition is no longer counted toward pressure.
-    partitionLruCache.invalidate(key)
-    totalBytes.addAndGet(-bytes)
-    totalSpills.incrementAndGet()
-    metrics.incrementSpillCount()
-    logInfo(
-      s"Evicted largest buffer key=$key bytes=$bytes via LRU policy due to memory pressure")
+    // Defensive re-check: a concurrent reclaim/checkAndSpill may have removed the chosen
+    // buffer between the snapshot and this point. Skip cleanly if so.
+    val current = partitionBufferRegistry.getIfPresent(key)
+    if (current == null || (current ne buffer)) {
+      logTrace(log"Race detected: chosen buffer for eviction was removed/replaced " +
+        log"concurrently key=${MDC(BLOCK_ID, key.toString)}; skipping this tick")
+      return
+    }
+
+    val blockId = ShuffleBlockId(key.shuffleId, key.mapId, key.reduceId)
+    val byteCount = buffer.size
+
+    try {
+      val stored = blockManager.putBytes(
+        blockId, buffer, StorageLevel.DISK_ONLY, tellMaster = true)(scala.reflect.ClassTag.Byte)
+
+      if (stored) {
+        // Successful persistence: remove from registry, decrement counters, dispose
+        // buffer to release native memory.
+        partitionBufferRegistry.invalidate(key)
+        totalBytes.addAndGet(-byteCount)
+        totalSpills.incrementAndGet()
+        metrics.incrementSpillCount()
+        try buffer.dispose() catch {
+          case t: Throwable =>
+            logWarning(log"ChunkedByteBuffer dispose threw after eviction-spill for " +
+              log"blockId=${MDC(BLOCK_ID, blockId.toString)}", t)
+        }
+        logInfo(log"Evicted largest buffer key=${MDC(BLOCK_ID, key.toString)} " +
+          log"size=${MDC(NUM_BYTES, byteCount)} bytes via spill to disk under memory " +
+          log"pressure")
+      } else {
+        // putBytes declined the write; preserve registry state for retry on next tick.
+        logWarning(log"Eviction-spill declined by BlockManager.putBytes " +
+          log"(returned false) for key=${MDC(BLOCK_ID, key.toString)}; will retry on " +
+          log"next polling tick")
+      }
+    } catch {
+      case e: Exception =>
+        // Eviction-spill failure: preserve registry state for retry. Buffer is NOT disposed
+        // so the next tick can re-attempt the spill with the same data.
+        logWarning(log"Eviction-spill failure for key=${MDC(BLOCK_ID, key.toString)}: " +
+          log"${MDC(ERROR, Option(e.getMessage).getOrElse("(no message)"))}", e)
+    }
   }
 
   /**
    * Release tracked buffer memory upon receiving a consumer acknowledgment. Called by
-   * `BackpressureProtocol` within 100 ms of the consumer's acknowledgment arriving (per
-   * the streaming-shuffle "buffer reclamation within 100 ms of consumer acknowledgment"
-   * specification). The acknowledgment indicates the consumer has durably received and
-   * processed `bytes` bytes for the given partition, so the writer's in-memory buffer
-   * (and this manager's tracked count) can both shrink by that amount.
+   * [[BackpressureProtocol]] (or by the implicit-ack mechanism documented in
+   * `StreamingShuffleReader#acknowledgePosition`) within 100 ms of the consumer's
+   * acknowledgment arriving (per the streaming-shuffle "buffer reclamation within 100 ms
+   * of consumer acknowledgment" specification).
    *
    * == Underflow Protection ==
-   * If `bytes` exceeds the currently tracked count for the partition (possible under
-   * out-of-order acknowledgments or duplicate acks), the new value is clamped to `0`
-   * rather than going negative, and the LRU entry is invalidated entirely.
+   * If `bytes` exceeds the buffer's size for the partition (possible under out-of-order
+   * acknowledgments or duplicate acks), the entire buffer is removed and disposed.
+   *
+   * == Partial Reclaim ==
+   * If `bytes < buffer.size`, the buffer is RETAINED in the registry (the writer still
+   * needs the unsent portion) and only the [[totalBytes]] counter is decremented.
+   * Subsequent acks accumulate decrements until the cumulative reclaim exceeds the
+   * buffer's size, at which point the buffer is removed and disposed.
+   *
+   * The partial-reclaim semantics are consistent with the prior bytes-only implementation
+   * but extended to handle [[ChunkedByteBuffer]] references appropriately.
+   *
+   * == Input Validation ==
+   * Negative `shuffleId`, `mapId`, `reduceId`, or `bytes` raise `IllegalArgumentException`.
    *
    * @param shuffleId shuffle ID whose buffer is being reclaimed
    * @param mapId     map task ID
    * @param reduceId  reduce partition ID
-   * @param bytes     bytes acknowledged by the consumer
+   * @param bytes     bytes acknowledged by the consumer (must be `>= 0`)
+   * @throws IllegalArgumentException if any of `shuffleId`, `mapId`, `reduceId`, `bytes`
+   *                                  is negative
    */
   def reclaim(shuffleId: Int, mapId: Long, reduceId: Int, bytes: Long): Unit = {
+    require(shuffleId >= 0, s"shuffleId must be non-negative, got $shuffleId")
+    require(mapId >= 0L, s"mapId must be non-negative, got $mapId")
+    require(reduceId >= 0, s"reduceId must be non-negative, got $reduceId")
+    require(bytes >= 0L, s"bytes must be non-negative, got $bytes")
+
     val key = BufferKey(shuffleId, mapId, reduceId)
-    val current = Option(partitionLruCache.getIfPresent(key)).map(_.longValue()).getOrElse(0L)
-    val newValue = math.max(0L, current - bytes)
-    if (newValue == 0L) {
-      partitionLruCache.invalidate(key)
-    } else {
-      partitionLruCache.put(key, java.lang.Long.valueOf(newValue))
+    val current = partitionBufferRegistry.getIfPresent(key)
+    if (current == null) {
+      // Nothing to reclaim. This is benign (e.g., the buffer was already spilled or
+      // reclaimed) so log at TRACE only.
+      logTrace(log"Reclaim no-op (no tracked buffer) for key=${MDC(BLOCK_ID, key.toString)}" +
+        log" bytes=${MDC(NUM_BYTES, bytes)}")
+      return
     }
-    // Decrement the global counter by the actually-released amount (current - newValue),
-    // which equals min(bytes, current). This keeps the global counter in sync with the
-    // sum of per-partition counts even under out-of-order or duplicate acks.
-    val released = current - newValue
-    totalBytes.addAndGet(-released)
-    logTrace(s"Reclaimed $released bytes for $key (remaining=$newValue)")
+
+    val currentSize = current.size
+    if (bytes >= currentSize) {
+      // Full reclaim: remove the buffer reference and dispose it.
+      partitionBufferRegistry.invalidate(key)
+      totalBytes.addAndGet(-currentSize)
+      try current.dispose() catch {
+        case t: Throwable =>
+          logWarning(log"ChunkedByteBuffer dispose threw on reclaim for " +
+            log"key=${MDC(BLOCK_ID, key.toString)}", t)
+      }
+      logTrace(log"Fully reclaimed key=${MDC(BLOCK_ID, key.toString)} " +
+        log"size=${MDC(NUM_BYTES, currentSize)}")
+    } else {
+      // Partial reclaim: retain the buffer; decrement totalBytes by the acked amount.
+      totalBytes.addAndGet(-bytes)
+      logTrace(log"Partially reclaimed ${MDC(NUM_BYTES, bytes)} bytes for " +
+        log"key=${MDC(BLOCK_ID, key.toString)} " +
+        log"(remaining=${MDC(BYTE_SIZE, currentSize - bytes)})")
+    }
   }
+
+  /**
+   * @return current `totalBytes` snapshot. Provided for tests and observability tooling.
+   */
+  private[streaming] def trackedBytesSnapshot: Long = totalBytes.get()
+
+  /**
+   * @return current `totalSpills` snapshot. Provided for tests and observability tooling.
+   */
+  private[streaming] def totalSpillCount: Long = totalSpills.get()
+
+  /**
+   * @return number of tracked partition buffers in the registry. Provided for tests.
+   */
+  private[streaming] def trackedPartitionCount: Long = partitionBufferRegistry.size()
 
   /**
    * Cancel the polling task and shut down the daemon executor.
@@ -458,7 +773,10 @@ private[spark] class MemorySpillManager(
    *   2. Initiate orderly executor shutdown via `shutdown()`.
    *   3. Wait up to 2 seconds for the in-flight tick to complete; if not, force shutdown
    *      via `shutdownNow()`.
-   *   4. Clear the LRU cache and reset [[totalBytes]] so any retained references are
+   *   4. Iterate the registry and dispose any remaining `ChunkedByteBuffer` references so
+   *      that their native memory is released even if the manager is shut down with
+   *      buffers still in flight.
+   *   5. Clear the registry and reset [[totalBytes]] so any retained references are
    *      released for GC.
    *
    * The 2-second wait window is generous given that the polling tick completes in well
@@ -484,10 +802,22 @@ private[spark] class MemorySpillManager(
         Thread.currentThread().interrupt()
         pollingExecutor.shutdownNow()
     }
-    partitionLruCache.invalidateAll()
+    // Dispose any remaining buffer references to release native memory before clearing
+    // the registry. Iteration is over a weakly-consistent snapshot; concurrent calls into
+    // this manager during shutdown are not expected and would race with `stopped` in any
+    // case, so we tolerate the weak consistency.
+    val remaining = partitionBufferRegistry.asMap().asScala.toMap
+    remaining.foreach { case (k, buf) =>
+      try buf.dispose() catch {
+        case t: Throwable =>
+          logWarning(log"ChunkedByteBuffer dispose threw on shutdown for " +
+            log"key=${MDC(BLOCK_ID, k.toString)}", t)
+      }
+    }
+    partitionBufferRegistry.invalidateAll()
     totalBytes.set(0L)
-    logInfo(
-      s"MemorySpillManager stopped (totalSpills=${totalSpills.get()}, " +
-        s"cacheStats=${partitionLruCache.stats()})")
+    logInfo(log"MemorySpillManager stopped " +
+      log"(totalSpills=${MDC(COUNT, totalSpills.get())}, " +
+      log"cacheStats=${MDC(CACHE_SIZE, partitionBufferRegistry.stats().toString)})")
   }
 }
