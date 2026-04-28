@@ -27,12 +27,12 @@ import org.apache.spark.shuffle.BaseShuffleHandle
  *
  * The handle is `Serializable` (inherited from
  * [[org.apache.spark.shuffle.ShuffleHandle]]) and carries:
- *   - `bufferSizePercent` — percent of executor execution memory dedicated to streaming
- *     buffers (configurable 1–50% via `spark.shuffle.streaming.bufferSizePercent`,
+ *   - `bufferSizePercent` -- percent of executor execution memory dedicated to streaming
+ *     buffers (configurable 1-50% via `spark.shuffle.streaming.bufferSizePercent`,
  *     default 20).
- *   - `spillThreshold` — buffer-utilization percentage at which spill is triggered
- *     (configurable 50–95% via `spark.shuffle.streaming.spillThreshold`, default 80).
- *   - `maxBandwidthMBps` — per-executor bandwidth cap for streaming-shuffle traffic
+ *   - `spillThreshold` -- buffer-utilization percentage at which spill is triggered
+ *     (configurable 50-95% via `spark.shuffle.streaming.spillThreshold`, default 80).
+ *   - `maxBandwidthMBps` -- per-executor bandwidth cap for streaming-shuffle traffic
  *     (configurable via `spark.shuffle.streaming.maxBandwidthMBps`, default -1 =
  *     unlimited).
  *
@@ -59,9 +59,9 @@ import org.apache.spark.shuffle.BaseShuffleHandle
  *                            [[org.apache.spark.scheduler.DAGScheduler]]
  * @param dependency          shuffle dependency carrying serializer, partitioner,
  *                            aggregator, and other shuffle metadata
- * @param bufferSizePercent   buffer-size percent of executor execution memory (1–50);
+ * @param bufferSizePercent   buffer-size percent of executor execution memory (1-50);
  *                            controls aggregate streaming-buffer footprint
- * @param spillThreshold      spill-trigger threshold percentage (50–95); when buffer
+ * @param spillThreshold      spill-trigger threshold percentage (50-95); when buffer
  *                            utilization reaches this value the
  *                            [[StreamingShuffleManager]]'s `MemorySpillManager`
  *                            persists the largest partitions to disk
@@ -86,7 +86,7 @@ private[spark] class StreamingShuffleHandle[K, V, C](
    * `org.apache.spark.shuffle.streaming.StreamingShuffleHandle@<hashcode>`, which is
    * not useful for log-based debugging in production deployments.
    *
-   * The returned string is intended to be safe for INFO-level logging — it contains
+   * The returned string is intended to be safe for INFO-level logging -- it contains
    * only configuration scalars and the shuffle ID (no record data, no PII).
    */
   override def toString: String =
