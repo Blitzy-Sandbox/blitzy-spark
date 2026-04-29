@@ -164,6 +164,11 @@ import org.apache.spark.util.collection.ExternalSorter
  * @param blockManager       executor block manager (for `blockTransferService` access)
  * @param mapOutputTracker   driver/executor map output tracker (for producer location lookup)
  * @param streamingMetrics   streaming-shuffle metric counters/gauges
+ * @param debugEnabled       cached value of `spark.shuffle.streaming.debug`, gating
+ *                           streaming-shuffle DEBUG/TRACE log emission at the source-site
+ *                           per AAP Section 0.1.2 user directive *"Debug logging disabled
+ *                           by default (enable via `spark.shuffle.streaming.debug=true`)"*.
+ *                           WARN/ERROR statements pass freely regardless of this flag.
  * @tparam K key type produced by the upstream stage
  * @tparam C combined value type after map-side aggregation (equals V if no aggregator)
  */
@@ -177,7 +182,8 @@ private[spark] class StreamingShuffleReader[K, C](
     readMetrics: ShuffleReadMetricsReporter,
     blockManager: BlockManager,
     mapOutputTracker: MapOutputTracker,
-    streamingMetrics: StreamingShuffleMetrics)
+    streamingMetrics: StreamingShuffleMetrics,
+    debugEnabled: Boolean)
   extends ShuffleReader[K, C] with Logging {
 
   /**
@@ -425,10 +431,12 @@ private[spark] class StreamingShuffleReader[K, C](
     override def hasNext: Boolean = {
       if (!logged) {
         logged = true
-        val acked = ackedPositions.getOrElse(address, 0L)
-        logDebug(log"Consumed all blocks from producer " +
-          log"${MDC(HOST_PORT, s"${address.host}:${address.port}")}, " +
-          log"bytesAcked=${MDC(NUM_BYTES, acked)}")
+        if (debugEnabled) {
+          val acked = ackedPositions.getOrElse(address, 0L)
+          logDebug(log"Consumed all blocks from producer " +
+            log"${MDC(HOST_PORT, s"${address.host}:${address.port}")}, " +
+            log"bytesAcked=${MDC(NUM_BYTES, acked)}")
+        }
       }
       false
     }
@@ -633,8 +641,10 @@ private[spark] class StreamingShuffleReader[K, C](
     // Reference the parameter to avoid an unused-parameter warning under strict scalastyle
     // and to keep the integration-point signature stable for v2 implementations that
     // need the BlockId to look up per-block checksums in a producer-supplied side channel.
-    logTrace(log"Resolving expected CRC32C checksum for blockId=" +
-      log"${MDC(BLOCK_ID, blockId.name)} (v1: returns None)")
+    if (debugEnabled) {
+      logTrace(log"Resolving expected CRC32C checksum for blockId=" +
+        log"${MDC(BLOCK_ID, blockId.name)} (v1: returns None)")
+    }
     None
   }
 
@@ -664,8 +674,10 @@ private[spark] class StreamingShuffleReader[K, C](
    * @param position   the cumulative byte offset acked back to the producer
    */
   private def acknowledgePosition(producerId: BlockManagerId, position: Long): Unit = {
-    logTrace(log"Acked position=${MDC(NUM_BYTES, position)} for producerId=" +
-      log"${MDC(HOST_PORT, s"${producerId.host}:${producerId.port}")}")
+    if (debugEnabled) {
+      logTrace(log"Acked position=${MDC(NUM_BYTES, position)} for producerId=" +
+        log"${MDC(HOST_PORT, s"${producerId.host}:${producerId.port}")}")
+    }
   }
 
   /**
@@ -698,8 +710,9 @@ private[spark] class StreamingShuffleReader[K, C](
   // for synthetic test harnesses; in such cases interruptible iteration and per-task
   // metric merging are skipped (see read()). The DEBUG log here is the documented
   // signal that the reader is operating in test mode -- production deployments will
-  // never emit this line.
-  if (context == null) {
+  // never emit this line. Gated by `debugEnabled` so the streaming-shuffle log volume
+  // budget (AAP Section 0.7.2.5) is honored even if the global log level is DEBUG.
+  if (context == null && debugEnabled) {
     logDebug(log"StreamingShuffleReader instantiated with null TaskContext; " +
       log"cancellation checks and per-task metric merging will be skipped (test path)")
   }

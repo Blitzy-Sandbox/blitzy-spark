@@ -17,6 +17,9 @@
 
 package org.apache.spark.shuffle
 
+import org.apache.spark.SparkConf
+import org.apache.spark.internal.config.STREAMING_SHUFFLE_DEBUG
+
 /**
  * Streaming-shuffle subpackage providing an opt-in alternative to
  * [[org.apache.spark.shuffle.sort.SortShuffleManager]] that pipelines map-side data directly
@@ -24,13 +27,18 @@ package org.apache.spark.shuffle
  * disk-spill fallback.
  *
  * == Activation ==
- * Selected only when the user explicitly opts in via:
+ * Selected only when the user explicitly opts in via either:
  *   - `spark.shuffle.manager=streaming` (short name registered in
  *     [[org.apache.spark.shuffle.ShuffleManager]] companion's `shortShuffleMgrNames` map), or
  *   - `spark.shuffle.manager=org.apache.spark.shuffle.streaming.StreamingShuffleManager`
- *     (FQCN fallback).
+ *     (FQCN fallback), or
+ *   - `spark.shuffle.streaming.enabled=true` while leaving `spark.shuffle.manager` at its
+ *     default value `sort` (per AAP Section 0.1.1 "equivalently via the new boolean
+ *     `spark.shuffle.streaming.enabled=true`"). When `spark.shuffle.manager` is explicitly
+ *     set to a non-default value, the explicit operator selection always wins.
  *
- * The default `spark.shuffle.manager=sort` continues to use the production-stable
+ * The default `spark.shuffle.manager=sort` (with `spark.shuffle.streaming.enabled=false`)
+ * continues to use the production-stable
  * [[org.apache.spark.shuffle.sort.SortShuffleManager]] unchanged.
  *
  * == Components ==
@@ -141,5 +149,35 @@ package object streaming {
    * algorithm (MD5, SHA-1, SHA-256, xxHash) is permitted for the streaming-shuffle feature.
    */
   private[streaming] val CHECKSUM_ALGORITHM: String = "CRC32C"
+
+  /**
+   * Returns true if streaming-shuffle verbose tracing is enabled per the
+   * `spark.shuffle.streaming.debug` configuration key (default false).
+   *
+   * Used by [[StreamingShuffleWriter]], [[StreamingShuffleReader]],
+   * [[BackpressureProtocol]], and [[MemorySpillManager]] to gate `logDebug` and `logTrace`
+   * statements at the streaming-shuffle source-site, in addition to the underlying log4j
+   * level filter. This dual-gate design honors AAP Section 0.1.2 user directive *"Debug
+   * logging disabled by default (enable via `spark.shuffle.streaming.debug=true`)"* and the
+   * AAP Section 0.7.2.5 quality budget *"Log volume capped at <10MB/hour per executor for
+   * streaming events ... INFO/DEBUG logs must be rate-limited or sampled; only WARN/ERROR
+   * may pass freely."*
+   *
+   * The configuration is treated as immutable for the application lifetime per the
+   * streaming-shuffle "configuration changes require executor restart (no dynamic
+   * reconfiguration in v1)" specification (AAP Section 0.7.2.5). Callers should cache the
+   * result in a `private val` field at component construction time so that hot-path
+   * logging emits do not re-read the configuration map on every invocation.
+   *
+   * WARN and ERROR statements MUST NOT be gated by this flag -- they pass freely so that
+   * operational alerts surface immediately regardless of debug-flag state.
+   *
+   * @param conf SparkConf instance from which to read the
+   *             [[org.apache.spark.internal.config.STREAMING_SHUFFLE_DEBUG]] value
+   * @return true if streaming-shuffle DEBUG/TRACE logging is enabled at the source-site;
+   *         false otherwise (default)
+   */
+  private[streaming] def streamingDebugEnabled(conf: SparkConf): Boolean =
+    conf.get(STREAMING_SHUFFLE_DEBUG)
 
 }

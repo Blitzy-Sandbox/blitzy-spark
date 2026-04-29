@@ -83,9 +83,13 @@ class StreamingShuffleIntegrationSuite
    * Sets `spark.shuffle.manager=streaming` to dispatch to
    * [[org.apache.spark.shuffle.streaming.StreamingShuffleManager]] via the short-name
    * alias registered in [[org.apache.spark.shuffle.ShuffleManager]]'s
-   * `shortShuffleMgrNames` map. Also sets `spark.shuffle.streaming.enabled=true` for
-   * defense-in-depth (the manager honors the explicit flag in addition to the manager
-   * dispatch).
+   * `shortShuffleMgrNames` map. Also sets `spark.shuffle.streaming.enabled=true`. Per
+   * AAP Sec.0.1.1 the boolean flag is an *equivalent* activation path (it activates
+   * streaming when `spark.shuffle.manager` is left at the default `sort`), so setting
+   * both keys here exercises the explicit short-name path while documenting that the
+   * boolean key is honored. The dedicated activation-precedence tests in
+   * [[StreamingShuffleManagerSuite]] verify each path independently; the rationale is
+   * recorded in `blitzy-docs/streaming-shuffle/decision-log.md` decision 22.
    *
    * Sets `spark.testing=true` so that
    * [[org.apache.spark.memory.UnifiedMemoryManager.getMaxMemory]] bypasses the

@@ -205,6 +205,11 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  *                         shared metrics handle so that any future v2 writer-local
  *                         emission (e.g. partial-flush event tracking) can wire to the
  *                         same registry instance without an SPI change.
+ * @param debugEnabled     cached value of `spark.shuffle.streaming.debug`, gating
+ *                         streaming-shuffle DEBUG/TRACE log emission at the source-site
+ *                         per AAP Section 0.1.2 user directive *"Debug logging disabled
+ *                         by default (enable via `spark.shuffle.streaming.debug=true`)"*.
+ *                         WARN/ERROR statements pass freely regardless of this flag.
  * @tparam K key type produced by the upstream stage
  * @tparam V value type produced by the upstream stage
  */
@@ -217,7 +222,8 @@ private[spark] class StreamingShuffleWriter[K, V](
     memoryManager: MemoryManager,
     backpressure: BackpressureProtocol,
     spillManager: MemorySpillManager,
-    private val streamingMetrics: StreamingShuffleMetrics)
+    private val streamingMetrics: StreamingShuffleMetrics,
+    debugEnabled: Boolean)
   extends ShuffleWriter[K, V] with Logging {
 
   // -------------------------------------------------------------------------------
@@ -577,11 +583,13 @@ private[spark] class StreamingShuffleWriter[K, V](
     val requested = perPartitionBufferCap * numPartitions.toLong
     acquiredMemoryBytes =
       context.taskMemoryManager().acquireExecutionMemory(requested, bufferConsumer)
-    logDebug(log"StreamingShuffleWriter " +
-      log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
-      log"mapId=${MDC(MAP_ID, mapId)} " +
-      log"acquired=${MDC(NUM_BYTES, acquiredMemoryBytes)} / " +
-      log"requested=${MDC(NUM_BYTES, requested)} execution memory")
+    if (debugEnabled) {
+      logDebug(log"StreamingShuffleWriter " +
+        log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
+        log"mapId=${MDC(MAP_ID, mapId)} " +
+        log"acquired=${MDC(NUM_BYTES, acquiredMemoryBytes)} / " +
+        log"requested=${MDC(NUM_BYTES, requested)} execution memory")
+    }
 
     try {
       while (records.hasNext) {
@@ -1173,7 +1181,7 @@ private[spark] class StreamingShuffleWriter[K, V](
 
     writeMetrics.incBytesWritten(bytes.length.toLong)
 
-    if (isTraceEnabled()) {
+    if (debugEnabled && isTraceEnabled()) {
       // Note: the algorithm name (CHECKSUM_ALGORITHM = "CRC32C") is a compile-time
       // constant documented in the package object; it is intentionally not emitted as
       // an MDC field to keep per-flush log lines lean -- operators correlate
@@ -1264,7 +1272,7 @@ private[spark] class StreamingShuffleWriter[K, V](
         buf.reset()
       }
 
-      if (isTraceEnabled()) {
+      if (debugEnabled && isTraceEnabled()) {
         logTrace(log"maybeSpill " +
           log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
           log"mapId=${MDC(MAP_ID, mapId)} " +
@@ -1350,9 +1358,11 @@ private[spark] class StreamingShuffleWriter[K, V](
             // a lock-acquisition failure) is logged and absorbed -- the immediately
             // following putBytes call surfaces the actionable error if the block
             // still exists.
-            logDebug(log"removeBlock pre-cleanup failed for " +
-              log"${MDC(BLOCK_ID, blockId.toString)}: " +
-              log"${MDC(ERROR, Option(t.getMessage).getOrElse("(no message)"))}")
+            if (debugEnabled) {
+              logDebug(log"removeBlock pre-cleanup failed for " +
+                log"${MDC(BLOCK_ID, blockId.toString)}: " +
+                log"${MDC(ERROR, Option(t.getMessage).getOrElse("(no message)"))}")
+            }
         }
 
         // Step 3: wrap and persist via BlockManager.putBytes(DISK_ONLY).
@@ -1371,13 +1381,18 @@ private[spark] class StreamingShuffleWriter[K, V](
             // i.e. the prior removeBlock did not succeed in clearing the block.
             // The reader will observe whatever bytes are currently in the DiskStore;
             // log a warning so operators can correlate this with the prior spill.
+            // Operations runbook: see blitzy-docs/streaming-shuffle/observability.md
+            // section "BlockManager.putBytes returns false" for triage and recovery
+            // guidance. WARN passes the source-site debug gate freely per AAP
+            // Section 0.7.2.5 *"Log volume capped at <10MB/hour per executor"*; only
+            // INFO/DEBUG/TRACE statements are subject to the debugEnabled gate.
             logWarning(log"BlockManager.putBytes reported block-already-exists for " +
               log"${MDC(BLOCK_ID, blockId.toString)} " +
               log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
               log"mapId=${MDC(MAP_ID, mapId)} " +
               log"reduceId=${MDC(REDUCE_ID, i)}; " +
               log"reader may observe stale partial-spill bytes")
-          } else if (isTraceEnabled()) {
+          } else if (debugEnabled && isTraceEnabled()) {
             logTrace(log"Persisted ${MDC(BLOCK_ID, blockId.toString)} " +
               log"size=${MDC(NUM_BYTES, bytes.length.toLong)} for streaming reader")
           }
@@ -1390,9 +1405,11 @@ private[spark] class StreamingShuffleWriter[K, V](
             chunked.dispose()
           } catch {
             case t: Throwable =>
-              logDebug(log"ChunkedByteBuffer.dispose failed for " +
-                log"${MDC(BLOCK_ID, blockId.toString)}: " +
-                log"${MDC(ERROR, Option(t.getMessage).getOrElse("(no message)"))}")
+              if (debugEnabled) {
+                logDebug(log"ChunkedByteBuffer.dispose failed for " +
+                  log"${MDC(BLOCK_ID, blockId.toString)}: " +
+                  log"${MDC(ERROR, Option(t.getMessage).getOrElse("(no message)"))}")
+              }
           }
         }
       }

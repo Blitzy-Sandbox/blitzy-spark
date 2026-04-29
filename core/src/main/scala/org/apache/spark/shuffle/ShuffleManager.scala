@@ -129,7 +129,27 @@ private[spark] object ShuffleManager {
       "streaming" -> "org.apache.spark.shuffle.streaming.StreamingShuffleManager")
 
     val shuffleMgrName = conf.get(config.SHUFFLE_MANAGER)
-    shortShuffleMgrNames.getOrElse(shuffleMgrName.toLowerCase(Locale.ROOT), shuffleMgrName)
+
+    // Boolean-flag activation per AAP Section 0.1.1: streaming shuffle is selected via
+    // spark.shuffle.manager=streaming "equivalently via the new boolean
+    // spark.shuffle.streaming.enabled=true". The boolean activation path applies only
+    // when the operator has not explicitly set spark.shuffle.manager (i.e. the value is
+    // the default "sort"). An explicit operator choice always wins so that a user who
+    // pinned spark.shuffle.manager=tungsten-sort or any other manager continues to
+    // observe their explicit selection regardless of streaming.enabled. When activation
+    // is via the boolean flag alone, the dispatch table maps the canonical short name
+    // "streaming" to the StreamingShuffleManager FQCN. Coexistence: this branch never
+    // changes the dispatch for "tungsten-sort", any FQCN-shaped value, or any explicit
+    // operator-chosen alias; the SortShuffleManager remains the production-stable
+    // fallback and the default for all unmodified deployments.
+    val effectiveMgrName = if (conf.get(config.STREAMING_SHUFFLE_ENABLED) &&
+        !conf.contains(config.SHUFFLE_MANAGER.key)) {
+      "streaming"
+    } else {
+      shuffleMgrName
+    }
+
+    shortShuffleMgrNames.getOrElse(effectiveMgrName.toLowerCase(Locale.ROOT), effectiveMgrName)
   }
 }
 

@@ -117,6 +117,17 @@ private[spark] class BackpressureProtocol(
   private val maxBandwidthMBps: Int = conf.get(STREAMING_SHUFFLE_MAX_BANDWIDTH_MBPS)
 
   /**
+   * Cached streaming-shuffle debug-flag value resolved once at construction time per the
+   * streaming-shuffle "configuration changes require executor restart" specification
+   * (AAP Section 0.7.2.5). Used to gate `logDebug` and `logTrace` emission at the
+   * streaming-shuffle source-site, in addition to the underlying log4j level filter, per
+   * AAP Section 0.1.2 user directive *"Debug logging disabled by default (enable via
+   * `spark.shuffle.streaming.debug=true`)"*. WARN and ERROR statements pass freely
+   * regardless of this flag.
+   */
+  private val debugEnabled: Boolean = streamingDebugEnabled(conf)
+
+  /**
    * Set of currently-active shuffle IDs. The size of this set is the divisor used by the
    * per-100-ms refill computation in [[refillTokens]] -- per AAP Section 0.7.2.3, the refill
    * rate is `maxBandwidthMBps / numConcurrentShuffles` where `numConcurrentShuffles` is the
@@ -444,12 +455,14 @@ private[spark] class BackpressureProtocol(
     val producerKey = ProducerKey(shuffleId, mapId)
     producerLastSeen.put(producerKey, java.lang.Long.valueOf(System.currentTimeMillis()))
 
-    logTrace(log"recordTransmission: shuffleId=${MDC(SHUFFLE_ID, shuffleId)} " +
-      log"map=${MDC(MAP_ID, mapId)} " +
-      log"reduce=${MDC(REDUCE_ID, reduceId)} " +
-      log"len=${MDC(NUM_BYTES, byteCount)} " +
-      log"crc32c=${MDC(CHECKSUM, checksum)} " +
-      log"(acquired=${MDC(NUM_BYTES, if (acquired) 1L else 0L)})")
+    if (debugEnabled) {
+      logTrace(log"recordTransmission: shuffleId=${MDC(SHUFFLE_ID, shuffleId)} " +
+        log"map=${MDC(MAP_ID, mapId)} " +
+        log"reduce=${MDC(REDUCE_ID, reduceId)} " +
+        log"len=${MDC(NUM_BYTES, byteCount)} " +
+        log"crc32c=${MDC(CHECKSUM, checksum)} " +
+        log"(acquired=${MDC(NUM_BYTES, if (acquired) 1L else 0L)})")
+    }
     acquired
   }
 

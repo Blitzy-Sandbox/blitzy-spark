@@ -17,6 +17,8 @@
 
 package org.apache.spark.shuffle.streaming
 
+import java.util.Locale
+
 import org.mockito.Mockito.{mock, when}
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.must.Matchers
@@ -26,6 +28,7 @@ import org.apache.spark.{HashPartitioner, LocalSparkContext, ShuffleDependency, 
 import org.apache.spark.shuffle.{ShuffleHandle, ShuffleManager}
 import org.apache.spark.shuffle.sort.SortShuffleManager
 
+// scalastyle:off classforname
 /**
  * Unit tests for [[StreamingShuffleManager]] covering manager registration via the
  * short name "streaming", factory dispatch through `registerShuffle`/`getWriter`/
@@ -73,6 +76,7 @@ import org.apache.spark.shuffle.sort.SortShuffleManager
  */
 class StreamingShuffleManagerSuite
   extends SparkFunSuite with LocalSparkContext with Matchers with BeforeAndAfterEach {
+// scalastyle:on classforname
 
   /**
    * Mockito `doReturn` shim avoiding Scala/Java varargs overload ambiguity. Mirrors
@@ -95,7 +99,14 @@ class StreamingShuffleManagerSuite
    * Sets `spark.shuffle.manager=streaming` to dispatch to
    * [[StreamingShuffleManager]] via the short-name alias registered in
    * [[ShuffleManager]]'s `shortShuffleMgrNames` map. Also sets
-   * `spark.shuffle.streaming.enabled=true` for defense-in-depth.
+   * `spark.shuffle.streaming.enabled=true`. Per AAP Sec.0.1.1 the boolean flag is
+   * an *equivalent* activation path (it activates streaming when
+   * `spark.shuffle.manager` is left at the default `sort`), so setting both
+   * keys here exercises the explicit short-name path while documenting that
+   * the boolean key is honored. The dedicated activation-precedence tests
+   * (search "Boolean-flag activation:" in this suite) verify each path
+   * independently; the rationale is recorded in
+   * `blitzy-docs/streaming-shuffle/decision-log.md` decision 22.
    *
    * Sets `spark.testing=true` so that
    * [[org.apache.spark.memory.UnifiedMemoryManager.getMaxMemory]] bypasses the
@@ -244,6 +255,162 @@ class StreamingShuffleManagerSuite
     } finally {
       manager.stop()
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Test 3a: Boolean-flag activation precedence
+  //
+  // Per AAP Sec.0.1.1 the streaming shuffle is selected via
+  // `spark.shuffle.manager=streaming` "equivalently via the new boolean
+  // `spark.shuffle.streaming.enabled=true`". The activation precedence is documented
+  // in `blitzy-docs/streaming-shuffle/decision-log.md` decision 22:
+  //
+  //   1. If the operator has explicitly set `spark.shuffle.manager`, that explicit
+  //      choice ALWAYS wins (even if `streaming.enabled=true`). This honors the
+  //      user directive "Preserve existing sort-based shuffle as production-stable
+  //      fallback" -- a user who pinned `tungsten-sort` for safety reasons must not
+  //      be silently switched to streaming by an unrelated `enabled` toggle.
+  //   2. If `spark.shuffle.manager` is NOT explicitly set (i.e. the value is the
+  //      default `sort`), then `streaming.enabled=true` activates the streaming
+  //      path; `streaming.enabled=false` (the default) leaves dispatch at the
+  //      production-stable `sort` baseline.
+  //
+  // The three tests below verify each branch of this precedence rule independently.
+  // ---------------------------------------------------------------------------
+
+  test("Boolean-flag activation: streaming.enabled=true alone activates streaming " +
+      "when manager is at default sort") {
+    // Case 1 of decision 22: operator has NOT set spark.shuffle.manager, so the
+    // default value is "sort". Setting streaming.enabled=true should redirect
+    // dispatch to "streaming" via the effectiveMgrName branch in
+    // ShuffleManager.getShuffleManagerClassName.
+    val conf = new SparkConf(loadDefaults = false)
+      .set("spark.shuffle.streaming.enabled", "true")
+    // Pre-condition: spark.shuffle.manager must NOT be explicitly set on the conf
+    // for this branch of decision 22 to apply. Verify the precondition explicitly so
+    // a future test maintainer who accidentally adds `set("spark.shuffle.manager", ...)`
+    // gets a clear failure rather than a confusing dispatch result.
+    assert(!conf.contains("spark.shuffle.manager"),
+      "Pre-condition: spark.shuffle.manager must not be set for boolean-flag " +
+        "activation branch of decision 22 to apply")
+    val manager = ShuffleManager.create(conf, isDriver = true)
+    try {
+      assert(manager.isInstanceOf[StreamingShuffleManager],
+        s"streaming.enabled=true with default manager must activate streaming; " +
+          s"got ${manager.getClass.getName}")
+    } finally {
+      manager.stop()
+    }
+    // Also verify the dispatch decision at the lower-level
+    // getShuffleManagerClassName API to isolate it from any reflective-loading
+    // concerns. The boolean flag must resolve to the streaming FQCN string.
+    assert(ShuffleManager.getShuffleManagerClassName(conf) ===
+      "org.apache.spark.shuffle.streaming.StreamingShuffleManager",
+      "getShuffleManagerClassName must return streaming FQCN under boolean " +
+        "activation")
+  }
+
+  test("Boolean-flag activation: streaming.enabled=true is OVERRIDDEN by explicit " +
+      "operator choice spark.shuffle.manager=tungsten-sort") {
+    // Case 2 of decision 22: when the operator explicitly sets
+    // spark.shuffle.manager (here to "tungsten-sort", an alias preserved unchanged
+    // for binary compatibility per AAP Sec.0.7.2.1), the explicit choice ALWAYS wins
+    // -- streaming.enabled=true is ignored. This protects deployments where an
+    // operator pinned a specific manager for safety reasons against unrelated
+    // toggles of the streaming flag.
+    val conf = new SparkConf(loadDefaults = false)
+      .set("spark.shuffle.streaming.enabled", "true")
+      .set("spark.shuffle.manager", "tungsten-sort")
+    val manager = ShuffleManager.create(conf, isDriver = true)
+    try {
+      assert(manager.isInstanceOf[SortShuffleManager],
+        s"Explicit manager=tungsten-sort must override streaming.enabled=true; " +
+          s"got ${manager.getClass.getName}")
+      assert(!manager.isInstanceOf[StreamingShuffleManager],
+        s"streaming.enabled=true must be ignored when operator pins manager; " +
+          s"got ${manager.getClass.getName}")
+    } finally {
+      manager.stop()
+    }
+    // Also verify at the lower-level API that the explicit choice wins.
+    assert(ShuffleManager.getShuffleManagerClassName(conf) ===
+      "org.apache.spark.shuffle.sort.SortShuffleManager",
+      "Explicit tungsten-sort must resolve to SortShuffleManager FQCN even with " +
+        "streaming.enabled=true")
+    // Symmetric variant: when operator pins manager=sort explicitly, the explicit
+    // choice must also win. This is a separate scenario from case 1 because case 1
+    // relies on `conf.contains("spark.shuffle.manager") == false`; here we explicitly
+    // set the same value as the default and verify the override semantics still
+    // function (i.e. activation is gated on `contains`, not on value-equality).
+    val confExplicitSort = new SparkConf(loadDefaults = false)
+      .set("spark.shuffle.streaming.enabled", "true")
+      .set("spark.shuffle.manager", "sort")
+    assert(ShuffleManager.getShuffleManagerClassName(confExplicitSort) ===
+      "org.apache.spark.shuffle.sort.SortShuffleManager",
+      "Explicit manager=sort must resolve to SortShuffleManager FQCN even with " +
+        "streaming.enabled=true (override is gated on `contains`, not on value-" +
+        "equality with the default)")
+  }
+
+  test("Boolean-flag activation: streaming.enabled=false (default) keeps dispatch " +
+      "at production-stable sort baseline") {
+    // Case 3 of decision 22: streaming.enabled is at its default value (false).
+    // Dispatch must produce SortShuffleManager regardless of whether the boolean
+    // flag is set explicitly to false or left unset (since the default value is
+    // false). This is a P0 regression check: the default behavior must NOT change
+    // for any deployment that has not opted into streaming via either the short
+    // name OR the boolean flag.
+    //
+    // Sub-case 3a: streaming.enabled is unset (default false).
+    val confUnset = new SparkConf(loadDefaults = false)
+    val managerUnset = ShuffleManager.create(confUnset, isDriver = true)
+    try {
+      assert(managerUnset.isInstanceOf[SortShuffleManager],
+        s"Default conf (no streaming.enabled, no manager) must produce " +
+          s"SortShuffleManager; got ${managerUnset.getClass.getName}")
+      assert(!managerUnset.isInstanceOf[StreamingShuffleManager],
+        s"Default conf must NOT activate streaming; got ${managerUnset.getClass.getName}")
+    } finally {
+      managerUnset.stop()
+    }
+    // Sub-case 3b: streaming.enabled=false explicitly.
+    val confExplicitFalse = new SparkConf(loadDefaults = false)
+      .set("spark.shuffle.streaming.enabled", "false")
+    val managerExplicitFalse = ShuffleManager.create(confExplicitFalse, isDriver = true)
+    try {
+      assert(managerExplicitFalse.isInstanceOf[SortShuffleManager],
+        s"streaming.enabled=false must produce SortShuffleManager; " +
+          s"got ${managerExplicitFalse.getClass.getName}")
+    } finally {
+      managerExplicitFalse.stop()
+    }
+    // Sub-case 3c: streaming.enabled=false WITH explicit manager=streaming. The
+    // explicit operator choice must still win -- the boolean flag is disjunctive,
+    // not conjunctive. This protects deployments that intentionally use the short
+    // name "streaming" but might leave the boolean flag at its default.
+    val confExplicitStreamingShortName = new SparkConf(loadDefaults = false)
+      .set("spark.shuffle.streaming.enabled", "false")
+      .set("spark.shuffle.manager", "streaming")
+    val managerExplicitStreamingShortName =
+      ShuffleManager.create(confExplicitStreamingShortName, isDriver = true)
+    try {
+      assert(managerExplicitStreamingShortName.isInstanceOf[StreamingShuffleManager],
+        s"Explicit manager=streaming must activate streaming even when " +
+          s"streaming.enabled=false; got ${managerExplicitStreamingShortName.getClass.getName}")
+    } finally {
+      managerExplicitStreamingShortName.stop()
+    }
+    // Lower-level API verification for all three sub-cases.
+    assert(ShuffleManager.getShuffleManagerClassName(confUnset) ===
+      "org.apache.spark.shuffle.sort.SortShuffleManager",
+      "Default conf must resolve to SortShuffleManager FQCN")
+    assert(ShuffleManager.getShuffleManagerClassName(confExplicitFalse) ===
+      "org.apache.spark.shuffle.sort.SortShuffleManager",
+      "streaming.enabled=false must resolve to SortShuffleManager FQCN")
+    assert(ShuffleManager.getShuffleManagerClassName(confExplicitStreamingShortName) ===
+      "org.apache.spark.shuffle.streaming.StreamingShuffleManager",
+      "Explicit manager=streaming must resolve to streaming FQCN regardless of " +
+        "streaming.enabled value")
   }
 
   // ---------------------------------------------------------------------------
@@ -425,7 +592,7 @@ class StreamingShuffleManagerSuite
     try {
       val managerClass = manager.getClass
       val sortField = managerClass.getDeclaredFields.find { f =>
-        f.getName.toLowerCase.contains("sortshufflemanager")
+        f.getName.toLowerCase(Locale.ROOT).contains("sortshufflemanager")
       }
       assert(sortField.isDefined,
         "StreamingShuffleManager must hold a sortShuffleManager field for fallback; " +

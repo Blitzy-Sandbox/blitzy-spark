@@ -360,7 +360,15 @@ class StreamingShuffleWriterSuite
       memoryManager = memoryManager,
       backpressure = backpressure,
       spillManager = spillManager,
-      streamingMetrics = streamingMetrics)
+      streamingMetrics = streamingMetrics,
+      // debugEnabled = false so streaming-shuffle DEBUG/TRACE log statements are
+      // short-circuited at the source site for unit tests, matching the production
+      // default of `spark.shuffle.streaming.debug=false`. This keeps test output
+      // lean and exercises the same source-site gating production deployments use.
+      // To exercise verbose-logging code paths in a future regression test, set
+      // this to `true` and configure log4j to permit DEBUG/TRACE for the
+      // org.apache.spark.shuffle.streaming logger.
+      debugEnabled = false)
   }
 
   /**

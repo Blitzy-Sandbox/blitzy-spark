@@ -164,6 +164,34 @@ class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   private val streamingMetrics: StreamingShuffleMetrics = new StreamingShuffleMetrics()
 
   /**
+   * Cached value of `spark.shuffle.streaming.debug` resolved once at manager
+   * construction time. Honors the AAP Section 0.1.2 user directive *"Configuration
+   * changes require executor restart (no dynamic reconfiguration in v1)"* by
+   * snapshotting the flag at startup and threading the resolved Boolean down to
+   * each [[StreamingShuffleWriter]] and [[StreamingShuffleReader]] via constructor
+   * parameters.
+   *
+   * Per AAP Section 0.1.2 user directive *"Debug logging disabled by default
+   * (enable via `spark.shuffle.streaming.debug=true`)"* and the AAP Section 0.7.2.5
+   * quality budget *"Log volume capped at <10MB/hour per executor for streaming
+   * events"*, this flag controls source-site emission of streaming-shuffle DEBUG
+   * and TRACE log statements: when `false`, those log calls are short-circuited
+   * before any [[org.apache.spark.internal.MDC]] field expansion or string
+   * interpolation occurs, eliminating their CPU and log-volume overhead. WARN and
+   * ERROR statements are intentionally NOT subject to this gate -- they pass
+   * through freely so operators retain visibility into actionable failure
+   * conditions regardless of debug-flag state.
+   *
+   * The value is re-read by individual collaborators
+   * ([[BackpressureProtocol]], [[MemorySpillManager]]) which take a [[SparkConf]]
+   * directly and call the [[org.apache.spark.shuffle.streaming.streamingDebugEnabled]]
+   * helper themselves; capturing it once here keeps the
+   * [[StreamingShuffleWriter]] and [[StreamingShuffleReader]] constructor
+   * signatures `SparkConf`-free per their existing per-task constructor contract.
+   */
+  private val debugEnabled: Boolean = streamingDebugEnabled(conf)
+
+  /**
    * Heartbeat-based flow control with token-bucket rate limiting and priority
    * arbitration.
    *
@@ -410,7 +438,8 @@ class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
               throw new IllegalStateException(
                 "MemorySpillManager not initialized; SparkEnv was unavailable when " +
                   "this StreamingShuffleManager was constructed")),
-            streamingMetrics)
+            streamingMetrics,
+            debugEnabled)
         }
       case other =>
         // Legacy handle types: always delegate to SortShuffleManager without policy
@@ -479,7 +508,8 @@ class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
             metrics,
             env.blockManager,
             env.mapOutputTracker,
-            streamingMetrics)
+            streamingMetrics,
+            debugEnabled)
         }
       case other =>
         sortShuffleManager.getReader(

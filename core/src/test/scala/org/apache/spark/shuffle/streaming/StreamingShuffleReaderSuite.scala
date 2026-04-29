@@ -314,7 +314,12 @@ class StreamingShuffleReaderSuite
       readMetrics = readMetrics,
       blockManager = blockManager,
       mapOutputTracker = mapOutputTracker,
-      streamingMetrics = streamingMetrics)
+      streamingMetrics = streamingMetrics,
+      // debugEnabled = false so streaming-shuffle DEBUG/TRACE log statements are
+      // short-circuited at the source site for unit tests, matching the production
+      // default of `spark.shuffle.streaming.debug=false`. This keeps test output
+      // lean and exercises the same source-site gating production deployments use.
+      debugEnabled = false)
   }
 
   // ---------------------------------------------------------------------------

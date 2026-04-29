@@ -187,6 +187,66 @@ For each of the four metrics, the following table documents the normal operating
 | Warning | 1–5 cumulative | Sporadic producer failures; confirm DAG-scheduler upstream recomputation completed successfully. |
 | Critical | >5 cumulative | Sustained producer instability; check executor health, network partition status, and consider rolling restart of unhealthy executors. |
 
+## Operational Edge Cases
+
+The following edge cases warrant operator attention when they occur but do NOT have dedicated metrics. Each is surfaced via a structured WARN log entry that operators should configure their log aggregator to alert on.
+
+### `BlockManager.putBytes` returns `false` (block-already-exists race)
+
+**Symptom.** The streaming-shuffle writer's per-task end-of-write call to `BlockManager.putBytes(ShuffleBlockId(shuffleId, mapId, reduceId), bytes, StorageLevel.DISK_ONLY)` returns `false` rather than `true`. A WARN log entry from `StreamingShuffleWriter.persistPartitionsForReader` is emitted with the structured fields `block_id`, `shuffle_id`, `map_id`, and `reduce_id`, accompanied by the message text `BlockManager.putBytes reported block-already-exists for ... reader may observe stale partial-spill bytes`.
+
+**Cause.** The streaming writer's persist channel and the `MemorySpillManager`'s `checkAndSpill` path both target the same `ShuffleBlockId(shuffleId, mapId, reduceId)` block-ID namespace. When the writer's mid-write `MemorySpillManager.checkAndSpill` triggers a spill of partition bytes to disk via `BlockManager.putBytes` (storing partial mid-write bytes), and the writer's end-of-write `persistPartitionsForReader` then calls `BlockManager.putBytes` again with the COMPLETE end-of-write bytes for the same partition, the writer first calls `BlockManager.removeBlock(blockId, tellMaster = false)` defensively. If `removeBlock` succeeds, the subsequent `putBytes` succeeds (returns `true`). If `removeBlock` is racing with another concurrent caller (e.g., a parallel `MemorySpillManager` write under sustained memory pressure), the block may persist past the `removeBlock` call, causing `putBytes` to return `false` because the block already exists in `DiskStore`.
+
+**Operational impact.** When the WARN fires, the `StreamingShuffleReader` for this `(shuffleId, mapId, reduceId)` will read the bytes that *did* persist (the prior partial-spill bytes from `MemorySpillManager.checkAndSpill`, NOT the complete end-of-write bytes). For partitions where the partial-spill bytes are a strict prefix of the complete bytes, the reader will observe a truncated record stream — likely producing a `java.io.EOFException` during deserialization rather than silently incorrect results. For partitions where the partial-spill bytes are NOT a strict prefix (e.g., serializer-frame boundary mismatch), the reader will fail with a deserialization exception. In both cases, the failure surfaces as `FetchFailedException`, which the DAG scheduler resolves via upstream recomputation.
+
+**Resolution.** v1 logs the warning and proceeds; the `FetchFailedException`-driven upstream recomputation is the recovery path. Operators encountering sustained occurrences of this WARN should:
+
+1. Check `shuffle.streaming.spillCount` for the affected shuffle: if elevated (>10 per shuffle), the underlying cause is sustained memory pressure leading to repeated mid-write spills. Mitigate by raising `spark.shuffle.streaming.bufferSizePercent` (toward its 50% upper bound) or by allowing the `StreamingShuffleFallbackPolicy` to delegate to `SortShuffleManager` (verify by checking for `Falling back to sort-based shuffle writer` INFO log lines).
+2. Check executor heap health: an OOM-stressed executor may delay `removeBlock` long enough for the race window to widen. Increase executor memory (`spark.executor.memory`) or reduce `spark.shuffle.streaming.bufferSizePercent`.
+3. Confirm DAG-scheduler upstream recomputation succeeds for the affected stage by checking `Stage <id> failed N times` log entries and verifying the stage eventually completes successfully (typical retry attempts: 1–4).
+
+**v2 work.** A future release will replace the warn-and-proceed semantics with compare-and-set semantics on `BlockManager.putBytes` (`putBytesIfAbsent` with explicit overwrite-on-conflict semantics) once the AAP §0.7.1 user directive *"select approach requiring least modification to ... network transport layer"* is relaxed for that release. The decision-log entry (decision 21 — "Dual-Channel Writer Architecture") documents this v2 work item.
+
+## Performance Benchmark Validation
+
+The AAP §0.1.1 30–50% latency-reduction performance target is validated by the dedicated benchmark `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShufflePerformanceBenchmark.scala`. The committed golden file `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt` records sort-baseline and streaming-baseline timings on a synthetic 100 MB / 10-partition `groupByKey` workload, allowing operators to verify the streaming/sort latency ratio against the AAP target on the same hardware/JVM combination as the original measurement.
+
+### Benchmark Discovery and Execution
+
+The benchmark is automatically discovered by the existing `.github/workflows/benchmark.yml` `workflow_dispatch` lane via the `class=*` glob default argument. The discovery mechanism in `core/src/test/scala/org/apache/spark/benchmark/Benchmarks.scala` enumerates all `*Benchmark` classes under `org.apache.spark` via `ClassPath.from(...).getTopLevelClassesRecursive("org.apache.spark")` and filters by both `info.getName.endsWith("Benchmark")` and a `glob:${args.head}` matcher against the fully-qualified class name. The streaming-shuffle benchmark FQCN `org.apache.spark.shuffle.streaming.StreamingShufflePerformanceBenchmark` matches both filters.
+
+### Trigger Procedure
+
+Operators trigger benchmark execution via the GitHub Actions UI:
+
+1. Navigate to the repository's *Actions* tab → *Run benchmarks* workflow.
+2. Click *Run workflow*.
+3. Optionally narrow the `class` input from the default `*` to a specific benchmark name (e.g., `*StreamingShufflePerformanceBenchmark*`) for faster turnaround.
+4. The workflow runs the benchmark on the configured runner, regenerates `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt`, and commits the regenerated file as a benchmark-results artifact.
+
+### Local Regeneration
+
+To regenerate the benchmark golden file locally (e.g., for performance regression triage):
+
+```bash
+SPARK_GENERATE_BENCHMARK_FILES=1 ./build/sbt \
+  "core/Test/runMain org.apache.spark.benchmark.Benchmarks --class=*StreamingShufflePerformanceBenchmark*"
+```
+
+The `SPARK_GENERATE_BENCHMARK_FILES=1` environment variable instructs `BenchmarkBase` to write the result file (otherwise output is appended to the existing file). The result filename is derived from the benchmark class's simple name via `BenchmarkBase.getBenchmarkOutputFile`, producing `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt`.
+
+### Interpretation
+
+A reference run on a 4-core, 8 GB RAM, JDK 17 / Scala 2.13.18 host produced:
+
+```
+sort baseline:    5482ms (best) / 5519ms (avg)
+streaming:        3215ms (best) / 3247ms (avg)
+Latency reduction: 41.3%  (within AAP §0.1.1 30-50% target)
+```
+
+A streaming/sort ratio above 0.7 (i.e., latency reduction below 30%) on the same hardware/JVM combination indicates a regression and warrants investigation. Note that the integration suite `StreamingShuffleIntegrationSuite` enforces only a catastrophic-regression ceiling (`ratio <= 10.0`) on every PR because local-mode integration tests cannot exhibit the network-pipelining benefit that the dedicated benchmark workload exercises in cluster topology.
+
 ## Local Verification
 
 Per AAP §0.7.4, all observability surfaces MUST be exercisable from a local executor. The commands below validate metric registration, log MDC propagation, and dashboard data availability without a full cluster.

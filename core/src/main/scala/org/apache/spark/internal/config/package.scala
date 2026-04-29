@@ -1751,8 +1751,14 @@ package object config {
     ConfigBuilder("spark.shuffle.streaming.enabled")
       .doc("If true, enable the streaming shuffle path. The streaming shuffle pipelines " +
         "map-side data directly to reduce-side consumers with in-memory buffering and " +
-        "graceful disk-spill fallback. Coexists with SortShuffleManager; the user must " +
-        "set spark.shuffle.manager=streaming to activate.")
+        "graceful disk-spill fallback. Coexists with SortShuffleManager. Activation is " +
+        "equivalent via two paths: (a) set spark.shuffle.manager=streaming explicitly, " +
+        "or (b) leave spark.shuffle.manager at its default value 'sort' and set this " +
+        "flag to true. When spark.shuffle.manager is explicitly set to a non-default " +
+        "value (for example 'tungsten-sort' or a custom FQCN), the explicit operator " +
+        "selection always wins and this flag is ignored, preserving operator override " +
+        "semantics. Configuration changes require executor restart per the streaming " +
+        "shuffle v1 specification (no dynamic reconfiguration).")
       .version("4.2.0")
       .booleanConf
       .createWithDefault(false)
@@ -1792,7 +1798,13 @@ package object config {
     ConfigBuilder("spark.shuffle.streaming.debug")
       .internal()
       .doc("Internal flag enabling verbose debug tracing in streaming shuffle. Default " +
-        "false to keep log volume below 10MB/hour per executor.")
+        "false to keep log volume below 10MB/hour per executor. When false, " +
+        "streaming-shuffle DEBUG and TRACE log statements are suppressed at the " +
+        "streaming-shuffle source-site (in addition to the underlying log4j level " +
+        "filter), capping the streaming-specific log volume regardless of the global " +
+        "log level. WARN and ERROR statements pass through this gate freely. Setting " +
+        "this flag to true enables emission of streaming-specific DEBUG and TRACE " +
+        "statements when the underlying log4j level permits them.")
       .version("4.2.0")
       .booleanConf
       .createWithDefault(false)

@@ -197,6 +197,17 @@ private[spark] class MemorySpillManager(
   private val spillThresholdPercent: Int = conf.get(STREAMING_SHUFFLE_SPILL_THRESHOLD)
 
   /**
+   * Cached streaming-shuffle debug-flag value resolved once at construction time per the
+   * streaming-shuffle "configuration changes require executor restart" specification
+   * (AAP Section 0.7.2.5). Used to gate `logDebug` and `logTrace` emission at the
+   * streaming-shuffle source-site, in addition to the underlying log4j level filter, per
+   * AAP Section 0.1.2 user directive *"Debug logging disabled by default (enable via
+   * `spark.shuffle.streaming.debug=true`)"*. WARN, ERROR, and INFO statements pass freely
+   * regardless of this flag.
+   */
+  private val debugEnabled: Boolean = streamingDebugEnabled(conf)
+
+  /**
    * Buffer registry keyed on `(shuffleId, mapId, reduceId)` tuples; value is the actual
    * `ChunkedByteBuffer` reference owned by this manager for memory-pressure-driven
    * eviction. `expireAfterAccess` is intentionally NOT set -- entries remain until
@@ -473,8 +484,10 @@ private[spark] class MemorySpillManager(
             logWarning(log"ChunkedByteBuffer dispose threw after successful spill for " +
               log"blockId=${MDC(BLOCK_ID, blockId.toString)}", t)
         }
-        logDebug(log"Spilled ${MDC(BLOCK_ID, blockId.toString)} " +
-          log"(${MDC(NUM_BYTES, byteCount)} bytes) to disk via BlockManager")
+        if (debugEnabled) {
+          logDebug(log"Spilled ${MDC(BLOCK_ID, blockId.toString)} " +
+            log"(${MDC(NUM_BYTES, byteCount)} bytes) to disk via BlockManager")
+        }
       } else {
         logWarning(log"Failed to spill ${MDC(BLOCK_ID, blockId.toString)} via " +
           log"BlockManager.putBytes (returned false)")
@@ -547,9 +560,11 @@ private[spark] class MemorySpillManager(
     } else {
       totalBytes.addAndGet(buffer.size)
     }
-    logTrace(log"Tracked buffer key=${MDC(BLOCK_ID, key.toString)} " +
-      log"size=${MDC(NUM_BYTES, buffer.size)} " +
-      log"(totalBytes=${MDC(TOTAL_SIZE, totalBytes.get())})")
+    if (debugEnabled) {
+      logTrace(log"Tracked buffer key=${MDC(BLOCK_ID, key.toString)} " +
+        log"size=${MDC(NUM_BYTES, buffer.size)} " +
+        log"(totalBytes=${MDC(TOTAL_SIZE, totalBytes.get())})")
+    }
   }
 
   /**
@@ -631,8 +646,10 @@ private[spark] class MemorySpillManager(
     // buffer between the snapshot and this point. Skip cleanly if so.
     val current = partitionBufferRegistry.getIfPresent(key)
     if (current == null || (current ne buffer)) {
-      logTrace(log"Race detected: chosen buffer for eviction was removed/replaced " +
-        log"concurrently key=${MDC(BLOCK_ID, key.toString)}; skipping this tick")
+      if (debugEnabled) {
+        logTrace(log"Race detected: chosen buffer for eviction was removed/replaced " +
+          log"concurrently key=${MDC(BLOCK_ID, key.toString)}; skipping this tick")
+      }
       return
     }
 
@@ -713,9 +730,11 @@ private[spark] class MemorySpillManager(
     val current = partitionBufferRegistry.getIfPresent(key)
     if (current == null) {
       // Nothing to reclaim. This is benign (e.g., the buffer was already spilled or
-      // reclaimed) so log at TRACE only.
-      logTrace(log"Reclaim no-op (no tracked buffer) for key=${MDC(BLOCK_ID, key.toString)}" +
-        log" bytes=${MDC(NUM_BYTES, bytes)}")
+      // reclaimed) so log at TRACE only and only when streaming-debug is enabled.
+      if (debugEnabled) {
+        logTrace(log"Reclaim no-op (no tracked buffer) for key=${MDC(BLOCK_ID, key.toString)}" +
+          log" bytes=${MDC(NUM_BYTES, bytes)}")
+      }
       return
     }
 
@@ -729,14 +748,18 @@ private[spark] class MemorySpillManager(
           logWarning(log"ChunkedByteBuffer dispose threw on reclaim for " +
             log"key=${MDC(BLOCK_ID, key.toString)}", t)
       }
-      logTrace(log"Fully reclaimed key=${MDC(BLOCK_ID, key.toString)} " +
-        log"size=${MDC(NUM_BYTES, currentSize)}")
+      if (debugEnabled) {
+        logTrace(log"Fully reclaimed key=${MDC(BLOCK_ID, key.toString)} " +
+          log"size=${MDC(NUM_BYTES, currentSize)}")
+      }
     } else {
       // Partial reclaim: retain the buffer; decrement totalBytes by the acked amount.
       totalBytes.addAndGet(-bytes)
-      logTrace(log"Partially reclaimed ${MDC(NUM_BYTES, bytes)} bytes for " +
-        log"key=${MDC(BLOCK_ID, key.toString)} " +
-        log"(remaining=${MDC(BYTE_SIZE, currentSize - bytes)})")
+      if (debugEnabled) {
+        logTrace(log"Partially reclaimed ${MDC(NUM_BYTES, bytes)} bytes for " +
+          log"key=${MDC(BLOCK_ID, key.toString)} " +
+          log"(remaining=${MDC(BYTE_SIZE, currentSize - bytes)})")
+      }
     }
   }
 
