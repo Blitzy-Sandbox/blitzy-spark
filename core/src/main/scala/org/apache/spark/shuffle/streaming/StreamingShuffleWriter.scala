@@ -743,13 +743,27 @@ private[spark] class StreamingShuffleWriter[K, V](
       mapStatus = Some(
         MapStatus(blockManager.shuffleServerId, partitionLengths, mapId, aggregatedChecksum))
 
-      logInfo(log"StreamingShuffleWriter completed " +
-        log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
-        log"mapId=${MDC(MAP_ID, mapId)} " +
-        log"totalBytes=${MDC(NUM_BYTES, partitionLengths.sum)} " +
-        log"numPartitions=${MDC(NUM_PARTITIONS, numPartitions)} " +
-        log"durationNs=${MDC(DURATION, durationNs)} " +
-        log"aggregatedChecksum=${MDC(CHECKSUM, aggregatedChecksum)}")
+      // Per-task completion logging is gated by the streaming-shuffle debug flag and
+      // emitted at DEBUG level rather than INFO to honor the AAP Section 0.7.2.5
+      // quality budget: "Log volume capped at <10MB/hour per executor for streaming
+      // events ... INFO/DEBUG logs must be rate-limited or sampled; only WARN/ERROR
+      // may pass freely." A 10-partition shuffle with 50 concurrent streams (per the
+      // stress-test workload) emits up to 50 writer-completion lines per second; an
+      // INFO line per completion would exceed the 10 MB/hour budget under sustained
+      // load. Operators retain visibility into per-task timing and byte counts via
+      // the existing `ShuffleWriteMetricsReporter` (which feeds the Web UI Stages
+      // tab and the executor metrics) and via the streaming-shuffle Dropwizard
+      // metrics (`shuffle.streaming.*`). Enable verbose per-task traces by setting
+      // `spark.shuffle.streaming.debug=true` AND log4j level DEBUG for this logger.
+      if (debugEnabled) {
+        logDebug(log"StreamingShuffleWriter completed " +
+          log"shuffleId=${MDC(SHUFFLE_ID, dep.shuffleId)} " +
+          log"mapId=${MDC(MAP_ID, mapId)} " +
+          log"totalBytes=${MDC(NUM_BYTES, partitionLengths.sum)} " +
+          log"numPartitions=${MDC(NUM_PARTITIONS, numPartitions)} " +
+          log"durationNs=${MDC(DURATION, durationNs)} " +
+          log"aggregatedChecksum=${MDC(CHECKSUM, aggregatedChecksum)}")
+      }
     } catch {
       case t: Throwable =>
         // Release acquired memory eagerly on the failure path so the executor's

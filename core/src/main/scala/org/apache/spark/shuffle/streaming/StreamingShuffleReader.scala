@@ -227,12 +227,26 @@ private[spark] class StreamingShuffleReader[K, C](
    */
   override def read(): Iterator[Product2[K, C]] = {
     val shuffleId = handle.shuffleId
-    logInfo(log"StreamingShuffleReader.read: shuffleId=" +
-      log"${MDC(SHUFFLE_ID, shuffleId)}, " +
-      log"mapRange=[${MDC(MAP_ID, startMapIndex.toLong)}, " +
-      log"${MDC(MAP_ID, endMapIndex.toLong)}), " +
-      log"partitionRange=[${MDC(REDUCE_ID, startPartition)}, " +
-      log"${MDC(REDUCE_ID, endPartition)})")
+    // Per-task read-start logging is gated by the streaming-shuffle debug flag and
+    // emitted at DEBUG level rather than INFO to honor the AAP Section 0.7.2.5
+    // quality budget: "Log volume capped at <10MB/hour per executor for streaming
+    // events ... INFO/DEBUG logs must be rate-limited or sampled; only WARN/ERROR
+    // may pass freely." A high-fan-in reduce stage (e.g., 50 concurrent reducers
+    // per the stress-test workload) emits up to 50 reader-start lines per task
+    // batch; an INFO line per read() would exceed the 10 MB/hour budget under
+    // sustained load. Operators retain visibility into per-reducer timing and byte
+    // counts via the existing `ShuffleReadMetricsReporter` (which feeds the Web UI
+    // Stages tab and the executor metrics) and via the streaming-shuffle Dropwizard
+    // metrics (`shuffle.streaming.*`). Enable verbose per-task traces by setting
+    // `spark.shuffle.streaming.debug=true` AND log4j level DEBUG for this logger.
+    if (debugEnabled) {
+      logDebug(log"StreamingShuffleReader.read: shuffleId=" +
+        log"${MDC(SHUFFLE_ID, shuffleId)}, " +
+        log"mapRange=[${MDC(MAP_ID, startMapIndex.toLong)}, " +
+        log"${MDC(MAP_ID, endMapIndex.toLong)}), " +
+        log"partitionRange=[${MDC(REDUCE_ID, startPartition)}, " +
+        log"${MDC(REDUCE_ID, endPartition)})")
+    }
 
     // Discover producer locations via the existing MapOutputTracker SPI (NOT modified).
     // The returned iterator yields (BlockManagerId, Seq[(BlockId, Long, Int)]) where the

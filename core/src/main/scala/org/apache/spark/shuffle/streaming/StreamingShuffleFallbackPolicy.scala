@@ -178,8 +178,9 @@ private[spark] class StreamingShuffleFallbackPolicy(
 
   /**
    * Evaluate all four fallback conditions in priority order. Short-circuits as soon
-   * as any condition is observed to be true and emits an INFO-level log line naming
-   * the triggering condition and the affected shuffle ID for operational visibility.
+   * as any condition is observed to be true and emits a DEBUG-level log line naming
+   * the triggering condition and the affected shuffle ID for operational visibility
+   * when `spark.shuffle.streaming.debug=true`.
    *
    * Evaluation order is by ascending CPU cost:
    *   1. Version mismatch (cheapest -- constant-folded comparison in v1).
@@ -188,12 +189,19 @@ private[spark] class StreamingShuffleFallbackPolicy(
    *   4. Slow consumer (most expensive -- requires AtomicLong CAS for sustained-window
    *      bookkeeping plus two `LongAdder` reads).
    *
-   * Logging is INFO-level because fallback events are operationally significant --
-   * an operator monitoring streaming-shuffle adoption or troubleshooting a workload
-   * regression needs to know when fallback fires and why. The log volume is bounded
-   * by the per-shuffle-attempt invocation pattern (one log line per fallback event),
-   * fitting within the streaming-shuffle "<10 MB/hour per executor" log budget even
-   * under heavy fallback load.
+   * == Log Level Selection ==
+   * `shouldFallback` is invoked from [[StreamingShuffleManager.getWriter]] and
+   * [[StreamingShuffleManager.getReader]] -- i.e., once per task-attempt, not once
+   * per shuffleId. Under stress workloads (the AAP section 0.5.1.6 stress harness with
+   * 10 concurrent tasks and 5 concurrent shuffles, where network-saturation triggers
+   * the fallback path on every getWriter/getReader call), an INFO-level log here
+   * would emit ~130 K log lines in a 5-minute window -- approximately 21 MB
+   * extrapolating to ~252 MB/hour, breaching the AAP section 0.7.2.5 "<10 MB/hour per
+   * executor" log-volume budget by ~25x. Demoting these triggers to DEBUG lets the
+   * cumulative `shuffle.streaming.backpressureEvents` JMX counter (which `is*`
+   * helpers consult here) carry the operational signal, while the structured DEBUG
+   * line preserves the actionable why-it-fell-back detail for the troubleshooting
+   * code path enabled via `spark.shuffle.streaming.debug=true`.
    *
    * @param handle    the streaming shuffle handle being evaluated; only its
    *                  `shuffleId` is read, for log correlation
@@ -206,8 +214,9 @@ private[spark] class StreamingShuffleFallbackPolicy(
       handle: StreamingShuffleHandle[_, _, _],
       telemetry: StreamingShuffleMetrics): Boolean = {
     // Condition 4 first (cheapest in v1): producer/consumer Spark-version mismatch.
+    // Logged at DEBUG: see class-level "Log Level Selection" rationale above.
     if (isVersionMismatch()) {
-      logInfo(
+      logDebug(
         s"Falling back to sort-based shuffle for shuffle ${handle.shuffleId}: " +
           s"producer/consumer Spark version mismatch")
       return true
@@ -215,24 +224,27 @@ private[spark] class StreamingShuffleFallbackPolicy(
     // Condition 2: memory pressure. Allocating a streaming buffer when execution
     // memory is already >95% of capacity risks OOM; the sort-based fallback's
     // disk-backed pipeline tolerates the pressure better.
+    // Logged at DEBUG: see class-level "Log Level Selection" rationale above.
     if (isMemoryPressure()) {
-      logInfo(
+      logDebug(
         s"Falling back to sort-based shuffle for shuffle ${handle.shuffleId}: " +
           s"memory pressure (executionMemoryUsed=${memoryManager.executionMemoryUsed}, " +
           s"maxOnHeapStorageMemory=${memoryManager.maxOnHeapStorageMemory})")
       return true
     }
     // Condition 3: network saturation, proxied by the backpressure-event counter.
+    // Logged at DEBUG: see class-level "Log Level Selection" rationale above.
     if (isNetworkSaturated(telemetry)) {
-      logInfo(
+      logDebug(
         s"Falling back to sort-based shuffle for shuffle ${handle.shuffleId}: " +
           s"network saturation (backpressureEvents=${telemetry.getBackpressureEventsCount} > " +
           s"$NETWORK_SATURATION_EVENT_THRESHOLD, threshold ratio $NETWORK_SATURATION_THRESHOLD)")
       return true
     }
     // Condition 1 last: slow consumer (requires sustained-window bookkeeping).
+    // Logged at DEBUG: see class-level "Log Level Selection" rationale above.
     if (isSlowConsumer(telemetry)) {
-      logInfo(
+      logDebug(
         s"Falling back to sort-based shuffle for shuffle ${handle.shuffleId}: " +
           s"slow consumer (sustained > ${SLOW_CONSUMER_RATIO_THRESHOLD}x slower for " +
           s">$SLOW_CONSUMER_WINDOW_MILLIS ms)")

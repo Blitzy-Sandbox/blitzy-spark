@@ -362,7 +362,19 @@ class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
     val maxBandwidthMBps = conf.get(STREAMING_SHUFFLE_MAX_BANDWIDTH_MBPS)
     streamingShuffleIds.put(Integer.valueOf(shuffleId), java.lang.Boolean.TRUE)
     backpressureOpt.foreach(_.registerShuffle(shuffleId))
-    logInfo(
+    // Per-registration logging is emitted at DEBUG level rather than INFO to honor
+    // the AAP Section 0.7.2.5 quality budget: "Log volume capped at <10MB/hour per
+    // executor for streaming events ... INFO/DEBUG logs must be rate-limited or
+    // sampled; only WARN/ERROR may pass freely." Under high-throughput shuffle
+    // workloads the executor may register hundreds of shuffles per second, and an
+    // INFO line per registration would exceed the 10 MB/hour budget by orders of
+    // magnitude. Operators retain visibility into shuffle activity through the
+    // streaming-shuffle Dropwizard metrics (`shuffle.streaming.*`), the existing
+    // shuffle metrics on the Web UI Stages tab, and the once-per-startup
+    // `StreamingShuffleManager initialized` INFO line above. Enable verbose
+    // per-shuffle traces by setting log4j level to DEBUG for this logger when
+    // diagnosing specific shuffle behavior.
+    logDebug(
       s"Registering streaming shuffle $shuffleId " +
         s"(bufferSizePercent=$bufferSizePercent, " +
         s"spillThreshold=$spillThreshold, " +
@@ -409,7 +421,19 @@ class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
           policy.shouldFallback(streamingHandle, streamingMetrics)
         }
         if (shouldFallback) {
-          logInfo(
+          // Per-task event during fallback storms (network saturation, sustained
+          // memory pressure). Demoted from INFO to DEBUG to honor the streaming-
+          // shuffle "<10 MB/hour per executor" log-volume budget per AAP
+          // section 0.7.2.5: when fallback fires for every concurrent task in a stage,
+          // an INFO-level log here would emit thousands of duplicate lines per
+          // second. The reason for fallback is logged with the same shuffleId
+          // by [[StreamingShuffleFallbackPolicy.shouldFallback]] (also at DEBUG),
+          // and the cumulative fallback count is observable via the
+          // `shuffle.streaming.backpressureEvents` JMX counter, so operational
+          // visibility is preserved without unbounded log emission. Operators
+          // troubleshooting fallback can enable `spark.shuffle.streaming.debug=true`
+          // to surface these and the FallbackPolicy logs at DEBUG.
+          logDebug(
             s"Falling back to sort-based shuffle writer for shuffle " +
               s"${streamingHandle.shuffleId}")
           // Wrap the streaming handle's dependency in a fresh BaseShuffleHandle so the
@@ -485,7 +509,18 @@ class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
           policy.shouldFallback(streamingHandle, streamingMetrics)
         }
         if (shouldFallback) {
-          logInfo(
+          // Per-task event during fallback storms. Demoted from INFO to DEBUG
+          // for the same reason as the symmetric writer fallback at the
+          // [[getWriter]] call site above: under stress (network saturation
+          // detected via cumulative `backpressureEvents > 100`), every concurrent
+          // reduce task fires this code path, producing duplicate log lines that
+          // would breach the AAP section 0.7.2.5 "<10 MB/hour" log-volume cap. The
+          // [[StreamingShuffleFallbackPolicy]] logs the fallback reason at the
+          // same DEBUG level, the per-shuffle fallback count is captured by the
+          // `shuffle.streaming.backpressureEvents` JMX counter, and operators
+          // troubleshooting fallback can enable `spark.shuffle.streaming.debug=true`
+          // to surface this log and the FallbackPolicy logs.
+          logDebug(
             s"Falling back to sort-based shuffle reader for shuffle " +
               s"${streamingHandle.shuffleId}")
           sortShuffleManager.getReader[K, C](
@@ -546,7 +581,14 @@ class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
     // the data plane do not pay the IndexShuffleBlockResolver setup cost here.
     val sortResult = sortShuffleManager.unregisterShuffle(shuffleId)
     if (wasStreaming) {
-      logInfo(s"Unregistered streaming shuffle $shuffleId")
+      // Per-unregistration logging is emitted at DEBUG level rather than INFO to
+      // honor the AAP Section 0.7.2.5 quality budget cap (<10 MB/hour per executor
+      // for streaming events). Under high-throughput shuffle workloads the executor
+      // may unregister hundreds of shuffles per second, and an INFO line per call
+      // would exceed the budget by orders of magnitude. Operators retain visibility
+      // through the streaming-shuffle Dropwizard metrics and the once-per-shutdown
+      // `Stopping StreamingShuffleManager` INFO line in `stop()`.
+      logDebug(s"Unregistered streaming shuffle $shuffleId")
     }
     wasStreaming || sortResult
   }
