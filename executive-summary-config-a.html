@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Config A - Bare Blitzy Baseline - Spark Security Audit</title>
+
+  <!-- reveal.js 5.1.0 (pinned) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/white.css">
+
+  <!-- Google Fonts: Inter, Space Grotesk, Fira Code -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fira+Code:wght@400;500&display=swap">
+
+  <style>
+    /* =========================================================
+       Blitzy reveal.js theme - inline (single self-contained file)
+       ========================================================= */
+    :root {
+      /* Brand */
+      --blitzy-primary: #5B39F3;
+      --blitzy-primary-dark: #2D1C77;
+      --blitzy-primary-navy: #1A105F;
+      --blitzy-primary-light: #7A6DEC;
+      --blitzy-primary-deep: #4101DB;
+      --blitzy-accent-teal: #94FAD5;
+
+      /* Surfaces */
+      --blitzy-surface-0: #FFFFFF;
+      --blitzy-surface-1: #F4EFF6;
+      --blitzy-surface-2: #F2F0FE;
+      --blitzy-surface-3: #F5F5F5;
+
+      /* Borders */
+      --blitzy-border: #D9D9D9;
+      --blitzy-border-soft: rgba(91, 57, 243, 0.18);
+
+      /* Text */
+      --blitzy-text: #333333;
+      --blitzy-text-muted: #999999;
+      --blitzy-text-invert: #FFFFFF;
+
+      /* Typography */
+      --ff-body: 'Inter', system-ui, sans-serif;
+      --ff-display: 'Space Grotesk', 'Inter', sans-serif;
+      --ff-mono: 'Fira Code', 'Courier New', monospace;
+
+      /* Gradients */
+      --gradient-hero: linear-gradient(68deg, #7A6DEC 15.56%, #5B39F3 62.74%, #4101DB 84.44%);
+      --gradient-divider: linear-gradient(135deg, #2D1C77 0%, #5B39F3 100%);
+      --gradient-accent-bar: linear-gradient(90deg, #5B39F3 0%, #94FAD5 100%);
+
+      /* Elevation */
+      --blitzy-shadow-soft: 0 2px 12px rgba(91, 57, 243, 0.06);
+    }
+
+    /* ----- reveal base overrides ----- */
+    .reveal {
+      font-family: var(--ff-body);
+      color: var(--blitzy-text);
+      font-weight: 400;
+    }
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+      font-family: var(--ff-display);
+      font-weight: 700;
+      color: var(--blitzy-text);
+      text-transform: none;
+      letter-spacing: -0.01em;
+      line-height: 1.15;
+      margin: 0 0 24px 0;
+    }
+    .reveal h1 { font-size: 3.5rem; }
+    .reveal h2 { font-size: 2.75rem; }
+    .reveal h3 { font-size: 2rem; }
+    .reveal p,
+    .reveal li {
+      font-family: var(--ff-body);
+      color: var(--blitzy-text);
+      font-size: 1.5rem;
+      line-height: 1.5;
+    }
+    .reveal ul,
+    .reveal ol {
+      display: inline-block;
+      text-align: left;
+      margin: 16px 0;
+    }
+    .reveal ul li,
+    .reveal ol li {
+      margin: 8px 0;
+    }
+    .reveal code {
+      font-family: var(--ff-mono);
+      font-size: 0.95em;
+      background: var(--blitzy-surface-2);
+      color: var(--blitzy-primary-dark);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid var(--blitzy-border-soft);
+    }
+    .reveal section {
+      padding: 48px 64px;
+      box-sizing: border-box;
+      text-align: left;
+    }
+    .reveal .slides > section {
+      min-height: 1080px;
+      height: 1080px;
+      width: 1920px;
+      box-sizing: border-box;
+    }
+    .reveal .slides > section:not(.slide-title):not(.slide-divider):not(.slide-closing) {
+      background: var(--blitzy-surface-0);
+    }
+
+    /* ----- Eyebrow ----- */
+    .eyebrow {
+      font-family: var(--ff-mono);
+      font-size: 0.875rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--blitzy-primary);
+      margin-bottom: 16px;
+      display: block;
+    }
+    .slide-title .eyebrow,
+    .slide-divider .eyebrow,
+    .slide-closing .eyebrow {
+      color: var(--blitzy-accent-teal);
+    }
+
+    /* ----- Title slide ----- */
+    .reveal .slides > section.slide-title {
+      background: var(--gradient-hero) !important;
+      color: var(--blitzy-text-invert);
+      text-align: center;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 96px 80px;
+    }
+    .reveal .slide-title h1,
+    .reveal .slide-title h2,
+    .reveal .slide-title p,
+    .reveal .slide-title .subheading {
+      color: var(--blitzy-text-invert);
+    }
+    .reveal .slide-title h1 {
+      font-size: 5rem;
+      margin: 24px 0 16px 0;
+    }
+    .reveal .slide-title .subheading {
+      font-family: var(--ff-body);
+      font-size: 1.75rem;
+      font-weight: 400;
+      opacity: 0.92;
+      margin: 8px auto 0 auto;
+      max-width: 1200px;
+      text-align: center;
+    }
+
+    /* ----- Divider slide ----- */
+    .reveal .slides > section.slide-divider {
+      background: var(--gradient-divider) !important;
+      color: var(--blitzy-text-invert);
+      text-align: center;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      padding: 96px 80px;
+    }
+    .reveal .slide-divider h1,
+    .reveal .slide-divider h2 {
+      color: var(--blitzy-text-invert);
+      font-size: 4rem;
+      margin-top: 32px;
+    }
+    .reveal .slide-divider .hero-icon {
+      color: var(--blitzy-accent-teal);
+    }
+
+    /* ----- Closing slide ----- */
+    .reveal .slides > section.slide-closing {
+      background: var(--blitzy-primary-navy) !important;
+      color: var(--blitzy-text-invert);
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: center !important;
+      padding: 96px 96px 64px 96px;
+      position: relative;
+    }
+    .reveal .slide-closing h1,
+    .reveal .slide-closing h2 {
+      color: var(--blitzy-text-invert);
+      font-size: 4.5rem;
+      margin-bottom: 32px;
+    }
+    .reveal .slide-closing p,
+    .reveal .slide-closing li {
+      color: var(--blitzy-text-invert);
+    }
+    .reveal .slide-closing ul {
+      margin-bottom: 48px;
+      list-style: none;
+      padding-left: 0;
+    }
+    .reveal .slide-closing li {
+      font-weight: 500;
+      font-size: 1.6rem;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .reveal .slide-closing li i[data-lucide],
+    .reveal .slide-closing li svg {
+      flex: 0 0 auto;
+      width: 28px;
+      height: 28px;
+      color: var(--blitzy-accent-teal);
+      stroke: var(--blitzy-accent-teal);
+      stroke-width: 2;
+    }
+    .reveal .slide-closing .accent-bar {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 8px;
+      background: var(--gradient-accent-bar);
+    }
+    .reveal .slide-closing .brand-lockup {
+      position: absolute;
+      left: 96px;
+      bottom: 32px;
+      color: var(--blitzy-text-invert);
+      opacity: 0.88;
+    }
+
+    /* ----- Hero / large icons ----- */
+    .hero-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 96px;
+      height: 96px;
+      margin-bottom: 16px;
+      color: var(--blitzy-text-invert);
+    }
+    .hero-icon svg {
+      width: 96px;
+      height: 96px;
+      stroke-width: 1.5;
+    }
+
+    /* ----- Icon row ----- */
+    .icon-row {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+      margin: 16px 0;
+      color: var(--blitzy-primary);
+    }
+    .icon-row svg {
+      width: 32px;
+      height: 32px;
+      stroke-width: 1.75;
+    }
+
+    /* ----- KPI cards & grid ----- */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin: 24px 0;
+    }
+    .kpi-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .kpi-grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+    .kpi-card {
+      background: var(--blitzy-surface-0);
+      border: 1px solid var(--blitzy-border-soft);
+      border-radius: 16px;
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 12px;
+      box-shadow: var(--blitzy-shadow-soft);
+    }
+    .kpi-icon {
+      width: 48px;
+      height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--blitzy-primary);
+      background: var(--blitzy-surface-2);
+      border-radius: 12px;
+    }
+    .kpi-icon svg {
+      width: 28px;
+      height: 28px;
+      stroke-width: 2;
+    }
+    .kpi-value {
+      font-family: var(--ff-display);
+      font-weight: 600;
+      font-size: 3.25rem;
+      color: var(--blitzy-primary);
+      line-height: 1;
+      margin: 4px 0;
+      word-break: break-word;
+    }
+    .kpi-value.kpi-small {
+      font-size: 1.5rem;
+      font-family: var(--ff-mono);
+      font-weight: 500;
+      color: var(--blitzy-primary-dark);
+    }
+    .kpi-label {
+      font-family: var(--ff-body);
+      font-weight: 500;
+      font-size: 0.95rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--blitzy-text-muted);
+    }
+
+    /* ----- Severity badge & CWE chip ----- */
+    .severity-badge {
+      display: inline-block;
+      font-family: var(--ff-mono);
+      font-size: 0.85em;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--blitzy-primary);
+      background: var(--blitzy-surface-1);
+      color: var(--blitzy-primary-dark);
+    }
+    .severity-badge.high { border-color: var(--blitzy-primary-deep); }
+    .severity-badge.medium { border-color: var(--blitzy-primary-light); }
+    .severity-badge.low { border-color: var(--blitzy-border); color: var(--blitzy-text-muted); }
+    .cwe-chip {
+      display: inline-block;
+      font-family: var(--ff-mono);
+      font-size: 0.9em;
+      padding: 3px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--blitzy-border-soft);
+      background: var(--blitzy-surface-2);
+      color: var(--blitzy-primary-dark);
+    }
+
+    /* ----- Brand lockup ----- */
+    .brand-lockup {
+      font-family: var(--ff-mono);
+      font-size: 0.875rem;
+      letter-spacing: 0.08em;
+      color: var(--blitzy-text-muted);
+    }
+    .slide-title .brand-lockup {
+      color: var(--blitzy-text-invert);
+      opacity: 0.85;
+      position: absolute;
+      bottom: 32px;
+      right: 64px;
+    }
+
+    /* ----- Accent bar ----- */
+    .accent-bar {
+      display: block;
+      height: 8px;
+      width: 100%;
+      background: var(--gradient-accent-bar);
+      border-radius: 4px;
+    }
+
+    /* ----- Tables ----- */
+    .reveal table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-family: var(--ff-body);
+      font-size: 1.15rem;
+      background: var(--blitzy-surface-0);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .reveal table thead th {
+      background: var(--blitzy-surface-2);
+      color: var(--blitzy-primary-dark);
+      font-family: var(--ff-display);
+      font-weight: 600;
+      text-align: left;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--blitzy-border-soft);
+      letter-spacing: 0.02em;
+    }
+    .reveal table tbody td {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--blitzy-border-soft);
+      color: var(--blitzy-text);
+      vertical-align: middle;
+    }
+    .reveal table tbody tr:nth-child(even) td {
+      background: var(--blitzy-surface-3);
+    }
+    .reveal table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .reveal table .num {
+      font-family: var(--ff-mono);
+      font-weight: 500;
+      color: var(--blitzy-primary);
+    }
+    .reveal table .mono {
+      font-family: var(--ff-mono);
+      color: var(--blitzy-primary-dark);
+    }
+
+    /* ----- Mermaid ----- */
+    .reveal pre.mermaid {
+      background: transparent;
+      box-shadow: none;
+      padding: 16px;
+      margin: 16px auto;
+      width: 100%;
+      text-align: center;
+      font-family: var(--ff-body);
+      line-height: 1.35;
+      font-size: 1rem;
+      min-height: 540px;
+    }
+    .reveal pre.mermaid svg {
+      max-width: 100% !important;
+      width: auto !important;
+      max-height: 720px;
+      height: auto !important;
+      display: block;
+      margin: 0 auto;
+      overflow: visible !important;
+    }
+    .reveal pre.mermaid foreignObject {
+      overflow: visible !important;
+    }
+    .reveal pre.mermaid foreignObject div,
+    .reveal pre.mermaid foreignObject span {
+      font-family: var(--ff-body) !important;
+      font-size: 16px !important;
+      white-space: nowrap !important;
+      overflow: visible !important;
+    }
+
+    /* ----- Caption ----- */
+    .caption {
+      font-family: var(--ff-body);
+      font-size: 1.1rem;
+      color: var(--blitzy-text-muted);
+      margin-top: 16px;
+      font-style: normal;
+    }
+    .slide-title .caption,
+    .slide-divider .caption,
+    .slide-closing .caption {
+      color: var(--blitzy-text-invert);
+      opacity: 0.85;
+    }
+
+    /* ----- Inline status helpers ----- */
+    .pill {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 999px;
+      font-family: var(--ff-mono);
+      font-size: 0.85em;
+      letter-spacing: 0.04em;
+      background: var(--blitzy-surface-2);
+      color: var(--blitzy-primary-dark);
+      border: 1px solid var(--blitzy-border-soft);
+    }
+    .pill.high { background: var(--blitzy-surface-1); border-color: var(--blitzy-primary-deep); }
+    .pill.medium { background: var(--blitzy-surface-2); border-color: var(--blitzy-primary-light); }
+    .pill.low { background: var(--blitzy-surface-3); border-color: var(--blitzy-border); color: var(--blitzy-text-muted); }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- =========================
+           Slide 1 - Title
+           ========================= -->
+      <section class="slide-title">
+        <span class="hero-icon"><i data-lucide="shield-check" aria-hidden="true"></i></span>
+        <div class="eyebrow">Spark Security Audit - Config A</div>
+        <h1>Bare Blitzy Baseline</h1>
+        <p class="subheading">Native agent analysis of the blitzy-spark codebase</p>
+        <div class="brand-lockup">Blitzy - Spark Security Audit - Config A</div>
+      </section>
+
+      <!-- =========================
+           Slide 2 - Headline KPI summary
+           ========================= -->
+      <section>
+        <div class="eyebrow">Audit at a Glance</div>
+        <h2>Findings Summary</h2>
+        <div class="kpi-grid cols-4">
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="clipboard-list" aria-hidden="true"></i></span>
+            <div class="kpi-value">16</div>
+            <div class="kpi-label">Total Findings</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="flame" aria-hidden="true"></i></span>
+            <div class="kpi-value">4</div>
+            <div class="kpi-label">High Severity</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="triangle-alert" aria-hidden="true"></i></span>
+            <div class="kpi-value">7</div>
+            <div class="kpi-label">Medium</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="shield" aria-hidden="true"></i></span>
+            <div class="kpi-value">5</div>
+            <div class="kpi-label">Low</div>
+          </div>
+        </div>
+        <p class="caption">Single read-only sweep. Zero external scanners.</p>
+      </section>
+
+      <!-- =========================
+           Slide 3 - Audit Methodology (Mermaid flowchart)
+           ========================= -->
+      <section>
+        <div class="eyebrow">How We Looked</div>
+        <h2>Five-Pass Pipeline</h2>
+        <pre class="mermaid">
+flowchart LR
+  A[Pass 1<br/>Dependencies] --&gt; F[Findings<br/>List]
+  B[Pass 2<br/>Crypto] --&gt; F
+  C[Pass 3<br/>Listeners<br/>+ Deserialize] --&gt; F
+  D[Pass 4<br/>Injection] --&gt; F
+  E[Pass 5<br/>Tainted Flow] --&gt; F
+  F --&gt; J[findings-config-a.json]
+        </pre>
+      </section>
+
+      <!-- =========================
+           Slide 4 - Divider: Where We Looked
+           ========================= -->
+      <section class="slide-divider">
+        <span class="hero-icon"><i data-lucide="scan-search" aria-hidden="true"></i></span>
+        <h2>Where We Looked</h2>
+      </section>
+
+      <!-- =========================
+           Slide 5 - Security Surface Inventory
+           ========================= -->
+      <section>
+        <div class="eyebrow">In Scope</div>
+        <h2>Security Surfaces</h2>
+        <table>
+          <thead>
+            <tr><th>Surface</th><th>Module</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>RPC Auth &amp; AES Encryption</td><td class="mono">common/network-common/src/main/java/org/apache/spark/network/crypto/</td></tr>
+            <tr><td>RPC TLS / SSL Engine</td><td class="mono">common/network-common/src/main/java/org/apache/spark/network/ssl/</td></tr>
+            <tr><td>SASL Encryption (Fallback)</td><td class="mono">common/network-common/src/main/java/org/apache/spark/network/sasl/</td></tr>
+            <tr><td>ESS Secret Store</td><td class="mono">common/network-shuffle/src/main/java/org/apache/spark/network/sasl/</td></tr>
+            <tr><td>IO Encryption At Rest</td><td class="mono">core/src/main/scala/org/apache/spark/security/CryptoStreamUtils.scala</td></tr>
+            <tr><td>JWT UI Authentication</td><td class="mono">core/src/main/scala/org/apache/spark/ui/JWSFilter.scala</td></tr>
+            <tr><td>ACL Authorization</td><td class="mono">core/src/main/scala/org/apache/spark/SecurityManager.scala</td></tr>
+            <tr><td>HTTP Hardening &amp; XSS Filters</td><td class="mono">core/src/main/scala/org/apache/spark/ui/HttpSecurityFilter.scala</td></tr>
+            <tr><td>Kerberos Delegation Tokens</td><td class="mono">core/src/main/scala/org/apache/spark/deploy/security/</td></tr>
+            <tr><td>K8s Secret Integration</td><td class="mono">resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/features/</td></tr>
+            <tr><td>Secret Redaction</td><td class="mono">core/src/main/scala/org/apache/spark/util/Utils.scala</td></tr>
+          </tbody>
+        </table>
+        <p class="caption">All 11 surfaces from AAP &sect;0.2.3 inspected; exact repo-relative paths shown.</p>
+      </section>
+
+      <!-- =========================
+           Slide 6 - Divider: What We Found
+           ========================= -->
+      <section class="slide-divider">
+        <span class="hero-icon"><i data-lucide="shield-alert" aria-hidden="true"></i></span>
+        <h2>What We Found</h2>
+      </section>
+
+      <!-- =========================
+           Slide 7 - Findings by Severity
+           ========================= -->
+      <section>
+        <div class="eyebrow">Severity Distribution</div>
+        <h2>Risk Profile</h2>
+        <div class="kpi-grid cols-4">
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="flame" aria-hidden="true"></i></span>
+            <div class="kpi-value">0</div>
+            <div class="kpi-label">Critical</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="triangle-alert" aria-hidden="true"></i></span>
+            <div class="kpi-value">4</div>
+            <div class="kpi-label">High</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="circle-alert" aria-hidden="true"></i></span>
+            <div class="kpi-value">7</div>
+            <div class="kpi-label">Medium</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="shield" aria-hidden="true"></i></span>
+            <div class="kpi-value">5</div>
+            <div class="kpi-label">Low</div>
+          </div>
+        </div>
+        <p class="caption">Zero critical - no exploitable unauth RCE in default config.</p>
+      </section>
+
+      <!-- =========================
+           Slide 8 - Findings by CWE Family
+           ========================= -->
+      <section>
+        <div class="eyebrow">CWE Distribution</div>
+        <h2>Top CWE Categories</h2>
+        <table>
+          <thead>
+            <tr><th>CWE</th><th>Title</th><th>Count</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="mono">CWE-326</td><td>Inadequate Encryption Strength</td><td class="num">3</td></tr>
+            <tr><td class="mono">CWE-295</td><td>Improper Certificate Validation</td><td class="num">3</td></tr>
+            <tr><td class="mono">CWE-502</td><td>Deserialization of Untrusted Data</td><td class="num">3</td></tr>
+            <tr><td class="mono">CWE-1395</td><td>Dependency on Vulnerable Component</td><td class="num">2</td></tr>
+            <tr><td class="mono">CWE-327</td><td>Broken / Risky Cryptographic Algorithm</td><td class="num">1</td></tr>
+            <tr><td class="mono">CWE-306</td><td>Missing Authentication for Critical Function</td><td class="num">1</td></tr>
+            <tr><td class="mono">CWE-88</td><td>Improper Neutralization of Argument Delimiters</td><td class="num">1</td></tr>
+            <tr><td class="mono">CWE-1188</td><td>Insecure Default Initialization of Resource</td><td class="num">1</td></tr>
+            <tr><td class="mono">CWE-113</td><td>CRLF Injection in HTTP Headers</td><td class="num">1</td></tr>
+          </tbody>
+        </table>
+        <p class="caption">9 distinct CWE leaves across 16 findings.</p>
+      </section>
+
+      <!-- =========================
+           Slide 9 - Top Findings Detail
+           ========================= -->
+      <section>
+        <div class="eyebrow">Highest Severity Items</div>
+        <h2>Top 4 Findings</h2>
+        <table>
+          <thead>
+            <tr><th>File</th><th>Line</th><th>CWE</th><th>Severity</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono">common/network-common/src/main/java/org/apache/spark/network/sasl/SparkSaslServer.java</td>
+              <td class="num">60</td>
+              <td><span class="cwe-chip">CWE-327</span></td>
+              <td><span class="severity-badge high">high</span></td>
+            </tr>
+            <tr>
+              <td class="mono">common/network-common/src/main/java/org/apache/spark/network/ssl/SSLFactory.java</td>
+              <td class="num">341</td>
+              <td><span class="cwe-chip">CWE-295</span></td>
+              <td><span class="severity-badge high">high</span></td>
+            </tr>
+            <tr>
+              <td class="mono">common/network-common/src/main/java/org/apache/spark/network/ssl/SSLFactory.java</td>
+              <td class="num">365</td>
+              <td><span class="cwe-chip">CWE-295</span></td>
+              <td><span class="severity-badge high">high</span></td>
+            </tr>
+            <tr>
+              <td class="mono">core/src/main/scala/org/apache/spark/deploy/rest/RestSubmissionServer.scala</td>
+              <td class="num">145</td>
+              <td><span class="cwe-chip">CWE-306</span></td>
+              <td><span class="severity-badge high">high</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="caption">All four <code>file:line</code> values copied verbatim from <code>findings-config-a.json</code>.</p>
+      </section>
+
+      <!-- =========================
+           Slide 10 - Divider: Architecture & Dependencies
+           ========================= -->
+      <section class="slide-divider">
+        <span class="hero-icon"><i data-lucide="package-search" aria-hidden="true"></i></span>
+        <h2>Architecture &amp; Dependencies</h2>
+      </section>
+
+      <!-- =========================
+           Slide 11 - Network Encryption Posture (Mermaid flowchart)
+           Note: edge labels (|label|) intentionally omitted to avoid the
+           Mermaid 11.4.0 layout bug that fails on edge-labels combined
+           with multiline node text. Semantic info (opt-in / legacy) is
+           baked into node text instead, matching slide 3's working pattern.
+           ========================= -->
+      <section>
+        <div class="eyebrow">Security Architecture</div>
+        <h2>Network Encryption Posture</h2>
+        <pre class="mermaid">
+flowchart LR
+  T["TLS via spark.ssl.*<br/>preferred"] --&gt; OK["Strong transport"]
+  A["AES RPC encryption<br/>opt-in default off"] --&gt; V1["v1 + AES/CTR<br/>default when enabled"]
+  A --&gt; V2["v2 + AES/GCM<br/>recommended hardening"]
+  S["SASL fallback<br/>DIGEST-MD5 legacy"] --&gt; LEG["Backward compat only"]
+        </pre>
+        <p class="caption">TLS is preferred. AES RPC encryption is opt-in; v1+AES/CTR are the defaults when enabled, v2+AES/GCM is recommended hardening.</p>
+      </section>
+
+      <!-- =========================
+           Slide 12 - Dependency Risk Snapshot
+           ========================= -->
+      <section>
+        <div class="eyebrow">Bundled Libraries</div>
+        <h2>Pinned Dependencies</h2>
+        <table>
+          <thead>
+            <tr><th>Library</th><th>Version</th><th>pom.xml Line</th><th>Severity</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Apache Hive</td><td class="mono">2.3.10</td><td class="num">139</td><td><span class="pill medium">medium</span></td></tr>
+            <tr><td>commons-lang</td><td class="mono">2.6 (EOL)</td><td class="num">194</td><td><span class="pill low">low</span></td></tr>
+          </tbody>
+        </table>
+        <p class="caption">Both findings keyed to <code>pom.xml</code> declarations under <code>CWE-1395</code>. Hive 2.3.x carries CVE-2024-23945 (CookieSigner signature exposure); commons-lang 2.x is EOL since 2014.</p>
+      </section>
+
+      <!-- =========================
+           Slide 13 - Divider: Baseline Framing
+           ========================= -->
+      <section class="slide-divider">
+        <span class="hero-icon"><i data-lucide="ruler" aria-hidden="true"></i></span>
+        <h2>Baseline Framing</h2>
+      </section>
+
+      <!-- =========================
+           Slide 14 - Why Config A is the Baseline
+           ========================= -->
+      <section>
+        <div class="eyebrow">Experimental Design</div>
+        <h2>Config A = Control</h2>
+        <div class="kpi-grid cols-3">
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="ban" aria-hidden="true"></i></span>
+            <div class="kpi-value">0</div>
+            <div class="kpi-label">External Scanners</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="bot" aria-hidden="true"></i></span>
+            <div class="kpi-value">1</div>
+            <div class="kpi-label">Agent Run</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="file-stack" aria-hidden="true"></i></span>
+            <div class="kpi-value">3</div>
+            <div class="kpi-label">Deliverables</div>
+          </div>
+        </div>
+        <p class="caption">Bare Blitzy Baseline measures what a native agent finds without tooling augmentation. Downstream configs add scanners and are scored against this list.</p>
+      </section>
+
+      <!-- =========================
+           Slide 15 - Operational Readiness
+           ========================= -->
+      <section>
+        <div class="eyebrow">What We Delivered</div>
+        <h2>Artifacts Produced</h2>
+        <div class="kpi-grid cols-3">
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="braces" aria-hidden="true"></i></span>
+            <div class="kpi-value kpi-small">findings-config-a.json</div>
+            <div class="kpi-label">Machine-readable</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="book-open" aria-hidden="true"></i></span>
+            <div class="kpi-value kpi-small">decisions-config-a.md</div>
+            <div class="kpi-label">Decision Log</div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon"><i data-lucide="presentation" aria-hidden="true"></i></span>
+            <div class="kpi-value kpi-small">executive-summary-config-a.html</div>
+            <div class="kpi-label">This Deck</div>
+          </div>
+        </div>
+        <p class="caption">All three at repo root. Zero source files modified.</p>
+      </section>
+
+      <!-- =========================
+           Slide 16 - Closing
+           ========================= -->
+      <section class="slide-closing">
+        <h2>Same Engine. More Signal.</h2>
+        <ul class="closing-list">
+          <li><i data-lucide="check-circle-2" aria-hidden="true"></i><span>Baseline established for downstream configs</span></li>
+          <li><i data-lucide="check-circle-2" aria-hidden="true"></i><span>All 11 security surfaces inspected</span></li>
+          <li><i data-lucide="check-circle-2" aria-hidden="true"></i><span>Zero source-tree changes</span></li>
+        </ul>
+        <div class="brand-lockup">Blitzy - Spark Security Audit - Config A</div>
+        <span class="accent-bar"></span>
+      </section>
+
+
+    </div>
+  </div>
+
+  <!-- reveal.js 5.1.0 -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <!-- Mermaid 11.4.0 -->
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
+  <!-- Lucide 0.460.0 -->
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <script>
+    // Capture each Mermaid block's raw source BEFORE any rendering attempt so
+    // that if a block renders degenerately while its parent slide is hidden
+    // (display:none -> zero layout context -> viewBox="-8 -8 16 16"), the
+    // source can be restored and the block re-processed on a later slidechanged
+    // when the parent slide is visible.
+    document.querySelectorAll('pre.mermaid').forEach(function (block) {
+      block.dataset.mermaidSrc = block.textContent.trim();
+    });
+
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      fontFamily: "'Inter', system-ui, sans-serif",
+      flowchart: {
+        useMaxWidth: true,
+        htmlLabels: true,
+        padding: 20,
+        nodeSpacing: 60,
+        rankSpacing: 80,
+        curve: 'basis'
+      },
+      sequence: {
+        useMaxWidth: true,
+        showSequenceNumbers: false,
+        actorMargin: 80,
+        messageMargin: 50,
+        boxMargin: 12
+      },
+      themeVariables: {
+        primaryColor: '#F2F0FE',
+        primaryTextColor: '#333333',
+        primaryBorderColor: '#5B39F3',
+        lineColor: '#999999',
+        secondaryColor: '#F4EFF6'
+      }
+    });
+
+    Reveal.initialize({
+      hash: true,
+      transition: 'slide',
+      controlsTutorial: false,
+      width: 1920,
+      height: 1080
+    });
+
+    function renderVisuals() {
+      // Self-heal degenerate Mermaid renders. A degenerate SVG carries the
+      // Mermaid empty-default viewBox "-8 -8 16 16" and renders invisibly.
+      // Reset those blocks to their captured source so mermaid.run() will
+      // re-process them with the now-visible slide's layout context.
+      document.querySelectorAll('pre.mermaid').forEach(function (block) {
+        var svg = block.querySelector('svg');
+        var degenerate = svg && svg.getAttribute('viewBox') === '-8 -8 16 16';
+        if (degenerate && block.dataset.mermaidSrc) {
+          block.removeAttribute('data-processed');
+          block.innerHTML = '';
+          block.textContent = block.dataset.mermaidSrc;
+        }
+      });
+      mermaid.run({ querySelector: 'pre.mermaid' });
+      lucide.createIcons();
+    }
+
+    Reveal.on('ready', renderVisuals);
+    Reveal.on('slidechanged', renderVisuals);
+  </script>
+</body>
+</html>
