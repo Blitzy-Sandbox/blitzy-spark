@@ -9,6 +9,7 @@ metadata:
   - java
   - new-feature
   - performance
+  - scala
   labels:
     blitzy.com/language: java
   annotations:
