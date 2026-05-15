@@ -516,22 +516,22 @@
         <div class="kpi-grid cols-4">
           <div class="kpi-card">
             <span class="kpi-icon"><i data-lucide="clipboard-list" aria-hidden="true"></i></span>
-            <div class="kpi-value">22</div>
+            <div class="kpi-value">16</div>
             <div class="kpi-label">Total Findings</div>
           </div>
           <div class="kpi-card">
             <span class="kpi-icon"><i data-lucide="flame" aria-hidden="true"></i></span>
-            <div class="kpi-value">3</div>
+            <div class="kpi-value">4</div>
             <div class="kpi-label">High Severity</div>
           </div>
           <div class="kpi-card">
             <span class="kpi-icon"><i data-lucide="triangle-alert" aria-hidden="true"></i></span>
-            <div class="kpi-value">13</div>
+            <div class="kpi-value">7</div>
             <div class="kpi-label">Medium</div>
           </div>
           <div class="kpi-card">
             <span class="kpi-icon"><i data-lucide="shield" aria-hidden="true"></i></span>
-            <div class="kpi-value">6</div>
+            <div class="kpi-value">5</div>
             <div class="kpi-label">Low</div>
           </div>
         </div>
@@ -574,20 +574,20 @@ flowchart LR
             <tr><th>Surface</th><th>Module</th></tr>
           </thead>
           <tbody>
-            <tr><td>RPC Auth &amp; AES Encryption</td><td class="mono">common/network-common/.../crypto/</td></tr>
-            <tr><td>RPC TLS / SSL Engine</td><td class="mono">common/network-common/.../ssl/</td></tr>
-            <tr><td>SASL Encryption (Fallback)</td><td class="mono">common/network-common/.../sasl/</td></tr>
-            <tr><td>ESS Secret Store</td><td class="mono">common/network-shuffle/.../sasl/</td></tr>
-            <tr><td>IO Encryption At Rest</td><td class="mono">core/.../security/CryptoStreamUtils.scala</td></tr>
-            <tr><td>JWT UI Authentication</td><td class="mono">core/.../ui/JWSFilter.scala</td></tr>
-            <tr><td>ACL Authorization</td><td class="mono">core/.../SecurityManager.scala</td></tr>
-            <tr><td>HTTP Hardening &amp; XSS Filters</td><td class="mono">core/.../ui/HttpSecurityFilter.scala</td></tr>
-            <tr><td>Kerberos Delegation Tokens</td><td class="mono">core/.../deploy/security/</td></tr>
-            <tr><td>K8s Secret Integration</td><td class="mono">resource-managers/kubernetes/.../features/</td></tr>
-            <tr><td>Secret Redaction</td><td class="mono">core/.../util/Utils.scala</td></tr>
+            <tr><td>RPC Auth &amp; AES Encryption</td><td class="mono">common/network-common/src/main/java/org/apache/spark/network/crypto/</td></tr>
+            <tr><td>RPC TLS / SSL Engine</td><td class="mono">common/network-common/src/main/java/org/apache/spark/network/ssl/</td></tr>
+            <tr><td>SASL Encryption (Fallback)</td><td class="mono">common/network-common/src/main/java/org/apache/spark/network/sasl/</td></tr>
+            <tr><td>ESS Secret Store</td><td class="mono">common/network-shuffle/src/main/java/org/apache/spark/network/sasl/</td></tr>
+            <tr><td>IO Encryption At Rest</td><td class="mono">core/src/main/scala/org/apache/spark/security/CryptoStreamUtils.scala</td></tr>
+            <tr><td>JWT UI Authentication</td><td class="mono">core/src/main/scala/org/apache/spark/ui/JWSFilter.scala</td></tr>
+            <tr><td>ACL Authorization</td><td class="mono">core/src/main/scala/org/apache/spark/SecurityManager.scala</td></tr>
+            <tr><td>HTTP Hardening &amp; XSS Filters</td><td class="mono">core/src/main/scala/org/apache/spark/ui/HttpSecurityFilter.scala</td></tr>
+            <tr><td>Kerberos Delegation Tokens</td><td class="mono">core/src/main/scala/org/apache/spark/deploy/security/</td></tr>
+            <tr><td>K8s Secret Integration</td><td class="mono">resource-managers/kubernetes/core/src/main/scala/org/apache/spark/deploy/k8s/features/</td></tr>
+            <tr><td>Secret Redaction</td><td class="mono">core/src/main/scala/org/apache/spark/util/Utils.scala</td></tr>
           </tbody>
         </table>
-        <p class="caption">All 11 surfaces from AAP &sect;0.2.3 inspected; representative module paths shown.</p>
+        <p class="caption">All 11 surfaces from AAP &sect;0.2.3 inspected; exact repo-relative paths shown.</p>
       </section>
 
       <!-- =========================
@@ -612,17 +612,17 @@ flowchart LR
           </div>
           <div class="kpi-card">
             <span class="kpi-icon"><i data-lucide="triangle-alert" aria-hidden="true"></i></span>
-            <div class="kpi-value">3</div>
+            <div class="kpi-value">4</div>
             <div class="kpi-label">High</div>
           </div>
           <div class="kpi-card">
             <span class="kpi-icon"><i data-lucide="circle-alert" aria-hidden="true"></i></span>
-            <div class="kpi-value">13</div>
+            <div class="kpi-value">7</div>
             <div class="kpi-label">Medium</div>
           </div>
           <div class="kpi-card">
             <span class="kpi-icon"><i data-lucide="shield" aria-hidden="true"></i></span>
-            <div class="kpi-value">6</div>
+            <div class="kpi-value">5</div>
             <div class="kpi-label">Low</div>
           </div>
         </div>
@@ -640,17 +640,18 @@ flowchart LR
             <tr><th>CWE</th><th>Title</th><th>Count</th></tr>
           </thead>
           <tbody>
-            <tr><td class="mono">CWE-1395</td><td>Dependency on Vulnerable Component</td><td class="num">5</td></tr>
             <tr><td class="mono">CWE-326</td><td>Inadequate Encryption Strength</td><td class="num">3</td></tr>
             <tr><td class="mono">CWE-295</td><td>Improper Certificate Validation</td><td class="num">3</td></tr>
             <tr><td class="mono">CWE-502</td><td>Deserialization of Untrusted Data</td><td class="num">3</td></tr>
+            <tr><td class="mono">CWE-1395</td><td>Dependency on Vulnerable Component</td><td class="num">2</td></tr>
             <tr><td class="mono">CWE-327</td><td>Broken / Risky Cryptographic Algorithm</td><td class="num">1</td></tr>
-            <tr><td class="mono">CWE-306</td><td>Missing Authentication</td><td class="num">1</td></tr>
-            <tr><td class="mono">CWE-915</td><td>Improperly Controlled Object Attributes</td><td class="num">1</td></tr>
-            <tr><td class="mono">CWE-77</td><td>Command Injection</td><td class="num">1</td></tr>
-            <tr><td class="mono">Other</td><td>CWE-1188, CWE-113, CWE-209, CWE-1357</td><td class="num">4</td></tr>
+            <tr><td class="mono">CWE-306</td><td>Missing Authentication for Critical Function</td><td class="num">1</td></tr>
+            <tr><td class="mono">CWE-88</td><td>Improper Neutralization of Argument Delimiters</td><td class="num">1</td></tr>
+            <tr><td class="mono">CWE-1188</td><td>Insecure Default Initialization of Resource</td><td class="num">1</td></tr>
+            <tr><td class="mono">CWE-113</td><td>CRLF Injection in HTTP Headers</td><td class="num">1</td></tr>
           </tbody>
         </table>
+        <p class="caption">9 distinct CWE leaves across 16 findings.</p>
       </section>
 
       <!-- =========================
@@ -661,32 +662,36 @@ flowchart LR
         <h2>Top 4 Findings</h2>
         <table>
           <thead>
-            <tr><th>File</th><th>CWE</th><th>Severity</th></tr>
+            <tr><th>File</th><th>Line</th><th>CWE</th><th>Severity</th></tr>
           </thead>
           <tbody>
             <tr>
-              <td class="mono">SparkSaslServer.java</td>
+              <td class="mono">common/network-common/src/main/java/org/apache/spark/network/sasl/SparkSaslServer.java</td>
+              <td class="num">60</td>
               <td><span class="cwe-chip">CWE-327</span></td>
               <td><span class="severity-badge high">high</span></td>
             </tr>
             <tr>
-              <td class="mono">SSLFactory.java</td>
+              <td class="mono">common/network-common/src/main/java/org/apache/spark/network/ssl/SSLFactory.java</td>
+              <td class="num">341</td>
               <td><span class="cwe-chip">CWE-295</span></td>
               <td><span class="severity-badge high">high</span></td>
             </tr>
             <tr>
-              <td class="mono">SSLFactory.java</td>
+              <td class="mono">common/network-common/src/main/java/org/apache/spark/network/ssl/SSLFactory.java</td>
+              <td class="num">365</td>
               <td><span class="cwe-chip">CWE-295</span></td>
               <td><span class="severity-badge high">high</span></td>
             </tr>
             <tr>
-              <td class="mono">RestSubmissionServer.scala</td>
+              <td class="mono">core/src/main/scala/org/apache/spark/deploy/rest/RestSubmissionServer.scala</td>
+              <td class="num">145</td>
               <td><span class="cwe-chip">CWE-306</span></td>
               <td><span class="severity-badge high">high</span></td>
             </tr>
           </tbody>
         </table>
-        <p class="caption">Exact <code>file:line</code> locators in <code>findings-config-a.json</code>.</p>
+        <p class="caption">All four <code>file:line</code> values copied verbatim from <code>findings-config-a.json</code>.</p>
       </section>
 
       <!-- =========================
@@ -721,17 +726,14 @@ flowchart LR
         <h2>Pinned Dependencies</h2>
         <table>
           <thead>
-            <tr><th>Library</th><th>Version</th><th>Severity</th></tr>
+            <tr><th>Library</th><th>Version</th><th>pom.xml Line</th><th>Severity</th></tr>
           </thead>
           <tbody>
-            <tr><td>Hive</td><td class="mono">2.3.10</td><td><span class="pill medium">medium</span></td></tr>
-            <tr><td>libthrift</td><td class="mono">0.16.0</td><td><span class="pill medium">medium</span></td></tr>
-            <tr><td>commons-lang</td><td class="mono">2.6 (EOL)</td><td><span class="pill low">low</span></td></tr>
-            <tr><td>Apache Ivy</td><td class="mono">2.5.3</td><td><span class="pill low">low</span></td></tr>
-            <tr><td>JJWT</td><td class="mono">0.12.6</td><td><span class="pill low">low (watchpoint)</span></td></tr>
+            <tr><td>Apache Hive</td><td class="mono">2.3.10</td><td class="num">139</td><td><span class="pill medium">medium</span></td></tr>
+            <tr><td>commons-lang</td><td class="mono">2.6 (EOL)</td><td class="num">194</td><td><span class="pill low">low</span></td></tr>
           </tbody>
         </table>
-        <p class="caption">All findings keyed to <code>pom.xml</code> declarations under <code>CWE-1395</code>.</p>
+        <p class="caption">Both findings keyed to <code>pom.xml</code> declarations under <code>CWE-1395</code>. Hive 2.3.x carries CVE-2023-1297 (cookie-signature timing); commons-lang 2.x is EOL since 2014.</p>
       </section>
 
       <!-- =========================
