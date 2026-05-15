@@ -695,15 +695,19 @@ flowchart LR
       </section>
 
       <!-- =========================
-           Slide 10 - Divider: Architecture and Dependencies
+           Slide 10 - Divider: Architecture & Dependencies
            ========================= -->
       <section class="slide-divider">
         <span class="hero-icon"><i data-lucide="package-search" aria-hidden="true"></i></span>
-        <h2>Architecture and Dependencies</h2>
+        <h2>Architecture &amp; Dependencies</h2>
       </section>
 
       <!-- =========================
            Slide 11 - Network Encryption Posture (Mermaid flowchart)
+           Note: edge labels (|label|) intentionally omitted to avoid the
+           Mermaid 11.4.0 layout bug that fails on edge-labels combined
+           with multiline node text. Semantic info (opt-in / legacy) is
+           baked into node text instead, matching slide 3's working pattern.
            ========================= -->
       <section>
         <div class="eyebrow">Security Architecture</div>
@@ -711,9 +715,9 @@ flowchart LR
         <pre class="mermaid">
 flowchart LR
   T["TLS via spark.ssl.*<br/>preferred"] --&gt; OK["Strong transport"]
-  A["AES RPC encryption<br/>(spark.network.crypto.enabled)<br/>disabled by default"] --&gt;|opt-in| V1["v1 and AES/CTR<br/>default when enabled"]
-  A --&gt;|opt-in| V2["v2 and AES/GCM<br/>recommended hardening"]
-  S["SASL fallback<br/>(DIGEST-MD5)"] --&gt;|legacy| LEG["Backward compat only"]
+  A["AES RPC encryption<br/>opt-in default off"] --&gt; V1["v1 + AES/CTR<br/>default when enabled"]
+  A --&gt; V2["v2 + AES/GCM<br/>recommended hardening"]
+  S["SASL fallback<br/>DIGEST-MD5 legacy"] --&gt; LEG["Backward compat only"]
         </pre>
         <p class="caption">TLS is preferred. AES RPC encryption is opt-in; v1+AES/CTR are the defaults when enabled, v2+AES/GCM is recommended hardening.</p>
       </section>
@@ -822,6 +826,15 @@ flowchart LR
   <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
 
   <script>
+    // Capture each Mermaid block's raw source BEFORE any rendering attempt so
+    // that if a block renders degenerately while its parent slide is hidden
+    // (display:none -> zero layout context -> viewBox="-8 -8 16 16"), the
+    // source can be restored and the block re-processed on a later slidechanged
+    // when the parent slide is visible.
+    document.querySelectorAll('pre.mermaid').forEach(function (block) {
+      block.dataset.mermaidSrc = block.textContent.trim();
+    });
+
     mermaid.initialize({
       startOnLoad: false,
       theme: 'base',
@@ -859,6 +872,19 @@ flowchart LR
     });
 
     function renderVisuals() {
+      // Self-heal degenerate Mermaid renders. A degenerate SVG carries the
+      // Mermaid empty-default viewBox "-8 -8 16 16" and renders invisibly.
+      // Reset those blocks to their captured source so mermaid.run() will
+      // re-process them with the now-visible slide's layout context.
+      document.querySelectorAll('pre.mermaid').forEach(function (block) {
+        var svg = block.querySelector('svg');
+        var degenerate = svg && svg.getAttribute('viewBox') === '-8 -8 16 16';
+        if (degenerate && block.dataset.mermaidSrc) {
+          block.removeAttribute('data-processed');
+          block.innerHTML = '';
+          block.textContent = block.dataset.mermaidSrc;
+        }
+      });
       mermaid.run({ querySelector: 'pre.mermaid' });
       lucide.createIcons();
     }
