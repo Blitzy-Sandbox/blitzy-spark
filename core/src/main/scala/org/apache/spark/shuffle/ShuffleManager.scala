@@ -111,7 +111,14 @@ private[spark] object ShuffleManager {
   def getShuffleManagerClassName(conf: SparkConf): String = {
     val shortShuffleMgrNames = Map(
       "sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName,
-      "tungsten-sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName)
+      "tungsten-sort" -> classOf[org.apache.spark.shuffle.sort.SortShuffleManager].getName,
+      // The opt-in streaming shuffle backend coexists with and automatically falls back to the
+      // sort-based path. It is referenced by its fully-qualified class name as a String literal
+      // (not classOf) so this factory keeps no compile-time dependency on the streaming package
+      // and is instantiated reflectively via the existing create() path. Engaging streaming also
+      // requires spark.shuffle.streaming.enabled=true; otherwise StreamingShuffleManager
+      // delegates entirely to its inner SortShuffleManager.
+      "streaming" -> "org.apache.spark.shuffle.streaming.StreamingShuffleManager")
 
     val shuffleMgrName = conf.get(config.SHUFFLE_MANAGER)
     shortShuffleMgrNames.getOrElse(shuffleMgrName.toLowerCase(Locale.ROOT), shuffleMgrName)
