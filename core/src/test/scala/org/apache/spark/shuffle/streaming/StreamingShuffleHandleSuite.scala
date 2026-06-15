@@ -96,4 +96,22 @@ class StreamingShuffleHandleSuite extends SparkFunSuite with Matchers {
     // by the integration suites (a Mockito mock is intentionally not serializable here).
     assert(handle.isInstanceOf[java.io.Serializable])
   }
+
+  test("toString renders the shuffleId and the three tuning values") {
+    val handle = new StreamingShuffleHandle(
+      42,
+      mockDep(),
+      bufferSizePercent = 25,
+      spillThreshold = 90,
+      maxBandwidthMBps = 256)
+
+    // The diagnostic string is consumed by the decision log and structured logs, so it must
+    // surface the handle identity and every tuning value the writer/reader receive.
+    val rendered = handle.toString
+    rendered must include("StreamingShuffleHandle")
+    rendered must include("shuffleId=42")
+    rendered must include("bufferSizePercent=25")
+    rendered must include("spillThreshold=90")
+    rendered must include("maxBandwidthMBps=256")
+  }
 }

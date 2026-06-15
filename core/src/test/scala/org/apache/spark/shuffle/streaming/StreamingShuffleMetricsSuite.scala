@@ -150,4 +150,25 @@ class StreamingShuffleMetricsSuite extends SparkFunSuite with Matchers {
     buffer.getValue mustBe (m.bufferUtilizationPercent +- 1e-9)
     buffer.getValue mustBe (55.5 +- 1e-9)
   }
+
+  test("reset returns every counter and the gauge to its initial value") {
+    val m = new StreamingShuffleMetrics
+
+    // Drive all four telemetry values away from their defaults.
+    (0 until 4).foreach(_ => m.incSpillCount())
+    (0 until 2).foreach(_ => m.incBackpressureEvents())
+    m.incPartialReadInvalidations()
+    m.setBufferUtilizationPercent(73.25)
+    m.spillCount mustBe 4L
+    m.backpressureEvents mustBe 2L
+    m.partialReadInvalidations mustBe 1L
+    m.bufferUtilizationPercent mustBe (73.25 +- 1e-9)
+
+    // reset() is the test-isolation/stress-reuse hook: it must zero every field independently.
+    m.reset()
+    m.spillCount mustBe 0L
+    m.backpressureEvents mustBe 0L
+    m.partialReadInvalidations mustBe 0L
+    m.bufferUtilizationPercent mustBe (0.0 +- 1e-9)
+  }
 }

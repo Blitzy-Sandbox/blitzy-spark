@@ -241,4 +241,42 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
     assert(!p.isSlowConsumer(wayPast))
     assert(!p.shouldFallbackAt(wayPast))
   }
+
+  test("reset clears every tripped condition") {
+    val p = newPolicy()
+    // Trip two independent conditions simultaneously so reset must clear all tracked state.
+    p.updateMemoryUtilization(96.0)
+    p.markVersionMismatch()
+    assert(p.shouldFallback)
+    assert(p.isMemoryPressure)
+    assert(p.isVersionMismatch)
+
+    // reset() is the test-isolation / stress-reuse hook: it returns the policy to its pristine,
+    // no-fallback state with each field cleared independently.
+    p.reset()
+    assert(!p.shouldFallback)
+    assert(p.fallbackReason.isEmpty)
+    assert(!p.isMemoryPressure)
+    assert(!p.isVersionMismatch)
+    assert(!p.isNetworkSaturated)
+    assert(!p.isSlowConsumer())
+  }
+
+  test("fallback recovery transition is taken when the last condition clears (debug on)") {
+    // debug=true drives the recovery-log branch so the streaming -> fallback -> streaming
+    // round trip is fully exercised, not just the forward transition.
+    val p = newPolicy("spark.shuffle.streaming.debug" -> "true")
+
+    // Trip memory pressure and evaluate once so the internal fallbackActive flag flips
+    // false -> true (the forward transition).
+    p.updateMemoryUtilization(96.0)
+    assert(p.shouldFallback)
+    assert(p.fallbackReason.exists(_.contains("memory")))
+
+    // Clearing the condition makes the next evaluation flip fallbackActive true -> false, taking
+    // the recovery path; the decision must report streaming is eligible again.
+    p.updateMemoryUtilization(10.0)
+    assert(!p.shouldFallback)
+    assert(p.fallbackReason.isEmpty)
+  }
 }

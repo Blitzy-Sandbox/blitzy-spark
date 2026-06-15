@@ -39,7 +39,7 @@ flowchart TB
 
 ## Diagram 2 — Streaming Shuffle Component Interaction
 
-**Diagram 2 — Streaming Shuffle Component Interaction** shows how `StreamingShuffleManager` constructs the streaming handle, writer, reader, block resolver, metrics source, and fallback policy, and how those collaborators in turn consume existing Spark Core services. The map-side `StreamingShuffleWriter` drives the `StreamingBuffer`, `BackpressureProtocol`, `MemorySpillManager`, the v1 `StreamingShuffleTransport`, and the `StreamingBlockEnvelope`, while the reduce-side `StreamingShuffleReader` consumes the unchanged `MapOutputTracker` and `BlockTransferService`. Telemetry from the writer, reader, backpressure, and spill paths flows into `StreamingShuffleMetrics`, which `StreamingShuffleSource` publishes to the existing `MetricsSystem`. In this diagram, **solid arrows denote construction/usage** and the single **dashed arrow denotes fallback delegation** from `StreamingShuffleManager` to the inner `SortShuffleManager`.
+**Diagram 2 — Streaming Shuffle Component Interaction** shows how `StreamingShuffleManager` constructs the streaming handle, writer, reader, block resolver, metrics source, and fallback policy, and how those collaborators in turn consume existing Spark Core services. The map-side `StreamingShuffleWriter` drives the `StreamingBuffer`, `BackpressureProtocol`, `MemorySpillManager`, the v1 `StreamingShuffleTransport`, and the `StreamingBlockEnvelope`, while the reduce-side `StreamingShuffleReader` consumes the unchanged `MapOutputTracker` and `BlockTransferService`. Telemetry from the writer, reader, backpressure, and spill paths flows into `StreamingShuffleMetrics`, which `StreamingShuffleSource` publishes to the existing `MetricsSystem`. The `BackpressureProtocol` and `MemorySpillManager` loops additionally feed **live measurements** — producer/consumer throughput, network utilization, peer protocol version, and buffer utilization — into `StreamingShuffleFallbackPolicy`, which is what lets the four revert conditions trip from genuine runtime state rather than remaining a structural-only capability. In this diagram, **solid arrows denote construction/usage** and the single **dashed arrow denotes fallback delegation** from `StreamingShuffleManager` to the inner `SortShuffleManager`.
 
 **Legend:** green = new streaming class (CREATE); blue = modified existing file (MODIFY); gray = referenced/unchanged Spark Core component; solid arrow = construction/usage; dashed arrow = fallback delegation.
 
@@ -72,6 +72,8 @@ flowchart TB
     R --> MET
     BP --> MET
     SPILL --> MET
+    BP -->|"live throughput / network / version"| FB
+    SPILL -->|"live buffer utilization"| FB
     SRC --> MS["MetricsSystem"]:::ref
     classDef create fill:#d5f5e3,stroke:#1e8449,color:#145a32
     classDef modify fill:#d6eaf8,stroke:#2471a3,color:#1a5276
@@ -114,12 +116,14 @@ The streaming backend is additive and isolated; it never replaces the sort-based
 
 ## Fallback conditions
 
-`StreamingShuffleFallbackPolicy` evaluates four revert-to-sort conditions. When **any** of them trips, `StreamingShuffleManager` delegates to its inner `SortShuffleManager`:
+`StreamingShuffleFallbackPolicy` evaluates four revert-to-sort conditions, each **fed from live runtime measurements** so the policy reflects genuine execution state rather than a static default. `StreamingShuffleManager` reads the policy's `shouldFallback` decision at `registerShuffle`; when **any** condition has tripped, it registers a sort handle and routes **both** the writer and the reader for that shuffle to its inner `SortShuffleManager`:
 
-1. Consumer sustained **2× slower** than the producer for **> 60 s**.
-2. **Memory pressure** prevents buffer allocation / OOM risk (**> 95%** utilization).
-3. **Network saturation > 90%** of link capacity.
-4. **Producer/consumer version mismatch**.
+1. **Slow consumer** — consumer sustained **2× slower** than the producer for **> 60 s**. *Fed by the `BackpressureProtocol` 1 s scan, which records live producer/consumer throughput into the policy.*
+2. **Memory pressure** prevents buffer allocation / OOM risk (**> 95%** utilization). *Fed by the `MemorySpillManager` 100 ms poll, which updates live buffer utilization into the policy.*
+3. **Network saturation > 90%** of link capacity. *Fed by the same `BackpressureProtocol` scan, which derives utilization from live throughput against the configured bandwidth cap.*
+4. **Producer/consumer version mismatch**. *Fed by `BackpressureProtocol.recordPeerProtocolVersion`, driven by the additive `PeerVersion` backpressure RPC message.*
+
+Because the backend is **pinned per shuffle at registration**, a fallback condition that trips mid-application affects only shuffles registered *afterward*; a shuffle already registered streaming keeps a consistent streaming write/read path end to end (and likewise for sort), which is what eliminates the format-mismatch hazard of mixing sort and streaming bytes for one shuffle. The cross-executor *emission* of `PeerVersion` is deferred to the v2 transport (see the [decision log](decision-log.md)); the **detection** path is fully wired and unit-tested in v1.
 
 ## Operational invariants
 

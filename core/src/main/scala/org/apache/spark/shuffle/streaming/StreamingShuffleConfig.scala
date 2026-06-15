@@ -253,6 +253,21 @@ private[spark] object StreamingShuffleConfig {
   val NETWORK_SATURATION_PERCENT: Int = 90
 
   // ---------------------------------------------------------------------------------------
+  // Streaming-protocol version (peer-compatibility / version-mismatch fallback).
+  // ---------------------------------------------------------------------------------------
+
+  /**
+   * The streaming-shuffle wire/control protocol version this build speaks. It is the single
+   * source of truth that `BackpressureProtocol.recordPeerProtocolVersion` compares an observed
+   * peer version against: a peer reporting any other value trips the version-mismatch revert
+   * condition in `StreamingShuffleFallbackPolicy`, so a mixed-version (for example, mid-rolling-
+   * upgrade) cluster automatically reverts to the sort-based path rather than risking an
+   * incompatible exchange. It is `1` for this first release and is bumped only when an
+   * incompatible change is made to the streaming framing or control messages.
+   */
+  val STREAMING_PROTOCOL_VERSION: Int = 1
+
+  // ---------------------------------------------------------------------------------------
   // RPC endpoint and wire framing.
   // ---------------------------------------------------------------------------------------
 

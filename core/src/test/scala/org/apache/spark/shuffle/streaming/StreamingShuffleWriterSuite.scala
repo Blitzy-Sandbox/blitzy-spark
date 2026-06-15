@@ -35,9 +35,9 @@ import org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport
 /**
  * Unit tests for [[StreamingShuffleWriter]], the map-side writer of the opt-in streaming shuffle
  * backend. The suite mirrors the sort-based `org.apache.spark.shuffle.sort.SortShuffleWriterSuite`
- * harness — `@Mock(answer = RETURNS_SMART_NULLS)` collaborators initialized through
+ * harness - `@Mock(answer = RETURNS_SMART_NULLS)` collaborators initialized through
  * `MockitoAnnotations.openMocks` in [[beforeEach]], a [[MemoryTestingUtils.fakeTaskContext]] over a
- * real [[org.apache.spark.memory.TaskMemoryManager]], and data-driven test tables — because the
+ * real [[org.apache.spark.memory.TaskMemoryManager]], and data-driven test tables - because the
  * writer participates in the executor memory model (via a composed inner
  * [[org.apache.spark.memory.MemoryConsumer]]) and builds its [[MapStatus]] from the live
  * [[org.apache.spark.SparkEnv]] provided by [[SharedSparkContext]].

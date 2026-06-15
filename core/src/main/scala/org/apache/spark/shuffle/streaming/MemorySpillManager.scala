@@ -99,16 +99,22 @@ import org.apache.spark.util.ThreadUtils
  * This type coexists with the sort-based shuffle path and is constructed only when the streaming
  * backend is active.
  *
- * @param conf          typed streaming-shuffle configuration (spill threshold, debug flag)
- * @param blockManager  the executor [[BlockManager]] used to persist spilled buffers to disk
- * @param memoryManager source of the `maxOnHeapStorageMemory` spill denominator
- * @param metrics       telemetry holder updated with the utilization gauge and spill counter
+ * @param conf           typed streaming-shuffle configuration (spill threshold, debug flag)
+ * @param blockManager   the executor [[BlockManager]] used to persist spilled buffers to disk
+ * @param memoryManager  source of the `maxOnHeapStorageMemory` spill denominator
+ * @param metrics        telemetry holder updated with the utilization gauge and spill counter
+ * @param fallbackPolicy optional shared [[StreamingShuffleFallbackPolicy]] fed the live aggregate
+ *                       buffer-utilization percent on every poll tick so the memory-pressure
+ *                       revert condition can trip from the real runtime footprint; `null` (the
+ *                       default) leaves the manager standalone for unit tests that exercise spill
+ *                       behavior in isolation
  */
 private[spark] class MemorySpillManager(
     conf: StreamingShuffleConfig,
     blockManager: BlockManager,
     memoryManager: MemoryManager,
-    metrics: StreamingShuffleMetrics) extends Logging {
+    metrics: StreamingShuffleMetrics,
+    fallbackPolicy: StreamingShuffleFallbackPolicy = null) extends Logging {
 
   import MemorySpillManager.BufferKey
 
@@ -173,6 +179,68 @@ private[spark] class MemorySpillManager(
    */
   def unregister(buffer: StreamingBuffer): Unit = {
     buffers.remove(keyOf(buffer))
+  }
+
+  /**
+   * Releases all streaming spill state for an entire shuffle: it drops every live buffer for the
+   * shuffle from the registry and removes the shuffle's spilled-segment metadata, best-effort
+   * deleting each spilled disk block from the [[BlockManager]].
+   *
+   * This is the shuffle-scoped sibling of the per-key [[unregister]] overloads and is
+   * deliberately stronger than them. The per-key overloads run when a single partition is
+   * finalized and intentionally retain that partition's spilled segments so a still-running
+   * reduce task can fetch them; this method runs only when the whole shuffle is unregistered
+   * (`StreamingShuffleManager.unregisterShuffle`), at which point no further reads of the shuffle
+   * can occur, so deleting the on-disk segments reclaims their space immediately instead of
+   * letting completed-shuffle state linger until executor shutdown. That closes the
+   * resource-cleanup / zero-retained-heap gap the review identified.
+   *
+   * Best-effort and exception-safe: each [[BlockManager.removeBlock]] is idempotent (a segment
+   * already gone simply logs a warning) and is individually guarded, so a failure to delete one
+   * segment never prevents the remaining buffers and metadata from being cleared. Idempotent for
+   * a given shuffle id - a second call for the same shuffle finds nothing left to remove.
+   *
+   * @param shuffleId the shuffle whose buffers and spilled segments should be released
+   */
+  def unregisterShuffle(shuffleId: Int): Unit = {
+    // Drop every live buffer for this shuffle so it is no longer sampled or spilled. The
+    // ConcurrentHashMap key-set iterator supports weakly-consistent removal without blocking
+    // concurrent appends on other shuffles' buffers.
+    val bufIt = buffers.keySet().iterator()
+    while (bufIt.hasNext) {
+      if (bufIt.next().shuffleId == shuffleId) {
+        bufIt.remove()
+      }
+    }
+    // Remove the spilled-segment metadata for this shuffle and best-effort delete the underlying
+    // disk blocks. Each segment is a non-shuffle TempLocalBlockId persisted via putBytes, so
+    // removeBlock (idempotent, symmetric with that store) is the correct reclamation call.
+    val spillIt = spilledBlocks.entrySet().iterator()
+    while (spillIt.hasNext) {
+      val entry = spillIt.next()
+      if (entry.getKey.shuffleId == shuffleId) {
+        val segments = entry.getValue
+        spillIt.remove()
+        if (segments != null) {
+          val segIt = segments.iterator()
+          while (segIt.hasNext) {
+            val blockId = segIt.next()
+            try {
+              blockManager.removeBlock(blockId)
+            } catch {
+              case NonFatal(e) =>
+                logWarning(log"Failed to remove spilled streaming block " +
+                  log"${MDC(LogKeys.BLOCK_ID, blockId.name)} during shuffle " +
+                  log"${MDC(LogKeys.SHUFFLE_ID, shuffleId)} cleanup", e)
+            }
+          }
+        }
+      }
+    }
+    if (conf.debug) {
+      logDebug(log"Unregistered streaming spill state for shuffle " +
+        log"${MDC(LogKeys.SHUFFLE_ID, shuffleId)}")
+    }
   }
 
   // ---------------------------------------------------------------------------------------
@@ -376,6 +444,14 @@ private[spark] class MemorySpillManager(
     try {
       val pct = utilizationPercentNow()
       metrics.setBufferUtilizationPercent(pct)
+      // Feed the live aggregate utilization into the shared fallback policy so the
+      // memory-pressure revert condition (default 95% of maxOnHeapStorageMemory) trips from the
+      // real runtime footprint rather than never being updated. Null-guarded so a standalone
+      // manager (unit tests) runs without a policy. This is the production write path the review
+      // found missing for the memory-pressure fallback signal.
+      if (fallbackPolicy != null) {
+        fallbackPolicy.updateMemoryUtilization(pct)
+      }
       if (pct >= conf.spillThresholdFraction * 100.0) {
         maybeSpill()
       }

@@ -49,22 +49,29 @@ import org.apache.spark.shuffle.streaming.network.{StreamingShuffleTransport, To
  * [[StreamingShuffleConfig]]). Because BOTH default to off, the default behavior of every
  * existing Spark deployment is byte-for-byte unchanged.
  *
- * Even when streaming is selected and enabled, the manager continuously consults
- * [[StreamingShuffleFallbackPolicy]] and reverts to the inner `SortShuffleManager` whenever a
- * fallback condition trips (slow consumer, memory pressure, network saturation, or version
- * mismatch). The sort path is composed unchanged and is never bypassed when fallback is indicated -
- * see [[useStreaming]], [[registerShuffle]], and [[getWriter]].
+ * Even when streaming is selected and enabled, the manager consults
+ * [[StreamingShuffleFallbackPolicy]] at each [[registerShuffle]] and reverts that shuffle to the
+ * inner `SortShuffleManager` whenever a fallback condition is tripped (slow consumer, memory
+ * pressure, network saturation, or version mismatch). The policy is continuously fed live runtime
+ * signals by the executor collaborators (the backpressure protocol's 1 s scan and the spill
+ * manager's 100 ms poll), so a condition that arises mid-application takes effect on the next
+ * shuffle registration. The sort path is composed unchanged and is never bypassed when fallback is
+ * indicated - see [[useStreaming]] and [[registerShuffle]] (the single decision point).
  *
- * ==Backend consistency via handle-type dispatch==
+ * ==Backend consistency via handle-type dispatch (backend is immutable per shuffle)==
  *
- * A shuffle registered with a [[StreamingShuffleHandle]] is always served by the streaming
- * writer/reader, and a shuffle registered with a sort handle is always served by the sort
- * writer/reader. [[getWriter]] and [[getReader]] therefore dispatch on the concrete handle type
- * rather than re-deciding from scratch, which guarantees that a single shuffle is served
- * end-to-end by exactly one backend. The one nuance is that if the fallback policy trips between
- * registration and the map write, [[getWriter]] reverts that map task to the sort writer; the
- * streaming reader nonetheless reads the result correctly because it mirrors
- * [[org.apache.spark.shuffle.BlockStoreShuffleReader]] and reuses the existing fetch path.
+ * The backend for a shuffle is decided exactly once, at [[registerShuffle]]: when the streaming
+ * path is active a [[StreamingShuffleHandle]] is produced, otherwise registration is delegated to
+ * the inner sort manager and a sort handle is produced. From that point the choice is immutable
+ * for the lifetime of that shuffle. [[getWriter]] and [[getReader]] BOTH dispatch purely on the
+ * concrete handle type and never re-consult the fallback policy, so a shuffle registered as
+ * streaming is served by the streaming writer AND the streaming reader end-to-end, and a sort
+ * handle is served by the sort writer AND the sort reader end-to-end. This is a correctness
+ * requirement, not merely an optimization: the streaming reader expects streaming-framed bytes
+ * (32-byte envelopes carrying CRC32C-validated frames), so it must never be paired with a sort
+ * writer's `.data`/`.index` output. A fallback condition that trips after a shuffle is already
+ * registered therefore affects only SUBSEQUENT registrations; a shuffle already in flight keeps
+ * the backend it was registered with, which guarantees writer and reader always agree.
  *
  * ==Local-mode safety==
  *
@@ -101,8 +108,13 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   private val streamingMetrics = new StreamingShuffleMetrics
 
   // The decision object for automatic fallback. It only decides; this manager performs the
-  // actual delegation to the inner SortShuffleManager when shouldFallback is true.
-  private val fallbackPolicy =
+  // actual delegation to the inner SortShuffleManager when shouldFallback is true. Exposed as
+  // private[streaming] so the executor collaborators built in ensureExecutorComponents (the
+  // backpressure protocol and the spill manager) receive a reference and feed it live runtime
+  // signals - throughput, network and memory utilization, and peer protocol version - so the four
+  // revert conditions trip from real measurements, and so same-package manager/integration tests
+  // can drive the manager's own policy and assert dispatch delegates to sort.
+  private[streaming] val fallbackPolicy =
     new StreamingShuffleFallbackPolicy(streamingConfig, streamingMetrics)
 
   // The streaming block resolver, typed as its concrete class so this manager can call the
@@ -166,7 +178,16 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
    * registers the streaming metrics source with the executor `MetricsSystem` and registers the
    * backpressure RPC endpoint on executors only (the driver registers nothing). Double-checked
    * locking on [[executorReady]] keeps construction single and publishes the field writes to
-   * other threads.
+   * other threads. The backpressure protocol and spill manager are handed the shared
+   * [[fallbackPolicy]] so their scan/poll loops feed it the live throughput, network, and memory
+   * signals that drive automatic fallback.
+   *
+   * Lifecycle race safety: the build is guarded by a `stopped` check taken INSIDE [[initLock]],
+   * the same lock [[stop]] holds for its teardown. This closes the init-vs-stop TOCTOU - if a
+   * stop has already won the lock, this builds nothing on a dead manager; if a stop races in
+   * while this is mid-build, it blocks on [[initLock]] until the build is published and then tears
+   * the newly-created components down in order. Either way no daemon thread or RPC endpoint is
+   * left running on a stopped manager.
    *
    * Callers MUST confirm `SparkEnv.get != null` before invoking this; the executor-only
    * collaborators require a live environment (block manager, memory manager, metrics, RPC env).
@@ -174,18 +195,28 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   private def ensureExecutorComponents(): Unit = {
     if (!executorReady) {
       initLock.synchronized {
-        if (!executorReady) {
+        // Build only when not already built AND no stop has raced in. Taking the stopped check
+        // under initLock (which stop() also holds) is what makes initialization and teardown
+        // mutually exclusive, preventing background daemons/RPC registration on a stopped manager.
+        if (!executorReady && !stopped.get()) {
           val env = SparkEnv.get
           // Rate limiter is unlimited by default (maxBandwidthMBps <= 0) and allocates nothing;
           // the protocol retains it, so this manager keeps no separate field for it.
           val limiter = TokenBucketRateLimiter(streamingConfig)
-          val protocol = new BackpressureProtocol(streamingConfig, limiter, streamingMetrics)
+          // Pass the shared fallbackPolicy so the protocol's 1 s scan feeds it producer/consumer
+          // throughput (slow-consumer condition), derived network utilization (saturation), and
+          // peer protocol versions (version mismatch) from live runtime state.
+          val protocol =
+            new BackpressureProtocol(streamingConfig, limiter, streamingMetrics, fallbackPolicy)
           protocol.start()
+          // Pass the shared fallbackPolicy so the spill manager's 100 ms poll feeds it the live
+          // aggregate buffer-utilization percent (memory-pressure condition).
           val spill = new MemorySpillManager(
             streamingConfig,
             env.blockManager,
             env.memoryManager,
-            streamingMetrics)
+            streamingMetrics,
+            fallbackPolicy)
           spill.start()
           val xport = new StreamingShuffleTransport(
             streamingConfig,
@@ -249,10 +280,17 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   }
 
   /**
-   * Returns a map-side writer. Called on executors by map tasks. The handle type selects the
-   * backend: a [[StreamingShuffleHandle]] yields a [[StreamingShuffleWriter]] when streaming is
-   * still active, while every other case (a sort handle, or a streaming handle after a fallback
-   * trip) delegates to the inner sort manager so the sort writer is used unchanged.
+   * Returns a map-side writer. Called on executors by map tasks. Dispatch is purely by handle
+   * type: a [[StreamingShuffleHandle]] (which [[registerShuffle]] only ever produces when the
+   * streaming path was active at registration) always yields a [[StreamingShuffleWriter]], and a
+   * sort handle always delegates to the inner sort manager's writer unchanged.
+   *
+   * The fallback policy is deliberately NOT re-consulted here. Doing so would let a fallback that
+   * trips between registration and the map write revert this map task to the sort writer while the
+   * matching [[getReader]] still used the streaming reader, feeding the sort writer's
+   * `.data`/`.index` bytes into a reader that expects 32-byte streaming envelopes - a data
+   * integrity bug. Because the backend is immutable per shuffle (see the class doc), a tripped
+   * fallback only changes the handle type of SUBSEQUENT registrations.
    */
   override def getWriter[K, V](
       handle: ShuffleHandle,
@@ -260,15 +298,23 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
       context: TaskContext,
       metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
     handle match {
-      // Streaming handle AND streaming still active. We additionally require useStreaming so a
-      // fallback that trips between registration and the map write reverts this task to sort.
-      case h: StreamingShuffleHandle[K @unchecked, V @unchecked, _] if useStreaming =>
+      // Streaming handle: this shuffle was registered streaming, so it is written streaming. The
+      // matching getReader dispatches on the same handle type, so writer and reader always agree.
+      case h: StreamingShuffleHandle[K @unchecked, V @unchecked, _] =>
         if (SparkEnv.get == null) {
           // Local-mode safety: building the spill manager/transport needs a live executor env.
           // Without one, fall back to the sort writer rather than risk a partial streaming setup.
+          // This env check is stable for the executor, so getReader makes the same choice and the
+          // write/read backends still agree.
           sortShuffleManager.getWriter(handle, mapId, context, metrics)
         } else {
           ensureExecutorComponents()
+          if (!executorReady) {
+            // A stop() raced ahead of this writer initialization; refuse to build a half-wired
+            // streaming writer (with null collaborators) on a stopped manager.
+            throw new IllegalStateException(
+              "StreamingShuffleManager is stopped; cannot create a streaming shuffle writer")
+          }
           new StreamingShuffleWriter[K, V](
             h,
             mapId,
@@ -281,7 +327,7 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
             transport,
             streamingResolver)
         }
-      // Sort handle, or a streaming handle whose backend has fallen back: delegate to sort.
+      // Sort handle: delegate to the inner sort manager's writer unchanged.
       case _ =>
         sortShuffleManager.getWriter(handle, mapId, context, metrics)
     }
@@ -292,10 +338,13 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
    * reduce tasks. This overrides the abstract 7-arg `getReader`; the 5-arg overload is `final` in
    * the trait and forwards here, so it is intentionally NOT overridden.
    *
-   * Dispatch is purely by handle type: a shuffle written with a [[StreamingShuffleHandle]] is
-   * read by the [[StreamingShuffleReader]] so both sides agree. The streaming reader mirrors
-   * [[org.apache.spark.shuffle.BlockStoreShuffleReader]] and reuses the existing fetch path, so
-   * it correctly reads output that a fallback-time sort writer produced for a streaming handle.
+   * Dispatch is purely by handle type, exactly mirroring [[getWriter]]: a shuffle registered with
+   * a [[StreamingShuffleHandle]] is read by the [[StreamingShuffleReader]], and a sort handle by
+   * the sort reader. Because the backend is immutable per shuffle (decided once at
+   * [[registerShuffle]]), the reader is guaranteed to consume bytes produced by the SAME backend's
+   * writer - the streaming reader only ever reads streaming-framed (32-byte envelope, CRC32C)
+   * output, never a sort writer's `.data`/`.index` files. The streaming reader mirrors
+   * [[org.apache.spark.shuffle.BlockStoreShuffleReader]] and reuses the existing fetch path.
    */
   override def getReader[K, C](
       handle: ShuffleHandle,
@@ -309,7 +358,8 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
       case h: StreamingShuffleHandle[K @unchecked, _, C @unchecked] =>
         if (SparkEnv.get == null) {
           // Local-mode safety: the streaming reader resolves its env-backed collaborators; with
-          // no live env, delegate to the sort reader (which the sort path also requires).
+          // no live env, delegate to the sort reader (which the sort path also requires). This
+          // env check matches getWriter's, so the write/read backends still agree.
           sortShuffleManager.getReader(
             handle,
             startMapIndex,
@@ -320,6 +370,12 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
             metrics)
         } else {
           ensureExecutorComponents()
+          if (!executorReady) {
+            // A stop() raced ahead of this reader initialization; refuse to build a half-wired
+            // streaming reader on a stopped manager.
+            throw new IllegalStateException(
+              "StreamingShuffleManager is stopped; cannot create a streaming shuffle reader")
+          }
           new StreamingShuffleReader[K, C](
             h,
             startMapIndex,
@@ -347,15 +403,27 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
 
   /**
    * Removes a shuffle's metadata. Cleans up the streaming tracking (in-memory buffers and the
-   * recorded spilled-block locations) held by the streaming resolver, and ALSO delegates to the
+   * recorded spilled-block locations) held by the streaming resolver, releases the spill
+   * manager's live buffers and spilled disk segments for the shuffle, and ALSO delegates to the
    * inner sort manager so fallback shuffles are cleaned too - but only if that manager was ever
    * built, so a pure-streaming deployment never forces it here.
+   *
+   * Clearing the spill manager here is what keeps a completed shuffle from leaving buffered heap
+   * and on-disk spill segments behind until executor shutdown (the resource-cleanup /
+   * zero-retained-heap guarantee). The spill manager is null until the executor components are
+   * built, so the call is null-guarded for the driver and for a manager that never streamed.
    *
    * @return
    *   always `true`; cleanup is best-effort and never reports failure.
    */
   override def unregisterShuffle(shuffleId: Int): Boolean = {
     streamingResolver.untrackShuffle(shuffleId)
+    // Release the spill manager's per-shuffle buffers and spilled disk blocks. Null-guarded
+    // because the spill manager is only built on first streaming use on an executor.
+    val spill = spillManager
+    if (spill != null) {
+      spill.unregisterShuffle(shuffleId)
+    }
     sortManagerOpt.foreach(_.unregisterShuffle(shuffleId))
     if (streamingConfig.debug) {
       logDebug(log"Unregistered shuffle ${MDC(LogKeys.SHUFFLE_ID, shuffleId)}")
@@ -368,32 +436,42 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
    * backpressure -> spill -> inner sort -> clear shuffle ids. Every underlying `stop()` is
    * idempotent and each field is null-guarded, so a manager that never engaged the streaming path
    * (or never built the sort fallback) still tears down cleanly. Guarded so it runs once.
+   *
+   * Lifecycle race safety: the `stopped` flag is raised first (so a concurrent
+   * [[ensureExecutorComponents]] that has not yet started building observes it and builds
+   * nothing), then the teardown runs under [[initLock]] - the same lock the build holds. This
+   * makes initialization and teardown mutually exclusive: a build that is mid-flight when stop is
+   * called completes and publishes its fields first, and this teardown then reads those non-null
+   * fields and stops the just-created components, so no daemon thread or RPC endpoint is ever left
+   * running on a stopped manager.
    */
   override def stop(): Unit = {
     if (stopped.compareAndSet(false, true)) {
-      // 1. Backpressure: stop the timeout-scan thread, then unregister the executor-only RPC
-      // endpoint (registered only on executors, so the ref is empty on the driver).
-      val protocol = backpressureProtocol
-      if (protocol != null) {
-        protocol.stop()
-      }
-      backpressureEndpointRef.foreach { ref =>
-        val env = SparkEnv.get
-        if (env != null) {
-          env.rpcEnv.stop(ref)
+      initLock.synchronized {
+        // 1. Backpressure: stop the timeout-scan thread, then unregister the executor-only RPC
+        // endpoint (registered only on executors, so the ref is empty on the driver).
+        val protocol = backpressureProtocol
+        if (protocol != null) {
+          protocol.stop()
         }
+        backpressureEndpointRef.foreach { ref =>
+          val env = SparkEnv.get
+          if (env != null) {
+            env.rpcEnv.stop(ref)
+          }
+        }
+        // 2. Spill: shut down the 100 ms poller and release the live buffer registry.
+        val spill = spillManager
+        if (spill != null) {
+          spill.stop()
+        }
+        // 3. Inner sort fallback: stop it only if it was ever instantiated.
+        sortManagerOpt.foreach(_.stop())
+        // 4. Clear streaming tracking maps / shuffle ids via the streaming resolver, which also
+        // stops its inner IndexShuffleBlockResolver.
+        streamingResolver.stop()
+        logInfo(log"StreamingShuffleManager stopped")
       }
-      // 2. Spill: shut down the 100 ms poller and release the live buffer registry.
-      val spill = spillManager
-      if (spill != null) {
-        spill.stop()
-      }
-      // 3. Inner sort fallback: stop it only if it was ever instantiated.
-      sortManagerOpt.foreach(_.stop())
-      // 4. Clear streaming tracking maps / shuffle ids via the streaming resolver, which also
-      // stops its inner IndexShuffleBlockResolver.
-      streamingResolver.stop()
-      logInfo(log"StreamingShuffleManager stopped")
     }
   }
 }

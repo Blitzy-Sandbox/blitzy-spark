@@ -131,6 +131,19 @@ private[spark] class BackpressureRpcEndpoint(
       } else {
         logDroppedMessage("Timeout", shuffleId, mapId, reduceId)
       }
+
+    // Peer-advertised streaming-protocol version: after validating the correlation IDs, forward
+    // the advertised version to the protocol, which trips the version-mismatch fallback condition
+    // when it differs from this build's STREAMING_PROTOCOL_VERSION. A version-mismatched peer in a
+    // mixed-version cluster thus drives new shuffles to the sort-based fallback path. The
+    // protocolVersion needs no range check: any value other than the local version is, by
+    // definition, a mismatch and is handled by the protocol.
+    case PeerVersion(shuffleId, mapId, reduceId, protocolVersion) =>
+      if (validStreamIds(shuffleId, mapId, reduceId)) {
+        protocol.recordPeerProtocolVersion(protocolVersion)
+      } else {
+        logDroppedMessage("PeerVersion", shuffleId, mapId, reduceId)
+      }
   }
 
   /**
@@ -261,6 +274,28 @@ private[spark] object BackpressureRpcEndpoint {
    *   the consuming reduce partition id
    */
   case class Timeout(shuffleId: Int, mapId: Long, reduceId: Int) extends BackpressureMessage
+
+  /**
+   * Peer-advertised streaming-protocol version for a stream, used to detect a producer/consumer
+   * version mismatch. After validating the correlation IDs the endpoint forwards the advertised
+   * version to [[BackpressureProtocol.recordPeerProtocolVersion]], which trips the
+   * version-mismatch fallback condition when it differs from this build's
+   * [[StreamingShuffleConfig.STREAMING_PROTOCOL_VERSION]]. Carrying the correlation IDs keeps this
+   * message validated on the same untrusted-input path as the others. (Cross-executor emission of
+   * this message is wired in a later transport-hardening milestone; the receive path is in place
+   * now so the manager-orchestrated version-mismatch fallback is exercised end-to-end.)
+   *
+   * @param shuffleId
+   *   the shuffle the stream belongs to
+   * @param mapId
+   *   the producing map task id
+   * @param reduceId
+   *   the consuming reduce partition id
+   * @param protocolVersion
+   *   the streaming-protocol version advertised by the sending executor
+   */
+  case class PeerVersion(shuffleId: Int, mapId: Long, reduceId: Int, protocolVersion: Int)
+      extends BackpressureMessage
 
   /** Liveness probe answered with [[Pong]] via `receiveAndReply`. */
   case object Ping extends BackpressureMessage

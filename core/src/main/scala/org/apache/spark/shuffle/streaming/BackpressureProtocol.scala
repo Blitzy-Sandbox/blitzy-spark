@@ -86,11 +86,18 @@ import org.apache.spark.util.ThreadUtils
  *   the shared token-bucket limiter gating the producer send path
  * @param metrics
  *   the streaming-shuffle metrics holder receiving backpressure-event counts
+ * @param fallbackPolicy
+ *   optional shared [[StreamingShuffleFallbackPolicy]] fed live measurements on every scan tick:
+ *   producer/consumer throughput (for the sustained slow-consumer condition), derived
+ *   network-link utilization (for the saturation condition), and peer protocol versions (for the
+ *   version-mismatch condition). `null` (the default) leaves the protocol standalone for unit
+ *   tests that exercise flow control in isolation
  */
 private[spark] class BackpressureProtocol(
     conf: StreamingShuffleConfig,
     rateLimiter: TokenBucketRateLimiter,
-    metrics: StreamingShuffleMetrics)
+    metrics: StreamingShuffleMetrics,
+    fallbackPolicy: StreamingShuffleFallbackPolicy = null)
     extends Logging {
 
   import BackpressureProtocol.StreamKey
@@ -355,6 +362,25 @@ private[spark] class BackpressureProtocol(
   def consumerThroughput: Double = bytesPerSecond(totalBytesAcked.get())
 
   /**
+   * Records a streaming-protocol version advertised by a peer executor (delivered by the
+   * executor-only `BackpressureRpcEndpoint` on a `PeerVersion` control message). When the peer's
+   * version differs from this build's [[StreamingShuffleConfig.STREAMING_PROTOCOL_VERSION]], the
+   * version-mismatch revert condition is tripped on the shared fallback policy so a mixed-version
+   * cluster (for example, mid-rolling-upgrade) automatically reverts new shuffles to the
+   * sort-based path rather than risking an incompatible exchange. Null-safe when no policy is
+   * attached (standalone unit tests); a matching version is a no-op.
+   *
+   * @param peerVersion
+   *   the streaming-protocol version advertised by the remote executor
+   */
+  def recordPeerProtocolVersion(peerVersion: Int): Unit = {
+    val mismatch = peerVersion != StreamingShuffleConfig.STREAMING_PROTOCOL_VERSION
+    if (mismatch && fallbackPolicy != null) {
+      fallbackPolicy.markVersionMismatch()
+    }
+  }
+
+  /**
    * @return
    *   the configured consumer-to-producer heartbeat interval in milliseconds, exposed so the RPC
    *   endpoint can schedule heartbeats at the same cadence the timeouts assume
@@ -551,9 +577,39 @@ private[spark] class BackpressureProtocol(
   private def runScanSafely(): Unit = {
     try {
       scanForTimeouts(System.nanoTime())
+      feedFallbackSignals()
     } catch {
       case NonFatal(e) =>
         logWarning(log"Streaming shuffle backpressure scan failed", e)
+    }
+  }
+
+  // Feeds the shared fallback policy the live throughput and network-utilization measurements on
+  // every 1 s scan tick, so the sustained-slow-consumer and network-saturation revert conditions
+  // trip from real runtime state rather than never being updated. Null-guarded so a standalone
+  // protocol (unit tests) runs without a policy. This is the production write path the review
+  // found missing for the slow-consumer and network-saturation fallback signals.
+  private def feedFallbackSignals(): Unit = {
+    if (fallbackPolicy != null) {
+      fallbackPolicy.recordThroughput(producerThroughput.toLong, consumerThroughput.toLong)
+      fallbackPolicy.updateNetworkUtilization(currentNetworkUtilizationPercent())
+    }
+  }
+
+  // Derives the per-executor network-link-utilization percentage from producer throughput relative
+  // to the configured bandwidth cap. An unlimited (uncapped) limiter has no link the streaming
+  // path can saturate, so it reports 0%; otherwise utilization is producer bytes/sec as a
+  // percentage of the cap, clamped to [0, 100].
+  private def currentNetworkUtilizationPercent(): Double = {
+    if (rateLimiter.isUnlimited) {
+      0.0
+    } else {
+      val cap = rateLimiter.currentBytesPerSecond
+      if (cap <= 0L || cap == Long.MaxValue) {
+        0.0
+      } else {
+        math.min(100.0, producerThroughput * 100.0 / cap.toDouble)
+      }
     }
   }
 

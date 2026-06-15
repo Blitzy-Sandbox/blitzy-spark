@@ -27,10 +27,10 @@ import org.mockito.invocation.InvocationOnMock
 import org.scalatest.matchers.must.Matchers
 
 import org.apache.spark.{
-  LocalSparkContext, MapOutputTracker, ShuffleDependency, SparkConf, SparkContext,
-  SparkFunSuite, TaskContext}
+  HashPartitioner, LocalSparkContext, MapOutputTracker, ShuffleDependency, SparkConf, SparkContext,
+  SparkEnv, SparkFunSuite, TaskContext}
 import org.apache.spark.memory.MemoryManager
-import org.apache.spark.shuffle.{FetchFailedException, ShuffleReadMetricsReporter}
+import org.apache.spark.shuffle.{BaseShuffleHandle, FetchFailedException, ShuffleReadMetricsReporter}
 import org.apache.spark.shuffle.streaming.BackpressureProtocol.StreamKey
 import org.apache.spark.shuffle.streaming.network.{
   StreamingBlockEnvelope, StreamingShuffleTransport, TokenBucketRateLimiter}
@@ -279,27 +279,48 @@ class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with Matchers 
     assert(readBack.sameElements(expected)) // spilled blocks intact and retransmittable
   }
 
-  test("scenario 8: memory pressure forces fallback (no loss via sort path)") {
-    // Drive the fallback decision: memory utilization above 95% must trip shouldFallback.
-    val policy = new StreamingShuffleFallbackPolicy(
-      new StreamingShuffleConfig(new SparkConf(false)), new StreamingShuffleMetrics)
-    policy.updateMemoryUtilization(96)
-    assert(policy.isMemoryPressure)
-    assert(policy.shouldFallback)
-    assert(policy.fallbackReason.exists(_.contains("memory")))
-
-    // The streaming manager is selected but the feature flag is off (the same delegate-to-sort path
-    // a tripped fallback takes), so a real shuffle must still round-trip every record with no loss.
+  test("scenario 8: live memory pressure trips the manager's automatic fallback (sort " +
+      "delegation, no loss)") {
+    // Streaming is genuinely ENABLED here (unlike a disabled-path proxy): the fallback must be
+    // triggered from live memory-pressure state on the SAME StreamingShuffleManager the running
+    // SparkContext uses, proving AUTOMATIC fallback in the manager - not just disabled-path sort
+    // correctness. The whole shuffle must then round-trip every record with zero loss via sort.
     val conf = new SparkConf()
       .setMaster("local[2]")
       .setAppName("StreamingShuffleFailureInjectionSuite-fallback")
       .set("spark.shuffle.manager", "streaming")
-      .set("spark.shuffle.streaming.enabled", "false")
+      .set("spark.shuffle.streaming.enabled", "true")
     LocalSparkContext.withSpark(new SparkContext(conf)) { sc =>
       val data = (0 until 1000).map(i => (i % 10, i))
       val expected = data.groupBy(_._1).map { case (k, vs) => (k, vs.map(_._2).sum) }
+
+      // Reach the manager the context actually drives shuffle registration through.
+      val mgr = SparkEnv.get.shuffleManager.asInstanceOf[StreamingShuffleManager]
+
+      // Sanity: while untripped and enabled, a real ShuffleDependency registers STREAMING, so the
+      // sort delegation asserted below is genuinely caused by the fallback, not a disabled flag.
+      val streamingProbe =
+        new ShuffleDependency[Int, Int, Int](sc.parallelize(data, 8), new HashPartitioner(2))
+      assert(streamingProbe.shuffleHandle.isInstanceOf[StreamingShuffleHandle[_, _, _]])
+
+      // Trigger ACTUAL manager fallback from live memory-pressure state (> 95%), exactly the
+      // signal the spill manager's 100 ms poll feeds the manager's own policy in production.
+      mgr.fallbackPolicy.updateMemoryUtilization(96.0)
+      assert(mgr.fallbackPolicy.isMemoryPressure)
+      assert(mgr.fallbackPolicy.shouldFallback)
+      assert(mgr.fallbackPolicy.fallbackReason.exists(_.contains("memory")))
+
+      // Sort delegation: a new ShuffleDependency registered through the now-tripped manager must
+      // receive a sort (non-streaming) handle.
+      val sortProbe =
+        new ShuffleDependency[Int, Int, Int](sc.parallelize(data, 8), new HashPartitioner(2))
+      assert(!sortProbe.shuffleHandle.isInstanceOf[StreamingShuffleHandle[_, _, _]])
+      assert(sortProbe.shuffleHandle.isInstanceOf[BaseShuffleHandle[_, _, _]])
+
+      // Zero data loss: a full reduceByKey shuffle, registered while fallback is tripped, runs the
+      // sort path and preserves every record.
       val result = sc.parallelize(data, 8).reduceByKey(_ + _).collect().toMap
-      assert(result === expected) // the sort fallback preserves the full dataset
+      assert(result === expected)
     }
   }
 

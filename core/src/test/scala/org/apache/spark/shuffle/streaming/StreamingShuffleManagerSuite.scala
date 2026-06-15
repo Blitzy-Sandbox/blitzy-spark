@@ -23,12 +23,15 @@ import org.mockito.stubbing.Answer
 import org.scalatest.matchers.must.Matchers
 
 import org.apache.spark.{
-  HashPartitioner, LocalSparkContext, ShuffleDependency, SparkConf, SparkContext, SparkEnv,
-  SparkFunSuite, TaskContext}
+  HashPartitioner, LocalSparkContext, MapOutputTrackerMaster, ShuffleDependency, SparkConf,
+  SparkContext, SparkEnv, SparkFunSuite, TaskContext}
 import org.apache.spark.internal.config
+import org.apache.spark.memory.MemoryTestingUtils
+import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.serializer.Serializer
 import org.apache.spark.shuffle.{
   BaseShuffleHandle, ShuffleReadMetricsReporter, ShuffleWriteMetricsReporter}
+import org.apache.spark.storage.BlockManagerId
 
 /**
  * Unit tests for [[StreamingShuffleManager]] -- the opt-in streaming shuffle backend's
@@ -158,14 +161,124 @@ class StreamingShuffleManagerSuite extends SparkFunSuite with LocalSparkContext 
     }
   }
 
-  test("fallback policy gate: a tripped policy forces the sort fallback path") {
-    // The manager holds its StreamingShuffleFallbackPolicy privately, so the gate is verified on
-    // a directly-constructed policy. useStreaming = enabled && !shouldFallback, so once
-    // shouldFallback is true the manager delegates to sort exactly as the disabled path does.
+  test("fallback policy gate (policy in isolation): a tripped policy reports shouldFallback") {
+    // Unit check of the policy gate itself, independent of the manager. The manager-level
+    // dispatch that this gate drives is verified by the "manager fallback ..." tests below, which
+    // trip the manager's OWN policy and assert registerShuffle/getWriter/getReader route to sort.
     val policy = new StreamingShuffleFallbackPolicy(new StreamingShuffleConfig(newConf(true)))
     policy.shouldFallback mustBe false
     policy.markVersionMismatch()
     policy.shouldFallback mustBe true
+  }
+
+  test("manager fallback (memory pressure): tripping the manager's own policy routes " +
+      "registerShuffle to the sort handle") {
+    val mgr = new StreamingShuffleManager(newConf(streaming = true), isDriver = false)
+    try {
+      // The spill manager's 100 ms poll feeds the manager's policy this signal in production; here
+      // we feed it directly on the SAME policy instance the manager consults (exposed
+      // private[streaming]), proving the manager's own fallback state drives dispatch.
+      mgr.fallbackPolicy.updateMemoryUtilization(99.0) // > MEMORY_PRESSURE_PERCENT (95)
+      mgr.fallbackPolicy.shouldFallback mustBe true
+      val handle = mgr.registerShuffle(0, defaultDep())
+      // useStreaming is now false, so registration delegates to the inner SortShuffleManager.
+      handle.isInstanceOf[StreamingShuffleHandle[_, _, _]] mustBe false
+      handle.isInstanceOf[BaseShuffleHandle[_, _, _]] mustBe true
+    } finally {
+      mgr.stop()
+    }
+  }
+
+  test("manager fallback (network saturation): tripping the manager's own policy routes " +
+      "registerShuffle to the sort handle") {
+    val mgr = new StreamingShuffleManager(newConf(streaming = true), isDriver = false)
+    try {
+      // The backpressure protocol's 1 s scan feeds this signal in production.
+      mgr.fallbackPolicy.updateNetworkUtilization(95.0) // > NETWORK_SATURATION_PERCENT (90)
+      mgr.fallbackPolicy.shouldFallback mustBe true
+      val handle = mgr.registerShuffle(0, defaultDep())
+      handle.isInstanceOf[StreamingShuffleHandle[_, _, _]] mustBe false
+      handle.isInstanceOf[BaseShuffleHandle[_, _, _]] mustBe true
+    } finally {
+      mgr.stop()
+    }
+  }
+
+  test("manager fallback (version mismatch): tripping the manager's own policy routes " +
+      "registerShuffle to the sort handle") {
+    val mgr = new StreamingShuffleManager(newConf(streaming = true), isDriver = false)
+    try {
+      // recordPeerProtocolVersion on the backpressure protocol marks this in production when a
+      // peer reports a non-matching STREAMING_PROTOCOL_VERSION.
+      mgr.fallbackPolicy.markVersionMismatch()
+      mgr.fallbackPolicy.shouldFallback mustBe true
+      val handle = mgr.registerShuffle(0, defaultDep())
+      handle.isInstanceOf[StreamingShuffleHandle[_, _, _]] mustBe false
+      handle.isInstanceOf[BaseShuffleHandle[_, _, _]] mustBe true
+    } finally {
+      mgr.stop()
+    }
+  }
+
+  test("manager fallback dispatch: a tripped manager routes registerShuffle, getWriter and " +
+      "getReader consistently to sort") {
+    sc = new SparkContext("local", "test", new SparkConf(false))
+    val mgr = new StreamingShuffleManager(newConf(streaming = true), isDriver = false)
+    try {
+      // Trip the manager's own policy BEFORE registration, so the whole shuffle is sort-based.
+      mgr.fallbackPolicy.updateMemoryUtilization(99.0)
+      val dep = defaultDep()
+      val handle = mgr.registerShuffle(0, dep)
+      handle.isInstanceOf[StreamingShuffleHandle[_, _, _]] mustBe false
+      // Writer and reader BOTH dispatch on the sort handle type, so they agree: sort writer +
+      // sort reader, never a streaming/sort split.
+      val context = MemoryTestingUtils.fakeTaskContext(sc.env)
+      val writer = mgr.getWriter(
+        handle, 0L, context, mock(classOf[ShuffleWriteMetricsReporter]))
+      writer.isInstanceOf[StreamingShuffleWriter[_, _]] mustBe false
+      // The sort reader reads real map-output metadata from the MapOutputTracker, so route the
+      // dependency down the non-push read branch and register a minimal (zero-size) map output for
+      // shuffle 0. This lets the inner sort manager build a real BlockStoreShuffleReader, proving
+      // the manager's getReader delegates to sort (not a StreamingShuffleReader) for a sort handle.
+      doReturn(false).when(dep).isShuffleMergeFinalizedMarked
+      val tracker = SparkEnv.get.mapOutputTracker.asInstanceOf[MapOutputTrackerMaster]
+      tracker.registerShuffle(0, 1, 2)
+      tracker.registerMapOutput(0, 0,
+        MapStatus(BlockManagerId("exec-0", "host-0", 1234), Array(0L, 0L), 0L))
+      val reader = mgr.getReader(
+        handle, 0, 1, 0, 1, context, mock(classOf[ShuffleReadMetricsReporter]))
+      reader.isInstanceOf[StreamingShuffleReader[_, _]] mustBe false
+    } finally {
+      mgr.stop()
+    }
+  }
+
+  test("backend is immutable per shuffle: a streaming handle is served by the streaming writer " +
+      "AND the streaming reader even after the fallback policy trips mid-shuffle") {
+    // This is the regression guard for the data-integrity bug: getWriter must NOT revert a
+    // streaming handle to the sort writer when fallback trips after registration, because the
+    // streaming reader (which dispatches on handle type) would then receive sort .data/.index
+    // bytes instead of 32-byte streaming envelopes. Writer and reader must always agree.
+    sc = new SparkContext("local", "test", new SparkConf(false))
+    val mgr = new StreamingShuffleManager(newConf(streaming = true), isDriver = false)
+    try {
+      // Register while streaming is active -> streaming handle (backend fixed here, immutably).
+      val handle = mgr.registerShuffle(0, defaultDep())
+      handle.isInstanceOf[StreamingShuffleHandle[_, _, _]] mustBe true
+      // Fallback trips AFTER registration (e.g., memory pressure observed mid-application).
+      mgr.fallbackPolicy.updateMemoryUtilization(99.0)
+      mgr.fallbackPolicy.shouldFallback mustBe true
+      // Both the writer and the reader must STILL be streaming for this already-registered shuffle.
+      val context = MemoryTestingUtils.fakeTaskContext(sc.env)
+      val writer = mgr.getWriter(
+        handle, 0L, context, mock(classOf[ShuffleWriteMetricsReporter]))
+      writer.isInstanceOf[StreamingShuffleWriter[_, _]] mustBe true
+      val reader = mgr.getReader(
+        handle, 0, 1, 0, 1, context, mock(classOf[ShuffleReadMetricsReporter]))
+      reader.isInstanceOf[StreamingShuffleReader[_, _]] mustBe true
+    } finally {
+      mgr.stop()
+    }
   }
 
   test("shuffleBlockResolver returns a non-null resolver") {

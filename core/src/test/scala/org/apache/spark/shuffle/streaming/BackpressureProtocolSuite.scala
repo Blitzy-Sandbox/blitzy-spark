@@ -189,4 +189,71 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers {
     // Reaching here without an exception proves the lifecycle is idempotent and leak-free.
     assert(bp.registeredStreamCount === 0)
   }
+
+  test("nextRetransmitBackoffMs doubles each attempt then exhausts at the max") {
+    val (bp, _, _) = newProtocol()
+    val key = StreamKey(5, 0L, 0)
+
+    // Exponential backoff starting at 1 s, doubling each attempt, for the 5 configured attempts:
+    // 1 s, 2 s, 4 s, 8 s, 16 s.
+    bp.nextRetransmitBackoffMs(key) mustBe 1000L
+    bp.nextRetransmitBackoffMs(key) mustBe 2000L
+    bp.nextRetransmitBackoffMs(key) mustBe 4000L
+    bp.nextRetransmitBackoffMs(key) mustBe 8000L
+    bp.nextRetransmitBackoffMs(key) mustBe 16000L
+    // The sixth call exceeds RETRY_MAX_ATTEMPTS (5) and signals "give up" with -1.
+    bp.nextRetransmitBackoffMs(key) mustBe -1L
+  }
+
+  test("markTimedOut flags both liveness tracks immediately and is idempotent") {
+    val (bp, _, _) = newProtocol()
+    val key = StreamKey(6, 1L, 2)
+
+    // A fresh, never-registered stream reports neither track timed out.
+    assert(!bp.isProducerTimedOut(key))
+    assert(!bp.isConsumerTimedOut(key))
+
+    // The out-of-band Timeout signal must take effect at once on BOTH tracks, role-agnostically.
+    bp.markTimedOut(key)
+    assert(bp.isProducerTimedOut(key))
+    assert(bp.isConsumerTimedOut(key))
+
+    // Re-marking an already-timed-out stream is a harmless no-op (no exception, still timed out).
+    bp.markTimedOut(key)
+    assert(bp.isProducerTimedOut(key))
+    assert(bp.isConsumerTimedOut(key))
+  }
+
+  test("recordPeerProtocolVersion trips version-mismatch fallback only on divergence") {
+    // Attach a real fallback policy so the version-mismatch update hook has somewhere to write.
+    val cfg = new StreamingShuffleConfig(new SparkConf(false))
+    val metrics = new StreamingShuffleMetrics
+    val policy = new StreamingShuffleFallbackPolicy(cfg, metrics)
+    val limiter = new TokenBucketRateLimiter(Long.MaxValue)
+    val bp = new BackpressureProtocol(cfg, limiter, metrics, policy)
+
+    // A matching protocol version is a no-op: no fallback condition is recorded.
+    bp.recordPeerProtocolVersion(StreamingShuffleConfig.STREAMING_PROTOCOL_VERSION)
+    assert(!policy.isVersionMismatch)
+    assert(!policy.shouldFallback)
+
+    // A divergent peer version trips the sticky version-mismatch revert condition through the
+    // policy, so the manager will delegate the shuffle to the sort-based fallback path.
+    bp.recordPeerProtocolVersion(StreamingShuffleConfig.STREAMING_PROTOCOL_VERSION + 1)
+    assert(policy.isVersionMismatch)
+    assert(policy.shouldFallback)
+  }
+
+  test("blocking acquire is a no-op when unlimited and consults the limiter on a finite cap") {
+    // Unlimited fast path: the blocking acquire must return immediately without consulting Guava.
+    val unlimited = new TokenBucketRateLimiter(Long.MaxValue)
+    unlimited.isUnlimited mustBe true
+    unlimited.acquire(twoMb)
+
+    // Finite cap: the blocking acquire reserves permits through the underlying limiter. A generous
+    // 10 MB/s cap with a 1 KB request returns effectively immediately, so the test never stalls.
+    val limited = new TokenBucketRateLimiter(10L * 1024 * 1024)
+    limited.isUnlimited mustBe false
+    limited.acquire(1024)
+  }
 }

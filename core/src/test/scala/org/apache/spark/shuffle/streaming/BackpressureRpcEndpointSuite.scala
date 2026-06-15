@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle.streaming
 
-import org.mockito.ArgumentMatchers.{any, anyLong, eq => meq}
+import org.mockito.ArgumentMatchers.{any, anyInt, anyLong, eq => meq}
 import org.mockito.Mockito.{mock, never, verify, when}
 import org.scalatest.matchers.must.Matchers
 
@@ -134,6 +134,30 @@ class BackpressureRpcEndpointSuite extends SparkFunSuite with Matchers {
     }
 
     verify(protocol).scanForTimeouts(anyLong())
+  }
+
+  test("receive dispatches PeerVersion to protocol.recordPeerProtocolVersion") {
+    val (ep, protocol) = newEndpoint()
+
+    // The peer's negotiated streaming-protocol version is forwarded verbatim; the protocol decides
+    // whether it differs from the local STREAMING_PROTOCOL_VERSION and trips the version-mismatch
+    // fallback condition. As with the other messages, the wire stream ids are validated but the
+    // dispatch is keyed only by the carried version.
+    ep.receive.apply(BackpressureRpcEndpoint.PeerVersion(1, 2L, 3, 99))
+
+    verify(protocol).recordPeerProtocolVersion(99)
+  }
+
+  test("receive drops a PeerVersion carrying invalid stream ids") {
+    val (ep, protocol) = newEndpoint()
+
+    // A negative id is malformed wire input: it must be dropped (logged), never forwarded to the
+    // protocol, so a corrupt frame can never spuriously trip the version-mismatch fallback.
+    noException must be thrownBy {
+      ep.receive.apply(BackpressureRpcEndpoint.PeerVersion(-1, 2L, 3, 99))
+    }
+
+    verify(protocol, never()).recordPeerProtocolVersion(anyInt())
   }
 
   test("receiveAndReply answers a Ping liveness probe with Pong") {

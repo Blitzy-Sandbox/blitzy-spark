@@ -352,4 +352,77 @@ class MemorySpillManagerSuite extends SparkFunSuite with Matchers {
     store.values().asScala.foreach(seg => recovered += sumPayloadBytes(seg))
     recovered mustBe totalPayload
   }
+
+  test("unregisterShuffle releases a shuffle's buffers and spilled blocks, leaving others intact") {
+    // Closes the resource-cleanup gap the review identified: when a whole shuffle is unregistered
+    // the spill manager must drop that shuffle's live buffers AND best-effort delete its spilled
+    // disk blocks, while never touching a concurrently-running shuffle's state.
+    val (mgr, bm, _) = newManager()
+    val targetA = filledBuffer(100, 0L, 0, 9000)
+    val targetB = filledBuffer(100, 1L, 0, 1000)
+    val bystander = filledBuffer(200, 0L, 0, 2048)
+    mgr.register(targetA)
+    mgr.register(targetB)
+    mgr.register(bystander)
+    mgr.registeredBufferCount mustBe 3
+
+    // Spill one buffer of the target shuffle and the bystander, so both own spilled metadata and a
+    // disk block. (Explicit spillBuffer is threshold-independent; spilling clears the buffer's heap
+    // but leaves it registered, so the count stays 3.)
+    mgr.spillBuffer(keyOf(targetA)) mustBe true
+    mgr.spillBuffer(keyOf(bystander)) mustBe true
+    val targetSpilledIds = mgr.spilledBlockIds(keyOf(targetA))
+    val bystanderSpilledIds = mgr.spilledBlockIds(keyOf(bystander))
+    assert(targetSpilledIds.nonEmpty)
+    assert(bystanderSpilledIds.nonEmpty)
+    mgr.registeredBufferCount mustBe 3
+
+    // Whole-shuffle cleanup for shuffle 100 only.
+    mgr.unregisterShuffle(100)
+
+    // Both shuffle-100 buffers are dropped; only the bystander shuffle's buffer remains registered.
+    mgr.registeredBufferCount mustBe 1
+    // The target shuffle's spilled metadata is cleared and its disk blocks are deleted.
+    mgr.isSpilled(keyOf(targetA)) mustBe false
+    mgr.spilledBlockIds(keyOf(targetA)) mustBe empty
+    targetSpilledIds.foreach(id => verify(bm).removeBlock(meq(id), any()))
+
+    // The bystander shuffle is strictly untouched: still registered, still spilled, block retained.
+    mgr.isSpilled(keyOf(bystander)) mustBe true
+    bystanderSpilledIds.foreach(id => verify(bm, never()).removeBlock(meq(id), any()))
+
+    // Idempotent: a second cleanup for the same shuffle finds nothing left and is a safe no-op.
+    noException must be thrownBy { mgr.unregisterShuffle(100) }
+    mgr.registeredBufferCount mustBe 1
+  }
+
+  test("StreamingBuffer round-trips sealed and pending blocks via readBlock and renders toString") {
+    val blockSize = StreamingShuffleConfig.BLOCK_SIZE_BYTES
+    val buffer = new StreamingBuffer(77, 3L, 4, 64L * 1024 * 1024)
+
+    // Append one full block plus a small remainder: the first 2 MB seals into block 0 and the
+    // trailing bytes stay as the pending tail, which readBlock serves as block 1.
+    val sealedPayload = Array.fill[Byte](blockSize)(7.toByte)
+    val tailPayload = Array.fill[Byte](128)(9.toByte)
+    buffer.append(sealedPayload ++ tailPayload)
+
+    buffer.size mustBe (blockSize.toLong + tailPayload.length)
+    buffer.numBlocks mustBe 2
+
+    // The sealed-block branch (index < sealedCount) returns the exact first 2 MB...
+    buffer.readBlock(0).sameElements(sealedPayload) mustBe true
+    // ...and the pending-tail branch (index == sealedCount, pendingLen > 0) returns the remainder.
+    buffer.readBlock(1).sameElements(tailPayload) mustBe true
+
+    // An out-of-range index takes the error branch.
+    an[IndexOutOfBoundsException] must be thrownBy buffer.readBlock(2)
+
+    // The diagnostic string surfaces the buffer identity and layout for the structured logs that
+    // correlate spill/stream activity per shuffle.
+    val rendered = buffer.toString
+    rendered must include("StreamingBuffer")
+    rendered must include("shuffleId=77")
+    rendered must include("partitionId=4")
+    rendered must include("numBlocks=2")
+  }
 }
