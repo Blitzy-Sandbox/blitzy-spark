@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="Executive summary: opt-in, low-latency Streaming Shuffle backend for Apache Spark with automatic sort-based fallback." />
+  <!-- Inline data-URI favicon (brand wave glyph) — keeps the deck fully self-contained and avoids a 404. -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%236c5ce7'/><path d='M4 20c3 0 3-5 6-5s3 5 6 5 3-5 6-5 3 5 6 5' fill='none' stroke='%232ee6c5' stroke-width='2.6' stroke-linecap='round'/></svg>" />
+  <title>Streaming Shuffle — Executive Summary</title>
+
+  <!--
+    Self-contained reveal.js executive deck.
+    External assets are limited to the pinned CDNs below + the inline brand <style> and <script>.
+    Pinned: reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0.
+  -->
+
+  <!-- reveal.js 5.1.0 core CSS (pinned) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+  <!-- reveal.js 5.1.0 base theme (pinned) — loaded BEFORE the inline brand theme so inline overrides win -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="reveal-base-theme" />
+
+  <!-- ============================================================= -->
+  <!-- Blitzy brand theme — embedded INLINE (no external theme file). -->
+  <!-- Defines the brand palette and applies it to reveal.js, then    -->
+  <!-- adds the executive component primitives (metric cards, grids,  -->
+  <!-- icon lists, callouts, legend swatches, bars, chips, steps).    -->
+  <!-- ============================================================= -->
+  <style>
+    :root {
+      /* --- Blitzy brand palette --- */
+      --blitzy-primary:    #6c5ce7;  /* brand primary (indigo)         */
+      --blitzy-primary-2:  #8a7bff;  /* lighter primary (gradients)    */
+      --blitzy-secondary:  #00b8d9;  /* brand secondary (cyan)         */
+      --blitzy-accent:     #2ee6c5;  /* brand accent (mint)            */
+      --blitzy-bg:         #0b1020;  /* dark background                */
+      --blitzy-bg-2:       #11183a;  /* gradient stop                  */
+      --blitzy-surface:    #151c33;  /* surface / panel                */
+      --blitzy-surface-2:  #1c2547;  /* elevated surface               */
+      --blitzy-border:     #2a3458;  /* hairline borders               */
+      --blitzy-text:       #e8ecf7;  /* light text                     */
+      --blitzy-text-muted: #9aa6c4;  /* muted text                     */
+      --blitzy-success:    #2ecc71;  /* success green                  */
+      --blitzy-warn:       #f5a623;  /* warn amber                     */
+      --blitzy-danger:     #e74c3c;  /* danger red                     */
+      /* legend swatch fills — match the mermaid classDef colors */
+      --legend-create:     #d5f5e3;
+      --legend-modify:     #d6eaf8;
+      --legend-ref:        #eaecee;
+
+      /* --- reveal.js theme variables (override black.css) --- */
+      --r-background-color: var(--blitzy-bg);
+      --r-main-color: var(--blitzy-text);
+      --r-heading-color: #ffffff;
+      --r-link-color: var(--blitzy-secondary);
+      --r-link-color-hover: var(--blitzy-accent);
+      --r-link-color-dark: #0093ad;
+      --r-selection-background-color: var(--blitzy-primary);
+      --r-selection-color: #ffffff;
+      --r-main-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, "Noto Sans", sans-serif;
+      --r-heading-font: var(--r-main-font);
+      --r-code-font: "SFMono-Regular", ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+      --r-main-font-size: 30px;
+      --r-heading-text-transform: none;
+      --r-heading1-text-shadow: none;
+    }
+
+    /* Dark, executive backdrop with a subtle brand glow */
+    .reveal-viewport {
+      background:
+        radial-gradient(1200px 720px at 12% -8%, rgba(108,92,231,0.28) 0%, rgba(11,16,32,0) 55%),
+        radial-gradient(1000px 700px at 100% 0%, rgba(0,184,217,0.16) 0%, rgba(11,16,32,0) 50%),
+        linear-gradient(180deg, var(--blitzy-bg-2) 0%, var(--blitzy-bg) 60%);
+    }
+
+    .reveal { font-family: var(--r-main-font); color: var(--blitzy-text); }
+    .reveal .slides { text-align: left; }
+    .reveal .slides section { padding: 0 8px; }
+
+    .reveal h1, .reveal h2, .reveal h3, .reveal h4 {
+      color: var(--r-heading-color);
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      line-height: 1.12;
+      text-transform: none;
+      margin: 0 0 0.45em 0;
+      text-shadow: none;
+    }
+    .reveal h1 { font-size: 2.35em; }
+    .reveal h2 { font-size: 1.45em; }
+    .reveal h3 { font-size: 1.05em; color: var(--blitzy-text); }
+    .reveal p  { line-height: 1.45; }
+    .reveal strong, .reveal b { color: #ffffff; }
+
+    .reveal a { color: var(--blitzy-secondary); text-decoration: none; border-bottom: 1px solid rgba(0,184,217,0.45); }
+    .reveal a:hover { color: var(--blitzy-accent); border-bottom-color: var(--blitzy-accent); }
+
+    .reveal code {
+      font-family: var(--r-code-font);
+      background: rgba(108,92,231,0.16);
+      color: var(--blitzy-accent);
+      padding: 0.08em 0.4em;
+      border-radius: 6px;
+      font-size: 0.92em;
+    }
+
+    /* Slide number pill */
+    .reveal .slide-number {
+      background: var(--blitzy-primary);
+      color: #ffffff;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 5px 11px;
+      border-radius: 8px;
+      right: 14px; bottom: 14px;
+    }
+
+    /* Tables */
+    .reveal table { width: 100%; border-collapse: collapse; font-size: 0.62em; margin: 0; }
+    .reveal table th {
+      background: linear-gradient(135deg, var(--blitzy-primary), var(--blitzy-secondary));
+      color: #ffffff; text-align: left; padding: 0.6em 0.8em; border: none; font-weight: 700;
+    }
+    .reveal table td { padding: 0.55em 0.8em; border-bottom: 1px solid var(--blitzy-border); color: var(--blitzy-text); vertical-align: top; }
+    .reveal table tr:nth-child(even) td { background: rgba(255,255,255,0.03); }
+    .reveal table tr:last-child td { border-bottom: none; }
+
+    /* Lucide icons render as <svg class="lucide">; size relative to font-size */
+    .reveal svg.lucide { width: 1em; height: 1em; vertical-align: -0.14em; stroke-width: 2; }
+
+    /* Eyebrow / kicker label above each headline */
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      text-transform: uppercase; letter-spacing: 0.18em; font-weight: 700;
+      font-size: 0.46em; color: var(--blitzy-accent); margin-bottom: 0.5rem;
+    }
+    .eyebrow svg.lucide { color: var(--blitzy-accent); font-size: 1.25em; }
+    .cap { font-size: 0.5em; color: var(--blitzy-text-muted); margin-top: 0.55rem; }
+
+    /* --- Title slide --- */
+    .title-slide { text-align: center; }
+    .brand-mark {
+      display: inline-flex; align-items: center; gap: 0.55rem;
+      font-weight: 800; letter-spacing: 0.34em; font-size: 0.5em; color: var(--blitzy-text-muted);
+      text-transform: uppercase; margin-bottom: 1.1rem;
+    }
+    .brand-mark .brand-dot {
+      width: 0.7em; height: 0.7em; border-radius: 50%;
+      background: linear-gradient(135deg, var(--blitzy-primary), var(--blitzy-secondary));
+      box-shadow: 0 0 14px rgba(46,230,197,0.6);
+    }
+    .hero-icon {
+      width: 1.9em; height: 1.9em; font-size: 2.4em; margin: 0 auto 0.35em;
+      display: inline-flex; align-items: center; justify-content: center; border-radius: 0.5em;
+      background: linear-gradient(135deg, var(--blitzy-primary), var(--blitzy-secondary));
+      color: #ffffff; box-shadow: 0 14px 50px rgba(108,92,231,0.45);
+    }
+    .title-slide h1 {
+      background: linear-gradient(90deg, var(--blitzy-primary-2), var(--blitzy-secondary) 55%, var(--blitzy-accent));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+      margin-bottom: 0.25em;
+    }
+    .subtitle { font-size: 0.92em; color: var(--blitzy-text-muted); margin: 0 0 1.1rem; }
+    .title-meta { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
+
+    /* --- Layout helpers --- */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; align-items: center; }
+    .lead-big { font-size: 1.05em; line-height: 1.4; }
+
+    /* --- Metric cards --- */
+    .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.9rem; margin-top: 0.9rem; }
+    .metric-grid.four { grid-template-columns: repeat(3, 1fr); }
+    .metric-card {
+      background: linear-gradient(160deg, var(--blitzy-surface-2), var(--blitzy-surface));
+      border: 1px solid var(--blitzy-border); border-radius: 16px; padding: 1rem 0.9rem; text-align: center;
+      box-shadow: 0 8px 26px rgba(0,0,0,0.28);
+    }
+    .metric-card .m-icon { font-size: 1.55em; color: var(--blitzy-accent); line-height: 1; }
+    .metric-value { font-size: 1.55em; font-weight: 800; color: #ffffff; line-height: 1.05; margin: 0.28rem 0 0.18rem; }
+    .metric-value.v-green { color: var(--blitzy-success); }
+    .metric-value.v-blue  { color: var(--blitzy-secondary); }
+    .metric-value.v-amber { color: var(--blitzy-warn); }
+    .metric-label { font-size: 0.46em; color: var(--blitzy-text-muted); line-height: 1.35; }
+
+    /* --- Icon list --- */
+    .icon-list { list-style: none; margin: 0.4rem 0 0; padding: 0; }
+    .icon-list.two-up { display: grid; grid-template-columns: 1fr 1fr; column-gap: 1.4rem; }
+    .icon-list li { display: flex; align-items: flex-start; gap: 0.85rem; padding: 0.5rem 0; border-bottom: 1px dashed var(--blitzy-border); }
+    .icon-list li:last-child { border-bottom: none; }
+    .icon-list .li-icon {
+      flex: 0 0 auto; width: 1.7em; height: 1.7em; font-size: 1.05em; border-radius: 0.55em;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: rgba(0,184,217,0.16); color: var(--blitzy-secondary);
+    }
+    .icon-list .li-text { font-size: 0.64em; line-height: 1.4; color: var(--blitzy-text); padding-top: 0.18em; }
+
+    /* --- Callouts --- */
+    .callout {
+      display: flex; gap: 1rem; align-items: flex-start;
+      background: var(--blitzy-surface); border: 1px solid var(--blitzy-border);
+      border-left: 5px solid var(--blitzy-primary); border-radius: 12px; padding: 1rem 1.15rem;
+    }
+    .callout .c-icon { flex: 0 0 auto; font-size: 1.55em; color: var(--blitzy-primary); line-height: 1; }
+    .callout > div:last-child { font-size: 0.66em; line-height: 1.45; }
+    .callout.success { border-left-color: var(--blitzy-success); }
+    .callout.success .c-icon { color: var(--blitzy-success); }
+    .callout.warn { border-left-color: var(--blitzy-warn); }
+    .callout.warn .c-icon { color: var(--blitzy-warn); }
+    .callout.danger { border-left-color: var(--blitzy-danger); }
+    .callout.danger .c-icon { color: var(--blitzy-danger); }
+
+    /* --- Diagram wrap + mermaid --- */
+    .diagram-wrap {
+      background: rgba(255,255,255,0.025); border: 1px solid var(--blitzy-border);
+      border-radius: 14px; padding: 0.8rem 1rem; box-shadow: inset 0 0 60px rgba(0,0,0,0.25);
+    }
+    .reveal pre.mermaid {
+      background: transparent; box-shadow: none; width: 100%; margin: 0; padding: 0;
+      display: flex; justify-content: center; font-size: 15px;
+    }
+    .reveal pre.mermaid svg { max-width: 100%; max-height: 452px; height: auto !important; }
+
+    /* --- Legend (matches mermaid classDef colors) --- */
+    .legend { display: flex; gap: 1.3rem; flex-wrap: wrap; margin-top: 0.7rem; font-size: 0.5em; color: var(--blitzy-text-muted); }
+    .legend .li { display: inline-flex; align-items: center; gap: 0.45rem; }
+    .swatch { width: 15px; height: 15px; border-radius: 4px; display: inline-block; border: 1px solid rgba(255,255,255,0.25); }
+    .swatch.create { background: var(--legend-create); }
+    .swatch.modify { background: var(--legend-modify); }
+    .swatch.ref { background: var(--legend-ref); }
+
+    /* --- 2x2 condition grid --- */
+    .grid-2x2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; margin-top: 0.7rem; }
+    .condition-card {
+      background: var(--blitzy-surface); border: 1px solid var(--blitzy-border); border-radius: 14px;
+      padding: 0.95rem 1rem; display: flex; gap: 0.85rem; align-items: flex-start;
+    }
+    .condition-card .cc-icon {
+      flex: 0 0 auto; width: 1.9em; height: 1.9em; font-size: 1.05em; border-radius: 0.55em;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: rgba(245,166,35,0.16); color: var(--blitzy-warn);
+    }
+    .condition-card div { font-size: 0.6em; line-height: 1.38; color: var(--blitzy-text-muted); }
+    .condition-card b { color: #ffffff; font-size: 1.05em; }
+
+    /* --- Chips --- */
+    .chips { display: flex; flex-wrap: wrap; gap: 0.65rem; margin: 0.6rem 0; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: var(--blitzy-surface); border: 1px solid var(--blitzy-border); border-radius: 999px;
+      padding: 0.45rem 0.85rem; font-size: 0.5em; color: var(--blitzy-text);
+    }
+    .chip svg.lucide { color: var(--blitzy-secondary); font-size: 1.15em; }
+    .chip .tag { color: var(--blitzy-text-muted); border-left: 1px solid var(--blitzy-border); padding-left: 0.5rem; margin-left: 0.15rem; font-size: 0.92em; }
+
+    /* --- Opt-in flags --- */
+    .flag-row { display: flex; align-items: center; gap: 0.7rem; background: var(--blitzy-surface); border: 1px solid var(--blitzy-border); border-radius: 12px; padding: 0.7rem 0.95rem; margin: 0.4rem 0; }
+    .flag-row code { font-size: 0.78em; }
+    .flag-icon { font-size: 1.4em; line-height: 1; }
+    .flag-icon.on { color: var(--blitzy-success); }
+    .flag-op { text-align: center; font-weight: 800; color: var(--blitzy-accent); letter-spacing: 0.2em; font-size: 0.62em; margin: 0.2rem 0; }
+
+    /* --- Bars (performance) --- */
+    .bars { margin-top: 0.9rem; }
+    .bar-row { display: grid; grid-template-columns: 240px 1fr; gap: 1rem; align-items: center; margin: 0.7rem 0; }
+    .bar-label { font-size: 0.55em; color: var(--blitzy-text-muted); text-align: right; }
+    .bar-track { background: var(--blitzy-surface); border: 1px solid var(--blitzy-border); border-radius: 999px; height: 28px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; display: flex; align-items: center; justify-content: flex-end; padding-right: 0.75rem; font-size: 0.5em; font-weight: 800; color: #04121f; }
+    .bar-fill.sort { background: linear-gradient(90deg, #4a5570, #7e8aa8); width: 100%; }
+    .bar-fill.stream { background: linear-gradient(90deg, var(--blitzy-secondary), var(--blitzy-accent)); width: 60%; }
+
+    /* --- Numbered steps --- */
+    .steps { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.5rem; }
+    .step { display: flex; gap: 0.9rem; align-items: flex-start; }
+    .step-num {
+      flex: 0 0 auto; width: 1.8em; height: 1.8em; font-size: 0.74em; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center; font-weight: 800; color: #ffffff;
+      background: linear-gradient(135deg, var(--blitzy-primary), var(--blitzy-secondary));
+    }
+    .step-body { font-size: 0.6em; line-height: 1.4; padding-top: 0.25em; }
+    .step-body b { color: #ffffff; }
+
+    /* --- Code card --- */
+    .reveal pre.codecard {
+      background: #070b18; border: 1px solid var(--blitzy-border); border-radius: 12px;
+      padding: 0.95rem 1.1rem; box-shadow: none; width: auto; margin: 0.7rem 0 0;
+      font-family: var(--r-code-font); font-size: 0.42em; line-height: 1.7; color: #cfe9ff; white-space: pre; overflow: auto;
+    }
+    .reveal pre.codecard .k { color: var(--blitzy-accent); }
+    .reveal pre.codecard .v { color: #ffd479; }
+
+    .center { text-align: center; }
+    .mt-s { margin-top: 0.6rem; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+      <!-- Slide 1 — Title -->
+      <section class="title-slide">
+        <div class="brand-mark"><span class="brand-dot"></span>Blitzy</div>
+        <div class="hero-icon"><i data-lucide="waves"></i></div>
+        <h1>Streaming Shuffle for Apache Spark</h1>
+        <p class="subtitle">Opt-in, low-latency shuffle with automatic fallback</p>
+        <div class="title-meta">
+          <span class="chip"><i data-lucide="git-branch"></i> spark-core 2.13</span>
+          <span class="chip"><i data-lucide="package"></i> 4.2.0-SNAPSHOT</span>
+          <span class="chip"><i data-lucide="shield-check"></i> Zero-regression by design</span>
+        </div>
+      </section>
+
+      <!-- Slide 2 — The problem -->
+      <section>
+        <div class="eyebrow"><i data-lucide="triangle-alert"></i> The problem</div>
+        <h2>Sort-based shuffle adds latency</h2>
+        <div class="two-col">
+          <ul class="icon-list">
+            <li><span class="li-icon"><i data-lucide="hard-drive"></i></span><span class="li-text">Map output is <b>fully materialized to local disk</b> before any reduce-side fetch begins.</span></li>
+            <li><span class="li-icon"><i data-lucide="clock"></i></span><span class="li-text">Reducers <b>wait</b> for producers to finish writing &mdash; latency compounds at scale.</span></li>
+            <li><span class="li-icon"><i data-lucide="layers"></i></span><span class="li-text">Shuffle-heavy pipelines pay this cost at <b>every stage boundary</b>.</span></li>
+          </ul>
+          <div class="callout warn">
+            <span class="c-icon"><i data-lucide="timer"></i></span>
+            <div>For large jobs (<b>&ge; 100 MB</b>, <b>&ge; 10 partitions</b>), the write-then-fetch barrier dominates end-to-end time.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 3 — The solution (one-liner) -->
+      <section>
+        <div class="eyebrow"><i data-lucide="lightbulb"></i> The solution</div>
+        <h2>Stream the data instead of staging it</h2>
+        <div class="callout">
+          <span class="c-icon"><i data-lucide="waves"></i></span>
+          <div class="lead-big">Stream intermediate data <b>producer &rarr; consumer</b> through <b>bounded in-memory buffers</b> over the <b>existing network transport</b>, governed by <b>backpressure</b>.</div>
+        </div>
+        <div class="metric-grid four">
+          <div class="metric-card"><div class="m-icon"><i data-lucide="cpu"></i></div><div class="metric-value v-blue">In&#8209;memory</div><div class="metric-label">Bounded buffers &mdash; no disk barrier</div></div>
+          <div class="metric-card"><div class="m-icon"><i data-lucide="network"></i></div><div class="metric-value v-blue">Reused</div><div class="metric-label">Existing Spark network transport</div></div>
+          <div class="metric-card"><div class="m-icon"><i data-lucide="gauge"></i></div><div class="metric-value v-green">Backpressure</div><div class="metric-label">Heartbeat + token-bucket flow control</div></div>
+        </div>
+      </section>
+
+      <!-- Slide 4 — Business value / success criteria -->
+      <section>
+        <div class="eyebrow"><i data-lucide="trending-up"></i> Business value</div>
+        <h2>Measurable, guarded outcomes</h2>
+        <div class="metric-grid">
+          <div class="metric-card"><div class="m-icon"><i data-lucide="gauge"></i></div><div class="metric-value v-green">30&ndash;50%</div><div class="metric-label">Lower latency &mdash; shuffle-heavy jobs (&ge; 100 MB, &ge; 10 partitions)</div></div>
+          <div class="metric-card"><div class="m-icon"><i data-lucide="trending-up"></i></div><div class="metric-value v-blue">5&ndash;10%</div><div class="metric-label">Faster CPU-bound jobs (less scheduler overhead)</div></div>
+          <div class="metric-card"><div class="m-icon"><i data-lucide="shield-check"></i></div><div class="metric-value v-green">Zero</div><div class="metric-label">Regression &mdash; memory-bound jobs auto-fall back</div></div>
+          <div class="metric-card"><div class="m-icon"><i data-lucide="database"></i></div><div class="metric-value v-green">Zero</div><div class="metric-label">Data loss under all failure scenarios</div></div>
+          <div class="metric-card"><div class="m-icon"><i data-lucide="timer"></i></div><div class="metric-value v-amber">&lt; 100 ms</div><div class="metric-label">Spill response at the 80% buffer threshold</div></div>
+        </div>
+      </section>
+
+      <!-- Slide 5 — Five core capabilities -->
+      <section>
+        <div class="eyebrow"><i data-lucide="list-checks"></i> Capabilities</div>
+        <h2>Five core capabilities</h2>
+        <ul class="icon-list two-up">
+          <li><span class="li-icon"><i data-lucide="waves"></i></span><span class="li-text"><b>Producer &rarr; consumer streaming</b> over the existing transport.</span></li>
+          <li><span class="li-icon"><i data-lucide="cpu"></i></span><span class="li-text"><b>Bounded in-memory buffering</b> &mdash; default <b>20%</b> of executor memory (range 1&ndash;50%).</span></li>
+          <li><span class="li-icon"><i data-lucide="gauge"></i></span><span class="li-text"><b>Backpressure</b> &mdash; heartbeat + token-bucket rate limiting.</span></li>
+          <li><span class="li-icon"><i data-lucide="hard-drive"></i></span><span class="li-text"><b>Graceful disk spill</b> at the <b>80%</b> utilization threshold.</span></li>
+          <li><span class="li-icon"><i data-lucide="refresh-cw"></i></span><span class="li-text"><b>Partial-read invalidation</b> &rarr; <code>FetchFailedException</code> &rarr; recompute.</span></li>
+        </ul>
+      </section>
+
+      <!-- Slide 6 — Opt-in by design -->
+      <section>
+        <div class="eyebrow"><i data-lucide="toggle-left"></i> Opt-in by design</div>
+        <h2>Zero change to default behavior</h2>
+        <div class="two-col">
+          <div>
+            <div class="flag-row"><span class="flag-icon on"><i data-lucide="toggle-right"></i></span><code>spark.shuffle.manager=streaming</code></div>
+            <div class="flag-op">AND</div>
+            <div class="flag-row"><span class="flag-icon on"><i data-lucide="toggle-right"></i></span><code>spark.shuffle.streaming.enabled=true</code></div>
+          </div>
+          <div class="callout success">
+            <span class="c-icon"><i data-lucide="shield-check"></i></span>
+            <div>Both flags default <b>OFF</b>. Until <b>both</b> are set, behavior is <b>byte-for-byte unchanged</b> &mdash; existing clusters are entirely unaffected.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 7 — Architecture: Before vs After (Mermaid Diagram 1) -->
+      <section>
+        <div class="eyebrow"><i data-lucide="git-compare"></i> Architecture &mdash; before vs after</div>
+        <h2>One factory entry selects the backend</h2>
+        <div class="diagram-wrap">
+<pre class="mermaid">
+flowchart TB
+    subgraph BEFORE["Before — Master Baseline"]
+        direction TB
+        B1["conf: spark.shuffle.manager"] --> B2{"shortShuffleMgrNames map"}
+        B2 -->|"sort"| B3["SortShuffleManager"]
+        B2 -->|"tungsten-sort"| B3
+    end
+    subgraph AFTER["After — streaming Alias Registered"]
+        direction TB
+        A1["conf: spark.shuffle.manager"] --> A2{"shortShuffleMgrNames map"}
+        A2 -->|"sort / tungsten-sort"| A3["SortShuffleManager"]
+        A2 -->|"streaming"| A4["StreamingShuffleManager"]
+        A4 --> A5{"streaming.enabled AND&lt;br/&gt;fallback not tripped"}
+        A5 -->|"yes"| A6["Stream producer to consumer"]
+        A5 -->|"no"| A7["Delegate to inner SortShuffleManager"]
+    end
+    B2:::modify
+    B3:::ref
+    A2:::modify
+    A3:::ref
+    A4:::create
+    A6:::create
+    A7:::ref
+    classDef create fill:#d5f5e3,stroke:#1e8449,color:#145a32
+    classDef modify fill:#d6eaf8,stroke:#2471a3,color:#1a5276
+    classDef ref fill:#eaecee,stroke:#7f8c8d,color:#424949
+</pre>
+        </div>
+        <div class="legend">
+          <span class="li"><span class="swatch create"></span> new (CREATE)</span>
+          <span class="li"><span class="swatch modify"></span> modified (MODIFY)</span>
+          <span class="li"><span class="swatch ref"></span> reused / unchanged</span>
+          <span class="li">Registering the <code>streaming</code> alias adds a new branch; sort selection is untouched.</span>
+        </div>
+      </section>
+
+      <!-- Slide 8 — Architecture: Component Interaction (Mermaid Diagram 2) -->
+      <section>
+        <div class="eyebrow"><i data-lucide="workflow"></i> Architecture &mdash; component interaction</div>
+        <h2>New classes compose existing Spark services</h2>
+        <div class="diagram-wrap">
+<pre class="mermaid">
+flowchart TB
+    SE["SparkEnv.create"]:::ref --> SM["ShuffleManager factory&lt;br/&gt;shortShuffleMgrNames"]:::modify
+    SM --> MGR["StreamingShuffleManager"]:::create
+    MGR --> H["StreamingShuffleHandle"]:::create
+    MGR --> W["StreamingShuffleWriter"]:::create
+    MGR --> R["StreamingShuffleReader"]:::create
+    MGR --> BR["StreamingShuffleBlockResolver"]:::create
+    MGR --> SRC["StreamingShuffleSource"]:::create
+    MGR --> FB["StreamingShuffleFallbackPolicy"]:::create
+    MGR -.->|"fallback"| SORT["SortShuffleManager"]:::ref
+    CFG["StreamingShuffleConfig"]:::create --> MGR
+    W --> BUF["StreamingBuffer"]:::create
+    W --> BP["BackpressureProtocol"]:::create
+    W --> SPILL["MemorySpillManager"]:::create
+    W --> TX["StreamingShuffleTransport (v1 stub)"]:::create
+    W --> ENV["StreamingBlockEnvelope"]:::create
+    BP --> RPC["BackpressureRpcEndpoint"]:::create
+    BP --> RL["TokenBucketRateLimiter"]:::create
+    SPILL --> MM["MemoryManager"]:::ref
+    SPILL --> BM["BlockManager"]:::ref
+    R --> MOT["MapOutputTracker"]:::ref
+    R --> BTS["BlockTransferService"]:::ref
+    R --> ENV
+    MET["StreamingShuffleMetrics"]:::create --> SRC
+    W --> MET
+    R --> MET
+    BP --> MET
+    SPILL --> MET
+    SRC --> MS["MetricsSystem"]:::ref
+    classDef create fill:#d5f5e3,stroke:#1e8449,color:#145a32
+    classDef modify fill:#d6eaf8,stroke:#2471a3,color:#1a5276
+    classDef ref fill:#eaecee,stroke:#7f8c8d,color:#424949
+</pre>
+        </div>
+        <div class="legend">
+          <span class="li"><span class="swatch create"></span> new streaming class</span>
+          <span class="li"><span class="swatch modify"></span> modified factory</span>
+          <span class="li"><span class="swatch ref"></span> reused Spark service</span>
+        </div>
+      </section>
+
+      <!-- Slide 9 — Coexistence & automatic fallback -->
+      <section>
+        <div class="eyebrow"><i data-lucide="git-branch"></i> Coexistence</div>
+        <h2>Sort-based shuffle is the safety net</h2>
+        <div class="two-col">
+          <ul class="icon-list">
+            <li><span class="li-icon"><i data-lucide="box"></i></span><span class="li-text"><code>StreamingShuffleManager</code> holds a <b>lazy inner</b> <code>SortShuffleManager</code>.</span></li>
+            <li><span class="li-icon"><i data-lucide="git-branch"></i></span><span class="li-text">It <b>delegates</b> when streaming is disabled or any fallback condition trips.</span></li>
+            <li><span class="li-icon"><i data-lucide="lock"></i></span><span class="li-text">The sort path is <b>never modified</b> &mdash; it is composed unchanged.</span></li>
+          </ul>
+          <div class="callout success">
+            <span class="c-icon"><i data-lucide="shield-check"></i></span>
+            <div>Fallback is the <b>zero-regression guarantee</b>: unsuitable workloads revert to sort-based shuffle automatically.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 10 — Four fallback conditions -->
+      <section>
+        <div class="eyebrow"><i data-lucide="shield-alert"></i> Automatic fallback</div>
+        <h2>Four revert conditions</h2>
+        <div class="grid-2x2">
+          <div class="condition-card"><span class="cc-icon"><i data-lucide="turtle"></i></span><div><b>Slow consumer</b><br />Consumer sustained 2&times; slower than producer for &gt; 60 s.</div></div>
+          <div class="condition-card"><span class="cc-icon"><i data-lucide="memory-stick"></i></span><div><b>Memory pressure</b><br />Buffer allocation at OOM risk (&gt; 95%).</div></div>
+          <div class="condition-card"><span class="cc-icon"><i data-lucide="network"></i></span><div><b>Network saturation</b><br />&gt; 90% of link capacity.</div></div>
+          <div class="condition-card"><span class="cc-icon"><i data-lucide="git-compare"></i></span><div><b>Version mismatch</b><br />Producer / consumer version mismatch.</div></div>
+        </div>
+      </section>
+
+      <!-- Slide 11 — Safety & correctness -->
+      <section>
+        <div class="eyebrow"><i data-lucide="shield-check"></i> Safety &amp; correctness</div>
+        <h2>Zero data loss by construction</h2>
+        <ul class="icon-list">
+          <li><span class="li-icon"><i data-lucide="fingerprint"></i></span><span class="li-text"><b>CRC32C block checksums</b> validate every 2 MB block on the wire.</span></li>
+          <li><span class="li-icon"><i data-lucide="refresh-cw"></i></span><span class="li-text"><b>Partial-read invalidation</b> on a 5 s connection timeout raises <code>FetchFailedException</code>.</span></li>
+          <li><span class="li-icon"><i data-lucide="rotate-ccw"></i></span><span class="li-text">Spark's <b>existing lineage</b> recomputes the lost output &mdash; no new recovery model.</span></li>
+        </ul>
+        <div class="callout success mt-s">
+          <span class="c-icon"><i data-lucide="database"></i></span>
+          <div><b>Zero data loss</b> under all failure scenarios.</div>
+        </div>
+      </section>
+
+      <!-- Slide 12 — Observability -->
+      <section>
+        <div class="eyebrow"><i data-lucide="activity"></i> Observability</div>
+        <h2>Four metrics, existing pipes</h2>
+        <div class="chips">
+          <span class="chip"><i data-lucide="gauge"></i> shuffle.streaming.bufferUtilizationPercent <span class="tag">gauge</span></span>
+          <span class="chip"><i data-lucide="hard-drive"></i> shuffle.streaming.spillCount <span class="tag">counter</span></span>
+          <span class="chip"><i data-lucide="zap"></i> shuffle.streaming.backpressureEvents <span class="tag">counter</span></span>
+          <span class="chip"><i data-lucide="refresh-cw"></i> shuffle.streaming.partialReadInvalidations <span class="tag">counter</span></span>
+        </div>
+        <ul class="icon-list">
+          <li><span class="li-icon"><i data-lucide="bar-chart"></i></span><span class="li-text">Surfaced through the <b>existing MetricsSystem</b> &mdash; JMX and Prometheus, no framework changes.</span></li>
+          <li><span class="li-icon"><i data-lucide="layout-dashboard"></i></span><span class="li-text">A <b>Grafana dashboard template</b> (a 2&times;2 panel grid) ships with the feature.</span></li>
+        </ul>
+      </section>
+
+      <!-- Slide 13 — Risks & mitigations -->
+      <section>
+        <div class="eyebrow"><i data-lucide="triangle-alert"></i> Risks &amp; mitigations</div>
+        <h2>Every risk has a built-in mitigation</h2>
+        <table>
+          <thead>
+            <tr><th style="width:42%"><i data-lucide="triangle-alert"></i> Risk</th><th><i data-lucide="shield"></i> Mitigation</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Misconfiguration (only one flag set)</td><td>Dual-flag opt-in + documented activation; one flag alone stays on sort-based shuffle.</td></tr>
+            <tr><td>Memory pressure / OOM risk</td><td>Spill at the 80% threshold (&lt; 100 ms) and automatic fallback to sort.</td></tr>
+            <tr><td>Consumer slower than producer</td><td>Backpressure (heartbeat + token bucket); fallback if sustained 2&times; for &gt; 60 s.</td></tr>
+            <tr><td>v1 transport is logging-only</td><td>By design &mdash; the real data plane is the existing <code>BlockTransferService</code> / <code>fetchBlockSync</code> (documented in the decision log).</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Slide 14 — Performance evidence -->
+      <section>
+        <div class="eyebrow"><i data-lucide="gauge"></i> Performance evidence</div>
+        <h2>Benchmark-driven, gated by coverage</h2>
+        <div class="bars">
+          <div class="bar-row">
+            <span class="bar-label">Sort-based shuffle (baseline)</span>
+            <div class="bar-track"><div class="bar-fill sort">100% latency</div></div>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Streaming shuffle (shuffle-heavy)</span>
+            <div class="bar-track"><div class="bar-fill stream">up to 50% lower</div></div>
+          </div>
+        </div>
+        <div class="metric-grid four mt-s">
+          <div class="metric-card"><div class="m-icon"><i data-lucide="gauge"></i></div><div class="metric-value v-green">30&ndash;50%</div><div class="metric-label">Latency reduction, shuffle-heavy</div></div>
+          <div class="metric-card"><div class="m-icon"><i data-lucide="trending-up"></i></div><div class="metric-value v-blue">5&ndash;10%</div><div class="metric-label">CPU-bound improvement</div></div>
+          <div class="metric-card"><div class="m-icon"><i data-lucide="circle-check"></i></div><div class="metric-value v-green">&gt; 85%</div><div class="metric-label">Unit-coverage merge gate</div></div>
+        </div>
+        <p class="cap"><code>StreamingShufflePerformanceBenchmark</code> with checked-in result files makes the deltas reproducible.</p>
+      </section>
+
+      <!-- Slide 15 — Onboarding / getting started -->
+      <section>
+        <div class="eyebrow"><i data-lucide="rocket"></i> Getting started</div>
+        <h2>Enable, tune, measure</h2>
+        <div class="steps">
+          <div class="step"><span class="step-num"><i data-lucide="rocket"></i></span><div class="step-body"><b>Enable both flags</b> in <code>spark-defaults.conf</code> (manager + feature flag).</div></div>
+          <div class="step"><span class="step-num"><i data-lucide="settings"></i></span><div class="step-body"><b>Tune</b> <code>bufferSizePercent</code>, <code>spillThreshold</code>, and <code>maxBandwidthMBps</code> for the workload.</div></div>
+          <div class="step"><span class="step-num"><i data-lucide="book-open"></i></span><div class="step-body">Config is <b>immutable for the app lifetime</b> &mdash; restart to change. See the Configuration &amp; Operator guides.</div></div>
+        </div>
+<pre class="codecard"><span class="k">spark.shuffle.manager</span>            <span class="v">streaming</span>
+<span class="k">spark.shuffle.streaming.enabled</span>  <span class="v">true</span>
+<span class="k">spark.shuffle.streaming.bufferSizePercent</span>  <span class="v">20</span>
+<span class="k">spark.shuffle.streaming.spillThreshold</span>     <span class="v">80</span></pre>
+      </section>
+
+      <!-- Slide 16 — Summary / call to action -->
+      <section>
+        <div class="eyebrow"><i data-lucide="circle-check"></i> Summary</div>
+        <h2>Opt-in latency wins, safe by default</h2>
+        <div class="metric-grid four">
+          <div class="metric-card"><div class="m-icon"><i data-lucide="toggle-right"></i></div><div class="metric-value v-blue">Opt-in</div><div class="metric-label">Off by default; dual-flag activation</div></div>
+          <div class="metric-card"><div class="m-icon"><i data-lucide="gauge"></i></div><div class="metric-value v-green">30&ndash;50%</div><div class="metric-label">Lower shuffle-heavy latency</div></div>
+          <div class="metric-card"><div class="m-icon"><i data-lucide="shield-check"></i></div><div class="metric-value v-green">Zero</div><div class="metric-label">Regression &amp; zero data loss</div></div>
+        </div>
+        <div class="callout mt-s">
+          <span class="c-icon"><i data-lucide="rocket"></i></span>
+          <div class="lead-big"><b>Enable in a staging cluster and measure.</b> Safe fallback means there is no downside to trying it.</div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Pinned scripts: reveal.js 5.1.0, Mermaid 11.4.0, Lucide 0.460.0 -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <!-- Inline init: order matters — libraries above load before this runs. -->
+  <script>
+    (function () {
+      // 1) Render Lucide SVG icons (replaces every <i data-lucide="..."> placeholder).
+      function renderIcons() {
+        if (window.lucide && typeof window.lucide.createIcons === 'function') {
+          window.lucide.createIcons();
+        }
+      }
+      renderIcons();
+
+      // 2) Configure Mermaid for manual, on-demand rendering with a dark theme.
+      if (window.mermaid && typeof window.mermaid.initialize === 'function') {
+        window.mermaid.initialize({
+          startOnLoad: false,
+          theme: 'dark',
+          securityLevel: 'loose',
+          flowchart: { htmlLabels: true, useMaxWidth: true, curve: 'basis' }
+        });
+      }
+
+      // 3) Render the Mermaid diagrams that live on a given slide.
+      //    reveal.js applies display:none to inactive slides, which makes SVG
+      //    text measurement return NaN and breaks the diagram layout. So we
+      //    call mermaid.run() for a diagram only once its slide is visible, and
+      //    only on nodes that have not yet been processed.
+      function runMermaid(slide) {
+        if (!slide || !window.mermaid || typeof window.mermaid.run !== 'function') { return; }
+        var nodes = slide.querySelectorAll('pre.mermaid:not([data-processed="true"])');
+        if (!nodes.length) { return; }
+        try {
+          window.mermaid.run({ nodes: Array.prototype.slice.call(nodes), suppressErrors: true });
+        } catch (e) { /* idempotent re-run guard */ }
+      }
+
+      // 4) Initialize reveal.js.
+      Reveal.initialize({
+        hash: true,
+        slideNumber: true,
+        transition: 'slide',
+        width: 1152,
+        height: 720,
+        margin: 0.055,
+        controls: true,
+        progress: true
+      });
+
+      // 5) Render icons + the current slide's diagram once reveal is ready (this
+      //    also covers a deep-link straight to a diagram slide), and re-run on
+      //    every slide change so each diagram renders while it is visible.
+      Reveal.on('ready', function (e) {
+        renderIcons();
+        runMermaid((e && e.currentSlide) || Reveal.getCurrentSlide());
+      });
+      Reveal.on('slidechanged', function (e) {
+        renderIcons();
+        runMermaid(e && e.currentSlide);
+      });
+    })();
+  </script>
+</body>
+</html>
