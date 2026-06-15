@@ -1747,6 +1747,57 @@ package object config {
       .stringConf
       .createWithDefault("sort")
 
+  // The following spark.shuffle.streaming.* entries configure the opt-in streaming shuffle
+  // backend (org.apache.spark.shuffle.streaming.StreamingShuffleManager), which COEXISTS with -
+  // and automatically FALLS BACK to - the sort-based shuffle (SortShuffleManager). Engaging the
+  // streaming path requires BOTH spark.shuffle.manager=streaming AND
+  // spark.shuffle.streaming.enabled=true; both default OFF, so the default behavior of every
+  // existing Spark deployment is byte-for-byte unchanged.
+  private[spark] val SHUFFLE_STREAMING_ENABLED =
+    ConfigBuilder("spark.shuffle.streaming.enabled")
+      .doc("Opt-in master flag for the streaming shuffle backend. When false (the default), the " +
+        "streaming manager delegates entirely to the sort-based shuffle. Engaging the streaming " +
+        "path additionally requires spark.shuffle.manager=streaming.")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  private[spark] val SHUFFLE_STREAMING_BUFFER_SIZE_PERCENT =
+    ConfigBuilder("spark.shuffle.streaming.bufferSizePercent")
+      .doc("Percentage of executor memory used for per-partition streaming shuffle buffers. The " +
+        "per-partition buffer size is (executorMemory * bufferSizePercent / 100) / numPartitions " +
+        "with a 2 MB floor. Must be between 1 and 50.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(v => v >= 1 && v <= 50,
+        "spark.shuffle.streaming.bufferSizePercent must be between 1 and 50")
+      .createWithDefault(20)
+
+  private[spark] val SHUFFLE_STREAMING_SPILL_THRESHOLD =
+    ConfigBuilder("spark.shuffle.streaming.spillThreshold")
+      .doc("Percentage of buffer utilization that triggers spilling the largest buffered " +
+        "partitions to disk via the BlockManager. Must be between 50 and 95.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(v => v >= 50 && v <= 95,
+        "spark.shuffle.streaming.spillThreshold must be between 50 and 95")
+      .createWithDefault(80)
+
+  private[spark] val SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS =
+    ConfigBuilder("spark.shuffle.streaming.maxBandwidthMBps")
+      .doc("Per-executor streaming shuffle rate limit in MB/s for the token-bucket rate limiter. " +
+        "A value of 0 or less (default -1) means unlimited.")
+      .version("4.2.0")
+      .intConf
+      .createWithDefault(-1)
+
+  private[spark] val SHUFFLE_STREAMING_DEBUG =
+    ConfigBuilder("spark.shuffle.streaming.debug")
+      .doc("Enables verbose streaming-shuffle debug logging. Default false.")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
   private[spark] val SHUFFLE_REDUCE_LOCALITY_ENABLE =
     ConfigBuilder("spark.shuffle.reduceLocality.enabled")
       .doc("Whether to compute locality preferences for reduce tasks")
