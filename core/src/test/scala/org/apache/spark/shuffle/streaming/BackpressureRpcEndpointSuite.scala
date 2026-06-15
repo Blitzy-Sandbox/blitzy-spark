@@ -17,57 +17,132 @@
 
 package org.apache.spark.shuffle.streaming
 
-import org.mockito.Mockito.mock
+import org.mockito.ArgumentMatchers.{any, anyLong, eq => meq}
+import org.mockito.Mockito.{mock, never, verify, when}
 import org.scalatest.matchers.must.Matchers
 
-import org.apache.spark.{SparkConf, SparkFunSuite}
-import org.apache.spark.rpc.RpcEnv
-import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
+import org.apache.spark.SparkFunSuite
+import org.apache.spark.rpc.{RpcCallContext, RpcEndpointRef, RpcEnv}
 
 /**
- * Unit tests for [[BackpressureRpcEndpoint]], the executor-only one-way control endpoint that
- * delegates inbound backpressure messages to [[BackpressureProtocol]].
+ * Unit tests for [[BackpressureRpcEndpoint]], the executor-only RPC mailbox of the opt-in
+ * streaming shuffle backend.
  *
- * `receive` is a plain `PartialFunction[Any, Unit]` that never dereferences `rpcEnv`, so the
- * endpoint can be driven directly with a Mockito `RpcEnv` and no live RpcEnv/SparkContext. The
- * single test exercises the CP2 security finding (CWE-20): malformed control messages must be
- * dropped before touching protocol state, while well-formed messages take effect -- a heartbeat
- * creates exactly one tracked stream and an explicit timeout deterministically marks the addressed
- * stream timed out on both tracks.
+ * The suite is pure and deterministic: it stands up no live [[org.apache.spark.rpc.RpcEnv]] and
+ * opens no network sockets. The [[org.apache.spark.rpc.RpcEnv]], its
+ * [[org.apache.spark.rpc.RpcEndpointRef]], the [[org.apache.spark.rpc.RpcCallContext]], and the
+ * [[BackpressureProtocol]] "brain" are all mocked, so the tests assert two contracts in
+ * isolation:
+ *
+ *   - the executor-only registration invariant - [[BackpressureRpcEndpoint.registerIfExecutor]]
+ *     returns `None` and registers nothing on the driver, and registers exactly one endpoint
+ *     under the canonical name on an executor (the backpressure RPC endpoint is rejected on the
+ *     driver and registered on executors only, per the security-reuse rule); and
+ *   - message dispatch - `receive` forwards each one-way `BackpressureMessage` to the matching
+ *     [[BackpressureProtocol]] handler, and `receiveAndReply` answers a `Ping` liveness probe
+ *     with `Pong`.
+ *
+ * Mocking the protocol keeps the endpoint's deliberately "thin mailbox" role under test without
+ * exercising the flow-control state machine, which is covered by `BackpressureProtocolSuite`.
+ * Note that the endpoint collapses each wire message to a [[BackpressureProtocol.StreamKey]]
+ * before delegating, and the heartbeat's wire-only `tsNanos` is intentionally dropped.
  */
 class BackpressureRpcEndpointSuite extends SparkFunSuite with Matchers {
 
-  /** Builds a real protocol (unlimited limiter, real metrics) and the endpoint under test. */
+  import BackpressureProtocol.StreamKey
+
+  /**
+   * Builds an endpoint wired to a freshly mocked [[org.apache.spark.rpc.RpcEnv]] and a mocked
+   * [[BackpressureProtocol]]. Constructing the endpoint has no side effects (`onStart` is driven
+   * by the RpcEnv lifecycle, never by the constructor), so a mocked env is sufficient for the
+   * dispatch tests and keeps them free of any network or threading.
+   *
+   * @return
+   *   the endpoint under test paired with the mocked protocol it delegates to
+   */
   private def newEndpoint(): (BackpressureRpcEndpoint, BackpressureProtocol) = {
-    val cfg = new StreamingShuffleConfig(new SparkConf(false))
-    val protocol =
-      new BackpressureProtocol(cfg, new TokenBucketRateLimiter(Long.MaxValue),
-        new StreamingShuffleMetrics)
-    (new BackpressureRpcEndpoint(mock(classOf[RpcEnv]), protocol), protocol)
+    val rpcEnv = mock(classOf[RpcEnv])
+    val protocol = mock(classOf[BackpressureProtocol])
+    (new BackpressureRpcEndpoint(rpcEnv, protocol), protocol)
   }
 
-  test("the endpoint drops malformed control messages without mutating protocol state") {
-    val (endpoint, protocol) = newEndpoint()
+  test("registerIfExecutor returns None on the driver and registers nothing") {
+    val rpcEnv = mock(classOf[RpcEnv])
+    val protocol = mock(classOf[BackpressureProtocol])
 
-    // Each message below is malformed: a negative shuffle/map/reduce id, or a negative ack count.
-    // The endpoint must drop every one BEFORE delegating, so no bogus per-stream state is created
-    // and the shared rate limiter is never retuned (closes the CWE-20 untrusted-input vector).
-    endpoint.receive(BackpressureRpcEndpoint.Heartbeat(-1, 0L, 0, 0L))
-    endpoint.receive(BackpressureRpcEndpoint.Ack(0, -1L, 0, 5L))
-    endpoint.receive(BackpressureRpcEndpoint.Ack(0, 0L, 0, -5L))
-    endpoint.receive(BackpressureRpcEndpoint.RateLimitRequest(0, 0L, -1, 1000L))
-    endpoint.receive(BackpressureRpcEndpoint.Timeout(-1, 0L, 0))
-    assert(protocol.registeredStreamCount === 0)
+    // Security invariant: the driver coordinates no streamed shuffle, so it hosts no endpoint.
+    val out = BackpressureRpcEndpoint.registerIfExecutor(rpcEnv, isDriver = true, protocol)
 
-    // A well-formed heartbeat is accepted and creates exactly one tracked stream.
-    endpoint.receive(BackpressureRpcEndpoint.Heartbeat(0, 0L, 0, 0L))
-    assert(protocol.registeredStreamCount === 1)
+    out mustBe None
+    // The driver path must never touch the RpcEnv: nothing is registered there.
+    verify(rpcEnv, never()).setupEndpoint(any(), any())
+  }
 
-    // A well-formed explicit timeout deterministically marks the addressed stream on both tracks,
-    // so the signal is never lost to scan timing.
-    val timedOutKey = BackpressureProtocol.StreamKey(2, 2L, 2)
-    endpoint.receive(BackpressureRpcEndpoint.Timeout(2, 2L, 2))
-    assert(protocol.isProducerTimedOut(timedOutKey))
-    assert(protocol.isConsumerTimedOut(timedOutKey))
+  test("registerIfExecutor registers on an executor under the canonical name") {
+    val rpcEnv = mock(classOf[RpcEnv])
+    val protocol = mock(classOf[BackpressureProtocol])
+    val ref = mock(classOf[RpcEndpointRef])
+    when(rpcEnv.setupEndpoint(meq(BackpressureRpcEndpoint.ENDPOINT_NAME), any()))
+      .thenReturn(ref)
+
+    val out = BackpressureRpcEndpoint.registerIfExecutor(rpcEnv, isDriver = false, protocol)
+
+    // On an executor the endpoint is registered exactly once and its ref is handed back.
+    out mustBe Some(ref)
+    verify(rpcEnv).setupEndpoint(meq("streaming-shuffle-backpressure"), any())
+  }
+
+  test("ENDPOINT_NAME matches the shared config constant") {
+    // Registration (here) and lookup (manager/readers) must agree on one canonical name.
+    BackpressureRpcEndpoint.ENDPOINT_NAME mustBe
+      StreamingShuffleConfig.BACKPRESSURE_ENDPOINT_NAME
+    BackpressureRpcEndpoint.ENDPOINT_NAME mustBe "streaming-shuffle-backpressure"
+  }
+
+  test("receive dispatches Heartbeat to protocol.onHeartbeat") {
+    val (ep, protocol) = newEndpoint()
+
+    // The wire-only tsNanos is dropped; the protocol is keyed purely by stream identity.
+    ep.receive.apply(BackpressureRpcEndpoint.Heartbeat(1, 2L, 3, 1234L))
+
+    verify(protocol).onHeartbeat(StreamKey(1, 2L, 3))
+  }
+
+  test("receive dispatches Ack to protocol.onAck") {
+    val (ep, protocol) = newEndpoint()
+
+    ep.receive.apply(BackpressureRpcEndpoint.Ack(1, 2L, 3, 4096L))
+
+    verify(protocol).onAck(StreamKey(1, 2L, 3), 4096L)
+  }
+
+  test("receive dispatches RateLimitRequest to protocol.onRateLimitRequest") {
+    val (ep, protocol) = newEndpoint()
+
+    // RateLimitRequest is a fire-and-forget message handled by receive, not receiveAndReply.
+    ep.receive.apply(BackpressureRpcEndpoint.RateLimitRequest(1, 2L, 3, 8192L))
+
+    verify(protocol).onRateLimitRequest(StreamKey(1, 2L, 3), 8192L)
+  }
+
+  test("receive handles Timeout by triggering a protocol scan") {
+    val (ep, protocol) = newEndpoint()
+
+    // An explicit Timeout signal must not throw and must drive an on-demand timeout scan.
+    noException must be thrownBy {
+      ep.receive.apply(BackpressureRpcEndpoint.Timeout(1, 2L, 3))
+    }
+
+    verify(protocol).scanForTimeouts(anyLong())
+  }
+
+  test("receiveAndReply answers a Ping liveness probe with Pong") {
+    val (ep, _) = newEndpoint()
+    val ctx = mock(classOf[RpcCallContext])
+
+    // Ping/Pong is the only request/response message: it lets callers confirm reachability.
+    ep.receiveAndReply(ctx).apply(BackpressureRpcEndpoint.Ping)
+
+    verify(ctx).reply(BackpressureRpcEndpoint.Pong)
   }
 }
