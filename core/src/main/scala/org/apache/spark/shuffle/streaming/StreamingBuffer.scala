@@ -23,6 +23,7 @@ import java.util.zip.CRC32C
 
 import scala.collection.mutable.ArrayBuffer
 
+import org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope
 import org.apache.spark.util.io.ChunkedByteBuffer
 
 /**
@@ -39,15 +40,19 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  * keeping the per-partition memory footprint bounded.
  *
  * ==Dual-channel wire/persist invariant==
- * The block layout this buffer exposes for the network path
- * ([[readBlock]] / [[checksumOf]] / [[blockWithChecksum]]) and the contiguous view it exposes
- * for the disk-spill path ([[toChunkedByteBuffer]] / [[toByteArray]]) are byte-for-byte
- * identical: concatenating blocks `0` until [[numBlocks]] yields exactly the same bytes, in
- * the same order, as the spilled view, which in turn equals the concatenation of every
- * [[append]]-ed array. This is what makes spilled and streamed data interchangeable, so a
- * partition can be spilled to disk and later resumed or re-streamed transparently to the
- * reader (AAP 0.4.2). The only structural difference is framing boundaries: every sealed
- * block is exactly 2 MB and only the final block may be shorter.
+ * This buffer holds each block as its raw payload bytes plus a CRC32C, and exposes two
+ * families of accessor over one canonical byte layout. The ''payload accessors''
+ * ([[readBlock]] / [[checksumOf]] / [[blockWithChecksum]]) hand out a single block's unframed
+ * payload and its checksum: the raw material the writer wraps into a frame. The ''frame
+ * accessors'' ([[envelopeOf]] / [[toChunkedByteBuffer]] / [[toByteArray]]) emit the canonical
+ * [[StreamingBlockEnvelope]] framing for those same blocks: a 32-byte big-endian header
+ * followed by the payload. The bytes produced by [[toChunkedByteBuffer]] / [[toByteArray]] are
+ * therefore byte-for-byte identical to the bytes the same blocks travel as on the wire and to
+ * the bytes written to disk on spill; this is the dual-channel invariant (AAP 0.4.2). Because
+ * the spilled view and the streamed view are the same enveloped bytes, a partition can be
+ * spilled to disk and later resumed or re-streamed transparently to the reader, which parses
+ * either source with [[StreamingBlockEnvelope.parse]]. Every sealed block carries exactly 2 MB
+ * of payload and only the final (pending) block may be shorter.
  *
  * ==Concurrency==
  * The map-side writer appends while the spill manager may concurrently inspect, read, or
@@ -59,9 +64,10 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  * avoiding any coarse lock that would throttle the append hot path.
  *
  * Only genuine data operations ([[append]], [[readBlock]], [[checksumOf]],
- * [[blockWithChecksum]], [[toChunkedByteBuffer]], [[toByteArray]]) update [[lastAccess]];
- * pure metadata polls deliberately do not, so the LRU ordering the spill manager relies on
- * to evict the largest, least-recently-used partitions first stays meaningful.
+ * [[blockWithChecksum]], [[envelopeOf]], [[toChunkedByteBuffer]], [[toByteArray]]) update
+ * [[lastAccess]]; pure metadata polls deliberately do not, so the LRU ordering the spill
+ * manager relies on to evict the largest, least-recently-used partitions first stays
+ * meaningful.
  *
  * This type coexists with the sort-based shuffle path and is constructed only when the
  * streaming backend is active; it neither reads configuration nor touches
@@ -258,28 +264,45 @@ private[spark] class StreamingBuffer(
   }
 
   /**
+   * Returns the canonical [[StreamingBlockEnvelope]] frame for the block at the given index:
+   * the exact 32-byte-header-plus-payload bytes the block travels as on the wire and that are
+   * written to disk on spill. This is the per-block unit of the dual-channel invariant. The
+   * envelope carries this buffer's `shuffleId` and `mapId`, the [[partitionId]] as its
+   * `reduceId`, the block index as its sequence number, and the block's CRC32C (reused from
+   * seal time, never recomputed). The pending tail block is snapshotted defensively first.
+   *
+   * @param index the block index in `[0, numBlocks)`
+   * @return the wire/persist envelope for the block
+   * @throws IndexOutOfBoundsException if `index` is outside `[0, numBlocks)`
+   */
+  def envelopeOf(index: Int): StreamingBlockEnvelope = lock.synchronized {
+    val result = envelopeAt(index)
+    touch()
+    result
+  }
+
+  /**
    * Exposes the buffered bytes as a [[ChunkedByteBuffer]] for spilling via
    * `BlockManager.putBytes`, without flattening them into a single contiguous array.
    *
-   * Each sealed block becomes one chunk (wrapping the internal payload with position `0`, as
-   * [[ChunkedByteBuffer]] requires) and the pending remainder, if any, becomes the final
-   * chunk from a defensive copy. Per the dual-channel invariant, concatenating the returned
-   * chunks yields the exact same bytes, in the same order, as iterating [[readBlock]] over
-   * `0` until [[numBlocks]], so spilled bytes and streamed bytes are interchangeable.
+   * Each block becomes one chunk holding its complete [[StreamingBlockEnvelope]] frame (a
+   * 32-byte big-endian header followed by the payload). [[StreamingBlockEnvelope.serialize]]
+   * returns a buffer positioned at `0`, as [[ChunkedByteBuffer]] requires. Per the
+   * dual-channel invariant, concatenating the returned chunks yields exactly the bytes the
+   * same blocks travel as on the wire and the bytes written to disk on spill, so spilled and
+   * streamed bytes are interchangeable; recover a block's payload with [[readBlock]] or by
+   * parsing a frame via [[StreamingBlockEnvelope.parse]].
    *
-   * @return a chunked, read-only view of the buffered bytes (empty when nothing is buffered)
+   * @return a chunked, read-only view of the enveloped bytes (empty when nothing is buffered)
    */
   def toChunkedByteBuffer: ChunkedByteBuffer = lock.synchronized {
     val sealedCount = sealedBlocks.size
-    val hasPending = pendingLen > 0
-    val chunks = new Array[ByteBuffer](sealedCount + (if (hasPending) 1 else 0))
+    val frameCount = sealedCount + (if (pendingLen > 0) 1 else 0)
+    val chunks = new Array[ByteBuffer](frameCount)
     var i = 0
-    while (i < sealedCount) {
-      chunks(i) = ByteBuffer.wrap(sealedBlocks(i).data)
+    while (i < frameCount) {
+      chunks(i) = envelopeAt(i).serialize
       i += 1
-    }
-    if (hasPending) {
-      chunks(sealedCount) = ByteBuffer.wrap(pending.clone())
     }
     touch()
     new ChunkedByteBuffer(chunks)
@@ -290,28 +313,30 @@ private[spark] class StreamingBuffer(
    *
    * This is a convenience that honors the same dual-channel invariant as
    * [[toChunkedByteBuffer]]: the returned array equals the in-order concatenation of every
-   * block. It is intended for tests and small buffers; the spill path should prefer
-   * [[toChunkedByteBuffer]], which supports payloads larger than a single array.
+   * block's [[StreamingBlockEnvelope]] frame, so it is byte-for-byte identical to the chunked
+   * spill view and to the on-wire bytes. It is intended for tests and small buffers; the
+   * spill path should prefer [[toChunkedByteBuffer]], which supports payloads larger than a
+   * single array.
    *
-   * @return a fresh array holding every buffered byte in order
-   * @throws IllegalArgumentException if the buffered size exceeds the maximum array length
+   * @return a fresh array holding every buffered byte, as enveloped frames, in order
+   * @throws IllegalArgumentException if the enveloped size exceeds the maximum array length
    */
   def toByteArray: Array[Byte] = lock.synchronized {
-    val totalSize = currentSizeBytes.get()
+    val sealedCount = sealedBlocks.size
+    val frameCount = sealedCount + (if (pendingLen > 0) 1 else 0)
+    // Enveloped total = raw payload bytes + one 32-byte header per framed block.
+    val headerBytes = StreamingBlockEnvelope.HEADER_BYTES.toLong
+    val totalSize = currentSizeBytes.get() + headerBytes * frameCount
     require(totalSize <= Int.MaxValue,
       s"cannot materialize $totalSize bytes into a single array (exceeds ${Int.MaxValue})")
     val out = new Array[Byte](totalSize.toInt)
     var pos = 0
     var i = 0
-    val sealedCount = sealedBlocks.size
-    while (i < sealedCount) {
-      val data = sealedBlocks(i).data
-      System.arraycopy(data, 0, out, pos, data.length)
-      pos += data.length
+    while (i < frameCount) {
+      val frame = envelopeAt(i).toByteArray
+      System.arraycopy(frame, 0, out, pos, frame.length)
+      pos += frame.length
       i += 1
-    }
-    if (pendingLen > 0) {
-      System.arraycopy(pending, 0, out, pos, pendingLen)
     }
     touch()
     out
@@ -363,6 +388,28 @@ private[spark] class StreamingBuffer(
     val crc = new CRC32C()
     crc.update(data, offset, length)
     crc.getValue
+  }
+
+  // Builds the canonical StreamingBlockEnvelope frame for the block at `index`. Assumes the
+  // caller already holds `lock`, and intentionally does NOT update the LRU timestamp so a
+  // serialization helper can frame every block as a single logical access. The sealed block's
+  // CRC32C is reused (narrowed to the low 32 bits to match the envelope's Int field); the
+  // pending tail is snapshotted before its checksum is computed so a concurrent append cannot
+  // tear the frame. `reduceId` is this buffer's partition and the sequence number is the index.
+  private def envelopeAt(index: Int): StreamingBlockEnvelope = {
+    val sealedCount = sealedBlocks.size
+    val (payload, checksum) =
+      if (index >= 0 && index < sealedCount) {
+        val block = sealedBlocks(index)
+        (block.data, block.checksum)
+      } else if (index == sealedCount && pendingLen > 0) {
+        val snapshot = pending.clone()
+        (snapshot, computeChecksum(snapshot, 0, snapshot.length))
+      } else {
+        throw indexError(index, sealedCount)
+      }
+    new StreamingBlockEnvelope(
+      shuffleId, mapId, partitionId, index.toLong, (checksum & 0xFFFFFFFFL).toInt, payload)
   }
 
   // Builds a descriptive out-of-bounds error for the given index and current sealed count.

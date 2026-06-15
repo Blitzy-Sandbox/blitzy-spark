@@ -102,34 +102,40 @@ task-scheduling algorithms, executor lifecycle management, the lineage/fault-rec
 RDD/DataFrame/Dataset user-facing API. The only integration points are the manager short-name map
 and the streaming configuration keys.
 
-The diagram below shows backend selection and the runtime branch inside the streaming manager:
+**Diagram 1: Shuffle Manager Selection (Before vs. After)** below shows backend selection before
+and after the `streaming` alias is registered, and the runtime branch taken inside the streaming
+manager once it is selected.
 
-```
-  spark.shuffle.manager = <name>
-              |
-              v
-  +-------------------------------+
-  |       manager-name map        |
-  |   (ShuffleManager factory)    |
-  +-------------------------------+
-        |                       |
-  "sort" / "tungsten-sort"      "streaming"
-        |                       |
-        v                       v
-  +--------------------+   +-------------------------------+
-  | SortShuffleManager |   |   StreamingShuffleManager     |
-  | (default,          |   +-------------------------------+
-  |  unchanged)        |                  |
-  +--------------------+                  v
-                          streaming.enabled == true
-                          AND fallback not tripped ?
-                               |                  |
-                            yes|                  |no
-                               v                  v
-              +-------------------------+   +-----------------------------+
-              | stream producer ->      |   | delegate to inner           |
-              | consumer (in-memory)    |   | SortShuffleManager          |
-              +-------------------------+   +-----------------------------+
+**Legend:** green = new streaming class (CREATE); blue = modified existing file (MODIFY); gray =
+referenced/unchanged component.
+
+```mermaid
+flowchart TB
+    subgraph BEFORE["Before — Master Baseline"]
+        direction TB
+        B1["conf: spark.shuffle.manager"] --> B2{"shortShuffleMgrNames map"}
+        B2 -->|"sort"| B3["SortShuffleManager"]
+        B2 -->|"tungsten-sort"| B3
+    end
+    subgraph AFTER["After — streaming Alias Registered"]
+        direction TB
+        A1["conf: spark.shuffle.manager"] --> A2{"shortShuffleMgrNames map"}
+        A2 -->|"sort / tungsten-sort"| A3["SortShuffleManager"]
+        A2 -->|"streaming"| A4["StreamingShuffleManager"]
+        A4 --> A5{"streaming.enabled AND<br/>fallback not tripped"}
+        A5 -->|"yes"| A6["Stream producer to consumer"]
+        A5 -->|"no"| A7["Delegate to inner SortShuffleManager"]
+    end
+    B2:::modify
+    B3:::ref
+    A2:::modify
+    A3:::ref
+    A4:::create
+    A6:::create
+    A7:::ref
+    classDef create fill:#d5f5e3,stroke:#1e8449,color:#145a32
+    classDef modify fill:#d6eaf8,stroke:#2471a3,color:#1a5276
+    classDef ref fill:#eaecee,stroke:#7f8c8d,color:#424949
 ```
 
 The streaming backend recognizes five configuration keys. They are summarized below for orientation;
@@ -206,50 +212,30 @@ and existing Spark Core services are consumed through their public APIs rather t
 A single shuffle block travels through the following lifecycle. The producer side buffers and frames
 output; the consumer side fetches, verifies, and feeds the reduce computation. Control-plane
 signalling (heartbeat, acknowledgements, and rate limiting) runs alongside the data plane, and disk
-spill activates only under memory pressure.
+spill activates only under memory pressure. The end-to-end path is shown in **Diagram 3:
+Producer-to-Consumer Streaming Data Flow** below.
 
-```
- PRODUCER (map-side executor)                  CONSUMER (reduce-side executor)
- ----------------------------                  ------------------------------
- Map task
-    |
-    v
- StreamingShuffleWriter
-    |  buffer output per partition
-    v
- StreamingBuffer (per partition) --buffer > 80%--> MemorySpillManager
-    |                                                    |
-    |                                          putBytes(DISK_ONLY)
-    |                                                    v
-    |                                              BlockManager (disk)
-    v
- TokenBucketRateLimiter (rate gate)
-    |
-    v
- Frame into 2 MB blocks
- [32-byte header + CRC32C payload]
-    |
-    |   BlockTransferService (existing transport)
-    v
- =========================== network ===========================>
-                                              |
-                                              v
-                                   StreamingShuffleReader
-                                     (fetch in progress)
-                                              |
-                                       verify CRC32C
-                                              |
-                                              v
-                                deserialize / aggregate / sort
-                                              |
-                                              v
-                                         Reduce task
+**Legend:** solid arrows = data path; thick arrows (`==>`) = backpressure/control; dotted arrows
+(`-.->`) = spill, failure, or fallback.
 
- Control plane (backpressure):
-   Consumer --10 s heartbeat / ack--> backpressure RPC endpoint
-            --rate-limit / timeout--> Producer
-   On a 5 s connection timeout the reader invalidates partial reads and raises
-   FetchFailedException, which triggers recompute via lineage.
+```mermaid
+flowchart LR
+    MT["Map task"] --> WR["StreamingShuffleWriter.write"]
+    WR --> PB["Per-partition StreamingBuffer"]
+    PB --> RL["TokenBucketRateLimiter gate"]
+    RL --> TX["StreamingShuffleTransport.sendBlock"]
+    TX --> WIRE["StreamingBlockEnvelope<br/>32B header + CRC32C"]
+    WIRE --> RD["StreamingShuffleReader.read<br/>fetchBlockSync"]
+    RD --> VER["verifyChecksum"]
+    VER --> DES["deserialize + aggregate/sort"]
+    DES --> RT["Reduce task"]
+    PB -.->|"buffer > 80%"| SP["MemorySpillManager"]
+    SP -.->|"putBytes DISK_ONLY"| BM["BlockManager disk"]
+    RD ==>|"heartbeat 10s / ack"| RPC["BackpressureRpcEndpoint"]
+    RPC ==>|"rate-limit / timeout"| RL
+    RD -.->|"5s timeout"| FF["FetchFailedException"]
+    FF -.->|"recompute via lineage"| MT
+    WR -.->|"fallback trip"| SORT["Inner SortShuffleManager"]
 ```
 
 In words:
