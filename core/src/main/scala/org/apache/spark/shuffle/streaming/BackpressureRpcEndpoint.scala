@@ -25,10 +25,12 @@ import org.apache.spark.shuffle.streaming.BackpressureProtocol.StreamKey
  * Executor-only RPC mailbox for the streaming-shuffle backpressure protocol.
  *
  * This endpoint is a deliberately thin "mailbox": it owns no flow-control state and contains no
- * decision logic. Every message it receives is forwarded immediately to the
- * [[BackpressureProtocol]] "brain", which holds all per-stream liveness, token-bucket, and
- * timeout state. Keeping the endpoint logic-free guarantees a single source of truth for
- * backpressure decisions and lets the protocol be unit-tested without a live [[RpcEnv]].
+ * flow-control decision logic. Its only local logic is untrusted-input sanitization -- it
+ * validates each inbound message's correlation IDs (and ack byte count) and drops a malformed
+ * message without touching protocol state -- and every well-formed message is then forwarded to
+ * the [[BackpressureProtocol]] "brain", which holds all per-stream liveness, token-bucket, and
+ * timeout state. Keeping the endpoint otherwise logic-free guarantees a single source of truth
+ * for backpressure decisions and lets the protocol be unit-tested without a live [[RpcEnv]].
  *
  * Executor-only registration (hard requirement): the backpressure endpoint is registered ONLY on
  * executors, never on the driver. The driver neither produces nor consumes streamed shuffle
@@ -76,30 +78,59 @@ private[spark] class BackpressureRpcEndpoint(
   }
 
   /**
-   * Handles one-way (fire-and-forget) backpressure messages by delegating each to the matching
-   * [[BackpressureProtocol]] handler. No reply is produced; senders use `RpcEndpointRef.send`.
+   * Handles one-way (fire-and-forget) backpressure messages. Each message's correlation IDs are
+   * validated first (non-negative shuffleId, mapId, and reduceId, plus a non-negative ack byte
+   * count); a message that fails validation is dropped with a single warn log and does NOT mutate
+   * any protocol state, closing the untrusted-input vector (CWE-20) where a malformed message
+   * could otherwise create a bogus per-stream entry or retune the shared rate limiter. The rate in
+   * a `RateLimitRequest` needs no range check because a non-positive value is the documented
+   * "unlimited" sentinel and any positive value is a valid throttle. Valid messages are delegated
+   * to the matching [[BackpressureProtocol]] handler. No reply is produced; senders use
+   * `RpcEndpointRef.send`.
    */
   override def receive: PartialFunction[Any, Unit] = {
     // Consumer liveness; the protocol refreshes against its own clock (tsNanos is wire-only).
     case Heartbeat(shuffleId, mapId, reduceId, _) =>
-      protocol.onHeartbeat(StreamKey(shuffleId, mapId, reduceId))
+      if (validStreamIds(shuffleId, mapId, reduceId)) {
+        protocol.onHeartbeat(StreamKey(shuffleId, mapId, reduceId))
+      } else {
+        logDroppedMessage("Heartbeat", shuffleId, mapId, reduceId)
+      }
 
-    // Consumer ack; the protocol decrements the unacked count and refreshes consumer liveness.
+    // Consumer ack; the protocol decrements the unacked count and refreshes consumer liveness. A
+    // negative bytesAcked is meaningless and rejected; zero is allowed (refreshes liveness only).
     case Ack(shuffleId, mapId, reduceId, bytesAcked) =>
-      protocol.onAck(StreamKey(shuffleId, mapId, reduceId), bytesAcked)
+      if (validStreamIds(shuffleId, mapId, reduceId) && bytesAcked >= 0L) {
+        protocol.onAck(StreamKey(shuffleId, mapId, reduceId), bytesAcked)
+      } else {
+        logDroppedMessage("Ack", shuffleId, mapId, reduceId)
+      }
 
-    // Consumer-requested throttle; the protocol retunes the shared token-bucket rate limiter.
+    // Consumer-requested throttle; the protocol retunes the shared token-bucket rate limiter. Only
+    // the IDs are validated: the rate's <= 0 "unlimited" sentinel and positive throttles are both
+    // valid and the limiter accepts the full Long range, so there is no insane rate to reject.
     case RateLimitRequest(shuffleId, mapId, reduceId, bytesPerSec) =>
-      protocol.onRateLimitRequest(StreamKey(shuffleId, mapId, reduceId), bytesPerSec)
+      if (validStreamIds(shuffleId, mapId, reduceId)) {
+        protocol.onRateLimitRequest(StreamKey(shuffleId, mapId, reduceId), bytesPerSec)
+      } else {
+        logDroppedMessage("RateLimitRequest", shuffleId, mapId, reduceId)
+      }
 
-    // Rare explicit peer timeout signal: log once with correlation IDs then run a timeout scan.
+    // Rare explicit peer-timeout signal: after validation, deterministically mark the addressed
+    // stream timed out so the signal can never be lost to scan timing, then run an opportunistic
+    // scan to catch any other streams that have crossed their idle threshold.
     case Timeout(shuffleId, mapId, reduceId) =>
-      logWarning(
-        log"Streaming shuffle timeout signal received for " +
-          log"shuffle ${MDC(LogKeys.SHUFFLE_ID, shuffleId)} " +
-          log"map ${MDC(LogKeys.MAP_ID, mapId)} " +
-          log"reduce ${MDC(LogKeys.REDUCE_ID, reduceId)}")
-      protocol.scanForTimeouts(System.nanoTime())
+      if (validStreamIds(shuffleId, mapId, reduceId)) {
+        logWarning(
+          log"Streaming shuffle timeout signal received for " +
+            log"shuffle ${MDC(LogKeys.SHUFFLE_ID, shuffleId)} " +
+            log"map ${MDC(LogKeys.MAP_ID, mapId)} " +
+            log"reduce ${MDC(LogKeys.REDUCE_ID, reduceId)}")
+        protocol.markTimedOut(StreamKey(shuffleId, mapId, reduceId))
+        protocol.scanForTimeouts(System.nanoTime())
+      } else {
+        logDroppedMessage("Timeout", shuffleId, mapId, reduceId)
+      }
   }
 
   /**
@@ -111,6 +142,35 @@ private[spark] class BackpressureRpcEndpoint(
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case Ping =>
       context.reply(Pong)
+  }
+
+  /**
+   * Validates the correlation IDs carried by every backpressure message. The shuffle, map, and
+   * reduce IDs index real Spark identities and are always non-negative, so a negative value marks
+   * a malformed (or hostile) message whose [[StreamKey]] would be bogus. Returns `true` only when
+   * all three IDs are non-negative.
+   */
+  private def validStreamIds(shuffleId: Int, mapId: Long, reduceId: Int): Boolean = {
+    shuffleId >= 0 && mapId >= 0L && reduceId >= 0
+  }
+
+  /**
+   * Logs (at warn, once per dropped message) that a malformed backpressure message was discarded
+   * without mutating protocol state, tagging it with the message type and the correlation IDs it
+   * carried. Malformed control messages are expected to be rare, so a single warn line per drop
+   * stays well within the streaming-shuffle per-executor log budget.
+   */
+  private def logDroppedMessage(
+      messageKind: String,
+      shuffleId: Int,
+      mapId: Long,
+      reduceId: Int): Unit = {
+    logWarning(
+      log"Dropping malformed streaming shuffle backpressure " +
+        log"${MDC(LogKeys.CLASS_NAME, messageKind)} message without mutating protocol state: " +
+        log"shuffle ${MDC(LogKeys.SHUFFLE_ID, shuffleId)} " +
+        log"map ${MDC(LogKeys.MAP_ID, mapId)} " +
+        log"reduce ${MDC(LogKeys.REDUCE_ID, reduceId)}")
   }
 
   /**
@@ -188,7 +248,9 @@ private[spark] object BackpressureRpcEndpoint {
       extends BackpressureMessage
 
   /**
-   * Explicit timeout notification for a stream. Triggers an on-demand timeout scan in the
+   * Explicit timeout notification for a stream. After validation the endpoint marks the addressed
+   * stream timed out deterministically (via [[BackpressureProtocol.markTimedOut]]) so the explicit
+   * signal cannot be lost to scan timing, and then triggers an on-demand timeout scan in the
    * protocol in addition to the protocol's own periodic scan.
    *
    * @param shuffleId

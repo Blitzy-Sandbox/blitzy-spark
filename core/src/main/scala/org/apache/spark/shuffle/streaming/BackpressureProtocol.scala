@@ -189,13 +189,7 @@ private[spark] class BackpressureProtocol(
    *   the stream identity the heartbeat is for
    */
   def onHeartbeat(key: StreamKey): Unit = {
-    val state = stateOf(key)
-    state.consumerTracked.set(true)
-    state.lastConsumerActivityNanos.set(System.nanoTime())
-    if (state.consumerTimedOut.compareAndSet(true, false)) {
-      logConsumerRecovered(key)
-    }
-    state.retransmitAttempts.set(0)
+    refreshConsumerLiveness(stateOf(key), key)
   }
 
   /**
@@ -210,30 +204,32 @@ private[spark] class BackpressureProtocol(
    */
   def onAck(key: StreamKey, bytesAcked: Long): Unit = {
     val state = stateOf(key)
-    state.consumerTracked.set(true)
-    state.lastConsumerActivityNanos.set(System.nanoTime())
     if (bytesAcked > 0L) {
       state.unackedBytes.updateAndGet(v => math.max(0L, v - bytesAcked))
       totalBytesAcked.addAndGet(bytesAcked)
     }
-    if (state.consumerTimedOut.compareAndSet(true, false)) {
-      logConsumerRecovered(key)
-    }
-    state.retransmitAttempts.set(0)
+    refreshConsumerLiveness(state, key)
   }
 
   /**
    * Applies a consumer-requested rate adjustment to the shared token-bucket limiter. In v1 a
    * single limiter governs the executor's streaming send path, so the most recent request wins; a
-   * non-positive request switches the limiter to its unlimited fast path.
+   * non-positive request switches the limiter to its unlimited fast path. Because the request is
+   * consumer-originated control traffic, it also refreshes the consumer-liveness track (marks the
+   * consumer tracked, stamps the activity clock, clears any prior consumer-timeout flag, and
+   * resets the retransmit backoff) so that sustained rate negotiation alone can never let the scan
+   * declare an otherwise-live consumer timed out.
    *
    * @param key
-   *   the stream identity the request originated from (tracked for liveness)
+   *   the stream identity the request originated from (tracked and refreshed for liveness)
    * @param requestedBytesPerSec
    *   the new desired throttle in bytes per second
    */
   def onRateLimitRequest(key: StreamKey, requestedBytesPerSec: Long): Unit = {
-    stateOf(key)
+    // A rate-limit request is consumer activity: refresh liveness before retuning the limiter so
+    // active control traffic keeps the stream alive. Retuning the limiter does not, by itself,
+    // touch the liveness clock, so without this the consumer could time out mid-negotiation.
+    refreshConsumerLiveness(stateOf(key), key)
     rateLimiter.setBytesPerSecond(requestedBytesPerSec)
     if (conf.debug) {
       logDebug(
@@ -250,9 +246,12 @@ private[spark] class BackpressureProtocol(
   /**
    * Acquires permission to send `bytes` bytes for the given stream, blocking until the
    * token-bucket limiter grants the permits (1 permit = 1 byte). When the limiter cannot grant
-   * immediately, a throttle episode begins and a single backpressure event is recorded; the
-   * episode is counted once and persists across consecutive throttled sends until a send is
-   * granted without waiting. A non-positive `bytes` is a no-op.
+   * immediately, a throttle episode begins (recording exactly one backpressure event) and ends as
+   * soon as the blocking acquire returns, so every send that actually had to wait is counted as
+   * exactly one backpressure episode. Ending the episode after the blocking acquire -- rather than
+   * leaving it open until some later non-blocking send happens to succeed -- is what makes
+   * independent blocked sends each count once instead of collapsing into a single under-counted
+   * episode. A non-positive `bytes` is a no-op.
    *
    * @param key
    *   the stream identity sending data
@@ -267,6 +266,9 @@ private[spark] class BackpressureProtocol(
       } else {
         beginThrottleEpisode(state, key)
         rateLimiter.acquire(bytes)
+        // End the episode now that the blocking acquire has returned, so the next send that has
+        // to wait begins and counts a fresh, separately-recorded backpressure episode.
+        endThrottleEpisode(state)
       }
       recordSend(state, bytes)
     }
@@ -392,6 +394,32 @@ private[spark] class BackpressureProtocol(
   // ---------------------------------------------------------------------------------------------
 
   /**
+   * Explicitly marks both liveness tracks of the addressed stream as timed out, immediately and
+   * regardless of how much idle time has elapsed. This backs the rare, out-of-band `Timeout`
+   * control message: an explicit signal that a peer is unreachable must take effect at once rather
+   * than waiting for the next periodic [[scanForTimeouts]] or for the idle threshold to be crossed
+   * (the periodic scan alone could ignore a freshly-signalled timeout whose idle time has not yet
+   * elapsed, or whose per-stream state was only just created). Marking both the producer and
+   * consumer tracks makes the signal role-agnostic: whichever role this executor plays for the
+   * stream, the timeout becomes visible through [[isProducerTimedOut]] / [[isConsumerTimedOut]] so
+   * the reader can invalidate partial reads and the writer can begin buffering and retransmit. The
+   * transition is logged once on each false -> true edge, mirroring the scan, to respect the log
+   * budget; re-marking an already-timed-out stream logs nothing.
+   *
+   * @param key
+   *   the stream identity to mark timed out
+   */
+  def markTimedOut(key: StreamKey): Unit = {
+    val state = stateOf(key)
+    if (state.producerTimedOut.compareAndSet(false, true)) {
+      logProducerTimedOut(key)
+    }
+    if (state.consumerTimedOut.compareAndSet(false, true)) {
+      logConsumerTimedOut(key)
+    }
+  }
+
+  /**
    * Scans every tracked stream once and applies the producer- and consumer-timeout transitions
    * relative to `nowNanos`. This is the single point of timeout detection; the daemon scheduler
    * started by [[start]] invokes it with `System.nanoTime()` every `SCAN_INTERVAL_MS`, and tests
@@ -452,6 +480,23 @@ private[spark] class BackpressureProtocol(
   /** Returns the per-stream state, creating it on first use so callers need not pre-register. */
   private def stateOf(key: StreamKey): StreamState = {
     streams.computeIfAbsent(key, _ => new StreamState())
+  }
+
+  /**
+   * Refreshes the consumer-liveness track on any valid consumer-originated control signal
+   * (heartbeat, ack, or rate-limit request): marks the consumer tracked, stamps the activity
+   * clock, clears any prior consumer-timeout flag (logging the reconnect once on the true -> false
+   * edge), and resets the retransmit backoff. Centralizing this guarantees every consumer signal
+   * keeps the stream alive identically, so control traffic such as rate-limit negotiation can
+   * never be mistaken by the scan for a dead consumer.
+   */
+  private def refreshConsumerLiveness(state: StreamState, key: StreamKey): Unit = {
+    state.consumerTracked.set(true)
+    state.lastConsumerActivityNanos.set(System.nanoTime())
+    if (state.consumerTimedOut.compareAndSet(true, false)) {
+      logConsumerRecovered(key)
+    }
+    state.retransmitAttempts.set(0)
   }
 
   /** Records a granted send: tracks consumer liveness, unacked bytes, and producer throughput. */

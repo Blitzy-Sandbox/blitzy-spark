@@ -23,7 +23,13 @@ import com.codahale.metrics.{Gauge, MetricRegistry}
 import org.scalatest.matchers.must.Matchers
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.shuffle.streaming.StreamingShuffleMetrics.{BACKPRESSURE_EVENTS, BUFFER_UTILIZATION_PERCENT, METRIC_PREFIX, PARTIAL_READ_INVALIDATIONS, SPILL_COUNT}
+import org.apache.spark.shuffle.streaming.StreamingShuffleMetrics.{
+  BACKPRESSURE_EVENTS,
+  BUFFER_UTILIZATION_PERCENT,
+  METRIC_PREFIX,
+  PARTIAL_READ_INVALIDATIONS,
+  SPILL_COUNT
+}
 
 /**
  * Unit tests for [[StreamingShuffleMetrics]] and its [[StreamingShuffleSource]] adapter.

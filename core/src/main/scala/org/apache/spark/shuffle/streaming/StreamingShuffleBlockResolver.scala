@@ -20,13 +20,17 @@ package org.apache.spark.shuffle.streaming
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 
+import scala.collection.mutable.ArrayBuffer
+
 import org.apache.spark.SparkConf
-import org.apache.spark.internal.Logging
+import org.apache.spark.internal.{Logging, LogKeys}
 import org.apache.spark.network.buffer.{ManagedBuffer, NioManagedBuffer}
 import org.apache.spark.network.client.StreamCallbackWithID
 import org.apache.spark.network.shuffle.MergedBlockMeta
 import org.apache.spark.serializer.SerializerManager
-import org.apache.spark.shuffle.{IndexShuffleBlockResolver, MigratableResolver, ShuffleBlockInfo, ShuffleBlockResolver}
+import org.apache.spark.shuffle.{IndexShuffleBlockResolver, MigratableResolver, ShuffleBlockInfo}
+import org.apache.spark.shuffle.ShuffleBlockResolver
+import org.apache.spark.shuffle.streaming.MemorySpillManager.BufferKey
 import org.apache.spark.storage.{BlockId, ShuffleBlockId, ShuffleMergedBlockId}
 
 /**
@@ -43,31 +47,41 @@ import org.apache.spark.storage.{BlockId, ShuffleBlockId, ShuffleMergedBlockId}
  * adds exactly one capability on top: it can serve a reduce partition's bytes straight from the
  * producer's in-memory [[StreamingBuffer]] before those bytes are ever written to disk.
  *
- * ==Tracking maps==
- * Two concurrent maps, both keyed by the logical `(shuffleId, mapId, reduceId)` triple, record
- * where a streamed partition currently lives:
- *  - [[buffers]] holds partitions that are still resident in a producer-side
- *    [[StreamingBuffer]]; the map-side writer registers them via [[trackBuffer]].
- *  - [[spilledBlocks]] records partitions that the `MemorySpillManager` has evicted to disk
- *    via [[trackSpill]], mapping the logical key to the on-disk [[BlockId]] the index resolver
- *    knows how to read.
- * In v1 a partition is spilled wholesale (the spill manager spills the largest buffers and then
- * clears them), so the in-memory and spilled states are mutually exclusive for a given key;
- * [[trackSpill]] enforces this by dropping the buffer entry as it records the disk location.
+ * ==Tracking and the single source of spill truth==
+ * The [[buffers]] map, keyed by the logical `(shuffleId, mapId, reduceId)` triple, holds the
+ * partitions still resident in a producer-side [[StreamingBuffer]]; the map-side writer registers
+ * them via [[trackBuffer]]. Spilled partitions are NOT tracked here: the [[MemorySpillManager]]
+ * is the single owner of the ordered disk-spill segment list and the only component that reads
+ * spilled bytes back (via the public `BlockManager.getLocalBytes` on the non-shuffle
+ * [[org.apache.spark.storage.TempLocalBlockId]]s it stored). The resolver consults it through the
+ * reference installed by [[setSpillManager]]; spill registration, the persisted block format, and
+ * the read path are thus one atomic design owned by the spill manager, with no second,
+ * drift-prone copy of spill state in the resolver. Under sustained pressure a partition can have
+ * BOTH spilled segments on disk and freshly re-buffered bytes in memory, so the two views are
+ * combined rather than treated as mutually exclusive.
  *
  * ==getBlockData lookup order==
- * For a [[ShuffleBlockId]] the resolver checks, in order: (1) the in-memory [[buffers]] map and,
- * if present, wraps the buffer's bytes in a [[NioManagedBuffer]] without ever touching disk;
- * (2) the [[spilledBlocks]] map and, if present, delegates to the index resolver using the
- * recorded on-disk block id; (3) otherwise delegates the original block id to the index
- * resolver (this covers output produced by the sort-based fallback path). Any non-shuffle or
- * batched block id shape is delegated to the index resolver unchanged.
+ * For a [[ShuffleBlockId]] the resolver assembles the partition's bytes in deterministic order:
+ * every spilled segment (oldest first, read back through the spill manager) followed by whatever
+ * remains in the in-memory [[StreamingBuffer]]. The spilled-segment id list and the in-memory
+ * frames are captured in one atomic snapshot under the buffer's lock (see
+ * [[StreamingBuffer.snapshotEnvelopedWith]]) so a concurrent spill cannot make a block appear in
+ * both views or neither. All bytes are the canonical
+ * [[org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope]] frames (the dual-channel
+ * wire/persist view); the reduce-side [[StreamingShuffleReader]] parses and CRC-validates them
+ * and strips the 32-byte headers before deserialization. When a block is not streaming-tracked
+ * (for example, output produced by the sort-based fallback path) it is delegated unchanged to the
+ * inner [[IndexShuffleBlockResolver]], as is any merged/batched block id shape.
  *
  * ==Concurrency==
  * Reduce-side fetches call [[getBlockData]] concurrently with the map-side writer and the spill
- * manager mutating the tracking maps. Both maps are [[ConcurrentHashMap]]s, so reads observe a
- * consistent per-key snapshot without external locking, and [[untrackShuffle]] uses each map's
- * weakly-consistent iterator to purge a shuffle without blocking concurrent lookups.
+ * manager mutating the [[buffers]] map. The map is a [[ConcurrentHashMap]], so reads observe a
+ * consistent per-key snapshot without external locking, and [[untrackShuffle]] uses its
+ * weakly-consistent iterator to purge a shuffle without blocking concurrent lookups. The
+ * authoritative spilled-segment list lives in the [[MemorySpillManager]] and is queried through
+ * the volatile [[spillManager]] reference; the atomic combine of spilled-segment ids with the
+ * live in-memory frames happens under the per-buffer lock via
+ * [[StreamingBuffer.snapshotEnvelopedWith]].
  *
  * This type coexists with the sort-based shuffle path and is constructed only when the streaming
  * backend is active; when streaming is disabled the manager never routes resolution here.
@@ -99,9 +113,15 @@ private[spark] class StreamingShuffleBlockResolver(
   // (shuffleId, mapId, reduceId) triple. Registered by the writer through `trackBuffer`.
   private val buffers = new ConcurrentHashMap[BlockKey, StreamingBuffer]()
 
-  // Partitions the MemorySpillManager has evicted to disk, mapping the logical key to the
-  // on-disk BlockId the index resolver can read. Populated through `trackSpill`.
-  private val spilledBlocks = new ConcurrentHashMap[BlockKey, BlockId]()
+  // The MemorySpillManager is the single owner of the ordered disk-spill segment list and the
+  // only component that reads spilled bytes back (it stored them under non-shuffle
+  // TempLocalBlockIds via BlockManager.putBytes, and only it can read them back through
+  // BlockManager.getLocalBytes, which asserts the id is non-shuffle). The resolver holds a
+  // reference rather than a private copy of spill state so spill registration, the persisted
+  // block format, and the read path stay one atomic design with no drift. The writer installs
+  // this via `setSpillManager` immediately after constructing both collaborators; it is read on
+  // the concurrent `getBlockData` path, hence @volatile for safe publication.
+  @volatile private var spillManager: MemorySpillManager = _
 
   // ---------------------------------------------------------------------------------------
   // Tracking API consumed by the writer, the spill manager, and the manager's
@@ -124,34 +144,36 @@ private[spark] class StreamingShuffleBlockResolver(
   }
 
   /**
-   * Records that a partition has been spilled to disk under the given [[BlockId]] and removes
-   * its now-stale in-memory buffer entry, so subsequent [[getBlockData]] calls resolve the
-   * partition through the inner [[IndexShuffleBlockResolver]] rather than from a cleared buffer.
+   * Installs the [[MemorySpillManager]] the resolver consults for spilled-segment ids and for
+   * reading spilled bytes back. The writer wires this immediately after constructing both the
+   * resolver and the spill manager (they hold the same `(shuffleId, mapId, partitionId)` view of
+   * each partition), so [[getBlockData]] can combine on-disk segments with live in-memory frames.
    *
-   * @param shuffleId the shuffle id of the spilled partition
-   * @param mapId the map id that produced the spilled partition
-   * @param reduceId the reduce partition id that was spilled
-   * @param diskBlockId the on-disk block id under which the bytes were persisted
+   * Spill state deliberately lives only in the spill manager: it owns the ordered segment list,
+   * the persisted (non-shuffle [[org.apache.spark.storage.TempLocalBlockId]]) block format, and
+   * the read path, so there is no second copy here to drift out of sync. Safe to call once during
+   * writer construction; the field is `@volatile` so the value publishes to the concurrent
+   * `getBlockData` readers.
+   *
+   * @param manager the spill manager that owns this shuffle's spilled segments
    */
-  def trackSpill(shuffleId: Int, mapId: Long, reduceId: Int, diskBlockId: BlockId): Unit = {
-    val key = BlockKey(shuffleId, mapId, reduceId)
-    spilledBlocks.put(key, diskBlockId)
-    buffers.remove(key)
-    logDebug(s"Tracked spill for $key -> $diskBlockId")
+  def setSpillManager(manager: MemorySpillManager): Unit = {
+    spillManager = manager
   }
 
   /**
-   * Drops every tracking entry for the given shuffle from both maps. Invoked by
+   * Drops every in-memory buffer tracking entry for the given shuffle. Invoked by
    * `StreamingShuffleManager.unregisterShuffle` so a completed or cleaned-up shuffle no longer
-   * retains buffer references or spilled-block records. Uses each map's weakly-consistent
-   * iterator, so concurrent [[getBlockData]] lookups are never blocked.
+   * retains buffer references. Uses the map's weakly-consistent iterator, so concurrent
+   * [[getBlockData]] lookups are never blocked. Spilled segments are owned and reclaimed by the
+   * [[MemorySpillManager]] (the resolver keeps no spill state of its own), so its companion
+   * cleanup releases the on-disk segments for the same shuffle.
    *
-   * @param shuffleId the shuffle whose tracked blocks should be removed
+   * @param shuffleId the shuffle whose tracked buffers should be removed
    */
   def untrackShuffle(shuffleId: Int): Unit = {
     removeShuffleEntries(buffers, shuffleId)
-    removeShuffleEntries(spilledBlocks, shuffleId)
-    logDebug(s"Untracked all streaming blocks for shuffle $shuffleId")
+    logDebug(s"Untracked all in-memory streaming buffers for shuffle $shuffleId")
   }
 
   // ---------------------------------------------------------------------------------------
@@ -159,14 +181,17 @@ private[spark] class StreamingShuffleBlockResolver(
   // ---------------------------------------------------------------------------------------
 
   /**
-   * Retrieves the data for the requested block, preferring still-in-memory streamed bytes and
-   * otherwise delegating to the inner [[IndexShuffleBlockResolver]].
+   * Retrieves the data for the requested block. For a streaming-tracked [[ShuffleBlockId]] it
+   * assembles the partition's canonical enveloped bytes; every other block id (for example output
+   * produced by the sort-based fallback path, or a merged/batched id) is delegated unchanged to
+   * the inner [[IndexShuffleBlockResolver]].
    *
-   * The lookup order for a [[ShuffleBlockId]] is in-memory buffer, then spilled-to-disk record,
-   * then plain delegation (see the class-level documentation). Wrapping the in-memory bytes in a
-   * [[NioManagedBuffer]] is sound because [[StreamingBuffer]] guarantees a dual-channel
-   * wire/persist invariant: the materialized array is byte-for-byte identical to the data the
-   * spill and re-stream paths would produce.
+   * A partition is streaming-tracked iff the writer registered a [[StreamingBuffer]] for it via
+   * [[trackBuffer]]; that buffer stays tracked for the shuffle's lifetime (it is emptied, not
+   * removed, on spill), so the presence of the buffer entry -- not the absence of spilled data --
+   * is the discriminator between the streaming path and fallback delegation. The actual byte
+   * assembly (spilled segments oldest-first, then the live in-memory frames, captured under one
+   * lock) is performed by [[serveStreamingPartition]].
    *
    * Note: the `dirs` parameter intentionally carries no default here. The default
    * (`None`) is declared once on the [[ShuffleBlockResolver]] trait; Scala forbids an
@@ -182,22 +207,17 @@ private[spark] class StreamingShuffleBlockResolver(
         val key = BlockKey(shuffleId, mapId, reduceId)
         val buffer = buffers.get(key)
         if (buffer != null) {
-          // (1) Still in memory: serve directly, honoring StreamingBuffer's dual-channel
-          // wire/persist invariant so the bytes match the spilled/re-streamed representation.
-          logTrace(s"Serving in-memory streaming block $blockId (${buffer.size} bytes)")
-          new NioManagedBuffer(ByteBuffer.wrap(buffer.toByteArray))
+          // Streaming-tracked partition: assemble spilled segments (oldest first) followed by the
+          // bytes still live in memory. Both views are captured in ONE atomic snapshot under the
+          // buffer's lock (see serveStreamingPartition / StreamingBuffer.snapshotEnvelopedWith)
+          // so a concurrent spill -- whose segment-add and buffer-clear run under the same lock
+          // (see MemorySpillManager.spillBufferInternal) -- can never make this block appear in
+          // both views or in neither, preserving the zero-data-loss guarantee.
+          serveStreamingPartition(blockId, key, buffer)
         } else {
-          val spilled = spilledBlocks.get(key)
-          if (spilled != null) {
-            // (2) Spilled to disk: delegate to the index resolver, which owns the on-disk
-            // .data/.index representation, using the recorded on-disk block id.
-            logTrace(s"Serving spilled streaming block $blockId via $spilled")
-            indexResolver.getBlockData(spilled, dirs)
-          } else {
-            // (3) Not streaming-tracked (e.g. produced by the sort-based fallback path):
-            // delegate the original block id to the index resolver.
-            indexResolver.getBlockData(blockId, dirs)
-          }
+          // Not streaming-tracked (e.g. produced by the sort-based fallback path): delegate the
+          // original block id to the index resolver, which owns the on-disk .data/.index format.
+          indexResolver.getBlockData(blockId, dirs)
         }
       case _ =>
         // Batched or other block-id shapes are resolved entirely by the index resolver.
@@ -235,13 +255,13 @@ private[spark] class StreamingShuffleBlockResolver(
   }
 
   /**
-   * Releases all tracking state and stops the delegate. Clears both tracking maps first so no
-   * buffer references or spilled-block records survive teardown, then stops the inner
-   * [[IndexShuffleBlockResolver]].
+   * Releases all tracking state and stops the delegate. Clears the in-memory buffer map first so
+   * no buffer references survive teardown, then stops the inner [[IndexShuffleBlockResolver]].
+   * Spilled segments are owned by the [[MemorySpillManager]]; its own teardown reclaims the
+   * on-disk blocks, so the resolver holds nothing to clear for them.
    */
   override def stop(): Unit = {
     buffers.clear()
-    spilledBlocks.clear()
     indexResolver.stop()
   }
 
@@ -292,9 +312,9 @@ private[spark] class StreamingShuffleBlockResolver(
   // ---------------------------------------------------------------------------------------
 
   // Removes every entry whose key belongs to the given shuffle from the supplied concurrent
-  // map. Generic over the value type so it serves both the buffer and spilled-block maps. The
-  // ConcurrentHashMap entry iterator is weakly consistent and supports in-place removal, so
-  // this never blocks concurrent `getBlockData` lookups.
+  // map. Generic over the value type so it can serve any future per-shuffle map; today it backs
+  // the in-memory buffer map. The ConcurrentHashMap entry iterator is weakly consistent and
+  // supports in-place removal, so this never blocks concurrent `getBlockData` lookups.
   private def removeShuffleEntries[V](
       map: ConcurrentHashMap[BlockKey, V],
       shuffleId: Int): Unit = {
@@ -304,6 +324,82 @@ private[spark] class StreamingShuffleBlockResolver(
         it.remove()
       }
     }
+  }
+
+  /**
+   * Assembles and serves the canonical enveloped bytes for one streaming-tracked reduce
+   * partition.
+   *
+   * The served bytes are the concatenation, in deterministic order, of every disk-spill segment
+   * (oldest first) followed by the frames still live in the producer's [[StreamingBuffer]]. The
+   * ordered spilled-segment id list and the in-memory frames are captured together under the
+   * buffer's lock via [[StreamingBuffer.snapshotEnvelopedWith]], so the pair is consistent with
+   * any concurrent spill (whose segment-add and buffer-clear run under the same lock): a block can
+   * never appear in both views or in neither, and the captured in-memory frames equal the bytes a
+   * subsequent spill would persist, so there is no loss and no double-count. Disk reads happen
+   * after the lock is released; the spilled segments are read back through the
+   * [[MemorySpillManager]], the single owner of the on-disk (non-shuffle
+   * [[org.apache.spark.storage.TempLocalBlockId]]) format.
+   *
+   * The bytes are served as-is: they are the
+   * [[org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope]] frames (the
+   * dual-channel wire/persist view). The reduce-side [[StreamingShuffleReader]] parses each frame,
+   * verifies its CRC32C, and strips the 32-byte header before deserialization, so spilled and
+   * streamed bytes are byte-identical and interchangeable.
+   *
+   * @param blockId the logical shuffle block being served (for logging/diagnostics)
+   * @param key the in-memory buffer key for the partition
+   * @param buffer the producer-side buffer whose lock guards the atomic snapshot
+   * @return a managed buffer over the assembled enveloped bytes
+   * @throws IllegalStateException if a recorded spill segment can no longer be read back, failing
+   *         the fetch loudly so the partition is recomputed via lineage rather than served short
+   */
+  private def serveStreamingPartition(
+      blockId: BlockId,
+      key: BlockKey,
+      buffer: StreamingBuffer): ManagedBuffer = {
+    val manager = spillManager
+    val bufferKey = BufferKey(key.shuffleId, key.mapId, key.reduceId)
+    // Atomic, lock-consistent capture of (ordered spilled ids, live in-memory frames). The
+    // capture closure only reads the lock-free spilled-segment list, honoring the
+    // snapshotEnvelopedWith contract (no blocking, no inverse lock acquisition).
+    val (spilledIds, inMemoryFrames) = buffer.snapshotEnvelopedWith {
+      if (manager != null) manager.spilledBlockIds(bufferKey) else Seq.empty[BlockId]
+    }
+
+    // Read each spilled segment back through the spill manager (TempLocalBlockId via
+    // BlockManager.getLocalBytes), preserving spill order, then append the live in-memory frames.
+    val parts = new ArrayBuffer[Array[Byte]](spilledIds.size + 1)
+    spilledIds.foreach { id =>
+      manager.readSpilledSegment(id) match {
+        case Some(bytes) => parts += bytes
+        case None =>
+          // A recorded segment is gone: serving a short read would silently lose data, so fail
+          // the fetch and let the consumer surface it for lineage-based recompute.
+          throw new IllegalStateException(
+            s"Spilled segment $id for streaming block $blockId is no longer readable")
+      }
+    }
+    val inMemoryBytes = inMemoryFrames.toArray
+    if (inMemoryBytes.length > 0) {
+      parts += inMemoryBytes
+    }
+
+    val totalLen = parts.iterator.map(_.length.toLong).sum
+    require(totalLen <= Int.MaxValue,
+      s"Streaming block $blockId is $totalLen bytes, exceeding the single-buffer byte limit")
+    val assembled = new Array[Byte](totalLen.toInt)
+    var offset = 0
+    parts.foreach { part =>
+      System.arraycopy(part, 0, assembled, offset, part.length)
+      offset += part.length
+    }
+
+    logTrace(log"Serving streaming block ${MDC(LogKeys.BLOCK_ID, blockId)} for shuffle " +
+      log"${MDC(LogKeys.SHUFFLE_ID, key.shuffleId)} map ${MDC(LogKeys.MAP_ID, key.mapId)} " +
+      log"reduce ${MDC(LogKeys.REDUCE_ID, key.reduceId)} " +
+      log"(${MDC(LogKeys.NUM_BYTES, totalLen)} bytes)")
+    new NioManagedBuffer(ByteBuffer.wrap(assembled))
   }
 }
 

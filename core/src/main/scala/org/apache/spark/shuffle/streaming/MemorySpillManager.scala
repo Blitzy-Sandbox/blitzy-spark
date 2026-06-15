@@ -27,7 +27,7 @@ import scala.util.control.NonFatal
 
 import org.apache.spark.internal.{Logging, LogKeys}
 import org.apache.spark.memory.MemoryManager
-import org.apache.spark.storage.{BlockId, BlockManager, ShuffleDataBlockId}
+import org.apache.spark.storage.{BlockId, BlockManager}
 import org.apache.spark.storage.{StorageLevel, TempLocalBlockId}
 import org.apache.spark.util.ThreadUtils
 
@@ -68,11 +68,14 @@ import org.apache.spark.util.ThreadUtils
  *
  * Each spill episode for a partition appends exactly one [[BlockId]] to that partition's ordered
  * segment list, so a partition that is spilled more than once under pressure never loses
- * earlier bytes. The first segment uses the canonical, deterministically reconstructable
- * [[ShuffleDataBlockId]]`(shuffleId, mapId, partitionId)` so `StreamingShuffleBlockResolver` can
- * locate it directly; any subsequent re-spill segment uses a unique [[TempLocalBlockId]] and is
- * discoverable through [[spilledBlockIds]]. Because the buffer's wire view and its spilled view
- * are byte-for-byte identical (the dual-channel invariant documented on [[StreamingBuffer]]),
+ * earlier bytes. Every segment - including the first - uses a unique, non-shuffle
+ * [[TempLocalBlockId]]. A [[TempLocalBlockId]] is deliberately chosen over an
+ * `org.apache.spark.storage.ShuffleDataBlockId` because the read-back path is
+ * `BlockManager.getLocalBytes`, which asserts the block id is NOT a shuffle id (a shuffle id
+ * would be routed back through the shuffle resolver and could not be served as a raw stored
+ * block). The segments are discoverable in spill order through [[spilledBlockIds]] and read back
+ * through [[readSpilledSegment]]. Because the buffer's wire view and its spilled view are
+ * byte-for-byte identical (the dual-channel invariant documented on [[StreamingBuffer]]),
  * spilled and streamed bytes are interchangeable.
  *
  * ==Concurrency and hot-path safety==
@@ -117,9 +120,10 @@ private[spark] class MemorySpillManager(
 
   // Ordered disk-spill segments per partition. A partition may be spilled more than once under
   // sustained pressure (its buffer is cleared after each spill and may refill); every episode
-  // appends one BlockId so previously-spilled bytes are never overwritten or lost. The first
-  // segment uses the canonical ShuffleDataBlockId so the resolver can reconstruct it directly;
-  // re-spill segments use unique TempLocalBlockIds discoverable via spilledBlockIds.
+  // appends one BlockId so previously-spilled bytes are never overwritten or lost. Every segment
+  // (including the first) uses a unique non-shuffle TempLocalBlockId so it is readable back via
+  // BlockManager.getLocalBytes, which rejects shuffle ids; the resolver discovers the ordered
+  // list via spilledBlockIds and reads each segment via readSpilledSegment.
   private val spilledBlocks =
     new ConcurrentHashMap[BufferKey, CopyOnWriteArrayList[BlockId]]()
 
@@ -274,8 +278,9 @@ private[spark] class MemorySpillManager(
   }
 
   /**
-   * Returns the canonical (first) spilled block id for a partition, if any. This is the
-   * deterministically reconstructable [[ShuffleDataBlockId]] for partitions spilled exactly once.
+   * Returns the first (oldest) spilled block id for a partition, if any. This is the
+   * [[TempLocalBlockId]] of the partition's first spill episode; callers that need every segment
+   * (a partition spilled more than once) must use [[spilledBlockIds]] instead.
    *
    * @param key the partition key
    * @return the first spilled block id, or [[None]] if the partition has not been spilled
@@ -292,6 +297,33 @@ private[spark] class MemorySpillManager(
   def isSpilled(key: BufferKey): Boolean = {
     val segments = spilledBlocks.get(key)
     segments != null && !segments.isEmpty
+  }
+
+  /**
+   * Reads back the on-disk bytes of a single spilled segment through the public
+   * `BlockManager.getLocalBytes` API, returning the segment's canonical
+   * [[StreamingBlockEnvelope]] frames (the dual-channel persist view) ready for the resolver to
+   * concatenate and serve. The streaming spill segments are non-shuffle [[TempLocalBlockId]]s, so
+   * `getLocalBytes` serves them directly from the disk store without recursing back into the
+   * shuffle resolver. The read lock that `getLocalBytes` retains on success is always released
+   * (and the [[org.apache.spark.storage.BlockData]] disposed) before returning, even on failure.
+   *
+   * @param blockId the spilled segment id, as recorded in [[spilledBlockIds]]
+   * @return the segment's enveloped bytes, or [[None]] if the block is no longer present locally
+   */
+  def readSpilledSegment(blockId: BlockId): Option[Array[Byte]] = {
+    blockManager.getLocalBytes(blockId).map { data =>
+      try {
+        val bb = data.toByteBuffer()
+        val arr = new Array[Byte](bb.remaining())
+        bb.get(arr)
+        arr
+      } finally {
+        // getLocalBytes keeps a read lock on success; release it and dispose the BlockData so no
+        // lock or buffer leaks (validated under spark.unsafe.exceptionOnMemoryLeak=true).
+        blockManager.releaseLockAndDispose(blockId, data)
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------------------
@@ -384,25 +416,21 @@ private[spark] class MemorySpillManager(
   }
 
   // Spills exactly one buffer to disk and reclaims its heap, returning the bytes reclaimed (or 0
-  // if the buffer is empty or the store failed). Serialized on the buffer's own monitor so a
-  // scheduled spill and an on-demand spillBuffer can never double-store the same partition; the
-  // buffer's internal append lock is a different object, so appends are not blocked here and no
-  // deadlock is possible (the monitor is always taken before the buffer's internal lock).
-  private def spillBufferInternal(buffer: StreamingBuffer): Long = buffer.synchronized {
-    val sizeBefore = buffer.size
-    if (sizeBefore <= 0L) {
-      0L
-    } else {
-      val key = keyOf(buffer)
-      val bytes = buffer.toChunkedByteBuffer
-      val segments = spilledBlocks.computeIfAbsent(
-        key, _ => new CopyOnWriteArrayList[BlockId]())
-      val blockId: BlockId =
-        if (segments.isEmpty) {
-          ShuffleDataBlockId(key.shuffleId, key.mapId, key.partitionId)
-        } else {
-          TempLocalBlockId(UUID.randomUUID())
-        }
+  // if the buffer is empty or the store failed). The snapshot, the durable store, the ordered
+  // segment registration, and the heap reset all run inside StreamingBuffer.spillAndClear, under
+  // the buffer's single internal lock that also guards append -- so a byte appended concurrently
+  // is either fully captured in this spill or fully retained for the next one, never silently
+  // dropped (closing the CWE-367 snapshot/clear race that a separate snapshot-then-clear had).
+  // The buffer is cleared only after putBytes confirms the bytes are durable; a store failure
+  // leaves the buffer intact and loses nothing. Because the buffer is empty the instant
+  // spillAndClear returns, a concurrent scheduled spill and an on-demand spillBuffer can never
+  // double-store the same partition: whichever runs second snapshots an empty buffer and no-ops.
+  private def spillBufferInternal(buffer: StreamingBuffer): Long = {
+    val key = keyOf(buffer)
+    buffer.spillAndClear { bytes =>
+      // Every segment (including the first) uses a unique non-shuffle TempLocalBlockId so the
+      // resolver can read it back via BlockManager.getLocalBytes, which rejects shuffle ids.
+      val blockId: BlockId = TempLocalBlockId(UUID.randomUUID())
       val stored =
         try {
           // DISK_ONLY persists synchronously to the disk store, so once putBytes returns true the
@@ -418,21 +446,23 @@ private[spark] class MemorySpillManager(
             false
         }
       if (stored) {
+        // Register the segment in the partition's ordered list and bump telemetry while still
+        // holding the buffer lock (inside spillAndClear), so the resolver's atomic
+        // snapshotEnvelopedWith never sees the buffer cleared before its segment is recorded.
+        val segments = spilledBlocks.computeIfAbsent(
+          key, _ => new CopyOnWriteArrayList[BlockId]())
         segments.add(blockId)
         metrics.incSpillCount()
-        buffer.clear()
         if (conf.debug) {
           logDebug(log"Spilled streaming buffer shuffle=" +
             log"${MDC(LogKeys.SHUFFLE_ID, key.shuffleId)} map=" +
             log"${MDC(LogKeys.MAP_ID, key.mapId)} partition=" +
             log"${MDC(LogKeys.PARTITION_ID, key.partitionId)} (" +
-            log"${MDC(LogKeys.NUM_BYTES, sizeBefore)} bytes) -> " +
+            log"${MDC(LogKeys.NUM_BYTES, bytes.size)} bytes) -> " +
             log"${MDC(LogKeys.BLOCK_ID, blockId.name)}")
         }
-        sizeBefore
-      } else {
-        0L
       }
+      stored
     }
   }
 

@@ -86,6 +86,10 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
     // Once the sustained 60s window elapses, the slow-consumer condition trips.
     assert(p.isSlowConsumer(pastWindow))
     assert(p.shouldFallbackAt(pastWindow))
+    // The time-injectable reason accessor names the slow-consumer condition at the same instant
+    // the decision trips; within the window no condition is active so the reason is empty.
+    assert(p.fallbackReasonAt(pastWindow).exists(_.contains("slow consumer")))
+    assert(p.fallbackReasonAt(withinWindow).isEmpty)
   }
 
   test("memory pressure trips above 95%") {
@@ -123,6 +127,47 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
     val below = newPolicy()
     below.updateNetworkUtilization(89)
     assert(!below.isNetworkSaturated)
+  }
+
+  test("memory pressure threshold is strict at the decimal boundary") {
+    // Strictly greater-than semantics: a fractional value just above 95% must trip, while the
+    // exact threshold and a fractional value just below must not. The double-typed setter makes
+    // these decimal boundaries expressible (95.1 trips, 95.0 and 94.9 do not).
+    val above = newPolicy()
+    above.updateMemoryUtilization(95.1)
+    assert(above.isMemoryPressure)
+    assert(above.shouldFallback)
+    assert(above.fallbackReason.exists(_.contains("memory")))
+
+    val atThreshold = newPolicy()
+    atThreshold.updateMemoryUtilization(95.0)
+    assert(!atThreshold.isMemoryPressure)
+    assert(!atThreshold.shouldFallback)
+
+    val below = newPolicy()
+    below.updateMemoryUtilization(94.9)
+    assert(!below.isMemoryPressure)
+    assert(!below.shouldFallback)
+  }
+
+  test("network saturation threshold is strict at the decimal boundary") {
+    // Strictly greater-than semantics at the 90% network threshold, exercised at decimal offsets
+    // (90.1 trips, 90.0 and 89.9 do not).
+    val above = newPolicy()
+    above.updateNetworkUtilization(90.1)
+    assert(above.isNetworkSaturated)
+    assert(above.shouldFallback)
+    assert(above.fallbackReason.exists(_.contains("network")))
+
+    val atThreshold = newPolicy()
+    atThreshold.updateNetworkUtilization(90.0)
+    assert(!atThreshold.isNetworkSaturated)
+    assert(!atThreshold.shouldFallback)
+
+    val below = newPolicy()
+    below.updateNetworkUtilization(89.9)
+    assert(!below.isNetworkSaturated)
+    assert(!below.shouldFallback)
   }
 
   test("version mismatch trips immediately") {

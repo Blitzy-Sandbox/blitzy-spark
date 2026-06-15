@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle.streaming
 
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong}
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.LogKeys
@@ -60,8 +60,9 @@ import org.apache.spark.internal.LogKeys
  *
  * ==Lock-free and hot-path safe==
  *
- * All mutable state is held in `java.util.concurrent.atomic` primitives, so update hooks and
- * predicates are lock-free, allocation-free, and cheap enough to call on the shuffle hot path.
+ * All mutable state is held in `java.util.concurrent.atomic` primitives or `@volatile` fields
+ * (a 64-bit `@volatile` read/write is itself atomic), so update hooks and predicates are
+ * lock-free, allocation-free, and cheap enough to call on the shuffle hot path.
  * Update hooks ([[recordThroughput]], [[updateMemoryUtilization]], [[updateNetworkUtilization]],
  * [[markVersionMismatch]]) are invoked by the writer, backpressure protocol, and spill manager;
  * the predicates are pure reads. Every method is safe to call concurrently from any number of
@@ -100,8 +101,11 @@ private[spark] class StreamingShuffleFallbackPolicy(
   private val slowSince = new AtomicLong(NOT_SLOW)
 
   // Sampled executor memory and network-link utilization percentages, each clamped to [0, 100].
-  private val memoryUtilizationPercent = new AtomicInteger(0)
-  private val networkUtilizationPercent = new AtomicInteger(0)
+  // Held as `@volatile` doubles rather than AtomicInteger so a single sampled write stays atomic
+  // and lock-free on the hot path while admitting fractional utilization, which lets the strict
+  // greater-than threshold checks be exercised at decimal boundaries (for example 95.1 vs 94.9).
+  @volatile private var memoryUtilizationPercent: Double = 0.0
+  @volatile private var networkUtilizationPercent: Double = 0.0
 
   // Whether a producer/consumer streaming-protocol version mismatch has been observed. A
   // mismatch is sticky for the lifetime of the policy (cleared only by reset()), since an
@@ -156,10 +160,10 @@ private[spark] class StreamingShuffleFallbackPolicy(
    * [0, 100]. A value above [[StreamingShuffleConfig.MEMORY_PRESSURE_PERCENT]] trips the
    * memory-pressure fallback condition.
    *
-   * @param percent sampled memory utilization in percent
+   * @param percent sampled memory utilization in percent (fractional values are permitted)
    */
-  def updateMemoryUtilization(percent: Int): Unit = {
-    memoryUtilizationPercent.set(clampPercent(percent))
+  def updateMemoryUtilization(percent: Double): Unit = {
+    memoryUtilizationPercent = clampPercent(percent)
   }
 
   /**
@@ -167,10 +171,10 @@ private[spark] class StreamingShuffleFallbackPolicy(
    * A value above [[StreamingShuffleConfig.NETWORK_SATURATION_PERCENT]] trips the
    * network-saturation fallback condition.
    *
-   * @param percent sampled network-link utilization in percent
+   * @param percent sampled network-link utilization in percent (fractional values are permitted)
    */
-  def updateNetworkUtilization(percent: Int): Unit = {
-    networkUtilizationPercent.set(clampPercent(percent))
+  def updateNetworkUtilization(percent: Double): Unit = {
+    networkUtilizationPercent = clampPercent(percent)
   }
 
   /**
@@ -199,11 +203,11 @@ private[spark] class StreamingShuffleFallbackPolicy(
 
   /** @return `true` when memory utilization exceeds the configured OOM-risk threshold. */
   def isMemoryPressure: Boolean =
-    memoryUtilizationPercent.get() > StreamingShuffleConfig.MEMORY_PRESSURE_PERCENT
+    memoryUtilizationPercent > StreamingShuffleConfig.MEMORY_PRESSURE_PERCENT
 
   /** @return `true` when network-link utilization exceeds the configured saturation threshold. */
   def isNetworkSaturated: Boolean =
-    networkUtilizationPercent.get() > StreamingShuffleConfig.NETWORK_SATURATION_PERCENT
+    networkUtilizationPercent > StreamingShuffleConfig.NETWORK_SATURATION_PERCENT
 
   /** @return `true` when a producer/consumer protocol version mismatch has been marked. */
   def isVersionMismatch: Boolean = versionMismatch.get()
@@ -260,6 +264,17 @@ private[spark] class StreamingShuffleFallbackPolicy(
   def fallbackReason: Option[String] = reasonAt(System.nanoTime())
 
   /**
+   * Time-injectable variant of [[fallbackReason]] used to assert the active condition
+   * deterministically from tests (mirroring [[shouldFallbackAt]]). Production code uses the
+   * no-argument [[fallbackReason]], which supplies `System.nanoTime()`.
+   *
+   * @param nowNanos the monotonic-clock reading used for the sustained slow-consumer check
+   * @return a human-readable description of the highest-priority active revert condition, or
+   *         [[scala.None]] when no condition is satisfied at `nowNanos`
+   */
+  def fallbackReasonAt(nowNanos: Long): Option[String] = reasonAt(nowNanos)
+
+  /**
    * Resets all tracked state back to its initial values. Intended for test isolation and for
    * reuse of a single policy instance across stress iterations; not used on any production code
    * path. Each field is cleared with an independent lock-free write.
@@ -268,8 +283,8 @@ private[spark] class StreamingShuffleFallbackPolicy(
     producerBytesPerSecond.set(0L)
     consumerBytesPerSecond.set(0L)
     slowSince.set(NOT_SLOW)
-    memoryUtilizationPercent.set(0)
-    networkUtilizationPercent.set(0)
+    memoryUtilizationPercent = 0.0
+    networkUtilizationPercent = 0.0
     versionMismatch.set(false)
     fallbackActive.set(false)
   }
@@ -314,11 +329,11 @@ private[spark] class StreamingShuffleFallbackPolicy(
       s"producer for >${StreamingShuffleConfig.SLOW_CONSUMER_THRESHOLD_SECONDS}s"
 
   private def memoryPressureReason: String =
-    s"memory utilization ${memoryUtilizationPercent.get()}% exceeds " +
+    s"memory utilization ${memoryUtilizationPercent}% exceeds " +
       s"${StreamingShuffleConfig.MEMORY_PRESSURE_PERCENT}% OOM-risk threshold"
 
   private def networkSaturationReason: String =
-    s"network utilization ${networkUtilizationPercent.get()}% exceeds " +
+    s"network utilization ${networkUtilizationPercent}% exceeds " +
       s"${StreamingShuffleConfig.NETWORK_SATURATION_PERCENT}% saturation threshold"
 
   /** Emits a single structured warning on the streaming -> fallback transition. */
@@ -354,5 +369,5 @@ private[spark] object StreamingShuffleFallbackPolicy {
   private val UNKNOWN_REASON: String = "unspecified fallback condition"
 
   /** Clamps a utilization percentage into the inclusive range [0, 100]. */
-  private def clampPercent(percent: Int): Int = math.max(0, math.min(100, percent))
+  private def clampPercent(percent: Double): Double = math.max(0.0, math.min(100.0, percent))
 }

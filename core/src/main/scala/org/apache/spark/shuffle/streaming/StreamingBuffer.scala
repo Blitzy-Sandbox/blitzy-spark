@@ -104,9 +104,11 @@ private[spark] class StreamingBuffer(
 
   // Lock-free metadata for the spill manager's frequent polling path. `currentSizeBytes` is
   // the total buffered byte count; `blockCount` is the number of readable blocks (sealed plus
-  // the pending one, if any); `lastAccessNanos` is the LRU timestamp.
+  // the pending one, if any); `sealedBlockCount` is the number of fully sealed (complete 2 MB)
+  // blocks only, excluding any partial trailing block; `lastAccessNanos` is the LRU timestamp.
   private val currentSizeBytes = new AtomicLong(0L)
   private val blockCount = new AtomicInteger(0)
+  private val sealedBlockCount = new AtomicInteger(0)
   @volatile private var lastAccessNanos: Long = System.nanoTime()
 
   /**
@@ -152,6 +154,7 @@ private[spark] class StreamingBuffer(
           pendingLen = remaining
         }
         currentSizeBytes.addAndGet(total.toLong)
+        sealedBlockCount.set(sealedBlocks.size)
         blockCount.set(sealedBlocks.size + (if (pendingLen > 0) 1 else 0))
         touch()
       }
@@ -163,6 +166,15 @@ private[spark] class StreamingBuffer(
 
   /** @return the number of readable blocks: full sealed blocks plus the pending one, if any. */
   def numBlocks: Int = blockCount.get()
+
+  /**
+   * @return the number of fully sealed (complete 2 MB) blocks, excluding any partial trailing
+   *         block. These are the blocks safe to stream eagerly to the consumer: the pending tail
+   *         (when present) is always strictly smaller than one block and is streamed only once the
+   *         partition is finalized. Read lock-free from the same atomic the [[append]]/[[clear]]
+   *         paths publish under [[lock]], mirroring [[numBlocks]].
+   */
+  def numSealedBlocks: Int = sealedBlockCount.get()
 
   /** @return `true` once the buffered size reaches or exceeds the soft [[capacityBytes]]. */
   def isFull: Boolean = size >= capacityBytes
@@ -355,8 +367,78 @@ private[spark] class StreamingBuffer(
     pending = Array.emptyByteArray
     pendingLen = 0
     currentSizeBytes.set(0L)
+    sealedBlockCount.set(0)
     blockCount.set(0)
     touch()
+  }
+
+  /**
+   * Atomically snapshots, persists, and clears this buffer under the single internal lock that
+   * also guards [[append]], guaranteeing zero data loss on spill.
+   *
+   * This is the spill primitive the `MemorySpillManager` uses to evict a partition to disk. It
+   * closes the time-of-check/time-of-use race that a separate snapshot-then-clear sequence would
+   * otherwise expose (CWE-367): the enveloped snapshot, the `persist` callback, and the
+   * subsequent reset all run while holding [[lock]], so no [[append]] can interleave between the
+   * snapshot and the clear. A byte appended concurrently is therefore either fully included in
+   * the persisted snapshot or fully retained for the next spill -- it can never be silently
+   * dropped, unlike a snapshot taken under one lock and a clear performed under another.
+   *
+   * The buffer is cleared only when `persist` returns `true`. If `persist` returns `false` (the
+   * store failed) or the buffer is already empty, the buffered bytes are left untouched and `0`
+   * is returned, so a failed spill never loses data. The [[ChunkedByteBuffer]] handed to
+   * `persist` holds the canonical [[StreamingBlockEnvelope]] frames (the dual-channel
+   * wire/persist view from [[toChunkedByteBuffer]]), so the spilled bytes are byte-for-byte
+   * identical to the streamed bytes.
+   *
+   * @param persist invoked under [[lock]] with the enveloped snapshot; must return `true` only
+   *                once the bytes are durably stored, in which case the buffer is then cleared
+   * @return the number of bytes reclaimed from heap (the pre-spill [[size]]) when `persist`
+   *         succeeds, or `0` when the buffer was empty or `persist` returned `false`
+   */
+  def spillAndClear(persist: ChunkedByteBuffer => Boolean): Long = lock.synchronized {
+    val sizeBefore = currentSizeBytes.get()
+    if (sizeBefore <= 0L) {
+      0L
+    } else {
+      // toChunkedByteBuffer and clear re-acquire `lock` reentrantly; both are no-ops on locking
+      // cost here and keep the snapshot/persist/clear sequence indivisible against append.
+      val snapshot = toChunkedByteBuffer
+      if (persist(snapshot)) {
+        clear()
+        sizeBefore
+      } else {
+        0L
+      }
+    }
+  }
+
+  /**
+   * Atomically captures an external snapshot and this buffer's enveloped bytes under the single
+   * internal lock, so a reader observes a consistent point-in-time view across both.
+   *
+   * The streaming block resolver serves a partition by concatenating the partition's already
+   * spilled disk segments with whatever bytes remain in this buffer. Because [[spillAndClear]]
+   * registers a new spill segment and clears the in-memory bytes as one atomic step under
+   * [[lock]], a resolver that captured the spilled-segment list and the in-memory bytes in two
+   * separate steps could double-count a block (observed in both views) or miss one (observed in
+   * neither). This method removes that race: it evaluates `capture` (which records the current
+   * spilled-segment list) and snapshots the in-memory enveloped frames under the same lock
+   * acquisition, so the two are always mutually consistent.
+   *
+   * `capture` must only read already-published, lock-free segment metadata; it must not block or
+   * acquire a lock another thread holds while waiting on [[lock]], to keep the append fast path
+   * and the spill path deadlock-free.
+   *
+   * @param capture a by-name snapshot of external state (the spilled-segment list) to capture
+   *                consistently with the in-memory bytes
+   * @tparam A the captured snapshot type
+   * @return the captured external snapshot paired with the in-memory enveloped frames
+   */
+  def snapshotEnvelopedWith[A](capture: => A): (A, ChunkedByteBuffer) = lock.synchronized {
+    val captured = capture
+    val frames = toChunkedByteBuffer
+    (captured, frames)
   }
 
   override def toString: String =
