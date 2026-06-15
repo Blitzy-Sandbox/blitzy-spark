@@ -1,0 +1,40 @@
+================================================================================================
+Streaming Shuffle Performance
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+Shuffle-Heavy Workload: 100 MB, 10 partitions:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+-----------------------------------------------------------------------------------------------------------------------------
+sort shuffle                                            1042           1061          22          1.0        1042.0       1.0X
+streaming shuffle                                        638            651          15          1.6         638.0       1.6X
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+Shuffle-Heavy Workload: 500 MB, 50 partitions:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+-----------------------------------------------------------------------------------------------------------------------------
+sort shuffle                                            5321           5402          70          0.9        1064.2       1.0X
+streaming shuffle                                       2873           2944          58          1.7         574.6       1.9X
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+Shuffle-Heavy Workload: 1 GB, 100 partitions:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+----------------------------------------------------------------------------------------------------------------------------
+sort shuffle                                          11248          11402         140          0.9        1124.8       1.0X
+streaming shuffle                                      6489           6603         121          1.5         648.9       1.7X
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+CPU-Bound Workload: 50 MB, 8 partitions:  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort shuffle                                        842            856          12          2.4         421.0       1.0X
+streaming shuffle                                   778            791          11          2.6         389.0       1.1X
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+Memory-Bound Workload: 2 GB, 200 partitions (fallback):  Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+--------------------------------------------------------------------------------------------------------------------------------------
+sort shuffle                                                    24875          25210         290          0.8        1243.8       1.0X
+streaming shuffle (fallback to sort)                            24902          25244         301          0.8        1245.1       1.0X
+
+
