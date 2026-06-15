@@ -21,15 +21,15 @@ import java.io.{ByteArrayOutputStream, InputStream}
 import java.nio.ByteBuffer
 import java.util.Properties
 
-import org.mockito.ArgumentMatchers.{eq => meq}
+import org.mockito.ArgumentMatchers.{any, eq => meq}
 import org.mockito.Mockito.{mock, when}
 
 import org.apache.spark._
-import org.apache.spark.internal.config
 import org.apache.spark.memory.TaskMemoryManager
+import org.apache.spark.network.BlockTransferService
 import org.apache.spark.network.buffer.{ManagedBuffer, NioManagedBuffer}
-import org.apache.spark.serializer.{JavaSerializer, SerializerManager}
-import org.apache.spark.shuffle.FetchFailedException
+import org.apache.spark.serializer.JavaSerializer
+import org.apache.spark.shuffle.{FetchFailedException, ShuffleReadMetricsReporter}
 import org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope
 import org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport
 import org.apache.spark.storage.{BlockManager, BlockManagerId, ShuffleBlockId}
@@ -65,21 +65,26 @@ class RecordingManagedBuffer(underlyingBuffer: NioManagedBuffer) extends Managed
  * Unit tests for [[StreamingShuffleReader]].
  *
  * The streaming reader intentionally MIRRORS the sort-based
- * [[org.apache.spark.shuffle.BlockStoreShuffleReader]] read path, so this suite closely mirrors
- * `BlockStoreShuffleReaderSuite`: it serves serialized `(i, 2*i)` records from a mocked
- * [[org.apache.spark.storage.BlockManager]] as local blocks, resolves them through a mocked
- * [[org.apache.spark.MapOutputTracker]], disables shuffle compression on the
- * [[org.apache.spark.serializer.SerializerManager]], and asserts that every
- * [[RecordingManagedBuffer]] is retained and released exactly once (no leak).
+ * [[org.apache.spark.shuffle.BlockStoreShuffleReader]] aggregation/ordering path, so the
+ * end-to-end read tests closely mirror `BlockStoreShuffleReaderSuite`: they serve serialized
+ * `(i, 2*i)` records -- each map block framed as a canonical [[StreamingBlockEnvelope]] -- from a
+ * mocked [[org.apache.spark.storage.BlockManager]]'s
+ * [[org.apache.spark.network.BlockTransferService#fetchBlockSync]] (the CP2 reader data plane),
+ * resolve them through a mocked [[org.apache.spark.MapOutputTracker]], and assert that every
+ * [[RecordingManagedBuffer]] is released exactly once (the CP2 reader copies validated payloads
+ * out and never retains, so this is the no-leak invariant under the release-only lifecycle).
  *
- * Beyond the happy-path read it verifies the streaming-specific guarantees: honoring the
+ * Beyond the happy-path read they verify the streaming-specific guarantees: honoring the
  * dependency's `aggregator` / `keyOrdering` / `mapSideCombine`, CRC32C acceptance of well-formed
  * blocks on the consumer-stream channel, and - the signature requirement - that a producer
  * failure increments `partialReadInvalidations` and IMMEDIATELY throws a
  * [[org.apache.spark.shuffle.FetchFailedException]] (SPARK-19276: never construct-and-ignore a
  * fetch failure). The failure path is driven deterministically through a corrupt-CRC block (the
  * same `invalidatePartialReads` entry point the 5 s connection timeout uses) so the test needs no
- * real network wait.
+ * real network wait. A second group of unit tests exercises the package-private
+ * `extractValidatedPayloads` envelope de-framing / CRC32C integrity core directly with hand-built
+ * frames (multi-frame concatenation, empty block, CRC mismatch, truncation, partial trailing
+ * header).
  */
 class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
 
@@ -144,19 +149,30 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
     val serializer = new JavaSerializer(conf)
     val recordBytes = serializedRecords(serializer, pairsPerMap)
 
-    // A mocked BlockManager returns RecordingManagedBuffers so we can assert retain()/release().
+    // A mocked BlockManager whose BlockTransferService serves each map block. The CP2 reader
+    // data plane fetches every block through BlockTransferService.fetchBlockSync (NOT
+    // getLocalBlockData) and expects the fetched bytes to be framed StreamingBlockEnvelopes, so
+    // each RecordingManagedBuffer wraps the map's records in one canonical 32-byte-header frame.
+    // The recorder still lets us assert that the reader releases every fetched buffer exactly once.
     val blockManager = mock(classOf[BlockManager])
+    val blockTransferService = mock(classOf[BlockTransferService])
+    when(blockManager.blockTransferService).thenReturn(blockTransferService)
     val localBlockManagerId = BlockManagerId("test-client", "test-client", 1)
     when(blockManager.blockManagerId).thenReturn(localBlockManagerId)
-    // All blocks are executor-local, so the host-local path is never taken; stub the accessor to
-    // None defensively because a bare mock would otherwise return a null Option.
-    when(blockManager.hostLocalDirManager).thenReturn(None)
 
     val buffers = (0 until numMaps).map { mapId =>
-      val nioBuffer = new NioManagedBuffer(ByteBuffer.wrap(recordBytes))
+      val framed = StreamingBlockEnvelope
+        .create(shuffleId, mapId.toLong, reduceId, sequenceNumber = 0L, payload = recordBytes)
+        .toByteArray
+      val nioBuffer = new NioManagedBuffer(ByteBuffer.wrap(framed))
       val managedBuffer = new RecordingManagedBuffer(nioBuffer)
-      val shuffleBlockId = ShuffleBlockId(shuffleId, mapId, reduceId)
-      when(blockManager.getLocalBlockData(meq(shuffleBlockId))).thenReturn(managedBuffer)
+      val blockId = ShuffleBlockId(shuffleId, mapId, reduceId).toString
+      when(blockTransferService.fetchBlockSync(
+        meq(localBlockManagerId.host),
+        meq(localBlockManagerId.port),
+        meq(localBlockManagerId.executorId),
+        meq(blockId),
+        any())).thenReturn(managedBuffer)
       managedBuffer
     }
 
@@ -205,15 +221,12 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
     TaskContext.setTaskContext(taskContext)
     val readMetrics = taskContext.taskMetrics.createTempShuffleReadMetrics()
 
-    val serializerManager = new SerializerManager(
-      serializer,
-      new SparkConf()
-        .set(config.SHUFFLE_COMPRESS, false)
-        .set(config.SHUFFLE_SPILL_COMPRESS, false))
-
+    // The CP2 reader deserializes the de-enveloped payload bytes RAW with the dependency
+    // serializer (the writer does not compression-wrap the stream), so no SerializerManager is
+    // threaded through the reader; the records were serialized without compression above.
     val reader = new StreamingShuffleReader[Int, Int](
       handle, 0, numMaps, reduceId, reduceId + 1, taskContext, readMetrics,
-      streamingConfig, streamingMetrics, transport, serializerManager, blockManager,
+      streamingConfig, streamingMetrics, transport, blockManager,
       mapOutputTracker)
 
     (reader, buffers.toSeq, streamingMetrics)
@@ -237,8 +250,11 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
     // A well-formed read must not invalidate, and exhausting the iterator must have retained and
     // released each buffer exactly once (no leak), matching BlockStoreShuffleReaderSuite.
     assert(metrics.partialReadInvalidations === 0L)
+    // The CP2 reader copies each validated payload into an independent array and releases the
+    // fetched buffer once in a finally; it never retains. Asserting release == 1 (retain == 0)
+    // preserves the original no-leak intent against the current release-only buffer lifecycle.
     buffers.foreach { buffer =>
-      assert(buffer.callsToRetain === 1)
+      assert(buffer.callsToRetain === 0)
       assert(buffer.callsToRelease === 1)
     }
   }
@@ -326,5 +342,110 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
     assert(records.isEmpty)
     assert(buffers.isEmpty)
     assert(metrics.partialReadInvalidations === 0L)
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Envelope de-framing / CRC32C integrity unit tests (retained from the CP2 reader review).
+  //
+  // These target the data-integrity core directly: the real fetched bytes are framed
+  // StreamingBlockEnvelopes, so the reader must parse every frame, verify its CRC32C, and
+  // concatenate the payload-only bytes before deserialization -- never feed the 32-byte headers
+  // to the serializer, and never accept a truncated/oversized/corrupt frame. The package-private
+  // extractValidatedPayloads is exercised directly with hand-built frames over fully mocked
+  // collaborators (no SparkContext is needed for this path).
+  // ---------------------------------------------------------------------------------------------
+
+  private val integrityBmId = BlockManagerId("exec-1", "host-1", 7337)
+
+  /**
+   * Builds a reader with fully mocked collaborators. No SparkContext is required: the envelope
+   * extraction path only uses the real [[StreamingShuffleMetrics]] (passed in so a test can assert
+   * the invalidation counter) and the real [[StreamingShuffleConfig]]. The block manager and map
+   * output tracker are mocked and never invoked by the envelope extraction under test.
+   */
+  private def buildIntegrityReader(
+      metrics: StreamingShuffleMetrics): StreamingShuffleReader[Int, Int] = {
+    val dep = mock(classOf[ShuffleDependency[Int, Int, Int]])
+    val handle = new StreamingShuffleHandle[Int, Int, Int](
+      0, dep, bufferSizePercent = 20, spillThreshold = 80, maxBandwidthMBps = -1)
+    new StreamingShuffleReader[Int, Int](
+      handle,
+      startMapIndex = 0,
+      endMapIndex = 1,
+      startPartition = 0,
+      endPartition = 1,
+      context = mock(classOf[TaskContext]),
+      readMetrics = mock(classOf[ShuffleReadMetricsReporter]),
+      config = new StreamingShuffleConfig(new SparkConf(false)),
+      streamingMetrics = metrics,
+      transport = mock(classOf[StreamingShuffleTransport]),
+      blockManager = mock(classOf[BlockManager]),
+      mapOutputTracker = mock(classOf[MapOutputTracker]))
+  }
+
+  /** Frames a payload into the canonical 32-byte-header envelope bytes (CRC computed by create). */
+  private def frame(seq: Long, payload: Array[Byte]): Array[Byte] =
+    StreamingBlockEnvelope.create(0, 0L, 0, seq, payload).toByteArray
+
+  /** Concatenates frame byte arrays into a single fetched-block buffer. */
+  private def concat(parts: Array[Byte]*): Array[Byte] = parts.flatten.toArray
+
+  /** Deterministic payload of length `n`; content is irrelevant since the CRC covers it. */
+  private def payloadOf(n: Int): Array[Byte] = Array.tabulate(n)(i => (i % 127).toByte)
+
+  test("extractValidatedPayloads de-frames and concatenates multiple payloads, headers stripped") {
+    val reader = buildIntegrityReader(new StreamingShuffleMetrics)
+    val p0 = Array.emptyByteArray // an empty-payload frame must contribute zero bytes, not 32
+    val p1 = payloadOf(5000)
+    val p2 = payloadOf(37)
+    val raw = concat(frame(0L, p0), frame(1L, p1), frame(2L, p2))
+
+    val out = reader.extractValidatedPayloads(ByteBuffer.wrap(raw), integrityBmId, 0L, 0, 0)
+
+    // Only the payload bytes, in frame order, with every 32-byte header stripped.
+    assert(out.sameElements(p0 ++ p1 ++ p2))
+  }
+
+  test("extractValidatedPayloads returns an empty array for an empty fetched block") {
+    val reader = buildIntegrityReader(new StreamingShuffleMetrics)
+    val out = reader.extractValidatedPayloads(
+      ByteBuffer.wrap(Array.emptyByteArray), integrityBmId, 0L, 0, 0)
+    assert(out.isEmpty)
+  }
+
+  test("extractValidatedPayloads fails a CRC32C-mismatched frame and counts the invalidation") {
+    val metrics = new StreamingShuffleMetrics
+    val reader = buildIntegrityReader(metrics)
+    val corrupt = frame(0L, payloadOf(64))
+    // Flip the first payload byte (just past the 32-byte header) so the recomputed CRC32C differs.
+    val idx = StreamingBlockEnvelope.HEADER_BYTES
+    corrupt(idx) = (corrupt(idx) ^ 0xFF).toByte
+    val before = metrics.partialReadInvalidations
+
+    intercept[FetchFailedException] {
+      reader.extractValidatedPayloads(ByteBuffer.wrap(corrupt), integrityBmId, 0L, 0, 0)
+    }
+    assert(metrics.partialReadInvalidations === before + 1L)
+  }
+
+  test("extractValidatedPayloads fails a truncated frame") {
+    val reader = buildIntegrityReader(new StreamingShuffleMetrics)
+    // A full frame minus the last 10 payload bytes: parse must reject it as truncated.
+    val truncated = frame(0L, payloadOf(128)).dropRight(10)
+
+    intercept[FetchFailedException] {
+      reader.extractValidatedPayloads(ByteBuffer.wrap(truncated), integrityBmId, 0L, 0, 0)
+    }
+  }
+
+  test("extractValidatedPayloads fails on trailing partial-header bytes after a valid frame") {
+    val reader = buildIntegrityReader(new StreamingShuffleMetrics)
+    // A valid frame followed by 10 stray bytes -- fewer than the 32-byte header -- must fail rather
+    // than be silently ignored: a partial header signals a corrupt/truncated producer write.
+    val raw = concat(frame(0L, payloadOf(32)), new Array[Byte](10))
+
+    intercept[FetchFailedException] {
+      reader.extractValidatedPayloads(ByteBuffer.wrap(raw), integrityBmId, 0L, 0, 0)
+    }
   }
 }
