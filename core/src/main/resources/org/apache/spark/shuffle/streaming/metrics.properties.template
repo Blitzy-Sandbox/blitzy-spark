@@ -1,0 +1,77 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#  syntax: [instance].sink|source.[name].[options]=[value]
+
+#  This template configures metrics reporting for the OPT-IN Streaming Shuffle
+#  backend (org.apache.spark.shuffle.streaming). It reuses Spark's EXISTING
+#  MetricsSystem - it introduces NO new dependency and requires NO change to the
+#  metrics framework. Copy the relevant lines into your active
+#  metrics.properties (e.g. $SPARK_HOME/conf/metrics.properties, or the file
+#  named by -Dspark.metrics.conf=...) and uncomment them to opt in.
+#
+#  Accepted values for [instance] are "master", "worker", "executor", "driver",
+#  and "applications". A wildcard "*" applies the property to all instances.
+#  Streaming shuffle metrics are emitted on the "executor" instance.
+
+## Enable sinks for streaming-shuffle metrics (examples are commented out)
+
+# Enable JmxSink for all instances by class name
+#*.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
+
+# Enable JmxSink for the executor instance only (where streaming metrics emit)
+#executor.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
+
+# Enable PrometheusServlet for all instances by class name
+#*.sink.prometheusServlet.class=org.apache.spark.metrics.sink.PrometheusServlet
+#*.sink.prometheusServlet.path=/metrics/prometheus
+
+## Sources
+#
+#  The streaming shuffle source registers AUTOMATICALLY (StreamingShuffleManager
+#  registers it with the executor MetricsSystem when SparkEnv.get != null). You
+#  do NOT need a "source.class" entry to enable streaming-shuffle metrics.
+#
+#  The line below illustrates the per-instance source idiom (the common
+#  JvmSource) ONLY; it is NOT required for streaming-shuffle metrics.
+#executor.source.jvm.class=org.apache.spark.metrics.source.JvmSource
+
+## Streaming Shuffle metric namespace (source name: "StreamingShuffle")
+#
+#  When the streaming backend is active (spark.shuffle.manager=streaming AND
+#  spark.shuffle.streaming.enabled=true), the following four metrics are emitted
+#  under the "shuffle.streaming" prefix on the executor instance:
+#
+#  shuffle.streaming.bufferUtilizationPercent
+#      type:    gauge (0-100)
+#      meaning: current aggregate per-partition buffer utilization percentage.
+#  shuffle.streaming.spillCount
+#      type:    counter
+#      meaning: number of disk-spill events triggered at the spill threshold.
+#  shuffle.streaming.backpressureEvents
+#      type:    counter
+#      meaning: number of backpressure throttling episodes.
+#  shuffle.streaming.partialReadInvalidations
+#      type:    counter
+#      meaning: number of partial-read invalidations on producer failure
+#               (5s connection timeout -> FetchFailedException).
+#
+#  These metrics surface through the SAME existing endpoints as every other
+#  Spark metric: via JMX when JmxSink is enabled, and via Prometheus when
+#  PrometheusServlet is enabled (default path /metrics/prometheus). They are
+#  also exposed on the executor Prometheus endpoint /metrics/executors/prometheus.
+#  No metrics-framework change is required.
