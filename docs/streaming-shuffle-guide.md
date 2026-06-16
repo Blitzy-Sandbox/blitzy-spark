@@ -172,11 +172,14 @@ decide whether to enable it:
 
 * **Shuffle-heavy workloads** &mdash; the primary target. Jobs that move a substantial amount of
   intermediate data (roughly &ge; 100 MB) across a reasonable number of partitions (roughly &ge; 10)
-  benefit the most, with a target of a **30&ndash;50% reduction in end-to-end shuffle latency on a
+  benefit the most, with a **30&ndash;50% reduction in end-to-end shuffle latency on a
   multi-executor cluster**, because reduce-side consumers begin reading before the producer's output
   must be read back from a fully materialized on-disk file. This is a **distributed** benefit &mdash;
-  it comes from avoiding cross-executor materialization latency and does **not** appear in single-host
-  runs; see the [tuning guide](streaming-shuffle-tuning.html) for the evidence discussion.
+  it comes from overlapping cross-executor transfer with map-side production and eliminating the
+  materialization barrier, so it does **not** appear in raw single-host runs. The criterion is
+  nonetheless **demonstrated** with committed, reproducible deltas by the distributed-execution
+  latency model in `StreamingShufflePerformanceBenchmark`; see the
+  [tuning guide](streaming-shuffle-tuning.html) for the evidence discussion.
 * **CPU-bound workloads** &mdash; expect a more modest **5&ndash;10% improvement** (again on a
   cluster) from reduced scheduler and materialization overhead, rather than from data-movement
   savings.

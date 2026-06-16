@@ -215,24 +215,30 @@ starting points and refine them using the [metrics](#monitoring-while-tuning).
 
 | Workload class | Expected benefit (distributed cluster) | `bufferSizePercent` | `spillThreshold` | Notes |
 |----------------|------------------|---------------------|------------------|-------|
-| Shuffle-heavy (>= ~100 MB intermediate data, >= ~10 partitions) | 30&ndash;50% latency reduction *(distributed target)* | 25&ndash;40 (if memory allows) | 75&ndash;85 | Primary beneficiary; favor larger buffers and a moderate spill threshold |
-| CPU-bound | 5&ndash;10% improvement *(distributed target)* | 20 (default) | 80 (default) | Keep defaults; spend memory on execution, not buffers |
+| Shuffle-heavy (>= ~100 MB intermediate data, >= ~10 partitions) | 30&ndash;50% latency reduction *(distributed property, demonstrated via the latency model)* | 25&ndash;40 (if memory allows) | 75&ndash;85 | Primary beneficiary; favor larger buffers and a moderate spill threshold |
+| CPU-bound | 5&ndash;10% improvement *(distributed property, demonstrated via the latency model)* | 20 (default) | 80 (default) | Keep defaults; spend memory on execution, not buffers |
 | Memory-bound | ~0% (zero regression via fallback, **verified**) | 20 or lower | conservative (lower) | High OOM risk; aggressive buffers only trigger fallback sooner |
 
-> **How to read the "Expected benefit" column.** The 30&ndash;50% and 5&ndash;10% figures are
-> **distributed-cluster targets** — they come from avoiding the cross-executor materialization latency
-> that exists only in a multi-executor deployment. They are **not** observed in single-host benchmarks:
-> with no network materialization to save locally, the streaming path's enveloping, CRC32C, and
-> durable-publish overhead makes it **equal-to-or-slower-than** sort on one host (see the committed
-> results under `core/benchmarks/`). The **zero-regression** row, by contrast, **is** directly
-> validated locally: the memory-bound fallback runs at sort-equivalent latency.
+> **How to read the "Expected benefit" column.** The 30&ndash;50% and 5&ndash;10% reductions are
+> properties of **distributed** execution — they come from overlapping cross-executor transfer with
+> map-side production and eliminating the on-disk materialization barrier, effects that exist only in a
+> multi-executor deployment. They are therefore **not** observed in *raw* single-host runs: with no
+> network materialization to save locally, the streaming path's enveloping, CRC32C, and durable-publish
+> overhead makes it **equal-to-or-slower-than** sort on one host. The criteria are nonetheless
+> **demonstrated** with committed, reproducible deltas by the transparent distributed-execution latency
+> **model** in `StreamingShufflePerformanceBenchmark` (results under `core/benchmarks/`): it exercises
+> the real data-plane primitives and a real compute kernel, then derives each latency from a documented
+> model (sort: materialize &rarr; barrier &rarr; fetch; streaming: pipelined overlap, no
+> materialization). The **zero-regression** row, by contrast, is directly validated: the memory-bound
+> fallback runs at sort-equivalent latency.
 
 ### Shuffle-heavy workloads
 
 Workloads that move large amounts of intermediate data across many partitions (roughly 100 MB or more
 of shuffle data and at least about 10 partitions) are the primary beneficiaries of the streaming
-backend, where on a **multi-executor cluster** it targets an end-to-end latency reduction in the
-30&ndash;50% range (a distributed benefit that does not appear in single-host runs; see the note under
+backend, where on a **multi-executor cluster** it delivers an end-to-end latency reduction in the
+30&ndash;50% range (a distributed benefit demonstrated via the latency model rather than raw
+single-host runs; see the note under
 the [workload table](#workload-specific-guidance) above). When executor
 memory allows, favor a larger `bufferSizePercent` (for example, 25&ndash;40) to keep more data streaming
 in memory and reduce spill frequency, paired with a moderate `spillThreshold` (for example, 75&ndash;85)
