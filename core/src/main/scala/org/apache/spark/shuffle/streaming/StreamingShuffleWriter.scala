@@ -245,9 +245,14 @@ private[spark] class StreamingShuffleWriter[K, V](
   override def write(records: Iterator[Product2[K, V]]): Unit = {
     val startNanos = System.nanoTime()
     perPartitionCapacityBytes = config.perPartitionBufferBytes(executorMemoryBytes, numPartitions)
+    // The producer buffers every reduce partition, so its range is [0, numPartitions). Emits the
+    // attempt_id and reduce_partition_range correlation keys (see StreamingLogKeys).
+    val reducePartitionRange = s"[0,$numPartitions)"
     logDebug(log"Streaming shuffle write started shuffle=" +
       log"${MDC(LogKeys.SHUFFLE_ID, shuffleId)} map=${MDC(LogKeys.MAP_ID, mapId)} " +
-      log"attempt=${MDC(LogKeys.TASK_ATTEMPT_ID, context.taskAttemptId())} partitions=" +
+      log"attempt=${MDC(StreamingLogKeys.ATTEMPT_ID, context.taskAttemptId())} " +
+      log"reducePartitionRange=" +
+      log"${MDC(StreamingLogKeys.REDUCE_PARTITION_RANGE, reducePartitionRange)} partitions=" +
       log"${MDC(LogKeys.NUM_PARTITIONS, numPartitions)} perPartitionBufferBytes=" +
       log"${MDC(LogKeys.NUM_BYTES, perPartitionCapacityBytes)}")
 

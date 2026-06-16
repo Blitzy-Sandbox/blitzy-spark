@@ -189,12 +189,13 @@ private[spark] class StreamingShuffleReader[K, C](
 
     if (config.debug) {
       // Single per-read correlation line. Debug-gated and at debug level so the streaming-shuffle
-      // log budget (< 10 MB/hour/executor) is respected on the hot reduce path.
+      // log budget (< 10 MB/hour/executor) is respected on the hot reduce path. Emits the
+      // reduce_partition_range and attempt_id correlation keys (see StreamingLogKeys).
+      val reducePartitionRange = s"[$startPartition,$endPartition)"
       logDebug(log"StreamingShuffleReader reading shuffle=" +
-        log"${MDC(LogKeys.SHUFFLE_ID, handle.shuffleId)} reducePartitions=[" +
-        log"${MDC(LogKeys.START_INDEX, startPartition)}," +
-        log"${MDC(LogKeys.END_INDEX, endPartition)}) attempt=" +
-        log"${MDC(LogKeys.TASK_ATTEMPT_ID, context.taskAttemptId())}")
+        log"${MDC(LogKeys.SHUFFLE_ID, handle.shuffleId)} reducePartitionRange=" +
+        log"${MDC(StreamingLogKeys.REDUCE_PARTITION_RANGE, reducePartitionRange)} attempt=" +
+        log"${MDC(StreamingLogKeys.ATTEMPT_ID, context.taskAttemptId())}")
     }
 
     // In-progress block requests over the streaming consumer-stream channel. v1 no-op (the

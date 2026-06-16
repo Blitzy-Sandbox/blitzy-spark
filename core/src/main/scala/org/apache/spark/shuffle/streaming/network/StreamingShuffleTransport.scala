@@ -22,7 +22,7 @@ import scala.concurrent.Future
 import org.apache.spark.SparkEnv
 import org.apache.spark.internal.{Logging, LogKeys}
 import org.apache.spark.network.BlockTransferService
-import org.apache.spark.shuffle.streaming.StreamingShuffleConfig
+import org.apache.spark.shuffle.streaming.{StreamingLogKeys, StreamingShuffleConfig}
 import org.apache.spark.storage.BlockManagerId
 
 /**
@@ -92,11 +92,12 @@ private[spark] class StreamingShuffleTransport(
    * @return a completed `Future` (`Future.unit`); never fails in v1
    */
   def sendBlock(envelope: StreamingBlockEnvelope, target: BlockManagerId): Future[Unit] = {
-    // Structured, MDC-tagged correlation context so streaming log lines are searchable on the
-    // standard keys (shuffle_id -> SHUFFLE_ID, map_id -> MAP_ID, reduce_partition_range ->
-    // REDUCE_ID since a single block targets exactly one reduce partition, and the per-block
-    // sequence number -> INDEX as the transport-level ordering id). An attempt_id is not
-    // applicable at this wire seam (no TaskContext flows here). Debug level honors the log budget.
+    // Structured, MDC-tagged correlation context so streaming log lines are searchable. A single
+    // block targets exactly one reduce partition, logged under REDUCE_ID (with shuffle_id ->
+    // SHUFFLE_ID, map_id -> MAP_ID, and the per-block sequence number -> INDEX as the
+    // transport-level ordering id). The reduce_partition_range correlation key is emitted by the
+    // range-bearing seams (the reader's read path and openConsumerStream); no attempt_id applies
+    // at this wire seam (no TaskContext flows here). Debug level honors the log budget.
     logDebug(log"v1 logging-only sendBlock for " +
       log"shuffle ${MDC(LogKeys.SHUFFLE_ID, envelope.shuffleId)} " +
       log"map ${MDC(LogKeys.MAP_ID, envelope.mapId)} " +
@@ -131,17 +132,19 @@ private[spark] class StreamingShuffleTransport(
       startPartition: Int,
       endPartition: Int): Iterator[StreamingBlockEnvelope] = {
     // Structured, MDC-tagged correlation context: shuffle_id -> SHUFFLE_ID and the required
-    // reduce_partition_range -> START_INDEX/END_INDEX, mirroring StreamingShuffleReader so both
-    // ends of the read log the range under identical keys. The producer map-index range is shown
-    // in the message text for context (it shares the index keys; the structured context retains
-    // the reduce partition range, the required correlation field). The retry intent is sourced
-    // from StreamingShuffleConfig, never hardcoded. No attempt_id applies at this seam.
+    // reduce_partition_range -> StreamingLogKeys.REDUCE_PARTITION_RANGE (one key carrying the
+    // "[start,end)" reduce range), mirroring StreamingShuffleReader so both ends of the read
+    // log the range under the same key. The producer map-index range is shown under START_INDEX/
+    // END_INDEX for context. The retry intent comes from StreamingShuffleConfig, never hardcoded.
+    // No attempt_id applies at this seam (no TaskContext flows here).
+    val reducePartitionRange = s"[$startPartition,$endPartition)"
     logDebug(log"v1 logging-only openConsumerStream for " +
       log"shuffle ${MDC(LogKeys.SHUFFLE_ID, shuffleId)} " +
       log"maps [${MDC(LogKeys.START_INDEX, startMapIndex)}," +
       log"${MDC(LogKeys.END_INDEX, endMapIndex)}) " +
-      log"reduce partitions [${MDC(LogKeys.START_INDEX, startPartition)}," +
-      log"${MDC(LogKeys.END_INDEX, endPartition)}); retry intent backoffStartMs " +
+      log"reducePartitionRange=" +
+      log"${MDC(StreamingLogKeys.REDUCE_PARTITION_RANGE, reducePartitionRange)}; " +
+      log"retry intent backoffStartMs " +
       log"${MDC(LogKeys.RETRY_INTERVAL, StreamingShuffleConfig.RETRY_INITIAL_BACKOFF_MS)} " +
       log"maxAttempts ${MDC(LogKeys.MAX_ATTEMPTS, StreamingShuffleConfig.RETRY_MAX_ATTEMPTS)}; " +
       log"real data plane is reader-side BlockTransferService.fetchBlockSync")
