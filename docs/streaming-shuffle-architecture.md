@@ -433,10 +433,14 @@ existing `MetricsSystem`. No new metrics framework is introduced.
 | `backpressureEvents` | counter | Number of times backpressure throttled a producer. |
 | `partialReadInvalidations` | counter | Number of partial reads invalidated due to producer failure. |
 
-These metrics are exported through the same channels as the rest of Spark's telemetry: JMX, the
-Prometheus endpoint at `/metrics/executors/prometheus`, and any configured metrics sink. They also
-surface alongside the existing shuffle columns on the Web UI **Stages** tab (see the
-[Web UI](web-ui.html) guide). For the full monitoring story see
+Because they are registered as a custom `MetricsSystem` source, these metrics are exported through
+the same sinks as the rest of Spark's telemetry: **JMX** (via `JmxSink`) and the **Prometheus servlet
+sink** (`PrometheusServlet`, default path `/metrics/prometheus`) when that sink is enabled, plus any
+other configured metrics sink. They do **not** appear on the built-in `/metrics/executors/prometheus`
+endpoint (served by `PrometheusResource` from the `AppStatusStore`, which exposes only Spark's fixed
+per-executor summary metrics and does not read the `MetricsSystem` registry). The Web UI **Stages**
+tab shows the standard shuffle read/write byte columns (overall shuffle activity), not these four
+custom source metrics (see the [Web UI](web-ui.html) guide). For the full monitoring story see
 [Monitoring](monitoring.html); for using these signals to diagnose issues see the
 [troubleshooting guide](streaming-shuffle-troubleshooting.html).
 

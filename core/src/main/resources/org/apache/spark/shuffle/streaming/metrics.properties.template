@@ -70,8 +70,17 @@
 #      meaning: number of partial-read invalidations on producer failure
 #               (5s connection timeout -> FetchFailedException).
 #
-#  These metrics surface through the SAME existing endpoints as every other
-#  Spark metric: via JMX when JmxSink is enabled, and via Prometheus when
-#  PrometheusServlet is enabled (default path /metrics/prometheus). They are
-#  also exposed on the executor Prometheus endpoint /metrics/executors/prometheus.
-#  No metrics-framework change is required.
+#  These metrics surface through the SAME existing MetricsSystem sinks as every
+#  other Spark metric: via JMX when JmxSink is enabled, and via the Prometheus
+#  servlet sink when PrometheusServlet is enabled (default path
+#  /metrics/prometheus, served on the driver/executor metrics UI). Because they
+#  are registered as a custom MetricsSystem Source, the PrometheusServlet sink
+#  above is what exposes them in Prometheus format -- enable it to scrape them.
+#
+#  NOTE: the built-in executor-summary endpoint /metrics/executors/prometheus is
+#  NOT a MetricsSystem sink. It is served by status.api.v1.PrometheusResource from
+#  the AppStatusStore and exposes only Spark's fixed per-executor summary metrics
+#  (rddBlocks, memoryUsed, totalShuffleRead/Write, peak-memory, etc.). It does NOT
+#  read the MetricsSystem registry, so the custom shuffle.streaming.* source
+#  metrics do NOT appear there -- use the PrometheusServlet sink (/metrics/prometheus)
+#  or JMX to scrape them. No metrics-framework change is required.

@@ -8,7 +8,7 @@ The following existing Spark infrastructure is **reused as-is** — the streamin
 
 - **SLF4J / Log4j2 logging stack** — the backend logs through Spark's existing SLF4J facade and Log4j2 backend; no new logging framework is introduced.
 - **Executor `MetricsSystem` (Dropwizard/Codahale Metrics)** — the four streaming metrics are registered with the same executor-side metrics registry Spark already runs; no parallel metrics pipeline is created.
-- **Existing metrics endpoints — JMX and Prometheus** — the streaming metrics surface through the channels Spark already exposes, including the executor Prometheus endpoint **`/metrics/executors/prometheus`**. No new metrics endpoint is added.
+- **Existing metrics endpoints — JMX and the Prometheus servlet sink** — the streaming metrics surface through the `MetricsSystem` sinks Spark already exposes: **JMX** (via `JmxSink`) and the **Prometheus servlet sink** (`PrometheusServlet`, default path **`/metrics/prometheus`**) when that sink is enabled in `metrics.properties`. No new metrics endpoint is added. (Note: the built-in executor-summary endpoint `/metrics/executors/prometheus` is *not* a `MetricsSystem` sink — it is served by `status.api.v1.PrometheusResource` from the `AppStatusStore` and exposes only Spark's fixed per-executor summary metrics, so it does not carry these custom source metrics; see the [endpoint note](#which-endpoint-exposes-the-custom-metrics) below.)
 - **Executor health surface for readiness** — readiness is observed through Spark's existing executor health surface; the backend does not add a separate health/readiness probe.
 - **Existing shuffle security — authentication/SASL and TLS** — the streaming data path inherits Spark's existing shuffle security (authentication/**SASL** and **TLS**) via the existing transport configuration. It introduces **no new network endpoints** beyond the executor-scoped backpressure RPC, so existing security controls apply unchanged.
 
@@ -27,7 +27,11 @@ On top of the reused infrastructure above, Streaming Shuffle adds three things: 
 | `backpressureEvents` | counter | Number of producer-throttling (backpressure) events applied to slow consumers down the producer. |
 | `partialReadInvalidations` | counter | Number of partial reads invalidated on producer failure/timeout (each surfaces a `FetchFailedException`). |
 
-These four metrics are emitted under the **`shuffle.streaming.*`** namespace via a **`StreamingShuffleSource`** — an implementation of **`org.apache.spark.metrics.source.Source`** — that is **registered with the executor `MetricsSystem`**. Because the source plugs into the existing metrics registry, the metrics surface automatically through **JMX** and the **Prometheus** endpoint (`/metrics/executors/prometheus`), as well as via the Web UI **Stages-tab shuffle columns**. This is the same `StreamingShuffleMetrics → StreamingShuffleSource → MetricsSystem` path shown in the component-interaction diagram on the [Architecture](architecture.md) page.
+These four metrics are emitted under the **`shuffle.streaming.*`** namespace via a **`StreamingShuffleSource`** — an implementation of **`org.apache.spark.metrics.source.Source`** — that is **registered with the executor `MetricsSystem`**. Because the source plugs into the existing metrics registry, the metrics surface through **every configured `MetricsSystem` sink**: notably **JMX** (via `JmxSink`) and the **Prometheus servlet sink** (`PrometheusServlet`, default path `/metrics/prometheus`) when it is enabled in `metrics.properties`. This is the same `StreamingShuffleMetrics → StreamingShuffleSource → MetricsSystem` path shown in the component-interaction diagram on the [Architecture](architecture.md) page.
+
+#### Which endpoint exposes the custom metrics
+
+The four `shuffle.streaming.*` values are a **custom `MetricsSystem` `Source`**, so they appear wherever the `MetricsSystem` reports — i.e. through the **enabled sinks** (JMX and the `PrometheusServlet` sink at `/metrics/prometheus`). They do **not** appear on the built-in **`/metrics/executors/prometheus`** endpoint: that endpoint is served by `org.apache.spark.status.api.v1.PrometheusResource` directly from the `AppStatusStore` and emits only Spark's **fixed per-executor summary** metrics (`rddBlocks`, `memoryUsed`, `totalShuffleRead`/`totalShuffleWrite`, peak-memory, GC, etc.) — it does not read the `MetricsSystem` registry, so no custom source metric (streaming or otherwise) is exposed there. Likewise, the Web UI **Stages** tab shows the **standard** shuffle read/write byte columns (overall shuffle activity), not these four custom source metrics. To scrape `shuffle.streaming.*`, enable the `PrometheusServlet` sink (see [`metrics.properties.template`](../../core/src/main/resources/org/apache/spark/shuffle/streaming/metrics.properties.template)) and read `/metrics/prometheus`, or read them over JMX.
 
 ### Structured logging with correlation IDs
 
@@ -45,7 +49,7 @@ Setting **`spark.shuffle.streaming.debug=true`** raises log verbosity for diagno
 
 ### Grafana dashboard template
 
-**`dashboard.json`** (in this same folder) is the provided **Grafana dashboard template**: a **2×2 grid of four panels**, one panel per `shuffle.streaming.*` metric, importable against a **Prometheus datasource**. It visualizes **`bufferUtilizationPercent`** as a **gauge with the 80% spill threshold marked**, alongside the three counters — **`spillCount`**, **`backpressureEvents`**, and **`partialReadInvalidations`**. Because it scrapes the same Prometheus endpoint the metrics already surface through, importing `dashboard.json` requires no change to the cluster's metrics configuration.
+**`dashboard.json`** (in this same folder) is the provided **Grafana dashboard template**: a **2×2 grid of four panels**, one panel per `shuffle.streaming.*` metric, importable against a **Prometheus datasource**. It visualizes **`bufferUtilizationPercent`** as a **gauge with the 80% spill threshold marked**, alongside the three counters — **`spillCount`**, **`backpressureEvents`**, and **`partialReadInvalidations`**. Its panels query the metrics by name (`__name__=~".*shuffle.streaming.<metric>.*"`), so it works against any Prometheus datasource that scrapes the `PrometheusServlet` sink (`/metrics/prometheus`); enabling that sink (above) is the only metrics-configuration prerequisite.
 
 ## Constraints
 
@@ -66,10 +70,9 @@ Confirming that the four `shuffle.streaming.*` metrics actually emit in a **loca
    ```
 
 2. **Run a small shuffle job** — execute any job that performs a shuffle (for example, a `groupBy`/`reduceByKey` over a small dataset) so the backend allocates buffers and produces shuffle traffic.
-3. **Scrape and inspect the metrics** — confirm the four `shuffle.streaming.*` metrics appear through any of the reused endpoints:
-   - the **Prometheus** endpoint **`/metrics/executors/prometheus`**,
-   - **JMX** (via the executor's registered MBeans), or
-   - the Web UI **Stages-tab shuffle columns**.
+3. **Enable a sink and scrape the metrics** — confirm the four `shuffle.streaming.*` metrics appear through a configured `MetricsSystem` sink (they do **not** appear on `/metrics/executors/prometheus` — see the [endpoint note](#which-endpoint-exposes-the-custom-metrics) above):
+   - the **Prometheus servlet sink** at **`/metrics/prometheus`** — enable `PrometheusServlet` in `metrics.properties` (see [`metrics.properties.template`](../../core/src/main/resources/org/apache/spark/shuffle/streaming/metrics.properties.template)), then `curl http://<driver-or-executor-metrics-ui>/metrics/prometheus | grep -i shuffle_streaming`, or
+   - **JMX** (via the executor's registered MBeans, when `JmxSink` is enabled).
 
 Seeing `bufferUtilizationPercent` move and the counters increment confirms the `StreamingShuffleSource → MetricsSystem` wiring is live. This local-dev metric-emission verification is a required part of the observability acceptance, not an optional check.
 

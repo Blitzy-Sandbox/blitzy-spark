@@ -52,12 +52,15 @@ lineage and recompute machinery recovers the lost output with **zero data loss**
 
 # Diagnostic metrics
 
-The backend emits four metrics under the `shuffle.streaming.*` namespace. They are registered with
-Spark's existing `MetricsSystem` and are therefore exposed through the same channels as every other
-Spark metric: via **JMX**, via the **Prometheus** endpoint `/metrics/executors/prometheus`, and
-through the shuffle columns on the Web UI **Stages** tab. These four metrics are your primary
-diagnostic signal — most symptoms in this guide are diagnosed by reading one or two of them. See
-[Monitoring](monitoring.html) for how to enable and scrape Spark metrics in general.
+The backend emits four metrics under the `shuffle.streaming.*` namespace. They are registered as a
+custom source with Spark's existing `MetricsSystem` and are therefore exposed through its configured
+sinks: via **JMX** (via `JmxSink`) and via the **Prometheus servlet sink** (`PrometheusServlet`,
+default path `/metrics/prometheus`) when that sink is enabled. They are **not** carried by the built-in
+`/metrics/executors/prometheus` endpoint (which exposes only Spark's fixed per-executor summary
+metrics), and the Web UI **Stages** tab shows the standard shuffle read/write byte columns rather than
+these four custom metrics. These four metrics are your primary diagnostic signal — most symptoms in
+this guide are diagnosed by reading one or two of them. See [Monitoring](monitoring.html) for how to
+enable and scrape Spark metrics in general.
 
 | Metric (`shuffle.streaming.*`) | Type | What it measures | How to use it in diagnosis |
 |--------------------------------|------|------------------|----------------------------|

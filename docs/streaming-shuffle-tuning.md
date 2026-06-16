@@ -286,8 +286,10 @@ to guide each adjustment:
   and subsequent recomputes. A rising count points to instability (failures or timeouts) rather than a
   tuning problem; investigate using the [troubleshooting guide](streaming-shuffle-troubleshooting.html).
 
-These metrics are surfaced through the existing Spark metrics endpoints (for example, JMX and the
-Prometheus endpoint). See [Monitoring](monitoring.html) for how to access them and the
+These metrics are surfaced as a custom `MetricsSystem` source through the existing Spark metrics sinks
+— for example JMX (`JmxSink`) and the Prometheus servlet sink (`PrometheusServlet`, default path
+`/metrics/prometheus`) when enabled; they are not carried by the built-in `/metrics/executors/prometheus`
+summary endpoint. See [Monitoring](monitoring.html) for how to access them and the
 [troubleshooting guide](streaming-shuffle-troubleshooting.html) for diagnosing anomalies.
 
 ## Interaction with General Shuffle Tuning

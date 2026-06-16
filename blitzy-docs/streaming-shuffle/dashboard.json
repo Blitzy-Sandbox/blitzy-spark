@@ -2,7 +2,7 @@
   "id": null,
   "uid": "streaming-shuffle",
   "title": "Streaming Shuffle",
-  "description": "Grafana dashboard template for the Apache Spark Streaming Shuffle backend. A 2x2 grid of four panels, one per shuffle.streaming.* executor metric, sourced from a templated Prometheus datasource scraping the Spark executor endpoint /metrics/executors/prometheus. The highest-value signal is the 80% buffer-utilization spill threshold marked on the Buffer Utilization gauge.",
+  "description": "Grafana dashboard template for the Apache Spark Streaming Shuffle backend. A 2x2 grid of four panels, one per shuffle.streaming.* custom MetricsSystem source metric, sourced from a templated Prometheus datasource scraping the Spark PrometheusServlet sink endpoint /metrics/prometheus (enable the PrometheusServlet sink in metrics.properties; the panels match by metric name so they are agnostic to the exact scrape path). Note: the built-in /metrics/executors/prometheus endpoint exposes only Spark's fixed per-executor summary metrics and does not carry these custom source metrics. The highest-value signal is the 80% buffer-utilization spill threshold marked on the Buffer Utilization gauge.",
   "tags": [
     "spark",
     "shuffle",

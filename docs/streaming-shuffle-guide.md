@@ -220,10 +220,13 @@ actually engaged for a given application. There are several complementary ways t
 * **Streaming shuffle metrics** &mdash; the backend emits four `shuffle.streaming.*` metrics through
   Spark's existing metrics system: a buffer-utilization gauge plus counters for spills, backpressure
   events, and partial-read invalidations. Non-zero activity on these metrics indicates the streaming
-  path is in use. They are available wherever you already consume Spark metrics, including JMX and the
-  Prometheus endpoint at `/metrics/executors/prometheus`.
-* **Web UI Stages tab** &mdash; the shuffle read/write columns on the Stages tab reflect shuffle
-  activity for streaming-enabled stages just as they do for sort-based shuffle.
+  path is in use. As a custom `MetricsSystem` source they are available through your configured metrics
+  sinks &mdash; JMX (via `JmxSink`) and the Prometheus servlet sink (`PrometheusServlet`, default path
+  `/metrics/prometheus`) when enabled. They are *not* exposed on the built-in
+  `/metrics/executors/prometheus` endpoint, which carries only Spark's fixed per-executor summary metrics.
+* **Web UI Stages tab** &mdash; the standard shuffle read/write columns on the Stages tab reflect overall
+  shuffle activity for streaming-enabled stages just as they do for sort-based shuffle (these are the
+  standard shuffle byte columns, not the four custom `shuffle.streaming.*` metrics above).
 * **Debug logging** &mdash; set `spark.shuffle.streaming.debug=true` to emit additional diagnostic log
   lines for the streaming code path, which make it easy to see when streaming is selected and when a
   fallback occurs. Leave this off in production to keep log volume low.
