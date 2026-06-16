@@ -159,4 +159,51 @@ class StreamingShuffleIntegrationSuite extends SparkFunSuite with LocalSparkCont
     // Identical results prove the streaming path introduces zero regression versus sort.
     assert(streamingResult === sortResult)
   }
+
+  test("aggregateByKey with V != C (map-side combine) round-trips correctly") {
+    sc = new SparkContext(streamingSparkConf())
+    // aggregateByKey enables map-side combine with a combiner type (Set[Int]) that differs from
+    // the value type (Int). This is the exact case that exposes the writer map-side-combine bug:
+    // the reduce-side reader calls aggregator.combineCombinersByKey on a mapSideCombine dependency,
+    // i.e. it expects the fetched values to already be Set[Int] combiners. Before the writer ran
+    // records through the aggregator, it emitted raw Int values, so the reader either produced
+    // wrong results or threw a ClassCastException. Neither reduceByKey (V == C) nor groupByKey
+    // (mapSideCombine == false) catches this, which is why this dedicated V != C case exists.
+    val pairs = sc.parallelize(0 until 1000, 4).map(i => (i % 10, i))
+    val aggregated = pairs.aggregateByKey(Set.empty[Int])(_ + _, _ ++ _).collect().toMap
+    // Independently compute the expected per-key sets so the assertion is self-checking: each key
+    // k in 0..9 must map to exactly the set of inputs congruent to k mod 10.
+    val expected = (0 until 1000).groupBy(_ % 10).map { case (k, vs) => (k, vs.toSet) }
+    assert(aggregated === expected)
+  }
+
+  test("combineByKey with V != C is identical to the sort manager (map-side combine)") {
+    // combineByKey with a (sum, count) combiner exercises a non-same-type map-side combine where
+    // the combiner type (Long, Int) differs from the value type Int -- the canonical "average"
+    // aggregation. Comparing streaming to sort proves the two backends are semantically identical
+    // for V != C aggregations, the strongest end-to-end guarantee for findings #4/#5.
+    val createCombiner = (v: Int) => (v.toLong, 1)
+    val mergeValue = (acc: (Long, Int), v: Int) => (acc._1 + v, acc._2 + 1)
+    val mergeCombiners = (a: (Long, Int), b: (Long, Int)) => (a._1 + b._1, a._2 + b._2)
+
+    // Reference result from the stock sort-based shuffle.
+    sc = new SparkContext(sortSparkConf())
+    val sortResult = sc.parallelize(1 to 1000, 6).map(i => (i % 20, i))
+      .combineByKey(createCombiner, mergeValue, mergeCombiners).collect().toMap
+    // Only one SparkContext may be active per JVM; stop the sort context before the streaming one.
+    resetSparkContext()
+
+    // Same job under the streaming backend.
+    sc = new SparkContext(streamingSparkConf())
+    val streamingResult = sc.parallelize(1 to 1000, 6).map(i => (i % 20, i))
+      .combineByKey(createCombiner, mergeValue, mergeCombiners).collect().toMap
+
+    // Identical results prove the streaming writer now emits true combiners for V != C.
+    assert(streamingResult === sortResult)
+    // Self-check against an independent computation of the per-key (sum, count).
+    val expected = (1 to 1000).groupBy(_ % 20).map {
+      case (k, vs) => (k, (vs.map(_.toLong).sum, vs.size))
+    }
+    assert(streamingResult === expected)
+  }
 }

@@ -172,10 +172,14 @@ decide whether to enable it:
 
 * **Shuffle-heavy workloads** &mdash; the primary target. Jobs that move a substantial amount of
   intermediate data (roughly &ge; 100 MB) across a reasonable number of partitions (roughly &ge; 10)
-  benefit the most, with an expected **30&ndash;50% reduction in end-to-end shuffle latency** because
-  reduce-side consumers begin receiving data before map output is fully materialized.
-* **CPU-bound workloads** &mdash; expect a more modest **5&ndash;10% improvement** from reduced
-  scheduler and materialization overhead, rather than from data-movement savings.
+  benefit the most, with a target of a **30&ndash;50% reduction in end-to-end shuffle latency on a
+  multi-executor cluster**, because reduce-side consumers begin reading before the producer's output
+  must be read back from a fully materialized on-disk file. This is a **distributed** benefit &mdash;
+  it comes from avoiding cross-executor materialization latency and does **not** appear in single-host
+  runs; see the [tuning guide](streaming-shuffle-tuning.html) for the evidence discussion.
+* **CPU-bound workloads** &mdash; expect a more modest **5&ndash;10% improvement** (again on a
+  cluster) from reduced scheduler and materialization overhead, rather than from data-movement
+  savings.
 * **Memory-bound workloads** &mdash; it is safe to leave streaming enabled. When buffers cannot be
   allocated without risking memory exhaustion, the backend automatically falls back to the sort-based
   shuffle, so there is **zero regression**. Such workloads may simply see no benefit from streaming.

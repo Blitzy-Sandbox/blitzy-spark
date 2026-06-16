@@ -49,13 +49,23 @@ Spark deployment is unchanged: you must explicitly opt in for any streaming beha
 At a high level, the backend targets the following measurable goals:
 
 * **30-50% end-to-end latency reduction** for shuffle-heavy workloads (>= 100 MB of shuffle data
-  across >= 10 partitions).
+  across >= 10 partitions) — a **distributed-workload target**.
 * **5-10% improvement** for CPU-bound workloads, primarily from reduced scheduler and
-  materialization overhead.
+  materialization overhead — also a **distributed-workload target**.
 * **Zero regression** for memory-bound workloads, achieved by automatically falling back to the
   sort-based shuffle.
 * **Zero data loss** under failure, achieved by surfacing failures as `FetchFailedException` so that
   Spark's existing lineage and recompute machinery recovers any lost output.
+
+> **On the performance evidence.** The 30-50% and 5-10% figures are **distributed-workload targets**:
+> they come from eliminating the cross-executor *materialization* latency that only exists in a
+> multi-executor cluster. The committed **single-host** benchmarks under `core/benchmarks/` therefore
+> do **not** reproduce them — with no network materialization to save locally, the streaming path's
+> enveloping, CRC32C, and durable-publish work makes it **equal-to-or-slower-than** sort on one host.
+> What those single-host benchmarks *do* substantiate is the **zero memory-bound regression** goal
+> (the memory-bound fallback runs at sort-equivalent latency) and the per-component overheads; **zero
+> data loss** is exercised by the failure-injection suite. See the
+> [tuning guide](streaming-shuffle-tuning.html) for the per-workload evidence discussion.
 
 Activation requires **both** of the following, and both default off:
 
@@ -209,52 +219,64 @@ and existing Spark Core services are consumed through their public APIs rather t
 
 ## Data flow: producer to consumer
 
-A single shuffle block travels through the following lifecycle. The producer side buffers and frames
-output; the consumer side fetches, verifies, and feeds the reduce computation. Control-plane
-signalling (heartbeat, acknowledgements, and rate limiting) runs alongside the data plane, and disk
-spill activates only under memory pressure. The end-to-end path is shown in **Diagram 3:
-Producer-to-Consumer Streaming Data Flow** below.
+A single shuffle block travels through the following lifecycle. The producer side buffers, frames,
+and **durably publishes** output; the consumer side **pulls** it, verifies it, and feeds the reduce
+computation. Best-effort control-plane signalling (heartbeat, acknowledgements, and rate limiting)
+runs alongside the data plane when the backpressure endpoint is reachable, and disk spill activates
+only under memory pressure. The end-to-end path is shown in **Diagram 3: Producer-to-Consumer
+Streaming Data Flow** below.
 
-**Legend:** solid arrows = data path; thick arrows (`==>`) = backpressure/control; dotted arrows
-(`-.->`) = spill, failure, or fallback.
+**Legend:** solid arrows = data path (producer durable-publish; consumer pull-fetch); thick arrows
+(`==>`) = best-effort backpressure/control; dotted arrows (`-.->`) = spill, failure, fallback, or
+off-critical-path/served relationships.
 
 ```mermaid
 flowchart LR
-    MT["Map task"] --> WR["StreamingShuffleWriter.write"]
+    MT["Map task"] --> WR["StreamingShuffleWriter.write<br/>(map-side combine if dep.mapSideCombine)"]
     WR --> PB["Per-partition StreamingBuffer"]
-    PB --> RL["TokenBucketRateLimiter gate"]
-    RL --> TX["StreamingShuffleTransport.sendBlock"]
-    TX --> WIRE["StreamingBlockEnvelope<br/>32B header + CRC32C"]
-    WIRE --> RD["StreamingShuffleReader.read<br/>fetchBlockSync"]
-    RD --> VER["verifyChecksum"]
+    PB --> RLG["TokenBucketRateLimiter gate<br/>(producer-side, local)"]
+    RLG --> ENC["StreamingBlockEnvelope<br/>32B header + CRC32C"]
+    ENC --> PUB["resolver.commitDurableMapOutput<br/>durable .data / .index"]
+    PUB --> BMW["BlockManager /<br/>IndexShuffleBlockResolver"]
+    RD["StreamingShuffleReader.read<br/>fetchBlockSync (PULL)"] --> GBD["resolver.getBlockData<br/>in-memory buffer OR durable file"]
+    GBD --> VER["verifyChecksum (CRC32C)<br/>+ aggregate payload cap"]
     VER --> DES["deserialize + aggregate/sort"]
     DES --> RT["Reduce task"]
+    BMW -.->|"served on producer executor"| GBD
     PB -.->|"buffer > 80%"| SP["MemorySpillManager"]
-    SP -.->|"putBytes DISK_ONLY"| BM["BlockManager disk"]
-    RD ==>|"heartbeat 10s / ack"| RPC["BackpressureRpcEndpoint"]
-    RPC ==>|"rate-limit / timeout"| RL
-    RD -.->|"5s timeout"| FF["FetchFailedException"]
+    SP -.->|"putBytes DISK_ONLY"| BMD["BlockManager disk"]
+    RD ==>|"best-effort heartbeat / ack / peer-version<br/>(v1: when endpoint reachable)"| RPC["BackpressureRpcEndpoint"]
+    RPC ==>|"rate-limit / timeout state"| RLG
+    RD -.->|"5s connection timeout"| FF["FetchFailedException"]
     FF -.->|"recompute via lineage"| MT
-    WR -.->|"fallback trip"| SORT["Inner SortShuffleManager"]
+    WR -.->|"fallback pinned at registration"| SORT["Inner SortShuffleManager"]
+    WR -.->|"v1 logging-only (off data path)"| TX["StreamingShuffleTransport"]
 ```
 
 In words:
 
 1. A map task hands its records to `StreamingShuffleWriter`, which accumulates them in a
-   per-partition `StreamingBuffer`.
-2. Before bytes go on the wire they pass through the token-bucket rate gate, which enforces the
+   per-partition `StreamingBuffer` (applying the dependency's map-side combine first when
+   `dep.mapSideCombine` is set, so the bytes are combiners `C`).
+2. On the producer side the bytes pass through the token-bucket rate gate, which enforces the
    per-executor bandwidth cap.
 3. Output is framed into 2 MB blocks, each carrying a 32-byte header (shuffle id, map id, reduce id,
    sequence number, CRC32C, and payload length) followed by the CRC32C-protected payload.
-4. Blocks are transferred over the **existing** block-transfer service; no new data-plane transport
-   is introduced.
-5. `StreamingShuffleReader` fetches blocks while production is still in progress, verifies each
-   block's CRC32C, and then deserializes, aggregates, and/or sorts according to the shuffle
-   dependency before handing records to the reduce task.
-6. Throughout, the consumer sends a heartbeat/acknowledgement every 10 s; the producer throttles or
-   pauses based on those signals and on rate-limit decisions. If a buffer exceeds the spill
-   threshold, the largest buffered partitions are spilled to disk so streaming can continue without
-   exhausting memory.
+4. The framed output is **published durably** by `StreamingShuffleBlockResolver.commitDurableMapOutput`
+   as standard `.data`/`.index` files through the **existing** `BlockManager` / `IndexShuffleBlockResolver`,
+   so it is remotely fetchable by the standard shuffle services. No new data-plane transport is
+   introduced — the v1 `StreamingShuffleTransport` is a logging-only seam off the data path.
+5. `StreamingShuffleReader` **pulls** blocks with `fetchBlockSync` over the existing block-transfer
+   service; on the producing executor the fetch resolves to `StreamingShuffleBlockResolver.getBlockData`,
+   which serves the block from the still-resident in-memory `StreamingBuffer` when available and from
+   the durable file otherwise. The reader verifies each block's CRC32C, enforces an aggregate
+   payload cap, and then deserializes, aggregates, and/or sorts according to the shuffle dependency
+   before handing records to the reduce task.
+6. Throughout, when the backpressure endpoint is reachable the consumer emits a best-effort
+   heartbeat/acknowledgement (and peer-version), and the producer throttles via its rate limiter and
+   reacts to the protocol's consumer-timeout state. If a buffer exceeds the spill threshold, the
+   largest buffered partitions are spilled to disk so streaming can continue without exhausting
+   memory.
 
 ## Backpressure and flow control
 
@@ -262,8 +284,9 @@ Backpressure prevents a fast producer from overwhelming a slower consumer. The m
 parts:
 
 * **Heartbeat / acknowledgement** — the consumer sends a heartbeat to the producer on a **10 s**
-  interval. Missing acknowledgements signal that the consumer is falling behind, and the producer
-  reacts by throttling or buffering.
+  interval (emitted **best-effort** in v1 whenever the backpressure endpoint is reachable; guaranteed
+  cross-executor delivery is deferred to the v2 transport). Missing acknowledgements signal that the
+  consumer is falling behind, and the producer reacts by throttling or buffering.
 * **Token-bucket rate limiting** — outbound bytes pass through a token-bucket limiter that enforces
   the per-executor bandwidth cap configured by `spark.shuffle.streaming.maxBandwidthMBps`. One
   permit corresponds to one byte; when the cap is `0` the limiter is unlimited.
@@ -310,8 +333,10 @@ introducing a new recovery model. When a producer fails:
 
 Transient errors are retried with **exponential backoff** starting at **1 s**, up to a maximum of
 **5 attempts**. Because failures surface through the standard `FetchFailedException` path, the
-lineage and fault-recovery model itself is unchanged, and the design preserves the **zero data loss**
-guarantee under all failure scenarios.
+lineage and fault-recovery model itself is unchanged: recovery rests on Spark's proven recompute
+machinery. The design therefore targets **zero data loss** under failure, and the failure paths are
+exercised by the 10-scenario `StreamingShuffleFailureInjectionSuite`; full multi-executor distributed
+proof is part of the v2 hardening.
 
 ## Automatic fallback (zero-regression guarantee)
 

@@ -187,6 +187,29 @@ private[spark] object StreamingShuffleConfig {
   val MIN_BUFFER_SIZE_BYTES: Long = 2L * 1024 * 1024
 
   // ---------------------------------------------------------------------------------------
+  // Reduce-side fetch memory safety (bounds the aggregate payload a single fetched block may
+  // assemble, defending against reduce-side memory exhaustion from an oversized/malicious block).
+  // ---------------------------------------------------------------------------------------
+
+  /**
+   * Multiplicative tolerance applied to a block's advertised (MapStatus) size when bounding the
+   * aggregate de-enveloped payload a single fetched block may assemble. MapStatus stores sizes in
+   * a lossy compressed form and the de-enveloped payload is always `<=` the enveloped block size,
+   * so a modest 1.5x margin absorbs that imprecision while still rejecting a block that streams
+   * materially more than advertised (a producer-corruption / memory-exhaustion vector).
+   */
+  val AGGREGATE_SIZE_TOLERANCE: Double = 1.5
+
+  /**
+   * Absolute memory-safety ceiling for a single fetched block's assembled payload, expressed as a
+   * fraction of the executor on-heap storage memory. Even when a block's advertised size is bogus
+   * or unavailable, the reducer never allocates more than this fraction for one block, bounding the
+   * reduce-side memory-exhaustion blast radius; the effective per-block cap is the tighter of this
+   * and the tolerance-inflated advertised size.
+   */
+  val MAX_FETCH_MEMORY_FRACTION: Double = 0.5
+
+  // ---------------------------------------------------------------------------------------
   // Timeouts, heartbeat, and scan intervals (milliseconds).
   // ---------------------------------------------------------------------------------------
 

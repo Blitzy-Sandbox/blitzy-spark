@@ -20,12 +20,15 @@ package org.apache.spark.shuffle.streaming
 import java.io.{ByteArrayInputStream, IOException}
 import java.nio.ByteBuffer
 import java.util.concurrent.{Callable, ExecutionException, TimeoutException, TimeUnit}
+import java.util.concurrent.atomic.AtomicBoolean
 
 import scala.collection.mutable.ArrayBuffer
+import scala.util.control.NonFatal
 
 import org.apache.spark.{Aggregator, InterruptibleIterator, MapOutputTracker, SparkEnv, TaskContext}
 import org.apache.spark.internal.{Logging, LogKeys}
 import org.apache.spark.network.buffer.ManagedBuffer
+import org.apache.spark.rpc.RpcEndpointRef
 import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader, ShuffleReadMetricsReporter}
 import org.apache.spark.shuffle.streaming.network.{StreamingBlockEnvelope,
@@ -98,6 +101,11 @@ import org.apache.spark.util.collection.ExternalSorter
  * @param config the typed streaming-shuffle configuration accessor
  * @param streamingMetrics the streaming-shuffle telemetry holder (partial-read invalidations)
  * @param transport the v1 logging-only streaming transport integration seam
+ * @param backpressureEndpointRef the producer-side backpressure RPC endpoint this reader (the
+ *                                consumer) emits heartbeat/ack/peer-version control messages to,
+ *                                closing the consumer-to-producer flow-control loop; `None` (the
+ *                                default, used on the driver/local-mode path and by isolated unit
+ *                                tests) disables emission entirely
  * @param blockManager provides the [[org.apache.spark.network.BlockTransferService]] used to fetch
  *                     blocks and resolve the local executor id; defaults to the env
  * @param mapOutputTracker resolves block locations by executor; defaults to the env
@@ -113,6 +121,7 @@ private[spark] class StreamingShuffleReader[K, C](
     config: StreamingShuffleConfig,
     streamingMetrics: StreamingShuffleMetrics,
     transport: StreamingShuffleTransport,
+    backpressureEndpointRef: Option[RpcEndpointRef] = None,
     blockManager: BlockManager = SparkEnv.get.blockManager,
     mapOutputTracker: MapOutputTracker = SparkEnv.get.mapOutputTracker)
   extends ShuffleReader[K, C] with Logging {
@@ -127,6 +136,50 @@ private[spark] class StreamingShuffleReader[K, C](
   // down when the reduce task finishes (or fails).
   private val fetchExecutor =
     ThreadUtils.newDaemonCachedThreadPool(s"streaming-shuffle-fetch-${handle.shuffleId}")
+
+  // Set once the first peer-version advertisement has been emitted for this reduce read, so this
+  // consumer advertises its streaming-protocol version to the producer exactly once (on the first
+  // successfully validated block) rather than on every block -- keeping the consumer-to-producer
+  // control traffic within the per-executor RPC/log budget while still tripping the producer's
+  // version-mismatch fallback in a mixed-version cluster.
+  private val peerVersionAdvertised = new AtomicBoolean(false)
+
+  /**
+   * Emits a single backpressure control message to the producer-side backpressure RPC endpoint,
+   * best-effort. This is the consumer-to-producer half of the flow-control loop that finding #6
+   * required wiring into production code: heartbeats prove the consumer is alive, acks let the
+   * producer release the matching unacked bytes (and clear any consumer-timeout state), and the
+   * peer-version advertisement trips the producer's version-mismatch fallback when the builds
+   * diverge. The producer side already reacts to this state -- `StreamingShuffleWriter` blocks on
+   * the (consumer-retuned) token-bucket rate limiter via `acquireSendPermit` and consults
+   * `isConsumerTimedOut`/`unackedByteCount` in `handleConsumerTimeout` -- so emitting here closes
+   * the previously receive-only loop end-to-end.
+   *
+   * Delivery is fire-and-forget ([[org.apache.spark.rpc.RpcEndpointRef#send]]) and every send is
+   * guarded so a control-plane hiccup can never fail the data read: the data-plane correctness
+   * guarantees (per-block CRC32C, the 5 s connection timeout, exponential-backoff retry, and
+   * partial-read invalidation) stand entirely on the real `fetchBlockSync` path and do not depend
+   * on backpressure delivery. When `backpressureEndpointRef` is `None` (driver/local-mode, or an
+   * isolated unit test) this is a no-op.
+   *
+   * v1 reachable-topology note: the ref is the backpressure endpoint this reader can reach; in a
+   * co-located producer/consumer topology that is the producer's protocol and the loop is fully
+   * end-to-end. Deriving a remote producer's RPC address from its `BlockManagerId` (which carries
+   * the block-transfer port, not the RpcEnv port) is the documented v2 cross-host boundary.
+   */
+  private def emitBackpressure(message: BackpressureRpcEndpoint.BackpressureMessage): Unit = {
+    backpressureEndpointRef.foreach { ref =>
+      try {
+        ref.send(message)
+      } catch {
+        case NonFatal(e) =>
+          if (config.debug) {
+            logDebug(log"Streaming shuffle backpressure control send failed (best-effort, the " +
+              log"data read is unaffected): ${MDC(LogKeys.ERROR, e.getMessage)}")
+          }
+      }
+    }
+  }
 
   /** Read the combined key-values for this reduce task. */
   override def read(): Iterator[Product2[K, C]] = {
@@ -171,8 +224,11 @@ private[spark] class StreamingShuffleReader[K, C](
     // pulls records, preserving the streaming, non-materializing read semantics.
     val serializerInstance = dep.serializer.newInstance()
     val recordIter = blocksByAddress.flatMap { case (bmId, blockInfos) =>
-      blockInfos.iterator.flatMap { case (blockId, _, mapIndex) =>
-        readStreamingBlock(bmId, blockId, mapIndex, serializerInstance)
+      // `size` is the block's expected (MapStatus) length; it bounds the aggregate payload the
+      // reader will assemble for this block (see readStreamingBlock -> extractValidatedPayloads),
+      // so a single oversized/malicious block cannot exhaust reduce-side memory (finding #9).
+      blockInfos.iterator.flatMap { case (blockId, size, mapIndex) =>
+        readStreamingBlock(bmId, blockId, mapIndex, size, serializerInstance)
       }
     }
 
@@ -271,6 +327,9 @@ private[spark] class StreamingShuffleReader[K, C](
    * @param bmId the producer's block manager id, used for fetch routing and failure attribution
    * @param blockId the shuffle block id being read
    * @param mapIndex the producer's map index within the shuffle
+   * @param expectedSize the block's advertised (MapStatus) length in bytes; bounds the aggregate
+   *                     payload [[extractValidatedPayloads]] will assemble (a value `<= 0` means
+   *                     "unknown", in which case only the executor-memory ceiling applies)
    * @param serializerInstance the dependency serializer used to decode the payload bytes
    * @return a key/value iterator over the records contained in the block
    */
@@ -278,6 +337,7 @@ private[spark] class StreamingShuffleReader[K, C](
       bmId: BlockManagerId,
       blockId: BlockId,
       mapIndex: Int,
+      expectedSize: Long,
       serializerInstance: SerializerInstance): Iterator[(Any, Any)] = {
     val (mapId, reduceId) = blockId match {
       case ShuffleBlockId(_, m, r) => (m, r)
@@ -288,7 +348,9 @@ private[spark] class StreamingShuffleReader[K, C](
       try {
         readMetrics.incRemoteBlocksFetched(1)
         readMetrics.incRemoteBytesRead(managed.size())
-        extractValidatedPayloads(managed.nioByteBuffer(), bmId, mapId, mapIndex, reduceId)
+        extractValidatedPayloads(
+          managed.nioByteBuffer(), bmId, mapId, mapIndex, reduceId,
+          aggregatePayloadCap(expectedSize))
       } catch {
         case e: IOException =>
           invalidatePartialReads(bmId, mapId, mapIndex, reduceId,
@@ -298,6 +360,21 @@ private[spark] class StreamingShuffleReader[K, C](
         // any pooled backing memory) can be released as soon as parsing completes.
         managed.release()
       }
+    // Consumer-to-producer flow control (best-effort, only when wired to a reachable endpoint).
+    // The block is fully fetched and CRC32C-validated at this point, so it is safe to: advertise
+    // this consumer's protocol version once (trips the producer's version-mismatch fallback in a
+    // mixed-version cluster), heartbeat consumer liveness, and ack the consumed payload bytes. The
+    // ack uses payload.length, which is exactly the unit the producer accrued as unacked (the
+    // writer's acquireSendPermit records the per-frame payloadLength), so a clean read drives the
+    // producer's unacked count back to zero and refreshes its consumer-liveness clock.
+    if (peerVersionAdvertised.compareAndSet(false, true)) {
+      emitBackpressure(BackpressureRpcEndpoint.PeerVersion(
+        handle.shuffleId, mapId, reduceId, StreamingShuffleConfig.STREAMING_PROTOCOL_VERSION))
+    }
+    emitBackpressure(
+      BackpressureRpcEndpoint.Heartbeat(handle.shuffleId, mapId, reduceId, System.nanoTime()))
+    emitBackpressure(
+      BackpressureRpcEndpoint.Ack(handle.shuffleId, mapId, reduceId, payload.length.toLong))
     serializerInstance.deserializeStream(new ByteArrayInputStream(payload)).asKeyValueIterator
   }
 
@@ -372,6 +449,47 @@ private[spark] class StreamingShuffleReader[K, C](
   }
 
   /**
+   * Compute the maximum aggregate de-enveloped payload bytes a single fetched block may assemble,
+   * bounding reduce-side memory (finding #9). Without a bound, [[extractValidatedPayloads]] would
+   * accumulate every per-frame payload and allocate a combined array up to the 2 GB array limit,
+   * so a single oversized or malicious block (even one made entirely of individually valid `<= 2`
+   * MB frames) could exhaust the reducer's heap.
+   *
+   * The cap is the TIGHTER of two bounds, then floored at the 2 GB array limit:
+   *
+   *  - Advertised-size bound: the block's MapStatus `expectedSize` inflated by
+   *    [[StreamingShuffleConfig.AGGREGATE_SIZE_TOLERANCE]]. The de-enveloped payload is always
+   *    `<=` the enveloped block size and MapStatus sizes are lossily compressed, so the tolerance
+   *    absorbs that imprecision while still rejecting a block that streams materially more than
+   *    advertised. A non-positive `expectedSize` is "unknown" and contributes no advertised bound.
+   *  - Executor-memory ceiling: [[StreamingShuffleConfig.MAX_FETCH_MEMORY_FRACTION]] of the
+   *    executor on-heap storage memory, so even a bogus advertised size cannot drive an allocation
+   *    beyond a safe fraction of the heap. When `SparkEnv` is unavailable (unit/local) this bound
+   *    is absent and the advertised-size bound (plus the 2 GB array limit) carries the protection.
+   *
+   * @param expectedSize the block's advertised (MapStatus) length in bytes (`<= 0` means unknown)
+   * @return the maximum aggregate payload bytes permitted for this block, in `[0, Int.MaxValue]`
+   */
+  private def aggregatePayloadCap(expectedSize: Long): Long = {
+    val maxHeap =
+      Option(SparkEnv.get).map(_.memoryManager.maxOnHeapStorageMemory).getOrElse(0L)
+    val heapCeiling =
+      if (maxHeap > 0L) {
+        (maxHeap.toDouble * StreamingShuffleConfig.MAX_FETCH_MEMORY_FRACTION).toLong
+      } else {
+        Int.MaxValue.toLong
+      }
+    val advertisedBound =
+      if (expectedSize > 0L) {
+        val base = math.max(expectedSize, StreamingShuffleConfig.BLOCK_SIZE_BYTES.toLong).toDouble
+        (base * StreamingShuffleConfig.AGGREGATE_SIZE_TOLERANCE).toLong
+      } else {
+        Long.MaxValue
+      }
+    math.min(math.min(advertisedBound, heapCeiling), Int.MaxValue.toLong)
+  }
+
+  /**
    * Parse and CRC32C-validate every [[StreamingBlockEnvelope]] in a fetched block and return the
    * concatenated payload-only bytes.
    *
@@ -383,11 +501,18 @@ private[spark] class StreamingShuffleReader[K, C](
    * raises a [[org.apache.spark.shuffle.FetchFailedException]] so Spark recomputes the upstream
    * output). An empty buffer yields an empty record stream.
    *
+   * Memory safety (finding #9): the running payload total is checked against `maxBytes` BEFORE each
+   * frame's payload is retained, so the accumulated buffer (and the final combined array) can never
+   * exceed `maxBytes` regardless of how many individually-valid frames a block contains. A block
+   * that would exceed the cap is treated as a producer corruption / memory-exhaustion attempt and
+   * invalidated. See [[aggregatePayloadCap]] for how the bound is derived.
+   *
    * @param raw the fetched block bytes positioned at the first frame
    * @param bmId the producer's block manager id, for failure attribution
    * @param mapId the producer's map id, for failure attribution
    * @param mapIndex the producer's map index, for failure attribution
    * @param reduceId the reduce partition being read, for failure attribution
+   * @param maxBytes the maximum aggregate de-enveloped payload bytes this block may assemble
    * @return the concatenated, validated payload bytes ready for the serializer
    */
   private[streaming] def extractValidatedPayloads(
@@ -395,7 +520,8 @@ private[spark] class StreamingShuffleReader[K, C](
       bmId: BlockManagerId,
       mapId: Long,
       mapIndex: Int,
-      reduceId: Int): Array[Byte] = {
+      reduceId: Int,
+      maxBytes: Long): Array[Byte] = {
     val payloads = new ArrayBuffer[Array[Byte]]()
     var totalPayloadLen = 0L
     while (raw.remaining() > 0) {
@@ -410,6 +536,12 @@ private[spark] class StreamingShuffleReader[K, C](
       if (!verifyBlockChecksum(envelope)) {
         invalidatePartialReads(bmId, mapId, mapIndex, reduceId,
           s"Streaming shuffle block CRC32C mismatch (sequence=${envelope.sequenceNumber})")
+      }
+      // Bound the aggregate BEFORE retaining this frame's payload, so the accumulated buffer never
+      // grows past the cap even by a single oversized assembly (finding #9).
+      if (totalPayloadLen + envelope.payloadLength > maxBytes) {
+        invalidatePartialReads(bmId, mapId, mapIndex, reduceId,
+          s"Streaming shuffle aggregate payload would exceed the per-block cap of $maxBytes bytes")
       }
       payloads += envelope.payload
       totalPayloadLen += envelope.payloadLength

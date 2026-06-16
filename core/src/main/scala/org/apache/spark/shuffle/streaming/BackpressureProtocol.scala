@@ -219,30 +219,74 @@ private[spark] class BackpressureProtocol(
   }
 
   /**
-   * Applies a consumer-requested rate adjustment to the shared token-bucket limiter. In v1 a
-   * single limiter governs the executor's streaming send path, so the most recent request wins; a
-   * non-positive request switches the limiter to its unlimited fast path. Because the request is
-   * consumer-originated control traffic, it also refreshes the consumer-liveness track (marks the
-   * consumer tracked, stamps the activity clock, clears any prior consumer-timeout flag, and
-   * resets the retransmit backoff) so that sustained rate negotiation alone can never let the scan
-   * declare an otherwise-live consumer timed out.
+   * Applies a consumer-requested rate adjustment to the shared token-bucket limiter, after
+   * validating and clamping it against the operator-configured bandwidth cap. In v1 a single
+   * limiter governs the executor's streaming send path (per the AAP), so the most recent ACCEPTED
+   * request wins.
+   *
+   * ==Security: an untrusted peer can only ever NARROW the rate, never widen it==
+   *
+   * The request arrives over RPC from another executor and is therefore untrusted. Applying it
+   * verbatim (the pre-hardening behavior) would let a malformed or malicious `RateLimitRequest`
+   * bypass the operator's `spark.shuffle.streaming.maxBandwidthMBps` cap - either by sending the
+   * non-positive "unlimited" sentinel to disable the cap entirely, or a value above the cap to
+   * raise it. To close that unbounded-resource vector (CWE-770), the requested rate is reconciled
+   * with [[StreamingShuffleConfig.effectiveBandwidthBytesPerSec]] (the configured ceiling, already
+   * 80%-factored; `Long.MaxValue` only when the operator configured the executor as unlimited):
+   *
+   *  - A positive request is clamped to `min(request, ceiling)`, so a peer can only throttle the
+   *    executor DOWN, never above the configured cap (the clamp is a no-op when unlimited).
+   *  - A non-positive ("unlimited") request is honored ONLY when the executor is itself configured
+   *    unlimited ([[StreamingShuffleConfig.isBandwidthUnlimited]]); otherwise it is REJECTED and
+   *    the limiter is left at its configured rate, since no untrusted peer may remove a cap the
+   *    operator set.
+   *
+   * Because the request is consumer-originated control traffic, it always refreshes the
+   * consumer-liveness track - even when the rate change itself is rejected - so that sustained
+   * rate negotiation alone can never let the scan declare an otherwise-live consumer timed out.
    *
    * @param key
    *   the stream identity the request originated from (tracked and refreshed for liveness)
    * @param requestedBytesPerSec
-   *   the new desired throttle in bytes per second
+   *   the new desired throttle in bytes per second (a value `<= 0` is the "unlimited" sentinel)
    */
   def onRateLimitRequest(key: StreamKey, requestedBytesPerSec: Long): Unit = {
-    // A rate-limit request is consumer activity: refresh liveness before retuning the limiter so
-    // active control traffic keeps the stream alive. Retuning the limiter does not, by itself,
-    // touch the liveness clock, so without this the consumer could time out mid-negotiation.
+    // A rate-limit request is consumer activity: refresh liveness before (possibly) retuning the
+    // limiter so active control traffic keeps the stream alive even when the rate change is
+    // rejected. Retuning the limiter does not, by itself, touch the liveness clock.
     refreshConsumerLiveness(stateOf(key), key)
-    rateLimiter.setBytesPerSecond(requestedBytesPerSec)
-    if (conf.debug) {
-      logDebug(
-        log"Adjusted streaming shuffle rate limit to " +
-          log"${MDC(LogKeys.NUM_BYTES, requestedBytesPerSec)} bytes/sec for " +
-          log"shuffle ${MDC(LogKeys.SHUFFLE_ID, key.shuffleId)}")
+
+    // Reconcile the untrusted request with the operator-configured ceiling so a peer can only
+    // narrow the rate, never widen it past spark.shuffle.streaming.maxBandwidthMBps.
+    val ceiling = conf.effectiveBandwidthBytesPerSec // Long.MaxValue only when configured unlimited
+    val accepted: Option[Long] =
+      if (requestedBytesPerSec > 0L) {
+        // Positive throttle: clamp DOWN to the configured ceiling (a no-op when unlimited).
+        Some(math.min(requestedBytesPerSec, ceiling))
+      } else if (conf.isBandwidthUnlimited) {
+        // "Unlimited" request honored only because the operator configured no cap to bypass.
+        Some(requestedBytesPerSec)
+      } else {
+        // "Unlimited" request against a finite configured cap: reject (must not disable the cap).
+        None
+      }
+
+    accepted match {
+      case Some(rate) =>
+        rateLimiter.setBytesPerSecond(rate)
+        if (conf.debug) {
+          logDebug(
+            log"Adjusted streaming shuffle rate limit to " +
+              log"${MDC(LogKeys.NUM_BYTES, rate)} bytes/sec for " +
+              log"shuffle ${MDC(LogKeys.SHUFFLE_ID, key.shuffleId)}")
+        }
+      case None =>
+        // A cap-bypass attempt is auditable but infrequent, so a single warn stays within budget.
+        logWarning(
+          log"Rejected remote streaming shuffle rate-limit request " +
+            log"(${MDC(LogKeys.NUM_BYTES, requestedBytesPerSec)} bytes/sec) for shuffle " +
+            log"${MDC(LogKeys.SHUFFLE_ID, key.shuffleId)}: a peer may not lift the configured " +
+            log"maxBandwidthMBps cap")
     }
   }
 

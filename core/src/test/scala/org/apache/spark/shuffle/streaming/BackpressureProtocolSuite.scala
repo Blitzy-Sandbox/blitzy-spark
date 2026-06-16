@@ -67,6 +67,30 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers {
     (new BackpressureProtocol(cfg, limiter, metrics), limiter, metrics)
   }
 
+  /**
+   * Builds a protocol whose typed config carries a FINITE operator-configured bandwidth cap
+   * (`spark.shuffle.streaming.maxBandwidthMBps`), so the security tests can assert that
+   * [[BackpressureProtocol.onRateLimitRequest]] reconciles an untrusted remote request against
+   * [[StreamingShuffleConfig.effectiveBandwidthBytesPerSec]] -- the 80%-factored ceiling -- rather
+   * than applying it verbatim (finding #8 / CWE-770: allocation of resources without limits). The
+   * limiter is seeded at `initialLimiterBytesPerSec` so a test can prove a rejected request leaves
+   * it untouched.
+   *
+   * @param maxBandwidthMBps          the configured per-executor cap in MB/s (must be > 0 here so
+   *                                  the cap is finite)
+   * @param initialLimiterBytesPerSec the limiter's starting throttle in bytes per second
+   * @return the protocol together with its limiter and metrics holder
+   */
+  private def newCappedProtocol(maxBandwidthMBps: Int, initialLimiterBytesPerSec: Long)
+      : (BackpressureProtocol, TokenBucketRateLimiter, StreamingShuffleMetrics) = {
+    val sparkConf = new SparkConf(false)
+      .set("spark.shuffle.streaming.maxBandwidthMBps", maxBandwidthMBps.toString)
+    val cfg = new StreamingShuffleConfig(sparkConf)
+    val limiter = new TokenBucketRateLimiter(initialLimiterBytesPerSec)
+    val metrics = new StreamingShuffleMetrics
+    (new BackpressureProtocol(cfg, limiter, metrics), limiter, metrics)
+  }
+
   /** Converts whole seconds to nanoseconds for the injected scan clock. */
   private def secs(n: Long): Long = TimeUnit.SECONDS.toNanos(n)
 
@@ -167,10 +191,80 @@ class BackpressureProtocolSuite extends SparkFunSuite with Matchers {
     val (bp, limiter, _) = newProtocol()
     val key = StreamKey(6, 0L, 0)
 
-    // The limiter starts unlimited; a consumer-requested cap must be applied to it verbatim.
+    // With an unlimited config the ceiling is Long.MaxValue, so a positive request below it is
+    // applied verbatim; the limiter starts unlimited and takes on the requested finite rate.
     assert(limiter.isUnlimited)
     bp.onRateLimitRequest(key, 2048L)
     limiter.currentBytesPerSecond mustBe 2048L
+  }
+
+  test("onRateLimitRequest clamps a remote request above the configured cap to the ceiling " +
+      "(finding #8)") {
+    // A 10 MB/s configured cap yields the 80%-factored ceiling of 8,388,608 bytes/sec, which is
+    // exactly StreamingShuffleConfig.effectiveBandwidthBytesPerSec for maxBandwidthMBps = 10.
+    val ceiling = (10L * 1024L * 1024L * 0.8).toLong
+    val (bp, limiter, _) = newCappedProtocol(10, ceiling)
+    val key = StreamKey(10, 0L, 0)
+
+    // An in-cluster peer asks for far more bandwidth than the operator allows; the untrusted
+    // request must be clamped DOWN to the configured ceiling, never widening the cap.
+    bp.onRateLimitRequest(key, 100L * 1024L * 1024L)
+    limiter.isUnlimited mustBe false
+    limiter.currentBytesPerSecond mustBe ceiling
+  }
+
+  test("onRateLimitRequest applies a remote request below the configured cap verbatim") {
+    val ceiling = (10L * 1024L * 1024L * 0.8).toLong
+    val (bp, limiter, _) = newCappedProtocol(10, ceiling)
+    val key = StreamKey(11, 0L, 0)
+
+    // A request that narrows the rate (below the ceiling) is honored as-is.
+    bp.onRateLimitRequest(key, 1024L)
+    limiter.currentBytesPerSecond mustBe 1024L
+  }
+
+  test("onRateLimitRequest rejects a remote unlimited request against a finite cap (finding #8)") {
+    val initial = 4096L
+    val (bp, limiter, _) = newCappedProtocol(10, initial)
+    val key = StreamKey(12, 0L, 0)
+
+    // A non-positive ("unlimited") request must NOT be allowed to disable the configured cap; the
+    // limiter is left untouched at its prior finite rate for both the zero and negative sentinels.
+    bp.onRateLimitRequest(key, 0L)
+    limiter.currentBytesPerSecond mustBe initial
+    bp.onRateLimitRequest(key, -1L)
+    limiter.currentBytesPerSecond mustBe initial
+    limiter.isUnlimited mustBe false
+  }
+
+  test("onRateLimitRequest honors a remote unlimited request only when configured unlimited") {
+    // Default conf -> unlimited cap; seed the limiter finite so the transition is observable.
+    val (bp, limiter, _) = newProtocol(bytesPerSec = 2048L)
+    val key = StreamKey(13, 0L, 0)
+    limiter.isUnlimited mustBe false
+
+    // Because the executor itself is configured unlimited, an unlimited request is acceptable.
+    bp.onRateLimitRequest(key, -1L)
+    limiter.isUnlimited mustBe true
+  }
+
+  test("onRateLimitRequest refreshes consumer liveness even when the request is rejected") {
+    val (bp, _, _) = newCappedProtocol(10, 4096L)
+    val key = StreamKey(14, 0L, 0)
+
+    // A rejected (unlimited) request is still consumer activity: bracket the internal nanoTime
+    // stamp the same way the consumer-timeout test does so the injected scan clock stays robust.
+    val t0 = System.nanoTime()
+    bp.onRateLimitRequest(key, -1L)
+    val tEnd = System.nanoTime()
+
+    // Within the 10 s consumer window the consumer is still alive despite the rejected request.
+    bp.scanForTimeouts(t0 + secs(5))
+    assert(!bp.isConsumerTimedOut(key))
+
+    // Past the window it times out, proving the liveness clock was actually (re)stamped.
+    bp.scanForTimeouts(tEnd + secs(11))
+    assert(bp.isConsumerTimedOut(key))
   }
 
   test("start then stop is idempotent and leak-free") {

@@ -21,7 +21,7 @@ import scala.concurrent.Future
 
 import org.mockito.{Mock, MockitoAnnotations}
 import org.mockito.Answers.RETURNS_SMART_NULLS
-import org.mockito.ArgumentMatchers.{any, anyInt}
+import org.mockito.ArgumentMatchers.{any, anyInt, anyLong}
 import org.mockito.Mockito.{atLeastOnce, mock, verify, when}
 import org.scalatest.PrivateMethodTester
 import org.scalatest.matchers.must.Matchers
@@ -203,17 +203,31 @@ class StreamingShuffleWriterSuite
   test("write records buffers per partition, frames blocks, and stop(true) returns a MapStatus") {
     val context = MemoryTestingUtils.fakeTaskContext(sc.env)
     val writer = intWriter(context)
+    // On a successful write the writer durably publishes its output through the block resolver and
+    // ships the ENVELOPED per-partition lengths the resolver returns in the MapStatus (those are
+    // the header-inclusive frame sizes a reduce task fetches). Stub the durable commit with a known
+    // array so the test pins the contract: getPartitionLengths/MapStatus surface exactly what the
+    // resolver committed, independent of the raw bytesWritten metric.
+    val durableLengths = Array.tabulate(numPartitions)(p => (p + 1) * 1000L)
+    when(blockResolver.commitDurableMapOutput(anyInt(), anyLong(), anyInt()))
+      .thenReturn(durableLengths)
     val n = 100
     writer.write((0 until n).iterator.map(i => (i, i)))
     val status: Option[MapStatus] = writer.stop(success = true)
     assert(status.isDefined)
     val lengths = writer.getPartitionLengths()
     assert(lengths.length === numPartitions)
-    assert(lengths.sum > 0L)
+    // getPartitionLengths and the MapStatus report the resolver's committed ENVELOPED lengths, not
+    // the raw write-metric byte count. The writer durably committed exactly once with this map's
+    // (shuffleId, mapId, numPartitions).
+    assert(lengths.toSeq === durableLengths.toSeq)
+    verify(blockResolver).commitDurableMapOutput(anyInt(), anyLong(), anyInt())
     val writeMetrics = context.taskMetrics().shuffleWriteMetrics
     assert(writeMetrics.recordsWritten === n.toLong)
-    // partitionLengths is the per-partition written byte count, so it must equal bytesWritten.
-    assert(lengths.sum === writeMetrics.bytesWritten)
+    // The raw write-metric byte count is tracked separately from the enveloped MapStatus lengths
+    // (enveloped = raw + one 32-byte header per framed block), so it is strictly positive but is
+    // intentionally NOT equal to the enveloped lengths above.
+    assert(writeMetrics.bytesWritten > 0L)
     // The writer registers and tracks each lazily-allocated buffer, frames its bytes into a
     // checksummed envelope, gates the send through backpressure, and hands it to the transport.
     verify(spillManager, atLeastOnce()).register(any[StreamingBuffer]())

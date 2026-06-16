@@ -83,10 +83,13 @@ private[spark] class BackpressureRpcEndpoint(
    * count); a message that fails validation is dropped with a single warn log and does NOT mutate
    * any protocol state, closing the untrusted-input vector (CWE-20) where a malformed message
    * could otherwise create a bogus per-stream entry or retune the shared rate limiter. The rate in
-   * a `RateLimitRequest` needs no range check because a non-positive value is the documented
-   * "unlimited" sentinel and any positive value is a valid throttle. Valid messages are delegated
-   * to the matching [[BackpressureProtocol]] handler. No reply is produced; senders use
-   * `RpcEndpointRef.send`.
+   * a `RateLimitRequest` passes its correlation IDs through the same validation, while the rate
+   * VALUE itself is reconciled against the operator-configured cap downstream in
+   * [[BackpressureProtocol.onRateLimitRequest]] (clamped to
+   * `spark.shuffle.streaming.maxBandwidthMBps`, with a remote "unlimited" request rejected unless
+   * the executor is itself configured unlimited), so an untrusted peer can only narrow the rate,
+   * never lift the cap (CWE-770). Valid messages are delegated to the matching
+   * [[BackpressureProtocol]] handler. No reply is produced; senders use `RpcEndpointRef.send`.
    */
   override def receive: PartialFunction[Any, Unit] = {
     // Consumer liveness; the protocol refreshes against its own clock (tsNanos is wire-only).
@@ -106,9 +109,10 @@ private[spark] class BackpressureRpcEndpoint(
         logDroppedMessage("Ack", shuffleId, mapId, reduceId)
       }
 
-    // Consumer-requested throttle; the protocol retunes the shared token-bucket rate limiter. Only
-    // the IDs are validated: the rate's <= 0 "unlimited" sentinel and positive throttles are both
-    // valid and the limiter accepts the full Long range, so there is no insane rate to reject.
+    // Consumer-requested throttle; the protocol retunes the shared token-bucket rate limiter. The
+    // correlation IDs are validated here; the rate VALUE is clamped to the operator-configured cap
+    // (and a remote "unlimited" request rejected) inside onRateLimitRequest, so an untrusted peer
+    // can only narrow the executor's bandwidth, never lift the configured maxBandwidthMBps cap.
     case RateLimitRequest(shuffleId, mapId, reduceId, bytesPerSec) =>
       if (validStreamIds(shuffleId, mapId, reduceId)) {
         protocol.onRateLimitRequest(StreamKey(shuffleId, mapId, reduceId), bytesPerSec)

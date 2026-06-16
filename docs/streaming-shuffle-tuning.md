@@ -213,17 +213,27 @@ The right settings depend heavily on the shape of the workload. The table below 
 points for the three broad classes; the subsections that follow explain the reasoning. Treat these as
 starting points and refine them using the [metrics](#monitoring-while-tuning).
 
-| Workload class | Expected benefit | `bufferSizePercent` | `spillThreshold` | Notes |
+| Workload class | Expected benefit (distributed cluster) | `bufferSizePercent` | `spillThreshold` | Notes |
 |----------------|------------------|---------------------|------------------|-------|
-| Shuffle-heavy (>= ~100 MB intermediate data, >= ~10 partitions) | 30&ndash;50% latency reduction | 25&ndash;40 (if memory allows) | 75&ndash;85 | Primary beneficiary; favor larger buffers and a moderate spill threshold |
-| CPU-bound | 5&ndash;10% improvement | 20 (default) | 80 (default) | Keep defaults; spend memory on execution, not buffers |
-| Memory-bound | ~0% (zero regression via fallback) | 20 or lower | conservative (lower) | High OOM risk; aggressive buffers only trigger fallback sooner |
+| Shuffle-heavy (>= ~100 MB intermediate data, >= ~10 partitions) | 30&ndash;50% latency reduction *(distributed target)* | 25&ndash;40 (if memory allows) | 75&ndash;85 | Primary beneficiary; favor larger buffers and a moderate spill threshold |
+| CPU-bound | 5&ndash;10% improvement *(distributed target)* | 20 (default) | 80 (default) | Keep defaults; spend memory on execution, not buffers |
+| Memory-bound | ~0% (zero regression via fallback, **verified**) | 20 or lower | conservative (lower) | High OOM risk; aggressive buffers only trigger fallback sooner |
+
+> **How to read the "Expected benefit" column.** The 30&ndash;50% and 5&ndash;10% figures are
+> **distributed-cluster targets** — they come from avoiding the cross-executor materialization latency
+> that exists only in a multi-executor deployment. They are **not** observed in single-host benchmarks:
+> with no network materialization to save locally, the streaming path's enveloping, CRC32C, and
+> durable-publish overhead makes it **equal-to-or-slower-than** sort on one host (see the committed
+> results under `core/benchmarks/`). The **zero-regression** row, by contrast, **is** directly
+> validated locally: the memory-bound fallback runs at sort-equivalent latency.
 
 ### Shuffle-heavy workloads
 
 Workloads that move large amounts of intermediate data across many partitions (roughly 100 MB or more
 of shuffle data and at least about 10 partitions) are the primary beneficiaries of the streaming
-backend, where it can deliver an end-to-end latency reduction in the 30&ndash;50% range. When executor
+backend, where on a **multi-executor cluster** it targets an end-to-end latency reduction in the
+30&ndash;50% range (a distributed benefit that does not appear in single-host runs; see the note under
+the [workload table](#workload-specific-guidance) above). When executor
 memory allows, favor a larger `bufferSizePercent` (for example, 25&ndash;40) to keep more data streaming
 in memory and reduce spill frequency, paired with a moderate `spillThreshold` (for example, 75&ndash;85)
 so the spill manager has headroom to reclaim memory before the backend approaches fallback. Verify the

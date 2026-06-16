@@ -279,4 +279,30 @@ class StreamingShuffleFallbackPolicySuite extends SparkFunSuite with Matchers {
     assert(!p.shouldFallback)
     assert(p.fallbackReason.isEmpty)
   }
+
+  test("isMemoryBoundForPartitions: 2 MB-floored buffers vs the executor budget (finding #7)") {
+    val p = newPolicy()
+    val floor = StreamingShuffleConfig.MIN_BUFFER_SIZE_BYTES // 2 MB per-partition minimum
+
+    // A budget that cannot hold the floored buffers for every partition is memory-bound.
+    assert(p.isMemoryBoundForPartitions(64, 30L * 1024 * 1024)) // 64 * 2 MB = 128 MB > 30 MB
+    // A budget that comfortably holds the floored buffers is not memory-bound.
+    assert(!p.isMemoryBoundForPartitions(2, 30L * 1024 * 1024)) // 2 * 2 MB = 4 MB < 30 MB
+
+    // The comparison is strict: a budget exactly equal to numPartitions * floor still FITS.
+    assert(!p.isMemoryBoundForPartitions(8, 8L * floor))
+    // One byte short of the requirement is memory-bound.
+    assert(p.isMemoryBoundForPartitions(8, 8L * floor - 1L))
+
+    // A non-positive budget means "unknown" (e.g. SparkEnv unavailable): never memory-bound, so
+    // the check never blocks streaming on missing information.
+    assert(!p.isMemoryBoundForPartitions(1024, 0L))
+    assert(!p.isMemoryBoundForPartitions(1024, -1L))
+    // A non-positive partition count is degenerate and never memory-bound.
+    assert(!p.isMemoryBoundForPartitions(0, 1L))
+    assert(!p.isMemoryBoundForPartitions(-5, 1L))
+
+    // The predicate is pure: evaluating it must not trip the composite fallback decision.
+    assert(!p.shouldFallback)
+  }
 }

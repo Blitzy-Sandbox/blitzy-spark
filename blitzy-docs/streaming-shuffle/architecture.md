@@ -39,9 +39,9 @@ flowchart TB
 
 ## Diagram 2 — Streaming Shuffle Component Interaction
 
-**Diagram 2 — Streaming Shuffle Component Interaction** shows how `StreamingShuffleManager` constructs the streaming handle, writer, reader, block resolver, metrics source, and fallback policy, and how those collaborators in turn consume existing Spark Core services. The map-side `StreamingShuffleWriter` drives the `StreamingBuffer`, `BackpressureProtocol`, `MemorySpillManager`, the v1 `StreamingShuffleTransport`, and the `StreamingBlockEnvelope`, while the reduce-side `StreamingShuffleReader` consumes the unchanged `MapOutputTracker` and `BlockTransferService`. Telemetry from the writer, reader, backpressure, and spill paths flows into `StreamingShuffleMetrics`, which `StreamingShuffleSource` publishes to the existing `MetricsSystem`. The `BackpressureProtocol` and `MemorySpillManager` loops additionally feed **live measurements** — producer/consumer throughput, network utilization, peer protocol version, and buffer utilization — into `StreamingShuffleFallbackPolicy`, which is what lets the four revert conditions trip from genuine runtime state rather than remaining a structural-only capability. In this diagram, **solid arrows denote construction/usage** and the single **dashed arrow denotes fallback delegation** from `StreamingShuffleManager` to the inner `SortShuffleManager`.
+**Diagram 2 — Streaming Shuffle Component Interaction** shows how `StreamingShuffleManager` constructs the streaming handle, writer, reader, block resolver, metrics source, and fallback policy, and how those collaborators in turn consume existing Spark Core services. The map-side `StreamingShuffleWriter` drives the `StreamingBuffer`, `BackpressureProtocol`, `MemorySpillManager`, and the `StreamingBlockEnvelope`, and **publishes its enveloped output durably through `StreamingShuffleBlockResolver`** (which writes the standard `.data`/`.index` files via the existing `BlockManager` and inner `IndexShuffleBlockResolver`). The reduce-side `StreamingShuffleReader` consumes the unchanged `MapOutputTracker` and `BlockTransferService`, **pulling** each block with `fetchBlockSync`; on the producing executor that fetch resolves to `StreamingShuffleBlockResolver.getBlockData`, which serves the block from the in-memory `StreamingBuffer` when it is still resident and from the durable file otherwise. The `StreamingShuffleTransport` is the **v1 logging-only seam** and sits **off the data path** (the bytes travel over `BlockTransferService`, not through the transport). Telemetry from the writer, reader, backpressure, and spill paths flows into `StreamingShuffleMetrics`, which `StreamingShuffleSource` publishes to the existing `MetricsSystem`. The `BackpressureProtocol` and `MemorySpillManager` loops additionally feed **live measurements** — producer/consumer throughput, network utilization, peer protocol version, and buffer utilization — into `StreamingShuffleFallbackPolicy`, which is what lets the four revert conditions trip from genuine runtime state rather than remaining a structural-only capability. In this diagram, **solid arrows denote construction/usage** and the single **dashed arrow denotes fallback delegation** from `StreamingShuffleManager` to the inner `SortShuffleManager`.
 
-**Legend:** green = new streaming class (CREATE); blue = modified existing file (MODIFY); gray = referenced/unchanged Spark Core component; solid arrow = construction/usage; dashed arrow = fallback delegation.
+**Legend:** green = new streaming class (CREATE); blue = modified existing file (MODIFY); gray = referenced/unchanged Spark Core component; solid arrow = construction/usage (including the writer's durable `commitDurableMapOutput` publication); dashed arrow = fallback delegation or cross-executor block resolution (the consumer's `fetchBlockSync` resolving to the producer's `getBlockData`).
 
 ```mermaid
 flowchart TB
@@ -58,14 +58,17 @@ flowchart TB
     W --> BUF["StreamingBuffer"]:::create
     W --> BP["BackpressureProtocol"]:::create
     W --> SPILL["MemorySpillManager"]:::create
-    W --> TX["StreamingShuffleTransport (v1 stub)"]:::create
+    W --> TX["StreamingShuffleTransport<br/>(v1 logging-only seam, off data path)"]:::create
     W --> ENV["StreamingBlockEnvelope"]:::create
+    W -->|"commitDurableMapOutput"| BR
+    BR -->|"publish / serve .data + .index"| BM
     BP --> RPC["BackpressureRpcEndpoint"]:::create
     BP --> RL["TokenBucketRateLimiter"]:::create
     SPILL --> MM["MemoryManager"]:::ref
     SPILL --> BM["BlockManager"]:::ref
     R --> MOT["MapOutputTracker"]:::ref
     R --> BTS["BlockTransferService"]:::ref
+    BTS -.->|"resolves to getBlockData<br/>on producer executor"| BR
     R --> ENV
     MET["StreamingShuffleMetrics"]:::create --> SRC
     W --> MET
@@ -82,28 +85,31 @@ flowchart TB
 
 ## Diagram 3 — Producer-to-Consumer Streaming Data Flow with Backpressure, Spill, and Fallback
 
-**Diagram 3 — Producer-to-Consumer Streaming Data Flow with Backpressure, Spill, and Fallback** traces a single shuffle block from a map task through `StreamingShuffleWriter.write`, a per-partition `StreamingBuffer`, and the `TokenBucketRateLimiter` gate, onto the wire as a `StreamingBlockEnvelope` (a 32-byte header plus CRC32C), and into `StreamingShuffleReader.read`, where the checksum is verified before deserialization and aggregation/sort feed the reduce task. The control path runs the other way: the reader's 10 s heartbeats and acks reach the `BackpressureRpcEndpoint`, which applies rate-limit and timeout decisions back at the producer's rate limiter. When a partition buffer exceeds 80% it is spilled to disk through the `BlockManager`; on a 5 s connection timeout the reader raises a `FetchFailedException` that drives recompute via lineage; and a fallback trip routes the writer to the inner `SortShuffleManager`.
+**Diagram 3 — Producer-to-Consumer Streaming Data Flow with Backpressure, Spill, and Fallback** traces a single shuffle block from a map task through `StreamingShuffleWriter.write` (which applies map-side combine when `dep.mapSideCombine` is set), a per-partition `StreamingBuffer`, and the producer-side `TokenBucketRateLimiter` gate, where it is framed as a `StreamingBlockEnvelope` (a 32-byte header plus CRC32C) and **published durably** via `StreamingShuffleBlockResolver.commitDurableMapOutput` as standard `.data`/`.index` files through the existing `BlockManager`/`IndexShuffleBlockResolver`. The consumer side **pulls** rather than being pushed: `StreamingShuffleReader.read` issues `fetchBlockSync` over the unchanged `BlockTransferService`, which on the producing executor resolves to `StreamingShuffleBlockResolver.getBlockData` — served from the still-resident in-memory `StreamingBuffer` when available and from the durable file otherwise — after which the CRC32C is verified, an aggregate payload cap is enforced, and deserialization with aggregation/sort feeds the reduce task. The control path runs the other way: when the backpressure endpoint is reachable the reader emits **best-effort** heartbeat/ack/peer-version messages to the `BackpressureRpcEndpoint`, which applies rate-limit and timeout decisions back at the producer's rate limiter (guaranteed cross-executor delivery is deferred to the v2 transport — see the [decision log](decision-log.md)). When a partition buffer exceeds 80% it is spilled to disk through the `BlockManager`; on a 5 s connection timeout the reader raises a `FetchFailedException` that drives recompute via lineage; and a fallback trip (decided at registration) routes the shuffle to the inner `SortShuffleManager`. The `StreamingShuffleTransport` is a v1 logging-only seam off the data path and never carries the bytes.
 
-**Legend:** solid arrows = data path; thick arrows (`==>`) = backpressure/control; dotted arrows (`-.->`) = spill, failure, or fallback.
+**Legend:** solid arrows = data path (producer durable-publish; consumer pull-fetch); thick arrows (`==>`) = best-effort backpressure/control; dotted arrows (`-.->`) = spill, failure, fallback, or off-critical-path/served relationships.
 
 ```mermaid
 flowchart LR
-    MT["Map task"] --> WR["StreamingShuffleWriter.write"]
+    MT["Map task"] --> WR["StreamingShuffleWriter.write<br/>(map-side combine if dep.mapSideCombine)"]
     WR --> PB["Per-partition StreamingBuffer"]
-    PB --> RL["TokenBucketRateLimiter gate"]
-    RL --> TX["StreamingShuffleTransport.sendBlock"]
-    TX --> WIRE["StreamingBlockEnvelope<br/>32B header + CRC32C"]
-    WIRE --> RD["StreamingShuffleReader.read<br/>fetchBlockSync"]
-    RD --> VER["verifyChecksum"]
+    PB --> RLG["TokenBucketRateLimiter gate<br/>(producer-side, local)"]
+    RLG --> ENC["StreamingBlockEnvelope<br/>32B header + CRC32C"]
+    ENC --> PUB["resolver.commitDurableMapOutput<br/>durable .data / .index"]
+    PUB --> BMW["BlockManager /<br/>IndexShuffleBlockResolver"]
+    RD["StreamingShuffleReader.read<br/>fetchBlockSync (PULL)"] --> GBD["resolver.getBlockData<br/>in-memory buffer OR durable file"]
+    GBD --> VER["verifyChecksum (CRC32C)<br/>+ aggregate payload cap"]
     VER --> DES["deserialize + aggregate/sort"]
     DES --> RT["Reduce task"]
+    BMW -.->|"served on producer executor"| GBD
     PB -.->|"buffer > 80%"| SP["MemorySpillManager"]
-    SP -.->|"putBytes DISK_ONLY"| BM["BlockManager disk"]
-    RD ==>|"heartbeat 10s / ack"| RPC["BackpressureRpcEndpoint"]
-    RPC ==>|"rate-limit / timeout"| RL
-    RD -.->|"5s timeout"| FF["FetchFailedException"]
+    SP -.->|"putBytes DISK_ONLY"| BMD["BlockManager disk"]
+    RD ==>|"best-effort heartbeat / ack / peer-version<br/>(v1: when endpoint reachable)"| RPC["BackpressureRpcEndpoint"]
+    RPC ==>|"rate-limit / timeout state"| RLG
+    RD -.->|"5s connection timeout"| FF["FetchFailedException"]
     FF -.->|"recompute via lineage"| MT
-    WR -.->|"fallback trip"| SORT["Inner SortShuffleManager"]
+    WR -.->|"fallback pinned at registration"| SORT["Inner SortShuffleManager"]
+    WR -.->|"v1 logging-only (off data path)"| TX["StreamingShuffleTransport"]
 ```
 
 ## Coexistence with sort-based shuffle
@@ -119,11 +125,11 @@ The streaming backend is additive and isolated; it never replaces the sort-based
 `StreamingShuffleFallbackPolicy` evaluates four revert-to-sort conditions, each **fed from live runtime measurements** so the policy reflects genuine execution state rather than a static default. `StreamingShuffleManager` reads the policy's `shouldFallback` decision at `registerShuffle`; when **any** condition has tripped, it registers a sort handle and routes **both** the writer and the reader for that shuffle to its inner `SortShuffleManager`:
 
 1. **Slow consumer** — consumer sustained **2× slower** than the producer for **> 60 s**. *Fed by the `BackpressureProtocol` 1 s scan, which records live producer/consumer throughput into the policy.*
-2. **Memory pressure** prevents buffer allocation / OOM risk (**> 95%** utilization). *Fed by the `MemorySpillManager` 100 ms poll, which updates live buffer utilization into the policy.*
+2. **Memory pressure** prevents buffer allocation / OOM risk (**> 95%** utilization). *Fed by the `MemorySpillManager` 100 ms poll, which updates live buffer utilization into the policy.* In addition to this live signal, `StreamingShuffleManager` performs a **static buffer-budget feasibility check at `registerShuffle`**: if the per-partition 2 MB floor across `numPartitions` cannot fit within the configured buffer budget (`maxOnHeapStorageMemory × bufferSizePercent / 100`), the workload is memory-bound *a priori* and is registered **directly on the sort path**, so a memory-bound shuffle never begins on the streaming path. Because the backend is pinned per shuffle (below), this pre-registration check — not a mid-write revert — is how the "memory pressure prevents buffer allocation" condition is safely enforced for the shuffle itself.
 3. **Network saturation > 90%** of link capacity. *Fed by the same `BackpressureProtocol` scan, which derives utilization from live throughput against the configured bandwidth cap.*
 4. **Producer/consumer version mismatch**. *Fed by `BackpressureProtocol.recordPeerProtocolVersion`, driven by the additive `PeerVersion` backpressure RPC message.*
 
-Because the backend is **pinned per shuffle at registration**, a fallback condition that trips mid-application affects only shuffles registered *afterward*; a shuffle already registered streaming keeps a consistent streaming write/read path end to end (and likewise for sort), which is what eliminates the format-mismatch hazard of mixing sort and streaming bytes for one shuffle. The cross-executor *emission* of `PeerVersion` is deferred to the v2 transport (see the [decision log](decision-log.md)); the **detection** path is fully wired and unit-tested in v1.
+Because the backend is **pinned per shuffle at registration**, a fallback condition that trips mid-application affects only shuffles registered *afterward*; a shuffle already registered streaming keeps a consistent streaming write/read path end to end (and likewise for sort), which is what eliminates the format-mismatch hazard of mixing sort and streaming bytes for one shuffle. In v1 the reader emits the `PeerVersion` message (along with heartbeat and ack) on a **best-effort** basis whenever the backpressure endpoint is reachable, so in a reachable topology the version-mismatch chain is wired end to end; **guaranteed** cross-executor delivery of these control messages is deferred to the v2 transport (see the [decision log](decision-log.md)). The **detection** path (`PeerVersion` → `recordPeerProtocolVersion` → `markVersionMismatch`) is fully implemented and unit-tested in v1.
 
 ## Operational invariants
 

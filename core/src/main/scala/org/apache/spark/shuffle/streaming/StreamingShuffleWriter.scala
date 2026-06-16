@@ -127,13 +127,24 @@ private[spark] class StreamingShuffleWriter[K, V](
 
   // Per-reduce-partition state, all sized up front to numPartitions. Entries are allocated
   // lazily on first use so a sparse map task never reserves buffers for partitions it never
-  // writes to. `partitionLengths` is the per-partition written byte count surfaced by
-  // getPartitionLengths and shipped in the MapStatus.
+  // writes to. `partitionLengths` is the per-partition RAW (de-enveloped) written byte count: it
+  // backs the `bytesWritten` write metric and stays raw so that metric matches the serialized
+  // payload exactly. The MapStatus and getPartitionLengths, by contrast, report ENVELOPED lengths
+  // (`envelopedLengths`) -- the header-inclusive frame sizes a reduce task actually fetches from
+  // the durable `.data` file / the in-memory serve path -- because the bytes the resolver serves
+  // and commits are StreamingBlockEnvelope frames, not raw payloads.
   private val buffers = new Array[StreamingBuffer](numPartitions)
   private val partitionStreams = new Array[SerializationStream](numPartitions)
   private val partitionSinks = new Array[ByteArrayOutputStream](numPartitions)
   private val sentBlocks = new Array[Int](numPartitions)
   private val partitionLengths = new Array[Long](numPartitions)
+
+  // Per-partition ENVELOPED byte lengths (raw payload + one 32-byte StreamingBlockEnvelope header
+  // per framed block), populated on a successful write from the durable-commit return value (or,
+  // defensively, computed from the live buffers). These are the sizes shipped in the MapStatus and
+  // returned by getPartitionLengths so the reduce side fetches exactly the enveloped frame bytes
+  // the resolver serves -- whether from the producer's live memory or from the committed `.data`.
+  private val envelopedLengths = new Array[Long](numPartitions)
 
   // The inner MemoryConsumer composed (not inherited) so the writer participates in the executor
   // memory model. Created up front but acquires no memory until the first buffered bytes arrive.
@@ -249,13 +260,33 @@ private[spark] class StreamingShuffleWriter[K, V](
     // stop(success = false) still runs afterwards and is idempotent with this cleanup.
     var success = false
     try {
-      while (records.hasNext) {
-        val record = records.next()
+      // Honor map-side combine exactly as the sort-based path does. When the dependency requests
+      // it, run the input records through the aggregator FIRST to produce (K, C) combiners, then
+      // partition and serialize those. This is mandatory for shuffle correctness: the reduce-side
+      // StreamingShuffleReader (like every Spark reader) calls aggregator.combineCombinersByKey on
+      // a mapSideCombine dependency, i.e. it expects the fetched values to already be combiners of
+      // type C. Emitting raw V values here would make the reader mis-treat them as C, producing
+      // wrong results (or a ClassCastException) whenever V != C, e.g. aggregateByKey/combineByKey.
+      // SortShuffleWriter achieves this by handing dep.aggregator to an ExternalSorter; because the
+      // streaming writer partitions manually, the aggregator's own combineValuesByKey -- an
+      // ExternalAppendOnlyMap that spills under memory pressure just like the sort path -- is the
+      // precise, least-machinery equivalent. When map-side combine is off, raw (K, V) records flow
+      // through unchanged. The cast is erasure-safe and only unifies the existential combiner type.
+      val outputRecords: Iterator[Product2[K, Any]] = if (dep.mapSideCombine) {
+        require(dep.aggregator.isDefined,
+          "Streaming shuffle map-side combine requires the dependency to define an aggregator")
+        dep.aggregator.get.combineValuesByKey(records, context)
+          .asInstanceOf[Iterator[Product2[K, Any]]]
+      } else {
+        records.asInstanceOf[Iterator[Product2[K, Any]]]
+      }
+      while (outputRecords.hasNext) {
+        val record = outputRecords.next()
         val partition = partitioner.getPartition(record._1)
         val stream = streamFor(partition)
         // Serialize key then value as Any: the SerializationStream resolves ClassTag[Any]
         // implicitly, exactly as DiskBlockObjectWriter.write(key: Any, value: Any) does, so the
-        // generic K/V need no ClassTag context bound.
+        // generic K/V (or K/C under map-side combine) need no ClassTag context bound.
         stream.writeKey(record._1.asInstanceOf[Any])
         stream.writeValue(record._2.asInstanceOf[Any])
         committedRecords += 1L
@@ -269,6 +300,14 @@ private[spark] class StreamingShuffleWriter[K, V](
 
       finalizeAllPartitions()
       publishBufferUtilization()
+      // Publish this map task's streamed output to the standard durable shuffle `.data`/`.index`
+      // files so it is remotely fetchable by the existing shuffle services and recoverable across
+      // executor restarts -- the in-memory StreamingBuffer is the low-latency live path, but it is
+      // executor-local, so durable publication is what makes the streaming data plane safe for real
+      // multi-executor Spark (it closes the local-mode-bias gap). Done here, on the success path,
+      // after all partitions are finalized and BEFORE any buffer is released, so the live and
+      // durable views serve byte-identical enveloped frames for the shuffle's whole lifetime.
+      finalizeEnvelopedLengths()
       mapStatus = buildMapStatus()
       metrics.incWriteTime(System.nanoTime() - startNanos)
       logDebug(log"Streaming shuffle write completed shuffle=" +
@@ -469,6 +508,38 @@ private[spark] class StreamingShuffleWriter[K, V](
   }
 
   /**
+   * Durably publishes the finalized output and records the per-partition ENVELOPED byte lengths
+   * for the [[MapStatus]].
+   *
+   * The block resolver -- which alone holds both the in-memory buffers and the spill manager --
+   * assembles each partition's canonical `StreamingBlockEnvelope` frames, writes them to the
+   * standard `.data`/`.index` files, and returns their exact enveloped lengths, which is the
+   * authoritative source: those lengths match both the durable file layout
+   * and the bytes the in-memory serve path returns. As a defensive fallback (for example a test
+   * double whose `commitDurableMapOutput` returns no array), the enveloped length is recomputed
+   * from each live buffer as `size + numBlocks * HEADER_BYTES` -- exact whenever the partition was
+   * not spilled, which is always the case when no real resolver/spill manager is wired.
+   */
+  private def finalizeEnvelopedLengths(): Unit = {
+    val durable = blockResolver.commitDurableMapOutput(shuffleId, mapId, numPartitions)
+    if (durable != null && durable.length == numPartitions) {
+      System.arraycopy(durable, 0, envelopedLengths, 0, numPartitions)
+    } else {
+      var partition = 0
+      while (partition < numPartitions) {
+        val buffer = buffers(partition)
+        envelopedLengths(partition) =
+          if (buffer != null) {
+            buffer.size + buffer.numBlocks.toLong * StreamingShuffleConfig.ENVELOPE_HEADER_BYTES
+          } else {
+            0L
+          }
+        partition += 1
+      }
+    }
+  }
+
+  /**
    * Implements the consumer-failure half of the streaming protocol: if the backpressure protocol
    * has declared the consumer timed out (no acks within the 10 s window), the partition's
    * still-buffered data is spilled to disk when it is over the spill threshold so it can never be
@@ -556,14 +627,19 @@ private[spark] class StreamingShuffleWriter[K, V](
 
   /**
    * Builds the [[org.apache.spark.scheduler.MapStatus]] describing this map output: the local
-   * shuffle server identity, the per-partition byte counts, and this map task id. Mirrors
-   * `SortShuffleWriter`, which likewise constructs the status at the end of a successful write.
+   * shuffle server identity, the per-partition ENVELOPED byte counts, and this map task id.
+   * Mirrors `SortShuffleWriter`, which likewise constructs the status at the end of a successful
+   * write. The enveloped lengths (not the raw `partitionLengths`) are shipped because the reduce
+   * side fetches whole [[org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope]] frames
+   * -- from the producer's live buffer or from the committed `.data` file -- so the sizes Spark's
+   * fetch machinery uses must be the header-inclusive frame sizes, matching the `.index` offsets
+   * the resolver wrote.
    *
    * @return the map status for a successful write
    */
   private def buildMapStatus(): MapStatus = {
     val location = SparkEnv.get.blockManager.shuffleServerId
-    MapStatus(location, partitionLengths, mapId)
+    MapStatus(location, envelopedLengths, mapId)
   }
 
   /**
@@ -600,13 +676,15 @@ private[spark] class StreamingShuffleWriter[K, V](
   }
 
   /**
-   * @return a defensive copy of the per-partition written byte counts. A clone is returned rather
-   *         than the internal array so a caller cannot mutate this writer's state after [[write]];
-   *         the base [[ShuffleWriter]] contract does not require sharing the same array instance,
-   *         and the [[org.apache.spark.scheduler.MapStatus]] is built from the internal array
-   *         directly in [[buildMapStatus]].
+   * @return a defensive copy of the per-partition ENVELOPED byte counts -- the same header-
+   *         inclusive frame sizes shipped in the [[org.apache.spark.scheduler.MapStatus]] and used
+   *         by the reduce-side fetch, so a caller reading partition lengths sees exactly what is
+   *         fetchable from the durable `.data` file. A clone is returned rather than the internal
+   *         array so a caller cannot mutate this writer's state after [[write]]; the base
+   *         [[ShuffleWriter]] contract does not require sharing the same array instance, and the
+   *         [[MapStatus]] is built from the internal array directly in [[buildMapStatus]].
    */
-  override def getPartitionLengths(): Array[Long] = partitionLengths.clone()
+  override def getPartitionLengths(): Array[Long] = envelopedLengths.clone()
 
   /**
    * Releases every resource the writer holds. Always frees the inner consumer's accounted

@@ -249,19 +249,57 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   private def useStreaming: Boolean = streamingConfig.enabled && !fallbackPolicy.shouldFallback
 
   /**
+   * Registration-time memory-bound check used by [[registerShuffle]] to keep an unsuitable
+   * workload off the streaming path entirely (writer AND reader), rather than discovering the
+   * problem mid-write when it can no longer be safely reverted.
+   *
+   * The executor buffer budget mirrors the writer's own sizing input: the streaming backend may
+   * use `maxOnHeapStorageMemory * bufferSizePercent / 100` bytes for its per-partition buffers.
+   * The actual memory-bound predicate (comparing that budget against the 2 MB-floored
+   * per-partition requirement) lives in
+   * [[StreamingShuffleFallbackPolicy.isMemoryBoundForPartitions]] so the decision logic stays in
+   * one place and is independently testable.
+   *
+   * When `SparkEnv` is unavailable (driver-side registration in some local topologies) the budget
+   * resolves to `0`, which the policy treats as "unknown" and never memory-bound; the writer and
+   * reader then make their own `SparkEnv`-null sort fallback, so both ends still agree.
+   *
+   * @param numPartitions the number of reduce partitions the shuffle will produce
+   * @return `true` when the workload cannot fit the streaming buffer budget and must use sort
+   */
+  private def isWorkloadMemoryBound(numPartitions: Int): Boolean = {
+    val executorMemoryBytes =
+      Option(SparkEnv.get).map(_.memoryManager.maxOnHeapStorageMemory).getOrElse(0L)
+    val budgetBytes = executorMemoryBytes * streamingConfig.bufferSizePercent / 100
+    fallbackPolicy.isMemoryBoundForPartitions(numPartitions, budgetBytes)
+  }
+
+  /**
    * Registers a shuffle and returns a handle to pass to tasks. When the streaming path is active
-   * the handle is a [[StreamingShuffleHandle]] carrying the resolved tuning values so the
-   * writer/reader receive their configuration without re-reading the `SparkConf`. Otherwise the
-   * registration is delegated to the inner sort manager so the handle (and therefore the whole
-   * shuffle) is sort-based.
+   * AND the workload is not memory-bound, the handle is a [[StreamingShuffleHandle]] carrying the
+   * resolved tuning values so the writer/reader receive their configuration without re-reading the
+   * `SparkConf`. Otherwise the registration is delegated to the inner sort manager so the handle
+   * (and therefore the whole shuffle) is sort-based.
    *
    * The handle type recorded here is what [[getWriter]] and [[getReader]] dispatch on, so a
-   * shuffle is consistently served by the SAME backend it was registered with.
+   * shuffle is consistently served by the SAME backend it was registered with. This is precisely
+   * why the memory-bound decision must be made HERE, before the handle exists: a streaming shuffle
+   * cannot be safely reverted to sort after registration (the writer would emit sort
+   * `.data`/`.index` bytes while the reader still expects 32-byte streaming envelopes), so an
+   * unsuitable workload is steered onto the sort path up front rather than mid-write. This is the
+   * registration-time arm of the AAP's "memory pressure prevents buffer allocation (OOM risk)"
+   * revert condition and the linchpin of the zero-regression guarantee for memory-bound workloads.
    */
   override def registerShuffle[K, V, C](
       shuffleId: Int,
       dependency: ShuffleDependency[K, V, C]): ShuffleHandle = {
-    if (useStreaming) {
+    // Evaluate the general activation gate first; only when streaming is otherwise active do we
+    // inspect the workload shape (short-circuiting keeps the disabled/fallback paths free of any
+    // dependency access). `numPartitions` is the reduce-side fan-out that drives buffer sizing.
+    val streamingActive = useStreaming
+    val memoryBound =
+      streamingActive && isWorkloadMemoryBound(dependency.partitioner.numPartitions)
+    if (streamingActive && !memoryBound) {
       val handle = new StreamingShuffleHandle[K, V, C](
         shuffleId,
         dependency,
@@ -273,8 +311,17 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
       }
       handle
     } else {
-      // Fallback / disabled path: delegate to the inner SortShuffleManager so the produced handle
-      // is a sort handle. This is the zero-regression guarantee - the sort path is unchanged.
+      if (memoryBound) {
+        // A memory-bound workload taking the zero-regression sort path is an infrequent,
+        // per-registration event (not a hot-path log), so a single info line stays well within
+        // the per-executor log budget while documenting why streaming was declined.
+        logInfo(log"Streaming shuffle ${MDC(LogKeys.SHUFFLE_ID, shuffleId)} is memory-bound " +
+          log"(reduce partitions exceed the streaming buffer budget); registering on the sort " +
+          log"path for zero-regression fallback")
+      }
+      // Fallback / disabled / memory-bound path: delegate to the inner SortShuffleManager so the
+      // produced handle is a sort handle. This is the zero-regression guarantee - the sort path is
+      // unchanged, and a memory-bound workload is served end-to-end by sort (writer AND reader).
       sortShuffleManager.registerShuffle(shuffleId, dependency)
     }
   }
@@ -291,6 +338,12 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
    * `.data`/`.index` bytes into a reader that expects 32-byte streaming envelopes - a data
    * integrity bug. Because the backend is immutable per shuffle (see the class doc), a tripped
    * fallback only changes the handle type of SUBSEQUENT registrations.
+   *
+   * Memory-bound unsuitability is therefore handled the only safe way: it is detected BEFORE the
+   * handle exists, in [[registerShuffle]] via [[isWorkloadMemoryBound]], so a memory-bound
+   * workload never reaches this method with a [[StreamingShuffleHandle]] in the first place. That
+   * pre-registration check is what makes the AAP's "memory pressure prevents buffer allocation"
+   * revert condition enforceable without ever mixing sort and streaming bytes within one shuffle.
    */
   override def getWriter[K, V](
       handle: ShuffleHandle,
@@ -386,7 +439,14 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
             metrics,
             streamingConfig,
             streamingMetrics,
-            transport)
+            transport,
+            // Wire the consumer-to-producer backpressure control plane: the reader emits
+            // heartbeat/ack/peer-version messages to this executor's backpressure RPC endpoint
+            // (None on the driver/local-mode path, where the endpoint is intentionally not
+            // registered). Closes the loop the writer already reacts to via the rate limiter and
+            // consumer-timeout handling. Block locations/data still flow over the unchanged
+            // MapOutputTracker + BlockTransferService pull path.
+            backpressureEndpointRef)
         }
       // Sort handle: delegate to sort unchanged.
       case _ =>

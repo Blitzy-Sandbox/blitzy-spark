@@ -17,6 +17,7 @@
 
 package org.apache.spark.shuffle.streaming
 
+import java.io.{BufferedOutputStream, FileOutputStream, OutputStream}
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 
@@ -32,6 +33,7 @@ import org.apache.spark.shuffle.{IndexShuffleBlockResolver, MigratableResolver, 
 import org.apache.spark.shuffle.ShuffleBlockResolver
 import org.apache.spark.shuffle.streaming.MemorySpillManager.BufferKey
 import org.apache.spark.storage.{BlockId, ShuffleBlockId, ShuffleMergedBlockId}
+import org.apache.spark.util.Utils
 
 /**
  * Resolves shuffle block data for the opt-in streaming shuffle backend, serving
@@ -358,6 +360,51 @@ private[spark] class StreamingShuffleBlockResolver(
       blockId: BlockId,
       key: BlockKey,
       buffer: StreamingBuffer): ManagedBuffer = {
+    // Collect the ordered enveloped byte parts (spilled segments oldest-first, then the live
+    // in-memory frames) under the buffer's atomic snapshot, then flatten them into one array.
+    val parts = collectEnvelopedParts(blockId, key, buffer)
+    val totalLen = parts.iterator.map(_.length.toLong).sum
+    require(totalLen <= Int.MaxValue,
+      s"Streaming block $blockId is $totalLen bytes, exceeding the single-buffer byte limit")
+    val assembled = new Array[Byte](totalLen.toInt)
+    var offset = 0
+    parts.foreach { part =>
+      System.arraycopy(part, 0, assembled, offset, part.length)
+      offset += part.length
+    }
+
+    logTrace(log"Serving streaming block ${MDC(LogKeys.BLOCK_ID, blockId)} for shuffle " +
+      log"${MDC(LogKeys.SHUFFLE_ID, key.shuffleId)} map ${MDC(LogKeys.MAP_ID, key.mapId)} " +
+      log"reduce ${MDC(LogKeys.REDUCE_ID, key.reduceId)} " +
+      log"(${MDC(LogKeys.NUM_BYTES, totalLen)} bytes)")
+    new NioManagedBuffer(ByteBuffer.wrap(assembled))
+  }
+
+  /**
+   * Captures the canonical enveloped bytes of one streamed reduce partition as an ordered list of
+   * byte arrays: each recorded spill segment (oldest first), then the live in-memory frames as a
+   * single trailing array. This is the single assembly primitive shared by the in-memory serving
+   * path ([[serveStreamingPartition]]) and the durable publication path
+   * ([[commitDurableMapOutput]]), so the bytes a reduce task fetches while the producer is alive
+   * are byte-for-byte identical to the bytes committed to the standard `.data`/`.index` files for
+   * remote, external-shuffle-service, and post-cleanup fetches.
+   *
+   * The spilled-id list and the in-memory frames are captured together inside one
+   * [[StreamingBuffer.snapshotEnvelopedWith]] critical section so a concurrent spill -- whose
+   * segment-add and buffer-clear run under the same lock -- can never make a block appear in both
+   * views or in neither, preserving the zero-data-loss guarantee.
+   *
+   * @param blockId the logical shuffle block being assembled (for diagnostics)
+   * @param key the in-memory buffer key for the partition
+   * @param buffer the producer-side buffer whose lock guards the atomic snapshot
+   * @return the ordered enveloped byte parts; empty when the partition holds no bytes
+   * @throws IllegalStateException if a recorded spill segment can no longer be read back, failing
+   *         the fetch loudly so the partition is recomputed via lineage rather than served short
+   */
+  private def collectEnvelopedParts(
+      blockId: BlockId,
+      key: BlockKey,
+      buffer: StreamingBuffer): ArrayBuffer[Array[Byte]] = {
     val manager = spillManager
     val bufferKey = BufferKey(key.shuffleId, key.mapId, key.reduceId)
     // Atomic, lock-consistent capture of (ordered spilled ids, live in-memory frames). The
@@ -384,22 +431,81 @@ private[spark] class StreamingShuffleBlockResolver(
     if (inMemoryBytes.length > 0) {
       parts += inMemoryBytes
     }
+    parts
+  }
 
-    val totalLen = parts.iterator.map(_.length.toLong).sum
-    require(totalLen <= Int.MaxValue,
-      s"Streaming block $blockId is $totalLen bytes, exceeding the single-buffer byte limit")
-    val assembled = new Array[Byte](totalLen.toInt)
-    var offset = 0
-    parts.foreach { part =>
-      System.arraycopy(part, 0, assembled, offset, part.length)
-      offset += part.length
+  /**
+   * Publishes a completed map task's streamed output to the standard durable shuffle `.data` and
+   * `.index` files, returning the per-reduce-partition ENVELOPED byte lengths.
+   *
+   * ==Why this exists (the streaming data plane)==
+   * While the producer executor is alive, a reduce task fetches a partition straight from the
+   * producer's in-memory [[StreamingBuffer]] (and spill segments) via [[getBlockData]] ->
+   * [[serveStreamingPartition]], which is the low-latency streaming path. That in-memory state,
+   * however, is executor-local: a remote executor reaching the producer through the external
+   * shuffle service, a producer that has been decommissioned, or any fetch after the shuffle's
+   * in-memory buffers are released would otherwise find nothing to serve. Writing the SAME
+   * canonical enveloped bytes to the standard `.data`/`.index` files (through the composed
+   * [[IndexShuffleBlockResolver]], the least-modification path of AAP 0.4.2) makes the streamed
+   * output remotely fetchable by the existing shuffle services and recoverable across executor
+   * restarts -- closing the local-mode-bias gap without a bespoke streaming transport service.
+   * The map-side writer calls this exactly once on a successful write, after all partitions are
+   * finalized and before the buffers are released, so both the live and durable views serve
+   * identical bytes for the shuffle's whole lifetime.
+   *
+   * ==Format invariant==
+   * For each reduce partition the bytes written here are exactly the
+   * [[org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope]] frames produced by
+   * [[collectEnvelopedParts]] -- the same frames [[serveStreamingPartition]] serves in memory and
+   * the same frames written to disk on spill (the dual-channel wire/persist invariant). The
+   * returned lengths are therefore the enveloped (header-inclusive) sizes the reduce side must
+   * fetch; the writer ships them in the `MapStatus`, and the `.index` offsets the inner resolver
+   * writes (a running prefix sum of these lengths) align exactly with the `.data` layout. CRC32C
+   * integrity travels inside each envelope, so no separate `.checksum` file is written
+   * (`checksums = Array.empty`); the reduce-side reader verifies every frame on fetch.
+   *
+   * @param shuffleId the shuffle being committed
+   * @param mapId the map (producer) task id
+   * @param numPartitions the number of reduce partitions (the length of the returned array)
+   * @return the enveloped byte length of every reduce partition, indexed by reduce id
+   */
+  def commitDurableMapOutput(shuffleId: Int, mapId: Long, numPartitions: Int): Array[Long] = {
+    val dataFile = indexResolver.getDataFile(shuffleId, mapId)
+    val dataTmp = indexResolver.createTempFile(dataFile)
+    val lengths = new Array[Long](numPartitions)
+    val out: OutputStream = new BufferedOutputStream(new FileOutputStream(dataTmp))
+    Utils.tryWithSafeFinally {
+      var reduceId = 0
+      while (reduceId < numPartitions) {
+        val key = BlockKey(shuffleId, mapId, reduceId)
+        val buffer = buffers.get(key)
+        if (buffer != null) {
+          // Serve the SAME enveloped parts the in-memory path serves, written straight to the
+          // data stream so a large partition never has to be flattened into one array on disk.
+          val blockId = ShuffleBlockId(shuffleId, mapId, reduceId)
+          val parts = collectEnvelopedParts(blockId, key, buffer)
+          var partitionLen = 0L
+          parts.foreach { part =>
+            out.write(part)
+            partitionLen += part.length.toLong
+          }
+          lengths(reduceId) = partitionLen
+        }
+        // An untracked (or never-written) partition contributes a zero-length entry, exactly as
+        // the sort-based path records empty partitions; the index still gets a valid offset.
+        reduceId += 1
+      }
+    } {
+      out.close()
     }
-
-    logTrace(log"Serving streaming block ${MDC(LogKeys.BLOCK_ID, blockId)} for shuffle " +
-      log"${MDC(LogKeys.SHUFFLE_ID, key.shuffleId)} map ${MDC(LogKeys.MAP_ID, key.mapId)} " +
-      log"reduce ${MDC(LogKeys.REDUCE_ID, key.reduceId)} " +
-      log"(${MDC(LogKeys.NUM_BYTES, totalLen)} bytes)")
-    new NioManagedBuffer(ByteBuffer.wrap(assembled))
+    // Atomically install the .index (prefix-sum offsets of `lengths`) and rename the temp .data
+    // into place through the inner resolver, reusing the battle-tested commit + dedup logic.
+    indexResolver.writeMetadataFileAndCommit(shuffleId, mapId, lengths, Array.empty[Long], dataTmp)
+    logDebug(log"Committed durable streaming map output shuffle=" +
+      log"${MDC(LogKeys.SHUFFLE_ID, shuffleId)} map=${MDC(LogKeys.MAP_ID, mapId)} partitions=" +
+      log"${MDC(LogKeys.NUM_PARTITIONS, numPartitions)} totalBytes=" +
+      log"${MDC(LogKeys.NUM_BYTES, lengths.sum)}")
+    lengths
   }
 }
 

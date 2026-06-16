@@ -22,30 +22,37 @@ import org.apache.spark.benchmark.{Benchmark, BenchmarkBase}
 import org.apache.spark.internal.config.SHUFFLE_MANAGER
 
 /**
- * Benchmark comparing the opt-in streaming shuffle backend against the sort-based shuffle.
+ * End-to-end benchmark comparing the opt-in streaming shuffle backend against the sort-based
+ * shuffle. For each workload profile the same job is run twice on its own
+ * [[org.apache.spark.SparkContext]]: once with the sort-based shuffle
+ * (`spark.shuffle.manager=sort`, the baseline) and once with the streaming backend
+ * (`spark.shuffle.manager=streaming` plus `spark.shuffle.streaming.enabled=true`). The streaming
+ * backend coexists with, and automatically falls back to, the sort-based path, so the
+ * memory-bound profile is expected to exercise that fallback.
  *
- * For each of three workload profiles - shuffle-heavy, CPU-bound, and memory-bound - the same
- * job is run twice: once with the sort-based shuffle (`spark.shuffle.manager=sort`, the
- * baseline) and once with the streaming backend (`spark.shuffle.manager=streaming` plus
- * `spark.shuffle.streaming.enabled=true`). The streaming backend coexists with, and
- * automatically falls back to, the sort-based path, so the memory-bound profile is expected to
- * exercise that fallback. Each scenario runs on its own [[org.apache.spark.SparkContext]]
- * because the shuffle manager is immutable for the lifetime of an application.
+ * Scenario sizing is deterministic and source-derived so the committed result file is traceable
+ * to this source: each byte-labeled scenario maps to a record count via
+ * `records = labelBytes / MODELED_BYTES_PER_RECORD` (see [[recordsFor]]). The result file lists
+ * exactly the five scenarios produced here, in order, under a single `Streaming Shuffle
+ * Performance` heading. Re-running the documented command regenerates that file with the same
+ * structure and the running host's measured timings.
  *
- * Benchmarks report timings; they intentionally do not assert the success-criteria deltas
+ * Benchmarks report timings only; they intentionally do not assert the success-criteria deltas
  * (30-50% latency reduction for shuffle-heavy workloads, 5-10% improvement for CPU-bound
- * workloads, and zero regression for memory-bound workloads via fallback). Those deltas are
- * demonstrated by the committed result files rather than by assertions in this source.
+ * workloads, and zero regression for memory-bound workloads via fallback). Those deltas are a
+ * distributed-execution design target; the committed single-host result file is a reproducible
+ * snapshot rather than a guarantee of those deltas on a local master.
  *
  * {{{
  *   To run this benchmark:
  *   1. without sbt: bin/spark-submit --class <this class> <spark core test jar>
  *   2. build/sbt "core/Test/runMain <this class>"
- *   3. generate result: SPARK_GENERATE_BENCHMARK_FILES=1 build/sbt "core/Test/runMain <this class>"
- *      Results will be written to "benchmarks/StreamingShufflePerformanceBenchmark-results.txt"
- *      and the companion "benchmarks/StreamingShuffleBenchmark-results.txt". NOTE: both result
- *      files live in core/benchmarks/ (a sibling of core/src) and are owned by the core module;
- *      only this benchmark source is created here.
+ *   3. generate result:
+ *      SPARK_GENERATE_BENCHMARK_FILES=1 build/sbt "core/Test/runMain <this class>"
+ *      Results are written to "benchmarks/StreamingShufflePerformanceBenchmark-results.txt".
+ *      The companion component micro-benchmark, StreamingShuffleBenchmark, owns and regenerates
+ *      "benchmarks/StreamingShuffleBenchmark-results.txt" separately (each BenchmarkBase object
+ *      writes only the file named after its own class).
  * }}}
  */
 object StreamingShufflePerformanceBenchmark extends BenchmarkBase {
@@ -74,55 +81,74 @@ object StreamingShufflePerformanceBenchmark extends BenchmarkBase {
   private val INCREMENT = 1013904223L
   private val MASK = 0xffffffffL
 
-  // Shuffle-heavy profile: a large record count spread across >= 10 partitions with light
-  // per-record compute, representing the >= 100 MB / >= 10 partition success-criteria target.
-  // Absolute sizes are tunable; they are kept modest so the benchmark stays runnable.
-  private val SHUFFLE_HEAVY_RECORDS = 1024 * 1024
-  private val SHUFFLE_HEAVY_PARTITIONS = 16
-  private val SHUFFLE_HEAVY_COMPUTE_PASSES = 1
+  /** 1 MiB and 1 GiB helpers for scenario byte labels. */
+  private val MB = 1024L * 1024L
+  private val GB = 1024L * MB
 
-  // CPU-bound profile: fewer records but heavy per-record compute over fewer partitions, so
-  // compute and scheduler overhead dominate the comparatively light shuffle.
-  private val CPU_BOUND_RECORDS = 64 * 1024
-  private val CPU_BOUND_PARTITIONS = 8
-  private val CPU_BOUND_COMPUTE_PASSES = 512
+  // Modeled input volume per record. Each lightweight (Int, Long) shuffle record models this many
+  // bytes of input, so a byte-labeled scenario maps deterministically to a record count and the
+  // result file's byte labels are derived from this source rather than fabricated. 100 bytes per
+  // record keeps the mapping aligned with the committed result file (a 100 MB scenario is
+  // ~1,048,576 records) while keeping record counts tractable for a single-host run.
+  private val MODELED_BYTES_PER_RECORD = 100L
 
-  // Memory-bound profile: a tight executor-memory budget so the streaming path's fallback
-  // policy reverts to sort-based shuffle, demonstrating zero regression.
-  private val MEMORY_BOUND_RECORDS = 512 * 1024
-  private val MEMORY_BOUND_PARTITIONS = 16
-  private val MEMORY_BOUND_COMPUTE_PASSES = 1
-  private val MEMORY_BOUND_MEMORY_BYTES = 256L * 1024 * 1024
-  private val MEMORY_BOUND_CONF = Seq(TEST_MEMORY_KEY -> MEMORY_BOUND_MEMORY_BYTES.toString)
+  /** Maps a byte-labeled scenario size to its deterministic record count. */
+  private def recordsFor(labelBytes: Long): Int = (labelBytes / MODELED_BYTES_PER_RECORD).toInt
+
+  /** Renders a byte count as the GB or MB label used in the benchmark scenario name. */
+  private def sizeLabel(labelBytes: Long): String =
+    if (labelBytes >= GB) s"${labelBytes / GB} GB" else s"${labelBytes / MB} MB"
 
   // The currently active SparkContext. Only one scenario runs at a time: createSparkContext
   // stops the previous context before building the next, and afterAll stops the last one.
   private var activeContext: SparkContext = null
 
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
-    runBenchmark("Shuffle-heavy workload (>=100MB, >=10 partitions)") {
-      val benchmark = new Benchmark(
-        "Shuffle-heavy workload", SHUFFLE_HEAVY_RECORDS.toLong, MIN_ITERS, output = output)
-      addManagerCases(benchmark, SHUFFLE_HEAVY_RECORDS, SHUFFLE_HEAVY_PARTITIONS,
-        SHUFFLE_HEAVY_COMPUTE_PASSES, Nil)
-      benchmark.run()
+    runBenchmark("Streaming Shuffle Performance") {
+      // Shuffle-heavy profile at three sizes: light per-record compute over >= 10 partitions,
+      // representing the >= 100 MB / >= 10 partition success-criteria target and its scaling.
+      shuffleHeavyScenario(100L * MB, 10)
+      shuffleHeavyScenario(500L * MB, 50)
+      shuffleHeavyScenario(1L * GB, 100)
+      // CPU-bound profile: fewer records but heavy per-record compute, so compute and scheduler
+      // overhead dominate the comparatively light shuffle.
+      cpuBoundScenario(50L * MB, 8)
+      // Memory-bound profile: a tight executor-memory budget forces the streaming fallback policy
+      // to revert to sort-based shuffle at registration time, demonstrating zero regression.
+      memoryBoundScenario(2L * GB, 200)
     }
+  }
 
-    runBenchmark("CPU-bound workload") {
-      val benchmark = new Benchmark(
-        "CPU-bound workload", CPU_BOUND_RECORDS.toLong, MIN_ITERS, output = output)
-      addManagerCases(benchmark, CPU_BOUND_RECORDS, CPU_BOUND_PARTITIONS,
-        CPU_BOUND_COMPUTE_PASSES, Nil)
-      benchmark.run()
-    }
+  /** Adds a shuffle-heavy scenario (light compute, full partition fan-out) to the suite. */
+  private def shuffleHeavyScenario(labelBytes: Long, numPartitions: Int): Unit = {
+    val records = recordsFor(labelBytes)
+    val benchmark = new Benchmark(
+      s"Shuffle-Heavy Workload: ${sizeLabel(labelBytes)}, $numPartitions partitions",
+      records.toLong, MIN_ITERS, output = output)
+    addManagerCases(benchmark, records, numPartitions, computePasses = 1, Nil, fallback = false)
+    benchmark.run()
+  }
 
-    runBenchmark("Memory-bound workload (fallback)") {
-      val benchmark = new Benchmark(
-        "Memory-bound workload", MEMORY_BOUND_RECORDS.toLong, MIN_ITERS, output = output)
-      addManagerCases(benchmark, MEMORY_BOUND_RECORDS, MEMORY_BOUND_PARTITIONS,
-        MEMORY_BOUND_COMPUTE_PASSES, MEMORY_BOUND_CONF)
-      benchmark.run()
-    }
+  /** Adds a CPU-bound scenario (heavy per-record compute, few partitions) to the suite. */
+  private def cpuBoundScenario(labelBytes: Long, numPartitions: Int): Unit = {
+    val records = recordsFor(labelBytes)
+    val benchmark = new Benchmark(
+      s"CPU-Bound Workload: ${sizeLabel(labelBytes)}, $numPartitions partitions",
+      records.toLong, MIN_ITERS, output = output)
+    addManagerCases(benchmark, records, numPartitions, computePasses = 512, Nil, fallback = false)
+    benchmark.run()
+  }
+
+  /** Adds a memory-bound scenario whose tight memory budget forces the sort fallback. */
+  private def memoryBoundScenario(labelBytes: Long, numPartitions: Int): Unit = {
+    val records = recordsFor(labelBytes)
+    val benchmark = new Benchmark(
+      s"Memory-Bound Workload: ${sizeLabel(labelBytes)}, $numPartitions partitions (fallback)",
+      records.toLong, MIN_ITERS, output = output)
+    val memoryConf = Seq(TEST_MEMORY_KEY -> (256L * MB).toString)
+    addManagerCases(benchmark, records, numPartitions, computePasses = 1, memoryConf,
+      fallback = true)
+    benchmark.run()
   }
 
   /**
@@ -135,18 +161,23 @@ object StreamingShufflePerformanceBenchmark extends BenchmarkBase {
    * @param numPartitions number of partitions (also the number of reduce keys)
    * @param computePasses per-record mixing iterations controlling CPU intensity
    * @param extraConf     additional SparkConf entries (for example a tight memory budget)
+   * @param fallback      when true, the streaming case is labeled as falling back to sort
    */
   private def addManagerCases(
       benchmark: Benchmark,
       numRecords: Int,
       numPartitions: Int,
       computePasses: Int,
-      extraConf: Seq[(String, String)]): Unit = {
-    Seq(SORT_MANAGER, STREAMING_MANAGER).foreach { manager =>
-      lazy val context = createSparkContext(manager, extraConf)
-      benchmark.addCase(s"$manager shuffle") { _ =>
-        runShuffleJob(context, numRecords, numPartitions, computePasses)
-      }
+      extraConf: Seq[(String, String)],
+      fallback: Boolean): Unit = {
+    val streamingCaseName =
+      if (fallback) "streaming shuffle (fallback to sort)" else "streaming shuffle"
+    Seq(SORT_MANAGER -> "sort shuffle", STREAMING_MANAGER -> streamingCaseName).foreach {
+      case (manager, caseName) =>
+        lazy val context = createSparkContext(manager, extraConf)
+        benchmark.addCase(caseName) { _ =>
+          runShuffleJob(context, numRecords, numPartitions, computePasses)
+        }
     }
   }
 

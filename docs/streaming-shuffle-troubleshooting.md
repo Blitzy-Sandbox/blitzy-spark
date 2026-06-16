@@ -142,9 +142,10 @@ becomes unreachable, the reader follows this sequence:
                                  exponential backoff (1 s initial delay, maximum 5 attempts).
 ```
 
-Because the partial output is discarded and the upstream work is recomputed before the retry, this
-flow guarantees **zero data loss**. An occasional `FetchFailedException` under load is expected and
-is handled transparently.
+Because the partial output is discarded and the upstream work is recomputed before the retry —
+through Spark's unchanged lineage/recompute machinery — this flow is designed for **zero data loss**,
+and the failure paths are exercised by the 10-scenario `StreamingShuffleFailureInjectionSuite`. An
+occasional `FetchFailedException` under load is expected and is handled transparently.
 
 When `FetchFailedException` is **frequent**, the streaming backend is usually the messenger, not the
 cause — investigate flaky executors or an unstable network instead. Use the stage and task error
@@ -172,7 +173,8 @@ results — it only trades memory for disk I/O.
 
 A high or rapidly increasing `backpressureEvents` count means the consumer-to-producer flow-control
 protocol is **throttling producers**. The protocol combines a periodic heartbeat (interval **10 s**)
-from consumers with token-bucket rate limiting on producers, so that producers cannot overwhelm
+from consumers — emitted **best-effort** in v1 when the backpressure endpoint is reachable — with
+token-bucket rate limiting on producers (always active locally), so that producers cannot overwhelm
 consumers that are reading more slowly than data is generated.
 
 * **Causes:** slow or overloaded consumers, an overly low

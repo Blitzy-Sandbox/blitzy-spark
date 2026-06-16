@@ -22,16 +22,20 @@ import java.nio.ByteBuffer
 import java.util.Properties
 
 import org.mockito.ArgumentMatchers.{any, eq => meq}
-import org.mockito.Mockito.{mock, when}
+import org.mockito.Mockito.{doAnswer, mock, when}
+import org.mockito.invocation.InvocationOnMock
 
 import org.apache.spark._
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.network.BlockTransferService
 import org.apache.spark.network.buffer.{ManagedBuffer, NioManagedBuffer}
+import org.apache.spark.rpc.{RpcEndpointRef, RpcEnv}
 import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.shuffle.{FetchFailedException, ShuffleReadMetricsReporter}
+import org.apache.spark.shuffle.streaming.BackpressureProtocol.StreamKey
 import org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope
 import org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport
+import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
 import org.apache.spark.storage.{BlockManager, BlockManagerId, ShuffleBlockId}
 
 /**
@@ -138,7 +142,8 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
       mapSideCombine: Boolean,
       numMaps: Int,
       pairsPerMap: Int,
-      consumerEnvelope: Option[StreamingBlockEnvelope])
+      consumerEnvelope: Option[StreamingBlockEnvelope],
+      backpressureEndpointRef: Option[RpcEndpointRef] = None)
     : (StreamingShuffleReader[Int, Int], Seq[RecordingManagedBuffer], StreamingShuffleMetrics) = {
 
     val conf = new SparkConf(false)
@@ -226,7 +231,7 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
     // threaded through the reader; the records were serialized without compression above.
     val reader = new StreamingShuffleReader[Int, Int](
       handle, 0, numMaps, reduceId, reduceId + 1, taskContext, readMetrics,
-      streamingConfig, streamingMetrics, transport, blockManager,
+      streamingConfig, streamingMetrics, transport, backpressureEndpointRef, blockManager,
       mapOutputTracker)
 
     (reader, buffers.toSeq, streamingMetrics)
@@ -400,7 +405,10 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
     val p2 = payloadOf(37)
     val raw = concat(frame(0L, p0), frame(1L, p1), frame(2L, p2))
 
-    val out = reader.extractValidatedPayloads(ByteBuffer.wrap(raw), integrityBmId, 0L, 0, 0)
+    // A generous Long.MaxValue cap keeps these parse/CRC integrity tests focused on framing; the
+    // aggregate memory cap (finding #9) is exercised by its own dedicated test below.
+    val out = reader.extractValidatedPayloads(
+      ByteBuffer.wrap(raw), integrityBmId, 0L, 0, 0, Long.MaxValue)
 
     // Only the payload bytes, in frame order, with every 32-byte header stripped.
     assert(out.sameElements(p0 ++ p1 ++ p2))
@@ -409,7 +417,7 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
   test("extractValidatedPayloads returns an empty array for an empty fetched block") {
     val reader = buildIntegrityReader(new StreamingShuffleMetrics)
     val out = reader.extractValidatedPayloads(
-      ByteBuffer.wrap(Array.emptyByteArray), integrityBmId, 0L, 0, 0)
+      ByteBuffer.wrap(Array.emptyByteArray), integrityBmId, 0L, 0, 0, Long.MaxValue)
     assert(out.isEmpty)
   }
 
@@ -423,7 +431,8 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
     val before = metrics.partialReadInvalidations
 
     intercept[FetchFailedException] {
-      reader.extractValidatedPayloads(ByteBuffer.wrap(corrupt), integrityBmId, 0L, 0, 0)
+      reader.extractValidatedPayloads(
+        ByteBuffer.wrap(corrupt), integrityBmId, 0L, 0, 0, Long.MaxValue)
     }
     assert(metrics.partialReadInvalidations === before + 1L)
   }
@@ -434,7 +443,8 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
     val truncated = frame(0L, payloadOf(128)).dropRight(10)
 
     intercept[FetchFailedException] {
-      reader.extractValidatedPayloads(ByteBuffer.wrap(truncated), integrityBmId, 0L, 0, 0)
+      reader.extractValidatedPayloads(
+        ByteBuffer.wrap(truncated), integrityBmId, 0L, 0, 0, Long.MaxValue)
     }
   }
 
@@ -445,7 +455,144 @@ class StreamingShuffleReaderSuite extends SparkFunSuite with LocalSparkContext {
     val raw = concat(frame(0L, payloadOf(32)), new Array[Byte](10))
 
     intercept[FetchFailedException] {
-      reader.extractValidatedPayloads(ByteBuffer.wrap(raw), integrityBmId, 0L, 0, 0)
+      reader.extractValidatedPayloads(ByteBuffer.wrap(raw), integrityBmId, 0L, 0, 0, Long.MaxValue)
     }
+  }
+
+  test("extractValidatedPayloads rejects a block whose aggregate payload exceeds the cap " +
+      "(finding #9)") {
+    val metrics = new StreamingShuffleMetrics
+    val reader = buildIntegrityReader(metrics)
+    // Three individually-valid frames totalling 3 KB of payload. Every frame parses and its CRC32C
+    // verifies, so the ONLY thing that can reject this block is the aggregate memory cap.
+    val raw = concat(
+      frame(0L, payloadOf(1024)), frame(1L, payloadOf(1024)), frame(2L, payloadOf(1024)))
+    val before = metrics.partialReadInvalidations
+
+    // A cap of 2 KB is exceeded partway through assembling the 3 KB of payload, so the block must
+    // be invalidated (FetchFailedException) BEFORE the oversized array is allocated, and the
+    // partial-read invalidation telemetry must record it.
+    intercept[FetchFailedException] {
+      reader.extractValidatedPayloads(
+        ByteBuffer.wrap(raw), integrityBmId, 0L, 0, 0, maxBytes = 2048L)
+    }
+    assert(metrics.partialReadInvalidations === before + 1L)
+
+    // The same block under a cap that comfortably fits all 3 KB succeeds and returns every byte,
+    // proving the cap discriminates on aggregate size rather than rejecting valid blocks.
+    val out = reader.extractValidatedPayloads(
+      ByteBuffer.wrap(raw), integrityBmId, 0L, 0, 0, maxBytes = 8192L)
+    assert(out.length === 3072)
+  }
+
+  // -----------------------------------------------------------------------------------------------
+  // Finding #6: consumer-to-producer backpressure control plane is wired into production read code.
+  // These tests prove the READER actually EMITS heartbeat/ack/peer-version control messages and
+  // that they mutate the producer's real protocol state -- the previously receive-only/test-only
+  // gap. Delivery is exercised through a real BackpressureRpcEndpoint + BackpressureProtocol so the
+  // assertions cover the genuine emit -> endpoint.receive -> protocol path a live RpcEnv would run,
+  // without opening any socket.
+  // -----------------------------------------------------------------------------------------------
+
+  /**
+   * Builds a real backpressure protocol + fallback policy + RPC endpoint plus a mock
+   * [[RpcEndpointRef]] whose fire-and-forget `send` synchronously delivers each backpressure
+   * message into the endpoint's real `receive` handler (and records it). Routing `send` through
+   * the real endpoint makes consumer-emitted control messages drive genuine protocol state -- the
+   * same code path a live [[RpcEnv]] executes -- so a test can assert end-to-end that reader
+   * emission mutates protocol state. The endpoint's own [[RpcEnv]] is mocked because constructing
+   * the endpoint has no side effects (`onStart` is driven by the RpcEnv lifecycle, not the ctor).
+   *
+   * @return the protocol, its fallback policy, the delivering endpoint ref, and the captured
+   *         message log (in send order)
+   */
+  private def deliveringEndpoint(): (
+      BackpressureProtocol,
+      StreamingShuffleFallbackPolicy,
+      RpcEndpointRef,
+      scala.collection.mutable.ArrayBuffer[BackpressureRpcEndpoint.BackpressureMessage]) = {
+    val cfg = new StreamingShuffleConfig(new SparkConf(false))
+    val metrics = new StreamingShuffleMetrics
+    val policy = new StreamingShuffleFallbackPolicy(cfg, metrics)
+    val limiter = new TokenBucketRateLimiter(Long.MaxValue)
+    val protocol = new BackpressureProtocol(cfg, limiter, metrics, policy)
+    val endpoint = new BackpressureRpcEndpoint(mock(classOf[RpcEnv]), protocol)
+    val delivered =
+      scala.collection.mutable.ArrayBuffer[BackpressureRpcEndpoint.BackpressureMessage]()
+    val ref = mock(classOf[RpcEndpointRef])
+    doAnswer { (inv: InvocationOnMock) =>
+      inv.getArgument[Any](0) match {
+        case bp: BackpressureRpcEndpoint.BackpressureMessage =>
+          delivered += bp
+          // Deliver to the real endpoint exactly as a live RpcEnv would dispatch a one-way send.
+          endpoint.receive.apply(bp)
+        case _ =>
+      }
+      ()
+    }.when(ref).send(any())
+    (protocol, policy, ref, delivered)
+  }
+
+  test("read() emits heartbeat/ack/peer-version control RPCs that the endpoint applies to the " +
+    "protocol (finding #6)") {
+    val (protocol, _, ref, delivered) = deliveringEndpoint()
+    // A single map => a single stream => exactly one validated block, so the reader advertises its
+    // protocol version once and heartbeats/acks for StreamKey(shuffleId, 0, reduceId).
+    val numMaps = 1
+    val (reader, _, _) =
+      buildFixture(None, None, mapSideCombine = false, numMaps, pairsPerMap = 8, None, Some(ref))
+    val key = StreamKey(shuffleId, 0L, reduceId)
+    // Seed the producer's unacked counter well above any single block so the consumer ack can never
+    // clamp at zero; the assertion below pins the exact decrement to the bytes the reader acked.
+    val seededUnacked = 1 << 20
+    protocol.acquireSendPermit(key, seededUnacked)
+    assert(protocol.unackedByteCount(key) === seededUnacked.toLong)
+
+    // Fully consume the read so every block's control messages are emitted.
+    val records = reader.read().toList
+    assert(records.nonEmpty)
+
+    val peerVersions = delivered.collect { case p: BackpressureRpcEndpoint.PeerVersion => p }
+    val heartbeats = delivered.collect { case h: BackpressureRpcEndpoint.Heartbeat => h }
+    val acks = delivered.collect { case a: BackpressureRpcEndpoint.Ack => a }
+    // The reader advertised its protocol version exactly once, heartbeated, and acked.
+    assert(peerVersions.size === 1, s"expected exactly one PeerVersion, got $delivered")
+    assert(peerVersions.head.protocolVersion === StreamingShuffleConfig.STREAMING_PROTOCOL_VERSION)
+    assert(heartbeats.nonEmpty, "expected at least one Heartbeat")
+    assert(acks.nonEmpty, "expected at least one Ack")
+    // Every control message carries this reader's correlation ids.
+    delivered.foreach { m =>
+      val (sId, mId, rId) = m match {
+        case BackpressureRpcEndpoint.PeerVersion(s, mp, r, _) => (s, mp, r)
+        case BackpressureRpcEndpoint.Heartbeat(s, mp, r, _) => (s, mp, r)
+        case BackpressureRpcEndpoint.Ack(s, mp, r, _) => (s, mp, r)
+        case other => fail(s"unexpected control message $other")
+      }
+      assert(sId === shuffleId && mId === 0L && rId === reduceId)
+    }
+
+    // End-to-end state mutation: the endpoint applied the ack(s) to the real protocol, decrementing
+    // the producer's unacked counter by EXACTLY the bytes the reader acknowledged.
+    val ackedTotal = acks.map(_.bytesAcked).sum
+    assert(ackedTotal > 0L)
+    assert(protocol.unackedByteCount(key) === seededUnacked.toLong - ackedTotal)
+    // The heartbeat/ack refreshed consumer liveness, so the stream is not consumer-timed-out.
+    assert(!protocol.isConsumerTimedOut(key))
+  }
+
+  test("a peer-version advertisement delivered through the endpoint trips the producer " +
+    "version-mismatch fallback (finding #6)") {
+    val (_, policy, ref, _) = deliveringEndpoint()
+    assert(!policy.isVersionMismatch)
+    // The version this build's reader actually advertises must NOT trip fallback.
+    ref.send(BackpressureRpcEndpoint.PeerVersion(
+      shuffleId, 0L, reduceId, StreamingShuffleConfig.STREAMING_PROTOCOL_VERSION))
+    assert(!policy.isVersionMismatch)
+    // A divergent peer version -- what a different-build consumer's reader would emit over this
+    // same send() path -- trips the version-mismatch fallback end-to-end (emit -> endpoint ->
+    // protocol -> fallback policy), driving new shuffles to sort in a mixed-version cluster.
+    ref.send(BackpressureRpcEndpoint.PeerVersion(
+      shuffleId, 0L, reduceId, StreamingShuffleConfig.STREAMING_PROTOCOL_VERSION + 1))
+    assert(policy.isVersionMismatch)
   }
 }

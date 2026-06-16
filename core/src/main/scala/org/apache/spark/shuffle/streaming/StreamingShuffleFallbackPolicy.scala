@@ -213,6 +213,52 @@ private[spark] class StreamingShuffleFallbackPolicy(
   def isVersionMismatch: Boolean = versionMismatch.get()
 
   // ---------------------------------------------------------------------------------------
+  // Registration-time suitability check (the pre-flight arm of the memory-pressure condition).
+  // ---------------------------------------------------------------------------------------
+
+  /**
+   * Registration-time memory-bound suitability check, complementing the runtime
+   * [[isMemoryPressure]] condition. Whereas [[isMemoryPressure]] reacts to *sampled* executor
+   * memory utilization once a shuffle is already streaming, this pure predicate is evaluated by
+   * `StreamingShuffleManager.registerShuffle` *before* a [[StreamingShuffleHandle]] is created,
+   * so a workload whose shape cannot fit the configured buffer budget never enters the streaming
+   * path in the first place.
+   *
+   * The check is deliberately conservative and matches the writer's own buffer-sizing contract:
+   * [[StreamingShuffleConfig.perPartitionBufferBytes]] floors every per-partition buffer at
+   * [[StreamingShuffleConfig.MIN_BUFFER_SIZE_BYTES]] (2 MB). A shuffle with `numPartitions`
+   * reduce partitions therefore needs at least `numPartitions * 2 MB` of buffer memory. When that
+   * floor exceeds the buffer budget the executor will dedicate to streaming (`memoryBudgetBytes`),
+   * the workload is memory-bound: streaming would spill for every partition or fail to allocate,
+   * so it must register on the sort path instead. This is the registration-time arm of the AAP's
+   * "memory pressure prevents buffer allocation (OOM risk)" revert condition and underpins the
+   * zero-regression guarantee for memory-bound workloads, which cannot be safely reverted *after*
+   * a streaming handle exists (the writer and reader would then disagree on the wire byte format).
+   *
+   * A non-positive `memoryBudgetBytes` means the caller could not determine the executor budget
+   * (for example, `SparkEnv` is unavailable during driver-side registration in some local
+   * topologies); this predicate then returns `false` so it never *blocks* streaming on missing
+   * information. The writer and reader independently fall back to the sort path when `SparkEnv`
+   * is null, keeping both ends of such a shuffle on the same backend.
+   *
+   * The predicate is pure (no field reads or writes) and therefore trivially thread-safe.
+   *
+   * @param numPartitions     the number of reduce partitions the shuffle will produce
+   * @param memoryBudgetBytes the executor buffer budget in bytes the streaming backend may use
+   *                          (`maxOnHeapStorageMemory * bufferSizePercent / 100`); values `<= 0`
+   *                          are treated as "unknown" and never indicate a memory-bound workload
+   * @return `true` when the 2 MB-floored per-partition buffer requirement
+   *         (`numPartitions * MIN_BUFFER_SIZE_BYTES`) exceeds `memoryBudgetBytes`
+   */
+  def isMemoryBoundForPartitions(numPartitions: Int, memoryBudgetBytes: Long): Boolean = {
+    if (memoryBudgetBytes <= 0L || numPartitions <= 0) {
+      false
+    } else {
+      numPartitions.toLong * StreamingShuffleConfig.MIN_BUFFER_SIZE_BYTES > memoryBudgetBytes
+    }
+  }
+
+  // ---------------------------------------------------------------------------------------
   // Composite decision.
   // ---------------------------------------------------------------------------------------
 

@@ -31,12 +31,15 @@ These four metrics are emitted under the **`shuffle.streaming.*`** namespace via
 
 ### Structured logging with correlation IDs
 
-Streaming-specific events are emitted as **structured logging** through the reused SLF4J/Log4j2 stack, carrying **MDC (Mapped Diagnostic Context) correlation keys** so a single shuffle can be traced end-to-end across producer and consumer executors. The correlation keys are exactly:
+Streaming-specific events are emitted as **structured logging** through the reused SLF4J/Log4j2 stack, carrying **MDC (Mapped Diagnostic Context) correlation keys** so a single shuffle can be traced end-to-end across producer and consumer executors. MDC key strings are the **lowercased names** of the central `org.apache.spark.internal.LogKeys` enum — Spark lowercases each `LogKey.name` when it populates the MDC — and the streaming backend reuses the keys that already exist in that shared registry. The correlation keys emitted on the read/transfer path are:
 
-- **`shuffle_id`** — the shuffle the log line belongs to.
-- **`map_id`** — the producing (map-side) task.
-- **`reduce_partition_range`** — the consuming (reduce-side) partition range being read.
-- **`attempt_id`** — the task attempt, distinguishing retries.
+- **`shuffle_id`** (`LogKeys.SHUFFLE_ID`) — the shuffle the log line belongs to.
+- **`map_id`** (`LogKeys.MAP_ID`) — the producing (map-side) task.
+- **`start_index`** + **`end_index`** (`LogKeys.START_INDEX` / `LogKeys.END_INDEX`) — the consuming (reduce-side) **partition range** being read (start inclusive, end exclusive). Together these convey the reduce partition range.
+- **`task_attempt_id`** (`LogKeys.TASK_ATTEMPT_ID`) — the task attempt, distinguishing retries.
+- **`reduce_id`** (`LogKeys.REDUCE_ID`) — the specific reduce partition, on per-block log lines.
+
+> **Mapping to the Observability rule's conceptual keys.** The cross-cutting Observability rule names the keys `shuffle_id`, `map_id`, `reduce_partition_range`, and `attempt_id`. `shuffle_id` and `map_id` match exactly. Because `LogKeys` is a **shared, frozen enum outside this feature's scope** (`common/utils-java/src/main/java/org/apache/spark/internal/LogKeys.java`), the backend maps the remaining two concepts onto the closest **existing** registry keys rather than adding new ones: `reduce_partition_range` is expressed as the pair `start_index` + `end_index`, and `attempt_id` is realized as the registry's canonical `task_attempt_id`. The spill, fallback, and backpressure paths additionally reuse existing keys such as `partition_id`, `block_id`, `num_bytes`, `count`, `duration`, `threshold`, and `reason`.
 
 Setting **`spark.shuffle.streaming.debug=true`** raises log verbosity for diagnostics. It is off by default and should remain off in production to stay within the log-volume budget described under [Constraints](#constraints); see [Configuration](configuration.md) for the flag's definition.
 

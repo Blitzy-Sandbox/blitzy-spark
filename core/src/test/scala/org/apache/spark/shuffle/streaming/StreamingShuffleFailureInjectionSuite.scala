@@ -199,7 +199,9 @@ class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with Matchers 
     raw(idx) = (raw(idx) ^ 0xFF).toByte
     var produced: Array[Byte] = null
     intercept[FetchFailedException] {
-      produced = reader.extractValidatedPayloads(ByteBuffer.wrap(raw), integrityBmId, 0L, 0, 0)
+      // A generous cap keeps this case focused on CRC-corruption detection (finding #9 cap unset).
+      produced = reader.extractValidatedPayloads(
+        ByteBuffer.wrap(raw), integrityBmId, 0L, 0, 0, Long.MaxValue)
     }
     assert(produced == null) // zero records emitted: the read aborted atomically before returning
     assert(metrics.partialReadInvalidations === 1L)
@@ -357,7 +359,8 @@ class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with Matchers 
     corruptRaw(StreamingBlockEnvelope.HEADER_BYTES) =
       (corruptRaw(StreamingBlockEnvelope.HEADER_BYTES) ^ 0xFF).toByte
     intercept[FetchFailedException] {
-      reader1.extractValidatedPayloads(ByteBuffer.wrap(corruptRaw), integrityBmId, 0L, 0, 0)
+      reader1.extractValidatedPayloads(
+        ByteBuffer.wrap(corruptRaw), integrityBmId, 0L, 0, 0, Long.MaxValue)
     }
     assert(attempt1Metrics.partialReadInvalidations === 1L)
 
@@ -367,7 +370,8 @@ class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with Matchers 
       .map { case (p, i) => frame(i.toLong, p) }
       .foldLeft(Array.emptyByteArray)(_ ++ _)
     val recovered =
-      reader2.extractValidatedPayloads(ByteBuffer.wrap(goodRaw), integrityBmId, 0L, 0, 0)
+      reader2.extractValidatedPayloads(
+        ByteBuffer.wrap(goodRaw), integrityBmId, 0L, 0, 0, Long.MaxValue)
     // The recomputed read yields exactly the original payload bytes: identical output, zero loss.
     assert(recovered.sameElements(expected))
   }

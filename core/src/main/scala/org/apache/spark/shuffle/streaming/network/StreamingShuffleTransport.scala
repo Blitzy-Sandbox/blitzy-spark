@@ -31,11 +31,18 @@ import org.apache.spark.storage.BlockManagerId
  *
  * ==Intended v1 behavior (AAP 0.4.4) - not an unfinished stub==
  *
- * In v1 this transport is deliberately ''logging-only''. The real data plane is the existing,
- * battle-tested [[org.apache.spark.network.BlockTransferService.fetchBlockSync]] pull path that
- * `StreamingShuffleReader` (parent package) invokes directly on the reduce side. Reusing that
- * path is the least-modification approach (AAP 0.6.1): the streaming backend introduces no new
- * network endpoint here and inherits Spark's existing shuffle security (SASL/TLS) unchanged.
+ * In v1 this transport is deliberately ''logging-only''. The real data plane is a ''pull'' path,
+ * not a push: the reduce side invokes the existing, battle-tested
+ * [[org.apache.spark.network.BlockTransferService.fetchBlockSync]] in `StreamingShuffleReader`
+ * (parent package), and on the producing executor that fetch is answered by
+ * `StreamingShuffleBlockResolver.getBlockData`, which serves the partition's canonical
+ * `StreamingBlockEnvelope` frames straight from the still-resident in-memory `StreamingBuffer`
+ * (and its spill segments) while the producer is alive, and from the standard durable
+ * `.data`/`.index` files the writer commits on success for remote, external-shuffle-service, and
+ * post-cleanup fetches. Reusing that path is the least-modification approach (AAP 0.6.1): the
+ * streaming backend introduces no new network endpoint here and inherits Spark's existing shuffle
+ * security (SASL/TLS) unchanged. Because the producer durably publishes the same enveloped bytes,
+ * the pull data plane is complete and multi-executor-safe without a bespoke streaming send.
  *
  * Consequently [[sendBlock]] returns an already-completed [[scala.concurrent.Future]] and
  * [[openConsumerStream]] returns an empty iterator. This is a recorded, justified design

@@ -82,10 +82,20 @@ class StreamingShuffleManagerSuite extends SparkFunSuite with LocalSparkContext 
    * manager down the bypass-merge-sort path, whose handle is a [[BaseShuffleHandle]] and whose
    * writer is intentionally NOT a [[StreamingShuffleWriter]].
    */
-  private def defaultDep(): ShuffleDependency[Any, Any, Any] = {
+  private def defaultDep(): ShuffleDependency[Any, Any, Any] = depWithPartitions(2)
+
+  /**
+   * Generalization of [[defaultDep]] over the reduce-side partition count. The partition count is
+   * the only knob the registration-time memory-bound suitability check (finding #7) reads, so
+   * tests that exercise that check vary `numPartitions` while keeping every other stub identical
+   * to [[defaultDep]]. A count `<=` 200 with no map-side combine still routes the inner sort
+   * manager down the bypass-merge-sort path, whose handle is a [[BaseShuffleHandle]] and never a
+   * [[StreamingShuffleHandle]].
+   */
+  private def depWithPartitions(numPartitions: Int): ShuffleDependency[Any, Any, Any] = {
     val dep = mock(classOf[ShuffleDependency[Any, Any, Any]], new RuntimeExceptionAnswer())
     doReturn(0).when(dep).shuffleId
-    doReturn(new HashPartitioner(2)).when(dep).partitioner
+    doReturn(new HashPartitioner(numPartitions)).when(dep).partitioner
     doReturn(mock(classOf[Serializer])).when(dep).serializer
     doReturn(None).when(dep).keyOrdering
     doReturn(None).when(dep).aggregator
@@ -323,5 +333,56 @@ class StreamingShuffleManagerSuite extends SparkFunSuite with LocalSparkContext 
     mgr.stop()
     // A second stop must be a safe no-op: teardown is guarded by an AtomicBoolean.
     mgr.stop()
+  }
+
+  /**
+   * Builds a [[SparkConf]] whose UnifiedMemoryManager budget is small and fully deterministic:
+   * `spark.testing.memory` caps the system memory and a `0` reserved-memory override removes the
+   * 300 MB floor, so `maxOnHeapStorageMemory ~= 256 MB * spark.memory.fraction (0.6) ~= 153.6 MB`
+   * regardless of the test JVM's `-Xmx`. At the default `bufferSizePercent=20` the streaming
+   * buffer budget is therefore ~30.7 MB, making the partition fan-out the sole determinant of the
+   * registration-time memory-bound decision.
+   */
+  private def boundedMemoryConf(): SparkConf =
+    new SparkConf(false)
+      .set("spark.testing.memory", (256L * 1024 * 1024).toString)
+      .set("spark.testing.reservedMemory", "0")
+
+  test("registration-time memory-bound: a workload whose reduce partitions exceed the streaming " +
+      "buffer budget registers a sort handle (finding #7)") {
+    // ~30.7 MB streaming buffer budget (see boundedMemoryConf). With the 2 MB per-partition floor,
+    // 64 reduce partitions require >= 128 MB -- far over budget -- so the shuffle is memory-bound
+    // and MUST register on the sort path. This is the pre-registration arm of the AAP's "memory
+    // pressure prevents buffer allocation (OOM risk)" condition: detecting it before a streaming
+    // handle exists routes the WHOLE shuffle (writer AND reader) to sort, so no streaming reader
+    // ever receives sort .data/.index bytes. The SparkContext uses a plain (sort) conf so its own
+    // SparkEnv registers no streaming metrics source that could collide with the test manager's.
+    sc = new SparkContext("local", "test", boundedMemoryConf())
+    val mgr = new StreamingShuffleManager(newConf(streaming = true), isDriver = false)
+    try {
+      // No runtime fallback condition is tripped; suitability alone drives the decision.
+      mgr.fallbackPolicy.shouldFallback mustBe false
+      val handle = mgr.registerShuffle(0, depWithPartitions(64))
+      handle.isInstanceOf[StreamingShuffleHandle[_, _, _]] mustBe false
+      handle.isInstanceOf[BaseShuffleHandle[_, _, _]] mustBe true
+    } finally {
+      mgr.stop()
+    }
+  }
+
+  test("registration-time memory-bound (positive control): a workload that fits the same budget " +
+      "still registers a StreamingShuffleHandle (finding #7)") {
+    // Identical ~30.7 MB budget as the memory-bound test, but the default 2-partition dependency
+    // needs only 2 * 2 MB = 4 MB -- comfortably under budget -- so suitability does NOT trip and
+    // the streaming backend stands. This proves the new check discriminates on workload shape and
+    // does not blanket-disable streaming whenever a live SparkEnv is present.
+    sc = new SparkContext("local", "test", boundedMemoryConf())
+    val mgr = new StreamingShuffleManager(newConf(streaming = true), isDriver = false)
+    try {
+      val handle = mgr.registerShuffle(0, defaultDep())
+      handle.isInstanceOf[StreamingShuffleHandle[_, _, _]] mustBe true
+    } finally {
+      mgr.stop()
+    }
   }
 }
