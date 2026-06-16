@@ -133,8 +133,8 @@ spilling relieves memory pressure without invalidating in-progress reads.
 ## Bandwidth Cap: `spark.shuffle.streaming.maxBandwidthMBps`
 
 `spark.shuffle.streaming.maxBandwidthMBps` caps the per-executor streaming shuffle bandwidth, expressed
-in megabytes per second and enforced by a token-bucket rate limiter. It defaults to `0`, which &mdash;
-like any non-positive value &mdash; means **unlimited** (no rate limiting is applied). The cap is a
+in megabytes per second and enforced by a token-bucket rate limiter. It defaults to `-1`, which &mdash;
+like any non-positive value (`&le; 0`) &mdash; means **unlimited** (no rate limiting is applied). The cap is a
 per-executor budget that is arbitrated across all concurrent shuffles running on that executor, so
 adding more concurrent shuffles divides the same budget rather than multiplying it.
 
@@ -146,7 +146,7 @@ Use the following guidance when choosing a value:
   conditions that causes the backend to fall back to the sort-based shuffle, so a sensible cap can keep
   the streaming path engaged.
 * **Leave it unlimited on dedicated or fast networks.** When the network is not a bottleneck, a cap only
-  adds overhead and throttles throughput needlessly; the default of `0` (unlimited) is appropriate.
+  adds overhead and throttles throughput needlessly; the default of `-1` (unlimited) is appropriate.
 * **Account for concurrency.** Because the cap is shared across concurrent shuffles on the executor,
   size it for the expected peak number of simultaneous shuffles, not for a single shuffle in isolation.
 
@@ -178,31 +178,31 @@ these properties are immutable for the lifetime of the application and require a
     <code>spark.shuffle.manager</code> is also set to <code>streaming</code>; otherwise the manager
     delegates to the sort-based shuffle. Opt-in; the default behavior is unchanged.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
   <td>20</td>
   <td>Percentage (1&ndash;50) of executor memory used for per-partition streaming buffers; per-partition size = (executorMemory * bufferSizePercent / 100) / numPartitions, with a 2 MB floor.</td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.spillThreshold</code></td>
   <td>80</td>
   <td>Buffer-utilization percentage (50&ndash;95) at which the largest buffers spill to disk to reclaim memory.</td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
-  <td>0 (unlimited)</td>
-  <td>Per-executor streaming bandwidth cap in MB/s (token-bucket rate limiter); 0 or non-positive means unlimited.</td>
-  <td>4.1.0</td>
+  <td>-1 (unlimited)</td>
+  <td>Per-executor streaming bandwidth cap in MB/s (token-bucket rate limiter); the default is <code>-1</code>, and any non-positive value (&le; 0) means unlimited.</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.debug</code></td>
   <td>false</td>
   <td>Enables additional diagnostic logging for the streaming shuffle path.</td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 </table>
 

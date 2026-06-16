@@ -125,36 +125,55 @@ and the streaming configuration keys.
 and after the `streaming` alias is registered, and the runtime branch taken inside the streaming
 manager once it is selected.
 
-**Legend:** green = new streaming class (CREATE); blue = modified existing file (MODIFY); gray =
+**Legend:** `[CREATE]` = new streaming class; `[MODIFY]` = modified existing file; `[ref]` =
 referenced/unchanged component.
 
-```mermaid
-flowchart TB
-    subgraph BEFORE["Before — Master Baseline"]
-        direction TB
-        B1["conf: spark.shuffle.manager"] --> B2{"shortShuffleMgrNames map"}
-        B2 -->|"sort"| B3["SortShuffleManager"]
-        B2 -->|"tungsten-sort"| B3
-    end
-    subgraph AFTER["After — streaming Alias Registered"]
-        direction TB
-        A1["conf: spark.shuffle.manager"] --> A2{"shortShuffleMgrNames map"}
-        A2 -->|"sort / tungsten-sort"| A3["SortShuffleManager"]
-        A2 -->|"streaming"| A4["StreamingShuffleManager"]
-        A4 --> A5{"streaming.enabled AND<br/>fallback not tripped"}
-        A5 -->|"yes"| A6["Stream producer to consumer"]
-        A5 -->|"no"| A7["Delegate to inner SortShuffleManager"]
-    end
-    B2:::modify
-    B3:::ref
-    A2:::modify
-    A3:::ref
-    A4:::create
-    A6:::create
-    A7:::ref
-    classDef create fill:#d5f5e3,stroke:#1e8449,color:#145a32
-    classDef modify fill:#d6eaf8,stroke:#2471a3,color:#1a5276
-    classDef ref fill:#eaecee,stroke:#7f8c8d,color:#424949
+```
+ BEFORE — Master Baseline
+ ─────────────────────────
+
+      conf: spark.shuffle.manager
+                  │
+                  v
+      ┌───────────────────────────────┐
+      │  shortShuffleMgrNames map      │  [MODIFY]
+      └───────────────┬───────────────┘
+              sort / tungsten-sort
+                  │
+                  v
+      ┌───────────────────────────────┐
+      │       SortShuffleManager       │  [ref]
+      └───────────────────────────────┘
+
+
+ AFTER — "streaming" Alias Registered
+ ─────────────────────────────────────
+
+      conf: spark.shuffle.manager
+                  │
+                  v
+      ┌───────────────────────────────┐
+      │  shortShuffleMgrNames map      │  [MODIFY]
+      └──────┬─────────────────────┬───┘
+    sort /   │                     │   streaming
+  tungsten-sort                    │
+             │                     │
+             v                     v
+   ┌─────────────────────┐   ┌────────────────────────────┐
+   │  SortShuffleManager  │   │  StreamingShuffleManager   │  [CREATE]
+   │        [ref]         │   └──────────────┬─────────────┘
+   └─────────────────────┘                  │
+                                            v
+                       ┌─────────────────────────────────────────┐
+                       │  streaming.enabled AND                   │
+                       │  fallback not tripped ?                  │
+                       └──────┬────────────────────────────┬──────┘
+                          yes │                          no │
+                              v                             v
+            ┌──────────────────────────────┐   ┌─────────────────────────────────┐
+            │  Stream producer to consumer  │   │  Delegate to inner              │
+            │           [CREATE]            │   │  SortShuffleManager     [ref]   │
+            └──────────────────────────────┘   └─────────────────────────────────┘
 ```
 
 The streaming backend recognizes five configuration keys. They are summarized below for orientation;
@@ -172,7 +191,7 @@ also the global [Configuration](configuration.html) reference.
     <code>true</code> <em>and</em> <code>spark.shuffle.manager</code> is set to <code>streaming</code>;
     otherwise the manager delegates to the sort-based shuffle.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
@@ -181,7 +200,7 @@ also the global [Configuration](configuration.html) reference.
     Percentage of executor memory (integer, 1-50) used for per-partition streaming buffers before
     spill is considered.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.spillThreshold</code></td>
@@ -189,16 +208,16 @@ also the global [Configuration](configuration.html) reference.
   <td>
     Buffer-utilization percentage (integer, 50-95) at which the largest buffers spill to disk.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
-  <td>0</td>
+  <td>-1</td>
   <td>
-    Per-executor streaming rate limit in MB/s. A value of <code>0</code> (the default) means
-    unlimited.
+    Per-executor streaming rate limit in MB/s. The default is <code>-1</code>; any non-positive
+    value (<code>&le; 0</code>) means unlimited.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.debug</code></td>
@@ -206,7 +225,7 @@ also the global [Configuration](configuration.html) reference.
   <td>
     Enables verbose streaming-shuffle debug logging.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 </table>
 
@@ -235,31 +254,67 @@ runs alongside the data plane when the backpressure endpoint is reachable, and d
 only under memory pressure. The end-to-end path is shown in **Diagram 3: Producer-to-Consumer
 Streaming Data Flow** below.
 
-**Legend:** solid arrows = data path (producer durable-publish; consumer pull-fetch); thick arrows
-(`==>`) = best-effort backpressure/control; dotted arrows (`-.->`) = spill, failure, fallback, or
-off-critical-path/served relationships.
+**Legend:** solid arrows (`──>`, `│`/`v`) = data path (producer durable-publish; consumer
+pull-fetch); thick arrows (`==>`) = best-effort backpressure/control; dotted arrows (`··>`) = spill,
+failure, fallback, or off-critical-path/served relationships.
 
-```mermaid
-flowchart LR
-    MT["Map task"] --> WR["StreamingShuffleWriter.write<br/>(map-side combine if dep.mapSideCombine)"]
-    WR --> PB["Per-partition StreamingBuffer"]
-    PB --> RLG["TokenBucketRateLimiter gate<br/>(producer-side, local)"]
-    RLG --> ENC["StreamingBlockEnvelope<br/>32B header + CRC32C"]
-    ENC --> PUB["resolver.commitDurableMapOutput<br/>durable .data / .index"]
-    PUB --> BMW["BlockManager /<br/>IndexShuffleBlockResolver"]
-    RD["StreamingShuffleReader.read<br/>fetchBlockSync (PULL)"] --> GBD["resolver.getBlockData<br/>in-memory buffer OR durable file"]
-    GBD --> VER["verifyChecksum (CRC32C)<br/>+ aggregate payload cap"]
-    VER --> DES["deserialize + aggregate/sort"]
-    DES --> RT["Reduce task"]
-    BMW -.->|"served on producer executor"| GBD
-    PB -.->|"buffer > 80%"| SP["MemorySpillManager"]
-    SP -.->|"putBytes DISK_ONLY"| BMD["BlockManager disk"]
-    RD ==>|"best-effort heartbeat / ack / peer-version<br/>(v1: when endpoint reachable)"| RPC["BackpressureRpcEndpoint"]
-    RPC ==>|"rate-limit / timeout state"| RLG
-    RD -.->|"5s connection timeout"| FF["FetchFailedException"]
-    FF -.->|"recompute via lineage"| MT
-    WR -.->|"fallback pinned at registration"| SORT["Inner SortShuffleManager"]
-    WR -.->|"v1 logging-only (off data path)"| TX["StreamingShuffleTransport"]
+```
+ PRODUCER (map-side executor)                 CONSUMER (reduce-side executor)
+ ════════════════════════════                 ═══════════════════════════════
+
+ ┌────────────────────────────────┐           ┌────────────────────────────────┐
+ │ Map task                       │           │ StreamingShuffleReader.read     │
+ └───────────────┬────────────────┘           │ fetchBlockSync  (PULL)          │
+                 │ records                     └───────────────┬────────────────┘
+                 v                                             │  ──> pull-fetch
+ ┌────────────────────────────────┐                           v
+ │ StreamingShuffleWriter.write    │           ┌────────────────────────────────┐
+ │ (map-side combine if            │           │ resolver.getBlockData           │
+ │  dep.mapSideCombine)            │           │ in-memory buffer OR durable file│
+ └───────────────┬────────────────┘           └───────────────┬────────────────┘
+                 │                                             v
+                 v                             ┌────────────────────────────────┐
+ ┌────────────────────────────────┐           │ verifyChecksum (CRC32C)         │
+ │ Per-partition StreamingBuffer   │           │ + aggregate payload cap         │
+ └───────────────┬────────────────┘           └───────────────┬────────────────┘
+                 │                                             v
+                 v                             ┌────────────────────────────────┐
+ ┌────────────────────────────────┐           │ deserialize + aggregate / sort  │
+ │ TokenBucketRateLimiter gate     │           └───────────────┬────────────────┘
+ │ (producer-side, local)          │                           v
+ └───────────────┬────────────────┘           ┌────────────────────────────────┐
+                 │                             │ Reduce task                     │
+                 v                             └────────────────────────────────┘
+ ┌────────────────────────────────┐
+ │ StreamingBlockEnvelope          │
+ │ 32B header + CRC32C             │
+ └───────────────┬────────────────┘
+                 │
+                 v
+ ┌────────────────────────────────┐
+ │ resolver.commitDurableMapOutput │
+ │ durable .data / .index          │
+ └───────────────┬────────────────┘
+                 │
+                 v
+ ┌────────────────────────────────┐    ··served on producer executor··>  resolver.getBlockData
+ │ BlockManager /                  │                                       (consumer side, above)
+ │ IndexShuffleBlockResolver       │
+ └────────────────────────────────┘
+
+ Control plane  (==>  best-effort, v1 — only when the backpressure endpoint is reachable):
+   StreamingShuffleReader.read  ==>  BackpressureRpcEndpoint        (heartbeat / ack / peer-version)
+   BackpressureRpcEndpoint      ==>  TokenBucketRateLimiter gate    (rate-limit / timeout state)
+
+ Spill path  (··>  under memory pressure):
+   Per-partition StreamingBuffer  ··(buffer > 80%)··>  MemorySpillManager  ··(putBytes DISK_ONLY)··>  BlockManager disk
+
+ Failure path  (··>  zero data loss via lineage):
+   StreamingShuffleReader.read  ··(5s connection timeout)··>  FetchFailedException  ··(recompute via lineage)··>  Map task
+
+ Fallback / off-path  (··>):
+   StreamingShuffleWriter.write  ··>  Inner SortShuffleManager    (fallback pinned at registration)
+   StreamingShuffleWriter.write  ··>  StreamingShuffleTransport   (v1 logging-only, off data path)
 ```
 
 In words:
@@ -298,7 +353,8 @@ parts:
   consumer is falling behind, and the producer reacts by throttling or buffering.
 * **Token-bucket rate limiting** — outbound bytes pass through a token-bucket limiter that enforces
   the per-executor bandwidth cap configured by `spark.shuffle.streaming.maxBandwidthMBps`. One
-  permit corresponds to one byte; when the cap is `0` the limiter is unlimited.
+  permit corresponds to one byte; the default cap is `-1`, and any non-positive value (`≤ 0`) leaves
+  the limiter unlimited.
 * **Priority arbitration** — when multiple shuffles stream concurrently on the same executor, the
   available bandwidth is arbitrated across them so that no single shuffle starves the others.
 

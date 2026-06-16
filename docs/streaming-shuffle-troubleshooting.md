@@ -235,7 +235,7 @@ guidance for each lives in the [tuning guide](streaming-shuffle-tuning.html).
     <code>spark.shuffle.manager=streaming</code> for the backend to engage. When false (the default),
     the sort-based shuffle is used.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
@@ -244,7 +244,7 @@ guidance for each lives in the [tuning guide](streaming-shuffle-tuning.html).
     Percent of executor memory (range 1&ndash;50) used for streaming shuffle buffers. Raising it
     reduces spills at the cost of memory headroom; lowering it relieves memory pressure.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.spillThreshold</code></td>
@@ -253,17 +253,17 @@ guidance for each lives in the [tuning guide](streaming-shuffle-tuning.html).
     Buffer utilization percent (range 50&ndash;95) at which the largest buffers spill to disk
     (<code>DISK_ONLY</code>). Lower it to spill earlier and reduce out-of-memory risk.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
-  <td>0 (unlimited)</td>
+  <td>-1 (unlimited)</td>
   <td>
-    Per-executor streaming bandwidth cap, in MB/s, enforced by token-bucket rate limiting. A value
-    of 0 (or any non-positive value) means unlimited. Use a cap to leave network headroom or to
-    throttle producers ahead of slow consumers.
+    Per-executor streaming bandwidth cap, in MB/s, enforced by token-bucket rate limiting. The
+    default is <code>-1</code>; any non-positive value (&le; 0) means unlimited. Use a cap to leave
+    network headroom or to throttle producers ahead of slow consumers.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.debug</code></td>
@@ -272,7 +272,7 @@ guidance for each lives in the [tuning guide](streaming-shuffle-tuning.html).
     Enables additional streaming-shuffle diagnostic logging with correlation IDs. Enable while
     troubleshooting; disable in production to respect the log-volume budget.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 </table>
 

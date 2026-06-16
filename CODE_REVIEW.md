@@ -2,7 +2,7 @@
 
 A multi-phase Segmented PR Review of the opt-in **Streaming Shuffle** backend for Apache Spark Core (`spark-core_2.13`, `spark-parent_2.13:4.2.0-SNAPSHOT`). The review runs a pre-flight gate first, then partitions **every** changed file into **exactly one** sequential domain phase — each resolving to `APPROVED` or `BLOCKED` — and closes with a final-reviewer re-verification of the delivered state.
 
-> **Checkpoint scope (read this first).** This is the **FINAL — Full Project Completion Verification** review. The **entire** streaming-shuffle feature surface is delivered and is partitioned exactly once below: the two surgical integration edits, all sixteen production classes plus the package object, the metrics resource template, the seventeen test/benchmark source files, **both** checked-in benchmark **result** `.txt` artifacts, and the full documentation set — **51 files total**. This edition **supersedes** the prior CP3 edition: it reflects the as-built system after the FINAL-checkpoint remediation (§0), corrects the CP3 artifact's stale benchmark scoping and over-optimistic data-plane/benchmark claims, and records current, independently-substantiated pass/fail evidence.
+> **Checkpoint scope (read this first).** This is the **FINAL — Full Project Completion Verification** review. The **entire** streaming-shuffle feature surface is delivered and is partitioned exactly once below: the two surgical integration edits, all sixteen production classes plus the package object, the in-package `StreamingLogKeys.java` enum, the metrics resource template, the seventeen test/benchmark source files, **both** checked-in benchmark **result** `.txt` artifacts, and the full documentation set — **52 files total**. This edition **supersedes** the prior CP3 edition: it reflects the as-built system after the FINAL-checkpoint remediation (§0), corrects the CP3 artifact's stale benchmark scoping and over-optimistic data-plane/benchmark claims, and records current, independently-substantiated pass/fail evidence.
 
 ## Status Banner
 
@@ -16,7 +16,7 @@ A multi-phase Segmented PR Review of the opt-in **Streaming Shuffle** backend fo
 | **Build / static analysis** | `test-compile` clean under warnings-as-errors (`-Wconf:any:e`, `-Wunused:imports`); Scalastyle clean (637 files, 0 errors, 0 warnings) |
 | **Test battery** | streaming package ScalaTest run — **Suites completed 16, succeeded 147, failed 0, canceled 1** (the 5-minute stress, `assume`-gated in the normal run) |
 | **Unit line coverage** | **87.55%** (1315/1502) for `org.apache.spark.shuffle.streaming` — **> 85% bar met** (re-measured over the 147-test battery) |
-| **Files delivered & reviewed at FINAL** | **51** (2 modified existing + 49 created across the checkpoint sequence) |
+| **Files delivered & reviewed at FINAL** | **52** (2 modified existing + 50 created across the checkpoint sequence) |
 
 ### Commit cadence (explicit)
 
@@ -62,10 +62,11 @@ This review partitions **every delivered file** into **exactly one** sequential 
 
 Operation labels are stated **relative to the master (pre-feature) baseline**, consistent with the feature plan (AAP §0.2.1): master contained **no** `…/shuffle/streaming/` package, so every streaming production and test file is a **CREATE** relative to master, and the two integration files are **MODIFY**. The feature was delivered across a checkpoint sequence; several files were introduced earlier and finalized/extended at the FINAL checkpoint (the remediation in §0). This artifact reviews the **delivered final state**, not the per-checkpoint history.
 
-### 2.2 Delivered & reviewed at FINAL (51)
+### 2.2 Delivered & reviewed at FINAL (52)
 
 - **Modified existing source (2):** `core/src/main/scala/org/apache/spark/shuffle/ShuffleManager.scala`, `core/src/main/scala/org/apache/spark/internal/config/package.scala`.
 - **New production Scala (17):** the sixteen streaming classes plus `package.scala` under `…/shuffle/streaming/` and `…/shuffle/streaming/network/`.
+- **New production Java (1):** `core/src/main/java/org/apache/spark/shuffle/streaming/StreamingLogKeys.java` — the streaming MDC correlation-key enum (a custom in-package `LogKey` supplying `reduce_partition_range` and `attempt_id`; reviewed in Phase 4 with the observability surface).
 - **New resource (1):** `core/src/main/resources/org/apache/spark/shuffle/streaming/metrics.properties.template`.
 - **New tests (17):** the full streaming test battery enumerated in §2.3 and §5.6.
 - **New benchmark results (2):** `core/benchmarks/StreamingShuffleBenchmark-results.txt`, `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt`.
@@ -91,7 +92,7 @@ RDD/DataFrame/Dataset APIs; DAG scheduler and task scheduling; executor lifecycl
 
 ### 3.1 Pre-flight checklist
 
-- [x] **All deliverables present at their specified paths** — the 51-file inventory (§5) is present at the AAP-specified paths, including both benchmark result `.txt` files.
+- [x] **All deliverables present at their specified paths** — the 52-file inventory (§5) is present at the AAP-specified paths, including both benchmark result `.txt` files.
 - [x] **Zero-error / zero-warning build** — `./build/mvn -pl core -o test-compile` completes with exit 0 under warnings-as-errors (`-Wconf:any:e`) and `-Wunused:imports`; no streaming warnings or errors. The full clean build `./build/mvn -pl core -am -DskipTests clean install` completes BUILD SUCCESS.
 - [x] **Static analysis clean** — Scalastyle passes (637 files, 0 errors, 0 warnings).
 - [x] **Tests pass** — the streaming package ScalaTest run reports Suites completed 16, succeeded 147, failed 0, canceled 1 (the 5-minute stress, `assume`-gated in the normal run; executed separately under the stress profile, §3.3).
@@ -102,7 +103,7 @@ RDD/DataFrame/Dataset APIs; DAG scheduler and task scheduling; executor lifecycl
 
 | # | Gate | Evidence | Status |
 |---|------|----------|--------|
-| 1 | Deliverables present | Inventory cross-check against AAP §0.2.3 / §0.5.1 (see §5) — 51/51 present | **PASS** |
+| 1 | Deliverables present | Inventory cross-check against AAP §0.2.3 / §0.5.1 (see §5) — 52/52 present | **PASS** |
 | 2 | Zero-error/zero-warning build | `./build/mvn -pl core -o test-compile` exit 0; warnings-as-errors active; clean `install` BUILD SUCCESS | **PASS** |
 | 3 | Static analysis | `scalastyle:check` 637 files, 0 errors, 0 warnings | **PASS** |
 | 4 | Dependency closure | `./build/mvn -pl core -am -o dependency:tree` resolves offline; no manifest changes | **PASS** |
@@ -137,7 +138,7 @@ These boundaries are documented (Phase 6 docs/deck and the decision log) and are
 
 ## 4. Sequential Domain Review Phases
 
-Every delivered file is partitioned into **exactly one** of the phases below. Allowed domains: Infrastructure/DevOps, Security, Backend Architecture, QA/Test Integrity, Business/Domain, Frontend, Other SME. **Frontend is not applicable** — backend-only Spark Core change with no Web UI/static-asset surface (the reveal.js deck is reviewed under Business/Domain documentation). Observability is reviewed under **Other SME (Observability/SRE)**. Phases run in sequence; each carries an explicit verdict. Exact-once coverage of all 51 files is proven in §5.
+Every delivered file is partitioned into **exactly one** of the phases below. Allowed domains: Infrastructure/DevOps, Security, Backend Architecture, QA/Test Integrity, Business/Domain, Frontend, Other SME. **Frontend is not applicable** — backend-only Spark Core change with no Web UI/static-asset surface (the reveal.js deck is reviewed under Business/Domain documentation). Observability is reviewed under **Other SME (Observability/SRE)**. Phases run in sequence; each carries an explicit verdict. Exact-once coverage of all 52 files is proven in §5.
 
 | Phase | Domain | Files owned | Verdict |
 |---|---|---|---|
@@ -184,11 +185,12 @@ Every delivered file is partitioned into **exactly one** of the phases below. Al
 
 ### Review Phase 4 — Other SME (Observability / SRE)
 
-**Files owned (4):** `StreamingShuffleMetrics`, `StreamingShuffleSource`, `dashboard.json`, `observability.md`.
+**Files owned (5):** `StreamingShuffleMetrics`, `StreamingShuffleSource`, `StreamingLogKeys.java`, `dashboard.json`, `observability.md`.
 
 - [x] **Four metrics, correct types.** `bufferUtilizationPercent` (gauge); `spillCount`, `backpressureEvents`, `partialReadInvalidations` (counters). Verified by `StreamingShuffleMetricsSuite` (including `reset`).
 - [x] **Source registration.** `StreamingShuffleSource` implements `org.apache.spark.metrics.source.Source`; `StreamingShuffleManager` registers it with the executor `MetricsSystem`, gated on `SparkEnv.get != null` (local-mode safe), so metrics surface via JMX and the Prometheus endpoint with no framework change.
-- [x] **Accurate MDC documentation (resolves the Observability MDC sub-issue).** `observability.md` now records the **actual emitted** structured-logging MDC keys — `shuffle_id`, `map_id`, `start_index`, `end_index`, `task_attempt_id`, `reduce_id` — and explains the mapping to the rule's nominal keys: the `LogKeys` enum is a **frozen, out-of-AAP-scope** Java enum (`common/utils-java/.../LogKeys.java`), and the MDC string is its lowercased name; `reduce_partition_range` is emitted as `start_index`+`end_index`, and `attempt_id` as `task_attempt_id`. Modifying the frozen enum is out of scope and would break the golden-file `LogKeysSuite`.
+- [x] **Accurate MDC documentation (resolves the Observability MDC sub-issue).** `observability.md` records the **actual emitted** structured-logging MDC correlation keys: the backend emits **exactly** the four keys the Observability rule names, **byte-exact** — `shuffle_id`, `map_id`, `reduce_partition_range`, `attempt_id` (plus `reduce_id` on per-block lines such as checksum-mismatch and partial-read-invalidation). `shuffle_id` (`LogKeys.SHUFFLE_ID`), `map_id` (`LogKeys.MAP_ID`), and `reduce_id` (`LogKeys.REDUCE_ID`) reuse the central `org.apache.spark.internal.LogKeys` enum unchanged; the two keys with no canonical equivalent — `reduce_partition_range` and `attempt_id` — are supplied through Spark's documented **custom-`LogKey` extension mechanism** by a small in-package enum, **`StreamingLogKeys`** (`core/src/main/java/org/apache/spark/shuffle/streaming/StreamingLogKeys.java`), which declares `REDUCE_PARTITION_RANGE` and `ATTEMPT_ID`. This emits the exact rule-named keys while keeping all streaming logic inside the streaming package (zero cross-contamination) and leaving the **shared, frozen `LogKeys.java` untouched** — so the integration footprint stays the two surgical edits in `ShuffleManager.scala` and `internal/config/package.scala`. This matches `observability.md` (§"How the four required keys are emitted byte-exact") and `decision-log.md` row 26, which records the `start_index`+`end_index` / `task_attempt_id` reuse as the explicitly **rejected** alternative.
+- [x] **`StreamingLogKeys.java` (new in-package `LogKey` enum).** `core/src/main/java/org/apache/spark/shuffle/streaming/StreamingLogKeys.java` is the feature's sole new Java source — a minimal enum implementing `org.apache.spark.internal.LogKey` that declares `REDUCE_PARTITION_RANGE` and `ATTEMPT_ID`. It carries no logic beyond the enum constants, lives entirely inside the streaming package (zero cross-contamination), and is actively used on the emit paths in `StreamingShuffleReader`, `StreamingShuffleWriter`, and `network/StreamingShuffleTransport`. Reviewed here alongside the observability surface it serves.
 - [x] **Dashboard template.** `dashboard.json` is a 2×2 grid of four panels over the four metrics (`DS_PROMETHEUS`, 80% gauge threshold).
 
 **Verdict: `APPROVED`.** Exactly the four specified metrics with correct types via a standard `Source`; registration is local-mode safe; MDC documentation now matches the emitted keys with a documented rationale; the dashboard template is accurate.
@@ -238,9 +240,9 @@ Every delivered file appears in **exactly one** phase. Operation labels are rela
 
 `StreamingShuffleManager`, `StreamingShuffleHandle`, `StreamingShuffleWriter`, `StreamingShuffleReader`, `StreamingShuffleBlockResolver`, `StreamingBuffer`, `MemorySpillManager`, `BackpressureProtocol`, `StreamingShuffleFallbackPolicy`, `StreamingShuffleConfig`, `package.scala` — all CREATE, Phase 3.
 
-### 5.3 New production Scala — observability (2) → Phase 4
+### 5.3 New production source — observability (3) → Phase 4
 
-`StreamingShuffleMetrics`, `StreamingShuffleSource` — CREATE, Phase 4.
+`StreamingShuffleMetrics`, `StreamingShuffleSource` (Scala), and `StreamingLogKeys.java` (the feature's sole new Java source — an in-package `LogKey` enum supplying the `reduce_partition_range` and `attempt_id` MDC keys) — CREATE, Phase 4.
 
 ### 5.4 New production Scala — RPC & `…/streaming/network/` (4) → Phases 2–3
 
@@ -287,10 +289,10 @@ Every delivered file appears in **exactly one** phase. Operation labels are rela
 | 1 — Infrastructure/DevOps | 3 |
 | 2 — Security | 2 |
 | 3 — Backend Architecture | 13 |
-| 4 — Other SME (Observability/SRE) | 4 |
+| 4 — Other SME (Observability/SRE) | 5 |
 | 5 — QA/Test Integrity | 19 |
 | 6 — Business/Domain (Documentation) | 10 |
-| **Total** | **51** |
+| **Total** | **52** |
 
 Each delivered file appears exactly once. Both benchmark result `.txt` files are included in Phase 5 (no longer excluded).
 

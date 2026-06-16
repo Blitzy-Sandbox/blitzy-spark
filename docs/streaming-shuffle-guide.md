@@ -118,7 +118,7 @@ read once when the shuffle manager is created and are validated against the rang
     When <code>true</code> (and <code>spark.shuffle.manager</code> is set to <code>streaming</code>), enables the
     opt-in streaming shuffle backend. When <code>false</code>, the manager delegates to the sort-based shuffle.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
@@ -127,7 +127,7 @@ read once when the shuffle manager is created and are validated against the rang
     Percentage (1&ndash;50) of executor memory used for per-partition streaming buffers. The per-partition
     buffer size is computed as <code>(executorMemory * bufferSizePercent / 100) / numPartitions</code> with a 2 MB floor.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.spillThreshold</code></td>
@@ -136,16 +136,16 @@ read once when the shuffle manager is created and are validated against the rang
     Buffer-utilization percentage (50&ndash;95) at which the largest buffered partitions spill to disk via the
     block manager to reclaim memory.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
-  <td>0 (unlimited)</td>
+  <td>-1 (unlimited)</td>
   <td>
-    Per-executor streaming bandwidth cap in MB/s enforced by the token-bucket rate limiter. A value of
-    <code>0</code> (or any non-positive value) means unlimited.
+    Per-executor streaming bandwidth cap in MB/s enforced by the token-bucket rate limiter. The
+    default is <code>-1</code>; any non-positive value (<code>&le; 0</code>) means unlimited.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.debug</code></td>
@@ -153,7 +153,7 @@ read once when the shuffle manager is created and are validated against the rang
   <td>
     When <code>true</code>, enables additional diagnostic logging for the streaming shuffle path.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 </table>
 
