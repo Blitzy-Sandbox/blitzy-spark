@@ -4193,3 +4193,116 @@ Push-based shuffle helps improve the reliability and performance of spark shuffl
   <td>3.3.0</td>
 </tr>
 </table>
+
+# Streaming Shuffle Overview
+
+Streaming shuffle is an opt-in alternative shuffle mechanism that streams data directly from map (producer) tasks to reduce (consumer) tasks with memory buffering and backpressure protocols. Unlike the traditional sort-based shuffle which fully materializes shuffle output to disk before consumers can read, streaming shuffle pipelines data in-flight, allowing consumers to begin processing as soon as data becomes available.
+
+<p>Streaming shuffle targets <b>30-50% latency reduction</b> for shuffle-heavy workloads, particularly those involving 10GB+ of shuffle data and 100+ partitions. For CPU-bound workloads, improvements of 5-10% can be expected due to reduced scheduler overhead. The feature provides graceful degradation with automatic fallback to sort-based shuffle when conditions are not favorable for streaming.</p>
+
+<p><b>Activation:</b> To enable streaming shuffle, set <code>spark.shuffle.manager=streaming</code> and <code>spark.shuffle.streaming.enabled=true</code>. The streaming shuffle manager coexists with the sort-based shuffle manager and will automatically fallback when necessary.</p>
+
+### Streaming Shuffle Configuration Options
+
+<table class="spark-config">
+<thead><tr><th>Property Name</th><th>Default</th><th>Meaning</th><th>Since Version</th></tr></thead>
+<tr>
+  <td><code>spark.shuffle.streaming.enabled</code></td>
+  <td><code>false</code></td>
+  <td>
+    Opt-in flag to enable streaming shuffle. When set to <code>true</code> along with <code>spark.shuffle.manager=streaming</code>, the streaming shuffle mechanism is activated. Streaming shuffle pipelines data directly from map tasks to reduce tasks, reducing end-to-end latency for shuffle-heavy workloads.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
+  <td><code>20</code></td>
+  <td>
+    <p>Percentage of executor memory to allocate for streaming shuffle buffers. Valid range is 1-50. Per-partition buffer size is calculated as: <code>(executorMemory * bufferSizePercent / 100) / numPartitions</code>.</p>
+    <p>Setting this too high could lead to memory pressure and more frequent garbage collection. Setting this too low may result in more frequent disk spills and reduced streaming efficiency.</p>
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.spillThreshold</code></td>
+  <td><code>80</code></td>
+  <td>
+    <p>Memory pressure threshold (as a percentage, range 50-95) at which the streaming shuffle writer triggers disk spill. When buffer utilization exceeds this threshold, the system uses LRU-based partition eviction to write data to disk via BlockManager.</p>
+    <p>The spill operation targets completion within 100ms to minimize impact on streaming throughput. Lower values provide more headroom before memory exhaustion but may result in more frequent I/O operations.</p>
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
+  <td><code>-1</code></td>
+  <td>
+    Per-executor bandwidth cap in megabytes per second for streaming shuffle data transfer. Set to <code>-1</code> for unlimited bandwidth. When set to a positive value, a token-bucket rate limiter enforces the bandwidth limit at approximately 80% of link capacity to prevent network saturation.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.connectionTimeout</code></td>
+  <td><code>5s</code></td>
+  <td>
+    Timeout for detecting producer failures. If the streaming shuffle reader does not receive data from a producer within this timeout, it considers the producer failed, invalidates all partial reads from that producer, and triggers upstream task recomputation via <code>FetchFailedException</code>.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.heartbeatInterval</code></td>
+  <td><code>10s</code></td>
+  <td>
+    Interval for consumer liveness monitoring via heartbeat-based flow control. The streaming shuffle writer uses this interval to detect missing acknowledgments from consumers. If a consumer fails to acknowledge within this interval, the writer buffers unacknowledged data in memory or triggers spill if the buffer exceeds the spill threshold.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.maxRetries</code></td>
+  <td><code>5</code></td>
+  <td>
+    Maximum number of retry attempts for failed connections during streaming shuffle data transfer. After exhausting retries, the system falls back to disk-based shuffle behavior. Set to 0 to disable retries.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.retryWait</code></td>
+  <td><code>1s</code></td>
+  <td>
+    Initial retry delay for failed streaming shuffle connections. Subsequent retries use exponential backoff starting from this value. This helps prevent retry storms during transient network issues.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.debug</code></td>
+  <td><code>false</code></td>
+  <td>
+    Enable debug logging for streaming shuffle operations. When enabled, detailed logs are emitted for buffer allocation, spill triggers, backpressure signals, and data transfer events. This increases log volume significantly (up to 10MB/hour per executor) and should only be enabled for troubleshooting.
+  </td>
+  <td>4.2.0</td>
+</tr>
+</table>
+
+### Automatic Fallback Conditions
+
+<p>Streaming shuffle automatically falls back to sort-based shuffle under the following conditions to ensure zero performance regression for existing workloads:</p>
+
+<ul>
+  <li><b>Consumer slowdown:</b> When a consumer is sustained at 2x slower than the producer for more than 60 seconds, the system falls back to disk-based shuffle to prevent unbounded memory growth.</li>
+  <li><b>Memory pressure:</b> When memory pressure prevents buffer allocation (OOM risk), the system immediately falls back to sort-based shuffle.</li>
+  <li><b>Network saturation:</b> When network utilization exceeds 90% of link capacity, the system falls back to avoid degrading overall cluster performance.</li>
+  <li><b>Version mismatch:</b> When producer and consumer executors have incompatible streaming shuffle protocol versions, the system gracefully degrades to sort-based shuffle.</li>
+  <li><b>Serializer incompatibility:</b> When a non-relocatable serializer is used, streaming shuffle cannot be applied and falls back to sort-based shuffle.</li>
+</ul>
+
+### Fault Tolerance Guarantees
+
+<p>Streaming shuffle provides <b>zero data loss guarantees</b> under all failure scenarios:</p>
+
+<ul>
+  <li><b>Producer failure:</b> Partial reads are invalidated, and the DAG scheduler is notified to recompute upstream tasks.</li>
+  <li><b>Consumer failure:</b> Unacknowledged data is buffered or spilled to disk and retransmitted when the consumer reconnects.</li>
+  <li><b>Network partition:</b> Timeout detection triggers graceful fallback to disk-based data retrieval.</li>
+  <li><b>Checksum mismatch:</b> Block integrity is verified on receive, and corrupted blocks trigger retransmission requests.</li>
+</ul>
+
+<p><b>Note:</b> Configuration changes for streaming shuffle require executor restart; dynamic reconfiguration is not supported in the current implementation.</p>

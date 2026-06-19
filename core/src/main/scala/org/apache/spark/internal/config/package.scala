@@ -1833,6 +1833,90 @@ package object config {
       .booleanConf
       .createWithDefault(true)
 
+  // ==============================================================================================
+  // Streaming Shuffle Configuration
+  // ==============================================================================================
+
+  private[spark] val SHUFFLE_STREAMING_ENABLED =
+    ConfigBuilder("spark.shuffle.streaming.enabled")
+      .doc("Set to true to enable streaming shuffle which streams data directly from map " +
+        "tasks to reduce tasks with memory buffering and backpressure protocols, reducing " +
+        "shuffle materialization latency. This is an opt-in feature that requires the shuffle " +
+        "manager to be set to 'streaming' via spark.shuffle.manager=streaming.")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  private[spark] val SHUFFLE_STREAMING_BUFFER_SIZE_PERCENT =
+    ConfigBuilder("spark.shuffle.streaming.bufferSizePercent")
+      .doc("Percentage of executor memory to allocate for streaming shuffle buffers. " +
+        "Buffers are used to hold data before streaming to consumers.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(v => v >= 1 && v <= 50, "Must be between 1 and 50")
+      .createWithDefault(20)
+
+  private[spark] val SHUFFLE_STREAMING_SPILL_THRESHOLD =
+    ConfigBuilder("spark.shuffle.streaming.spillThreshold")
+      .doc("Memory utilization threshold (as percentage) at which streaming shuffle " +
+        "will spill data to disk. When buffer memory exceeds this threshold, the " +
+        "MemorySpillManager triggers LRU-based partition eviction.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(v => v >= 50 && v <= 95, "Must be between 50 and 95")
+      .createWithDefault(80)
+
+  private[spark] val SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS =
+    ConfigBuilder("spark.shuffle.streaming.maxBandwidthMBps")
+      .doc("Maximum bandwidth in MB/s for streaming shuffle data transfer per executor. " +
+        "Set to -1 for unlimited bandwidth. Used by BackpressureProtocol for rate limiting.")
+      .version("4.2.0")
+      .intConf
+      .createWithDefault(-1)
+
+  private[spark] val SHUFFLE_STREAMING_CONNECTION_TIMEOUT =
+    ConfigBuilder("spark.shuffle.streaming.connectionTimeout")
+      .doc("Connection timeout for streaming shuffle. Used to detect producer failures. " +
+        "When a consumer cannot connect to a producer within this timeout, it triggers " +
+        "failure handling and upstream recomputation.")
+      .version("4.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("5s")
+
+  private[spark] val SHUFFLE_STREAMING_HEARTBEAT_INTERVAL =
+    ConfigBuilder("spark.shuffle.streaming.heartbeatInterval")
+      .doc("Interval for heartbeat signals between streaming shuffle consumers and producers. " +
+        "Used for liveness monitoring and backpressure signaling.")
+      .version("4.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("10s")
+
+  private[spark] val SHUFFLE_STREAMING_MAX_RETRIES =
+    ConfigBuilder("spark.shuffle.streaming.maxRetries")
+      .doc("Maximum number of retry attempts for streaming shuffle block transfers " +
+        "before failing the task.")
+      .version("4.2.0")
+      .intConf
+      .checkValue(_ >= 0, "Number of retries must be non-negative")
+      .createWithDefault(5)
+
+  private[spark] val SHUFFLE_STREAMING_RETRY_WAIT =
+    ConfigBuilder("spark.shuffle.streaming.retryWait")
+      .doc("Initial wait time before retrying a failed streaming shuffle block transfer. " +
+        "Subsequent retries may use exponential backoff.")
+      .version("4.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .createWithDefaultString("1s")
+
+  private[spark] val SHUFFLE_STREAMING_DEBUG =
+    ConfigBuilder("spark.shuffle.streaming.debug")
+      .doc("Enable debug logging for streaming shuffle. When enabled, additional " +
+        "diagnostic information about buffer utilization, backpressure events, and " +
+        "transfer progress is logged.")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
   private[spark] val STORAGE_LOCAL_DISK_BY_EXECUTORS_CACHE_SIZE =
     ConfigBuilder("spark.storage.localDiskByExecutors.cacheSize")
       .doc("The max number of executors for which the local dirs are stored. This size is " +
