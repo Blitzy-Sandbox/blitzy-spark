@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle.streaming
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.LogKeys.{MAP_ID, REDUCE_ID, SHUFFLE_ID}
+import org.apache.spark.internal.LogKeys.{MAP_ID, REASON, REDUCE_ID, SHUFFLE_ID}
 import org.apache.spark.rpc.{RpcCallContext, RpcEndpointRef, RpcEnv, ThreadSafeRpcEndpoint}
 import org.apache.spark.shuffle.streaming.BackpressureProtocol.StreamKey
 
@@ -91,8 +91,9 @@ private[spark] class BackpressureRpcEndpoint(
 
   /**
    * Handles fire-and-forget control messages delivered via `RpcEndpointRef.send`. Each
-   * [[BackpressureMessage]] is forwarded to the matching [[BackpressureProtocol]] callback; this
-   * endpoint holds no state and performs no flow-control logic itself.
+   * [[BackpressureMessage]] is validated and, when well-formed, forwarded to the matching
+   * [[BackpressureProtocol]] callback (malformed messages are dropped by [[handle]] without
+   * mutating state); this endpoint holds no state and performs no flow-control logic itself.
    */
   override def receive: PartialFunction[Any, Unit] = {
     case message: BackpressureMessage =>
@@ -101,20 +102,27 @@ private[spark] class BackpressureRpcEndpoint(
 
   /**
    * Handles request/response messages delivered via `RpcEndpointRef.ask`. A [[Ping]] is answered
-   * with [[Pong]] as a liveness probe; a [[BackpressureMessage]] is forwarded exactly as in
-   * [[receive]] and then positively acknowledged so synchronous callers can confirm delivery.
+   * with [[Pong]] as a liveness probe; a [[BackpressureMessage]] is validated and forwarded exactly
+   * as in [[receive]], and the reply carries `true` when it was accepted or `false` when validation
+   * rejected it, so synchronous callers can confirm delivery (or learn of a drop).
    */
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case Ping =>
       context.reply(Pong)
     case message: BackpressureMessage =>
-      handle(message)
-      context.reply(true)
+      // Reply true when the message was accepted and forwarded, false when validation rejected it,
+      // so a synchronous caller learns its control message was dropped without any state mutation.
+      context.reply(handle(message))
   }
 
   /**
-   * Forwards a single control message to the corresponding [[BackpressureProtocol]] method. The
-   * match is exhaustive over the sealed [[BackpressureMessage]] hierarchy.
+   * Validates and then forwards a single control message to the corresponding
+   * [[BackpressureProtocol]] method. Validation ([[BackpressureRpcEndpoint.validate]]) runs FIRST:
+   * a malformed message (negative stream coordinates or a negative ack byte count) is logged once
+   * at WARN and dropped WITHOUT touching the protocol, so a crafted or corrupt message can neither
+   * create bogus per-stream state (the protocol indexes state via `computeIfAbsent`) nor alter the
+   * executor's shared rate cap. A well-formed message is dispatched over the exhaustive sealed
+   * [[BackpressureMessage]] hierarchy.
    *
    * There is no dedicated `onTimeout` hook on the protocol -- it detects stalls itself through
    * its background scan -- so an inbound [[Timeout]] (the peer has declared the stream dead past
@@ -122,18 +130,32 @@ private[spark] class BackpressureRpcEndpoint(
    * backpressure state and relaxing the shared rate cap.
    *
    * @param message the decoded control message to dispatch
+   * @return `true` if the message was well-formed and forwarded, `false` if it was rejected
    */
-  private def handle(message: BackpressureMessage): Unit = {
-    traceMessage(message)
-    message match {
-      case Heartbeat(shuffleId, mapId, reduceId, _) =>
-        protocol.onHeartbeat(StreamKey(shuffleId, mapId, reduceId))
-      case Ack(shuffleId, mapId, reduceId, bytesAcked) =>
-        protocol.onAck(StreamKey(shuffleId, mapId, reduceId), bytesAcked)
-      case RateLimitRequest(shuffleId, mapId, reduceId, bytesPerSec) =>
-        protocol.onRateLimitRequest(StreamKey(shuffleId, mapId, reduceId), bytesPerSec)
-      case Timeout(shuffleId, mapId, reduceId) =>
-        protocol.unregisterStream(StreamKey(shuffleId, mapId, reduceId))
+  private def handle(message: BackpressureMessage): Boolean = {
+    validate(message) match {
+      case Some(reason) =>
+        // Reject malformed control messages WITHOUT mutating any protocol or rate-limit state, so a
+        // crafted or corrupt message can neither create bogus per-stream state nor alter the
+        // executor's shared rate cap. Logged once at WARN for observability; otherwise a no-op.
+        logWarning(log"Rejecting malformed backpressure message: ${MDC(REASON, reason)} " +
+          log"shuffle=${MDC(SHUFFLE_ID, message.shuffleId)} " +
+          log"map=${MDC(MAP_ID, message.mapId)} " +
+          log"reduce=${MDC(REDUCE_ID, message.reduceId)}")
+        false
+      case None =>
+        traceMessage(message)
+        message match {
+          case Heartbeat(shuffleId, mapId, reduceId, _) =>
+            protocol.onHeartbeat(StreamKey(shuffleId, mapId, reduceId))
+          case Ack(shuffleId, mapId, reduceId, bytesAcked) =>
+            protocol.onAck(StreamKey(shuffleId, mapId, reduceId), bytesAcked)
+          case RateLimitRequest(shuffleId, mapId, reduceId, bytesPerSec) =>
+            protocol.onRateLimitRequest(StreamKey(shuffleId, mapId, reduceId), bytesPerSec)
+          case Timeout(shuffleId, mapId, reduceId) =>
+            protocol.unregisterStream(StreamKey(shuffleId, mapId, reduceId))
+        }
+        true
     }
   }
 
@@ -193,6 +215,43 @@ private[spark] object BackpressureRpcEndpoint {
       None
     } else {
       Some(rpcEnv.setupEndpoint(ENDPOINT_NAME, new BackpressureRpcEndpoint(rpcEnv, protocol)))
+    }
+  }
+
+  /**
+   * Validates an inbound control message's field values BEFORE any protocol state is mutated. This
+   * is the executor RPC channel's input-validation gate: it is a pure function (no side effects,
+   * no protocol access) so it is unit-testable in isolation, and [[BackpressureRpcEndpoint.handle]]
+   * consults it on every received message.
+   *
+   * The protocol indexes per-stream state by `(shuffleId, mapId, reduceId)` through a
+   * `computeIfAbsent`, so a negative or otherwise impossible coordinate would silently create bogus
+   * state -- and a malformed rate-limit request could even lower the executor's shared send cap.
+   * Spark shuffle ids, map task-attempt ids, and reduce partition ids are all non-negative, and a
+   * consumer cannot acknowledge a negative number of bytes, so those are rejected here.
+   * `Heartbeat.tsNanos` is diagnostic-only, and `RateLimitRequest.bytesPerSec` is intentionally
+   * unrestricted -- a positive value caps the rate and a non-positive value withdraws the cap
+   * (clamped by [[BackpressureProtocol.onRateLimitRequest]]) -- so neither carries an out-of-domain
+   * value to reject.
+   *
+   * @param message the decoded control message to validate
+   * @return [[scala.None]] if the message is well-formed, or `Some(reason)` naming the first
+   *         violation found, which the endpoint logs and uses to reject the message unmutated
+   */
+  def validate(message: BackpressureMessage): Option[String] = {
+    if (message.shuffleId < 0) {
+      Some(s"negative shuffleId ${message.shuffleId}")
+    } else if (message.mapId < 0L) {
+      Some(s"negative mapId ${message.mapId}")
+    } else if (message.reduceId < 0) {
+      Some(s"negative reduceId ${message.reduceId}")
+    } else {
+      message match {
+        case Ack(_, _, _, bytesAcked) if bytesAcked < 0L =>
+          Some(s"negative bytesAcked $bytesAcked")
+        case _ =>
+          None
+      }
     }
   }
 

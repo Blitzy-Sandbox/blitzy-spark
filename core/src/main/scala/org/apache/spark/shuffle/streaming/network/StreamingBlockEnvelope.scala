@@ -194,21 +194,21 @@ private[spark] object StreamingBlockEnvelope {
   }
 
   /**
-   * Parses a complete frame (32-byte big-endian header + payload) from a [[java.nio.ByteBuffer]].
+   * Reads exactly one frame starting at the current position of `buf` and advances `buf` past the
+   * bytes it consumes (the 32-byte header plus `payloadLength` payload bytes).
    *
-   * The buffer is duplicated so the caller's position is left unchanged; the duplicate's byte order
-   * is forced to big-endian regardless of the input buffer's order. The header length, the payload
-   * length range (0..2 MB), and the presence of the full payload are all validated.
+   * This is the shared frame decoder used by both [[parse]] (which reads a single frame from a
+   * duplicate, leaving the caller's buffer untouched) and [[parseAll]] (which calls it repeatedly
+   * to drain a buffer that concatenates one frame per 2 MB block). The caller is responsible for
+   * forcing big-endian order on `buf` before the first call; this method does not duplicate so that
+   * its position advance is visible to an iterating caller.
    *
-   * @param buffer a buffer positioned at the start of a frame, with the full frame remaining
-   * @return the parsed envelope; its `crc32c` is read from the header and not recomputed, so call
-   *         [[StreamingBlockEnvelope.verifyChecksum]] to validate integrity
-   * @throws IllegalArgumentException if the buffer is too small for the header, if the payload
-   *         length is negative or exceeds the 2 MB cap, or if the payload is truncated
+   * @param buf a big-endian buffer positioned at the start of a frame
+   * @return the parsed envelope; `crc32c` is read from the header and not recomputed
+   * @throws IllegalArgumentException if fewer than `HEADER_BYTES` remain, if the payload length is
+   *         negative or exceeds the 2 MB cap, or if the payload is truncated
    */
-  def parse(buffer: ByteBuffer): StreamingBlockEnvelope = {
-    val buf = buffer.duplicate()
-    buf.order(ByteOrder.BIG_ENDIAN)
+  private def readFrame(buf: ByteBuffer): StreamingBlockEnvelope = {
     require(buf.remaining() >= HEADER_BYTES,
       s"Streaming shuffle frame ${buf.remaining()} smaller than $HEADER_BYTES-byte header")
     val shuffleId = buf.getInt()
@@ -228,11 +228,71 @@ private[spark] object StreamingBlockEnvelope {
   }
 
   /**
-   * Parses a complete frame from a byte array by wrapping it in a [[java.nio.ByteBuffer]].
+   * Parses a single complete frame (32-byte big-endian header + payload) from a
+   * [[java.nio.ByteBuffer]], leaving the caller's buffer position unchanged.
+   *
+   * The buffer is duplicated so the caller's position is preserved; the duplicate's byte order is
+   * forced to big-endian regardless of the input buffer's order. Only the first frame is read --
+   * when the buffer may hold more than one concatenated frame (a multi-block partition), use
+   * [[parseAll]] instead so every frame is decoded and no trailing data is silently dropped.
+   *
+   * @param buffer a buffer positioned at the start of a frame, with the full frame remaining
+   * @return the parsed envelope; its `crc32c` is read from the header and not recomputed, so call
+   *         [[StreamingBlockEnvelope.verifyChecksum]] to validate integrity
+   * @throws IllegalArgumentException if the buffer is too small for the header, if the payload
+   *         length is negative or exceeds the 2 MB cap, or if the payload is truncated
+   */
+  def parse(buffer: ByteBuffer): StreamingBlockEnvelope = {
+    val buf = buffer.duplicate()
+    buf.order(ByteOrder.BIG_ENDIAN)
+    readFrame(buf)
+  }
+
+  /**
+   * Parses a single complete frame from a byte array by wrapping it in a [[java.nio.ByteBuffer]].
    *
    * @param bytes the full frame bytes (header + payload)
    * @return the parsed envelope
    * @throws IllegalArgumentException under the same conditions as the `ByteBuffer` overload
    */
   def parse(bytes: Array[Byte]): StreamingBlockEnvelope = parse(ByteBuffer.wrap(bytes))
+
+  /**
+   * Parses every concatenated frame in `buffer`, in order, until the buffer is fully consumed.
+   *
+   * A buffered partition is serialized by `StreamingBuffer` (and read back from a spill file) as
+   * the in-order concatenation of one [[StreamingBlockEnvelope]] frame per 2 MB block, so a fetched
+   * `ManagedBuffer` for a multi-block partition contains multiple frames. This method decodes every
+   * frame so the reader never silently drops trailing blocks (the zero-data-loss invariant).
+   *
+   * The buffer is duplicated so the caller's position is preserved, and its byte order is forced to
+   * big-endian. Because [[readFrame]] requires a full header and a full payload for each frame, any
+   * trailing bytes that do not form a complete frame -- a partial header or a truncated payload --
+   * cause an [[IllegalArgumentException]] rather than being ignored, so malformed/trailing data is
+   * rejected end-to-end. Each returned envelope's `crc32c` is read from its header and not
+   * recomputed; the caller must invoke [[StreamingBlockEnvelope.verifyChecksum]] per frame.
+   *
+   * @param buffer a buffer positioned at the start of the first frame
+   * @return the frames in wire order; empty only if `buffer` has no remaining bytes
+   * @throws IllegalArgumentException if any frame has an invalid header/payload length, if a
+   *         payload is truncated, or if trailing bytes do not form a complete frame
+   */
+  def parseAll(buffer: ByteBuffer): Seq[StreamingBlockEnvelope] = {
+    val buf = buffer.duplicate()
+    buf.order(ByteOrder.BIG_ENDIAN)
+    val envelopes = scala.collection.mutable.ArrayBuffer.empty[StreamingBlockEnvelope]
+    while (buf.hasRemaining) {
+      envelopes += readFrame(buf)
+    }
+    envelopes.toSeq
+  }
+
+  /**
+   * Parses every concatenated frame in a byte array by wrapping it in a [[java.nio.ByteBuffer]].
+   *
+   * @param bytes the bytes holding one or more concatenated frames
+   * @return the frames in wire order
+   * @throws IllegalArgumentException under the same conditions as the `ByteBuffer` overload
+   */
+  def parseAll(bytes: Array[Byte]): Seq[StreamingBlockEnvelope] = parseAll(ByteBuffer.wrap(bytes))
 }

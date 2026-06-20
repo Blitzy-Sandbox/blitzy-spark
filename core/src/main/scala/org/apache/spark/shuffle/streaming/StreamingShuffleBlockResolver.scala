@@ -20,15 +20,16 @@ package org.apache.spark.shuffle.streaming
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
 
-import org.apache.spark.SparkConf
+import org.apache.spark.{SecurityManager, SparkConf, SparkEnv}
 import org.apache.spark.internal.Logging
-import org.apache.spark.network.buffer.{ManagedBuffer, NioManagedBuffer}
+import org.apache.spark.network.buffer.{FileSegmentManagedBuffer, ManagedBuffer, NioManagedBuffer}
 import org.apache.spark.network.client.StreamCallbackWithID
+import org.apache.spark.network.netty.SparkTransportConf
 import org.apache.spark.network.shuffle.MergedBlockMeta
 import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.{IndexShuffleBlockResolver, MigratableResolver, ShuffleBlockInfo,
   ShuffleBlockResolver}
-import org.apache.spark.storage.{BlockId, ShuffleBlockId, ShuffleMergedBlockId}
+import org.apache.spark.storage.{BlockId, BlockManager, ShuffleBlockId, ShuffleMergedBlockId}
 
 /**
  * A [[ShuffleBlockResolver]] for the opt-in streaming shuffle backend that serves a reduce-side
@@ -42,7 +43,9 @@ import org.apache.spark.storage.{BlockId, ShuffleBlockId, ShuffleMergedBlockId}
  *     have not yet been spilled -- served with zero disk I/O, which is precisely what lets the
  *     reduce side read map output before it is ever materialized to disk;
  *  1. a disk spill, if the memory spill manager has drained the buffer to the
- *     [[org.apache.spark.storage.BlockManager]] under the sort-compatible on-disk format;
+ *     [[org.apache.spark.storage.BlockManager]]; the spilled per-partition file holds the canonical
+ *     envelope-framed bytes (byte-for-byte identical to the streamed bytes) and is served directly
+ *     as a [[org.apache.spark.network.buffer.FileSegmentManagedBuffer]];
  *  1. the sort-based on-disk files, served by the inner [[IndexShuffleBlockResolver]] (the case
  *     when a fallback to sort-based shuffle, or a previous run, produced the block).
  *
@@ -75,25 +78,42 @@ import org.apache.spark.storage.{BlockId, ShuffleBlockId, ShuffleMergedBlockId}
  * @param conf          the [[SparkConf]] for this executor; read once to derive the streaming
  *                      configuration (used here only to gate verbose debug logging)
  * @param indexResolver the inner sort-based resolver every non-streaming concern is delegated to
+ * @param blockManager  the executor [[BlockManager]]; its `diskBlockManager` locates the
+ *                      per-partition file a spilled block is served from
  */
 private[spark] class StreamingShuffleBlockResolver(
     conf: SparkConf,
-    indexResolver: IndexShuffleBlockResolver)
+    indexResolver: IndexShuffleBlockResolver,
+    blockManager: BlockManager)
   extends ShuffleBlockResolver with MigratableResolver with Logging {
 
   import StreamingShuffleBlockResolver.BlockKey
 
   /**
-   * Convenience constructor that owns a fresh inner [[IndexShuffleBlockResolver]]. Used when no
-   * resolver is injected by `StreamingShuffleManager`; the inner resolver defers its
-   * `BlockManager` lookup until first use, so this is safe to construct in local mode.
+   * Convenience constructor that owns a fresh inner [[IndexShuffleBlockResolver]] and resolves the
+   * executor [[BlockManager]] from the running [[SparkEnv]]. Used when no resolver is injected by
+   * `StreamingShuffleManager`; the inner resolver defers its own `BlockManager` lookup until first
+   * use, and this constructor is only invoked on a live executor where `SparkEnv` is initialized.
    *
    * @param conf the [[SparkConf]] for this executor
    */
-  def this(conf: SparkConf) = this(conf, new IndexShuffleBlockResolver(conf))
+  def this(conf: SparkConf) =
+    this(conf, new IndexShuffleBlockResolver(conf), SparkEnv.get.blockManager)
 
   /** Typed view of the streaming config; used here only to gate verbose debug logging. */
   private val streamingConf = new StreamingShuffleConfig(conf)
+
+  /**
+   * Transport config used to serve a spilled partition as a [[FileSegmentManagedBuffer]]. It is
+   * built exactly as [[IndexShuffleBlockResolver]] builds its own -- from this executor's
+   * [[SparkConf]] with the `"shuffle"` module name and the RPC SSL options -- so spilled streaming
+   * blocks are served over the identical secured transport surface as sort-based blocks. It is lazy
+   * so a resolver that never serves a spill (and a unit test that never reaches the disk path) does
+   * not build it.
+   */
+  private lazy val transportConf =
+    SparkTransportConf.fromSparkConf(
+      conf, "shuffle", sslOptions = Some(new SecurityManager(conf).getRpcSSLOptions()))
 
   /**
    * In-memory, not-yet-spilled partition buffers, keyed by `(shuffleId, mapId, reduceId)`. An
@@ -134,8 +154,12 @@ private[spark] class StreamingShuffleBlockResolver(
    */
   def trackSpill(shuffleId: Int, mapId: Long, reduceId: Int, diskBlockId: BlockId): Unit = {
     val key = BlockKey(shuffleId, mapId, reduceId)
-    buffers.remove(key)
+    // Record the on-disk copy as authoritative BEFORE dropping the in-memory entry so a concurrent
+    // getBlockData never falls through to the untracked path during the handoff: while both entries
+    // briefly coexist, Step 1 serves the (still-valid, not-yet-cleared) buffer; once the buffer
+    // entry is removed, Step 2 serves the disk file. There is no window where neither is present.
     spilledBlocks.put(key, diskBlockId)
+    buffers.remove(key)
   }
 
   /**
@@ -200,17 +224,31 @@ private[spark] class StreamingShuffleBlockResolver(
         logDebug(s"Serving in-memory streaming block $blockId (${buffer.size} bytes)")
       }
       new NioManagedBuffer(ByteBuffer.wrap(buffer.toByteArray))
-    } else if (spilledBlocks.containsKey(key)) {
-      // Step 2 -- spilled to disk: the bytes were written through the BlockManager in the
-      // sort-compatible on-disk format, so the inner resolver reads them as a sort-based block.
-      if (streamingConf.debug) {
-        logDebug(s"Serving spilled streaming block $blockId via IndexShuffleBlockResolver")
-      }
-      indexResolver.getBlockData(blockId, dirs)
     } else {
-      // Step 3 -- untracked: a sort-based fallback (or a previous run) produced this block, so
-      // delegate unconditionally. Coexistence with the sort-based path is transparent.
-      indexResolver.getBlockData(blockId, dirs)
+      val spilledBlockId = spilledBlocks.get(key)
+      if (spilledBlockId != null) {
+        // Step 2 -- spilled to disk: the spill manager wrote a single per-partition file via
+        // BlockManager.putBytes(DISK_ONLY) holding the canonical envelope-framed bytes, but it
+        // wrote NO .index file, so the inner IndexShuffleBlockResolver (which reads offsets from a
+        // .index) cannot resolve it. Serve the raw file directly as a FileSegmentManagedBuffer --
+        // the same managed-buffer type the sort path serves -- which keeps spilled bytes
+        // byte-for-byte interchangeable with streamed bytes. If the file is unexpectedly missing,
+        // fall back to the inner resolver so a sort-based copy (if any) can still serve the block.
+        val file = blockManager.diskBlockManager.getFile(spilledBlockId)
+        if (file.exists()) {
+          if (streamingConf.debug) {
+            logDebug(s"Serving spilled streaming block $blockId from ${file.getName} " +
+              s"(${file.length()} bytes)")
+          }
+          new FileSegmentManagedBuffer(transportConf, file, 0, file.length())
+        } else {
+          indexResolver.getBlockData(blockId, dirs)
+        }
+      } else {
+        // Step 3 -- untracked: a sort-based fallback (or a previous run) produced this block, so
+        // delegate unconditionally. Coexistence with the sort-based path is transparent.
+        indexResolver.getBlockData(blockId, dirs)
+      }
     }
   }
 

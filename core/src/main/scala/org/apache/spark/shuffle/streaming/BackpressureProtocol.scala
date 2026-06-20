@@ -24,7 +24,8 @@ import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 
 import org.apache.spark.internal.Logging
-import org.apache.spark.internal.LogKeys.{MAP_ID, NUM_BYTES, NUM_RETRY, RATE_LIMIT, REDUCE_ID, SHUFFLE_ID}
+import org.apache.spark.internal.LogKeys.{MAP_ID, NUM_BYTES, NUM_RETRY, RATE_LIMIT, REDUCE_ID,
+  SHUFFLE_ID}
 import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
 import org.apache.spark.util.ThreadUtils
 

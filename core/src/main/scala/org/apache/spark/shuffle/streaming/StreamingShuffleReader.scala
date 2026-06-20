@@ -94,6 +94,8 @@ import org.apache.spark.util.collection.ExternalSorter
  * @param config           the typed streaming-shuffle configuration (debug flag, invariants)
  * @param streamingMetrics the streaming telemetry holder (partial-read-invalidation counter)
  * @param transport        the v1 logging-only transport seam (source of the transfer service)
+ * @param backpressure     the flow-control state machine; the reader records producer liveness on
+ *                         every inbound block and consults its producer-timeout flag to fail fast
  * @param serializerManager stream wrapper for (de)compression and encryption; defaults to the env
  * @param blockManager     the block manager; defaults to the running env's block manager
  * @param mapOutputTracker the unchanged map-output tracker; defaults to the running env's tracker
@@ -109,6 +111,7 @@ private[spark] class StreamingShuffleReader[K, C](
     config: StreamingShuffleConfig,
     streamingMetrics: StreamingShuffleMetrics,
     transport: StreamingShuffleTransport,
+    backpressure: BackpressureProtocol,
     serializerManager: SerializerManager = SparkEnv.get.serializerManager,
     blockManager: BlockManager = SparkEnv.get.blockManager,
     mapOutputTracker: MapOutputTracker = SparkEnv.get.mapOutputTracker)
@@ -176,13 +179,18 @@ private[spark] class StreamingShuffleReader[K, C](
     val fetchEc: ExecutionContext = ExecutionContext.fromExecutorService(fetchPool)
     context.addTaskCompletionListener[Unit](_ => fetchPool.shutdownNow())
 
-    // (3)-(4) Lazily fetch each 2 MB block as a verified StreamingBlockEnvelope. The iterator is
-    // lazy, so a block is fetched only as the consumer pulls it ("in-progress block requests");
-    // a timeout or CRC failure aborts the whole read via FetchFailedException.
+    // (3)-(4) Lazily fetch each Spark shuffle block and decode EVERY 2 MB frame it carries. A
+    // fetched block for a multi-block partition is the in-order concatenation of one verified
+    // StreamingBlockEnvelope per 2 MB frame, so a single fetch can yield several envelopes; each is
+    // flattened into the stream so trailing frames are never dropped (zero-data-loss). The iterator
+    // is lazy, so a block is fetched only as the consumer pulls it ("in-progress block requests");
+    // a timeout, a malformed/trailing frame, or a CRC failure aborts the whole read via
+    // FetchFailedException.
     val blockStream: Iterator[(BlockId, StreamingBlockEnvelope)] =
       blocksByAddress.flatMap { case (address, blocks) =>
-        blocks.iterator.map { case (blockId, _, mapIndex) =>
-          (blockId, fetchEnvelope(transferService, fetchEc, address, blockId, mapIndex))
+        blocks.iterator.flatMap { case (blockId, _, mapIndex) =>
+          fetchEnvelopes(transferService, fetchEc, address, blockId, mapIndex)
+            .iterator.map(envelope => (blockId, envelope))
         }
       }
 
@@ -258,31 +266,51 @@ private[spark] class StreamingShuffleReader[K, C](
   }
 
   /**
-   * Fetches a single 2 MB block as a verified [[StreamingBlockEnvelope]], bounded by the 5 s
-   * connection timeout.
+   * Fetches one Spark shuffle block and decodes EVERY 2 MB frame it carries into a sequence of
+   * verified [[StreamingBlockEnvelope]]s, bounded by the 5 s connection timeout.
    *
-   * The block is fetched over the UNCHANGED block transfer service on a dedicated daemon thread so
-   * that [[ThreadUtils.awaitResult]] can enforce the connection-timeout deadline. A timeout, a
-   * corrupt frame, or a CRC32C mismatch is converted -- via [[invalidatePartialRead]] -- into a
-   * fetch failure so Spark recomputes the lost output.
+   * A fetched block for a multi-block partition is the in-order concatenation of one envelope per
+   * 2 MB frame (the canonical dual-channel encoding shared with the spill path), so this method
+   * decodes all of them via [[StreamingBlockEnvelope.parseAll]] rather than only the first frame;
+   * dropping trailing frames would silently lose data. The block is fetched over the UNCHANGED
+   * transfer service on a dedicated daemon thread so that [[ThreadUtils.awaitResult]] can enforce
+   * the connection-timeout deadline. A timeout, a malformed or trailing frame, or any frame's CRC
+   * mismatch is converted -- via [[invalidatePartialRead]] -- into a fetch failure so Spark
+   * recomputes the lost output (zero data loss).
    *
    * @param transferService the block transfer service performing the actual fetch
    * @param fetchEc         the execution context backing the timeout-bounded fetch
    * @param address         the producer (map-side) block manager serving the block
    * @param blockId         the shuffle block id to fetch
    * @param mapIndex        the map index of the block, forwarded to the failure on a timeout
-   * @return the parsed, checksum-verified envelope for the requested block
+   * @return the parsed, checksum-verified envelopes for the requested block, in wire order
    */
-  private def fetchEnvelope(
+  private def fetchEnvelopes(
       transferService: BlockTransferService,
       fetchEc: ExecutionContext,
       address: BlockManagerId,
       blockId: BlockId,
-      mapIndex: Int): StreamingBlockEnvelope = {
+      mapIndex: Int): Seq[StreamingBlockEnvelope] = {
     val (mapId, reduceId) = blockId match {
       case ShuffleBlockId(_, m, r) => (m, r)
       case _ => (-1L, startPartition)
     }
+
+    // Wire the explicit backpressure producer-timeout state machine into the read path. The 5 s
+    // `fetchBlockSync` deadline below remains the PRIMARY v1 timeout; this is a SECOND, scan-driven
+    // signal that COEXISTS with it. `registerStream` starts the producer-timeout clock for this
+    // (shuffleId, mapId, reduceId) stream (idempotent), and a pre-fetch `isProducerTimedOut` check
+    // fails the read fast via the `invalidatePartialRead` path when the 1 s liveness scan
+    // has already declared this producer dead (e.g. missed heartbeats across earlier blocks or an
+    // inbound Timeout RPC), so a stalled producer need not wait out a fresh 5 s fetch deadline.
+    val streamKey = BackpressureProtocol.StreamKey(shuffleId, mapId, reduceId)
+    backpressure.registerStream(streamKey)
+    if (backpressure.isProducerTimedOut(streamKey)) {
+      invalidatePartialRead(address, mapId, mapIndex, reduceId,
+        "Streaming shuffle partial read invalidated: backpressure declared the producer timed out",
+        null)
+    }
+
     val host = address.host
     val port = address.port
     val execId = address.executorId
@@ -303,11 +331,18 @@ private[spark] class StreamingShuffleReader[K, C](
             "Streaming shuffle partial read invalidated after 5s connection timeout", e)
       }
 
-    // Decode the canonical wire frame; a malformed frame is itself a fetch failure. The managed
-    // buffer is always released, even when decoding throws.
-    val envelope =
+    // The inbound block is producer-liveness evidence from the consumer's vantage point: refresh
+    // the producer-timeout clock (and clear any stale timeout flag) per the protocol's "a heartbeat
+    // or an inbound block observed on the consumer side" contract, so a producer that keeps
+    // delivering blocks is never spuriously declared timed out by the background liveness scan.
+    backpressure.onHeartbeat(streamKey)
+
+    // Decode EVERY canonical wire frame in the fetched bytes; a malformed frame or trailing bytes
+    // that do not form a complete frame are themselves a fetch failure (parseAll throws). The
+    // managed buffer is always released, even when decoding throws.
+    val envelopes =
       try {
-        StreamingBlockEnvelope.parse(managedBuffer.nioByteBuffer())
+        StreamingBlockEnvelope.parseAll(managedBuffer.nioByteBuffer())
       } catch {
         case NonFatal(e) =>
           invalidatePartialRead(address, mapId, mapIndex, reduceId,
@@ -316,24 +351,30 @@ private[spark] class StreamingShuffleReader[K, C](
         managedBuffer.release()
       }
 
-    // Verify the 2 MB block's CRC32C; a mismatch is a fetch failure (recompute -> zero data loss).
-    if (!envelope.verifyChecksum) {
-      invalidatePartialRead(address, mapId, mapIndex, reduceId,
-        "Streaming shuffle block failed CRC32C validation; treating as fetch failure", null)
+    // Verify each 2 MB frame's CRC32C; any mismatch is a fetch failure (recompute -> zero data
+    // loss). Validation runs over all frames so a corrupt trailing block cannot slip through.
+    envelopes.foreach { envelope =>
+      if (!envelope.verifyChecksum) {
+        invalidatePartialRead(address, mapId, mapIndex, reduceId,
+          "Streaming shuffle block failed CRC32C validation; treating as fetch failure", null)
+      }
     }
 
     // Account for the read bytes (used by the discard-on-invalidation path) and publish read
-    // metrics through the standard reporter.
+    // metrics through the standard reporter: one remote block was fetched, and its byte count is
+    // the sum of all decoded frame payloads.
+    val totalPayloadBytes = envelopes.map(_.payloadLength.toLong).sum
     partialReadBytesByProducer(address) =
-      partialReadBytesByProducer.getOrElse(address, 0L) + envelope.payloadLength
+      partialReadBytesByProducer.getOrElse(address, 0L) + totalPayloadBytes
     readMetrics.incRemoteBlocksFetched(1L)
-    readMetrics.incRemoteBytesRead(envelope.payloadLength.toLong)
+    readMetrics.incRemoteBytesRead(totalPayloadBytes)
     if (config.debug) {
       logDebug(log"Fetched streaming block " +
         log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} map=${MDC(MAP_ID, mapId)} " +
-        log"reduce=${MDC(REDUCE_ID, reduceId)} bytes=${MDC(NUM_BYTES, envelope.payloadLength)}")
+        log"reduce=${MDC(REDUCE_ID, reduceId)} frames=${MDC(COUNT, envelopes.size)} " +
+        log"bytes=${MDC(NUM_BYTES, totalPayloadBytes)}")
     }
-    envelope
+    envelopes
   }
 
   /**

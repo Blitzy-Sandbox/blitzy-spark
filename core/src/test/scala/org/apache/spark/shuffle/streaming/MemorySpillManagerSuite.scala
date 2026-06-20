@@ -23,6 +23,7 @@ import org.scalatest.matchers.must.Matchers
 
 import org.apache.spark.{SparkConf, SparkFunSuite}
 import org.apache.spark.memory.MemoryManager
+import org.apache.spark.shuffle.IndexShuffleBlockResolver
 import org.apache.spark.storage.{BlockManager, StorageLevel}
 
 /**
@@ -194,6 +195,42 @@ class MemorySpillManagerSuite extends SparkFunSuite with Matchers {
       mgr.maybeSpill() mustBe 0L
       verify(bm, never()).putBytes(any(), any(), any(), any())(any())
       metrics.spillCount mustBe 0L
+    }
+  }
+
+  test("spill bridges completion into the resolver: in-memory entry removed, spill recorded") {
+    // Wire the spill manager to a REAL resolver (with the mocked BlockManager). trackSpill only
+    // mutates the resolver's tracking maps -- it never touches the BlockManager -- so the mock is
+    // sufficient here; serving the spilled file from disk is covered by the resolver's own suite.
+    // This test pins the cross-file spill -> resolver handoff the CP2 review flagged.
+    val sparkConf = new SparkConf(false)
+    val cfg = new StreamingShuffleConfig(sparkConf)
+    val bm = mock(classOf[BlockManager])
+    when(bm.putBytes(any(), any(), any(), any())(any())).thenReturn(true)
+    val mm = mock(classOf[MemoryManager])
+    when(mm.maxOnHeapStorageMemory).thenReturn(10000L)
+    val metrics = new StreamingShuffleMetrics
+    val resolver = new StreamingShuffleBlockResolver(
+      sparkConf, new IndexShuffleBlockResolver(sparkConf), bm)
+    val mgr = new MemorySpillManager(cfg, bm, mm, metrics, Some(resolver))
+    try {
+      val buffer = new StreamingBuffer(shuffleId = 7, mapId = 0L, partitionId = 0, oneMiB)
+      buffer.append(new Array[Byte](4096))
+      mgr.register(buffer)
+      // The writer tracks the buffer with the resolver; before the spill it is served from memory.
+      resolver.trackBuffer(buffer)
+      resolver.trackedBufferCount mustBe 1
+      resolver.spilledBlockCount mustBe 0
+
+      assert(mgr.spillBuffer(MemorySpillManager.keyFor(buffer)))
+
+      // After the spill the resolver must serve from disk, not from the cleared in-memory buffer:
+      // the in-memory entry is gone and exactly one spilled block is recorded.
+      resolver.trackedBufferCount mustBe 0
+      resolver.spilledBlockCount mustBe 1
+      metrics.spillCount mustBe 1L
+    } finally {
+      mgr.stop()
     }
   }
 }

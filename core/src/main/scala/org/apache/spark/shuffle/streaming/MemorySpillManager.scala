@@ -92,12 +92,16 @@ import org.apache.spark.util.ThreadUtils
  * @param blockManager  the executor [[BlockManager]] used to persist spilled buffers to disk
  * @param memoryManager [[MemoryManager]] whose `maxOnHeapStorageMemory` is the spill denominator
  * @param metrics       the shared telemetry holder updated with the gauge and spill counter
+ * @param resolver      the streaming block resolver to notify on spill completion so a reduce-side
+ *                      fetch is served from the on-disk copy (and never from the cleared in-memory
+ *                      buffer); `None` only in unit tests that exercise the spill loop in isolation
  */
 private[spark] class MemorySpillManager(
     conf: StreamingShuffleConfig,
     blockManager: BlockManager,
     memoryManager: MemoryManager,
-    metrics: StreamingShuffleMetrics)
+    metrics: StreamingShuffleMetrics,
+    resolver: Option[StreamingShuffleBlockResolver] = None)
   extends Logging {
 
   import MemorySpillManager._
@@ -351,6 +355,12 @@ private[spark] class MemorySpillManager(
     if (!stored) {
       return 0L
     }
+    // Bridge spill completion into the resolver's state BEFORE clearing the buffer so a concurrent
+    // reduce-side fetch can never observe a cleared in-memory buffer: trackSpill records the disk
+    // copy as authoritative and drops the resolver's in-memory entry, after which getBlockData
+    // resolves this partition from the spilled file. Doing this before clear() preserves zero data
+    // loss across the in-memory -> disk handoff.
+    resolver.foreach(_.trackSpill(key.shuffleId, key.mapId, key.partitionId, blockId))
     spilledBlocks.put(key, blockId)
     metrics.incSpillCount()
     buffer.clear()
@@ -414,4 +424,3 @@ private[spark] object MemorySpillManager {
     BufferKey(buffer.shuffleId, buffer.mapId, buffer.partitionId)
   }
 }
-

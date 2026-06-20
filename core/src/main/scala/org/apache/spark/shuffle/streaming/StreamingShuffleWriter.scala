@@ -323,7 +323,20 @@ private[spark] class StreamingShuffleWriter[K, V](
     if (pending.length > 0) {
       acquireMemoryFor(pending.length)
       buffers(partition).append(pending)
-      partitionLengths(partition) += pending.length.toLong
+      // MapStatus must report the PHYSICAL block size the resolver/spill path serves, not the raw
+      // payload: both `StreamingBuffer.toByteArray` (in-memory serve) and the disk spill frame the
+      // bytes as the in-order concatenation of one StreamingBlockEnvelope per 2 MB block, adding a
+      // fixed 32-byte header per block. `append` and `sendFramed` split `pending` into the same
+      // ceil(len / 2 MB) blocks, so the served byte count is `pending.length + numBlocks * header`.
+      // Reporting the framed size keeps `partitionLengths` consistent with the bytes a reduce task
+      // actually fetches, avoiding a 32-byte-per-block under-count in fetch/scheduling accounting.
+      val numBlocks = (pending.length + StreamingShuffleConfig.BLOCK_SIZE_BYTES - 1) /
+        StreamingShuffleConfig.BLOCK_SIZE_BYTES
+      val framedLength =
+        pending.length.toLong + numBlocks.toLong * StreamingBlockEnvelope.HEADER_BYTES.toLong
+      partitionLengths(partition) += framedLength
+      // Write-volume telemetry remains the LOGICAL payload size (excludes envelope framing) so the
+      // bytes-written metric reflects user data produced, independent of the wire/persist format.
       totalBytesWritten += pending.length.toLong
       metrics.incBytesWritten(pending.length.toLong)
       val streamKey = BackpressureProtocol.StreamKey(shuffleId, mapId, partition)

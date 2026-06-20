@@ -31,14 +31,15 @@ These four metrics are emitted under the **`shuffle.streaming.*`** namespace by 
 
 ### Structured logging with correlation IDs
 
-Streaming-specific log lines are **structured** and tagged with MDC (Mapped Diagnostic Context) correlation keys, so a single shuffle can be traced end-to-end across producer (map-side) and consumer (reduce-side) executors. The four correlation keys are:
+Streaming-specific log lines are **structured** and tagged with MDC (Mapped Diagnostic Context) correlation keys, so a single shuffle can be traced end-to-end across producer (map-side) and consumer (reduce-side) executors. To stay consistent with the rest of Spark, the backend reuses **canonical `org.apache.spark.internal.LogKeys`** rather than inventing new keys; the MDC string key is the `LogKey` enum name lower-cased (e.g. `SHUFFLE_ID` → `shuffle_id`). The AAP's conceptual correlation dimensions (`shuffle_id`, `map_id`, `reduce_partition_range`, `attempt_id`) therefore map onto the canonical keys actually emitted as follows:
 
 | MDC key | Identifies |
 |---------|-----------|
 | `shuffle_id` | The shuffle being executed. |
 | `map_id` | The producer (map-side) task. |
-| `reduce_partition_range` | The consumer (reduce-side) partition range being served or read. |
-| `attempt_id` | The task attempt, distinguishing retries from originals. |
+| `start_index` / `end_index` | The map-output index range a reduce task reads (range start / range end). |
+| `reduce_id` / `partition_id` | The consumer (reduce-side) partition range being served or read (range start / range end); together these express the `reduce_partition_range` dimension. |
+| `task_attempt_id` | The task attempt, distinguishing retries from originals (the `attempt_id` dimension). |
 
 Setting **`spark.shuffle.streaming.debug=true`** raises log verbosity for diagnostics; it is `false` by default (see the [Configuration](configuration.md) page). Keep it off in production to stay within the logging budget described under [Constraints](#constraints).
 
