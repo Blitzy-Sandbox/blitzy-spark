@@ -78,27 +78,43 @@ import org.apache.spark.storage.{BlockId, BlockManager, ShuffleBlockId, ShuffleM
  * @param conf          the [[SparkConf]] for this executor; read once to derive the streaming
  *                      configuration (used here only to gate verbose debug logging)
  * @param indexResolver the inner sort-based resolver every non-streaming concern is delegated to
- * @param blockManager  the executor [[BlockManager]]; its `diskBlockManager` locates the
- *                      per-partition file a spilled block is served from
+ * @param _blockManager the executor [[BlockManager]] whose `diskBlockManager` locates the
+ *                      per-partition file a spilled block is served from. May be `null` to defer
+ *                      resolution to `SparkEnv.get.blockManager` on first use (see the
+ *                      [[blockManager]] lazy val), mirroring [[IndexShuffleBlockResolver]] so
+ *                      manager construction stays NPE-safe when no `SparkEnv` is active.
  */
 private[spark] class StreamingShuffleBlockResolver(
     conf: SparkConf,
     indexResolver: IndexShuffleBlockResolver,
-    blockManager: BlockManager)
+    _blockManager: BlockManager)
   extends ShuffleBlockResolver with MigratableResolver with Logging {
 
   import StreamingShuffleBlockResolver.BlockKey
 
   /**
-   * Convenience constructor that owns a fresh inner [[IndexShuffleBlockResolver]] and resolves the
-   * executor [[BlockManager]] from the running [[SparkEnv]]. Used when no resolver is injected by
-   * `StreamingShuffleManager`; the inner resolver defers its own `BlockManager` lookup until first
-   * use, and this constructor is only invoked on a live executor where `SparkEnv` is initialized.
+   * The executor [[BlockManager]], resolved lazily so construction never dereferences a possibly
+   * absent [[SparkEnv]]. When a block manager was injected via the primary constructor it is used
+   * as-is; otherwise (the `this(conf)` path) it is resolved from `SparkEnv.get` on first use --
+   * that is, only when a spilled block is actually served. Mirrors [[IndexShuffleBlockResolver]]'s
+   * own deferral so `StreamingShuffleManager.shuffleBlockResolver` is NPE-safe with no active
+   * `SparkEnv` (on the driver, or before the executor env is initialized in local mode).
+   */
+  private lazy val blockManager: BlockManager =
+    Option(_blockManager).getOrElse(SparkEnv.get.blockManager)
+
+  /**
+   * Convenience constructor that owns a fresh inner [[IndexShuffleBlockResolver]]. Used when no
+   * resolver is injected by `StreamingShuffleManager`. It passes `null` for the [[BlockManager]] so
+   * that -- exactly like [[IndexShuffleBlockResolver]] -- the executor block manager is resolved
+   * lazily from `SparkEnv.get` only on the first spilled-block serve, never during construction.
+   * This keeps `StreamingShuffleManager.shuffleBlockResolver` NPE-safe even when `SparkEnv.get` is
+   * `null` (on the driver, or before the executor env is fully initialized in local mode).
    *
    * @param conf the [[SparkConf]] for this executor
    */
   def this(conf: SparkConf) =
-    this(conf, new IndexShuffleBlockResolver(conf), SparkEnv.get.blockManager)
+    this(conf, new IndexShuffleBlockResolver(conf), null)
 
   /** Typed view of the streaming config; used here only to gate verbose debug logging. */
   private val streamingConf = new StreamingShuffleConfig(conf)

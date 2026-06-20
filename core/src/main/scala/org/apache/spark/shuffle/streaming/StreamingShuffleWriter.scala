@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.io.{ByteArrayOutputStream, IOException}
+import java.io.{ByteArrayOutputStream, IOException, OutputStream}
 
 import scala.util.control.NonFatal
 
@@ -26,10 +26,11 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.LogKeys._
 import org.apache.spark.memory.{MemoryConsumer, MemoryMode, TaskMemoryManager}
 import org.apache.spark.scheduler.MapStatus
-import org.apache.spark.serializer.SerializationStream
+import org.apache.spark.serializer.{SerializationStream, SerializerInstance}
 import org.apache.spark.shuffle.{ShuffleWriteMetricsReporter, ShuffleWriter}
 import org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope
 import org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport
+import org.apache.spark.storage.ShuffleBlockId
 
 /**
  * The map-side writer of the opt-in streaming shuffle backend.
@@ -54,20 +55,40 @@ import org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport
  * ==Write algorithm==
  *
  *   1. For each record, the [[org.apache.spark.Partitioner]] selects a reduce partition; the record
- *      is serialized through a per-partition serialization stream (one independent
- *      `SerializerInstance` per partition so interleaved writes never corrupt serializer state).
- *   1. When a partition's staged serialized bytes reach the 2 MB block size, they are appended to
- *      that partition's [[StreamingBuffer]] (which frames and checksums them), counted toward
- *      the partition length, and framed into wire envelopes that are sent under backpressure.
- *   1. Residual bytes below the block size are flushed when the partition is finalized at end of
- *      write.
+ *      is serialized through that partition's CURRENT block stream -- an independent serialization
+ *      stream layered over `serializerManager.wrapStream` (the SAME compression/encryption wrapping
+ *      the reader applies per envelope) over a fresh per-block staging buffer. A single
+ *      `SerializerInstance` per partition keeps interleaved partition writes from corrupting
+ *      serializer state, while a new wrapped stream per block keeps each block self-contained.
+ *   1. When a block's UNCOMPRESSED serialized bytes reach the 2 MB block size (less a small
+ *      margin), the block stream is CLOSED -- flushing the serializer and the codec's
+ *      end-of-stream marker so the staged bytes form a complete, independently-decodable wrapped
+ *      stream -- and the resulting payload (at most 2 MB) is appended to the partition's
+ *      [[StreamingBuffer]] as exactly one envelope, counted toward the partition length, and framed
+ *      into a wire envelope sent under backpressure. A new block stream is then opened for
+ *      subsequent records.
+ *   1. The final partially-filled block of each partition is sealed the same way when the partition
+ *      is finalized at end of write.
+ *
+ * ==Compression/encryption symmetry (per-block wrapping)==
+ *
+ * The reduce-side [[StreamingShuffleReader]] wraps and deserializes EACH 2 MB envelope payload
+ * independently via `serializerManager.wrapStream`, so every block this writer emits must itself be
+ * a complete `wrapStream` stream -- never a slice of one continuous compressed stream split at a
+ * 2 MB byte boundary, which would not decode independently. The writer therefore opens a fresh
+ * wrapped serialization stream per block and closes it before sealing, mirroring how
+ * `DiskBlockObjectWriter` wraps the sort path's stream. This makes streamed bytes round-trip
+ * identically to the sort path under the default `spark.shuffle.compress=true` and under
+ * `spark.io.encryption.enabled=true`; when both are off, `wrapStream` is a no-op and raw serialized
+ * bytes round-trip unchanged.
  *
  * ==Dual-channel wire/persist invariant==
  *
  * The [[StreamingBuffer]] encodes its bytes as the exact same canonical
  * [[StreamingBlockEnvelope]] frames that travel on the wire, so spilled and streamed bytes are
  * byte-for-byte interchangeable: a reducer cannot tell if a partition was served from memory or
- * rehydrated from a disk spill.
+ * rehydrated from a disk spill. Because each block payload is already an independently-decodable
+ * wrapped stream, this interchangeability holds with compression/encryption enabled.
  *
  * ==Memory model and the no-leak guarantee==
  *
@@ -165,17 +186,51 @@ private[spark] class StreamingShuffleWriter[K, V](
   /** The MemoryManager whose maxOnHeapStorageMemory sizes per-partition buffers; may be null. */
   private val memoryManager = if (sparkEnv != null) sparkEnv.memoryManager else null
 
+  /**
+   * The serializer manager used to wrap each block's serialized output for compression and
+   * encryption, EXACTLY as the reduce-side reader wraps each fetched envelope payload. Null only in
+   * env-less unit construction (a real shuffle always runs with a live SparkEnv); when null the
+   * writer falls back to raw, unwrapped bytes, which is symmetric with a reader whose own
+   * serializer manager has compression and encryption off.
+   */
+  private val serializerManager = if (sparkEnv != null) sparkEnv.serializerManager else null
+
   /** Composed memory consumer: the composition-over-inheritance answer to two abstract classes. */
   private val memoryConsumer = new BufferMemoryConsumer(context.taskMemoryManager())
 
   /** Per-partition in-memory buffers (the read-side / spill source), created lazily. */
   private val buffers = new Array[StreamingBuffer](numPartitions)
 
-  /** Per-partition serialization streams over [[stagingStreams]], created lazily on first use. */
+  /**
+   * Per-partition serializer instances, created once on first use. A single instance per partition
+   * isolates interleaved partition writes (so concurrent partitions never corrupt each other's
+   * serializer state); within a partition the instance is reused to open a fresh serialization
+   * stream for each successive block.
+   */
+  private val partitionSerializerInstances = new Array[SerializerInstance](numPartitions)
+
+  /**
+   * Per-partition serialization stream for the partition's CURRENT (open) block. It is closed and
+   * replaced each time a block is sealed, so each block is an independent, self-contained stream.
+   * Null between sealing one block and opening the next.
+   */
   private val partitionSerializers = new Array[SerializationStream](numPartitions)
 
-  /** Per-partition serialization staging buffers, drained into [[buffers]] at the 2 MB boundary. */
+  /**
+   * Per-partition raw staging buffer backing the CURRENT block. The block's serializer writes
+   * through [[serializerManager]].wrapStream into this buffer, so once the block stream is closed
+   * this holds the complete, independently-decodable wrapped payload. A fresh buffer is allocated
+   * per block. Null between sealing one block and opening the next.
+   */
   private val stagingStreams = new Array[ByteArrayOutputStream](numPartitions)
+
+  /**
+   * Per-partition counter of the UNCOMPRESSED bytes written into the CURRENT block (before
+   * compression). The write loop seals a block once this reaches [[BLOCK_SEAL_THRESHOLD_BYTES]],
+   * which bounds each block by its pre-compression feed and keeps the sealed payload within the
+   * 2 MB envelope cap for every codec. Null between sealing one block and opening the next.
+   */
+  private val blockCounters = new Array[CountingOutputStream](numPartitions)
 
   /** Per-partition monotonically increasing block sequence numbers for the wire envelopes. */
   private val sequenceNumbers = new Array[Long](numPartitions)
@@ -222,8 +277,13 @@ private[spark] class StreamingShuffleWriter[K, V](
       partitionSerializers(partition).writeKey(key: Any).writeValue(value: Any)
       totalRecordsWritten += 1L
       metrics.incRecordsWritten(1L)
-      if (stagingStreams(partition).size() >= StreamingShuffleConfig.BLOCK_SIZE_BYTES) {
-        flushAndDrain(partition)
+      // Seal the current block once it has been fed ~2 MB of UNCOMPRESSED serialized bytes (one
+      // margin below the 2 MB envelope cap). Bounding the pre-compression feed -- rather than the
+      // flushed compressed size -- keeps each sealed block within the cap for every codec
+      // regardless of its internal block size, since compression/encryption can only grow
+      // incompressible data by a small, bounded overhead.
+      if (blockCounters(partition).byteCount >= BLOCK_SEAL_THRESHOLD_BYTES) {
+        sealBlock(partition)
       }
     }
     finalizeAllPartitions()
@@ -263,11 +323,14 @@ private[spark] class StreamingShuffleWriter[K, V](
   override def getPartitionLengths(): Array[Long] = partitionLengths
 
   /**
-   * Lazily creates the buffer, serialization stream, and staging stream for `partition` on first
-   * use, registering the buffer with the spill manager and block resolver and the stream with the
-   * backpressure protocol. A re-entrant call for an already-initialized partition is a no-op.
+   * Ensures `partition` is ready to accept a record. On first use it lazily creates the buffer and
+   * the partition's serializer instance, registering the buffer with the spill manager and block
+   * resolver and the stream with the backpressure protocol. It then ensures an open block stream
+   * exists -- opening one (via [[startBlock]]) whenever the partition has none, which is the case
+   * both on first use and immediately after a block was sealed. A re-entrant call with an open
+   * block and an already-initialized partition is a no-op.
    *
-   * @param partition the reduce partition to initialize
+   * @param partition the reduce partition to initialize / open a block for
    */
   private def ensurePartition(partition: Int): Unit = {
     if (buffers(partition) == null) {
@@ -275,12 +338,43 @@ private[spark] class StreamingShuffleWriter[K, V](
       buffers(partition) = buffer
       spillManager.register(buffer)
       blockResolver.trackBuffer(buffer)
-      val staging = new ByteArrayOutputStream(STAGING_BUFFER_INITIAL_BYTES)
-      stagingStreams(partition) = staging
-      partitionSerializers(partition) = dep.serializer.newInstance().serializeStream(staging)
+      partitionSerializerInstances(partition) = dep.serializer.newInstance()
       backpressure.registerStream(BackpressureProtocol.StreamKey(shuffleId, mapId, partition))
       streamRegistered(partition) = true
     }
+    if (partitionSerializers(partition) == null) {
+      startBlock(partition)
+    }
+  }
+
+  /**
+   * Opens a fresh block for `partition`: a new raw staging buffer wrapped by
+   * [[serializerManager]].wrapStream (the SAME compression/encryption layer the reader applies per
+   * envelope) and a serialization stream over an uncompressed-byte counter. Each block is therefore
+   * an INDEPENDENT, self-contained wrapped stream -- exactly what the reader requires, since it
+   * wraps and deserializes every 2 MB envelope payload on its own. Wrapping per block (rather than
+   * once per partition and slicing) is what keeps multi-block partitions correct under
+   * compression/encryption: a slice of one continuous compressed stream split mid-frame would not
+   * decode independently. When no serializer manager is available (env-less unit construction) the
+   * staging buffer is used raw, symmetric with a compression/encryption-off reader.
+   *
+   * @param partition the reduce partition to open a new block for
+   */
+  private def startBlock(partition: Int): Unit = {
+    val staging = new ByteArrayOutputStream(STAGING_BUFFER_INITIAL_BYTES)
+    stagingStreams(partition) = staging
+    // Wrap with the same ShuffleBlockId TYPE the reader fetches, so shouldCompress / encryption
+    // decisions match symmetrically; the id field values do not affect those decisions.
+    val wrapped: OutputStream =
+      if (serializerManager != null) {
+        serializerManager.wrapStream(ShuffleBlockId(shuffleId, mapId, partition), staging)
+      } else {
+        staging
+      }
+    val counting = new CountingOutputStream(wrapped)
+    blockCounters(partition) = counting
+    partitionSerializers(partition) =
+      partitionSerializerInstances(partition).serializeStream(counting)
   }
 
   /**
@@ -298,51 +392,65 @@ private[spark] class StreamingShuffleWriter[K, V](
   }
 
   /**
-   * Flushes a partition's serialization stream and drains its staged bytes into the buffer. Invoked
-   * when the staged size reaches the 2 MB block boundary during the write loop.
+   * Seals a partition's current block: CLOSES its serialization stream -- which flushes the
+   * serializer footer AND the compression/encryption codec's end-of-stream marker into the staging
+   * buffer, so the staged bytes form a complete, independently-decodable wrapped stream -- captures
+   * the resulting payload, clears the per-block state, and drains the payload into the buffer.
+   * Closing (rather than merely flushing) is essential: a flushed-but-open compression stream lacks
+   * its end marker and cannot be decoded on its own by the reader, which deserializes each envelope
+   * payload independently. The per-block state is cleared so the next record re-opens a fresh block
+   * via [[ensurePartition]] / [[startBlock]]; a no-op when the partition has no open block.
    *
-   * @param partition the reduce partition to flush and drain
+   * @param partition the reduce partition whose current block is sealed
    */
-  private def flushAndDrain(partition: Int): Unit = {
-    partitionSerializers(partition).flush()
-    drainBytes(partition)
+  private def sealBlock(partition: Int): Unit = {
+    val serializer = partitionSerializers(partition)
+    if (serializer != null) {
+      serializer.close()
+      val payload = stagingStreams(partition).toByteArray
+      partitionSerializers(partition) = null
+      stagingStreams(partition) = null
+      blockCounters(partition) = null
+      drain(partition, payload)
+    }
   }
 
   /**
-   * Drains a partition's currently staged serialized bytes into its [[StreamingBuffer]] (which
-   * frames and checksums them), updates the partition length and write metrics, frames the bytes
-   * into wire envelopes sent under backpressure, then resets the staging stream. Reading the bytes
-   * from the local `pending` array rather than from the buffer keeps draining safe even if the
-   * spill manager's poll loop concurrently drains the buffer.
+   * Drains one sealed block `payload` into its [[StreamingBuffer]] (which frames and checksums it),
+   * updates the partition length and write metrics, and frames the bytes into a wire envelope sent
+   * under backpressure. The payload is a complete, independently-decodable wrapped stream of at
+   * most 2 MB, so `append` and `sendFramed` frame it as exactly one envelope. An empty payload (a
+   * block with no records) is a no-op. Passing the local `payload` array (rather than re-reading
+   * the buffer) keeps draining safe even if the spill manager's poll loop concurrently drains the
+   * buffer.
    *
-   * @param partition the reduce partition to drain
+   * @param partition the reduce partition the block belongs to
+   * @param payload   the sealed block bytes (a complete wrapped stream, at most 2 MB)
    */
-  private def drainBytes(partition: Int): Unit = {
-    val staging = stagingStreams(partition)
-    val pending = staging.toByteArray
-    if (pending.length > 0) {
-      acquireMemoryFor(pending.length)
-      buffers(partition).append(pending)
+  private def drain(partition: Int, payload: Array[Byte]): Unit = {
+    if (payload.length > 0) {
+      acquireMemoryFor(payload.length)
+      buffers(partition).append(payload)
       // MapStatus must report the PHYSICAL block size the resolver/spill path serves, not the raw
       // payload: both `StreamingBuffer.toByteArray` (in-memory serve) and the disk spill frame the
-      // bytes as the in-order concatenation of one StreamingBlockEnvelope per 2 MB block, adding a
-      // fixed 32-byte header per block. `append` and `sendFramed` split `pending` into the same
-      // ceil(len / 2 MB) blocks, so the served byte count is `pending.length + numBlocks * header`.
-      // Reporting the framed size keeps `partitionLengths` consistent with the bytes a reduce task
-      // actually fetches, avoiding a 32-byte-per-block under-count in fetch/scheduling accounting.
-      val numBlocks = (pending.length + StreamingShuffleConfig.BLOCK_SIZE_BYTES - 1) /
+      // bytes as the in-order concatenation of one StreamingBlockEnvelope per block, adding a fixed
+      // 32-byte header per block. Each sealed block is at most 2 MB, so `append` and `sendFramed`
+      // frame it as exactly one block (ceil(len / 2 MB) == 1); reporting the framed size keeps
+      // `partitionLengths` consistent with the bytes a reduce task actually fetches, avoiding a
+      // 32-byte-per-block under-count in fetch/scheduling accounting.
+      val numBlocks = (payload.length + StreamingShuffleConfig.BLOCK_SIZE_BYTES - 1) /
         StreamingShuffleConfig.BLOCK_SIZE_BYTES
       val framedLength =
-        pending.length.toLong + numBlocks.toLong * StreamingBlockEnvelope.HEADER_BYTES.toLong
+        payload.length.toLong + numBlocks.toLong * StreamingBlockEnvelope.HEADER_BYTES.toLong
       partitionLengths(partition) += framedLength
-      // Write-volume telemetry remains the LOGICAL payload size (excludes envelope framing) so the
-      // bytes-written metric reflects user data produced, independent of the wire/persist format.
-      totalBytesWritten += pending.length.toLong
-      metrics.incBytesWritten(pending.length.toLong)
+      // Write-volume telemetry tracks the (post-compression) block payload actually buffered and
+      // served, consistent with the sort path's post-compression byte accounting; envelope framing
+      // headers are excluded so the metric reflects shuffle data rather than the wire format.
+      totalBytesWritten += payload.length.toLong
+      metrics.incBytesWritten(payload.length.toLong)
       val streamKey = BackpressureProtocol.StreamKey(shuffleId, mapId, partition)
-      sendFramed(streamKey, partition, pending)
+      sendFramed(streamKey, partition, payload)
       maybeHandleConsumerTimeout(streamKey, partition)
-      staging.reset()
     }
   }
 
@@ -419,18 +527,16 @@ private[spark] class StreamingShuffleWriter[K, V](
     if (blockManager != null) Option(blockManager.shuffleServerId) else None
 
   /**
-   * Closes each still-open partition serialization stream (flushing residual serialized bytes into
-   * its staging stream) and drains those residual bytes into the buffer. The buffers themselves are
-   * retained so the reduce side can read them.
+   * Seals each partition's final, partially-filled block via [[sealBlock]] -- closing its stream so
+   * the staged bytes form a complete, independently-decodable wrapped payload, then draining that
+   * payload into the buffer. No new block is opened afterward (the write loop is done). The buffers
+   * themselves are retained so the reduce side can read them.
    */
   private def finalizeAllPartitions(): Unit = {
     var partition = 0
     while (partition < numPartitions) {
       if (partitionSerializers(partition) != null) {
-        partitionSerializers(partition).close()
-        drainBytes(partition)
-        partitionSerializers(partition) = null
-        stagingStreams(partition) = null
+        sealBlock(partition)
       }
       partition += 1
     }
@@ -494,7 +600,12 @@ private[spark] class StreamingShuffleWriter[K, V](
     releaseAllMemory()
   }
 
-  /** Closes any serialization streams still open (e.g. on a failure mid-write), ignoring errors. */
+  /**
+   * Closes any current block serialization stream still open (e.g. on a failure mid-write),
+   * ignoring errors, and clears the per-block state. Closing the stream releases the
+   * compression/encryption codec's resources even though the partial bytes are discarded on the
+   * failure path.
+   */
   private def closeOpenStreams(): Unit = {
     var partition = 0
     while (partition < numPartitions) {
@@ -509,6 +620,7 @@ private[spark] class StreamingShuffleWriter[K, V](
         }
         partitionSerializers(partition) = null
         stagingStreams(partition) = null
+        blockCounters(partition) = null
       }
       partition += 1
     }
@@ -551,10 +663,61 @@ private[spark] class StreamingShuffleWriter[K, V](
 }
 
 /**
- * Companion holding the writer's compile-time constants.
+ * Companion holding the writer's compile-time constants and the uncompressed-byte counting stream.
  */
 private[spark] object StreamingShuffleWriter {
 
   /** Initial capacity, in bytes, of each partition's serialization staging stream (64 KB). */
   private val STAGING_BUFFER_INITIAL_BYTES: Int = 64 * 1024
+
+  /**
+   * Headroom, in bytes, kept below the 2 MB block cap when deciding to seal a block. Compression
+   * and encryption can grow incompressible data by only a small, bounded overhead (well under this
+   * margin for any Spark codec over a ~2 MB feed), so sealing once the UNCOMPRESSED feed reaches
+   * `BLOCK_SIZE_BYTES - this` guarantees the sealed (wrapped) payload stays within the 2 MB
+   * envelope cap that [[StreamingBlockEnvelope.create]] enforces.
+   */
+  private val BLOCK_SEAL_MARGIN_BYTES: Int = 64 * 1024
+
+  /**
+   * Uncompressed-byte threshold at which the current block is sealed. Bounding the pre-compression
+   * feed (rather than the flushed compressed size) keeps the trigger correct for every codec
+   * independent of its internal block size, while the [[BLOCK_SEAL_MARGIN_BYTES]] headroom keeps
+   * the resulting compressed/encrypted payload within the 2 MB cap.
+   */
+  private val BLOCK_SEAL_THRESHOLD_BYTES: Int =
+    StreamingShuffleConfig.BLOCK_SIZE_BYTES - BLOCK_SEAL_MARGIN_BYTES
+
+  /**
+   * A thin [[java.io.OutputStream]] decorator that counts the UNCOMPRESSED bytes written through it
+   * before they reach the wrapped compression/encryption stream. The block-seal trigger reads
+   * [[byteCount]] to bound each block by the bytes fed to the codec -- independent of the codec's
+   * compression ratio or internal block size -- which keeps every sealed block within the 2 MB
+   * envelope payload cap. It owns no buffering; `flush` and `close` simply forward to the wrapped
+   * stream (closing it flushes the codec's end-of-stream marker).
+   *
+   * @param out the wrapped (compression/encryption) output stream bytes are forwarded to
+   */
+  private final class CountingOutputStream(out: OutputStream) extends OutputStream {
+
+    /** Running total of bytes written through this stream. */
+    private var count: Long = 0L
+
+    /** @return the number of bytes written through this stream so far. */
+    def byteCount: Long = count
+
+    override def write(b: Int): Unit = {
+      out.write(b)
+      count += 1L
+    }
+
+    override def write(b: Array[Byte], off: Int, len: Int): Unit = {
+      out.write(b, off, len)
+      count += len.toLong
+    }
+
+    override def flush(): Unit = out.flush()
+
+    override def close(): Unit = out.close()
+  }
 }
