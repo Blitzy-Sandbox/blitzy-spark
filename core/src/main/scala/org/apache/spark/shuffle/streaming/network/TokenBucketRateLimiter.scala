@@ -55,8 +55,9 @@ import org.apache.spark.shuffle.streaming.StreamingShuffleConfig
  * ==Thread-safety==
  *
  * [[acquire]] and [[tryAcquire]] may be invoked concurrently from many producer threads. Guava's
- * `RateLimiter` is itself thread-safe, so the steady-state hot path is lock-free: it reads the
- * `@volatile` unlimited flag and a stable `@volatile` limiter reference. The rare reconfiguration
+ * `RateLimiter` is itself thread-safe, so the steady-state hot path is lock-free: it performs a
+ * single atomic read of one `@volatile` reference (`None` means unlimited, `Some` carries the
+ * limiter), which can never observe an inconsistent pair of fields. The rare reconfiguration
  * performed by [[setBytesPerSecond]] is guarded by `synchronized`. Note that v1 streaming
  * configuration is immutable for the application lifetime (an executor restart is required to
  * change it), so such transitions are not expected at runtime; they are implemented correctly
@@ -67,21 +68,21 @@ import org.apache.spark.shuffle.streaming.StreamingShuffleConfig
  */
 private[spark] class TokenBucketRateLimiter(initialBytesPerSecond: Long) extends Logging {
 
-  // Whether throttling is disabled. Read on the hot path, so kept @volatile; it is mutated only
-  // under this-monitor synchronization in setBytesPerSecond.
-  @volatile private var unlimited: Boolean =
-    TokenBucketRateLimiter.isUnlimitedRate(initialBytesPerSecond)
-
-  // The backing Guava limiter, allocated at construction only when a finite rate applies. In
-  // unlimited mode this stays None and no permits machinery is created. Once a limiter has been
-  // allocated it is retained (its rate is updated in place), so the hot path always observes a
-  // stable reference.
-  @volatile private var limiterOpt: Option[GuavaRateLimiter] =
-    if (unlimited) None else Some(GuavaRateLimiter.create(initialBytesPerSecond.toDouble))
+  // Single source of truth for throttling state: None means unlimited (no Guava limiter is
+  // allocated and the gate is a no-op); Some(limiter) enforces a finite byte/second ceiling.
+  // Holding the state in ONE @volatile reference lets the hot path observe it with a single atomic
+  // read, so acquire/tryAcquire can never see an inconsistent (unlimited, limiter) pair. It is
+  // mutated only under this-monitor synchronization in setBytesPerSecond.
+  @volatile private var limiter: Option[GuavaRateLimiter] =
+    if (TokenBucketRateLimiter.isUnlimitedRate(initialBytesPerSecond)) {
+      None
+    } else {
+      Some(GuavaRateLimiter.create(initialBytesPerSecond.toDouble))
+    }
 
   // One-time, low-volume construction log; never log per acquire on the hot path (this respects
   // the < 10 MB/hour/executor log budget).
-  if (unlimited) {
+  if (limiter.isEmpty) {
     logDebug("TokenBucketRateLimiter created in unlimited mode (no throttling, no allocation).")
   } else {
     logDebug(s"TokenBucketRateLimiter created with rate=$initialBytesPerSecond bytes/sec.")
@@ -90,7 +91,7 @@ private[spark] class TokenBucketRateLimiter(initialBytesPerSecond: Long) extends
   /**
    * @return `true` when this limiter performs no throttling (unlimited mode), `false` otherwise
    */
-  def isUnlimited: Boolean = unlimited
+  def isUnlimited: Boolean = limiter.isEmpty
 
   /**
    * Blocks the calling thread until `bytes` permits (one permit per byte) are available, then
@@ -100,8 +101,8 @@ private[spark] class TokenBucketRateLimiter(initialBytesPerSecond: Long) extends
    * @param bytes the number of bytes (permits) to reserve before sending
    */
   def acquire(bytes: Int): Unit = {
-    if (bytes > 0 && !unlimited) {
-      limiterOpt.foreach(_.acquire(bytes))
+    if (bytes > 0) {
+      limiter.foreach(_.acquire(bytes))
     }
   }
 
@@ -113,30 +114,32 @@ private[spark] class TokenBucketRateLimiter(initialBytesPerSecond: Long) extends
    *         request or in unlimited mode); `false` if they could not be granted without waiting
    */
   def tryAcquire(bytes: Int): Boolean = {
-    if (bytes <= 0 || unlimited) {
+    if (bytes <= 0) {
       true
     } else {
-      limiterOpt.exists(_.tryAcquire(bytes))
+      limiter match {
+        case Some(rl) => rl.tryAcquire(bytes)
+        case None => true
+      }
     }
   }
 
   /**
    * Reconfigures the byte/second ceiling. A non-positive `rate` or `Long.MaxValue` switches the
-   * limiter into unlimited mode; any other value installs (or updates in place) the backing Guava
-   * limiter. Guarded by `synchronized` because it mutates the unlimited/limiterOpt pair that the
-   * lock-free hot path reads.
+   * limiter into unlimited mode (dropping any backing limiter); any other value installs (or
+   * updates in place) the backing Guava limiter. Guarded by `synchronized` because it mutates the
+   * single `@volatile` limiter reference that the lock-free hot path reads.
    *
    * @param rate the new ceiling in bytes/second
    */
   def setBytesPerSecond(rate: Long): Unit = synchronized {
     if (TokenBucketRateLimiter.isUnlimitedRate(rate)) {
-      unlimited = true
+      limiter = None
     } else {
-      limiterOpt match {
-        case Some(limiter) => limiter.setRate(rate.toDouble)
-        case None => limiterOpt = Some(GuavaRateLimiter.create(rate.toDouble))
+      limiter match {
+        case Some(rl) => rl.setRate(rate.toDouble)
+        case None => limiter = Some(GuavaRateLimiter.create(rate.toDouble))
       }
-      unlimited = false
     }
   }
 
@@ -144,10 +147,9 @@ private[spark] class TokenBucketRateLimiter(initialBytesPerSecond: Long) extends
    * @return the currently configured ceiling in bytes/second, or `Long.MaxValue` when unlimited
    */
   def currentBytesPerSecond: Long = {
-    if (unlimited) {
-      Long.MaxValue
-    } else {
-      limiterOpt.map(_.getRate.toLong).getOrElse(Long.MaxValue)
+    limiter match {
+      case Some(rl) => rl.getRate.toLong
+      case None => Long.MaxValue
     }
   }
 }

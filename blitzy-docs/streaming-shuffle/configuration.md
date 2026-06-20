@@ -13,7 +13,7 @@ The streaming backend adds the following five configuration keys. All keys are r
 | `spark.shuffle.streaming.enabled` | Boolean | `false` | Opt-in feature flag. Must be `true` (together with `spark.shuffle.manager=streaming`) to engage streaming shuffle. |
 | `spark.shuffle.streaming.bufferSizePercent` | Integer | `20` | Valid range **1–50**. Percent of executor memory used for per-partition streaming buffers. |
 | `spark.shuffle.streaming.spillThreshold` | Integer | `80` | Valid range **50–95**. Percent buffer utilization that triggers disk spill. |
-| `spark.shuffle.streaming.maxBandwidthMBps` | Integer | `unlimited (≤ 0)` | Per-executor streaming bandwidth cap (MB/s), enforced by the token-bucket rate limiter. A value **≤ 0 means unlimited**. |
+| `spark.shuffle.streaming.maxBandwidthMBps` | Integer | `-1` (unlimited) | Per-executor streaming bandwidth cap (MB/s), enforced by the token-bucket rate limiter. A value **≤ 0 means unlimited**. |
 | `spark.shuffle.streaming.debug` | Boolean | `false` | Enables additional verbose debug logging for the streaming path. |
 
 !!! note
@@ -77,10 +77,10 @@ spark.shuffle.manager                         streaming
 spark.shuffle.streaming.enabled               true
 spark.shuffle.streaming.bufferSizePercent     20
 spark.shuffle.streaming.spillThreshold        80
-spark.shuffle.streaming.maxBandwidthMBps      0
+spark.shuffle.streaming.maxBandwidthMBps      -1
 ```
 
-Here `spark.shuffle.streaming.maxBandwidthMBps 0` leaves per-executor streaming bandwidth **unlimited** (any value `≤ 0` disables the rate limiter).
+Here `spark.shuffle.streaming.maxBandwidthMBps -1` leaves per-executor streaming bandwidth **unlimited** (any value `≤ 0` disables the rate limiter).
 
 ### `spark-submit`
 
@@ -103,7 +103,7 @@ val conf = new SparkConf()
   .set("spark.shuffle.streaming.enabled", "true")
   .set("spark.shuffle.streaming.bufferSizePercent", "20")
   .set("spark.shuffle.streaming.spillThreshold", "80")
-  .set("spark.shuffle.streaming.maxBandwidthMBps", "0")
+  .set("spark.shuffle.streaming.maxBandwidthMBps", "-1")
 
 val sc = new SparkContext(conf)
 ```

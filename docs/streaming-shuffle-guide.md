@@ -89,7 +89,7 @@ spark.shuffle.manager                       streaming
 spark.shuffle.streaming.enabled             true
 spark.shuffle.streaming.bufferSizePercent   20
 spark.shuffle.streaming.spillThreshold      80
-spark.shuffle.streaming.maxBandwidthMBps    0
+spark.shuffle.streaming.maxBandwidthMBps    -1
 ```
 
 ## Using SparkConf programmatically
@@ -127,7 +127,7 @@ corresponding built-in manager and the streaming keys below have no effect. The 
     When <code>true</code> (and <code>spark.shuffle.manager</code> is set to <code>streaming</code>), enables the
     opt-in streaming shuffle backend. When <code>false</code>, the manager delegates to the sort-based shuffle.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
@@ -136,7 +136,7 @@ corresponding built-in manager and the streaming keys below have no effect. The 
     Percentage (1&ndash;50) of executor memory used for per-partition streaming buffers. The per-partition
     buffer size is computed as <code>(executorMemory * bufferSizePercent / 100) / numPartitions</code> with a 2 MB floor.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.spillThreshold</code></td>
@@ -145,16 +145,16 @@ corresponding built-in manager and the streaming keys below have no effect. The 
     Buffer-utilization percentage (50&ndash;95) at which the largest buffered partitions spill to disk via the
     block manager to reclaim memory.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
-  <td>0 (unlimited)</td>
+  <td>-1 (unlimited)</td>
   <td>
-    Per-executor streaming bandwidth cap in MB/s enforced by the token-bucket rate limiter. A value of
-    <code>0</code> (or any non-positive value) means unlimited.
+    Per-executor streaming bandwidth cap in MB/s enforced by the token-bucket rate limiter. The default
+    <code>-1</code> (or any non-positive value) means unlimited.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.debug</code></td>
@@ -162,7 +162,7 @@ corresponding built-in manager and the streaming keys below have no effect. The 
   <td>
     When <code>true</code>, enables additional diagnostic logging for the streaming shuffle path.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 </table>
 

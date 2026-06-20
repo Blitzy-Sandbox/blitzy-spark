@@ -148,28 +148,22 @@ a producer becomes unreachable. To guarantee correctness, the reader detects the
 any partially read data from that producer, and asks Spark to recompute the lost output. No partial or
 corrupt data is ever delivered to a reduce task, so the end result is **zero data loss**.
 
-The producer-failure flow proceeds as follows:
+The **Producer-Failure Detection and Recovery Flow** diagram below shows how the reader detects a failed producer and hands recovery to Spark's existing lineage-driven recompute machinery:
 
-```
-StreamingShuffleReader.read
-        |
-        v
-  [1] Connection timeout (5 s) detected from a failed producer
-        |
-        v
-  [2] Atomically invalidate ALL partial reads from that producer
-      (increment partialReadInvalidations) and discard buffered data
-        |
-        v
-  [3] Raise FetchFailedException
-        |
-        v
-  [4] Spark's existing lineage machinery recomputes the upstream
-      map tasks (no streaming-specific recovery code involved)
-        |
-        v
-  [5] Retry the read from the recomputed producer, using exponential
-      backoff (1 s initial delay, up to a maximum of 5 attempts)
+**Legend:** blue = reader entry point; red = failure surfaced to Spark; green = lineage-driven recovery; solid arrows = sequential steps; dotted arrow = bounded retry from the recomputed producer.
+
+```mermaid
+flowchart TD
+    R["StreamingShuffleReader.read"]:::reader
+    R --> S1["1. Connection timeout (5 s) detected<br/>from a failed producer"]
+    S1 --> S2["2. Atomically invalidate ALL partial reads<br/>from that producer (increment<br/>partialReadInvalidations); discard buffered data"]
+    S2 --> S3["3. Raise FetchFailedException"]:::failure
+    S3 --> S4["4. Spark's existing lineage machinery<br/>recomputes the upstream map tasks<br/>(no streaming-specific recovery code)"]:::recovery
+    S4 --> S5["5. Retry the read from the recomputed producer<br/>with exponential backoff<br/>(1 s initial delay, max 5 attempts)"]
+    S5 -.->|"retry"| R
+    classDef reader fill:#d6eaf8,stroke:#2471a3,color:#1a5276
+    classDef failure fill:#f5b7b1,stroke:#922b21,color:#641e16
+    classDef recovery fill:#d5f5e3,stroke:#1e8449,color:#145a32
 ```
 
 Each step reuses Spark's existing fault-tolerance model: the `FetchFailedException` and the
@@ -270,7 +264,7 @@ Spark properties is documented in [Configuration](configuration.html).
     <em>and</em> combined with <code>spark.shuffle.manager=streaming</code> for streaming to engage.
     When <code>false</code>, the manager delegates every shuffle to the sort-based path.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
@@ -281,7 +275,7 @@ Spark properties is documented in [Configuration](configuration.html).
     with a 2&nbsp;MB floor. Raising it reduces spills but increases memory pressure; lowering it does
     the reverse.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.spillThreshold</code></td>
@@ -291,17 +285,17 @@ Spark properties is documented in [Configuration](configuration.html).
     disk via the block manager (<code>DISK_ONLY</code>). Lower it to spill earlier and reclaim memory
     sooner under pressure.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
-  <td>(unlimited)</td>
+  <td>-1 (unlimited)</td>
   <td>
-    Per-executor streaming bandwidth cap, in MB/s, enforced by the token-bucket rate limiter. A value of
-    <code>0</code> or less means unlimited. Use it to relieve backpressure or to leave headroom on a
+    Per-executor streaming bandwidth cap, in MB/s, enforced by the token-bucket rate limiter. The default
+    <code>-1</code> (or any non-positive value) means unlimited. Use it to relieve backpressure or to leave headroom on a
     saturated network link.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.debug</code></td>
@@ -311,7 +305,7 @@ Spark properties is documented in [Configuration](configuration.html).
     correlation keys (shuffle id, map id, reduce partition range, attempt id). Keep this disabled in
     production to respect the log-volume budget.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 </table>
 

@@ -173,31 +173,31 @@ of the application and take effect only after an application (executor) restart.
     <code>spark.shuffle.manager=streaming</code>. When left at the default (false), Spark uses the
     standard sort-based shuffle and behavior is unchanged.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
   <td>20</td>
   <td>Percentage (1&ndash;50) of executor memory used for per-partition streaming buffers; per-partition size = (executorMemory * bufferSizePercent / 100) / numPartitions, with a 2 MB floor.</td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.spillThreshold</code></td>
   <td>80</td>
   <td>Buffer-utilization percentage (50&ndash;95) at which the largest buffers spill to disk to reclaim memory.</td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
-  <td>0 (unlimited)</td>
-  <td>Per-executor streaming bandwidth cap in MB/s (token-bucket rate limiter); 0 or non-positive means unlimited.</td>
-  <td>4.1.0</td>
+  <td>-1 (unlimited)</td>
+  <td>Per-executor streaming bandwidth cap in MB/s (token-bucket rate limiter); the default -1 (or any non-positive value) means unlimited.</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.debug</code></td>
   <td>false</td>
   <td>Enables additional diagnostic logging for the streaming shuffle path.</td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 </table>
 

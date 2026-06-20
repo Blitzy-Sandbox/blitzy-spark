@@ -51,18 +51,14 @@ import org.apache.spark.internal.Logging
  * Every field is a lock-free `java.util.concurrent.atomic` primitive, so the update hooks (called
  * by the writer, the backpressure protocol, and the spill manager) and the predicates (evaluated on
  * the hot path) are all O(1) and contention-free. [[shouldFallback]] additionally detects the
- * false-to-true and true-to-false edges with a single compare-and-swap, so the fallback indicator
- * metric and the log line are emitted at most once per state transition, never once per evaluation
- * -- this honors the < 10 MB/hour/executor log budget.
+ * false-to-true and true-to-false edges with a single compare-and-swap, so the fallback log line
+ * is emitted at most once per state transition, never once per evaluation -- this honors the
+ * < 10 MB/hour/executor log budget.
  *
- * @param conf    the typed streaming configuration; consulted for debug-log gating
- * @param metrics optional metrics holder; when non-null its backpressure/fallback indicator is
- *                incremented once per fallback engagement. May be `null` (the default) in contexts
- *                that do not publish telemetry, such as unit tests.
+ * @param conf the typed streaming configuration; consulted for debug-log gating
  */
 private[spark] class StreamingShuffleFallbackPolicy(
-    conf: StreamingShuffleConfig,
-    metrics: StreamingShuffleMetrics = null) extends Logging {
+    conf: StreamingShuffleConfig) extends Logging {
 
   import StreamingShuffleFallbackPolicy._
 
@@ -175,10 +171,9 @@ private[spark] class StreamingShuffleFallbackPolicy(
    * condition skips the rest.
    *
    * As a side effect bounded to state transitions, the first evaluation that observes a
-   * false-to-true edge increments the optional fallback/backpressure indicator exactly once and
-   * logs the reason once; the first evaluation that observes the true-to-false edge logs recovery
-   * (only when streaming debug logging is enabled, to conserve the log budget). The edge detection
-   * uses a single compare-and-swap, so concurrent callers never double-count.
+   * false-to-true edge logs the reason once; the first evaluation that observes the true-to-false
+   * edge logs recovery (only when streaming debug logging is enabled, to conserve the log budget).
+   * The edge detection uses a single compare-and-swap, so concurrent callers never log twice.
    *
    * @return `true` when the streaming path must fall back to sort-based shuffle
    */
@@ -187,9 +182,6 @@ private[spark] class StreamingShuffleFallbackPolicy(
       isSlowConsumer() || isMemoryPressure || isNetworkSaturated || isVersionMismatch
     if (fallback) {
       if (fallbackActive.compareAndSet(false, true)) {
-        if (metrics != null) {
-          metrics.incBackpressureEvents()
-        }
         logInfo("Streaming shuffle is falling back to sort-based shuffle; reason: " +
           fallbackReason.getOrElse("unknown"))
       }

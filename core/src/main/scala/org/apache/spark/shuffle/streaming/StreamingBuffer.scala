@@ -19,10 +19,10 @@ package org.apache.spark.shuffle.streaming
 
 import java.nio.ByteBuffer
 import java.util.concurrent.atomic.{AtomicInteger, AtomicLong}
-import java.util.zip.CRC32C
 
 import scala.collection.mutable.ArrayBuffer
 
+import org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope
 import org.apache.spark.util.io.ChunkedByteBuffer
 
 /**
@@ -31,16 +31,18 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  *
  * Bytes appended by the streaming writer are framed into immutable blocks of at most
  * [[StreamingShuffleConfig.BLOCK_SIZE_BYTES]] (2 MB). Each block carries a CRC32C checksum computed
- * once, at append time, using the JDK [[java.util.zip.CRC32C]] primitive -- the canonical algorithm
- * shared with the `ShuffleChecksumUtils` family. The checksum is exposed per block so the wire
- * envelope and the reduce-side reader can verify integrity without recomputing it.
+ * once, at append time, by the single canonical routine
+ * [[org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope.computeCrc32c]] (the JDK
+ * CRC32C algorithm, shared with the `ShuffleChecksumUtils` family). The per-block checksum equals
+ * the `crc32c` header field of the block's wire envelope, so no recomputation is needed.
  *
  * ==Dual-channel wire/persist invariant==
  *
  * The byte layout returned by [[toByteArray]] and [[toChunkedByteBuffer]] is the exact, in-order
- * concatenation of the block payloads, which is byte-for-byte identical to the payload stream sent
- * on the wire (each block becomes the payload of one streaming block envelope). This makes spilled
- * bytes and streamed bytes fully interchangeable: a consumer cannot tell whether a partition was
+ * concatenation of one [[org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope]] frame
+ * per block -- each a 32-byte big-endian header followed by the block payload. This is the single
+ * canonical block encoding, byte-for-byte identical to the frames streamed on the wire, which makes
+ * spilled and streamed bytes fully interchangeable: a consumer cannot tell whether a partition was
  * served from memory or rehydrated from a disk spill, so spill-and-resume is transparent to the
  * reader (AAP section 0.4.2).
  *
@@ -119,7 +121,7 @@ private[spark] class StreamingBuffer(
       while (offset < bytes.length) {
         val len = math.min(StreamingShuffleConfig.BLOCK_SIZE_BYTES, bytes.length - offset)
         val payload = bytes.slice(offset, offset + len)
-        blocks += new Block(payload, StreamingBuffer.computeChecksum(payload))
+        blocks += new Block(payload, StreamingBlockEnvelope.computeCrc32c(payload))
         blockCount.incrementAndGet()
         currentSizeBytes.addAndGet(len.toLong)
         offset += len
@@ -167,42 +169,52 @@ private[spark] class StreamingBuffer(
   }
 
   /**
-   * Returns the CRC32C checksum (an unsigned 32-bit value held in a `Long`) of the block at
-   * `index`, computed once when the block was appended. Refreshes the LRU timestamp.
+   * Returns the CRC32C checksum of the block at `index`, computed once when the block was appended
+   * via [[org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope.computeCrc32c]]. The
+   * value is the lower 32 bits of the CRC32C held in an `Int`, identical to the `crc32c` header
+   * field of the block's wire envelope. Refreshes the LRU timestamp.
    *
    * @param index zero-based block index in `[0, numBlocks)`
-   * @return the block's CRC32C checksum
+   * @return the block's CRC32C checksum (lower 32 bits, as an `Int`)
    * @throws IndexOutOfBoundsException if `index` is not a valid block index
    */
-  def checksumOf(index: Int): Long = lock.synchronized {
+  def checksumOf(index: Int): Int = lock.synchronized {
     requireValidIndex(index)
     touch()
     blocks(index).checksum
   }
 
   /**
-   * Materializes all buffered blocks into a single contiguous array, in append order. The result is
-   * byte-for-byte identical to the payload stream sent on the wire (the dual-channel invariant),
-   * making it a drop-in source for disk spill or verification.
+   * Materializes all buffered blocks into a single contiguous array, in append order, as the
+   * in-order concatenation of one canonical
+   * [[org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope]] frame per block (32-byte
+   * header + payload). The result is byte-for-byte identical to the frames streamed on the wire
+   * (the dual-channel invariant), making it a drop-in source for disk spill or verification.
    *
    * [[toChunkedByteBuffer]] is preferred for the spill path: it avoids a large contiguous
-   * allocation and supports buffers larger than `Int.MaxValue` bytes, which this method cannot.
+   * allocation and supports buffers whose framed size exceeds `Int.MaxValue` bytes, which this
+   * method cannot.
    *
-   * @return the in-order concatenation of every block payload
-   * @throws IllegalArgumentException if the buffered size exceeds `Int.MaxValue`
+   * @return the in-order concatenation of every block's wire envelope (header + payload)
+   * @throws IllegalArgumentException if the framed size (payloads + per-block headers) exceeds
+   *         `Int.MaxValue`
    */
   def toByteArray: Array[Byte] = lock.synchronized {
-    val total = currentSizeBytes.get()
-    require(total <= Int.MaxValue,
-      s"Buffered size $total bytes exceeds the maximum single-array length; " +
+    val headerBytes = StreamingBlockEnvelope.HEADER_BYTES.toLong
+    val framedTotal = currentSizeBytes.get() + blocks.length.toLong * headerBytes
+    require(framedTotal <= Int.MaxValue,
+      s"Framed buffered size $framedTotal bytes exceeds the maximum single-array length; " +
         "use toChunkedByteBuffer instead")
-    val out = new Array[Byte](total.toInt)
+    val out = new Array[Byte](framedTotal.toInt)
     var pos = 0
     var i = 0
     while (i < blocks.length) {
-      val payload = blocks(i).payload
-      System.arraycopy(payload, 0, out, pos, payload.length)
-      pos += payload.length
+      // Frame each block as the canonical wire envelope so spilled bytes are byte-for-byte
+      // identical to streamed bytes (dual-channel invariant, AAP section 0.4.2).
+      val frame = StreamingBlockEnvelope
+        .create(shuffleId, mapId, partitionId, i.toLong, blocks(i).payload).toByteArray
+      System.arraycopy(frame, 0, out, pos, frame.length)
+      pos += frame.length
       i += 1
     }
     touch()
@@ -211,22 +223,24 @@ private[spark] class StreamingBuffer(
 
   /**
    * Exposes the buffered blocks as a [[ChunkedByteBuffer]] -- one chunk per block, in append order
-   * -- for spilling via `BlockManager.putBytes`. Each chunk wraps the block's payload with no copy;
-   * because payloads are immutable and the returned buffer holds its own references, this buffer
-   * may be [[clear]]ed while the spill write is still in progress.
+   * -- for spilling via `BlockManager.putBytes`. Each chunk is a freshly serialized canonical
+   * [[org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope]] frame (32-byte header +
+   * payload); because each frame is a standalone allocation independent of the buffer's blocks,
+   * this buffer may be [[clear]]ed while the spill write is still in progress.
    *
    * The chunk sequence preserves the dual-channel invariant: its concatenated bytes equal both
-   * [[toByteArray]] and the wire payload stream.
+   * [[toByteArray]] and the envelope frames streamed on the wire.
    *
-   * @return a read-only chunked view of the buffered bytes
+   * @return a read-only chunked view of the buffered bytes, framed as wire envelopes
    */
   def toChunkedByteBuffer: ChunkedByteBuffer = lock.synchronized {
     val chunks = new Array[ByteBuffer](blocks.length)
     var i = 0
     while (i < blocks.length) {
-      // ByteBuffer.wrap yields a buffer with position() == 0, satisfying ChunkedByteBuffer's
-      // contract; the underlying payload array is immutable so the zero-copy share is safe.
-      chunks(i) = ByteBuffer.wrap(blocks(i).payload)
+      // Frame each block as the canonical wire envelope (serialize() returns a flipped, position-0
+      // buffer) so the spilled chunk sequence is byte-for-byte identical to the streamed frames.
+      chunks(i) = StreamingBlockEnvelope
+        .create(shuffleId, mapId, partitionId, i.toLong, blocks(i).payload).serialize
       i += 1
     }
     touch()
@@ -260,33 +274,22 @@ private[spark] class StreamingBuffer(
 }
 
 /**
- * Companion holding the immutable block representation and the shared CRC32C helper. Keeping the
- * checksum routine here (rather than inline) keeps the per-append hot path allocation-light and the
- * algorithm choice -- JDK [[java.util.zip.CRC32C]] -- in exactly one place.
+ * Companion holding the immutable block representation. The CRC32C of each block is computed by the
+ * single canonical routine
+ * [[org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope.computeCrc32c]], so the
+ * buffer and the wire envelope always agree on the checksum bits (no second algorithm copy here).
  */
 private[spark] object StreamingBuffer {
 
   /**
    * An immutable, sealed buffer block: a 2 MB-bounded payload paired with the CRC32C checksum
    * computed over it. Payloads are never mutated after construction, which is what makes lock-free
-   * reads and zero-copy [[ChunkedByteBuffer]] wrapping safe.
+   * reads safe and lets each block be framed into its wire envelope on demand.
    *
    * @param payload  the framed block bytes (length is at most
    *                 [[StreamingShuffleConfig.BLOCK_SIZE_BYTES]])
-   * @param checksum the CRC32C checksum of `payload`, an unsigned 32-bit value held in a `Long`
+   * @param checksum the CRC32C checksum of `payload` -- the lower 32 bits held in an `Int`, the
+   *                 same value carried in the block's wire envelope `crc32c` header field
    */
-  private final class Block(val payload: Array[Byte], val checksum: Long)
-
-  /**
-   * Computes the CRC32C checksum of `payload` using the JDK primitive, returned as a `Long`
-   * carrying the unsigned 32-bit checksum (matching `java.util.zip.Checksum#getValue`).
-   *
-   * @param payload the bytes to checksum
-   * @return the CRC32C checksum of `payload`
-   */
-  private def computeChecksum(payload: Array[Byte]): Long = {
-    val crc = new CRC32C()
-    crc.update(payload, 0, payload.length)
-    crc.getValue()
-  }
+  private final class Block(val payload: Array[Byte], val checksum: Int)
 }

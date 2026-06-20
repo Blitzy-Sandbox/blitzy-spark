@@ -103,35 +103,37 @@ flag `spark.shuffle.streaming.enabled=true`; both `spark.shuffle.manager=streami
 Once selected, `StreamingShuffleManager` decides per shuffle whether to stream or to delegate. If
 streaming is enabled and the [automatic fallback](#automatic-fallback-zero-regression-guarantee)
 policy has not tripped, it streams data from producer to consumer; otherwise it delegates to a
-lazily-constructed inner `SortShuffleManager`. The diagram below shows this selection path.
+lazily-constructed inner `SortShuffleManager`. **Diagram 1 &mdash; Shuffle Manager Selection: Before vs. After (Factory Modification)** shows this selection path, contrasting the master baseline (only the sort-based managers) with the state after the `streaming` alias is registered.
 
-```
-                       spark.shuffle.manager
-                                |
-                                v
-                  +-----------------------------+
-                  |   shuffle manager-name map  |
-                  +-----------------------------+
-                     |                       |
-        "sort" /     |                       |   "streaming"
-   "tungsten-sort"   |                       |
-                     v                       v
-        +----------------------+   +------------------------------+
-        |  SortShuffleManager  |   |   StreamingShuffleManager    |
-        |  (default, unchanged)|   +------------------------------+
-        +----------------------+                  |
-                                                  v
-                                  streaming.enabled == true  AND
-                                  fallback policy not tripped ?
-                                       |                  |
-                                      yes                 no
-                                       |                  |
-                                       v                  v
-                         +-------------------------+   +-----------------------------+
-                         |  stream producer -->    |   |  delegate to inner          |
-                         |  consumer (in-memory)   |   |  SortShuffleManager         |
-                         +-------------------------+   |  (automatic fallback)       |
-                                                       +-----------------------------+
+**Legend:** green = new streaming class (CREATE); blue = modified existing file (MODIFY); gray = referenced/unchanged component.
+
+```mermaid
+flowchart TB
+    subgraph BEFORE["Before — Master Baseline"]
+        direction TB
+        B1["conf: spark.shuffle.manager"] --> B2{"shortShuffleMgrNames map"}
+        B2 -->|"sort"| B3["SortShuffleManager"]
+        B2 -->|"tungsten-sort"| B3
+    end
+    subgraph AFTER["After — streaming Alias Registered"]
+        direction TB
+        A1["conf: spark.shuffle.manager"] --> A2{"shortShuffleMgrNames map"}
+        A2 -->|"sort / tungsten-sort"| A3["SortShuffleManager"]
+        A2 -->|"streaming"| A4["StreamingShuffleManager"]
+        A4 --> A5{"streaming.enabled AND<br/>fallback not tripped"}
+        A5 -->|"yes"| A6["Stream producer to consumer"]
+        A5 -->|"no"| A7["Delegate to inner SortShuffleManager"]
+    end
+    B2:::modify
+    B3:::ref
+    A2:::modify
+    A3:::ref
+    A4:::create
+    A6:::create
+    A7:::ref
+    classDef create fill:#d5f5e3,stroke:#1e8449,color:#145a32
+    classDef modify fill:#d6eaf8,stroke:#2471a3,color:#1a5276
+    classDef ref fill:#eaecee,stroke:#7f8c8d,color:#424949
 ```
 
 Because the inner `SortShuffleManager` is composed **unchanged**, the sort-based path is never
@@ -165,6 +167,45 @@ existing platform services (memory manager, block manager, RPC environment, metr
 map-output tracker, and block-transfer service) through their public APIs &mdash; none of those
 services is modified.
 
+**Diagram 2 &mdash; Streaming Shuffle Component Interaction** shows these new `org.apache.spark.shuffle.streaming` classes (green) and the existing Spark Core services they consume (gray), entered through the modified `ShuffleManager` factory (blue). Solid arrows denote construction or usage; the dashed arrow denotes fallback delegation from `StreamingShuffleManager` to the inner `SortShuffleManager`.
+
+**Legend:** green = new streaming class (CREATE); blue = modified existing file (MODIFY); gray = referenced/unchanged Spark Core component; solid arrow = construction/usage; dashed arrow = fallback delegation.
+
+```mermaid
+flowchart TB
+    SE["SparkEnv.create"]:::ref --> SM["ShuffleManager factory<br/>shortShuffleMgrNames"]:::modify
+    SM --> MGR["StreamingShuffleManager"]:::create
+    MGR --> H["StreamingShuffleHandle"]:::create
+    MGR --> W["StreamingShuffleWriter"]:::create
+    MGR --> R["StreamingShuffleReader"]:::create
+    MGR --> BR["StreamingShuffleBlockResolver"]:::create
+    MGR --> SRC["StreamingShuffleSource"]:::create
+    MGR --> FB["StreamingShuffleFallbackPolicy"]:::create
+    MGR -.->|"fallback"| SORT["SortShuffleManager"]:::ref
+    CFG["StreamingShuffleConfig"]:::create --> MGR
+    W --> BUF["StreamingBuffer"]:::create
+    W --> BP["BackpressureProtocol"]:::create
+    W --> SPILL["MemorySpillManager"]:::create
+    W --> TX["StreamingShuffleTransport (v1 stub)"]:::create
+    W --> ENV["StreamingBlockEnvelope"]:::create
+    BP --> RPC["BackpressureRpcEndpoint"]:::create
+    BP --> RL["TokenBucketRateLimiter"]:::create
+    SPILL --> MM["MemoryManager"]:::ref
+    SPILL --> BM["BlockManager"]:::ref
+    R --> MOT["MapOutputTracker"]:::ref
+    R --> BTS["BlockTransferService"]:::ref
+    R --> ENV
+    MET["StreamingShuffleMetrics"]:::create --> SRC
+    W --> MET
+    R --> MET
+    BP --> MET
+    SPILL --> MET
+    SRC --> MS["MetricsSystem"]:::ref
+    classDef create fill:#d5f5e3,stroke:#1e8449,color:#145a32
+    classDef modify fill:#d6eaf8,stroke:#2471a3,color:#1a5276
+    classDef ref fill:#eaecee,stroke:#7f8c8d,color:#424949
+```
+
 ## Data flow (producer &rarr; consumer)
 
 A shuffle block travels from a map task to a reduce task as follows. On the **producer** side, the
@@ -183,41 +224,28 @@ threshold (default 80%): the largest buffers are written to disk through the `Bl
 `StorageLevel.DISK_ONLY`, freeing memory while keeping the streamed and spilled bytes
 interchangeable.
 
-```
-   MAP SIDE (producer executor)                       REDUCE SIDE (consumer executor)
-   ----------------------------                       ------------------------------
+**Diagram 3 &mdash; Producer-to-Consumer Streaming Data Flow with Backpressure, Spill, and Fallback** traces a single shuffle block end to end: from the map task through `StreamingShuffleWriter` into a per-partition `StreamingBuffer`, past the token-bucket rate gate and transport, across the wire as a CRC32C-checked `StreamingBlockEnvelope`, and into `StreamingShuffleReader` for verification, deserialization, and aggregation/sort before the reduce task. The spill, control (backpressure), failure, and fallback paths overlay the data path.
 
-      [ Map task ]
-           |
-           v
-   [ StreamingShuffleWriter ]
-   per-partition StreamingBuffer
-           |
-           |  buffer > 80% ?
-           |        \
-           |         '---spill--> [ MemorySpillManager ] --putBytes(DISK_ONLY)--> [ BlockManager disk ]
-           v
-   [ TokenBucketRateLimiter gate ] <===== rate-limit / timeout ======+
-           |                                                         |
-           v                                                         |
-   frame into 2 MB blocks                                           |
-   (32-byte header + CRC32C)                                        |
-           |                                                         |
-           v                                                         |
-   [ BlockTransferService ] ===== network =====> [ StreamingShuffleReader.read ]
-                                                  (fetch in progress)
-                                                          |
-                                                          v
-                                                   verify CRC32C
-                                                          |
-                                                          v
-                                          deserialize / aggregate / sort
-                                                          |
-                                                          v
-                                                    [ Reduce task ]
-                                                          |
-                                          heartbeat (10 s) / ack ======+
-                                          via backpressure RPC endpoint
+**Legend:** solid arrows = data path; thick arrows (`==>`) = backpressure/control; dotted arrows (`-.->`) = spill, failure, or fallback.
+
+```mermaid
+flowchart LR
+    MT["Map task"] --> WR["StreamingShuffleWriter.write"]
+    WR --> PB["Per-partition StreamingBuffer"]
+    PB --> RL["TokenBucketRateLimiter gate"]
+    RL --> TX["StreamingShuffleTransport.sendBlock"]
+    TX --> WIRE["StreamingBlockEnvelope<br/>32B header + CRC32C"]
+    WIRE --> RD["StreamingShuffleReader.read<br/>fetchBlockSync"]
+    RD --> VER["verifyChecksum"]
+    VER --> DES["deserialize + aggregate/sort"]
+    DES --> RT["Reduce task"]
+    PB -.->|"buffer > 80%"| SP["MemorySpillManager"]
+    SP -.->|"putBytes DISK_ONLY"| BM["BlockManager disk"]
+    RD ==>|"heartbeat 10s / ack"| RPC["BackpressureRpcEndpoint"]
+    RPC ==>|"rate-limit / timeout"| RL
+    RD -.->|"5s timeout"| FF["FetchFailedException"]
+    FF -.->|"recompute via lineage"| MT
+    WR -.->|"fallback trip"| SORT["Inner SortShuffleManager"]
 ```
 
 If a block fails verification or the producer becomes unreachable, the reader follows the
@@ -362,7 +390,7 @@ and tuning advice live in the [user guide](streaming-shuffle-guide.html),
     <code>spark.shuffle.manager</code> must be set to <code>streaming</code> for the backend to
     engage; otherwise the sort-based shuffle is used.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
@@ -372,7 +400,7 @@ and tuning advice live in the [user guide](streaming-shuffle-guide.html),
     1&ndash;50. The per-partition buffer size is
     <code>(executorMemory * bufferSizePercent / 100) / numPartitions</code> with a 2 MB floor.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.spillThreshold</code></td>
@@ -382,16 +410,16 @@ and tuning advice live in the [user guide](streaming-shuffle-guide.html),
     <code>BlockManager</code> (<code>StorageLevel.DISK_ONLY</code>). Integer in the range
     50&ndash;95.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
-  <td>0 (unlimited)</td>
+  <td>-1 (unlimited)</td>
   <td>
     Per-executor streaming bandwidth cap in megabytes per second, enforced by the token-bucket rate
-    limiter. A value of <code>0</code> (or any non-positive value) means unlimited.
+    limiter. The default <code>-1</code> (or any non-positive value) means unlimited.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.debug</code></td>
@@ -399,7 +427,7 @@ and tuning advice live in the [user guide](streaming-shuffle-guide.html),
   <td>
     Whether to enable additional debug logging for the streaming shuffle backend.
   </td>
-  <td>4.1.0</td>
+  <td>4.2.0</td>
 </tr>
 </table>
 
