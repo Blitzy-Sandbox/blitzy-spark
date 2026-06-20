@@ -33,7 +33,7 @@ import org.apache.spark.memory.{MemoryManager, MemoryTestingUtils}
 import org.apache.spark.network.BlockTransferService
 import org.apache.spark.network.buffer.NioManagedBuffer
 import org.apache.spark.serializer.{JavaSerializer, SerializerManager}
-import org.apache.spark.shuffle.FetchFailedException
+import org.apache.spark.shuffle.{BaseShuffleHandle, FetchFailedException}
 import org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope
 import org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport
 import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
@@ -370,21 +370,27 @@ class StreamingShuffleFailureInjectionSuite
   }
 
   test("scenario 8: memory pressure forces fallback (no loss via sort path)") {
-    val cfg = new StreamingShuffleConfig(new SparkConf(false))
-    val policy = new StreamingShuffleFallbackPolicy(cfg)
-    policy.isMemoryPressure mustBe false
+    // Part 1 -- independent policy UNIT check only (not proof of manager fallback): a fresh policy
+    // is not under pressure, and a sample above the 95% threshold trips both the memory-pressure
+    // predicate and the aggregate fallback decision.
+    val unitCfg = new StreamingShuffleConfig(new SparkConf(false))
+    val unitPolicy = new StreamingShuffleFallbackPolicy(unitCfg)
+    unitPolicy.isMemoryPressure mustBe false
+    unitPolicy.updateMemoryUtilization(96)
+    unitPolicy.isMemoryPressure mustBe true
+    unitPolicy.shouldFallback mustBe true
 
-    // Memory utilization above the 95% threshold trips the fallback gate.
-    policy.updateMemoryUtilization(96)
-    policy.isMemoryPressure mustBe true
-    policy.shouldFallback mustBe true
-
-    // The manager consults the same gate; with streaming not engaged it mints a SORT handle so the
-    // shuffle is served entirely by the unchanged sort path (zero regression / zero loss).
-    if (sc == null) {
-      sc = new SparkContext("local", "test", new SparkConf(false))
-    }
-    val manager = new StreamingShuffleManager(new SparkConf(false), isDriver = true)
+    // Part 2 -- manager-level proof of AUTOMATIC fallback. The manager is configured with BOTH
+    // activation signals on (manager=streaming + streaming.enabled=true) and given its OWN fallback
+    // policy. No SparkContext is created, so SparkEnv.get is null and the registration-time memory
+    // refresh is a no-op that cannot overwrite the injected pressure sample -- isolating memory
+    // pressure as the sole cause of the fallback (not the disabled flag).
+    val conf = new SparkConf(false)
+      .set(config.SHUFFLE_MANAGER, "streaming")
+      .set(config.SHUFFLE_STREAMING_ENABLED, true)
+      .set("spark.app.id", "streaming-failure-injection-scenario-8")
+    val policy = new StreamingShuffleFallbackPolicy(new StreamingShuffleConfig(conf))
+    val manager = new StreamingShuffleManager(conf, isDriver = true, Some(policy))
     try {
       val partitioner = new Partitioner {
         override def numPartitions: Int = 2
@@ -392,13 +398,22 @@ class StreamingShuffleFailureInjectionSuite
       }
       val dependency = mock(classOf[ShuffleDependency[Int, Int, Int]])
       when(dependency.partitioner).thenReturn(partitioner)
-      when(dependency.serializer).thenReturn(new JavaSerializer(new SparkConf(false)))
+      when(dependency.serializer).thenReturn(new JavaSerializer(conf))
       when(dependency.aggregator).thenReturn(None)
       when(dependency.keyOrdering).thenReturn(None)
       when(dependency.mapSideCombine).thenReturn(false)
 
-      val handle = manager.registerShuffle(shuffleId, dependency)
+      // With streaming enabled and the policy untripped, the manager mints a STREAMING handle ...
+      manager.registerShuffle(shuffleId, dependency)
+        .isInstanceOf[StreamingShuffleHandle[_, _, _]] mustBe true
+      // ... feed memory-pressure telemetry into the manager's OWN policy (in production pushed by
+      // MemorySpillManager.maybeSpill and the manager's registration-time memory pull) ...
+      policy.updateMemoryUtilization(96)
+      // ... and the SAME enabled manager now delegates to the unchanged SortShuffleManager, so the
+      // shuffle is served entirely by the sort path (zero regression / zero data loss).
+      val handle = manager.registerShuffle(shuffleId + 1, dependency)
       handle.isInstanceOf[StreamingShuffleHandle[_, _, _]] mustBe false
+      handle.isInstanceOf[BaseShuffleHandle[_, _, _]] mustBe true
     } finally {
       manager.stop()
     }

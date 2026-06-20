@@ -68,12 +68,35 @@ import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
  * is gated on `SparkEnv.get != null` so this manager is safe to construct in local mode and in unit
  * tests where no `SparkEnv` has been installed.
  *
- * @param conf     the [[SparkConf]] this manager and its collaborators read their settings from
- * @param isDriver whether this manager runs on the driver; the backpressure RPC endpoint is
- *                 registered on executors only, so the driver passes through with no endpoint
+ * @param conf                   the [[SparkConf]] this manager and its collaborators read settings
+ *                               from
+ * @param isDriver               whether this manager runs on the driver; the backpressure RPC
+ *                               endpoint is registered on executors only, so the driver passes
+ *                               through with no endpoint
+ * @param fallbackPolicyOverride optional pre-built policy. Production NEVER supplies one --
+ *                               `SparkEnv` instantiates this manager reflectively through the
+ *                               two-argument auxiliary constructor below, which passes `None`, so a
+ *                               fresh policy is built and owned here. It exists purely as a test
+ *                               seam: a suite injects a policy whose signals (and monotonic clock)
+ *                               it controls, then asserts that the manager's own registration-time
+ *                               decision delegates to the inner [[SortShuffleManager]] under each
+ *                               of the four revert conditions while streaming is enabled.
  */
-private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
+private[spark] class StreamingShuffleManager(
+    conf: SparkConf,
+    isDriver: Boolean,
+    fallbackPolicyOverride: Option[StreamingShuffleFallbackPolicy])
   extends ShuffleManager with Logging {
+
+  /**
+   * The constructor `SparkEnv` invokes reflectively (via
+   * `Utils.instantiateSerializerOrShuffleManager`), whose required JVM signature is exactly
+   * `(SparkConf, java.lang.Boolean)`. It delegates to the 3-arg primary constructor with no
+   * fallback-policy override, so production always builds and owns its own policy; the primary
+   * constructor's third argument is reserved for tests that inject a custom policy to exercise
+   * the manager's real fallback decision.
+   */
+  def this(conf: SparkConf, isDriver: Boolean) = this(conf, isDriver, None)
 
   // The typed, validated view of the five spark.shuffle.streaming.* settings. Read once here and
   // shared with every collaborator; the configuration is immutable for the application lifetime
@@ -91,8 +114,13 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
 
   // The zero-regression decision object. It only DECIDES whether to fall back; the delegation to
   // the sort-based manager is performed here, in registerShuffle. It is pure (no SparkEnv access),
-  // so it is safe to construct eagerly -- including on the driver, where registerShuffle runs.
-  private val fallbackPolicy = new StreamingShuffleFallbackPolicy(streamingConfig)
+  // so it is safe to construct eagerly -- including on the driver, where registerShuffle runs. In
+  // production fallbackPolicyOverride is None (the reflective two-arg ctor passes None), so a
+  // fresh policy is built; a test may inject one whose signals and clock it controls. This SAME
+  // instance is handed to the backpressure protocol and spill manager below, so the live
+  // throughput, network, and memory samples they push feed the very policy useStreaming consults.
+  private val fallbackPolicy =
+    fallbackPolicyOverride.getOrElse(new StreamingShuffleFallbackPolicy(streamingConfig))
 
   // -- Lazy, pure collaborators (no SparkEnv dependency) ------------------------------------------
 
@@ -103,7 +131,7 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   // The heartbeat + token-bucket flow-control brain. Constructing it is side-effect-free; its
   // background timeout scan is started by ensureExecutorComponents() on the executor side only.
   private lazy val backpressureProtocol =
-    new BackpressureProtocol(streamingConfig, rateLimiter, streamingMetrics)
+    new BackpressureProtocol(streamingConfig, rateLimiter, streamingMetrics, Some(fallbackPolicy))
 
   // The v1 logging-only transport seam. Its companion apply() gates on SparkEnv.get internally and
   // yields a transport with no transfer service in local mode / on the driver.
@@ -220,7 +248,7 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
           //    spill would resolve a reclaimed in-memory buffer instead of the spilled bytes.
           val spill = new MemorySpillManager(
             streamingConfig, env.blockManager, env.memoryManager, streamingMetrics,
-            Some(streamingResolver))
+            Some(streamingResolver), Some(fallbackPolicy))
           spill.start()
           spillManager = spill
 
@@ -248,7 +276,44 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
    *
    * @return true when this registration should mint a streaming handle; false to delegate to sort
    */
-  private def useStreaming: Boolean = streamingConfig.enabled && !fallbackPolicy.shouldFallback
+  private def useStreaming: Boolean = {
+    // Production fallback wiring (registration-time half): pull a fresh executor-memory sample into
+    // the policy BEFORE deciding, so a memory-bound executor reverts to the sort path on the very
+    // first registration -- before any buffer is allocated and before the executor-side spill poll
+    // loop has run. The continuous slow-consumer, network, and ongoing-memory samples are pushed by
+    // the backpressure scan and the spill poll loop into this same policy instance; this refresh
+    // covers the pre-allocation / first-registration memory-pressure case.
+    refreshFallbackSignals()
+    streamingConfig.enabled && !fallbackPolicy.shouldFallback
+  }
+
+  /**
+   * Samples the executor's current on-heap memory utilization from the live [[SparkEnv]] memory
+   * manager and feeds it to the fallback policy. This is the registration-time half of the
+   * memory-pressure production signal wiring: it lets a registration decision observe pressure that
+   * already exists on the executor (e.g. from other consumers) before this shuffle buffers a single
+   * byte. Guarded on a live `SparkEnv`/`MemoryManager`, so it is a safe no-op on the driver, in
+   * local-mode bootstrap, and in unit tests with no environment. Utilization is measured against
+   * `maxOnHeapStorageMemory` -- the same denominator [[MemorySpillManager]] uses -- so the
+   * registration-time and poll-loop memory samples are directly comparable.
+   */
+  private def refreshFallbackSignals(): Unit = {
+    val env = SparkEnv.get
+    if (env != null) {
+      try {
+        val mm = env.memoryManager
+        val maxOnHeap = mm.maxOnHeapStorageMemory
+        if (maxOnHeap > 0L) {
+          val used = mm.storageMemoryUsed + mm.onHeapExecutionMemoryUsed
+          val pct = math.min(100L, math.max(0L, math.round(used * 100.0 / maxOnHeap))).toInt
+          fallbackPolicy.updateMemoryUtilization(pct)
+        }
+      } catch {
+        case NonFatal(e) =>
+          logDebug("Could not sample executor memory utilization for the fallback policy", e)
+      }
+    }
+  }
 
   /**
    * Registers a shuffle and returns the handle that fixes its backend for the whole cluster. When
@@ -455,4 +520,24 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
       metricsSource = null
     }
   }
+
+  // -- Test-only accessors (package-private to org.apache.spark.shuffle.streaming) ----------------
+  // These expose the manager's OWN collaborators so suites can drive and observe the real
+  // registration-time fallback decision instead of asserting on a standalone, disconnected policy.
+  // They are `private[streaming]`, so they never widen the public ShuffleManager SPI surface.
+
+  /**
+   * Test seam: the manager's own [[StreamingShuffleFallbackPolicy]] -- the exact instance consulted
+   * by [[useStreaming]] and fed by the backpressure protocol and spill manager. A suite drives a
+   * revert condition on this instance (or injects a clock-controlled policy at construction) and
+   * then asserts that [[registerShuffle]] delegates to the inner [[SortShuffleManager]].
+   */
+  private[streaming] def fallbackPolicyForTesting: StreamingShuffleFallbackPolicy = fallbackPolicy
+
+  /**
+   * Test seam: the manager's own [[BackpressureProtocol]], so a suite can assert that the protocol
+   * was constructed wired to the manager's fallback policy (the production slow-consumer/network
+   * signal path) rather than to a disconnected instance.
+   */
+  private[streaming] def backpressureProtocolForTesting: BackpressureProtocol = backpressureProtocol
 }

@@ -224,7 +224,7 @@ threshold (default 80%): the largest buffers are written to disk through the `Bl
 `StorageLevel.DISK_ONLY`, freeing memory while keeping the streamed and spilled bytes
 interchangeable.
 
-**Diagram 3 &mdash; Producer-to-Consumer Streaming Data Flow with Backpressure, Spill, and Fallback** traces a single shuffle block end to end: from the map task through `StreamingShuffleWriter` into a per-partition `StreamingBuffer`, past the token-bucket rate gate and transport, across the wire as a CRC32C-checked `StreamingBlockEnvelope`, and into `StreamingShuffleReader` for verification, deserialization, and aggregation/sort before the reduce task. The spill, control (backpressure), failure, and fallback paths overlay the data path.
+**Diagram 3 &mdash; Producer-to-Consumer Streaming Data Flow with Backpressure, Spill, and Fallback** traces a single shuffle block end to end: from the map task through `StreamingShuffleWriter` into a per-partition `StreamingBuffer`, past the token-bucket rate gate and transport, across the wire as a CRC32C-checked `StreamingBlockEnvelope`, and into `StreamingShuffleReader` for verification, deserialization, and aggregation/sort before the reduce task. The spill, control (backpressure), failure, and fallback paths overlay the data path. The **fallback path is a manager-level decision, not a mid-write switch**: the backpressure layer and `MemorySpillManager` push their throughput/network and memory-utilization samples into the manager-owned `StreamingShuffleFallbackPolicy`, and `StreamingShuffleManager.registerShuffle` consults it (see [Automatic fallback](#automatic-fallback-zero-regression-guarantee)) to route each new shuffle to streaming or the inner `SortShuffleManager`.
 
 **Legend:** solid arrows = data path; thick arrows (`==>`) = backpressure/control; dotted arrows (`-.->`) = spill, failure, or fallback.
 
@@ -245,7 +245,10 @@ flowchart LR
     RPC ==>|"rate-limit / timeout"| RL
     RD -.->|"5s timeout"| FF["FetchFailedException"]
     FF -.->|"recompute via lineage"| MT
-    WR -.->|"fallback trip"| SORT["Inner SortShuffleManager"]
+    RPC -.->|"throughput / network samples"| FBP["StreamingShuffleFallbackPolicy"]
+    SP -.->|"memory-utilization samples"| FBP
+    FBP -.->|"shouldFallback"| REG["StreamingShuffleManager.registerShuffle"]
+    REG -.->|"delegate new shuffle"| SORT["Inner SortShuffleManager"]
 ```
 
 If a block fails verification or the producer becomes unreachable, the reader follows the
@@ -315,17 +318,32 @@ Shuffle only changes how intermediate data is transported, not how Spark recover
 ## Automatic fallback (zero-regression guarantee)
 
 To guarantee no regression for workloads that are unsuitable for streaming, `StreamingShuffleManager`
-continuously evaluates a `StreamingShuffleFallbackPolicy`. When **any** of the following revert
-conditions is met &mdash; or when streaming is simply disabled &mdash; the manager delegates to its
-lazily-instantiated inner `SortShuffleManager`:
+owns a single `StreamingShuffleFallbackPolicy` and **wires production signals into it from their
+natural sources** so the policy reflects real executor state. The policy is kept current by
+measurements pushed continuously from the streaming collaborators, and the **revert decision is made
+at `registerShuffle` time** (inside `StreamingShuffleManager.useStreaming`), which first calls
+`refreshFallbackSignals()` to pull a fresh executor-memory sample. When **any** revert condition holds
+as a new shuffle registers &mdash; or when streaming is simply disabled &mdash; the manager delegates
+that shuffle to its lazily-instantiated inner `SortShuffleManager`. The four conditions, each with the
+exact production signal source that feeds it:
 
-1. **Slow consumer** &mdash; a consumer is sustained at 2&times; slower than its producer for more
-   than 60 s.
-2. **Memory pressure** &mdash; buffer allocation cannot be satisfied without risking out-of-memory
-   (memory utilization above 95%).
-3. **Network saturation** &mdash; network usage exceeds 90% of link capacity.
-4. **Version mismatch** &mdash; the producer and consumer report incompatible streaming protocol
-   versions.
+| # | Condition | Production signal source |
+| --- | --- | --- |
+| 1 | **Slow consumer** &mdash; consumer sustained 2&times; slower than producer for > 60 s | `BackpressureProtocol.updateThroughputWindow` &rarr; `recordThroughput` |
+| 2 | **Memory pressure** &mdash; allocation risks OOM (utilization > 95%) | `MemorySpillManager.maybeSpill` &rarr; `updateMemoryUtilization`, plus the manager's registration-time `refreshFallbackSignals()` pull |
+| 3 | **Network saturation** &mdash; usage > 90% of link capacity | `BackpressureProtocol.updateThroughputWindow` &rarr; `updateNetworkUtilization` |
+| 4 | **Version mismatch** &mdash; incompatible streaming protocol versions | `BackpressureProtocol.reportVersionMismatch` &rarr; `markVersionMismatch` |
+
+This wiring is verified end-to-end: `StreamingShuffleManagerSuite` drives each of the four conditions
+into the manager's own policy **with streaming enabled** and asserts that `registerShuffle` returns a
+sort handle from the unchanged inner `SortShuffleManager`, and `StreamingShuffleFailureInjectionSuite`
+scenario 8 proves the memory-pressure fallback specifically.
+
+**v1 note on version mismatch.** The version-mismatch trigger is fully wired
+(`reportVersionMismatch` &rarr; `markVersionMismatch`), but the v1 wire envelope (a 32-byte header
+with no version field) carries no version to compare, so on-wire **auto-detection** is deferred to v2
+alongside the network-transport hardening. The other three conditions trip automatically from live
+executor signals.
 
 Because the inner `SortShuffleManager` is composed **unchanged**, falling back is equivalent to
 running the default sort-based shuffle. This is the mechanism behind the zero-regression guarantee

@@ -55,10 +55,16 @@ import org.apache.spark.internal.Logging
  * is emitted at most once per state transition, never once per evaluation -- this honors the
  * < 10 MB/hour/executor log budget.
  *
- * @param conf the typed streaming configuration; consulted for debug-log gating
+ * @param conf      the typed streaming configuration; consulted for debug-log gating
+ * @param nanoClock the monotonic clock source (in `System.nanoTime()` units) used to stamp and
+ *                  measure the slow-consumer window. It defaults to `System.nanoTime` so production
+ *                  callers need not supply it; it is a constructor seam purely so the manager-owned
+ *                  policy can be driven to the sustained-slowness boundary deterministically in
+ *                  tests (via [[recordThroughput]] and [[shouldFallback]]) without real waiting.
  */
 private[spark] class StreamingShuffleFallbackPolicy(
-    conf: StreamingShuffleConfig) extends Logging {
+    conf: StreamingShuffleConfig,
+    nanoClock: () => Long = () => System.nanoTime()) extends Logging {
 
   import StreamingShuffleFallbackPolicy._
 
@@ -101,7 +107,7 @@ private[spark] class StreamingShuffleFallbackPolicy(
     if (isThroughputTooSlow(producerBytesPerSec, consumerBytesPerSec)) {
       // Open the window on the first slow sample; a failed CAS means it is already open, which is
       // exactly what we want -- the earliest timestamp must win so we measure continuous slowness.
-      slowSinceNanos.compareAndSet(NOT_SLOW, System.nanoTime())
+      slowSinceNanos.compareAndSet(NOT_SLOW, nanoClock())
     } else {
       // Consumer caught up: close the window so a future imbalance starts its timer afresh.
       slowSinceNanos.set(NOT_SLOW)
@@ -136,11 +142,14 @@ private[spark] class StreamingShuffleFallbackPolicy(
    * trips this predicate because the window must have been opened by [[recordThroughput]] and have
    * remained open for the full threshold.
    *
-   * @param nowNanos the current monotonic-clock reading; defaults to `System.nanoTime()` and is a
-   *                 parameter purely so tests can drive the sustained-slowness boundary precisely
+   * @param nowNanos the current monotonic-clock reading; defaults to the policy's `nanoClock` (i.e.
+   *                 `System.nanoTime()` in production) and is also an explicit parameter so tests
+   *                 can drive the sustained-slowness boundary precisely. Because [[shouldFallback]]
+   *                 calls this with the default, supplying a test `nanoClock` at construction time
+   *                 makes the manager-owned policy's slow-consumer decision deterministic too.
    * @return `true` if the consumer has been sustained-slow past the threshold, otherwise `false`
    */
-  def isSlowConsumer(nowNanos: Long = System.nanoTime()): Boolean = {
+  def isSlowConsumer(nowNanos: Long = nanoClock()): Boolean = {
     val since = slowSinceNanos.get()
     since != NOT_SLOW && (nowNanos - since) > SLOW_CONSUMER_THRESHOLD_NANOS
   }

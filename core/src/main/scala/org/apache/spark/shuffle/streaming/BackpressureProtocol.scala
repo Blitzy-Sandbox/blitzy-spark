@@ -96,15 +96,23 @@ import org.apache.spark.util.ThreadUtils
  * sort-based shuffle in any way. When the streaming backend falls back, the writer/reader simply
  * stop calling into this protocol, and the daemon scan idles over an empty stream map.
  *
- * @param conf        the typed streaming-shuffle configuration (used for the debug-logging gate and
- *                    as the single source of the timing/retry constants)
- * @param rateLimiter the byte-budget token-bucket gate shared by all producers on this executor
- * @param metrics     the shared telemetry holder; backpressure episodes are counted here
+ * @param conf           the typed streaming-shuffle configuration (used for the debug-logging gate
+ *                       and as the single source of the timing/retry constants)
+ * @param rateLimiter    the byte-budget token-bucket gate shared by all producers on this executor
+ * @param metrics        the shared telemetry holder; backpressure episodes are counted here
+ * @param fallbackPolicy the manager-owned zero-regression decision object. On every timeout scan
+ *                       the freshly recomputed producer/consumer throughput and the derived network
+ *                       utilization are pushed into it, so its slow-consumer and network-saturation
+ *                       revert conditions observe real executor flow. This is the production signal
+ *                       wiring for two of the four automatic fallback conditions. `None` only in
+ *                       unit tests that exercise the protocol in isolation; the manager always
+ *                       supplies its own policy instance so production fallback is wired.
  */
 private[spark] class BackpressureProtocol(
     conf: StreamingShuffleConfig,
     rateLimiter: TokenBucketRateLimiter,
-    metrics: StreamingShuffleMetrics) extends Logging {
+    metrics: StreamingShuffleMetrics,
+    fallbackPolicy: Option[StreamingShuffleFallbackPolicy] = None) extends Logging {
 
   import BackpressureProtocol._
 
@@ -472,6 +480,21 @@ private[spark] class BackpressureProtocol(
   /** @return the number of streams currently tracked by the protocol. */
   def activeStreamCount: Int = streams.size()
 
+  /**
+   * Reports that a producer/consumer streaming-protocol version mismatch was detected on this
+   * executor, forwarding to the manager-owned fallback policy so the streaming path reverts to the
+   * unchanged sort-based shuffle until the executor is restarted. This is the production hook for
+   * the fourth automatic fallback condition (version mismatch).
+   *
+   * NOTE (v1 scope): the v1 wire format -- the fixed 32-byte [[StreamingBlockEnvelope]] header and
+   * the backpressure RPC messages -- carries no on-wire protocol-version field, and the v1 data
+   * plane is the existing `BlockTransferService` path (see the decision log's v1 transport entry),
+   * so v1 has no automatic on-wire trigger for this hook; automatic version-mismatch detection is
+   * reserved for the deferred v2 transport hardening. The hook, the policy's version-mismatch
+   * condition, and the manager's delegation under it are nonetheless fully implemented and tested.
+   */
+  def reportVersionMismatch(): Unit = fallbackPolicy.foreach(_.markVersionMismatch())
+
   // ---- Timeout scan state machine ------------------------------------------------------------
 
   /**
@@ -529,17 +552,41 @@ private[spark] class BackpressureProtocol(
     baseNanos * (1L << shift)
   }
 
-  // Recomputes the windowed producer/consumer throughput over the bytes seen since the last scan.
+  // Recomputes the windowed producer/consumer throughput over the bytes seen since the last scan,
+  // then feeds the fresh samples to the manager-owned fallback policy so its slow-consumer and
+  // network-saturation revert conditions observe real executor flow. This is the production signal
+  // wiring for two of the four automatic fallback conditions. An idle window yields zero-rate
+  // samples, which the policy treats as "not slow" and "not saturated", so a quiescent executor
+  // never trips fallback spuriously.
   private def updateThroughputWindow(nowNanos: Long): Unit = {
     val elapsedNanos = nowNanos - lastScanNanos
     if (elapsedNanos > 0L) {
       val producedNow = totalProducerBytes.get()
       val consumedNow = totalConsumerBytes.get()
-      producerThroughputBps = ratePerSecond(producedNow - producerBytesAtLastScan, elapsedNanos)
-      consumerThroughputBps = ratePerSecond(consumedNow - consumerBytesAtLastScan, elapsedNanos)
+      val producerBps = ratePerSecond(producedNow - producerBytesAtLastScan, elapsedNanos)
+      val consumerBps = ratePerSecond(consumedNow - consumerBytesAtLastScan, elapsedNanos)
+      producerThroughputBps = producerBps
+      consumerThroughputBps = consumerBps
       lastScanNanos = nowNanos
       producerBytesAtLastScan = producedNow
       consumerBytesAtLastScan = consumedNow
+      fallbackPolicy.foreach { policy =>
+        policy.recordThroughput(producerBps, consumerBps)
+        policy.updateNetworkUtilization(networkUtilizationPercent(producerBps))
+      }
+    }
+  }
+
+  // Derives an integer link-utilization percentage in [0, 100] from the producer send rate relative
+  // to the construction-time bandwidth ceiling. When the limiter is unlimited (baseRate is the
+  // Long.MaxValue sentinel) or non-positive, there is no finite link to saturate, so utilization is
+  // reported as 0 -- an unlimited link can never be the network-saturation fallback trigger.
+  private def networkUtilizationPercent(producerBps: Long): Int = {
+    if (baseRateBytesPerSec <= 0L || baseRateBytesPerSec == Long.MaxValue || producerBps <= 0L) {
+      0
+    } else {
+      val pct = math.round(producerBps * 100.0 / baseRateBytesPerSec)
+      math.min(100L, math.max(0L, pct)).toInt
     }
   }
 

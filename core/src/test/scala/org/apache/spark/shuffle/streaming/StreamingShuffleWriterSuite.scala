@@ -26,7 +26,8 @@ import org.mockito.Mockito.{atLeastOnce, verify, when}
 import org.scalatest.PrivateMethodTester
 import org.scalatest.matchers.must.Matchers
 
-import org.apache.spark.{HashPartitioner, SharedSparkContext, ShuffleDependency, SparkConf, SparkFunSuite, TaskContext}
+import org.apache.spark.{HashPartitioner, SharedSparkContext, ShuffleDependency, SparkConf,
+  SparkFunSuite, TaskContext}
 import org.apache.spark.memory.MemoryTestingUtils
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.serializer.JavaSerializer

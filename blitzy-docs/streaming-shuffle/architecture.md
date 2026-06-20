@@ -80,7 +80,7 @@ flowchart TB
 
 ## Diagram 3 — Producer-to-Consumer Streaming Data Flow with Backpressure, Spill, and Fallback
 
-**Diagram 3** traces a single shuffle block from a map task through `StreamingShuffleWriter` into a per-partition `StreamingBuffer`, past the token-bucket rate gate and transport, across the wire as a CRC32C-checked `StreamingBlockEnvelope`, and into `StreamingShuffleReader`, where it is verified, deserialized, aggregated/sorted, and handed to the reduce task. The control path shows the reader heartbeating the `BackpressureRpcEndpoint`, which feeds rate-limit and timeout decisions back to the producer's rate gate; the spill path shows the buffer overflowing to disk via `MemorySpillManager` once it exceeds 80% utilization; and the failure path shows a 5 s connection timeout raising `FetchFailedException` so lineage recompute can recover the lost output. The fallback path shows the writer reverting to the inner `SortShuffleManager` when a fallback condition trips.
+**Diagram 3** traces a single shuffle block from a map task through `StreamingShuffleWriter` into a per-partition `StreamingBuffer`, past the token-bucket rate gate and transport, across the wire as a CRC32C-checked `StreamingBlockEnvelope`, and into `StreamingShuffleReader`, where it is verified, deserialized, aggregated/sorted, and handed to the reduce task. The control path shows the reader heartbeating the `BackpressureRpcEndpoint`, which feeds rate-limit and timeout decisions back to the producer's rate gate; the spill path shows the buffer overflowing to disk via `MemorySpillManager` once it exceeds 80% utilization; and the failure path shows a 5 s connection timeout raising `FetchFailedException` so lineage recompute can recover the lost output. The fallback path is a **manager-level decision, not a mid-write switch**: the same collaborators that drive backpressure and spill also push their measurements into the manager-owned `StreamingShuffleFallbackPolicy` — the backpressure layer (`BackpressureProtocol`, driven by the `BackpressureRpcEndpoint` shown as `RPC`) pushes throughput and network-utilization samples, `MemorySpillManager` pushes memory-utilization samples — and `StreamingShuffleManager.registerShuffle` consults that policy (after pulling a fresh memory sample via `refreshFallbackSignals()`) to route each new shuffle to either the streaming path or the inner `SortShuffleManager`.
 
 **Legend:** solid arrows = data path; thick arrows (`==>`) = backpressure/control; dotted arrows (`-.->`) = spill, failure, or fallback.
 
@@ -101,7 +101,10 @@ flowchart LR
     RPC ==>|"rate-limit / timeout"| RL
     RD -.->|"5s timeout"| FF["FetchFailedException"]
     FF -.->|"recompute via lineage"| MT
-    WR -.->|"fallback trip"| SORT["Inner SortShuffleManager"]
+    RPC -.->|"throughput / network samples"| FBP["StreamingShuffleFallbackPolicy"]
+    SP -.->|"memory-utilization samples"| FBP
+    FBP -.->|"shouldFallback"| REG["StreamingShuffleManager.registerShuffle"]
+    REG -.->|"delegate new shuffle"| SORT["Inner SortShuffleManager"]
 ```
 
 ## Coexistence with sort-based shuffle
@@ -114,12 +117,16 @@ The streaming backend is designed to live alongside the existing sort-based shuf
 
 ## Fallback conditions
 
-When the streaming path is active, `StreamingShuffleFallbackPolicy` continuously evaluates four revert-to-sort conditions. If **any** of them trips, the manager delegates the shuffle to the inner `SortShuffleManager`:
+`StreamingShuffleManager` owns a single `StreamingShuffleFallbackPolicy` and **wires production signals into it from their natural sources**, so the four revert-to-sort conditions reflect real executor state rather than a disconnected counter. The policy is kept current by measurements pushed continuously from the streaming collaborators, and the **revert decision is made at `registerShuffle` time** (in `StreamingShuffleManager.useStreaming`), which first calls `refreshFallbackSignals()` to pull a fresh executor-memory sample. If **any** condition holds when a new shuffle registers, the manager delegates that shuffle to the inner `SortShuffleManager` — the sort path stays composed unchanged. The four conditions and their production signal sources:
 
-1. Consumer sustained **2× slower** than producer for **> 60 s**.
-2. **Memory pressure** prevents buffer allocation / OOM risk (**> 95%**).
-3. **Network saturation > 90%** link capacity.
-4. **Producer/consumer version mismatch**.
+| # | Condition | Production signal source |
+| --- | --- | --- |
+| 1 | Consumer sustained **2× slower** than producer for **> 60 s** | `BackpressureProtocol.updateThroughputWindow` → `recordThroughput` |
+| 2 | **Memory pressure** / OOM risk (**> 95%**) | `MemorySpillManager.maybeSpill` → `updateMemoryUtilization`, plus the manager's registration-time `refreshFallbackSignals()` pull |
+| 3 | **Network saturation > 90%** link capacity | `BackpressureProtocol.updateThroughputWindow` → `updateNetworkUtilization` |
+| 4 | **Producer/consumer version mismatch** | `BackpressureProtocol.reportVersionMismatch` → `markVersionMismatch` |
+
+> **v1 note on version mismatch.** The version-mismatch trigger is fully wired (the `reportVersionMismatch` → `markVersionMismatch` path is in place), but the v1 wire envelope (a 32-byte header with no version field) carries no version to compare, so on-wire **auto-detection** is deferred to v2 alongside the network-transport hardening. The other three conditions trip automatically from live executor signals. This is the only fallback limitation in v1 and is recorded in the [decision log](decision-log.md).
 
 ## Operational invariants
 

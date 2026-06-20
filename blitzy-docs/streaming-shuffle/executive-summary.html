@@ -322,6 +322,18 @@
       font-family: var(--bz-mono); font-size: 0.85em; color: var(--bz-muted);
       border-left: 1px solid var(--bz-border); padding-left: 0.5em;
     }
+    /* ----- Inline status tag (verified vs. v2 target), used in metric headers ----- */
+    .bz-tag {
+      font-family: var(--bz-mono); font-size: 0.62em; font-weight: 600;
+      letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap;
+      border-radius: 999px; padding: 0.12em 0.55em; margin-left: 0.3em;
+      background: rgba(245, 158, 11, 0.12); color: var(--bz-warn);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .bz-tag.ok {
+      background: rgba(34, 197, 94, 0.12); color: var(--bz-success);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
 
     /* ----- Dual flag toggles ----- */
     .bz-flags { display: flex; flex-direction: column; gap: 0.6em; margin-top: 0.5em; }
@@ -388,7 +400,7 @@
           <div class="bz-meta">
             <span><i data-lucide="zap" class="bz-ico"></i> Opt-in backend</span>
             <span><i data-lucide="shield-check" class="bz-ico-success"></i> Zero-regression fallback</span>
-            <span><i data-lucide="gauge" class="bz-ico-primary"></i> 30&ndash;50% lower latency</span>
+            <span><i data-lucide="gauge" class="bz-ico-primary"></i> 30&ndash;50% latency reduction (v2 target)</span>
           </div>
         </div>
         <div class="bz-foot">
@@ -437,22 +449,22 @@
       <!-- ============================ SLIDE 4: BUSINESS VALUE ============================ -->
       <section>
         <span class="bz-kicker"><i data-lucide="target"></i> Business Value</span>
-        <h2>Measurable outcomes</h2>
+        <h2>Target outcomes, verified safety</h2>
         <div class="bz-metrics">
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="gauge"></i> Latency</span>
+            <span class="bz-mhead"><i data-lucide="gauge"></i> Latency <span class="bz-tag">v2 target</span></span>
             <div class="bz-v">30&ndash;50%</div>
-            <div class="bz-l">lower end-to-end latency for shuffle-heavy workloads (100 MB+, 10+ partitions)</div>
+            <div class="bz-l">lower end-to-end latency for shuffle-heavy workloads (100 MB+, 10+ partitions); realized when the v2 streaming data plane replaces the v1 logging-only transport</div>
           </div>
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="trending-up"></i> Throughput</span>
+            <span class="bz-mhead"><i data-lucide="trending-up"></i> Throughput <span class="bz-tag">v2 target</span></span>
             <div class="bz-v">5&ndash;10%</div>
-            <div class="bz-l">improvement for CPU-bound workloads via reduced scheduler overhead</div>
+            <div class="bz-l">improvement for CPU-bound workloads via reduced scheduler overhead (v2)</div>
           </div>
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="shield-check"></i> Safety</span>
+            <span class="bz-mhead"><i data-lucide="shield-check"></i> Safety <span class="bz-tag ok">verified</span></span>
             <div class="bz-v green">Zero</div>
-            <div class="bz-l">regression for memory-bound workloads &mdash; automatic fallback to sort</div>
+            <div class="bz-l">regression for memory-bound workloads &mdash; automatic fallback to sort, proven in v1</div>
           </div>
           <div class="bz-metric">
             <span class="bz-mhead"><i data-lucide="database"></i> Durability</span>
@@ -599,12 +611,12 @@ flowchart TB
           </div>
           <div class="bz-tile">
             <span class="bz-tile-ico"><i data-lucide="corner-down-right"></i></span>
-            <span class="bz-tile-body"><b>Automatic fallback</b>Disabled or unsuitable: delegate to the inner sort manager.</span>
+            <span class="bz-tile-body"><b>Automatic fallback</b>Live signals from backpressure and spill feed the manager-owned policy; <code>registerShuffle</code> routes unsuitable shuffles to the inner sort manager.</span>
           </div>
         </div>
         <div class="bz-callout green">
           <span class="bz-ci"><i data-lucide="shield-check" class="bz-ico-success"></i></span>
-          <span>Changes are confined to the <code>ShuffleManager</code> boundary &mdash; the scheduler, executor lifecycle, and user-facing APIs are untouched.</span>
+          <span>Production-wired and verified: backpressure pushes throughput/network samples, the spill manager pushes memory utilization, and the decision is taken at shuffle registration &mdash; proven by <code>StreamingShuffleManagerSuite</code> delegating to the unchanged <code>SortShuffleManager</code>.</span>
         </div>
       </section>
 
@@ -627,8 +639,12 @@ flowchart TB
           </div>
           <div class="bz-tile">
             <span class="bz-tile-ico"><i data-lucide="git-compare"></i></span>
-            <span class="bz-tile-body"><b>Version mismatch</b>Producer and consumer versions differ.</span>
+            <span class="bz-tile-body"><b>Version mismatch</b>Producer and consumer versions differ. <em>Trigger wired in v1; on-wire auto-detection lands in v2.</em></span>
           </div>
+        </div>
+        <div class="bz-callout">
+          <span class="bz-ci"><i data-lucide="info" class="bz-ico"></i></span>
+          <span>Three of the four conditions trip automatically from live executor signals today; version-mismatch auto-detection is deferred to v2 with the transport hardening (see the decision log).</span>
         </div>
       </section>
 
@@ -684,32 +700,41 @@ flowchart TB
       <!-- ============================ SLIDE 14: PERFORMANCE EVIDENCE ============================ -->
       <section>
         <span class="bz-kicker"><i data-lucide="gauge"></i> Performance Evidence</span>
-        <h2>Benchmark-driven deltas</h2>
+        <h2>v1 parity verified, v2 deltas targeted</h2>
         <div class="bz-bars">
           <div class="bz-bar-row">
             <span class="bz-bar-label"><b>Sort-based</b>baseline</span>
             <span class="bz-bar-track"><span class="bz-bar-fill base" style="width: 100%;">100%</span></span>
           </div>
           <div class="bz-bar-row">
-            <span class="bz-bar-label"><b>Streaming</b>shuffle-heavy</span>
-            <span class="bz-bar-track"><span class="bz-bar-fill stream" style="width: 60%;">50&ndash;70%</span></span>
+            <span class="bz-bar-label"><b>Streaming v1</b>shuffle-heavy</span>
+            <span class="bz-bar-track"><span class="bz-bar-fill stream" style="width: 97%;">&asymp; parity (verified)</span></span>
+          </div>
+          <div class="bz-bar-row">
+            <span class="bz-bar-label"><b>Streaming v2</b>target</span>
+            <span class="bz-bar-track"><span class="bz-bar-fill stream" style="width: 60%; opacity: 0.55;">50&ndash;70% (target)</span></span>
           </div>
         </div>
         <div class="bz-metrics bz-mt">
           <div class="bz-metric">
+            <span class="bz-mhead"><i data-lucide="shield-check"></i> Zero regression</span>
+            <div class="bz-v green">Verified</div>
+            <div class="bz-l">v1 shuffle-heavy, CPU-bound, and memory-bound (real fallback) all at parity</div>
+          </div>
+          <div class="bz-metric">
             <span class="bz-mhead"><i data-lucide="timer"></i> Latency</span>
             <div class="bz-v">30&ndash;50%</div>
-            <div class="bz-l">target reduction range for shuffle-heavy workloads</div>
+            <div class="bz-l">v2 target once the streaming data plane replaces the v1 logging-only transport</div>
           </div>
           <div class="bz-metric">
             <span class="bz-mhead"><i data-lucide="check-check"></i> Coverage</span>
             <div class="bz-v green">&gt;85%</div>
-            <div class="bz-l">unit-coverage merge gate across streaming components</div>
+            <div class="bz-l">merge bar; substantiated by the test-to-source mapping and the instrumented scoverage command</div>
           </div>
         </div>
         <div class="bz-callout">
           <span class="bz-ci"><i data-lucide="file-check-2" class="bz-ico"></i></span>
-          <span>Verified by <code>StreamingShufflePerformanceBenchmark</code> with checked-in result files for reproducible deltas.</span>
+          <span><code>StreamingShufflePerformanceBenchmark</code> models a ~122 MB shuffle-heavy workload across 16 partitions, a CPU-bound case, and a memory-bound case that genuinely fills executor storage to ~99% and trips the production fallback to sort. The checked-in result files report <strong>measured v1 numbers</strong> (parity / zero regression); the 30&ndash;50% and 5&ndash;10% deltas are <strong>v2 targets</strong> &mdash; see the decision log.</span>
         </div>
       </section>
 
@@ -745,12 +770,12 @@ flowchart TB
         <h2>Opt-in. Zero-regression. Measurable.</h2>
         <div class="bz-metrics">
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="gauge"></i> Latency</span>
+            <span class="bz-mhead"><i data-lucide="gauge"></i> Latency <span class="bz-tag">v2 target</span></span>
             <div class="bz-v">30&ndash;50%</div>
-            <div class="bz-l">lower for shuffle-heavy workloads</div>
+            <div class="bz-l">lower for shuffle-heavy workloads (v1 verified at parity)</div>
           </div>
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="shield-check"></i> Risk</span>
+            <span class="bz-mhead"><i data-lucide="shield-check"></i> Risk <span class="bz-tag ok">verified</span></span>
             <div class="bz-v green">Zero</div>
             <div class="bz-l">regression and zero data loss via fallback</div>
           </div>
@@ -762,7 +787,7 @@ flowchart TB
         </div>
         <div class="bz-callout accent">
           <span class="bz-ci"><i data-lucide="rocket" class="bz-ico"></i></span>
-          <span><strong>Enable in a staging cluster and measure.</strong> The safe fallback guarantees no downside while you validate the latency wins.</span>
+          <span><strong>Enable in a staging cluster and measure.</strong> The safe fallback guarantees no downside while you validate correctness and parity today &mdash; and measure the latency wins as the v2 data plane lands.</span>
         </div>
         <div class="bz-foot">
           <span class="bz-foot-brand">BLITZY</span>

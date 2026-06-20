@@ -199,24 +199,133 @@ class StreamingShuffleManagerSuite extends SparkFunSuite with LocalSparkContext 
     }
   }
 
-  test("fallback decision trips the sort path") {
-    // The manager holds its StreamingShuffleFallbackPolicy privately and exposes no injection point
-    // (its constructor is (conf, isDriver)), so the fallback contract is proven in two parts.
-    //
-    // Part 1 -- the decision object the manager gates useStreaming on: a fresh policy does not fall
-    // back, and a tripped condition (a producer/consumer version mismatch) flips shouldFallback to
-    // true. Since useStreaming = enabled && !shouldFallback, a true value forces the sort branch.
-    val policy = new StreamingShuffleFallbackPolicy(new StreamingShuffleConfig(newConf(true)))
-    assert(!policy.shouldFallback)
-    policy.markVersionMismatch()
-    assert(policy.shouldFallback)
-    // Part 2 -- the manager's sort delegation: the streaming-disabled path reaches the identical
-    // `else` branch of useStreaming that a tripped fallback reaches, and yields a sort handle.
-    val conf = newConf(streaming = false)
+  /**
+   * Asserts that `handle` is a sort [[BaseShuffleHandle]] from the inner sort manager -- i.e. that
+   * a fallback registration delegated to the unchanged sort path -- and never a streaming handle.
+   */
+  private def assertSortHandle(handle: org.apache.spark.shuffle.ShuffleHandle): Unit = {
+    assert(!handle.isInstanceOf[StreamingShuffleHandle[_, _, _]],
+      "fallback registration must NOT mint a streaming handle")
+    assert(handle.isInstanceOf[BaseShuffleHandle[_, _, _]],
+      "fallback registration must mint a sort BaseShuffleHandle from the inner SortShuffleManager")
+  }
+
+  // Comfortably exceeds the ~60s sustained slow-consumer threshold, so advancing the policy's
+  // injected clock by that many nanoseconds trips the slow-consumer window without real waiting.
+  private val pastSlowConsumerThresholdNanos = 120L * 1000L * 1000L * 1000L
+
+  // The following six tests are the CP3 fix for the prior "fallback decision trips the sort path"
+  // test, which only proved a standalone policy and a *disabled* manager. They instead trigger each
+  // of the four revert conditions on the manager's OWN fallback policy WHILE STREAMING IS ENABLED
+  // (spark.shuffle.manager=streaming + spark.shuffle.streaming.enabled=true) and assert that the
+  // very same manager delegates registerShuffle to the unchanged inner SortShuffleManager -- the
+  // AAP's automatic-fallback / zero-regression guarantee. None constructs a SparkContext, so
+  // SparkEnv.get is null and the registration-time refreshFallbackSignals() is a safe no-op that
+  // does not overwrite the condition under test.
+
+  test("the manager's own (internally built) fallback policy governs registration") {
+    val conf = newConf(streaming = true)
+    // Production-style two-argument construction: the manager builds and owns its policy (no
+    // injection). This proves the decision is made by the manager's OWN policy, not a side object.
     val mgr = new StreamingShuffleManager(conf, isDriver = false)
     try {
-      val handle = mgr.registerShuffle(0, bypassDep(conf))
-      assert(!handle.isInstanceOf[StreamingShuffleHandle[_, _, _]])
+      val dep = bypassDep(conf)
+      // Untripped: streaming is enabled and the manager's policy is fresh, so it mints a stream.
+      assert(mgr.registerShuffle(0, dep).isInstanceOf[StreamingShuffleHandle[_, _, _]])
+      // Trip a revert condition on the manager's OWN policy instance ...
+      mgr.fallbackPolicyForTesting.markVersionMismatch()
+      // ... and the SAME enabled manager now delegates to the inner sort manager.
+      assertSortHandle(mgr.registerShuffle(1, dep))
+    } finally {
+      mgr.stop()
+    }
+  }
+
+  test("fallback on a sustained slow consumer delegates registration to sort") {
+    val conf = newConf(streaming = true)
+    // A clock-controlled policy injected into the manager via the 3-arg test constructor lets us
+    // drive the sustained-slowness window to its boundary without waiting in real time. Because
+    // shouldFallback evaluates isSlowConsumer() against this same clock, the manager's own decision
+    // observes the slow consumer deterministically.
+    @volatile var clockNanos = 0L
+    val policy =
+      new StreamingShuffleFallbackPolicy(new StreamingShuffleConfig(conf), () => clockNanos)
+    val mgr = new StreamingShuffleManager(conf, isDriver = false, Some(policy))
+    try {
+      val dep = bypassDep(conf)
+      // Producer sustains far more than the slow-consumer ratio of the consumer's throughput,
+      // opening the slowness window at the current (t=0) clock reading.
+      policy.recordThroughput(producerBytesPerSec = 100000000L, consumerBytesPerSec = 1L)
+      // Not yet sustained past the threshold, so streaming still engages.
+      assert(mgr.registerShuffle(0, dep).isInstanceOf[StreamingShuffleHandle[_, _, _]])
+      // Advance well beyond the ~60s threshold: the imbalance is now sustained, tripping fallback.
+      clockNanos = pastSlowConsumerThresholdNanos
+      assertSortHandle(mgr.registerShuffle(1, dep))
+    } finally {
+      mgr.stop()
+    }
+  }
+
+  test("fallback on memory pressure delegates registration to sort") {
+    val conf = newConf(streaming = true)
+    val policy = new StreamingShuffleFallbackPolicy(new StreamingShuffleConfig(conf))
+    val mgr = new StreamingShuffleManager(conf, isDriver = false, Some(policy))
+    try {
+      val dep = bypassDep(conf)
+      assert(mgr.registerShuffle(0, dep).isInstanceOf[StreamingShuffleHandle[_, _, _]])
+      // Push a memory-utilization sample above the 95% pressure threshold -- in production this is
+      // pushed by MemorySpillManager.maybeSpill and by the manager's registration-time memory pull.
+      policy.updateMemoryUtilization(96)
+      assertSortHandle(mgr.registerShuffle(1, dep))
+    } finally {
+      mgr.stop()
+    }
+  }
+
+  test("fallback on network saturation delegates registration to sort") {
+    val conf = newConf(streaming = true)
+    val policy = new StreamingShuffleFallbackPolicy(new StreamingShuffleConfig(conf))
+    val mgr = new StreamingShuffleManager(conf, isDriver = false, Some(policy))
+    try {
+      val dep = bypassDep(conf)
+      assert(mgr.registerShuffle(0, dep).isInstanceOf[StreamingShuffleHandle[_, _, _]])
+      // Push a link-utilization sample above the 90% saturation threshold -- in production this is
+      // derived from producer throughput vs. the bandwidth cap and pushed by the backpressure scan.
+      policy.updateNetworkUtilization(95)
+      assertSortHandle(mgr.registerShuffle(1, dep))
+    } finally {
+      mgr.stop()
+    }
+  }
+
+  test("fallback on a streaming-protocol version mismatch delegates registration to sort") {
+    val conf = newConf(streaming = true)
+    val policy = new StreamingShuffleFallbackPolicy(new StreamingShuffleConfig(conf))
+    val mgr = new StreamingShuffleManager(conf, isDriver = false, Some(policy))
+    try {
+      val dep = bypassDep(conf)
+      assert(mgr.registerShuffle(0, dep).isInstanceOf[StreamingShuffleHandle[_, _, _]])
+      // Mark a protocol version mismatch -- in production reported via
+      // BackpressureProtocol.reportVersionMismatch (see the v1-scope note on that method).
+      policy.markVersionMismatch()
+      assertSortHandle(mgr.registerShuffle(1, dep))
+    } finally {
+      mgr.stop()
+    }
+  }
+
+  test("backpressure protocol reports version mismatch into the manager's own policy") {
+    val conf = newConf(streaming = true)
+    // Production-style construction: assert the manager wired its backpressure protocol to its OWN
+    // policy, so a signal via the protocol trips the very policy that registration consults.
+    val mgr = new StreamingShuffleManager(conf, isDriver = false)
+    try {
+      val dep = bypassDep(conf)
+      assert(mgr.registerShuffle(0, dep).isInstanceOf[StreamingShuffleHandle[_, _, _]])
+      mgr.backpressureProtocolForTesting.reportVersionMismatch()
+      assert(mgr.fallbackPolicyForTesting.shouldFallback,
+        "a mismatch reported through the protocol must trip the manager's own policy")
+      assertSortHandle(mgr.registerShuffle(1, dep))
     } finally {
       mgr.stop()
     }

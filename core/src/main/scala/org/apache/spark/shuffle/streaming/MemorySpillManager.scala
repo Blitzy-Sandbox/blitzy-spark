@@ -92,16 +92,24 @@ import org.apache.spark.util.ThreadUtils
  * @param blockManager  the executor [[BlockManager]] used to persist spilled buffers to disk
  * @param memoryManager [[MemoryManager]] whose `maxOnHeapStorageMemory` is the spill denominator
  * @param metrics       the shared telemetry holder updated with the gauge and spill counter
- * @param resolver      the streaming block resolver to notify on spill completion so a reduce-side
- *                      fetch is served from the on-disk copy (and never from the cleared in-memory
- *                      buffer); `None` only in unit tests that exercise the spill loop in isolation
+ * @param resolver       the streaming block resolver to notify on spill completion so a reduce-side
+ *                       fetch is served from the on-disk copy (and never from the cleared in-memory
+ *                       buffer); `None` only in unit tests that exercise the spill loop alone
+ * @param fallbackPolicy the manager-owned zero-regression decision object. Every utilization
+ *                       recomputation (each 100 ms poll tick and every on-demand `maybeSpill`)
+ *                       pushes the fresh buffer-memory-utilization percentage into it, so its
+ *                       memory-pressure revert condition observes real buffer growth. This is the
+ *                       production signal wiring for the memory-pressure automatic fallback
+ *                       condition. `None` only in isolation unit tests; the manager always supplies
+ *                       its own policy instance so production fallback is wired end-to-end.
  */
 private[spark] class MemorySpillManager(
     conf: StreamingShuffleConfig,
     blockManager: BlockManager,
     memoryManager: MemoryManager,
     metrics: StreamingShuffleMetrics,
-    resolver: Option[StreamingShuffleBlockResolver] = None)
+    resolver: Option[StreamingShuffleBlockResolver] = None,
+    fallbackPolicy: Option[StreamingShuffleFallbackPolicy] = None)
   extends Logging {
 
   import MemorySpillManager._
@@ -191,7 +199,12 @@ private[spark] class MemorySpillManager(
   def maybeSpill(): Long = {
     val denominator = memoryManager.maxOnHeapStorageMemory
     val total = totalBufferedBytes()
-    metrics.setBufferUtilizationPercent(utilizationPercentOf(total, denominator))
+    val utilizationPercent = utilizationPercentOf(total, denominator)
+    metrics.setBufferUtilizationPercent(utilizationPercent)
+    // Production fallback wiring: push the live buffer-memory utilization into the manager-owned
+    // policy so its memory-pressure revert condition (an OOM risk for buffer allocation) observes
+    // real buffer growth. A non-positive denominator yields 0%, so this never trips spuriously.
+    fallbackPolicy.foreach(_.updateMemoryUtilization(math.round(utilizationPercent).toInt))
     if (denominator <= 0L) {
       // No meaningful budget to measure against; nothing to spill.
       return 0L
