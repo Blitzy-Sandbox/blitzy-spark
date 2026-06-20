@@ -56,10 +56,11 @@ to drive each diagnosis.
 
 The streaming shuffle backend emits four metrics under the `shuffle.streaming.*` namespace. They are
 exposed through Spark's existing `MetricsSystem` (the Dropwizard-based metrics framework), so they are
-available over JMX and through the Prometheus endpoint `/metrics/executors/prometheus`, and they also
-surface in the **Stages** tab's shuffle columns of the Spark Web UI. No additional metrics
-configuration is required beyond what you already use for Spark; see [Monitoring](monitoring.html) for
-how to wire up JMX, Prometheus, and other sinks. These four metrics are the primary signals for every
+available over JMX and through the Prometheus endpoint `/metrics/executors/prometheus`. The backend
+registers a `MetricsSystem` source only; it does **not** add columns to the Spark Web UI **Stages**
+tab, so consume `shuffle.streaming.*` via JMX, Prometheus, or the Grafana dashboard. No additional
+metrics configuration is required beyond what you already use for Spark; see
+[Monitoring](monitoring.html) for how to wire up JMX, Prometheus, and other sinks. These four metrics are the primary signals for every
 symptom below — most diagnoses start by inspecting how they trend over the lifetime of a shuffle-heavy
 stage.
 
@@ -202,10 +203,12 @@ to balance buffer size against spill frequency for your data volume and partitio
 # Symptom: producers throttled (backpressure)
 
 A high or rapidly increasing `backpressureEvents` counter means the flow-control protocol is actively
-throttling producers. The backend uses a consumer-to-producer heartbeat (sent on a 10-second interval)
-together with token-bucket rate limiting to keep producers from overwhelming consumers. When a consumer
-signals that it is falling behind, producers are slowed; each such throttling action increments
-`backpressureEvents`. A modest, stable level of backpressure is healthy — it is the mechanism keeping
+throttling producers. The backend uses a consumer-to-producer heartbeat/ack (sent on a 10-second
+interval) together with token-bucket rate limiting to keep producers from overwhelming consumers. In
+v1 this control plane is RPC-wired over the existing `RpcEnv` to the **co-located** producer's
+`BackpressureRpcEndpoint` (driving an arbitrary, non-co-located remote producer is a v2 enhancement).
+When a consumer signals that it is falling behind, producers are slowed; each such throttling action
+increments `backpressureEvents`. A modest, stable level of backpressure is healthy — it is the mechanism keeping
 memory bounded — but sustained, high throttling usually points at one of the following causes:
 
 * **Slow or overloaded consumers** — the reduce-side tasks cannot drain data fast enough. Scale up or

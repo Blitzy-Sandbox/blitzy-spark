@@ -27,19 +27,20 @@ On top of the reused stack, the feature adds exactly three observability artifac
 | `backpressureEvents` | counter | Number of producer-throttling (backpressure) events raised by the flow-control protocol. |
 | `partialReadInvalidations` | counter | Number of partial reads invalidated on producer failure or connection timeout. |
 
-These four metrics are emitted under the **`shuffle.streaming.*`** namespace by a **`StreamingShuffleSource`** — an implementation of `org.apache.spark.metrics.source.Source` — that `StreamingShuffleManager` registers with the executor **`MetricsSystem`** (registration is gated on a live `SparkEnv` for local-mode safety). Because they register as a standard metric source, the values surface automatically through the reused endpoints: **JMX**, the Prometheus endpoint **`/metrics/executors/prometheus`**, and the Web UI **Stages-tab shuffle columns**.
+These four metrics are emitted under the **`shuffle.streaming.*`** namespace by a **`StreamingShuffleSource`** — an implementation of `org.apache.spark.metrics.source.Source` — that `StreamingShuffleManager` registers with the executor **`MetricsSystem`** (registration is gated on a live `SparkEnv` for local-mode safety). Because they register as a standard metric source, the values surface automatically through the reused `MetricsSystem` endpoints: **JMX** and the Prometheus endpoint **`/metrics/executors/prometheus`** (plus any other configured metrics sink). The backend registers a `MetricsSystem` **source only** — it does **not** add Spark Web UI Stages-tab columns — so consume `shuffle.streaming.*` via JMX, the Prometheus endpoint, or the Grafana dashboard below.
 
 ### Structured logging with correlation IDs
 
-Streaming-specific log lines are **structured** and tagged with MDC (Mapped Diagnostic Context) correlation keys, so a single shuffle can be traced end-to-end across producer (map-side) and consumer (reduce-side) executors. To stay consistent with the rest of Spark, the backend reuses **canonical `org.apache.spark.internal.LogKeys`** rather than inventing new keys; the MDC string key is the `LogKey` enum name lower-cased (e.g. `SHUFFLE_ID` → `shuffle_id`). The AAP's conceptual correlation dimensions (`shuffle_id`, `map_id`, `reduce_partition_range`, `attempt_id`) therefore map onto the canonical keys actually emitted as follows:
+Streaming-specific log lines are **structured** and tagged with MDC (Mapped Diagnostic Context) correlation keys, so a single shuffle can be traced end-to-end across producer (map-side) and consumer (reduce-side) executors. The backend emits the **exact MDC correlation keys** required by the Observability rule — **`shuffle_id`**, **`map_id`**, **`reduce_partition_range`**, and **`attempt_id`**. It reuses the canonical `org.apache.spark.internal.LogKeys` where Spark already defines a matching key (`SHUFFLE_ID` → `shuffle_id`, `MAP_ID` → `map_id`) and defines two additional in-package `LogKey`s in **`StreamingShuffleLogKeys`** for the dimensions Spark has no canonical key for (`ATTEMPT_ID` → `attempt_id`, `REDUCE_PARTITION_RANGE` → `reduce_partition_range`). The MDC string key is always the `LogKey` name lower-cased (`Locale.ROOT`), so the keys actually emitted are:
 
 | MDC key | Identifies |
 |---------|-----------|
-| `shuffle_id` | The shuffle being executed. |
-| `map_id` | The producer (map-side) task. |
-| `start_index` / `end_index` | The map-output index range a reduce task reads (range start / range end). |
-| `reduce_id` / `partition_id` | The consumer (reduce-side) partition range being served or read (range start / range end); together these express the `reduce_partition_range` dimension. |
-| `task_attempt_id` | The task attempt, distinguishing retries from originals (the `attempt_id` dimension). |
+| `shuffle_id` | The shuffle being executed (emitted on writer and reader log lines). |
+| `map_id` | The producer (map-side) task (emitted on writer log lines and the reader's per-block / failure log lines). |
+| `reduce_partition_range` | The consumer (reduce-side) partition range a reduce task reads, formatted `[startPartition,endPartition)` (emitted on the reader's summary log line). |
+| `attempt_id` | The task attempt, distinguishing retries from originals (emitted on the reader and writer summary log lines). |
+
+The MDC context map is populated when Spark's structured-logging framework is enabled (the standard production logging layout); when it is disabled the same key/value pairs render inline in the message text. Either way the four correlation dimensions are present on the streaming log lines.
 
 Setting **`spark.shuffle.streaming.debug=true`** raises log verbosity for diagnostics; it is `false` by default (see the [Configuration](configuration.md) page). Keep it off in production to stay within the logging budget described under [Constraints](#constraints).
 
@@ -65,10 +66,11 @@ Confirming that the four metrics actually emit in a local development run is par
 
 1. **Enable streaming.** Set both activation signals: `spark.shuffle.manager=streaming` and `spark.shuffle.streaming.enabled=true`. (Both default off, so streaming is strictly opt-in.)
 2. **Run a small shuffle job.** Any job with a shuffle stage — for example a `groupBy` or `reduceByKey` over a modest dataset — exercises the streaming writer and reader.
-3. **Scrape or inspect the metrics.** Confirm the four `shuffle.streaming.*` values appear via any reused surface:
-    - the Prometheus endpoint **`/metrics/executors/prometheus`**,
-    - a **JMX** console attached to the executor, or
-    - the Web UI **Stages-tab shuffle columns**.
+3. **Scrape or inspect the metrics.** Confirm the four `shuffle.streaming.*` values appear via any reused `MetricsSystem` surface:
+    - the Prometheus endpoint **`/metrics/executors/prometheus`**, or
+    - a **JMX** console attached to the executor.
+
+    (The backend registers a `MetricsSystem` source only; it does not add Spark Web UI Stages-tab columns.)
 
 Seeing a non-null `bufferUtilizationPercent` gauge and incrementing counters (`spillCount`, `backpressureEvents`, and `partialReadInvalidations`, as the relevant conditions occur) confirms the `StreamingShuffleSource → MetricsSystem` path is wired correctly.
 

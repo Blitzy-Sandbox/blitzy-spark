@@ -408,7 +408,12 @@ private[spark] class StreamingShuffleManager(
           streamingConfig,
           streamingMetrics,
           transport,
-          backpressureProtocol)
+          backpressureProtocol,
+          // Hand the reader the executor-local backpressure endpoint reference (set by
+          // ensureExecutorComponents via registerIfExecutor; None on the driver / in local mode).
+          // This closes the consumer->producer control loop end-to-end: the reader delivers remote
+          // heartbeats/acks to a co-located producer's BackpressureProtocol through this reference.
+          backpressureEndpoint = backpressureEndpoint)
       case _ =>
         // Coexistence: delegate non-streaming handles to the sort reader, preserving the existing
         // read path unchanged.

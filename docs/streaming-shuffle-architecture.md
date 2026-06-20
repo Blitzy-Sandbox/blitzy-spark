@@ -49,20 +49,35 @@ pressure). Because activation is opt-in and the fallback is automatic, the **def
 every existing Spark deployment is unchanged** — no configuration change means byte-for-byte
 identical behavior to the sort-based shuffle.
 
-At a high level, the backend targets the following measurable goals:
+At a high level, the backend targets the following measurable goals. The **v1 release** delivers the
+correctness and safety guarantees in full; the **headline latency-reduction targets are v2 goals**
+that materialize once the real streaming data plane replaces the v1 logging-only transport layer
+(see the streaming-shuffle decision log).
 
-* **30&ndash;50% end-to-end latency reduction** for shuffle-heavy workloads (&ge; 100 MB of shuffle
-  data across &ge; 10 partitions).
-* **5&ndash;10% improvement** for CPU-bound workloads via reduced scheduler and materialization
-  overhead.
+**Delivered in v1 (verified):**
+
 * **Zero regression** for memory-bound workloads, achieved through automatic fallback to the
   sort-based shuffle.
 * **Zero data loss** under all failure scenarios, achieved by surfacing failures as
   `FetchFailedException` so Spark's existing lineage and recompute machinery recovers lost output.
 
-The remainder of this page describes how these goals are met without modifying the DAG scheduler,
-the task-scheduling algorithms, executor lifecycle management, the lineage/fault-recovery model, or
-any RDD/DataFrame/Dataset user-facing API.
+**v2 latency targets (design goals; not yet met in v1):**
+
+* **30&ndash;50% end-to-end latency reduction** for shuffle-heavy workloads (&ge; 100 MB of shuffle
+  data across &ge; 10 partitions).
+* **5&ndash;10% improvement** for CPU-bound workloads via reduced scheduler and materialization
+  overhead.
+
+Because v1 reuses the existing `BlockTransferService` pull path (the `StreamingShuffleTransport` is
+an intentional logging-only integration layer — not a defect), the committed benchmark artifacts
+report the actual measured v1 numbers (shuffle-heavy &asymp; 2.7% best / 11.5% average; CPU-bound
+&asymp; 5.2% best / 4.1% average; memory-bound fallback shows no regression), demonstrating
+functional parity and zero regression rather than the headline latency deltas.
+
+The remainder of this page describes how the v1 guarantees are met (and how the v2 latency targets
+will be reached) without modifying the DAG scheduler, the task-scheduling algorithms, executor
+lifecycle management, the lineage/fault-recovery model, or any RDD/DataFrame/Dataset user-facing
+API.
 
 ## How it differs from sort-based shuffle
 
@@ -218,15 +233,30 @@ blocks while they are still being produced, verifies each block's CRC32C, and th
 reduce task.
 
 Two control paths overlay the data path. A **backpressure** path sends a heartbeat/acknowledgement
-from the consumer back to the producer on a 10 s interval so the producer can throttle when the
-consumer falls behind. A **spill** path activates when a buffer's utilization exceeds the spill
-threshold (default 80%): the largest buffers are written to disk through the `BlockManager` using
+(and, when a bandwidth cap is configured, a rate-limit request) from the consumer back to the
+producer so the producer can throttle when the consumer falls behind. This control plane is
+**RPC-wired** through the per-executor `BackpressureRpcEndpoint`: after each successful fetch the
+reader uses the in-package `BackpressureRpcSender` to deliver these messages to the **co-located**
+producer's endpoint over the existing `RpcEnv`, driving the producer-side protocol. Driving an
+arbitrary **remote** (non-co-located) producer requires endpoint auto-discovery and is a **v2
+enhancement**. A **spill** path activates when a buffer's utilization exceeds the spill threshold
+(default 80%): the largest buffers are written to disk through the `BlockManager` using
 `StorageLevel.DISK_ONLY`, freeing memory while keeping the streamed and spilled bytes
 interchangeable.
 
 **Diagram 3 &mdash; Producer-to-Consumer Streaming Data Flow with Backpressure, Spill, and Fallback** traces a single shuffle block end to end: from the map task through `StreamingShuffleWriter` into a per-partition `StreamingBuffer`, past the token-bucket rate gate and transport, across the wire as a CRC32C-checked `StreamingBlockEnvelope`, and into `StreamingShuffleReader` for verification, deserialization, and aggregation/sort before the reduce task. The spill, control (backpressure), failure, and fallback paths overlay the data path. The **fallback path is a manager-level decision, not a mid-write switch**: the backpressure layer and `MemorySpillManager` push their throughput/network and memory-utilization samples into the manager-owned `StreamingShuffleFallbackPolicy`, and `StreamingShuffleManager.registerShuffle` consults it (see [Automatic fallback](#automatic-fallback-zero-regression-guarantee)) to route each new shuffle to streaming or the inner `SortShuffleManager`.
 
 **Legend:** solid arrows = data path; thick arrows (`==>`) = backpressure/control; dotted arrows (`-.->`) = spill, failure, or fallback.
+
+> **As-built note (v1).** The `RD ==> RPC` (heartbeat/ack) and `RPC ==> RL` (rate-limit/timeout)
+> edges are **production-wired** over the existing `RpcEnv`: after each successful fetch the reader's
+> `BackpressureRpcSender` delivers `Heartbeat`/`Ack` (and a one-time `RateLimitRequest` when a
+> bandwidth cap is set) to the **co-located** producer's `BackpressureRpcEndpoint`, which drives the
+> producer-side `BackpressureProtocol` (proven by the cross-`RpcEnv` integration tests in
+> `BackpressureRpcEndpointSuite`). Driving an arbitrary **remote** producer requires endpoint
+> auto-discovery (mapping a producer `BlockManagerId` to its RPC address) and is deferred to **v2**.
+> The data plane (`TX`/`WIRE`) is the existing `BlockTransferService.fetchBlockSync` pull path;
+> `StreamingShuffleTransport` is the intentional v1 logging-only integration layer.
 
 ```mermaid
 flowchart LR
@@ -269,7 +299,11 @@ The backpressure control plane runs over an **executor-only** RPC endpoint regis
 existing `RpcEnv`. The endpoint is registered on executors only and is **rejected on the driver**,
 so it adds no driver-side surface. It carries only small control messages (heartbeats,
 acknowledgements, rate-limit updates, and timeout notifications) &mdash; the bulk shuffle data still
-flows over the existing block-transfer service.
+flows over the existing block-transfer service. In v1 the consumer-side sender
+(`BackpressureRpcSender`, invoked by `StreamingShuffleReader` after each successful fetch) delivers
+these control messages to the **co-located** producer's endpoint, driving its protocol end-to-end
+over the `RpcEnv`; auto-discovering an arbitrary **remote** (non-co-located) producer's endpoint is
+a **v2 enhancement**.
 
 ## Memory management &amp; spill
 
@@ -362,10 +396,13 @@ existing `MetricsSystem`, surfaced under the `shuffle.streaming.*` namespace:
 | `partialReadInvalidations` | counter | Number of partial-read invalidations caused by producer failures |
 
 These metrics are exposed through the same channels as every other Spark metric: JMX, the Prometheus
-endpoint at `/metrics/executors/prometheus`, and any configured metrics sinks. Shuffle volume also
-continues to appear via the Stages-tab shuffle columns described in the
-[Web UI](web-ui.html) guide. For metrics configuration and endpoints, see the
-[Monitoring](monitoring.html) guide; for interpreting these metrics during incidents, see the
+endpoint at `/metrics/executors/prometheus`, and any configured metrics sinks. The four
+`shuffle.streaming.*` metrics are **not** added as Spark Web UI columns. Generic shuffle volume (the
+standard Shuffle Read / Shuffle Write byte counts) still continues to appear via the Stages-tab
+shuffle columns described in the [Web UI](web-ui.html) guide, exactly as it does for sort-based
+shuffle, because the streaming reader and writer update Spark's standard shuffle read/write metrics.
+For metrics configuration and endpoints, see the [Monitoring](monitoring.html) guide; for
+interpreting these metrics during incidents, see the
 [troubleshooting guide](streaming-shuffle-troubleshooting.html).
 
 ## Security

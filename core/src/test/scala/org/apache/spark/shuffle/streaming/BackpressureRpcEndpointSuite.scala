@@ -19,10 +19,13 @@ package org.apache.spark.shuffle.streaming
 
 import org.mockito.ArgumentMatchers.{any, eq => meq}
 import org.mockito.Mockito.{mock, never, verify, verifyNoInteractions, when}
+import org.scalatest.concurrent.Eventually
 import org.scalatest.matchers.must.Matchers
+import org.scalatest.time.SpanSugar._
 
-import org.apache.spark.SparkFunSuite
+import org.apache.spark.{SecurityManager, SparkConf, SparkFunSuite}
 import org.apache.spark.rpc.{RpcCallContext, RpcEndpointRef, RpcEnv}
+import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
 
 /**
  * Unit tests for [[BackpressureRpcEndpoint]], the executor-only RPC mailbox of the streaming
@@ -41,12 +44,21 @@ import org.apache.spark.rpc.{RpcCallContext, RpcEndpointRef, RpcEnv}
  *     and `Timeout` to `unregisterStream` -- while the synchronous `ask` path additionally
  *     acknowledges delivery and answers a `Ping` with `Pong`.
  *
- * Both the [[org.apache.spark.rpc.RpcEnv]] and the [[BackpressureProtocol]] are mocked, so the
- * tests are deterministic and need no live RPC environment, no network, and no sleeps.
- * Registration is proven by verifying `setupEndpoint`; dispatch is proven by verifying the
- * forwarded protocol calls.
+ * The registration and dispatch tests mock both the [[org.apache.spark.rpc.RpcEnv]] and the
+ * [[BackpressureProtocol]], so they are deterministic and need no live RPC environment, no network,
+ * and no sleeps. Registration is proven by verifying `setupEndpoint`; dispatch is proven by
+ * verifying the forwarded protocol calls.
+ *
+ * A final group of '''cross-`RpcEnv` integration tests''' spins up two real
+ * [[org.apache.spark.rpc.RpcEnv]]s (a producer server and a consumer client) and exercises the
+ * production control-plane sender, [[BackpressureRpcSender]], end to end -- the exact path
+ * [[StreamingShuffleReader]] uses. They prove that a `Heartbeat`/`Ack`/`RateLimitRequest` sent from
+ * a consumer executor actually reaches the producer's endpoint and drives its
+ * [[BackpressureProtocol]] (closing the consumer->producer loop across executors), rather than only
+ * mutating the consumer's local protocol instance. Because delivery is asynchronous fire-and-forget,
+ * these tests await the effect with `eventually` (polling, never a fixed sleep).
  */
-class BackpressureRpcEndpointSuite extends SparkFunSuite with Matchers {
+class BackpressureRpcEndpointSuite extends SparkFunSuite with Matchers with Eventually {
 
   /** The canonical stream identity reused across the dispatch tests. */
   private val shuffleId = 1
@@ -138,5 +150,75 @@ class BackpressureRpcEndpointSuite extends SparkFunSuite with Matchers {
     }
     // The mailbox owns no timer or state, so lifecycle hooks invoke no protocol method.
     verifyNoInteractions(protocol)
+  }
+
+  // ---- Cross-RpcEnv integration: the production sender drives the producer-side protocol --------
+
+  /**
+   * Runs `body` with the production control-plane sender wired across two REAL [[RpcEnv]]s: a
+   * producer server hosting a [[BackpressureRpcEndpoint]] backed by `protocol`, and a consumer
+   * client that resolves the producer endpoint. The resolved [[RpcEndpointRef]] is the same kind of
+   * reference `StreamingShuffleManager` hands [[StreamingShuffleReader]]. Both environments are
+   * always shut down, so the test leaks no ports or threads.
+   *
+   * @param protocol the producer-side protocol the hosted endpoint forwards messages to
+   * @param body     receives the consumer-side reference to the producer endpoint
+   */
+  private def withCrossEnvSender(
+      protocol: BackpressureProtocol)(body: RpcEndpointRef => Unit): Unit = {
+    val conf = new SparkConf(false)
+    val securityManager = new SecurityManager(conf)
+    val producerEnv = RpcEnv.create("bp-itest-producer", "localhost", 0, conf, securityManager)
+    val consumerEnv =
+      RpcEnv.create("bp-itest-consumer", "localhost", 0, conf, securityManager, clientMode = true)
+    try {
+      producerEnv.setupEndpoint(
+        BackpressureRpcEndpoint.ENDPOINT_NAME, new BackpressureRpcEndpoint(producerEnv, protocol))
+      val ref =
+        consumerEnv.setupEndpointRef(producerEnv.address, BackpressureRpcEndpoint.ENDPOINT_NAME)
+      body(ref)
+    } finally {
+      consumerEnv.shutdown()
+      consumerEnv.awaitTermination()
+      producerEnv.shutdown()
+      producerEnv.awaitTermination()
+    }
+  }
+
+  test("production sender delivers Heartbeat/Ack/RateLimitRequest across RpcEnvs to the protocol") {
+    val protocol = mock(classOf[BackpressureProtocol])
+    withCrossEnvSender(protocol) { ref =>
+      // Exactly the calls StreamingShuffleReader.maybeSendConsumerControl issues to a co-located
+      // producer endpoint, plus a rate-limit request, sent over a real RpcEnv.
+      BackpressureRpcSender.sendHeartbeat(ref, streamKey)
+      BackpressureRpcSender.sendAck(ref, streamKey, 4096L)
+      BackpressureRpcSender.sendRateLimitRequest(ref, streamKey, 8192L)
+      // Fire-and-forget delivery is asynchronous; await dispatch on the producer-side protocol.
+      eventually(timeout(10.seconds), interval(20.milliseconds)) {
+        verify(protocol).onHeartbeat(streamKey)
+        verify(protocol).onAck(streamKey, 4096L)
+        verify(protocol).onRateLimitRequest(streamKey, 8192L)
+      }
+    }
+  }
+
+  test("production sender Ack across RpcEnvs decrements the producer-side unacked tally") {
+    val protocol =
+      new BackpressureProtocol(
+        new StreamingShuffleConfig(new SparkConf(false)),
+        new TokenBucketRateLimiter(0L),
+        new StreamingShuffleMetrics)
+    withCrossEnvSender(protocol) { ref =>
+      protocol.registerStream(streamKey)
+      protocol.recordSend(streamKey, 10000L)
+      protocol.unackedBytes(streamKey) mustBe 10000L
+      // A remote consumer ack must drive the PRODUCER's protocol state -- exactly the unacked-byte
+      // tally the writer's consumer-timeout path polls -- proving the loop is wired across
+      // executors rather than only mutating the consumer's local protocol instance.
+      BackpressureRpcSender.sendAck(ref, streamKey, 4096L)
+      eventually(timeout(10.seconds), interval(20.milliseconds)) {
+        protocol.unackedBytes(streamKey) mustBe (10000L - 4096L)
+      }
+    }
   }
 }

@@ -132,7 +132,7 @@ Guidance:
 # Bandwidth Cap: spark.shuffle.streaming.maxBandwidthMBps
 
 `spark.shuffle.streaming.maxBandwidthMBps` sets a per-executor limit, in MB/s, on streaming shuffle
-bandwidth. It is enforced by a token-bucket rate limiter. The default is **0**, and any value of
+bandwidth. It is enforced by a token-bucket rate limiter. The default is **-1**, and any value of
 **0 or less means unlimited** (no rate limiting). The cap is applied per executor and is *arbitrated
 across the concurrent shuffles* running on that executor, so multiple simultaneous shuffles share the
 single budget rather than each receiving the full cap.
@@ -209,16 +209,23 @@ subsections that follow give the reasoning and concrete starting points.
 
 | Workload class | Typical benefit | Suggested `bufferSizePercent` | Suggested `spillThreshold` | Notes |
 | -------------- | --------------- | ----------------------------- | -------------------------- | ----- |
-| Shuffle-heavy  | 30&ndash;50% latency reduction | 25&ndash;40 (if memory allows) | 75&ndash;85 (moderate) | Primary beneficiary; size buffers up. |
-| CPU-bound      | 5&ndash;10% improvement | 20 (default) | 80 (default) | Keep defaults; spend memory on execution. |
-| Memory-bound   | Zero regression (via fallback) | 20 or lower | Conservative (lower) | High OOM risk; aggressive buffers only trigger fallback sooner. |
+| Shuffle-heavy  | 30&ndash;50% latency reduction (**v2 target**; v1 measures at parity / no regression) | 25&ndash;40 (if memory allows) | 75&ndash;85 (moderate) | Primary beneficiary; size buffers up. |
+| CPU-bound      | 5&ndash;10% improvement (**v2 target**; v1 measures at parity) | 20 (default) | 80 (default) | Keep defaults; spend memory on execution. |
+| Memory-bound   | Zero regression (via fallback) &mdash; verified in v1 | 20 or lower | Conservative (lower) | High OOM risk; aggressive buffers only trigger fallback sooner. |
+
+> **v1 vs v2.** The latency reductions above are **v2 targets** that materialize when the real streaming
+> data plane replaces the v1 logging-only transport. The committed v1 benchmark artifacts measure
+> shuffle-heavy &asymp; 2.7% best / 11.5% average and CPU-bound &asymp; 5.2% best / 4.1% average
+> (parity, no regression). Tune for the v1 zero-regression guarantee today and the v2 latency gains
+> when the data plane lands.
 
 ## Shuffle-heavy workloads
 
 Shuffle-heavy stages &mdash; roughly **&ge; 100 MB of intermediate data** across **&ge; 10
-partitions** &mdash; are the primary beneficiaries of streaming shuffle and can see an end-to-end
-**30&ndash;50% latency reduction**. Because these stages move a lot of data, keeping more of it in
-memory pays off:
+partitions** &mdash; are the primary beneficiaries of streaming shuffle and target an end-to-end
+**30&ndash;50% latency reduction** as a **v2 goal** (v1 measures at parity with sort-based shuffle,
+with no regression). Because these stages move a lot of data, keeping more of it in memory pays off
+once the v2 data plane lands:
 
 * Raise `bufferSizePercent` toward **25&ndash;40** when the executor has memory to spare, so fewer
   blocks spill and more data streams directly to consumers.
@@ -230,8 +237,8 @@ memory pays off:
 ## CPU-bound workloads
 
 CPU-bound jobs spend most of their time in computation rather than data movement, so the streaming
-backend offers a smaller **5&ndash;10%** improvement, primarily from reduced scheduler overhead.
-For these workloads:
+backend targets a smaller **5&ndash;10%** improvement, primarily from reduced scheduler overhead &mdash;
+a **v2 goal** (v1 measures at parity). For these workloads:
 
 * **Keep the defaults** (`bufferSizePercent=20`, `spillThreshold=80`).
 * Do **not** over-allocate buffers. Memory taken for streaming buffers is memory unavailable to

@@ -266,7 +266,7 @@ private[spark] class StreamingShuffleWriter[K, V](
     val startNanos = System.nanoTime()
     logInfo(log"Streaming shuffle write starting " +
       log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} map=${MDC(MAP_ID, mapId)} " +
-      log"attempt=${MDC(TASK_ATTEMPT_ID, context.taskAttemptId())} " +
+      log"attempt=${MDC(StreamingShuffleLogKeys.ATTEMPT_ID, context.taskAttemptId())} " +
       log"partitions=${MDC(NUM_PARTITIONS, numPartitions)}")
     while (records.hasNext) {
       val record = records.next()

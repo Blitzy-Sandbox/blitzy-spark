@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle.streaming
 
 import java.io.ByteArrayInputStream
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
@@ -29,6 +29,7 @@ import org.apache.spark.{Aggregator, InterruptibleIterator, MapOutputTracker, Sp
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.LogKeys._
 import org.apache.spark.network.BlockTransferService
+import org.apache.spark.rpc.RpcEndpointRef
 import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader, ShuffleReadMetricsReporter}
 import org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope
@@ -99,6 +100,12 @@ import org.apache.spark.util.collection.ExternalSorter
  * @param serializerManager stream wrapper for (de)compression and encryption; defaults to the env
  * @param blockManager     the block manager; defaults to the running env's block manager
  * @param mapOutputTracker the unchanged map-output tracker; defaults to the running env's tracker
+ * @param backpressureEndpoint the executor-local backpressure RPC endpoint reference supplied by
+ *                         `StreamingShuffleManager` when this reader runs on an executor, or
+ *                         [[scala.None]] on the driver / in local mode (where no endpoint is
+ *                         registered). When defined, the reader closes the consumer->producer
+ *                         control loop by delivering remote heartbeats and byte acks to a
+ *                         co-located producer's [[BackpressureProtocol]] through this reference.
  */
 private[spark] class StreamingShuffleReader[K, C](
     handle: StreamingShuffleHandle[K, _, C],
@@ -114,7 +121,8 @@ private[spark] class StreamingShuffleReader[K, C](
     backpressure: BackpressureProtocol,
     serializerManager: SerializerManager = SparkEnv.get.serializerManager,
     blockManager: BlockManager = SparkEnv.get.blockManager,
-    mapOutputTracker: MapOutputTracker = SparkEnv.get.mapOutputTracker)
+    mapOutputTracker: MapOutputTracker = SparkEnv.get.mapOutputTracker,
+    backpressureEndpoint: Option[RpcEndpointRef] = None)
   extends ShuffleReader[K, C] with Logging {
 
   /** The shuffle dependency, mirroring `BlockStoreShuffleReader`'s `dep`. */
@@ -132,6 +140,16 @@ private[spark] class StreamingShuffleReader[K, C](
   private val partialReadBytesByProducer = mutable.HashMap.empty[BlockManagerId, Long]
 
   /**
+   * Streams to which this reader has already sent a consumer rate-limit request, so the
+   * operator-configured bandwidth cap is propagated to each co-located producer exactly once per
+   * stream rather than on every fetched block. Empty (and never written) when no bandwidth cap is
+   * configured -- the default -- so the rate-limit lever is silent by default. Concurrent-safe out
+   * of caution even though the lazy fetch iterator is driven by a single reduce-task thread.
+   */
+  private val rateLimitRequestedStreams =
+    ConcurrentHashMap.newKeySet[BackpressureProtocol.StreamKey]()
+
+  /**
    * Reads the combined key-values for this reduce task.
    *
    * The fetch stage streams blocks lazily with per-block CRC32C validation and a 5 s connection
@@ -146,8 +164,9 @@ private[spark] class StreamingShuffleReader[K, C](
     logInfo(log"Streaming shuffle read starting: " +
       log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} " +
       log"maps=[${MDC(START_INDEX, startMapIndex)}, ${MDC(END_INDEX, endMapIndex)}) " +
-      log"reduce=[${MDC(REDUCE_ID, startPartition)}, ${MDC(PARTITION_ID, endPartition)}) " +
-      log"attempt=${MDC(TASK_ATTEMPT_ID, context.taskAttemptId())}")
+      log"range=${MDC(StreamingShuffleLogKeys.REDUCE_PARTITION_RANGE,
+        s"[$startPartition,$endPartition)")} " +
+      log"attempt=${MDC(StreamingShuffleLogKeys.ATTEMPT_ID, context.taskAttemptId())}")
 
     // v1 logging-only seam: announce the consumer stream on the transport. By design (AAP 0.4.4)
     // it returns an empty iterator -- the real data plane is `fetchBlockSync` below -- so its
@@ -368,6 +387,15 @@ private[spark] class StreamingShuffleReader[K, C](
       partialReadBytesByProducer.getOrElse(address, 0L) + totalPayloadBytes
     readMetrics.incRemoteBlocksFetched(1L)
     readMetrics.incRemoteBytesRead(totalPayloadBytes)
+
+    // Close the consumer->producer control loop. The local `backpressure.onHeartbeat(streamKey)`
+    // above refreshes THIS reader's protocol view; this additionally delivers a remote Heartbeat
+    // and byte Ack to the PRODUCER executor's backpressure endpoint over the real RpcEnv, so the
+    // producer's own BackpressureProtocol drives the consumer-timeout and unacked-byte state the
+    // StreamingShuffleWriter polls. Fire-and-forget and fully guarded, so a control-plane hiccup
+    // can never disturb this data path.
+    maybeSendConsumerControl(address, streamKey, totalPayloadBytes)
+
     if (config.debug) {
       logDebug(log"Fetched streaming block " +
         log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} map=${MDC(MAP_ID, mapId)} " +
@@ -375,6 +403,53 @@ private[spark] class StreamingShuffleReader[K, C](
         log"bytes=${MDC(NUM_BYTES, totalPayloadBytes)}")
     }
     envelopes
+  }
+
+  /**
+   * Closes the consumer->producer backpressure loop for a fetched block by delivering a remote byte
+   * [[BackpressureRpcEndpoint.Ack]] and [[BackpressureRpcEndpoint.Heartbeat]] to the producer's
+   * backpressure endpoint -- but ONLY when (a) this reader was supplied an endpoint reference
+   * (executor mode; it is [[scala.None]] on the driver and in local mode where no endpoint is
+   * registered) and (b) the producer is co-located on THIS executor, so the manager-supplied
+   * executor-local endpoint genuinely is the producer's mailbox. Resolving a remote producer's
+   * endpoint from map-output metadata is a documented v2 item (AAP 0.5.2). Delivery is
+   * fire-and-forget and guarded inside [[BackpressureRpcSender]], so it never affects the read.
+   *
+   * @param address    the producer block-manager location the block was fetched from
+   * @param streamKey  the (shuffleId, mapId, reduceId) stream just read
+   * @param bytesAcked the decoded payload byte count to acknowledge to the producer
+   */
+  private def maybeSendConsumerControl(
+      address: BlockManagerId,
+      streamKey: BackpressureProtocol.StreamKey,
+      bytesAcked: Long): Unit = {
+    backpressureEndpoint.foreach { ref =>
+      if (isColocatedProducer(address)) {
+        BackpressureRpcSender.sendAck(ref, streamKey, bytesAcked)
+        BackpressureRpcSender.sendHeartbeat(ref, streamKey)
+        // Consumer->producer rate-limit lever: propagate the operator-configured per-executor
+        // bandwidth cap to the producer's token bucket exactly once per stream. Skipped entirely
+        // when bandwidth is unlimited (the default), so it adds no control traffic unless an
+        // operator opts into a cap; `add` returns false on repeats, bounding this to one send per
+        // stream regardless of how many blocks the stream yields.
+        if (!config.isBandwidthUnlimited && rateLimitRequestedStreams.add(streamKey)) {
+          BackpressureRpcSender.sendRateLimitRequest(
+            ref, streamKey, config.effectiveBandwidthBytesPerSec)
+        }
+      }
+    }
+  }
+
+  /**
+   * @param address the producer block-manager location a block was fetched from
+   * @return whether that producer ran on THIS executor -- i.e. whether the executor-local
+   *         backpressure endpoint reference is also the producer's mailbox. Null-guards a missing
+   *         block manager (as a mock supplies in unit tests) so the control-plane send is simply
+   *         skipped rather than failing the read.
+   */
+  private def isColocatedProducer(address: BlockManagerId): Boolean = {
+    blockManager != null && blockManager.blockManagerId != null &&
+      address.executorId == blockManager.blockManagerId.executorId
   }
 
   /**

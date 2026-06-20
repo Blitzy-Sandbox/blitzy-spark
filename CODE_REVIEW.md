@@ -11,9 +11,9 @@
 | **Feature** | Opt-in Streaming Shuffle backend (`org.apache.spark.shuffle.streaming`) |
 | **Target module / artifact** | `spark-core_2.13` under `spark-parent_2.13:4.2.0-SNAPSHOT` |
 | **Build toolchain** | Scala 2.13.18 · Java 17 (min 17.0.11; CI on Java 21) · Maven 3.9.12 (via `./build/mvn`) |
-| **Review type** | Segmented PR Review — pre-flight gate + sequential domain phases + re-verification |
-| **Current checkpoint** | **Checkpoint 3 — Manager Orchestration Capstone & Full Test/Benchmark Battery** |
-| **Files delivered so far** | **51 of 51** (2 modified, 49 created) — the complete feature change set is delivered |
+| **Review type** | Segmented PR Review — pre-flight gate + sequential domain phases + final re-verification |
+| **Current checkpoint** | **FINAL — Full Project Completion Verification** |
+| **Files delivered** | **52** (2 modified, 50 created) — the complete feature change set is delivered |
 | **Dependency manifest changes** | **None** (`pom.xml` / `core/pom.xml` unchanged) |
 | **Reviewer of record** | Blitzy Principal Engineer (segmented review) |
 
@@ -21,9 +21,9 @@
 
 ## Feature Summary
 
-The Streaming Shuffle feature introduces an **opt-in shuffle backend** that eliminates
-shuffle-materialization latency by streaming intermediate data directly from producer (map-side)
-executors to consumer (reduce-side) executors through bounded in-memory buffers and the existing
+The Streaming Shuffle feature introduces an **opt-in shuffle backend** that is designed to eliminate
+shuffle-materialization latency by streaming intermediate data from producer (map-side) executors to
+consumer (reduce-side) executors through bounded in-memory buffers and the existing
 `org.apache.spark.network` transport, governed by a backpressure (heartbeat + token-bucket)
 protocol. It is delivered as a **self-contained, isolated** implementation under the new package
 `org.apache.spark.shuffle.streaming` (with a `network/` subpackage) that **coexists with — and
@@ -37,19 +37,35 @@ because both default to *off*, the default behavior of every existing Spark depl
 the sort-based path, and producer failures surface as `FetchFailedException` so Spark's existing
 lineage/recompute machinery recovers lost output — preserving the zero-data-loss guarantee.
 
+> **v1 scope qualifier (governs the FINAL verdict below).** Per AAP §0.4.4, the v1 network transport
+> (`StreamingShuffleTransport`) is **intentionally logging-only**; the real data plane is the existing
+> `BlockTransferService.fetchBlockSync` **pull** path, and v2 transport hardening is **deferred**
+> (AAP §0.5.2). Consequently the AAP §0.1.1 headline latency deltas (**30–50%** shuffle-heavy, **5–10%**
+> CPU-bound) and a numerically-instrumented **> 85%** coverage figure are **not** achieved within v1
+> (see the FINAL verdict and Phase 5). What v1 *does* deliver — functional correctness, zero data loss,
+> zero regression via fallback, executed stress soak, and a clean build — is verified below.
+
 ### Review Scope
 
-The scope of this review is the **complete Streaming Shuffle change set**, **now fully delivered**:
-17 new production Scala classes (14 in `streaming/`, 3 in `streaming/network/`), the metrics resource
+The scope of this review is the **complete Streaming Shuffle change set**, **fully delivered**:
+18 new production Scala classes (15 in `streaming/`, 3 in `streaming/network/`), the metrics resource
 template, the two surgical integration edits, 17 ScalaTest test files (16 runnable suites plus the
 `StreamingShufflePerformanceBenchmark` harness) and 2 benchmark result files, and all documentation
-deliverables (TechDocs + Jekyll docs), plus this review artifact — **51 files in total**.
+deliverables (TechDocs + Jekyll docs), plus this review artifact — **52 files in total**.
 
-This review is conducted **per checkpoint** as the feature is delivered incrementally. **This
-revision reviews the Checkpoint 3 state**, at which the **entire feature is delivered**: the manager
-orchestration capstone (`StreamingShuffleManager` with production-wired automatic fallback), the SPI
-core, the spill/backpressure/transport subsystems, and the full test and benchmark battery. No file
-remains PENDING.
+**Reconciliation with the review checkpoint's 48-file enumeration.** The FINAL checkpoint formally
+enumerated **48** in-scope files (the AAP §0.5.1 set). The repository additionally contains, all within
+the in-scope `org.apache.spark.shuffle.streaming` package and AAP scope:
+
+- **+1 production class delivered by this remediation** — `StreamingShuffleLogKeys.scala`, added to
+  satisfy the Observability rule's **exact MDC keys** requirement (`attempt_id`,
+  `reduce_partition_range`) without modifying the out-of-scope shared `LogKeys.java`.
+- **+3 supplementary in-scope test suites** present in the repository but omitted from the checkpoint's
+  formal enumeration — `BackpressureRpcValidationSuite`, `StreamingShuffleBlockResolverSuite`, and
+  `network/StreamingBlockEnvelopeSuite`. They test in-scope code, aid coverage, and are **retained**.
+
+These four files bring the actually-delivered total to **52**. This artifact partitions **all 52** into
+exactly one phase each (see the [Appendix](#appendix--file-to-phase-coverage-matrix)).
 
 Explicitly **out of scope** (and verified untouched) are the absolute-preservation surfaces:
 RDD/DataFrame/Dataset user-facing APIs, the DAG scheduler and task-scheduling algorithms, executor
@@ -61,30 +77,32 @@ contracts, and task serialization/deserialization protocols.
 
 ## Status Banner
 
-> **REVIEW STATUS: ✅ APPROVED — CHECKPOINT 3 (Manager Orchestration Capstone & Full Test/Benchmark Battery)**
+> **REVIEW STATUS: ⛔ NOT APPROVED FOR FULL FINAL AAP ACCEPTANCE — v1 scope delivered; 2 final-AAP gates BLOCKED (deferred to v2 under cited AAP exceptions)**
 >
 > | Stage | State |
 > |-------|-------|
 > | Pre-Flight Gate (full delivered change set) | ✅ PASS |
 > | Phase 1 — Infrastructure/DevOps | ✅ APPROVED (negative verification) |
 > | Phase 2 — Security | ✅ APPROVED |
-> | Phase 3 — Backend Architecture | ✅ APPROVED |
+> | Phase 3 — Backend Architecture | ✅ APPROVED (v1 delivered scope) |
 > | Phase 4 — Observability | ✅ APPROVED |
-> | Phase 5 — QA / Test Integrity | ✅ APPROVED *(coverage substantiated by documented methodology; numeric scoverage measurement deferred to connected CI — see PF-3 / Phase 5)* |
+> | Phase 5 — QA / Test Integrity | ⛔ **BLOCKED** — functional tests/soak/zero-data-loss pass, but **numeric > 85% coverage** and **headline latency-delta** gates are not met in v1 |
 > | Phase 6 — Business / Domain & Other SME (Documentation) | ✅ APPROVED |
 > | Frontend | N/A (backend-only) |
-> | **Overall Verdict** | **✅ APPROVED — Checkpoint 3 delivered scope** |
+> | **Overall Verdict** | ⛔ **NOT APPROVED for full final AAP success criteria** — all remediable findings RESOLVED; **2 gates BLOCKED** and deferred to **v2** (AAP §0.4.4 / §0.5.2 / §0.3.1) |
 
-The status banner is **re-set at every phase transition and checkpoint**. It reflects the
-Checkpoint 3 delivered state: all 51 files are delivered, every domain phase resolves to `APPROVED`,
-the full streaming test battery passes (**113 succeeded, 0 failed, 1 canceled** — the canceled test is
-the opt-in 5-minute soak), and the build is zero-error/zero-warning for the streaming change set. Two
-gate criteria carry explicit, documented caveats consistent with the AAP — the **> 85% coverage**
-bar is substantiated by a documented test-to-source methodology and an instrumented command (numeric
-measurement requires a connected CI environment; the AAP forbids adding coverage tooling to the poms),
-and the headline **latency deltas are v2 targets** because v1 reuses the existing `BlockTransferService`
-data plane (the intended v1 logging-only transport). Neither caveat is a defect; both are recorded
-here, in the decision log, and across the documentation.
+The status banner is **re-set at every phase transition and checkpoint**. It reflects the **FINAL**
+delivered state: all 52 files are delivered; the build is zero-error / zero-warning for the streaming
+change set; the full streaming test battery passes (**115 succeeded, 0 failed, 1 canceled** — the
+canceled test is the opt-in 5-minute soak, which was **separately executed** to completion, see PF-3);
+five of six domain phases resolve to `APPROVED`. **Phase 5 (QA / Test Integrity) resolves to `BLOCKED`**
+because two final-AAP gates are honestly **not met within v1**: (a) a numerically-instrumented
+**> 85% coverage** figure cannot be produced in the offline build and the AAP forbids adding coverage
+tooling to the poms (§0.3.1), and (b) the headline **latency deltas are v2 targets** because v1 reuses
+the existing `BlockTransferService` data plane (the intended v1 logging-only transport, §0.4.4; v2
+transport hardening deferred, §0.5.2). Per the review's own guidance, these gates are **marked BLOCKED**
+rather than presented as achieved. Neither is a code defect; both are recorded here, in the decision
+log, and across the documentation.
 
 ### Commit Cadence (explicit)
 
@@ -95,8 +113,8 @@ across checkpoints:
    recorded **before** the first domain phase began.
 2. **Re-committed at every phase transition / checkpoint** — the status banner and each completed
    phase's verdict are updated and re-committed as a domain phase resolves to `APPROVED` or `BLOCKED`.
-3. **Committed for each checkpoint verdict** — the Checkpoint Re-Verification section and the
-   checkpoint verdict are recorded and committed.
+3. **Committed for the FINAL checkpoint verdict** — this FINAL re-verification section and verdict are
+   recorded and committed.
 4. **Present in the pull request's final commit** — `CODE_REVIEW.md` is part of the PR, reflecting the
    delivered state at the time of that commit.
 
@@ -104,149 +122,111 @@ across checkpoints:
 
 ## Pre-Flight Gate
 
-> The pre-flight gate **must pass before the domain phases proceed**. At this checkpoint the gate
+> The pre-flight gate **must pass before the domain phases proceed**. At the FINAL checkpoint the gate
 > covers the **complete delivered change set**. Each criterion records an explicit result. A `FAIL`
-> on any criterion blocks the review.
+> on any criterion blocks the review. Note: the pre-flight gate verifies *presence, build, test
+> execution, static cleanliness, and stub-discipline* — it is distinct from the **final-AAP acceptance
+> gates** (coverage figure, latency deltas) evaluated in Phase 5.
 
-| # | Pre-Flight Criterion (Checkpoint 3 scope) | Result |
-|---|-------------------------------------------|--------|
-| PF-1 | All deliverables present at their specified paths (51/51) | ✅ PASS |
+| # | Pre-Flight Criterion (FINAL scope) | Result |
+|---|------------------------------------|--------|
+| PF-1 | All deliverables present at their specified paths (52/52) | ✅ PASS |
 | PF-2 | Zero-error / zero-warning build of the streaming change set (`test-compile`) | ✅ PASS |
-| PF-3 | Full streaming test battery passes (113 succeeded, 0 failed, 1 canceled opt-in soak) | ✅ PASS |
+| PF-3 | Full streaming test battery passes (115 succeeded, 0 failed, 1 canceled opt-in soak); soak separately executed | ✅ PASS |
 | PF-4 | Static analysis clean (Scalastyle/Scalafmt, MiMa additive-only) | ✅ PASS |
 | PF-5 | No production-path placeholder stubs (only the documented, intended v1 transport behavior) | ✅ PASS |
 
 ### PF-1 — Deliverables Present
 
 Every file in the complete feature scope is confirmed present at its specified path. **Delivered total:
-51 of 51 — nothing PENDING.**
+52 of 52 — nothing PENDING.**
 
 **Delivered — Modified existing source (2):**
 
 - `core/src/main/scala/org/apache/spark/shuffle/ShuffleManager.scala`
 - `core/src/main/scala/org/apache/spark/internal/config/package.scala`
 
-**Delivered — New production source, `streaming/` (14):**
+**Delivered — New production source, `streaming/` (15):**
 `StreamingShuffleManager.scala`, `StreamingShuffleHandle.scala`, `StreamingShuffleWriter.scala`,
 `StreamingShuffleReader.scala`, `StreamingShuffleBlockResolver.scala`, `StreamingBuffer.scala`,
 `MemorySpillManager.scala`, `BackpressureProtocol.scala`, `BackpressureRpcEndpoint.scala`,
 `StreamingShuffleFallbackPolicy.scala`, `StreamingShuffleMetrics.scala`, `StreamingShuffleSource.scala`,
-`StreamingShuffleConfig.scala`, `package.scala`.
+`StreamingShuffleConfig.scala`, **`StreamingShuffleLogKeys.scala`** (custom MDC `LogKey`s), and
+`package.scala`.
 
 **Delivered — New production source, `streaming/network/` (3):**
-`StreamingBlockEnvelope.scala`, `StreamingShuffleTransport.scala`, `TokenBucketRateLimiter.scala`.
+`TokenBucketRateLimiter.scala`, `StreamingShuffleTransport.scala`, `StreamingBlockEnvelope.scala`.
 
-**Delivered — New resource (1):**
+**Delivered — Resource (1):**
 `core/src/main/resources/org/apache/spark/shuffle/streaming/metrics.properties.template`.
 
-**Delivered — New test files (17):** the 16 suites under
-`core/src/test/scala/org/apache/spark/shuffle/streaming/` plus
-`network/StreamingBlockEnvelopeSuite.scala`. (This exceeds the originally-planned 14 suites by three —
-`BackpressureRpcValidationSuite`, `StreamingShuffleBlockResolverSuite`, and `StreamingBlockEnvelopeSuite`
-were added for additional coverage. `StreamingShufflePerformanceBenchmark.scala` is a benchmark harness,
-not a runnable unit suite.)
+**Delivered — Test files (17):** the 14 AAP suites + the benchmark harness + the 2 supplementary
+suites + the network suite, enumerated in Phase 5 and the Appendix.
 
 **Delivered — Benchmark result artifacts (2):**
 `core/benchmarks/StreamingShuffleBenchmark-results.txt`,
 `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt`.
 
-**Delivered — TechDocs `blitzy-docs/streaming-shuffle/` (7):**
-`index.md`, `configuration.md`, `architecture.md`, `observability.md`, `decision-log.md`,
-`executive-summary.html`, `dashboard.json`.
+**Delivered — Documentation (11):** 7 TechDocs under `blitzy-docs/streaming-shuffle/`
+(`index.md`, `configuration.md`, `architecture.md`, `observability.md`, `decision-log.md`,
+`executive-summary.html`, `dashboard.json`) and 4 Jekyll docs under `docs/`
+(`streaming-shuffle-{architecture,guide,troubleshooting,tuning}.md`).
 
-**Delivered — Jekyll `docs/` (4):**
-`streaming-shuffle-architecture.md`, `streaming-shuffle-guide.md`,
-`streaming-shuffle-troubleshooting.md`, `streaming-shuffle-tuning.md`.
-
-**Delivered — Review artifact (1):** `CODE_REVIEW.md` (repository root).
-
-> **Delivered total: 51 of 51.**
-
-**PF-1 verdict: ✅ PASS** — the complete feature change set is present at the specified paths.
+**Delivered — Review artifact (1):** `CODE_REVIEW.md` (this file).
 
 ### PF-2 — Zero-Error / Zero-Warning Build
 
-```bash
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-./build/mvn -pl core -am -DskipTests -o test-compile
-```
-
-`test-compile` of the whole `core` module (main + test sources) completes with **BUILD SUCCESS — zero
-errors and no streaming-file warnings**. The streaming production classes and all 17 test files compile
-cleanly against the unchanged Spark Core SPI, and the two surgical edits to `ShuffleManager.scala` and
-`config/package.scala` introduce no compiler diagnostics. (Whole-core pre-existing warnings in
-unmodified files are out of scope.)
-
-**PF-2 verdict: ✅ PASS.**
+`export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64; ./build/mvn -pl core -DskipTests test-compile`
+completes with **BUILD SUCCESS**. The streaming change set compiles with **zero errors and zero new
+warnings**. Spark's build enables `-Wconf:any:e` and `-Wunused:imports`, so any Scala compile warning or
+unused import in the change set would be **fatal**; the build's success confirms the streaming files are
+warning-clean. (The only warnings observed anywhere in the module are pre-existing deprecations in
+unrelated, out-of-scope core files — none in the streaming change set.)
 
 ### PF-3 — Full Streaming Test Battery
 
-```bash
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-./build/mvn test -pl core -o -Dtest=none \
-  -DwildcardSuites=org.apache.spark.shuffle.streaming
+`./build/mvn test -pl core -Dtest=none -DwildcardSuites='org.apache.spark.shuffle.streaming'`:
+
+```
 # Run completed.
-# Total number of tests run: 113
 # Suites: completed 17, aborted 0
-# Tests: succeeded 113, failed 0, canceled 1, ignored 0, pending 0   (BUILD SUCCESS)
+# Tests: succeeded 115, failed 0, canceled 1, ignored 0, pending 0   (BUILD SUCCESS)
 ```
 
-The complete streaming battery passes: **113 tests succeeded, 0 failed, 1 canceled**. The single
-canceled test is the **opt-in 5-minute soak** (`5-minute streaming shuffle soak with 10% failure
-injection retains zero heap`), which is gated behind `-Dspark.test.stress=true` and is therefore
-canceled in the default lane by design. The **always-run stress smoke** test
-(`streaming shuffle stress smoke: bounded churn injects, recovers, and retains zero heap`) **runs in the
-default lane** and is counted among the 113 successes — it asserts a bounded ~10% injection ratio
-(`injected == (iterations + 9) / 10`, `injected > 0`) and **zero retained managed memory**
-(`executionMemoryUsed == 0`) after the churn. The 10-scenario `StreamingShuffleFailureInjectionSuite`
-(zero data loss, including the corrected memory-pressure manager-fallback scenario) and the
-manager-fallback tests in `StreamingShuffleManagerSuite` all pass.
+(16 ScalaTest suites carry the 115 tests; the 17th "completed" suite is the discovered
+`StreamingShufflePerformanceBenchmark` harness, which contributes no ScalaTest cases.)
 
-> **Coverage (> 85%, AAP §0.4.4).** Coverage instrumentation (scoverage / JaCoCo) is **not available in
-> the offline build environment**, and the AAP forbids adding it (§0.3.1 — no dependency-manifest
-> changes; §0.5.2 — `pom.xml` / `core/pom.xml` out of scope). The bar is therefore substantiated by an
-> explicit **test-to-source mapping** (every one of the 16 executable production classes is exercised by
-> at least one dedicated suite, most by several plus the real-`SparkContext` integration suites) and the
-> exact instrumented command to produce the numeric report in a connected environment, both recorded in
-> `blitzy-docs/streaming-shuffle/decision-log.md` (Coverage methodology). Numeric measurement is the only
-> deferred item; the test battery itself is complete and green.
+The **1 canceled** test is the opt-in 5-minute soak (`StreamingShuffleStressSuite`), which is guarded so
+it runs only with `-Dspark.test.stress=true` (or `SPARK_STREAMING_STRESS=1`). **The soak was separately
+executed to completion** for final acceptance evidence:
 
-**PF-3 verdict: ✅ PASS** — the full battery is green; coverage is substantiated by documented
-methodology with numeric measurement deferred to a connected CI environment per the AAP constraints.
+```
+# StreamingShuffleStressSuite with SPARK_STREAMING_STRESS=1 (detached, polled to completion)
+# Tests: succeeded 2, failed 0, canceled 0   (BUILD SUCCESS)   Total time: 05:18 min
+#   - smoke: bounded churn injects, recovers, retains zero heap
+#   - soak:  5-minute streaming shuffle soak with 10% failure injection retains zero heap
+```
+
+With the soak armed, the battery is **116 succeeded, 0 failed, 0 canceled**. Zero retained heap held
+under the suite's `assertZeroRetainedManagedMemory()` and per-task
+`spark.unsafe.exceptionOnMemoryLeak=true`. The 10-scenario `StreamingShuffleFailureInjectionSuite`
+(zero data loss) and the `StreamingShuffleIntegrationSuite` streaming==sort equality test pass.
 
 ### PF-4 — Static Analysis Clean
 
-- **Scalastyle / Scalafmt** — zero violations across the `streaming/` and `streaming/network/` sources,
-  all 17 test files, and the two MODIFY files (Apache license headers present; import ordering, line
-  length ≤ 100, and naming all conform). `./build/mvn -pl core -o scalastyle:check` → *Found 0 errors*.
-- **Checkstyle** — not applicable to the new Scala sources; no Java sources changed.
-- **MiMa (Migration Manager)** — the change is **additive only**. The `ShuffleManager` trait and all
-  public Spark Core APIs are unchanged; the only edits add a map entry and new `ConfigEntry` values,
-  neither of which removes or alters an existing binary-compatible symbol.
-
-**PF-4 verdict: ✅ PASS.**
+Scalastyle/Scalafmt conventions are observed (ASF license headers on every new file; import ordering;
+line length); the change is **additive-only**, so MiMa binary-compatibility checks see no removed or
+changed existing public signatures. The two MODIFY edits add only a map entry and five `ConfigEntry`
+values — no existing signature is altered.
 
 ### PF-5 — No Production-Path Placeholder Stubs
 
-A scan of the production sources confirms **no unfinished placeholder stubs, `???`, `TODO`/`FIXME`
-markers, or `NotImplementedError` on any executed production path**. Every streaming production class is
-a complete, production-ready implementation — including the manager orchestration capstone, the
-SPI core (writer/reader/resolver), the spill manager, and the backpressure protocol/endpoint.
-
-> **Whitelisted, intended v1 transport behavior (NOT a defect stub):**
-> `core/src/main/scala/org/apache/spark/shuffle/streaming/network/StreamingShuffleTransport.scala`
-> is *by design* a v1 logging-only integration layer: `sendBlock(...)` returns a **completed `Future`**
-> and `openConsumerStream(...)` returns **`Iterator.empty`**, because the **real data plane is the
-> existing `BlockTransferService` / `fetchBlockSync` path** (AAP §0.4.4). This is an explicit, justified
-> deviation recorded in `blitzy-docs/streaming-shuffle/decision-log.md`; it **must not be misclassified
-> as a `BLOCKED` unfinished stub**. v2 network-transport hardening (a real Netty data plane,
-> `SO_KEEPALIVE`, full retry/backoff wiring) is explicitly deferred (AAP §0.5.2).
-
-**PF-5 verdict: ✅ PASS** — zero defect stubs; the only intentional v1 behavior is the documented,
-whitelisted transport layer.
-
-> **Pre-Flight Gate overall: ✅ PASS (Checkpoint 3 — full change set).** The review proceeds to the
-> domain phases, all of which resolve to `APPROVED`.
+The production path contains **no placeholder stubs** other than the **documented, intended v1
+transport behavior**: `StreamingShuffleTransport.sendBlock` returns a completed `Future` and
+`openConsumerStream` returns `Iterator.empty` **by design**, because the real data plane is the existing
+`BlockTransferService.fetchBlockSync` path (AAP §0.4.4). This is a deliberate v1 architectural decision,
+recorded in the decision log, **not** an unfinished stub. No other method returns a placeholder, throws
+`NotImplementedError`, or carries a TODO/FIXME in the production path.
 
 ---
 
@@ -262,20 +242,20 @@ in the [Appendix](#appendix--file-to-phase-coverage-matrix).
 |-------|--------|:------------------:|:---------:|:-------:|
 | 1 | Infrastructure / DevOps | 0 (negative verification) | — | ✅ APPROVED |
 | 2 | Security | 1 | 1 | ✅ APPROVED |
-| 3 | Backend Architecture | 16 | 16 | ✅ APPROVED |
-| 4 | Observability | 5 | 5 | ✅ APPROVED |
-| 5 | QA / Test Integrity | 19 | 19 | ✅ APPROVED |
+| 3 | Backend Architecture | 16 | 16 | ✅ APPROVED (v1) |
+| 4 | Observability | 6 | 6 | ✅ APPROVED |
+| 5 | QA / Test Integrity | 19 | 19 | ⛔ **BLOCKED** |
 | 6 | Business / Domain & Other SME (Documentation) | 10 | 10 | ✅ APPROVED |
 | — | Frontend | 0 (not applicable — backend-only) | — | N/A |
-| | **Total** | **51** | **51** | **✅ APPROVED** |
+| | **Total** | **52** | **52** | ⛔ **NOT APPROVED (2 gates BLOCKED)** |
 
-> **Note on partition discipline.** `StreamingShuffleMetrics.scala` and `StreamingShuffleSource.scala`
-> are owned **solely by the Observability phase** (Phase 4) and are therefore excluded from the Backend
-> Architecture file list, so each is counted exactly once. Likewise `BackpressureRpcEndpoint.scala` is
-> owned by the **Security phase** (Phase 2) because its primary review concern is the executor-only /
-> driver-rejected trust boundary; the Backend Architecture phase reviews the remaining backpressure
-> machinery (`BackpressureProtocol.scala`, `TokenBucketRateLimiter.scala`). The QA phase owns all 17
-> test files plus the 2 benchmark result artifacts (19 items).
+> **Note on partition discipline.** `StreamingShuffleMetrics.scala`, `StreamingShuffleSource.scala`, and
+> `StreamingShuffleLogKeys.scala` are owned **solely by the Observability phase** (Phase 4) and are
+> therefore excluded from the Backend Architecture file list, so each is counted exactly once. Likewise
+> `BackpressureRpcEndpoint.scala` is owned by the **Security phase** (Phase 2) because its primary review
+> concern is the executor-only / driver-rejected trust boundary; the Backend Architecture phase reviews
+> the remaining backpressure machinery (`BackpressureProtocol.scala`, `TokenBucketRateLimiter.scala`).
+> The QA phase owns all 17 test files plus the 2 benchmark result artifacts (19 items).
 
 ---
 
@@ -324,8 +304,9 @@ the build/runtime baseline is preserved (AAP §0.3.1, §0.5.2).
   `BackpressureRpcEndpointSuite` (driver-rejection and executor-registration tests) and
   `BackpressureRpcValidationSuite`.
 - **Control-metadata-only messages, validated before mutation.** Inbound heartbeat/ack/rate-limit/timeout
-  messages are validated before any protocol-state mutation; malformed messages are rejected. No bulk
-  shuffle data crosses this endpoint — the data plane is the existing `BlockTransferService`.
+  messages are validated (`validate()` rejects negative coordinates / negative `bytesAcked`) before any
+  protocol-state mutation; malformed messages are rejected. No bulk shuffle data crosses this endpoint —
+  the data plane is the existing `BlockTransferService`.
 - **No new listening ports; reuses existing transport security.** The streaming path inherits Spark's
   existing shuffle authentication (`spark.authenticate` / SASL) and TLS via the existing transport
   configuration; it introduces **no new externally-reachable endpoints** beyond the executor-scoped RPC.
@@ -335,7 +316,7 @@ the build/runtime baseline is preserved (AAP §0.3.1, §0.5.2).
 
 **Verdict: ✅ APPROVED** — the backpressure endpoint enforces the executor-only / driver-rejected trust
 boundary, validates inbound messages, and reuses Spark's existing transport security without adding new
-network attack surface.
+network attack surface. (Consistent with the review's Security finding: **PASS**, no vulnerabilities.)
 
 ---
 
@@ -358,120 +339,112 @@ and the two surgical integration edits.
 **Findings — Integration edits (the two MODIFY files):**
 
 - **`ShuffleManager.scala` (factory alias).** The `shortShuffleMgrNames` map in the companion object
-  gains a single entry: `"streaming" -> "org.apache.spark.shuffle.streaming.StreamingShuffleManager"`.
-  The existing `create` / `getShuffleManagerClassName` logic and the `config.SHUFFLE_MANAGER` lookup are
-  reused unchanged; `SparkEnv.create()` reflectively instantiates the configured manager, so **no
-  scheduler or `SparkEnv` change is required**. The edit is annotated with a coexistence comment.
-- **`config/package.scala` (config registry).** Five `ConfigEntry` values
-  (`spark.shuffle.streaming.enabled`, `…bufferSizePercent`, `…spillThreshold`, `…maxBandwidthMBps`,
-  `…debug`) are registered via the existing `ConfigBuilder` DSL **immediately after** the
-  `SHUFFLE_MANAGER` entry, which is left unchanged. Defaults match the user example (enabled=false,
-  bufferSizePercent=20 [1–50], spillThreshold=80 [50–95], **maxBandwidthMBps=-1 (unlimited)**,
-  debug=false), each with `.version("4.2.0")`. The edit is annotated with a coexistence comment.
+  registers `"streaming" -> "org.apache.spark.shuffle.streaming.StreamingShuffleManager"` alongside the
+  preserved `sort` / `tungsten-sort` entries, with a coexistence comment. `SparkEnv.create()` continues
+  to instantiate the configured manager reflectively — **no scheduler or environment change**.
+- **`config/package.scala` (five config keys).** Five `spark.shuffle.streaming.*` `ConfigEntry` values
+  are registered immediately after `SHUFFLE_MANAGER`, with exact defaults/ranges matching the AAP
+  (`enabled=false`; `bufferSizePercent=20` [1–50]; `spillThreshold=80` [50–95]; `maxBandwidthMBps=-1`;
+  `debug=false`) and a coexistence comment. The existing `SHUFFLE_MANAGER` entry is unchanged.
 
-**Findings — Manager orchestration capstone & production-wired automatic fallback:**
+**Findings — SPI core, memory/spill, framing:**
 
-- **`StreamingShuffleManager`** implements the `ShuffleManager` SPI with the `(SparkConf, Boolean)`
-  constructor (reflection-instantiated by `SparkEnv`), overriding only the 7-arg `getReader` overload
-  (the final 5-arg overload is untouched). The active streaming path returns `StreamingShuffleHandle`,
-  `StreamingShuffleWriter`, `StreamingShuffleReader`, and `StreamingShuffleBlockResolver`; metrics-source
-  and backpressure-RPC setup are `SparkEnv.get != null`-gated for local-mode safety; teardown is ordered
-  (backpressure → spill → inner sort → resolver/metrics cleanup).
-- **Automatic fallback is production-wired (the core AAP guarantee).** The manager owns a single
-  `StreamingShuffleFallbackPolicy` and threads it into its collaborators so every revert condition
-  reaches it from a real production signal source: `BackpressureProtocol.updateThroughputWindow` pushes
-  `recordThroughput` (slow consumer) and `updateNetworkUtilization` (network saturation);
-  `MemorySpillManager.maybeSpill` pushes `updateMemoryUtilization`; and the manager itself pulls a fresh
-  executor-memory sample at registration via `refreshFallbackSignals()`. `BackpressureProtocol.report
-  VersionMismatch` forwards a protocol mismatch. `useStreaming` (consulted by `registerShuffle`) gates on
-  `streamingConfig.enabled && !fallbackPolicy.shouldFallback`, so the instant any condition holds the
-  manager delegates the shuffle to the **unchanged inner `SortShuffleManager`**. This is proven by
-  `StreamingShuffleManagerSuite` (each of the four conditions driven into the manager's own policy with
-  streaming **enabled**, asserting a sort handle from the inner manager) and by
-  `StreamingShuffleFailureInjectionSuite` scenario 8 (memory-pressure manager fallback).
-  > *v1 note:* the version-mismatch trigger is wired (`reportVersionMismatch` → `markVersionMismatch`),
-  > but the 32-byte envelope carries no version field, so on-wire **auto-detection** is deferred to v2.
-  > The other three conditions trip automatically from live executor signals.
-- **`StreamingShuffleWriter`** extends `MemoryConsumer`, buffers per-partition output as ≤ 2 MB
-  CRC32C-checked blocks, performs per-block `serializerManager.wrapStream` symmetry, framed-length
-  accounting, backpressure handoff, consumer-timeout spill coordination, and memory cleanup.
-- **`StreamingShuffleReader`** mirrors `BlockStoreShuffleReader` semantics (honoring `aggregator`,
-  `keyOrdering`, `mapSideCombine`), validates each block's CRC32C, and on a 5 s connection timeout
-  increments `partialReadInvalidations` and raises `FetchFailedException`.
-- **`StreamingShuffleBlockResolver`** extends `ShuffleBlockResolver` / implements `MigratableResolver`,
-  defers `BlockManager` lookup via lazy `SparkEnv.get.blockManager` (local-mode/null-env safe), and
-  delegates migration to `IndexShuffleBlockResolver`.
-- **`StreamingBuffer` / `MemorySpillManager`** hold per-partition bytes (CRC32C + LRU) and spill the
-  largest buffers via `BlockManager.putBytes(..., DISK_ONLY)` at the threshold, reclaiming within the
-  100 ms SLA; the spill denominator is `MemoryManager.maxOnHeapStorageMemory`. The dual-channel
-  wire/persist invariant holds: spilled bytes are byte-for-byte the bytes that travel on the wire.
-- **`BackpressureProtocol` / `TokenBucketRateLimiter`** drive a lock-free token-bucket + heartbeat state
-  machine; the limiter wraps Guava `RateLimiter` (1 permit = 1 byte) and is unlimited when
-  `maxBandwidthMBps ≤ 0`.
-- **`StreamingShuffleTransport` / `StreamingBlockEnvelope`** — the transport is the intended v1
-  logging-only integration layer over `BlockTransferService` (see PF-5); the envelope is the canonical
-  32-byte big-endian header (shuffleId, mapId, reduceId, sequenceNumber, CRC32C, payloadLength) + ≤ 2 MB
-  payload with canonical checksum verification.
-- **`StreamingShuffleConfig`** provides typed accessors, range validation, and derived values (including
-  the effective, 80%-factored bandwidth); **`package.scala`** supplies subsystem Scaladoc.
+- **SPI completeness & fallback.** `StreamingShuffleManager` implements the full `ShuffleManager` trait,
+  dispatches on `StreamingShuffleHandle`, registers the metrics source (gated on `SparkEnv.get != null`),
+  holds a **lazy inner `SortShuffleManager`**, and delegates to it when streaming is disabled or any of
+  the four fallback conditions trips. `stop()` tears down in a defined order. Verified by
+  `StreamingShuffleManagerSuite`, `StreamingShuffleIntegrationSuite` (streaming==sort equality), and
+  `StreamingShuffleIntegrationTest` (enabled=false delegation).
+- **Bounded buffering with 2 MB floor.** The writer sizes per-partition buffers as
+  `(executorMemory * bufferSizePercent / 100) / numPartitions` with a 2 MB floor; spill uses
+  `BlockManager.putBytes(..., DISK_ONLY)` with the spill denominator
+  `MemoryManager.maxOnHeapStorageMemory`, reclaiming within the 100 ms SLA. Verified by
+  `StreamingShuffleWriterSuite` and `MemorySpillManagerSuite`.
+- **CRC32C framing.** `StreamingBlockEnvelope` defines a 32-byte big-endian header
+  (shuffleId, mapId, reduceId, sequenceNumber, CRC32C, payloadLength) with a ≤ 2 MB payload and
+  canonical checksum verification. Verified by `network/StreamingBlockEnvelopeSuite` and reader/failure
+  suites.
+- **Partial-read invalidation.** On a 5 s connection timeout the reader increments
+  `partialReadInvalidations` and raises `FetchFailedException`, handing recovery to Spark's existing
+  lineage/recompute machinery. Verified by `StreamingShuffleReaderSuite` and the failure-injection suite.
 
-**Isolation & coexistence check:** all streaming logic lives in the new package; the only edits to
-pre-existing code are the two surgical, comment-annotated changes above. The absolute-preservation
-surfaces (RDD/DataFrame APIs, DAG scheduler, executor lifecycle, lineage/fault-recovery,
-`SortShuffleManager`, deployment infra, BlockManager storage contracts, task ser/de) are **untouched**
-(AAP §0.1.2, §0.5.2), confirmed by a `git diff --name-only` check.
+**Findings — Backpressure control plane (as-built, v1):**
 
-**Verdict: ✅ APPROVED** — the two integration edits are minimal and annotated; the SPI core is complete
-and correct; and **the AAP's core automatic-fallback guarantee is now production-wired and test-proven**:
-real signal sources feed the manager-owned policy, and `registerShuffle` delegates to the unchanged sort
-path whenever a revert condition holds.
+- **Local protocol + token bucket.** `BackpressureProtocol` implements the heartbeat/ack/rate-limit
+  state machine (5 s producer timeout, 10 s consumer timeout, 1 s scan); `TokenBucketRateLimiter` wraps
+  Guava `RateLimiter` (1 permit = 1 byte; unlimited when `maxBandwidthMBps ≤ 0`).
+- **Production consumer→producer sender, RPC-wired for the co-located producer.** This remediation added
+  an in-package production sender (`BackpressureRpcSender`) that the reader uses to deliver `Heartbeat`,
+  `Ack`, and (once per stream, when a bandwidth cap is set) `RateLimitRequest` to the producer's
+  `BackpressureRpcEndpoint` over the real `RpcEnv`. The manager passes the local endpoint
+  `Option[RpcEndpointRef]` to the reader; sends are **guarded/fire-and-forget** and gated on a
+  **co-location check** (the manager-supplied endpoint is this executor's, i.e. the producer's protocol,
+  only when the producer ran co-located). Two **cross-`RpcEnv` integration tests** in
+  `BackpressureRpcEndpointSuite` prove the production sender → real RpcEnv → endpoint →
+  `protocol.onHeartbeat/onAck/onRateLimitRequest` delivery, including that a remote `Ack` decrements the
+  exact producer-side `unackedBytes` the writer reads.
+  > **v1 limitation (cited deferral).** Driving an **arbitrary remote (non-co-located) producer**
+  > requires endpoint **auto-discovery** (mapping a producer `BlockManagerId` to its RPC address), which
+  > would touch preserved/out-of-scope components (`MapOutputTracker`, scheduler); per AAP §0.5.2 (v2
+  > transport hardening deferred) this is a **v2 enhancement**. The co-located control path is wired and
+  > test-proven now; this is documented honestly across the architecture docs, decision log, and deck.
+
+**Verdict: ✅ APPROVED (v1 delivered scope)** — the SPI is complete and correct, fallback is
+production-wired to the unchanged `SortShuffleManager`, memory/spill/framing/partial-read paths are
+sound, and the backpressure control plane is RPC-wired for the co-located producer with cross-`RpcEnv`
+tests; remote auto-discovery is an explicit, AAP-cited v2 deferral. *(The headline latency-delta
+performance acceptance is evaluated as a BLOCKED gate under Phase 5, not here.)*
 
 ---
 
 ## Phase 4 — Observability
 
-**Domain focus:** Metrics, structured logging, and the dashboard/observability documentation. The
-observability rule requires shipping observability *with* the implementation, reusing Spark's existing
-SLF4J/Log4j2 logging and `MetricsSystem`.
+**Domain focus:** Metrics, structured logging with exact MDC keys, the metrics template, and the
+dashboard.
 
-**Files owned (5; all delivered):**
+**Files owned (6; all delivered):**
 
 - `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleMetrics.scala`
 - `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleSource.scala`
+- `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleLogKeys.scala`
 - `core/src/main/resources/org/apache/spark/shuffle/streaming/metrics.properties.template`
 - `blitzy-docs/streaming-shuffle/observability.md`
 - `blitzy-docs/streaming-shuffle/dashboard.json`
 
 **Findings:**
 
-- **Exactly four `shuffle.streaming.*` metrics.** `StreamingShuffleMetrics` exposes
-  `bufferUtilizationPercent` (gauge) and `spillCount` / `backpressureEvents` /
-  `partialReadInvalidations` (counters); `backpressureEvents` is reserved for the flow-control path and
-  is **not** incremented by the fallback policy (clean metric contract). Verified by
-  `StreamingShuffleMetricsSuite` and exercised at runtime by `StreamingShuffleIntegrationSuite`.
-- **`Source` integration, no framework change.** `StreamingShuffleSource` implements
-  `org.apache.spark.metrics.source.Source` and is registered with the executor `MetricsSystem` via
-  `metricsSystem.registerSource(...)`, gated on `SparkEnv.get != null`. Metrics surface through the
-  **existing** JMX and Prometheus endpoints and the Stages-tab shuffle columns — **no change to the
-  metrics framework**. Registration is verified by the integration suite.
-- **Structured logging with correlation IDs.** `observability.md` documents the MDC keys `shuffle_id`,
-  `map_id`, `reduce_partition_range`, `attempt_id`; `spark.shuffle.streaming.debug` gates verbose logging.
-- **Budget invariants.** Telemetry overhead < 1% executor CPU; log volume < 10 MB/hour/executor (AAP
-  §0.6.1).
-- **Dashboard template & reuse documentation.** `dashboard.json` provides a Grafana **2×2 grid of four
-  panels**; `observability.md` records precisely what was *reused* (SLF4J/Log4j2, `MetricsSystem`,
-  JMX/Prometheus, executor health surface) versus *added* (four metrics, MDC keys, dashboard).
+- **Four metrics, correctly scoped.** `StreamingShuffleMetrics` exposes `bufferUtilizationPercent`
+  (gauge) and `spillCount` / `backpressureEvents` / `partialReadInvalidations` (counters);
+  `StreamingShuffleSource` implements `org.apache.spark.metrics.source.Source` and registers them under
+  `shuffle.streaming.*` with the executor `MetricsSystem`. **Exposure is JMX / Prometheus / configured
+  sinks only** — the source does **not** add Spark Web UI Stages-tab columns. (Generic Shuffle
+  Read/Write *volume* still appears in the existing Stages-tab columns because the reader/writer update
+  Spark's standard shuffle read/write metrics — distinct from the four `shuffle.streaming.*` metrics.)
+- **Exact MDC keys (remediation).** The Observability rule requires the exact MDC keys `shuffle_id`,
+  `map_id`, `reduce_partition_range`, and `attempt_id`. `shuffle_id`/`map_id` reuse the standard
+  `LogKeys.SHUFFLE_ID`/`MAP_ID`; the new `StreamingShuffleLogKeys` defines `ATTEMPT_ID` and
+  `REDUCE_PARTITION_RANGE` (so the emitted lowercase keys are exactly `attempt_id` and
+  `reduce_partition_range`). The reader's summary log now emits `shuffle_id`, `reduce_partition_range`
+  (`"[start,end)"`), and `attempt_id`; the writer emits `attempt_id` (replacing the prior
+  `task_attempt_id`) alongside `shuffle_id`/`map_id`. Verified empirically: with structured logging
+  enabled the emitted context map contains exactly `attempt_id` and `reduce_partition_range`.
+- **Template & dashboard.** `metrics.properties.template` provides the metrics configuration template;
+  `dashboard.json` is valid JSON with the required 2×2 four-panel layout, Prometheus templating, a buffer
+  gauge red threshold at 80, and the three counters.
+- **Budgets honored.** Telemetry overhead < 1% executor CPU and log volume < 10 MB/hour/executor are
+  preserved by emitting compact counters/gauges and structured (not verbose) log lines.
 
-**Verdict: ✅ APPROVED** — the four metrics, the `Source`, MDC-correlated logging, the overhead/log
-budgets, the resource template, and the Grafana dashboard are present, runtime-verified, and reuse
-existing platform surfaces without modifying the metrics framework.
+**Verdict: ✅ APPROVED** — the four metrics are correctly defined and surfaced via JMX/Prometheus (no
+overstated Web UI columns), the exact required MDC keys are emitted and verified, and the
+template/dashboard satisfy the Observability rule.
 
 ---
 
 ## Phase 5 — QA / Test Integrity
 
 **Domain focus:** Test coverage, failure/zero-data-loss validation, memory-leak (stress) validation, and
-performance evidence.
+performance evidence. **This phase owns the two final-AAP acceptance gates** (numeric coverage figure;
+headline latency deltas).
 
 **Files owned (19; all delivered):** 17 test files + 2 benchmark result artifacts.
 
@@ -485,41 +458,46 @@ performance evidence.
 *Benchmark result artifacts (2):* `core/benchmarks/StreamingShuffleBenchmark-results.txt`,
 `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt`.
 
-**Findings:**
+**Findings — what PASSES:**
 
-- **Full battery green.** The complete battery passes — **113 succeeded, 0 failed, 1 canceled** (the
-  opt-in soak). The corrected `StreamingShuffleManagerSuite` proves all four manager-internal fallback
-  conditions delegate to the inner sort manager **with streaming enabled**; the 10-scenario
-  `StreamingShuffleFailureInjectionSuite` proves zero data loss (scenario 8 now feeds memory pressure
-  into the manager-owned policy and asserts real fallback rather than disabled-default delegation).
-- **Stress gate is executable and evidenced.** `StreamingShuffleStressSuite` now provides an
-  **always-run smoke** test (bounded fixed-iteration churn, no `assume` skip) that asserts
-  `iterations > 0`, a bounded ~10% injection ratio (`injected == (iterations + 9) / 10`, `injected > 0`),
-  and **zero retained managed memory** (`executionMemoryUsed == 0`) — plus an **opt-in 5-minute soak**
-  (`-Dspark.test.stress=true`) for the full-duration merge-gate lane. In the default lane the smoke runs
-  and the soak is canceled (1 canceled in the battery).
-- **Performance benchmark models the required scenarios.** `StreamingShufflePerformanceBenchmark` now
-  runs a **shuffle-heavy workload of ~122 MB across 16 partitions** (`groupByKey`, no map-side combine,
-  so the full payload shuffles), a CPU-bound case, and a **memory-bound case that genuinely fills
-  executor storage to ~99%** so the manager's registration-time `refreshFallbackSignals()` trips the
-  production memory-pressure fallback to sort. The two FINAL result files are regenerated from this
-  corrected harness and report **measured v1 numbers**: shuffle-heavy and CPU-bound at **parity** with
-  sort (zero regression), and the memory-bound case at parity **via genuine production fallback**.
-  > **v1 vs v2.** Because v1 reuses the existing `BlockTransferService` data plane (the intended v1
-  > logging-only transport, AAP §0.4.4), v1 demonstrates **functional parity, zero regression, and a
-  > valid measurement harness** — not a latency win. The AAP's **30–50%** shuffle-heavy and **5–10%**
-  > CPU-bound deltas are **v2 targets** realized when the streaming data plane replaces the v1 transport.
-  > The result files report actual v1 numbers, never aspirational ones. Recorded in the decision log.
-- **Coverage (> 85%).** Substantiated by the documented test-to-source mapping plus the instrumented
-  scoverage command (see PF-3 and the decision log). Numeric measurement is deferred to a connected CI
-  environment because coverage tooling is unavailable offline and the AAP forbids adding it to the poms
-  (§0.3.1, §0.5.2). Every executable production class has at least one dedicated suite, most have several
-  plus integration coverage.
+- **Full battery green.** **115 succeeded, 0 failed, 1 canceled** (the opt-in soak). Every executable
+  production class has at least one dedicated suite; the manager's four fallback conditions, the
+  10-scenario failure injection (zero data loss), and streaming==sort equality all pass.
+- **Stress soak EXECUTED.** The 5-minute soak with ~10% failure injection was run to completion
+  (`SPARK_STREAMING_STRESS=1`): **2 succeeded, 0 failed, 0 canceled, 05:18 min**, with **zero retained
+  heap** (`assertZeroRetainedManagedMemory()` + per-task `spark.unsafe.exceptionOnMemoryLeak=true`).
+  This closes the prior "soak canceled by default" evidence gap.
+- **Benchmark harness is honest and internally consistent.** `StreamingShufflePerformanceBenchmark`
+  models a shuffle-heavy workload (≥ 100 MB across ≥ 10 partitions), a CPU-bound case, and a memory-bound
+  case that genuinely trips production fallback to sort. Both result files report **actual measured v1
+  numbers** (no fabrication).
 
-**Verdict: ✅ APPROVED** — the full battery passes; the stress smoke runs (not skipped) with explicit
-injection-ratio and zero-retained-heap assertions; the benchmark models the required ≥100 MB and
-genuine-fallback scenarios with honest v1 result files; and the coverage bar is substantiated by
-documented methodology, with numeric measurement deferred to connected CI under the AAP constraints.
+**Findings — BLOCKED gates (honest, per the review's accepted "mark BLOCKED" option):**
+
+- ⛔ **GATE A — Headline latency deltas NOT met in v1 (deferred to v2).** The committed result files
+  report: shuffle-heavy sort **478 ms best / 541 ms avg → streaming 465 / 479** (≈ 2.7% best /
+  ≈ 11.5% avg); CPU-bound sort **116 / 122 → streaming 110 / 117** (≈ 5.2% best / ≈ 4.1% avg);
+  memory-bound **173 / 177 → 162 / 167** via genuine fallback (no regression). These demonstrate
+  **functional parity, zero regression, and a valid harness**, but do **not** meet the AAP §0.1.1
+  **30–50%** shuffle-heavy / **5–10%** CPU-bound criteria, which require the **v2 streaming data plane**.
+  Because v1 reuses the existing `BlockTransferService` pull path (the intended v1 logging-only
+  transport, §0.4.4; v2 transport hardening deferred, §0.5.2), this gate is **BLOCKED at the final-AAP
+  level and deferred to v2**. The result files and all documentation present these as v2 targets, never
+  as achieved.
+- ⛔ **GATE B — Numeric > 85% coverage NOT produced (BLOCKED).** scoverage and JaCoCo are **not
+  configured** in `pom.xml` / `core/pom.xml` and are **absent from the offline `~/.m2`**; enabling either
+  **requires a pom change**, which the AAP forbids (§0.3.1 — only the two enumerated MODIFY files are
+  permitted, neither a pom). A numerically-instrumented line-coverage figure is therefore **not
+  producible in this environment**. Qualitative evidence (18 production classes, 16 dedicated suites +
+  benchmark, near 1:1 class→suite mapping, 115 passing tests incl. failure injection + equality + the
+  executed soak) is strong but is **not** a numeric substitute. Per the review's explicit guidance, this
+  gate is **marked BLOCKED** rather than presented as satisfied.
+
+**Verdict: ⛔ BLOCKED** — functional correctness, zero data loss, the executed stress soak, and the
+honest benchmark harness all PASS, but the two final-AAP acceptance gates this phase owns (numeric
+> 85% coverage; headline latency deltas) are **not met within v1** and are deferred to v2 under cited
+AAP exceptions (§0.4.4 / §0.5.2 / §0.3.1). This BLOCKED verdict is the honest final-acceptance state —
+not a regression or defect in the delivered v1 code.
 
 ---
 
@@ -539,47 +517,53 @@ presentation, and this review artifact.
 > *Note:* `observability.md` and `dashboard.json` are part of the TechDocs set but are owned by
 > **Phase 4 — Observability** to keep each file in exactly one phase.
 
-**Findings:**
+**Findings (post-remediation — documentation is now accurate to as-built behavior):**
 
 - **Configuration reference.** `configuration.md` documents the five `spark.shuffle.streaming.*` keys and
   the `spark.shuffle.manager=streaming` activation alias, with types, ranges, and defaults matching the
   implementation (enabled=false; bufferSizePercent=20 [1–50]; spillThreshold=80 [50–95];
-  **maxBandwidthMBps=-1 (unlimited; any value ≤ 0)**; debug=false), and the two-flag opt-in contract.
-- **Architecture documentation with Mermaid, now accurate to the implementation.** Both the TechDoc
-  `architecture.md` and the Jekyll `streaming-shuffle-architecture.md` communicate the design
+  **maxBandwidthMBps=-1 (unlimited; any value ≤ 0)**; debug=false). The Jekyll `tuning` guide's prior
+  `maxBandwidthMBps` "default 0" drift is corrected to **-1**.
+- **Performance framing is honest.** `index.md`, the Jekyll `architecture`/`guide`/`tuning` docs, the
+  decision log, and the executive deck now present the **actual measured v1 numbers** and label the
+  **30–50% / 5–10%** deltas as **v2 targets** (v1 at parity / zero regression) — they are no longer
+  presented as achieved.
+- **Backpressure framing is as-built.** The TechDoc `architecture.md`, Jekyll
+  `architecture`/`troubleshooting`, `index.md`, and the executive deck now describe the **co-located
+  RPC-wired** consumer→producer control plane (`BackpressureRpcSender` → `BackpressureRpcEndpoint` over
+  `RpcEnv`, proven by `BackpressureRpcEndpointSuite`) and explicitly note that **remote auto-discovery is
+  a v2 enhancement** — matching the implementation rather than overstating a fully-remote path.
+- **Metrics exposure is correctly scoped.** `observability.md` and the Jekyll `troubleshooting` doc now
+  state the four metrics surface via **JMX/Prometheus/MetricsSystem** and do **not** add Web UI columns;
+  generic shuffle volume in the Stages tab is correctly attributed to Spark's standard shuffle metrics.
+- **Architecture documentation with Mermaid.** Both `architecture.md` files communicate the design
   **exclusively with Mermaid** and include the three required diagrams — the before/after
-  **factory-selection** diagram (Diagram 1), the **component-interaction** diagram (Diagram 2), and the
-  **producer-to-consumer data-flow** diagram (Diagram 3) — each titled, legended, and referenced by name.
-  The fallback sections and Diagram 3 now describe the **production-wired** behavior precisely: the
-  fallback is a **manager-level decision at `registerShuffle`** fed by live signals from
-  `BackpressureProtocol` (throughput/network) and `MemorySpillManager` (memory), with each of the four
-  conditions mapped to its exact signal source and the v1 version-mismatch limitation noted.
+  **factory-selection** diagram (1), the **component-interaction** diagram (2), and the
+  **producer-to-consumer data-flow** diagram (3) — each titled, legended, and referenced by name, with an
+  **as-built note** clarifying the co-located v1 control wiring.
 - **Decision log.** `decision-log.md` captures each non-trivial decision (decision, alternatives,
-  rationale, risk), including a dedicated row for the **fallback-wiring decision**, plus a
-  **bidirectional traceability matrix** whose automatic-fallback row maps each revert condition to its
-  production signal source, the manager decision point, and the proving manager/integration tests. It
-  also records the **Performance evidence (v1 measured vs. v2 targets)** note and the
-  **Coverage methodology** (test-to-source mapping + instrumented scoverage command + AAP rationale), and
-  the intended v1 transport-stub deviation — the canonical cross-reference PF-5 points to.
+  rationale, risk), including rows for the **production backpressure sender** (co-located v1 / remote v2),
+  the **exact MDC keys**, the **v1 transport-stub deviation**, the **Performance evidence
+  (v1 measured vs. v2 targets)** note (with a "latency-delta NOT met in v1" banner), and the **Coverage
+  methodology** (with a "Gate status: BLOCKED" banner and the §0.3.1 rationale), plus a bidirectional
+  traceability matrix. The data-plane drift ("driven by `ShuffleBlockFetcherIterator`") is corrected to
+  `BlockTransferService.fetchBlockSync` called directly by the reader.
 - **Executive presentation.** `executive-summary.html` is a single self-contained **reveal.js** deck
-  (16 slides) covering scope, business value, the architectural change, risks/mitigations, and
-  onboarding; it embeds the Blitzy brand theme inline, pins CDN versions (reveal.js 5.1.0, Mermaid
-  11.4.0, Lucide 0.460.0), embeds Mermaid diagrams, uses Lucide SVG icons (no emoji), and ensures every
-  slide carries a non-text visual. The fallback slides now state the **production-wired, test-proven**
-  behavior, and the performance/coverage slide is reframed to **honest v1-verified evidence vs. v2
-  targets** (parity/zero-regression verified; 30–50% / 5–10% labeled as v2 targets; coverage shown as a
-  merge bar substantiated by documented methodology).
-- **Operator guides.** The Jekyll `streaming-shuffle-{guide,troubleshooting,tuning}.md` provide
-  enablement steps, failure-handling guidance, and tuning recommendations consistent with the
-  implementation and documented defaults; the troubleshooting flow is a titled, legended Mermaid diagram.
-- **This review artifact.** `CODE_REVIEW.md` is valid, cleanly-rendering Markdown at the repository root;
-  it reflects the Checkpoint 3 delivered state, partitions every file into exactly one phase, records the
-  v1 transport whitelist note, and records the commit cadence.
+  (16 slides) embedding the Blitzy brand theme inline, pinning CDN versions (reveal.js 5.1.0, Mermaid
+  11.4.0, Lucide 0.460.0), embedding Mermaid diagrams, and using Lucide SVG icons (no emoji). The
+  backpressure slide states the co-located RPC-wired (v1) / remote (v2) behavior; the performance/coverage
+  slide is reframed to honest **v1-verified vs. v2-target** evidence with coverage shown as an **open
+  risk** (not numerically proven). ARIA labels were added to the Mermaid containers and decorative icons
+  are `aria-hidden`.
+- **This review artifact.** `CODE_REVIEW.md` reflects the **FINAL** delivered state (52 files),
+  partitions every file into exactly one phase, marks the two final-AAP gates **BLOCKED**, and records
+  the commit cadence and the v1 transport whitelist note.
 
-**Verdict: ✅ APPROVED** — the documentation set is complete and **accurate to the implemented behavior**:
-the decision log records the fallback wiring, the v1 transport deviation, the v1/v2 performance framing,
-and the coverage methodology; the executive deck and architecture docs no longer overstate fallback,
-coverage, or performance; and the Mermaid diagrams satisfy the Visual Architecture rule.
+**Verdict: ✅ APPROVED** — the documentation set is complete and **accurate to the implemented
+behavior**: performance is framed as v1-measured vs. v2-target, backpressure is framed as co-located
+RPC-wired with remote deferred to v2, metrics exposure is JMX/Prometheus (no overstated Web UI columns),
+the decision log records the BLOCKED gates and the v1 transport deviation, and the Mermaid diagrams
+satisfy the Visual Architecture rule.
 
 ---
 
@@ -587,48 +571,67 @@ coverage, or performance; and the Mermaid diagrams satisfy the Visual Architectu
 
 **Files owned: 0.** The Streaming Shuffle feature is a **backend-only** Spark Core change (AAP §0.4.5).
 It introduces **no new Web UI tabs, pages, or static assets**, and **no Figma designs were provided**
-(AAP §0.7). Streaming-shuffle telemetry surfaces through the **existing** Web UI Stages-tab shuffle
-columns and the existing Prometheus/JMX endpoints — no front-end change is required. There is therefore
-no design-to-component mapping and no design-system alignment to review. **Status: N/A.**
+(AAP §0.7). The four `shuffle.streaming.*` metrics surface through the **existing JMX / Prometheus /
+MetricsSystem** endpoints (and an external Grafana dashboard provisioned from `dashboard.json`) — they
+are **not** added as Web UI columns. There is therefore no design-to-component mapping and no
+design-system alignment to review. **Status: N/A.**
 
 ---
 
-## Checkpoint 3 Re-Verification & Verdict
+## FINAL Checkpoint Re-Verification & Verdict
 
-A final reviewer re-verified the delivered state for this checkpoint:
+A final reviewer re-verified the delivered state for the **FINAL — Full Project Completion
+Verification** checkpoint, accounting for the remediation applied to the prior review's 14 findings:
 
-| Re-verification item (Checkpoint 3) | Result |
-|-------------------------------------|:------:|
+| Re-verification item (FINAL) | Result |
+|------------------------------|:------:|
 | Pre-Flight Gate green across the full change set (PF-1…PF-5) | ✅ PASS |
-| Full streaming battery passes (113 succeeded, 0 failed, 1 canceled opt-in soak) | ✅ PASS |
-| 51 of 51 files delivered; none PENDING; each in exactly one phase | ✅ ACCURATE |
-| **Automatic fallback production-wired** — four conditions feed the manager-owned policy; `registerShuffle` delegates to the unchanged `SortShuffleManager` (proven by manager + failure-injection suites) | ✅ YES |
-| Stress smoke runs (not skipped) with injection-ratio + zero-retained-heap assertions; 5-minute soak opt-in | ✅ YES |
-| Benchmark models ~122 MB / 16-partition shuffle-heavy + genuine memory-pressure fallback; FINAL result files regenerated with honest v1 numbers | ✅ YES |
-| Coverage substantiated by documented test-to-source methodology + instrumented command; numeric measurement deferred to connected CI (AAP §0.3.1/§0.5.2) | ✅ NOTED |
-| Documentation accurate to implementation (fallback wiring, v1/v2 performance, coverage methodology); no overstated claims | ✅ YES |
+| 52 of 52 files delivered; none PENDING; each in exactly one phase | ✅ ACCURATE |
+| Zero-error / zero-warning streaming build (`test-compile`) | ✅ PASS |
+| Full streaming battery passes (115 succeeded, 0 failed, 1 canceled opt-in soak) | ✅ PASS |
+| **5-minute stress soak EXECUTED** (10% failure injection, zero retained heap) — prior gap closed | ✅ PASS |
+| Zero data loss (10 failure-injection scenarios) + streaming==sort equality | ✅ PASS |
+| **Consumer→producer backpressure RPC-wired for the co-located producer** (`BackpressureRpcSender` → endpoint → protocol; cross-`RpcEnv` tests); remote auto-discovery is a cited **v2** deferral (§0.5.2) | ✅ YES (v1) |
+| **Exact MDC keys** `reduce_partition_range` + `attempt_id` emitted (via `StreamingShuffleLogKeys`) and empirically verified | ✅ PASS |
+| Documentation/deck/decision-log accurate to as-built (performance v1/v2, backpressure co-located, JMX/Prometheus metrics, config defaults) | ✅ YES |
+| **GATE A — headline latency deltas (30–50% / 5–10%)** | ⛔ **BLOCKED** — not met in v1; v2 target (§0.4.4 / §0.5.2) |
+| **GATE B — numeric > 85% coverage figure** | ⛔ **BLOCKED** — not producible offline; pom change forbidden (§0.3.1) |
 | v1 `StreamingShuffleTransport` whitelisted as intended logging-only behavior (not a defect stub) | ✅ NOTED |
-| Absolute-preservation surfaces untouched; no dependency/CI/build drift | ✅ YES |
+| Absolute-preservation surfaces untouched; no dependency/CI/build drift; default sort path unchanged | ✅ YES |
 
-### Overall Verdict: ✅ APPROVED — Checkpoint 3 delivered scope
+### Overall Verdict: ⛔ NOT APPROVED for full final AAP success criteria — v1 scope APPROVED; 2 gates BLOCKED (deferred to v2)
 
-The **Checkpoint 3** deliverables — the manager orchestration capstone with **production-wired,
-test-proven automatic fallback**, the complete SPI core and spill/backpressure/transport subsystems, the
-observability metric/source/template/dashboard, the full 17-file test battery and 2 regenerated benchmark
-artifacts, and the complete documentation set — are **complete, correct, and APPROVED**. The streaming
-change set builds with zero errors / no streaming-file warnings, the full battery is green (113/0/1), and
-static analysis is clean. The two documented caveats — coverage **numeric** measurement deferred to a
-connected CI environment (methodology + command provided; AAP forbids pom changes), and the headline
-latency deltas being **v2 targets** under the intended v1 logging-only transport — are honest, recorded,
-and consistent with the AAP; neither is a defect.
+All **14** findings from the prior review have been **addressed**: **12 are RESOLVED** in code and
+documentation (exact MDC keys; co-located backpressure RPC wiring with cross-`RpcEnv` tests; executed
+5-minute soak; corrected stale review artifact; and all documentation/deck/decision-log as-built
+accuracy and minor-drift fixes), and **2 are honestly BLOCKED** at the final-AAP acceptance level:
 
-**`CODE_REVIEW.md` is committed for this checkpoint** and is present in the pull request's final commit.
+- ⛔ **GATE A — headline latency deltas** (30–50% shuffle-heavy / 5–10% CPU-bound) are **v2 targets**;
+  v1 reuses the existing `BlockTransferService` data plane (intended v1 logging-only transport, §0.4.4;
+  v2 transport hardening deferred, §0.5.2) and demonstrates parity / zero regression, not the deltas.
+- ⛔ **GATE B — numeric > 85% coverage** cannot be produced in the offline build because adding
+  scoverage/JaCoCo requires a forbidden pom change (§0.3.1); the gate is **marked BLOCKED** (the review's
+  explicitly accepted option), with strong qualitative evidence recorded.
+
+The **v1-delivered scope is production-sound**: the build is zero-error / zero-warning, the full battery
+is green (115/0/1), the 5-minute soak executed with zero retained heap, security passed with no
+vulnerabilities, the default sort path is byte-for-byte unchanged, and all documentation is accurate to
+as-built behavior. Because two **final-AAP success criteria** remain unmet within v1 — by **design**,
+under cited AAP exceptions, not due to any code defect — the honest overall verdict is **NOT APPROVED for
+full final AAP acceptance**. The v1 scope and all remediable findings are **APPROVED**; the two BLOCKED
+gates are deferred to **v2**.
+
+**Approved (full final AAP success criteria): false.** **Approved (v1 delivered scope + all remediable
+findings): true.**
+
+**`CODE_REVIEW.md` is committed for this FINAL checkpoint** and is present in the pull request's final
+commit.
 
 ---
 
 ## Appendix — File-to-Phase Coverage Matrix
 
-This matrix assigns **every one of the 51 delivered files** to **exactly one** phase (no omissions, no
+This matrix assigns **every one of the 52 delivered files** to **exactly one** phase (no omissions, no
 double-counting); every file is **Present**. Phases: **I/D** = Infrastructure/DevOps, **Sec** = Security,
 **BA** = Backend Architecture, **Obs** = Observability, **QA** = QA/Test Integrity, **Doc** =
 Business/Domain & Other SME (Documentation).
@@ -654,49 +657,53 @@ Business/Domain & Other SME (Documentation).
 | 17 | `core/src/main/scala/org/apache/spark/shuffle/streaming/BackpressureRpcEndpoint.scala` | prod | Sec | Present |
 | 18 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleMetrics.scala` | prod | Obs | Present |
 | 19 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleSource.scala` | prod | Obs | Present |
-| 20 | `core/src/main/resources/org/apache/spark/shuffle/streaming/metrics.properties.template` | resource | Obs | Present |
-| 21 | `blitzy-docs/streaming-shuffle/observability.md` | TechDoc | Obs | Present |
-| 22 | `blitzy-docs/streaming-shuffle/dashboard.json` | TechDoc | Obs | Present |
-| 23 | `core/src/test/scala/org/apache/spark/shuffle/streaming/BackpressureProtocolSuite.scala` | test | QA | Present |
-| 24 | `core/src/test/scala/org/apache/spark/shuffle/streaming/BackpressureRpcEndpointSuite.scala` | test | QA | Present |
-| 25 | `core/src/test/scala/org/apache/spark/shuffle/streaming/BackpressureRpcValidationSuite.scala` | test | QA | Present |
-| 26 | `core/src/test/scala/org/apache/spark/shuffle/streaming/MemorySpillManagerSuite.scala` | test | QA | Present |
-| 27 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleBlockResolverSuite.scala` | test | QA | Present |
-| 28 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleFailureInjectionSuite.scala` | test | QA | Present |
-| 29 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleFallbackPolicySuite.scala` | test | QA | Present |
-| 30 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleHandleSuite.scala` | test | QA | Present |
-| 31 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleIntegrationSuite.scala` | test | QA | Present |
-| 32 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleIntegrationTest.scala` | test | QA | Present |
-| 33 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleManagerSuite.scala` | test | QA | Present |
-| 34 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleMetricsSuite.scala` | test | QA | Present |
-| 35 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShufflePerformanceBenchmark.scala` | test (benchmark harness) | QA | Present |
-| 36 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleReaderSuite.scala` | test | QA | Present |
-| 37 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleStressSuite.scala` | test | QA | Present |
-| 38 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleWriterSuite.scala` | test | QA | Present |
-| 39 | `core/src/test/scala/org/apache/spark/shuffle/streaming/network/StreamingBlockEnvelopeSuite.scala` | test | QA | Present |
-| 40 | `core/benchmarks/StreamingShuffleBenchmark-results.txt` | benchmark | QA | Present |
-| 41 | `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt` | benchmark | QA | Present |
-| 42 | `blitzy-docs/streaming-shuffle/index.md` | TechDoc | Doc | Present |
-| 43 | `blitzy-docs/streaming-shuffle/configuration.md` | TechDoc | Doc | Present |
-| 44 | `blitzy-docs/streaming-shuffle/architecture.md` | TechDoc | Doc | Present |
-| 45 | `blitzy-docs/streaming-shuffle/decision-log.md` | TechDoc | Doc | Present |
-| 46 | `blitzy-docs/streaming-shuffle/executive-summary.html` | TechDoc | Doc | Present |
-| 47 | `docs/streaming-shuffle-architecture.md` | Jekyll doc | Doc | Present |
-| 48 | `docs/streaming-shuffle-guide.md` | Jekyll doc | Doc | Present |
-| 49 | `docs/streaming-shuffle-troubleshooting.md` | Jekyll doc | Doc | Present |
-| 50 | `docs/streaming-shuffle-tuning.md` | Jekyll doc | Doc | Present |
-| 51 | `CODE_REVIEW.md` | review artifact | Doc | Present |
+| 20 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleLogKeys.scala` | prod | Obs | Present |
+| 21 | `core/src/main/resources/org/apache/spark/shuffle/streaming/metrics.properties.template` | resource | Obs | Present |
+| 22 | `blitzy-docs/streaming-shuffle/observability.md` | TechDoc | Obs | Present |
+| 23 | `blitzy-docs/streaming-shuffle/dashboard.json` | TechDoc | Obs | Present |
+| 24 | `core/src/test/scala/org/apache/spark/shuffle/streaming/BackpressureProtocolSuite.scala` | test | QA | Present |
+| 25 | `core/src/test/scala/org/apache/spark/shuffle/streaming/BackpressureRpcEndpointSuite.scala` | test | QA | Present |
+| 26 | `core/src/test/scala/org/apache/spark/shuffle/streaming/BackpressureRpcValidationSuite.scala` | test | QA | Present |
+| 27 | `core/src/test/scala/org/apache/spark/shuffle/streaming/MemorySpillManagerSuite.scala` | test | QA | Present |
+| 28 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleBlockResolverSuite.scala` | test | QA | Present |
+| 29 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleFailureInjectionSuite.scala` | test | QA | Present |
+| 30 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleFallbackPolicySuite.scala` | test | QA | Present |
+| 31 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleHandleSuite.scala` | test | QA | Present |
+| 32 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleIntegrationSuite.scala` | test | QA | Present |
+| 33 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleIntegrationTest.scala` | test | QA | Present |
+| 34 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleManagerSuite.scala` | test | QA | Present |
+| 35 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleMetricsSuite.scala` | test | QA | Present |
+| 36 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShufflePerformanceBenchmark.scala` | test (benchmark harness) | QA | Present |
+| 37 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleReaderSuite.scala` | test | QA | Present |
+| 38 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleStressSuite.scala` | test | QA | Present |
+| 39 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleWriterSuite.scala` | test | QA | Present |
+| 40 | `core/src/test/scala/org/apache/spark/shuffle/streaming/network/StreamingBlockEnvelopeSuite.scala` | test | QA | Present |
+| 41 | `core/benchmarks/StreamingShuffleBenchmark-results.txt` | benchmark | QA | Present |
+| 42 | `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt` | benchmark | QA | Present |
+| 43 | `blitzy-docs/streaming-shuffle/index.md` | TechDoc | Doc | Present |
+| 44 | `blitzy-docs/streaming-shuffle/configuration.md` | TechDoc | Doc | Present |
+| 45 | `blitzy-docs/streaming-shuffle/architecture.md` | TechDoc | Doc | Present |
+| 46 | `blitzy-docs/streaming-shuffle/decision-log.md` | TechDoc | Doc | Present |
+| 47 | `blitzy-docs/streaming-shuffle/executive-summary.html` | TechDoc | Doc | Present |
+| 48 | `docs/streaming-shuffle-architecture.md` | Jekyll doc | Doc | Present |
+| 49 | `docs/streaming-shuffle-guide.md` | Jekyll doc | Doc | Present |
+| 50 | `docs/streaming-shuffle-troubleshooting.md` | Jekyll doc | Doc | Present |
+| 51 | `docs/streaming-shuffle-tuning.md` | Jekyll doc | Doc | Present |
+| 52 | `CODE_REVIEW.md` | review artifact | Doc | Present |
 
-**Phase totals:** BA = 16 · Sec = 1 · Obs = 5 · QA = 19 · Doc = 10 · I/D = 0 (negative verification) ·
-Frontend = 0 (N/A) → **51 / 51 files, each in exactly one phase.**
+**Phase totals:** BA = 16 · Sec = 1 · Obs = 6 · QA = 19 · Doc = 10 · I/D = 0 (negative verification) ·
+Frontend = 0 (N/A) → **52 / 52 files, each in exactly one phase.**
 
-**Delivery totals (Checkpoint 3):** **Present = 51** · **Pending = 0** → 51 total. All phases:
-BA = 16/16, Sec = 1/1, Obs = 5/5, QA = 19/19, Doc = 10/10.
+**Delivery totals (FINAL):** **Present = 52** · **Pending = 0** → 52 total. All phases:
+BA = 16/16, Sec = 1/1, Obs = 6/6, QA = 19/19, Doc = 10/10.
 
 ---
 
 *Generated as the mandated Segmented PR Review deliverable (AAP §0.6.2). This document is a living
 artifact: it was committed before Phase 1 and is re-committed at each phase transition and checkpoint.
-This revision reflects the **Checkpoint 3** delivered state (51 of 51 files; all phases APPROVED), with
-the coverage numeric-measurement and v2 latency caveats documented honestly above and in the decision
-log.*
+This revision reflects the **FINAL — Full Project Completion Verification** delivered state (52 of 52
+files). Five domain phases are APPROVED; **Phase 5 (QA / Test Integrity) is BLOCKED** because two
+final-AAP gates — a numeric > 85% coverage figure and the headline latency deltas — are not met within
+v1 and are deferred to v2 under cited AAP exceptions (§0.4.4 / §0.5.2 / §0.3.1). All 14 prior-review
+findings are addressed: 12 RESOLVED, 2 honestly BLOCKED. The overall verdict is **NOT APPROVED for full
+final AAP success criteria**; the v1 delivered scope and all remediable findings are APPROVED.*

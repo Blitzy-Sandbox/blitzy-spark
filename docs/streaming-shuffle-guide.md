@@ -175,14 +175,22 @@ Streaming shuffle targets workloads where the cost of materializing intermediate
 dominates end-to-end latency. Use the following guidance to decide whether to enable it:
 
 * **Shuffle-heavy workloads** &mdash; jobs that move a substantial amount of intermediate data
-  (roughly &ge; 100 MB) across a reasonable number of partitions (roughly &ge; 10) benefit the most.
-  For these workloads you can expect a 30&ndash;50% reduction in end-to-end shuffle latency.
+  (roughly &ge; 100 MB) across a reasonable number of partitions (roughly &ge; 10) are the primary
+  target. The headline **30&ndash;50% latency reduction** for these workloads is a **v2 goal** that
+  materializes once the real streaming data plane replaces the v1 logging-only transport; in **v1**
+  the measured result is **parity with sort-based shuffle (no regression)**, not a latency win.
 * **CPU-bound workloads** &mdash; jobs whose runtime is dominated by computation rather than data
-  movement see a more modest 5&ndash;10% improvement, primarily from reduced scheduler overhead.
+  movement target a more modest **5&ndash;10% improvement** from reduced scheduler overhead &mdash;
+  also a **v2 goal**; v1 measures at parity.
 * **Memory-bound workloads** &mdash; jobs that are already close to their memory limits may see no
   benefit, because the backend automatically falls back to sort-based shuffle when buffers cannot be
   allocated safely. It is still safe to leave streaming enabled for these jobs: the automatic
   fallback guarantees zero regression (see [Automatic fallback behavior](#automatic-fallback-behavior)).
+
+> **v1 measured results.** The committed benchmark artifacts report shuffle-heavy &asymp; 2.7% best /
+> 11.5% average, CPU-bound &asymp; 5.2% best / 4.1% average, and memory-bound fallback with no
+> regression. Enable streaming in v1 for its correctness, zero-regression, and zero-data-loss
+> guarantees (and to be ready for the v2 latency gains); do not expect the headline latency deltas yet.
 
 Because activation is global to the application, a practical approach is to enable streaming shuffle
 for applications dominated by large shuffles and rely on the automatic fallback for the stages that

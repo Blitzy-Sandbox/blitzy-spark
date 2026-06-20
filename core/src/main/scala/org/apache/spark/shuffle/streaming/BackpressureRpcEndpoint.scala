@@ -17,6 +17,8 @@
 
 package org.apache.spark.shuffle.streaming
 
+import scala.util.control.NonFatal
+
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.LogKeys.{MAP_ID, REASON, REDUCE_ID, SHUFFLE_ID}
 import org.apache.spark.rpc.{RpcCallContext, RpcEndpointRef, RpcEnv, ThreadSafeRpcEndpoint}
@@ -324,4 +326,106 @@ private[spark] object BackpressureRpcEndpoint {
 
   /** Reply to a [[Ping]] liveness probe. */
   case object Pong extends Serializable
+}
+
+/**
+ * Production control-plane SENDER for the streaming-shuffle backpressure protocol.
+ *
+ * [[BackpressureRpcEndpoint]] is the RECEIVER half of the consumer-to-producer control loop; this
+ * object is the SENDER half. The consumer (reduce) side -- [[StreamingShuffleReader]] -- uses these
+ * helpers to deliver heartbeats, byte acknowledgements, rate-limit requests, and timeout
+ * notifications to a producer (map) executor's endpoint over the executor [[RpcEnv]], so the
+ * producer's own [[BackpressureProtocol]] (its `onHeartbeat`/`onAck`/`onRateLimitRequest`/
+ * `unregisterStream` callbacks) is actually driven by remote consumer signals rather than only by
+ * the consumer's local protocol instance. This is what makes the backpressure loop end-to-end:
+ * a [[BackpressureRpcEndpoint.Ack]] sent here decrements the producer-side unacked-byte tally and
+ * clears the consumer-timeout the writer polls, and a [[BackpressureRpcEndpoint.Heartbeat]]
+ * refreshes the producer-liveness clock the reader's fail-fast path consults.
+ *
+ * ==Delivery semantics==
+ *
+ * Sends are fire-and-forget (`RpcEndpointRef.send`) so the hot read path never blocks on the
+ * control plane, keeping it within the streaming backend's < 1% executor-CPU and
+ * < 10 MB/hour/executor log budgets. Every send is guarded: a transient control-plane failure is
+ * swallowed (and traced only) so it can never disturb the data path -- the data plane has its own
+ * 5 s fetch timeout and partial-read-invalidation recovery, independent of these signals.
+ *
+ * ==Endpoint resolution (v1 scope)==
+ *
+ * The caller supplies the target [[RpcEndpointRef]]; this object performs no discovery. In v1 the
+ * reader drives this loop for producers reachable through the executor-local endpoint reference
+ * `StreamingShuffleManager` already registers (the co-located case). Resolving a NON-co-located
+ * producer's endpoint address from map-output metadata is a documented v2 item (AAP 0.5.2) and is
+ * recorded in the decision log; it would require reaching into the unchanged `MapOutputTracker`
+ * location model, which is outside this feature's modification scope.
+ */
+private[spark] object BackpressureRpcSender extends Logging {
+
+  import BackpressureRpcEndpoint._
+
+  /**
+   * Delivers a producer-liveness heartbeat for `key` to the producer endpoint at `ref`, refreshing
+   * the producer-timeout clock on the remote [[BackpressureProtocol]] via its `onHeartbeat`.
+   *
+   * @param ref the producer executor's backpressure endpoint reference
+   * @param key the (shuffleId, mapId, reduceId) stream the heartbeat concerns
+   */
+  def sendHeartbeat(ref: RpcEndpointRef, key: StreamKey): Unit =
+    trySend(ref, Heartbeat(key.shuffleId, key.mapId, key.reduceId, System.nanoTime()))
+
+  /**
+   * Acknowledges `bytesAcked` received bytes for `key` to the producer endpoint at `ref`, which
+   * decrements the producer-side unacked-byte tally and clears the consumer timeout via `onAck`.
+   *
+   * @param ref        the producer executor's backpressure endpoint reference
+   * @param key        the (shuffleId, mapId, reduceId) stream being acknowledged
+   * @param bytesAcked the number of bytes the consumer has received and processed
+   */
+  def sendAck(ref: RpcEndpointRef, key: StreamKey, bytesAcked: Long): Unit =
+    trySend(ref, Ack(key.shuffleId, key.mapId, key.reduceId, bytesAcked))
+
+  /**
+   * Asks the producer endpoint at `ref` to cap its send rate for `key` to `bytesPerSec`, applied
+   * via the remote protocol's `onRateLimitRequest` (which arbitrates the lowest positive request
+   * across concurrent shuffles). A non-positive value withdraws this consumer's cap.
+   *
+   * @param ref         the producer executor's backpressure endpoint reference
+   * @param key         the (shuffleId, mapId, reduceId) stream to cap
+   * @param bytesPerSec the requested ceiling in bytes/second; non-positive withdraws the cap
+   */
+  def sendRateLimitRequest(ref: RpcEndpointRef, key: StreamKey, bytesPerSec: Long): Unit =
+    trySend(ref, RateLimitRequest(key.shuffleId, key.mapId, key.reduceId, bytesPerSec))
+
+  /**
+   * Notifies the producer endpoint at `ref` that the consumer has declared `key` timed out past
+   * recovery; the remote protocol releases the stream's state via `unregisterStream`.
+   *
+   * @param ref the producer executor's backpressure endpoint reference
+   * @param key the (shuffleId, mapId, reduceId) stream to release
+   */
+  def sendTimeout(ref: RpcEndpointRef, key: StreamKey): Unit =
+    trySend(ref, Timeout(key.shuffleId, key.mapId, key.reduceId))
+
+  /**
+   * Fire-and-forget delivery with a guard: a failed send (e.g. a transient peer hiccup) is
+   * swallowed so a control-plane error never disturbs the data path. It is traced only -- and only
+   * when trace logging is enabled -- to honor the streaming backend's strict per-executor
+   * log-volume budget.
+   *
+   * @param ref     the destination backpressure endpoint reference
+   * @param message the control message to deliver
+   */
+  private def trySend(ref: RpcEndpointRef, message: BackpressureMessage): Unit = {
+    try {
+      ref.send(message)
+    } catch {
+      case NonFatal(e) =>
+        if (log.isTraceEnabled) {
+          logTrace(log"Backpressure control send failed for stream " +
+            log"shuffle=${MDC(SHUFFLE_ID, message.shuffleId)} " +
+            log"map=${MDC(MAP_ID, message.mapId)} " +
+            log"reduce=${MDC(REDUCE_ID, message.reduceId)}", e)
+        }
+    }
+  }
 }

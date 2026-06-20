@@ -394,13 +394,13 @@
       <!-- ============================ SLIDE 1: TITLE ============================ -->
       <section data-background-gradient="linear-gradient(160deg, #0B1020 0%, #131C3A 100%)">
         <div class="bz-hero">
-          <span class="bz-badge"><span class="bz-mark"><i data-lucide="waves"></i></span> Apache Spark Core &middot; Blitzy</span>
+          <span class="bz-badge"><span class="bz-mark"><i data-lucide="waves" aria-hidden="true"></i></span> Apache Spark Core &middot; Blitzy</span>
           <h1>Streaming Shuffle for Apache Spark</h1>
           <div class="bz-sub">Opt-in, low-latency shuffle with automatic fallback</div>
           <div class="bz-meta">
-            <span><i data-lucide="zap" class="bz-ico"></i> Opt-in backend</span>
-            <span><i data-lucide="shield-check" class="bz-ico-success"></i> Zero-regression fallback</span>
-            <span><i data-lucide="gauge" class="bz-ico-primary"></i> 30&ndash;50% latency reduction (v2 target)</span>
+            <span><i data-lucide="zap" class="bz-ico" aria-hidden="true"></i> Opt-in backend</span>
+            <span><i data-lucide="shield-check" class="bz-ico-success" aria-hidden="true"></i> Zero-regression fallback</span>
+            <span><i data-lucide="gauge" class="bz-ico-primary" aria-hidden="true"></i> 30&ndash;50% latency reduction (v2 target)</span>
           </div>
         </div>
         <div class="bz-foot">
@@ -411,68 +411,68 @@
 
       <!-- ============================ SLIDE 2: THE PROBLEM ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="alert-triangle"></i> The Problem</span>
+        <span class="bz-kicker"><i data-lucide="alert-triangle" aria-hidden="true"></i> The Problem</span>
         <h2>Shuffle latency is paid up front</h2>
         <div class="bz-two">
           <div>
             <p class="bz-lead">Sort-based shuffle <strong>materializes intermediate data to local disk</strong> before any reduce-side fetch can begin. That write-then-read round trip adds latency to every shuffle-heavy stage.</p>
             <div class="bz-callout warn">
-              <span class="bz-ci"><i data-lucide="clock" class="bz-ico-warn"></i></span>
+              <span class="bz-ci"><i data-lucide="clock" class="bz-ico-warn" aria-hidden="true"></i></span>
               <span>Reducers stay idle while map output is flushed and indexed &mdash; latency that scales with data volume and partition count.</span>
             </div>
           </div>
           <div class="bz-caps">
-            <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="cpu"></i></span><span class="bz-cap-body"><b>Map writes output</b>Records are partitioned and serialized.</span></div>
-            <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="hard-drive"></i></span><span class="bz-cap-body"><b>Materialize to disk</b>Full spill of data and index files before fetch.</span></div>
-            <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="hourglass"></i></span><span class="bz-cap-body"><b>Reduce waits</b>No data moves until materialization completes.</span></div>
-            <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="download"></i></span><span class="bz-cap-body"><b>Then fetch</b>Only now can reducers pull their partitions.</span></div>
+            <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="cpu" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Map writes output</b>Records are partitioned and serialized.</span></div>
+            <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="hard-drive" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Materialize to disk</b>Full spill of data and index files before fetch.</span></div>
+            <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="hourglass" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Reduce waits</b>No data moves until materialization completes.</span></div>
+            <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="download" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Then fetch</b>Only now can reducers pull their partitions.</span></div>
           </div>
         </div>
       </section>
 
       <!-- ============================ SLIDE 3: THE SOLUTION ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="lightbulb"></i> The Solution</span>
+        <span class="bz-kicker"><i data-lucide="lightbulb" aria-hidden="true"></i> The Solution</span>
         <h2>Stream, don't materialize</h2>
         <p class="bz-lead">Stream intermediate data <strong>producer to consumer</strong> through bounded in-memory buffers over the <strong>existing network transport</strong>, governed by backpressure &mdash; so reducers consume data as it is produced.</p>
         <div class="bz-caps bz-mt">
-          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="memory-stick"></i></span><span class="bz-cap-body"><b>Buffer in memory</b>Per-partition buffers replace the full disk spill.</span></div>
-          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="network"></i></span><span class="bz-cap-body"><b>Pipeline over the network</b>Reuses Spark's existing block transport &mdash; no new data plane.</span></div>
-          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="gauge"></i></span><span class="bz-cap-body"><b>Govern with backpressure</b>Heartbeat and token-bucket rate limiting keep producers in step with consumers.</span></div>
+          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="memory-stick" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Buffer in memory</b>Per-partition buffers replace the full disk spill.</span></div>
+          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="network" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Pipeline over the network</b>Reuses Spark's existing block transport &mdash; no new data plane.</span></div>
+          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="gauge" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Govern with backpressure</b>Heartbeat, ack, and token-bucket rate limiting over the executor RPC endpoint keep producers in step with consumers.</span></div>
         </div>
         <div class="bz-callout accent">
-          <span class="bz-ci"><i data-lucide="waves" class="bz-ico"></i></span>
+          <span class="bz-ci"><i data-lucide="waves" class="bz-ico" aria-hidden="true"></i></span>
           <span>Delivered as a <strong>self-contained, opt-in</strong> backend that coexists with &mdash; and falls back to &mdash; sort-based shuffle.</span>
         </div>
       </section>
 
       <!-- ============================ SLIDE 4: BUSINESS VALUE ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="target"></i> Business Value</span>
+        <span class="bz-kicker"><i data-lucide="target" aria-hidden="true"></i> Business Value</span>
         <h2>Target outcomes, verified safety</h2>
         <div class="bz-metrics">
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="gauge"></i> Latency <span class="bz-tag">v2 target</span></span>
+            <span class="bz-mhead"><i data-lucide="gauge" aria-hidden="true"></i> Latency <span class="bz-tag">v2 target</span></span>
             <div class="bz-v">30&ndash;50%</div>
             <div class="bz-l">lower end-to-end latency for shuffle-heavy workloads (100 MB+, 10+ partitions); realized when the v2 streaming data plane replaces the v1 logging-only transport</div>
           </div>
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="trending-up"></i> Throughput <span class="bz-tag">v2 target</span></span>
+            <span class="bz-mhead"><i data-lucide="trending-up" aria-hidden="true"></i> Throughput <span class="bz-tag">v2 target</span></span>
             <div class="bz-v">5&ndash;10%</div>
             <div class="bz-l">improvement for CPU-bound workloads via reduced scheduler overhead (v2)</div>
           </div>
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="shield-check"></i> Safety <span class="bz-tag ok">verified</span></span>
+            <span class="bz-mhead"><i data-lucide="shield-check" aria-hidden="true"></i> Safety <span class="bz-tag ok">verified</span></span>
             <div class="bz-v green">Zero</div>
             <div class="bz-l">regression for memory-bound workloads &mdash; automatic fallback to sort, proven in v1</div>
           </div>
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="database"></i> Durability</span>
+            <span class="bz-mhead"><i data-lucide="database" aria-hidden="true"></i> Durability</span>
             <div class="bz-v green">Zero</div>
             <div class="bz-l">data loss under all failure scenarios via lineage recompute</div>
           </div>
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="timer"></i> Spill SLA</span>
+            <span class="bz-mhead"><i data-lucide="timer" aria-hidden="true"></i> Spill SLA</span>
             <div class="bz-v">&lt;100 ms</div>
             <div class="bz-l">memory reclaim once buffer utilization reaches the 80% threshold</div>
           </div>
@@ -481,45 +481,45 @@
 
       <!-- ============================ SLIDE 5: FIVE CAPABILITIES ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="layers"></i> Capabilities</span>
+        <span class="bz-kicker"><i data-lucide="layers" aria-hidden="true"></i> Capabilities</span>
         <h2>Five core capabilities</h2>
         <div class="bz-caps">
-          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="waves"></i></span><span class="bz-cap-body"><b>Producer to consumer streaming</b>Map output is pipelined to reducers instead of fully materialized first.</span></div>
-          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="memory-stick"></i></span><span class="bz-cap-body"><b>Bounded in-memory buffering</b>Per-partition buffers default to 20% of executor memory (configurable 1&ndash;50%).</span></div>
-          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="gauge"></i></span><span class="bz-cap-body"><b>Backpressure flow control</b>Consumer heartbeat plus token-bucket rate limiting throttles producers.</span></div>
-          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="hard-drive-download"></i></span><span class="bz-cap-body"><b>Graceful disk spill</b>The largest buffers spill at 80% utilization, reclaiming memory in under 100 ms.</span></div>
-          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="refresh-cw"></i></span><span class="bz-cap-body"><b>Partial-read invalidation</b>On producer failure, partial reads are invalidated and surfaced as <code>FetchFailedException</code>.</span></div>
+          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="waves" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Producer to consumer streaming</b>Map output is pipelined to reducers instead of fully materialized first.</span></div>
+          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="memory-stick" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Bounded in-memory buffering</b>Per-partition buffers default to 20% of executor memory (configurable 1&ndash;50%).</span></div>
+          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="gauge" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Backpressure flow control</b>Consumer heartbeat, ack, and token-bucket rate limiting throttle producers over the per-executor RPC endpoint (co-located in v1; remote auto-discovery in v2).</span></div>
+          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="hard-drive-download" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Graceful disk spill</b>The largest buffers spill at 80% utilization, reclaiming memory in under 100 ms.</span></div>
+          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="refresh-cw" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Partial-read invalidation</b>On producer failure, partial reads are invalidated and surfaced as <code>FetchFailedException</code>.</span></div>
         </div>
       </section>
 
       <!-- ============================ SLIDE 6: OPT-IN BY DESIGN ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="toggle-left"></i> Opt-in by Design</span>
+        <span class="bz-kicker"><i data-lucide="toggle-left" aria-hidden="true"></i> Opt-in by Design</span>
         <h2>Zero change to default behavior</h2>
         <p class="bz-lead">The streaming backend engages only when an operator enables <strong>both</strong> signals. Either flag alone keeps the cluster on sort-based shuffle.</p>
         <div class="bz-flags">
           <div class="bz-flag">
-            <span class="bz-toggle"><i data-lucide="toggle-right" class="bz-ico-primary"></i></span>
+            <span class="bz-toggle"><i data-lucide="toggle-right" class="bz-ico-primary" aria-hidden="true"></i></span>
             <code>spark.shuffle.manager=streaming</code>
             <span class="bz-flag-state">default: OFF</span>
           </div>
           <div class="bz-flag">
-            <span class="bz-toggle"><i data-lucide="toggle-right" class="bz-ico-primary"></i></span>
+            <span class="bz-toggle"><i data-lucide="toggle-right" class="bz-ico-primary" aria-hidden="true"></i></span>
             <code>spark.shuffle.streaming.enabled=true</code>
             <span class="bz-flag-state">default: OFF</span>
           </div>
         </div>
         <div class="bz-callout green">
-          <span class="bz-ci"><i data-lucide="lock" class="bz-ico-success"></i></span>
+          <span class="bz-ci"><i data-lucide="lock" class="bz-ico-success" aria-hidden="true"></i></span>
           <span>Both default <strong>OFF</strong> &mdash; the default behavior of every existing Spark deployment is <strong>byte-for-byte unchanged</strong>.</span>
         </div>
       </section>
 
       <!-- ============================ SLIDE 7: ARCHITECTURE - BEFORE / AFTER ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="git-compare"></i> Architecture &middot; Before vs After</span>
+        <span class="bz-kicker"><i data-lucide="git-compare" aria-hidden="true"></i> Architecture &middot; Before vs After</span>
         <h2>One surgical factory change</h2>
-        <pre class="mermaid">
+        <pre class="mermaid" role="img" aria-label="Before-and-after architecture diagram. Registering the &quot;streaming&quot; alias in the ShuffleManager factory&apos;s shortShuffleMgrNames map adds StreamingShuffleManager alongside the unchanged SortShuffleManager. Streaming engages only when streaming.enabled is set and no fallback condition trips; otherwise it delegates to the inner SortShuffleManager.">
 flowchart TB
     subgraph BEFORE["Before — Master Baseline"]
         direction TB
@@ -556,9 +556,9 @@ flowchart TB
 
       <!-- ============================ SLIDE 8: ARCHITECTURE - COMPONENT INTERACTION ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="boxes"></i> Architecture &middot; Components</span>
+        <span class="bz-kicker"><i data-lucide="boxes" aria-hidden="true"></i> Architecture &middot; Components</span>
         <h2>New classes, reused services</h2>
-        <pre class="mermaid">
+        <pre class="mermaid" role="img" aria-label="Component-interaction diagram. SparkEnv.create resolves the ShuffleManager factory to StreamingShuffleManager, which constructs the streaming handle, writer, reader, block resolver, metrics source, config, and fallback policy, and delegates to the inner SortShuffleManager on fallback. The writer drives the per-partition buffer, backpressure protocol, spill manager, transport, and envelope; backpressure uses the RPC endpoint and token-bucket rate limiter; the reader uses MapOutputTracker and BlockTransferService; and the metrics source registers with the MetricsSystem.">
 flowchart TB
     SE["SparkEnv.create"]:::ref --> SM["ShuffleManager factory<br/>shortShuffleMgrNames"]:::modify
     SM --> MGR["StreamingShuffleManager"]:::create
@@ -601,92 +601,92 @@ flowchart TB
 
       <!-- ============================ SLIDE 9: COEXISTENCE & FALLBACK ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="git-branch"></i> Coexistence</span>
+        <span class="bz-kicker"><i data-lucide="git-branch" aria-hidden="true"></i> Coexistence</span>
         <h2>Automatic, safe fallback</h2>
         <p class="bz-lead"><code>StreamingShuffleManager</code> holds a <strong>lazy inner <code>SortShuffleManager</code></strong> and delegates to it whenever streaming is disabled or any fallback condition trips. The sort-based path is <strong>never modified</strong>.</p>
         <div class="bz-grid2 bz-mt">
           <div class="bz-tile">
-            <span class="bz-tile-ico"><i data-lucide="waves"></i></span>
+            <span class="bz-tile-ico"><i data-lucide="waves" aria-hidden="true"></i></span>
             <span class="bz-tile-body"><b>Streaming active</b>Enabled and healthy: data is streamed producer to consumer.</span>
           </div>
           <div class="bz-tile">
-            <span class="bz-tile-ico"><i data-lucide="corner-down-right"></i></span>
+            <span class="bz-tile-ico"><i data-lucide="corner-down-right" aria-hidden="true"></i></span>
             <span class="bz-tile-body"><b>Automatic fallback</b>Live signals from backpressure and spill feed the manager-owned policy; <code>registerShuffle</code> routes unsuitable shuffles to the inner sort manager.</span>
           </div>
         </div>
         <div class="bz-callout green">
-          <span class="bz-ci"><i data-lucide="shield-check" class="bz-ico-success"></i></span>
+          <span class="bz-ci"><i data-lucide="shield-check" class="bz-ico-success" aria-hidden="true"></i></span>
           <span>Production-wired and verified: backpressure pushes throughput/network samples, the spill manager pushes memory utilization, and the decision is taken at shuffle registration &mdash; proven by <code>StreamingShuffleManagerSuite</code> delegating to the unchanged <code>SortShuffleManager</code>.</span>
         </div>
       </section>
 
       <!-- ============================ SLIDE 10: FOUR FALLBACK CONDITIONS ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="git-compare"></i> Fallback Triggers</span>
+        <span class="bz-kicker"><i data-lucide="git-compare" aria-hidden="true"></i> Fallback Triggers</span>
         <h2>Four conditions revert to sort</h2>
         <div class="bz-grid2">
           <div class="bz-tile">
-            <span class="bz-tile-ico"><i data-lucide="turtle"></i></span>
+            <span class="bz-tile-ico"><i data-lucide="turtle" aria-hidden="true"></i></span>
             <span class="bz-tile-body"><b>Slow consumer</b>Consumer sustained 2x slower than producer for over 60 s.</span>
           </div>
           <div class="bz-tile">
-            <span class="bz-tile-ico"><i data-lucide="memory-stick"></i></span>
+            <span class="bz-tile-ico"><i data-lucide="memory-stick" aria-hidden="true"></i></span>
             <span class="bz-tile-body"><b>Memory pressure</b>Buffer allocation would risk OOM (above 95% memory).</span>
           </div>
           <div class="bz-tile">
-            <span class="bz-tile-ico"><i data-lucide="network"></i></span>
+            <span class="bz-tile-ico"><i data-lucide="network" aria-hidden="true"></i></span>
             <span class="bz-tile-body"><b>Network saturation</b>Link utilization above 90% capacity.</span>
           </div>
           <div class="bz-tile">
-            <span class="bz-tile-ico"><i data-lucide="git-compare"></i></span>
+            <span class="bz-tile-ico"><i data-lucide="git-compare" aria-hidden="true"></i></span>
             <span class="bz-tile-body"><b>Version mismatch</b>Producer and consumer versions differ. <em>Trigger wired in v1; on-wire auto-detection lands in v2.</em></span>
           </div>
         </div>
         <div class="bz-callout">
-          <span class="bz-ci"><i data-lucide="info" class="bz-ico"></i></span>
+          <span class="bz-ci"><i data-lucide="info" class="bz-ico" aria-hidden="true"></i></span>
           <span>Three of the four conditions trip automatically from live executor signals today; version-mismatch auto-detection is deferred to v2 with the transport hardening (see the decision log).</span>
         </div>
       </section>
 
       <!-- ============================ SLIDE 11: SAFETY & CORRECTNESS ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="shield"></i> Safety &amp; Correctness</span>
+        <span class="bz-kicker"><i data-lucide="shield" aria-hidden="true"></i> Safety &amp; Correctness</span>
         <h2>Zero data loss by construction</h2>
         <div class="bz-caps">
-          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="binary"></i></span><span class="bz-cap-body"><b>CRC32C block checksums</b>Every 2 MB block is checksummed and verified on read.</span></div>
-          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="refresh-cw"></i></span><span class="bz-cap-body"><b>Partial-read invalidation</b>On a 5 s connection timeout the reader invalidates partial reads and raises <code>FetchFailedException</code>.</span></div>
-          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="rotate-ccw"></i></span><span class="bz-cap-body"><b>Recompute via existing lineage</b>Spark's unchanged fault-recovery machinery recomputes the lost upstream output.</span></div>
+          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="binary" aria-hidden="true"></i></span><span class="bz-cap-body"><b>CRC32C block checksums</b>Every 2 MB block is checksummed and verified on read.</span></div>
+          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="refresh-cw" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Partial-read invalidation</b>On a 5 s connection timeout the reader invalidates partial reads and raises <code>FetchFailedException</code>.</span></div>
+          <div class="bz-cap"><span class="bz-cap-ico"><i data-lucide="rotate-ccw" aria-hidden="true"></i></span><span class="bz-cap-body"><b>Recompute via existing lineage</b>Spark's unchanged fault-recovery machinery recomputes the lost upstream output.</span></div>
         </div>
         <div class="bz-callout green">
-          <span class="bz-ci"><i data-lucide="shield-check" class="bz-ico-success"></i></span>
+          <span class="bz-ci"><i data-lucide="shield-check" class="bz-ico-success" aria-hidden="true"></i></span>
           <span><strong>Zero data loss</strong> under all failure scenarios &mdash; correctness is delegated to mechanisms Spark already trusts.</span>
         </div>
       </section>
 
       <!-- ============================ SLIDE 12: OBSERVABILITY ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="activity"></i> Observability</span>
+        <span class="bz-kicker"><i data-lucide="activity" aria-hidden="true"></i> Observability</span>
         <h2>Shipped with the feature</h2>
         <p class="bz-lead">Four <code>shuffle.streaming.*</code> metrics surface through the <strong>existing MetricsSystem</strong> (JMX and Prometheus), with a Grafana dashboard template provided.</p>
         <div class="bz-chips bz-mt">
-          <span class="bz-chip"><span class="bz-chip-ico"><i data-lucide="gauge"></i></span> bufferUtilizationPercent <span class="bz-chip-tag">gauge</span></span>
-          <span class="bz-chip"><span class="bz-chip-ico"><i data-lucide="hard-drive-download"></i></span> spillCount <span class="bz-chip-tag">counter</span></span>
-          <span class="bz-chip"><span class="bz-chip-ico"><i data-lucide="gauge-circle"></i></span> backpressureEvents <span class="bz-chip-tag">counter</span></span>
-          <span class="bz-chip"><span class="bz-chip-ico"><i data-lucide="refresh-cw"></i></span> partialReadInvalidations <span class="bz-chip-tag">counter</span></span>
+          <span class="bz-chip"><span class="bz-chip-ico"><i data-lucide="gauge" aria-hidden="true"></i></span> bufferUtilizationPercent <span class="bz-chip-tag">gauge</span></span>
+          <span class="bz-chip"><span class="bz-chip-ico"><i data-lucide="hard-drive-download" aria-hidden="true"></i></span> spillCount <span class="bz-chip-tag">counter</span></span>
+          <span class="bz-chip"><span class="bz-chip-ico"><i data-lucide="gauge-circle" aria-hidden="true"></i></span> backpressureEvents <span class="bz-chip-tag">counter</span></span>
+          <span class="bz-chip"><span class="bz-chip-ico"><i data-lucide="refresh-cw" aria-hidden="true"></i></span> partialReadInvalidations <span class="bz-chip-tag">counter</span></span>
         </div>
         <div class="bz-callout accent">
-          <span class="bz-ci"><i data-lucide="bar-chart-3" class="bz-ico"></i></span>
+          <span class="bz-ci"><i data-lucide="bar-chart-3" class="bz-ico" aria-hidden="true"></i></span>
           <span>Structured logs carry correlation IDs (<code>shuffle_id</code>, <code>map_id</code>, attempt) &mdash; telemetry overhead stays under 1% of executor CPU.</span>
         </div>
       </section>
 
       <!-- ============================ SLIDE 13: RISKS & MITIGATIONS ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="alert-triangle"></i> Risks &amp; Mitigations</span>
+        <span class="bz-kicker"><i data-lucide="alert-triangle" aria-hidden="true"></i> Risks &amp; Mitigations</span>
         <h2>Known risks, each mitigated</h2>
         <table class="bz-table">
           <thead>
-            <tr><th><i data-lucide="alert-triangle" class="bz-ico-warn"></i> Risk</th><th><i data-lucide="shield" class="bz-ico-success"></i> Mitigation</th></tr>
+            <tr><th><i data-lucide="alert-triangle" class="bz-ico-warn" aria-hidden="true"></i> Risk</th><th><i data-lucide="shield" class="bz-ico-success" aria-hidden="true"></i> Mitigation</th></tr>
           </thead>
           <tbody>
             <tr><td><b>Misconfiguration</b> (only one flag set)</td><td>Dual-flag activation plus operator documentation; one flag alone stays on sort.</td></tr>
@@ -699,7 +699,7 @@ flowchart TB
 
       <!-- ============================ SLIDE 14: PERFORMANCE EVIDENCE ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="gauge"></i> Performance Evidence</span>
+        <span class="bz-kicker"><i data-lucide="gauge" aria-hidden="true"></i> Performance Evidence</span>
         <h2>v1 parity verified, v2 deltas targeted</h2>
         <div class="bz-bars">
           <div class="bz-bar-row">
@@ -717,30 +717,30 @@ flowchart TB
         </div>
         <div class="bz-metrics bz-mt">
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="shield-check"></i> Zero regression</span>
+            <span class="bz-mhead"><i data-lucide="shield-check" aria-hidden="true"></i> Zero regression</span>
             <div class="bz-v green">Verified</div>
             <div class="bz-l">v1 shuffle-heavy, CPU-bound, and memory-bound (real fallback) all at parity</div>
           </div>
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="timer"></i> Latency</span>
+            <span class="bz-mhead"><i data-lucide="timer" aria-hidden="true"></i> Latency</span>
             <div class="bz-v">30&ndash;50%</div>
             <div class="bz-l">v2 target once the streaming data plane replaces the v1 logging-only transport</div>
           </div>
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="check-check"></i> Coverage</span>
-            <div class="bz-v green">&gt;85%</div>
-            <div class="bz-l">merge bar; substantiated by the test-to-source mapping and the instrumented scoverage command</div>
+            <span class="bz-mhead"><i data-lucide="check-check" aria-hidden="true"></i> Coverage <span class="bz-tag">open risk</span></span>
+            <div class="bz-v">&gt;85% bar</div>
+            <div class="bz-l"><strong>Not numerically proven</strong> in the offline build (scoverage/JaCoCo unavailable; pom changes out of scope per AAP &sect;0.3.1/&sect;0.5.2) &mdash; substantiated qualitatively by the test-to-source mapping</div>
           </div>
         </div>
         <div class="bz-callout">
-          <span class="bz-ci"><i data-lucide="file-check-2" class="bz-ico"></i></span>
+          <span class="bz-ci"><i data-lucide="file-check-2" class="bz-ico" aria-hidden="true"></i></span>
           <span><code>StreamingShufflePerformanceBenchmark</code> models a ~122 MB shuffle-heavy workload across 16 partitions, a CPU-bound case, and a memory-bound case that genuinely fills executor storage to ~99% and trips the production fallback to sort. The checked-in result files report <strong>measured v1 numbers</strong> (parity / zero regression); the 30&ndash;50% and 5&ndash;10% deltas are <strong>v2 targets</strong> &mdash; see the decision log.</span>
         </div>
       </section>
 
       <!-- ============================ SLIDE 15: ONBOARDING ============================ -->
       <section>
-        <span class="bz-kicker"><i data-lucide="rocket"></i> Getting Started</span>
+        <span class="bz-kicker"><i data-lucide="rocket" aria-hidden="true"></i> Getting Started</span>
         <h2>Enable in three steps</h2>
         <div class="bz-two">
           <div class="bz-steps">
@@ -754,10 +754,10 @@ flowchart TB
 <span class="c-key">spark.shuffle.streaming.enabled</span>  <span class="c-val">true</span>
 <span class="c-key">spark.shuffle.streaming.bufferSizePercent</span> <span class="c-val">20</span>
 <span class="c-key">spark.shuffle.streaming.spillThreshold</span>    <span class="c-val">80</span>
-<span class="c-key">spark.shuffle.streaming.maxBandwidthMBps</span>  <span class="c-val">0</span>     <span class="c-cmt"># 0 = unlimited</span>
+<span class="c-key">spark.shuffle.streaming.maxBandwidthMBps</span>  <span class="c-val">-1</span>    <span class="c-cmt"># default -1; &lt;=0 = unlimited</span>
 <span class="c-key">spark.shuffle.streaming.debug</span>            <span class="c-val">false</span></div>
             <div class="bz-callout warn">
-              <span class="bz-ci"><i data-lucide="settings" class="bz-ico-warn"></i></span>
+              <span class="bz-ci"><i data-lucide="settings" class="bz-ico-warn" aria-hidden="true"></i></span>
               <span>Configuration is <strong>immutable for the application lifetime</strong> &mdash; restart the executor to change it (no dynamic reconfiguration in v1).</span>
             </div>
           </div>
@@ -766,27 +766,27 @@ flowchart TB
 
       <!-- ============================ SLIDE 16: SUMMARY / CALL TO ACTION ============================ -->
       <section data-background-gradient="linear-gradient(160deg, #0B1020 0%, #131C3A 100%)">
-        <span class="bz-kicker"><i data-lucide="check-circle"></i> Summary</span>
+        <span class="bz-kicker"><i data-lucide="check-circle" aria-hidden="true"></i> Summary</span>
         <h2>Opt-in. Zero-regression. Measurable.</h2>
         <div class="bz-metrics">
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="gauge"></i> Latency <span class="bz-tag">v2 target</span></span>
+            <span class="bz-mhead"><i data-lucide="gauge" aria-hidden="true"></i> Latency <span class="bz-tag">v2 target</span></span>
             <div class="bz-v">30&ndash;50%</div>
             <div class="bz-l">lower for shuffle-heavy workloads (v1 verified at parity)</div>
           </div>
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="shield-check"></i> Risk <span class="bz-tag ok">verified</span></span>
+            <span class="bz-mhead"><i data-lucide="shield-check" aria-hidden="true"></i> Risk <span class="bz-tag ok">verified</span></span>
             <div class="bz-v green">Zero</div>
             <div class="bz-l">regression and zero data loss via fallback</div>
           </div>
           <div class="bz-metric">
-            <span class="bz-mhead"><i data-lucide="toggle-right"></i> Adoption</span>
+            <span class="bz-mhead"><i data-lucide="toggle-right" aria-hidden="true"></i> Adoption</span>
             <div class="bz-v">Opt-in</div>
             <div class="bz-l">two flags, both default OFF</div>
           </div>
         </div>
         <div class="bz-callout accent">
-          <span class="bz-ci"><i data-lucide="rocket" class="bz-ico"></i></span>
+          <span class="bz-ci"><i data-lucide="rocket" class="bz-ico" aria-hidden="true"></i></span>
           <span><strong>Enable in a staging cluster and measure.</strong> The safe fallback guarantees no downside while you validate correctness and parity today &mdash; and measure the latency wins as the v2 data plane lands.</span>
         </div>
         <div class="bz-foot">
@@ -811,7 +811,7 @@ flowchart TB
   <!-- ===================== Deck initialization ===================== -->
   <script>
     (function () {
-      // Render Lucide <i data-lucide="..."> placeholders into inline SVG icons.
+      // Render Lucide <i data-lucide="..." aria-hidden="true"> placeholders into inline SVG icons.
       function safeIcons() {
         try {
           if (window.lucide && typeof window.lucide.createIcons === 'function') {

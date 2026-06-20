@@ -4,19 +4,26 @@ Streaming Shuffle is an **opt-in** shuffle backend for Apache Spark Core (`blitz
 
 ## Scope and value
 
-The streaming backend is designed to meet the following measurable success criteria:
+The streaming backend targets the following measurable success criteria. The **v1 release** delivers the correctness and safety guarantees in full; the **headline latency-reduction targets are v2 goals** that materialize once the real streaming data plane replaces the v1 logging-only transport layer (see the [decision log](decision-log.md) and AAP §0.4.4/§0.5.2).
+
+**Delivered in v1 (verified):**
+
+- **Zero regression** for **memory-bound** workloads, through automatic fallback to the sort-based shuffle — confirmed by the committed benchmark artifacts and the streaming==sort integration equality test.
+- **Zero data loss** under all failure scenarios — confirmed by the 10-scenario failure-injection suite and the 5-minute, 10%-failure stress soak (zero retained heap).
+- **Memory-exhaustion prevention** via an **80% buffer-utilization spill trigger** with a **~100 ms** reclamation SLA.
+
+**v2 latency targets (design goals; not yet met in v1):**
 
 - **30–50% end-to-end latency reduction** for **shuffle-heavy** workloads (≥ 100 MB shuffled data, ≥ 10 partitions).
 - **5–10% improvement** for **CPU-bound** workloads, via reduced scheduler overhead.
-- **Zero regression** for **memory-bound** workloads, through automatic fallback to the sort-based shuffle.
-- **Zero data loss** under all failure scenarios.
-- **Memory-exhaustion prevention** via an **80% buffer-utilization spill trigger** with a **< 100 ms** response time.
+
+> **Measured v1 results.** Because v1 reuses the existing `BlockTransferService` pull path (the `StreamingShuffleTransport` is an intentional logging-only integration layer per AAP §0.4.4 — not a defect), v1 demonstrates functional parity and zero regression rather than the headline latency deltas. The committed benchmark artifacts report the actual measured v1 numbers (shuffle-heavy ≈ 2.7% best / 11.5% average; CPU-bound ≈ 5.2% best / 4.1% average; memory-bound fallback shows no regression), never aspirational ones.
 
 ## Core capabilities
 
 1. **Producer→consumer streaming** — map output is buffered in memory and pipelined to reduce-side consumers via the existing network transport, instead of being fully materialized to local disk before any fetch begins.
 2. **Bounded in-memory buffering** — per-partition buffers are limited to a configurable percentage of executor memory (**default 20%, range 1–50%**), sized `(executorMemory * bufferSizePercent / 100) / numPartitions` with a **2 MB floor**.
-3. **Backpressure flow control** — a consumer→producer **heartbeat** and **token-bucket** rate-limiting protocol throttles producers so consumers are not overwhelmed, with per-executor bandwidth caps.
+3. **Backpressure flow control** — a consumer→producer **heartbeat**, **ack**, and **token-bucket** rate-limiting protocol throttles producers so consumers are not overwhelmed, with per-executor bandwidth caps. The control plane is **RPC-wired** through the per-executor `BackpressureRpcEndpoint`: after each successful fetch the reader sends heartbeat/ack messages (and, when a bandwidth cap is configured, a rate-limit request) to the co-located producer's endpoint over the existing `RpcEnv`, driving the producer-side protocol state. Full **remote-executor endpoint auto-discovery** (driving an arbitrary, non-co-located remote producer) is a **v2 enhancement** (AAP §0.5.2); see [Architecture](architecture.md).
 4. **Graceful disk spill** — when buffer utilization reaches the spill threshold (**default 80%**), the largest buffered partitions spill to disk via the existing `BlockManager`, reclaiming memory within a **~100 ms** SLA.
 5. **Partial-read invalidation on failure** — on producer failure (a **5 s connection timeout**), the reader invalidates partial reads and raises a **`FetchFailedException`**, letting Spark's existing lineage/recompute machinery recover the lost output with zero data loss.
 
