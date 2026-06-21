@@ -71,7 +71,11 @@
 #               (5s connection timeout -> FetchFailedException).
 #
 #  These metrics surface through the SAME existing endpoints as every other
-#  Spark metric: via JMX when JmxSink is enabled, and via Prometheus when
-#  PrometheusServlet is enabled (default path /metrics/prometheus). They are
-#  also exposed on the executor Prometheus endpoint /metrics/executors/prometheus.
+#  Spark MetricsSystem source: via JMX when JmxSink is enabled, and via Prometheus
+#  when PrometheusServlet is enabled (default path /metrics/prometheus). Scrape
+#  /metrics/prometheus (or read the JMX MBeans) to collect the four metrics.
+#  NOTE: the /metrics/executors/prometheus endpoint is served by PrometheusResource
+#  and exposes ONLY the built-in per-executor ExecutorSummary fields; custom
+#  MetricsSystem sources such as StreamingShuffle do NOT appear there, so scrape
+#  /metrics/prometheus (PrometheusServlet) instead.
 #  No metrics-framework change is required.

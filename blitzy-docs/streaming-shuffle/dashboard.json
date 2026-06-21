@@ -2,7 +2,7 @@
   "id": null,
   "uid": "streaming-shuffle",
   "title": "Streaming Shuffle",
-  "description": "Observability dashboard for the Apache Spark opt-in Streaming Shuffle backend (org.apache.spark.shuffle.streaming). A 2x2 grid of the four shuffle.streaming.* executor metrics, scraped from the Spark executor Prometheus endpoint /metrics/executors/prometheus. The buffer-utilization gauge marks the 80% spill threshold that triggers MemorySpillManager disk spill.",
+  "description": "Observability dashboard for the Apache Spark opt-in Streaming Shuffle backend (org.apache.spark.shuffle.streaming). A 2x2 grid of the four shuffle.streaming.* executor metrics, scraped from the Spark Prometheus endpoint /metrics/prometheus (the PrometheusServlet sink; custom MetricsSystem sources do not surface on /metrics/executors/prometheus). The buffer-utilization gauge marks the 80% spill threshold that triggers MemorySpillManager disk spill.",
   "tags": [
     "spark",
     "shuffle",
@@ -204,7 +204,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (instance) ({__name__=~\".*shuffle.streaming.spillCount.*\"})",
+          "expr": "sum by (instance) ({__name__=~\".*shuffle.streaming.spillCount_Value\"})",
           "refId": "A",
           "legendFormat": "{{instance}}",
           "instant": false,
@@ -274,7 +274,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (instance) ({__name__=~\".*shuffle.streaming.backpressureEvents.*\"})",
+          "expr": "sum by (instance) ({__name__=~\".*shuffle.streaming.backpressureEvents_Value\"})",
           "refId": "A",
           "legendFormat": "{{instance}}",
           "instant": false,
@@ -344,7 +344,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum by (instance) ({__name__=~\".*shuffle.streaming.partialReadInvalidations.*\"})",
+          "expr": "sum by (instance) ({__name__=~\".*shuffle.streaming.partialReadInvalidations_Value\"})",
           "refId": "A",
           "legendFormat": "{{instance}}",
           "instant": false,

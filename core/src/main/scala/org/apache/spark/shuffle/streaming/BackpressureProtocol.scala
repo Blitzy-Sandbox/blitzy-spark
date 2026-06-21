@@ -519,11 +519,24 @@ private[spark] class BackpressureProtocol(
     streams.computeIfAbsent(streamKey, _ => new StreamState(System.nanoTime()))
   }
 
-  // Flags a producer timeout on the false->true edge and logs the transition once.
+  // Flags a producer timeout on the false->true edge and logs the transition once, at DEBUG.
+  //
+  // DEBUG (not WARN) is deliberate and bounds executor log volume: in the v1 logging-only transport
+  // the data plane is the existing `BlockTransferService`/`fetchBlockSync` path, which delivers no
+  // remote producer heartbeats into this protocol (see the decision log's v1 transport entry). The
+  // only liveness signal is the reader's per-block `onHeartbeat`, so a stream the reader has
+  // finished pulling -- or has not pulled recently while it drains other maps -- routinely crosses
+  // this threshold on a perfectly healthy shuffle. Emitting that EXPECTED scan transition at WARN
+  // produced O(maps*reduces) warnings per shuffle, threatening the <10 MB/hour/executor budget and
+  // burying real anomalies. The genuine producer-failure signal is unaffected and remains loud:
+  // `StreamingShuffleReader.invalidatePartialRead` logs at ERROR, increments
+  // `partialReadInvalidations`, and raises a `FetchFailedException` on the 5 s connection timeout.
+  // The state transition itself is unchanged (the `producerTimedOut` flag is still set), so the
+  // reader's pre-fetch `isProducerTimedOut` fast-fail continues to work exactly as before.
   private def detectProducerTimeout(key: StreamKey, state: StreamState, nowNanos: Long): Unit = {
     if (nowNanos - state.lastHeartbeatNanos.get() > producerTimeoutNanos &&
         state.producerTimedOut.compareAndSet(false, true)) {
-      logWarning(log"Producer timed out on stream " +
+      logDebug(log"Producer timed out on stream " +
         log"shuffle=${MDC(SHUFFLE_ID, key.shuffleId)} " +
         log"map=${MDC(MAP_ID, key.mapId)} " +
         log"reduce=${MDC(REDUCE_ID, key.reduceId)}; invalidating partial reads")

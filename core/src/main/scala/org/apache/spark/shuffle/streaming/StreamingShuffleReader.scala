@@ -23,6 +23,7 @@ import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration.Duration
+import scala.jdk.CollectionConverters._
 import scala.util.control.NonFatal
 
 import org.apache.spark.{Aggregator, InterruptibleIterator, MapOutputTracker, SparkEnv, TaskContext}
@@ -150,6 +151,20 @@ private[spark] class StreamingShuffleReader[K, C](
     ConcurrentHashMap.newKeySet[BackpressureProtocol.StreamKey]()
 
   /**
+   * Every backpressure stream this reader registered while fetching, tracked so a
+   * task-completion listener can unregister each one exactly as [[StreamingShuffleWriter]]
+   * does in its teardown. Registration is symmetric with the writer: without this set the
+   * reader-registered streams would linger in the protocol's liveness-scan map after the
+   * reduce task finishes, leaking per-stream state across shuffles AND -- because the v1
+   * logging-only transport delivers no remote producer heartbeats -- tripping the background
+   * producer-timeout scan once per `(map, reduce)` pair on every healthy shuffle.
+   * Concurrent-safe out of caution even though the lazy fetch iterator is driven by the
+   * single reduce-task thread.
+   */
+  private val registeredStreamKeys =
+    ConcurrentHashMap.newKeySet[BackpressureProtocol.StreamKey]()
+
+  /**
    * Reads the combined key-values for this reduce task.
    *
    * The fetch stage streams blocks lazily with per-block CRC32C validation and a 5 s connection
@@ -197,6 +212,17 @@ private[spark] class StreamingShuffleReader[K, C](
       s"streaming-shuffle-reader-$shuffleId-$startPartition")
     val fetchEc: ExecutionContext = ExecutionContext.fromExecutorService(fetchPool)
     context.addTaskCompletionListener[Unit](_ => fetchPool.shutdownNow())
+
+    // Symmetric backpressure-stream teardown (mirrors StreamingShuffleWriter.unregisterStreams):
+    // unregister every stream this reader registers below when the reduce task completes -- on
+    // success, failure, OR cancellation -- so no stream is left in the protocol's liveness-scan map
+    // after the read. This keeps the scan map bounded across shuffles and, because the v1
+    // logging-only transport feeds no remote producer heartbeats, prevents the background scan from
+    // declaring a spurious producer timeout on an already-finished read.
+    context.addTaskCompletionListener[Unit] { _ =>
+      registeredStreamKeys.asScala.foreach(backpressure.unregisterStream)
+      registeredStreamKeys.clear()
+    }
 
     // (3)-(4) Lazily fetch each Spark shuffle block and decode EVERY 2 MB frame it carries. A
     // fetched block for a multi-block partition is the in-order concatenation of one verified
@@ -324,6 +350,9 @@ private[spark] class StreamingShuffleReader[K, C](
     // inbound Timeout RPC), so a stalled producer need not wait out a fresh 5 s fetch deadline.
     val streamKey = BackpressureProtocol.StreamKey(shuffleId, mapId, reduceId)
     backpressure.registerStream(streamKey)
+    // Track the key so the task-completion listener installed in `read()` unregisters it, keeping
+    // reader registration symmetric with the writer (idempotent: the set de-duplicates re-fetches).
+    registeredStreamKeys.add(streamKey)
     if (backpressure.isProducerTimedOut(streamKey)) {
       invalidatePartialRead(address, mapId, mapIndex, reduceId,
         "Streaming shuffle partial read invalidated: backpressure declared the producer timed out",
