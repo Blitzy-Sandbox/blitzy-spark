@@ -345,6 +345,34 @@ details.
 | Producers throttled (backpressure) | `backpressureEvents` high | Raise or clear `maxBandwidthMBps`, scale consumers, or reduce shuffle concurrency. |
 | Streaming shuffle not active | all `shuffle.streaming.*` stay at 0 | Confirm both activation flags, restart the application, and enable `debug` logging. |
 
+# Security and dependency notes
+
+The streaming backend adds **no new dependencies** and opens **no new network endpoint** beyond the
+executor-scoped backpressure RPC: its data plane reuses Spark's existing `BlockTransferService`
+transport, inheriting the cluster's `spark.authenticate`/SASL and TLS settings unchanged. It does not
+configure a Netty channel of its own.
+
+A platform-level dependency scan flags the **reused** Netty transport (`4.2.9.Final`, pinned in the
+shared root `pom.xml`) as carrying HIGH-severity CVEs in the `netty-transport-native-epoll`/`-kqueue`
+and `netty-handler` modules. This is **pre-existing, Spark-wide dependency hygiene — not a defect in the
+streaming backend**, and the fix is a coordinated platform upgrade rather than a streaming-shuffle
+change. Operators running the streaming backend should be aware of the following:
+
+* **Recommended fix (platform owners).** Upgrade the cluster's Netty to **≥ 4.2.15.Final**, applied
+  consistently across every `io.netty:*` module (Netty 4.1.x and 4.2.x must not be mixed on one class
+  path). This closes the flagged transport and handler CVEs.
+* **Interim mitigation — connection idle timeouts.** Until the upgrade lands, make sure transport idle
+  timeouts are configured (`spark.network.timeout`, and where applicable
+  `spark.shuffle.io.connectionTimeout`) so half-closed or leaked connections are reaped promptly. This
+  limits the practical window for the epoll denial-of-service and file-descriptor-leak advisories.
+* **TLS-enabled clusters: prioritize the upgrade.** If you enable Spark RPC/shuffle transport TLS with a
+  custom trust store, treat the Netty upgrade as higher priority — that is the configuration in which the
+  `netty-handler` hostname-verification advisory becomes practically reachable (man-in-the-middle risk).
+
+The full reachability analysis, the per-CVE assessment, and the formal feature-level risk acceptance are
+recorded in the streaming-shuffle engineering decision log
+(`blitzy-docs/streaming-shuffle/decision-log.md`, "Dependency safety: accepted risk for reused Netty").
+
 # Related documentation
 
 * [Streaming Shuffle Architecture](streaming-shuffle-architecture.html) — how the backend works internally.
