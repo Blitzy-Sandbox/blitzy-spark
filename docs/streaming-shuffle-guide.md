@@ -225,7 +225,7 @@ observability surfaces:
 * **Metrics** &mdash; the backend emits four `shuffle.streaming.*` metrics (a buffer-utilization
   gauge plus counters for spills, backpressure events, and partial-read invalidations). They are
   exposed through Spark's existing metrics endpoints, including JMX and the Prometheus endpoint at
-  `/metrics/executors/prometheus`. Non-zero streaming metrics confirm the path is active. See
+  `/metrics/prometheus` (the `PrometheusServlet` sink). Non-zero streaming metrics confirm the path is active. See
   [Monitoring](monitoring.html) for how to scrape and view these metrics.
 * **Web UI** &mdash; the Stages tab shuffle columns (Shuffle Read / Shuffle Write) reflect shuffle
   activity for stages handled by the streaming backend, just as they do for sort-based shuffle.

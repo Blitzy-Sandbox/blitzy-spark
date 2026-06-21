@@ -120,35 +120,54 @@ streaming is enabled and the [automatic fallback](#automatic-fallback-zero-regre
 policy has not tripped, it streams data from producer to consumer; otherwise it delegates to a
 lazily-constructed inner `SortShuffleManager`. **Diagram 1 &mdash; Shuffle Manager Selection: Before vs. After (Factory Modification)** shows this selection path, contrasting the master baseline (only the sort-based managers) with the state after the `streaming` alias is registered.
 
-**Legend:** green = new streaming class (CREATE); blue = modified existing file (MODIFY); gray = referenced/unchanged component.
+**Legend:** `(CREATE)` = new streaming class; `(MODIFY)` = modified existing file; `(ref)` = referenced/unchanged component.
 
-```mermaid
-flowchart TB
-    subgraph BEFORE["Before — Master Baseline"]
-        direction TB
-        B1["conf: spark.shuffle.manager"] --> B2{"shortShuffleMgrNames map"}
-        B2 -->|"sort"| B3["SortShuffleManager"]
-        B2 -->|"tungsten-sort"| B3
-    end
-    subgraph AFTER["After — streaming Alias Registered"]
-        direction TB
-        A1["conf: spark.shuffle.manager"] --> A2{"shortShuffleMgrNames map"}
-        A2 -->|"sort / tungsten-sort"| A3["SortShuffleManager"]
-        A2 -->|"streaming"| A4["StreamingShuffleManager"]
-        A4 --> A5{"streaming.enabled AND<br/>fallback not tripped"}
-        A5 -->|"yes"| A6["Stream producer to consumer"]
-        A5 -->|"no"| A7["Delegate to inner SortShuffleManager"]
-    end
-    B2:::modify
-    B3:::ref
-    A2:::modify
-    A3:::ref
-    A4:::create
-    A6:::create
-    A7:::ref
-    classDef create fill:#d5f5e3,stroke:#1e8449,color:#145a32
-    classDef modify fill:#d6eaf8,stroke:#2471a3,color:#1a5276
-    classDef ref fill:#eaecee,stroke:#7f8c8d,color:#424949
+```
+Diagram 1 — Shuffle Manager Selection: Before vs. After (Factory Modification)
+
+BEFORE — Master Baseline
+------------------------
+    conf: spark.shuffle.manager
+              |
+              v
+    +-----------------------------+
+    | shortShuffleMgrNames map    |  (MODIFY)
+    +-----------------------------+
+        |                  |
+     "sort"         "tungsten-sort"
+        |                  |
+        v                  v
+    +-----------------------------+
+    | SortShuffleManager          |  (ref)
+    +-----------------------------+
+
+AFTER — "streaming" Alias Registered
+------------------------------------
+    conf: spark.shuffle.manager
+              |
+              v
+    +-----------------------------+
+    | shortShuffleMgrNames map    |  (MODIFY)
+    +-----------------------------+
+        |                              |
+  "sort" / "tungsten-sort"        "streaming"
+        |                              |
+        v                              v
+  +----------------------+   +-------------------------------+
+  | SortShuffleManager   |   | StreamingShuffleManager       |  (CREATE)
+  | (ref)                |   +-------------------------------+
+  +----------------------+                |
+                                          v
+                          < streaming.enabled AND
+                            fallback NOT tripped ? >
+                             |                     |
+                           yes                     no
+                             |                     |
+                             v                     v
+              +--------------------------+  +-------------------------------+
+              | Stream producer ->       |  | Delegate to inner             |
+              | consumer       (CREATE)  |  | SortShuffleManager     (ref)  |
+              +--------------------------+  +-------------------------------+
 ```
 
 Because the inner `SortShuffleManager` is composed **unchanged**, the sort-based path is never
@@ -184,41 +203,49 @@ services is modified.
 
 **Diagram 2 &mdash; Streaming Shuffle Component Interaction** shows these new `org.apache.spark.shuffle.streaming` classes (green) and the existing Spark Core services they consume (gray), entered through the modified `ShuffleManager` factory (blue). Solid arrows denote construction or usage; the dashed arrow denotes fallback delegation from `StreamingShuffleManager` to the inner `SortShuffleManager`.
 
-**Legend:** green = new streaming class (CREATE); blue = modified existing file (MODIFY); gray = referenced/unchanged Spark Core component; solid arrow = construction/usage; dashed arrow = fallback delegation.
+**Legend:** `(CREATE)` = new streaming class; `(MODIFY)` = modified existing file; `(ref)` = referenced/unchanged Spark Core component; `-->` = construction/usage; `..>` (dotted) = fallback delegation.
 
-```mermaid
-flowchart TB
-    SE["SparkEnv.create"]:::ref --> SM["ShuffleManager factory<br/>shortShuffleMgrNames"]:::modify
-    SM --> MGR["StreamingShuffleManager"]:::create
-    MGR --> H["StreamingShuffleHandle"]:::create
-    MGR --> W["StreamingShuffleWriter"]:::create
-    MGR --> R["StreamingShuffleReader"]:::create
-    MGR --> BR["StreamingShuffleBlockResolver"]:::create
-    MGR --> SRC["StreamingShuffleSource"]:::create
-    MGR --> FB["StreamingShuffleFallbackPolicy"]:::create
-    MGR -.->|"fallback"| SORT["SortShuffleManager"]:::ref
-    CFG["StreamingShuffleConfig"]:::create --> MGR
-    W --> BUF["StreamingBuffer"]:::create
-    W --> BP["BackpressureProtocol"]:::create
-    W --> SPILL["MemorySpillManager"]:::create
-    W --> TX["StreamingShuffleTransport (v1 stub)"]:::create
-    W --> ENV["StreamingBlockEnvelope"]:::create
-    BP --> RPC["BackpressureRpcEndpoint"]:::create
-    BP --> RL["TokenBucketRateLimiter"]:::create
-    SPILL --> MM["MemoryManager"]:::ref
-    SPILL --> BM["BlockManager"]:::ref
-    R --> MOT["MapOutputTracker"]:::ref
-    R --> BTS["BlockTransferService"]:::ref
-    R --> ENV
-    MET["StreamingShuffleMetrics"]:::create --> SRC
-    W --> MET
-    R --> MET
-    BP --> MET
-    SPILL --> MET
-    SRC --> MS["MetricsSystem"]:::ref
-    classDef create fill:#d5f5e3,stroke:#1e8449,color:#145a32
-    classDef modify fill:#d6eaf8,stroke:#2471a3,color:#1a5276
-    classDef ref fill:#eaecee,stroke:#7f8c8d,color:#424949
+```
+Diagram 2 — Streaming Shuffle Component Interaction
+
+  SparkEnv.create (ref)
+        |
+        v
+  ShuffleManager factory: shortShuffleMgrNames (MODIFY)
+        |
+        v
+  StreamingShuffleManager (CREATE)  <-- StreamingShuffleConfig (CREATE) supplies config
+        |
+        +--> StreamingShuffleHandle         (CREATE)
+        +--> StreamingShuffleWriter         (CREATE)   [see writer fan-out below]
+        +--> StreamingShuffleReader         (CREATE)   [see reader fan-out below]
+        +--> StreamingShuffleBlockResolver  (CREATE)
+        +--> StreamingShuffleSource         (CREATE) --> MetricsSystem (ref)
+        +--> StreamingShuffleFallbackPolicy (CREATE)
+        ..>  SortShuffleManager             (ref)      [dotted = fallback delegation]
+
+  StreamingShuffleWriter (CREATE) constructs/uses:
+        +--> StreamingBuffer                (CREATE)
+        +--> BackpressureProtocol           (CREATE)
+        |        +--> BackpressureRpcEndpoint (CREATE, executor-only)
+        |        +--> TokenBucketRateLimiter  (CREATE)
+        +--> MemorySpillManager             (CREATE)
+        |        +--> MemoryManager           (ref)
+        |        +--> BlockManager            (ref)
+        +--> StreamingShuffleTransport      (CREATE, v1 logging-only stub)
+        +--> StreamingBlockEnvelope         (CREATE)
+
+  StreamingShuffleReader (CREATE) consumes:
+        +--> MapOutputTracker               (ref)
+        +--> BlockTransferService           (ref)
+        +--> StreamingBlockEnvelope         (CREATE)
+
+  Metrics flow (all CREATE feed the source):
+        StreamingShuffleWriter ---+
+        StreamingShuffleReader ---+--> StreamingShuffleMetrics (CREATE)
+        BackpressureProtocol   ---+         |
+        MemorySpillManager     ---+         v
+                                   StreamingShuffleSource (CREATE) --> MetricsSystem (ref)
 ```
 
 ## Data flow (producer &rarr; consumer)
@@ -246,7 +273,7 @@ interchangeable.
 
 **Diagram 3 &mdash; Producer-to-Consumer Streaming Data Flow with Backpressure, Spill, and Fallback** traces a single shuffle block end to end: from the map task through `StreamingShuffleWriter` into a per-partition `StreamingBuffer`, past the token-bucket rate gate and transport, across the wire as a CRC32C-checked `StreamingBlockEnvelope`, and into `StreamingShuffleReader` for verification, deserialization, and aggregation/sort before the reduce task. The spill, control (backpressure), failure, and fallback paths overlay the data path. The **fallback path is a manager-level decision, not a mid-write switch**: the backpressure layer and `MemorySpillManager` push their throughput/network and memory-utilization samples into the manager-owned `StreamingShuffleFallbackPolicy`, and `StreamingShuffleManager.registerShuffle` consults it (see [Automatic fallback](#automatic-fallback-zero-regression-guarantee)) to route each new shuffle to streaming or the inner `SortShuffleManager`.
 
-**Legend:** solid arrows = data path; thick arrows (`==>`) = backpressure/control; dotted arrows (`-.->`) = spill, failure, or fallback.
+**Legend:** solid arrows (`->`) = data path; thick arrows (`==>`) = backpressure/control; dotted arrows (`..>`) = spill, failure, or fallback.
 
 > **As-built note (v1).** The `RD ==> RPC` (heartbeat/ack) and `RPC ==> RL` (rate-limit/timeout)
 > edges are **production-wired** over the existing `RpcEnv`: after each successful fetch the reader's
@@ -258,27 +285,43 @@ interchangeable.
 > The data plane (`TX`/`WIRE`) is the existing `BlockTransferService.fetchBlockSync` pull path;
 > `StreamingShuffleTransport` is the intentional v1 logging-only integration layer.
 
-```mermaid
-flowchart LR
-    MT["Map task"] --> WR["StreamingShuffleWriter.write"]
-    WR --> PB["Per-partition StreamingBuffer"]
-    PB --> RL["TokenBucketRateLimiter gate"]
-    RL --> TX["StreamingShuffleTransport.sendBlock"]
-    TX --> WIRE["StreamingBlockEnvelope<br/>32B header + CRC32C"]
-    WIRE --> RD["StreamingShuffleReader.read<br/>fetchBlockSync"]
-    RD --> VER["verifyChecksum"]
-    VER --> DES["deserialize + aggregate/sort"]
-    DES --> RT["Reduce task"]
-    PB -.->|"buffer > 80%"| SP["MemorySpillManager"]
-    SP -.->|"putBytes DISK_ONLY"| BM["BlockManager disk"]
-    RD ==>|"heartbeat 10s / ack"| RPC["BackpressureRpcEndpoint"]
-    RPC ==>|"rate-limit / timeout"| RL
-    RD -.->|"5s timeout"| FF["FetchFailedException"]
-    FF -.->|"recompute via lineage"| MT
-    RPC -.->|"throughput / network samples"| FBP["StreamingShuffleFallbackPolicy"]
-    SP -.->|"memory-utilization samples"| FBP
-    FBP -.->|"shouldFallback"| REG["StreamingShuffleManager.registerShuffle"]
-    REG -.->|"delegate new shuffle"| SORT["Inner SortShuffleManager"]
+```
+Diagram 3 — Producer-to-Consumer Streaming Data Flow with Backpressure, Spill, and Fallback
+
+DATA PATH (-> = data):
+
+    Map task
+      -> StreamingShuffleWriter.write
+      -> Per-partition StreamingBuffer
+      -> TokenBucketRateLimiter gate
+      -> StreamingShuffleTransport.sendBlock
+      -> StreamingBlockEnvelope (32-byte header + CRC32C)
+      -> [wire] StreamingShuffleReader.read (fetchBlockSync)
+      -> verifyChecksum
+      -> deserialize + aggregate/sort
+      -> Reduce task
+
+CONTROL PATH (==> = backpressure/control):
+
+    StreamingShuffleReader.read  ==(heartbeat 10s / ack)==>  BackpressureRpcEndpoint
+    BackpressureRpcEndpoint      ==(rate-limit / timeout)==>  TokenBucketRateLimiter gate
+
+SPILL PATH (..> = spill):
+
+    Per-partition StreamingBuffer  ..(buffer > 80%)..>       MemorySpillManager
+    MemorySpillManager             ..(putBytes DISK_ONLY)..> BlockManager disk
+
+FAILURE PATH (..> = failure):
+
+    StreamingShuffleReader.read    ..(5 s timeout)..>           FetchFailedException
+    FetchFailedException           ..(recompute via lineage)..> Map task
+
+FALLBACK PATH (..> = manager-level decision, not a mid-write switch):
+
+    BackpressureRpcEndpoint         ..(throughput / network samples)..> StreamingShuffleFallbackPolicy
+    MemorySpillManager              ..(memory-utilization samples)..>   StreamingShuffleFallbackPolicy
+    StreamingShuffleFallbackPolicy  ..(shouldFallback)..>               StreamingShuffleManager.registerShuffle
+    StreamingShuffleManager.registerShuffle  ..(delegate new shuffle)..> Inner SortShuffleManager
 ```
 
 If a block fails verification or the producer becomes unreachable, the reader follows the
@@ -396,7 +439,7 @@ existing `MetricsSystem`, surfaced under the `shuffle.streaming.*` namespace:
 | `partialReadInvalidations` | counter | Number of partial-read invalidations caused by producer failures |
 
 These metrics are exposed through the same channels as every other Spark metric: JMX, the Prometheus
-endpoint at `/metrics/executors/prometheus`, and any configured metrics sinks. The four
+endpoint at `/metrics/prometheus` (the `PrometheusServlet` sink), and any configured metrics sinks. The four
 `shuffle.streaming.*` metrics are **not** added as Spark Web UI columns. Generic shuffle volume (the
 standard Shuffle Read / Shuffle Write byte counts) still continues to appear via the Stages-tab
 shuffle columns described in the [Web UI](web-ui.html) guide, exactly as it does for sort-based

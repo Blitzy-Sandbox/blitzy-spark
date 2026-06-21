@@ -56,7 +56,8 @@ to drive each diagnosis.
 
 The streaming shuffle backend emits four metrics under the `shuffle.streaming.*` namespace. They are
 exposed through Spark's existing `MetricsSystem` (the Dropwizard-based metrics framework), so they are
-available over JMX and through the Prometheus endpoint `/metrics/executors/prometheus`. The backend
+available over JMX and through the Prometheus endpoint `/metrics/prometheus` (the `PrometheusServlet`
+sink). The backend
 registers a `MetricsSystem` source only; it does **not** add columns to the Spark Web UI **Stages**
 tab, so consume `shuffle.streaming.*` via JMX, Prometheus, or the Grafana dashboard. No additional
 metrics configuration is required beyond what you already use for Spark; see
@@ -151,20 +152,36 @@ corrupt data is ever delivered to a reduce task, so the end result is **zero dat
 
 The **Producer-Failure Detection and Recovery Flow** diagram below shows how the reader detects a failed producer and hands recovery to Spark's existing lineage-driven recompute machinery:
 
-**Legend:** blue = reader entry point; red = failure surfaced to Spark; green = lineage-driven recovery; solid arrows = sequential steps; dotted arrow = bounded retry from the recomputed producer.
+**Legend:** `[1]`..`[5]` = sequential steps; `(failure)` = failure surfaced to Spark; `(recovery)` = lineage-driven recovery; the dotted `retry` arrow = bounded retry from the recomputed producer.
 
-```mermaid
-flowchart TD
-    R["StreamingShuffleReader.read"]:::reader
-    R --> S1["1. Connection timeout (5 s) detected<br/>from a failed producer"]
-    S1 --> S2["2. Atomically invalidate ALL partial reads<br/>from that producer (increment<br/>partialReadInvalidations); discard buffered data"]
-    S2 --> S3["3. Raise FetchFailedException"]:::failure
-    S3 --> S4["4. Spark's existing lineage machinery<br/>recomputes the upstream map tasks<br/>(no streaming-specific recovery code)"]:::recovery
-    S4 --> S5["5. Retry the read from the recomputed producer<br/>with exponential backoff<br/>(1 s initial delay, max 5 attempts)"]
-    S5 -.->|"retry"| R
-    classDef reader fill:#d6eaf8,stroke:#2471a3,color:#1a5276
-    classDef failure fill:#f5b7b1,stroke:#922b21,color:#641e16
-    classDef recovery fill:#d5f5e3,stroke:#1e8449,color:#145a32
+```
+Producer-Failure Detection and Recovery Flow
+
+    StreamingShuffleReader.read  <-------------------------------+
+              |                                                  |
+              v                                                  |
+    [1] Connection timeout (5 s) detected from a failed          |
+        producer                                                 |
+              |                                                  |
+              v                                                  |
+    [2] Atomically invalidate ALL partial reads from that        |
+        producer (increment partialReadInvalidations);           |
+        discard buffered data                                    |
+              |                                                  |
+              v                                                  |
+    [3] Raise FetchFailedException                  (failure)    |
+              |                                                  |
+              v                                                  |
+    [4] Spark's existing lineage machinery recomputes the        |
+        upstream map tasks (no streaming-specific recovery       |
+        code)                                       (recovery)   |
+              |                                                  |
+              v                                                  |
+    [5] Retry the read from the recomputed producer with         |
+        exponential backoff (1 s initial delay, max 5            |
+        attempts)                                                |
+              |                                                  |
+              +------------------ retry (dotted) ----------------+
 ```
 
 Each step reuses Spark's existing fault-tolerance model: the `FetchFailedException` and the

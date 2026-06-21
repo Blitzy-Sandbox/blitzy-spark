@@ -8,7 +8,7 @@ The streaming backend follows a least-modification approach and consumes Spark's
 
 - **SLF4J / Log4j2 logging stack** — all streaming log output flows through Spark's existing SLF4J facade and Log4j2 backend, honoring the cluster's configured log levels, appenders, and layouts.
 - **Executor `MetricsSystem`** — the Dropwizard/Codahale Metrics registry already running inside every executor. Streaming metrics register with it exactly like any other Spark metric source.
-- **Existing metrics endpoints — JMX and Prometheus** — the streaming metrics are exposed through the same surfaces as every other Spark metric, including the executor Prometheus endpoint at **`/metrics/executors/prometheus`**. No new metrics endpoint is added.
+- **Existing metrics endpoints — JMX and Prometheus** — the streaming metrics are exposed through the same surfaces as every other Spark metric, including the Prometheus endpoint at **`/metrics/prometheus`** (served by the `PrometheusServlet` metrics sink). No new metrics endpoint is added.
 - **Executor health surface** — readiness is reported through Spark's existing executor health surface; the streaming backend adds no separate health probe.
 - **Shuffle security — authentication/SASL and TLS** — authentication (`spark.authenticate`/SASL) and TLS are inherited via the existing transport configuration. The streaming path introduces **no new network endpoints** beyond the executor-scoped backpressure RPC, so it sits behind the same security surfaces as sort-based shuffle.
 
@@ -27,7 +27,7 @@ On top of the reused stack, the feature adds exactly three observability artifac
 | `backpressureEvents` | counter | Number of producer-throttling (backpressure) events raised by the flow-control protocol. |
 | `partialReadInvalidations` | counter | Number of partial reads invalidated on producer failure or connection timeout. |
 
-These four metrics are emitted under the **`shuffle.streaming.*`** namespace by a **`StreamingShuffleSource`** — an implementation of `org.apache.spark.metrics.source.Source` — that `StreamingShuffleManager` registers with the executor **`MetricsSystem`** (registration is gated on a live `SparkEnv` for local-mode safety). Because they register as a standard metric source, the values surface automatically through the reused `MetricsSystem` endpoints: **JMX** and the Prometheus endpoint **`/metrics/executors/prometheus`** (plus any other configured metrics sink). The backend registers a `MetricsSystem` **source only** — it does **not** add Spark Web UI Stages-tab columns — so consume `shuffle.streaming.*` via JMX, the Prometheus endpoint, or the Grafana dashboard below.
+These four metrics are emitted under the **`shuffle.streaming.*`** namespace by a **`StreamingShuffleSource`** — an implementation of `org.apache.spark.metrics.source.Source` — that `StreamingShuffleManager` registers with the executor **`MetricsSystem`** (registration is gated on a live `SparkEnv` for local-mode safety). Because they register as a standard metric source, the values surface automatically through the reused `MetricsSystem` endpoints: **JMX** and the Prometheus endpoint **`/metrics/prometheus`** served by the `PrometheusServlet` sink (plus any other configured metrics sink). Note that custom `MetricsSystem` sources such as this one surface on **`/metrics/prometheus`** (the `PrometheusServlet` sink), **not** on `/metrics/executors/prometheus` — the latter is served by `PrometheusResource` and exposes only the built-in per-executor `ExecutorSummary` fields, so scrape `/metrics/prometheus` to collect the four `shuffle.streaming.*` metrics. The backend registers a `MetricsSystem` **source only** — it does **not** add Spark Web UI Stages-tab columns — so consume `shuffle.streaming.*` via JMX, the Prometheus endpoint, or the Grafana dashboard below.
 
 ### Structured logging with correlation IDs
 
@@ -67,7 +67,7 @@ Confirming that the four metrics actually emit in a local development run is par
 1. **Enable streaming.** Set both activation signals: `spark.shuffle.manager=streaming` and `spark.shuffle.streaming.enabled=true`. (Both default off, so streaming is strictly opt-in.)
 2. **Run a small shuffle job.** Any job with a shuffle stage — for example a `groupBy` or `reduceByKey` over a modest dataset — exercises the streaming writer and reader.
 3. **Scrape or inspect the metrics.** Confirm the four `shuffle.streaming.*` values appear via any reused `MetricsSystem` surface:
-    - the Prometheus endpoint **`/metrics/executors/prometheus`**, or
+    - the Prometheus endpoint **`/metrics/prometheus`** (the `PrometheusServlet` sink), or
     - a **JMX** console attached to the executor.
 
     (The backend registers a `MetricsSystem` source only; it does not add Spark Web UI Stages-tab columns.)
