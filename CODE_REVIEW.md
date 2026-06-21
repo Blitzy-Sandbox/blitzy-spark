@@ -13,7 +13,7 @@
 | **Build toolchain** | Scala 2.13.18 · Java 17 (min 17.0.11; CI on Java 21) · Maven 3.9.12 (via `./build/mvn`) |
 | **Review type** | Segmented PR Review — pre-flight gate + sequential domain phases + final re-verification |
 | **Current checkpoint** | **FINAL — Full Project Completion Verification** |
-| **Files delivered** | **52** (2 modified, 50 created) — the complete feature change set is delivered |
+| **Files delivered** | **51** (2 modified, 49 created) — the complete feature change set is delivered |
 | **Dependency manifest changes** | **None** (`pom.xml` / `core/pom.xml` unchanged) |
 | **Reviewer of record** | Blitzy Principal Engineer (segmented review) |
 
@@ -50,8 +50,8 @@ lineage/recompute machinery recovers lost output — preserving the zero-data-lo
 The scope of this review is the **complete Streaming Shuffle change set**, **fully delivered**:
 18 new production Scala classes (15 in `streaming/`, 3 in `streaming/network/`), the metrics resource
 template, the two surgical integration edits, 17 ScalaTest test files (16 runnable suites plus the
-`StreamingShufflePerformanceBenchmark` harness) and 2 benchmark result files, and all documentation
-deliverables (TechDocs + Jekyll docs), plus this review artifact — **52 files in total**.
+`StreamingShufflePerformanceBenchmark` harness) and 1 benchmark result file, and all documentation
+deliverables (TechDocs + Jekyll docs), plus this review artifact — **51 files in total**.
 
 **Reconciliation with the review checkpoint's 48-file enumeration.** The FINAL checkpoint formally
 enumerated **48** in-scope files (the AAP §0.5.1 set). The repository additionally contains, all within
@@ -64,8 +64,11 @@ the in-scope `org.apache.spark.shuffle.streaming` package and AAP scope:
   formal enumeration — `BackpressureRpcValidationSuite`, `StreamingShuffleBlockResolverSuite`, and
   `network/StreamingBlockEnvelopeSuite`. They test in-scope code, aid coverage, and are **retained**.
 
-These four files bring the actually-delivered total to **52**. This artifact partitions **all 52** into
-exactly one phase each (see the [Appendix](#appendix--file-to-phase-coverage-matrix)).
+One file from that checkpoint set — the byte-identical, un-reproducible `core/benchmarks/StreamingShuffleBenchmark-results.txt`
+(it had no generating `BenchmarkBase` subclass, so nothing could regenerate it) — was **removed as QA remediation**,
+reconciling AAP §0.2.3's two result-file listing to the single reproducible `StreamingShufflePerformanceBenchmark-results.txt`
+and leaving **47** of the original 48. With the four additional files above, the actually-delivered total is **51**.
+This artifact partitions **all 51** into exactly one phase each (see the [Appendix](#appendix--file-to-phase-coverage-matrix)).
 
 Explicitly **out of scope** (and verified untouched) are the absolute-preservation surfaces:
 RDD/DataFrame/Dataset user-facing APIs, the DAG scheduler and task-scheduling algorithms, executor
@@ -92,7 +95,7 @@ contracts, and task serialization/deserialization protocols.
 > | **Overall Verdict** | ⛔ **NOT APPROVED for full final AAP success criteria** — all remediable findings RESOLVED; **2 gates BLOCKED** and deferred to **v2** (AAP §0.4.4 / §0.5.2 / §0.3.1) |
 
 The status banner is **re-set at every phase transition and checkpoint**. It reflects the **FINAL**
-delivered state: all 52 files are delivered; the build is zero-error / zero-warning for the streaming
+delivered state: all 51 files are delivered; the build is zero-error / zero-warning for the streaming
 change set; the full streaming test battery passes (**115 succeeded, 0 failed, 1 canceled** — the
 canceled test is the opt-in 5-minute soak, which was **separately executed** to completion, see PF-3);
 five of six domain phases resolve to `APPROVED`. **Phase 5 (QA / Test Integrity) resolves to `BLOCKED`**
@@ -130,7 +133,7 @@ across checkpoints:
 
 | # | Pre-Flight Criterion (FINAL scope) | Result |
 |---|------------------------------------|--------|
-| PF-1 | All deliverables present at their specified paths (52/52) | ✅ PASS |
+| PF-1 | All deliverables present at their specified paths (51/51) | ✅ PASS |
 | PF-2 | Zero-error / zero-warning build of the streaming change set (`test-compile`) | ✅ PASS |
 | PF-3 | Full streaming test battery passes (115 succeeded, 0 failed, 1 canceled opt-in soak); soak separately executed | ✅ PASS |
 | PF-4 | Static analysis clean (Scalastyle/Scalafmt, MiMa additive-only) | ✅ PASS |
@@ -139,7 +142,7 @@ across checkpoints:
 ### PF-1 — Deliverables Present
 
 Every file in the complete feature scope is confirmed present at its specified path. **Delivered total:
-52 of 52 — nothing PENDING.**
+51 of 51 — nothing PENDING.**
 
 **Delivered — Modified existing source (2):**
 
@@ -163,9 +166,11 @@ Every file in the complete feature scope is confirmed present at its specified p
 **Delivered — Test files (17):** the 14 AAP suites + the benchmark harness + the 2 supplementary
 suites + the network suite, enumerated in Phase 5 and the Appendix.
 
-**Delivered — Benchmark result artifacts (2):**
-`core/benchmarks/StreamingShuffleBenchmark-results.txt`,
-`core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt`.
+**Delivered — Benchmark result artifact (1):**
+`core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt`. *(The byte-identical
+`StreamingShuffleBenchmark-results.txt` originally listed in AAP §0.2.3 was removed as QA remediation —
+it had no generating `BenchmarkBase` subclass and was therefore not reproducible; the §0.2.3 listing is
+reconciled to this single reproducible artifact.)*
 
 **Delivered — Documentation (11):** 7 TechDocs under `blitzy-docs/streaming-shuffle/`
 (`index.md`, `configuration.md`, `architecture.md`, `observability.md`, `decision-log.md`,
@@ -244,10 +249,10 @@ in the [Appendix](#appendix--file-to-phase-coverage-matrix).
 | 2 | Security | 1 | 1 | ✅ APPROVED |
 | 3 | Backend Architecture | 16 | 16 | ✅ APPROVED (v1) |
 | 4 | Observability | 6 | 6 | ✅ APPROVED |
-| 5 | QA / Test Integrity | 19 | 19 | ⛔ **BLOCKED** |
+| 5 | QA / Test Integrity | 18 | 18 | ⛔ **BLOCKED** |
 | 6 | Business / Domain & Other SME (Documentation) | 10 | 10 | ✅ APPROVED |
 | — | Frontend | 0 (not applicable — backend-only) | — | N/A |
-| | **Total** | **52** | **52** | ⛔ **NOT APPROVED (2 gates BLOCKED)** |
+| | **Total** | **51** | **51** | ⛔ **NOT APPROVED (2 gates BLOCKED)** |
 
 > **Note on partition discipline.** `StreamingShuffleMetrics.scala`, `StreamingShuffleSource.scala`, and
 > `StreamingShuffleLogKeys.scala` are owned **solely by the Observability phase** (Phase 4) and are
@@ -255,7 +260,7 @@ in the [Appendix](#appendix--file-to-phase-coverage-matrix).
 > `BackpressureRpcEndpoint.scala` is owned by the **Security phase** (Phase 2) because its primary review
 > concern is the executor-only / driver-rejected trust boundary; the Backend Architecture phase reviews
 > the remaining backpressure machinery (`BackpressureProtocol.scala`, `TokenBucketRateLimiter.scala`).
-> The QA phase owns all 17 test files plus the 2 benchmark result artifacts (19 items).
+> The QA phase owns all 17 test files plus the 1 benchmark result artifact (18 items).
 
 ---
 
@@ -446,7 +451,7 @@ template/dashboard satisfy the Observability rule.
 performance evidence. **This phase owns the two final-AAP acceptance gates** (numeric coverage figure;
 headline latency deltas).
 
-**Files owned (19; all delivered):** 17 test files + 2 benchmark result artifacts.
+**Files owned (18; all delivered):** 17 test files + 1 benchmark result artifact.
 
 *Test files (17):* `BackpressureProtocolSuite`, `BackpressureRpcEndpointSuite`,
 `BackpressureRpcValidationSuite`, `MemorySpillManagerSuite`, `StreamingShuffleBlockResolverSuite`,
@@ -455,8 +460,7 @@ headline latency deltas).
 `StreamingShuffleManagerSuite`, `StreamingShuffleMetricsSuite`, `StreamingShuffleReaderSuite`,
 `StreamingShuffleStressSuite`, `StreamingShuffleWriterSuite`, `StreamingShufflePerformanceBenchmark`
 (harness), and `network/StreamingBlockEnvelopeSuite`.
-*Benchmark result artifacts (2):* `core/benchmarks/StreamingShuffleBenchmark-results.txt`,
-`core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt`.
+*Benchmark result artifact (1):* `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt`.
 
 **Findings — what PASSES:**
 
@@ -469,20 +473,28 @@ headline latency deltas).
   This closes the prior "soak canceled by default" evidence gap.
 - **Benchmark harness is honest and internally consistent.** `StreamingShufflePerformanceBenchmark`
   models a shuffle-heavy workload (≥ 100 MB across ≥ 10 partitions), a CPU-bound case, and a memory-bound
-  case that genuinely trips production fallback to sort. Both result files report **actual measured v1
-  numbers** (no fabrication).
+  case that genuinely trips production fallback to sort. The committed result file reports **actual
+  measured v1 numbers** (no fabrication).
+- **Orphan benchmark artifact removed (QA remediation).** The previously-committed
+  `core/benchmarks/StreamingShuffleBenchmark-results.txt` was a **byte-identical duplicate** of the
+  `StreamingShufflePerformanceBenchmark-results.txt` file with **no generating `BenchmarkBase`
+  subclass** (`BenchmarkBase.main` derives its output filename from `getClass.getSimpleName`, and no
+  `StreamingShuffleBenchmark` class exists), so it could never be regenerated or independently
+  validated. It has been **removed**, leaving exactly one reproducible benchmark result file. AAP
+  §0.2.3's two result-file listing is reconciled to this single reproducible artifact (the AAP itself
+  names only one benchmark source, `StreamingShufflePerformanceBenchmark`, in its §0.5.1 in-scope set).
 
 **Findings — BLOCKED gates (honest, per the review's accepted "mark BLOCKED" option):**
 
-- ⛔ **GATE A — Headline latency deltas NOT met in v1 (deferred to v2).** The committed result files
-  report: shuffle-heavy sort **478 ms best / 541 ms avg → streaming 465 / 479** (≈ 2.7% best /
+- ⛔ **GATE A — Headline latency deltas NOT met in v1 (deferred to v2).** The committed result file
+  reports: shuffle-heavy sort **478 ms best / 541 ms avg → streaming 465 / 479** (≈ 2.7% best /
   ≈ 11.5% avg); CPU-bound sort **116 / 122 → streaming 110 / 117** (≈ 5.2% best / ≈ 4.1% avg);
   memory-bound **173 / 177 → 162 / 167** via genuine fallback (no regression). These demonstrate
   **functional parity, zero regression, and a valid harness**, but do **not** meet the AAP §0.1.1
   **30–50%** shuffle-heavy / **5–10%** CPU-bound criteria, which require the **v2 streaming data plane**.
   Because v1 reuses the existing `BlockTransferService` pull path (the intended v1 logging-only
   transport, §0.4.4; v2 transport hardening deferred, §0.5.2), this gate is **BLOCKED at the final-AAP
-  level and deferred to v2**. The result files and all documentation present these as v2 targets, never
+  level and deferred to v2**. The result file and all documentation present these as v2 targets, never
   as achieved.
 - ⛔ **GATE B — Numeric > 85% coverage NOT produced (BLOCKED).** scoverage and JaCoCo are **not
   configured** in `pom.xml` / `core/pom.xml` and are **absent from the offline `~/.m2`**; enabling either
@@ -555,7 +567,7 @@ presentation, and this review artifact.
   slide is reframed to honest **v1-verified vs. v2-target** evidence with coverage shown as an **open
   risk** (not numerically proven). ARIA labels were added to the Mermaid containers and decorative icons
   are `aria-hidden`.
-- **This review artifact.** `CODE_REVIEW.md` reflects the **FINAL** delivered state (52 files),
+- **This review artifact.** `CODE_REVIEW.md` reflects the **FINAL** delivered state (51 files),
   partitions every file into exactly one phase, marks the two final-AAP gates **BLOCKED**, and records
   the commit cadence and the v1 transport whitelist note.
 
@@ -586,7 +598,7 @@ Verification** checkpoint, accounting for the remediation applied to the prior r
 | Re-verification item (FINAL) | Result |
 |------------------------------|:------:|
 | Pre-Flight Gate green across the full change set (PF-1…PF-5) | ✅ PASS |
-| 52 of 52 files delivered; none PENDING; each in exactly one phase | ✅ ACCURATE |
+| 51 of 51 files delivered; none PENDING; each in exactly one phase | ✅ ACCURATE |
 | Zero-error / zero-warning streaming build (`test-compile`) | ✅ PASS |
 | Full streaming battery passes (115 succeeded, 0 failed, 1 canceled opt-in soak) | ✅ PASS |
 | **5-minute stress soak EXECUTED** (10% failure injection, zero retained heap) — prior gap closed | ✅ PASS |
@@ -631,7 +643,7 @@ commit.
 
 ## Appendix — File-to-Phase Coverage Matrix
 
-This matrix assigns **every one of the 52 delivered files** to **exactly one** phase (no omissions, no
+This matrix assigns **every one of the 51 delivered files** to **exactly one** phase (no omissions, no
 double-counting); every file is **Present**. Phases: **I/D** = Infrastructure/DevOps, **Sec** = Security,
 **BA** = Backend Architecture, **Obs** = Observability, **QA** = QA/Test Integrity, **Doc** =
 Business/Domain & Other SME (Documentation).
@@ -678,30 +690,29 @@ Business/Domain & Other SME (Documentation).
 | 38 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleStressSuite.scala` | test | QA | Present |
 | 39 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleWriterSuite.scala` | test | QA | Present |
 | 40 | `core/src/test/scala/org/apache/spark/shuffle/streaming/network/StreamingBlockEnvelopeSuite.scala` | test | QA | Present |
-| 41 | `core/benchmarks/StreamingShuffleBenchmark-results.txt` | benchmark | QA | Present |
-| 42 | `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt` | benchmark | QA | Present |
-| 43 | `blitzy-docs/streaming-shuffle/index.md` | TechDoc | Doc | Present |
-| 44 | `blitzy-docs/streaming-shuffle/configuration.md` | TechDoc | Doc | Present |
-| 45 | `blitzy-docs/streaming-shuffle/architecture.md` | TechDoc | Doc | Present |
-| 46 | `blitzy-docs/streaming-shuffle/decision-log.md` | TechDoc | Doc | Present |
-| 47 | `blitzy-docs/streaming-shuffle/executive-summary.html` | TechDoc | Doc | Present |
-| 48 | `docs/streaming-shuffle-architecture.md` | Jekyll doc | Doc | Present |
-| 49 | `docs/streaming-shuffle-guide.md` | Jekyll doc | Doc | Present |
-| 50 | `docs/streaming-shuffle-troubleshooting.md` | Jekyll doc | Doc | Present |
-| 51 | `docs/streaming-shuffle-tuning.md` | Jekyll doc | Doc | Present |
-| 52 | `CODE_REVIEW.md` | review artifact | Doc | Present |
+| 41 | `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt` | benchmark | QA | Present |
+| 42 | `blitzy-docs/streaming-shuffle/index.md` | TechDoc | Doc | Present |
+| 43 | `blitzy-docs/streaming-shuffle/configuration.md` | TechDoc | Doc | Present |
+| 44 | `blitzy-docs/streaming-shuffle/architecture.md` | TechDoc | Doc | Present |
+| 45 | `blitzy-docs/streaming-shuffle/decision-log.md` | TechDoc | Doc | Present |
+| 46 | `blitzy-docs/streaming-shuffle/executive-summary.html` | TechDoc | Doc | Present |
+| 47 | `docs/streaming-shuffle-architecture.md` | Jekyll doc | Doc | Present |
+| 48 | `docs/streaming-shuffle-guide.md` | Jekyll doc | Doc | Present |
+| 49 | `docs/streaming-shuffle-troubleshooting.md` | Jekyll doc | Doc | Present |
+| 50 | `docs/streaming-shuffle-tuning.md` | Jekyll doc | Doc | Present |
+| 51 | `CODE_REVIEW.md` | review artifact | Doc | Present |
 
-**Phase totals:** BA = 16 · Sec = 1 · Obs = 6 · QA = 19 · Doc = 10 · I/D = 0 (negative verification) ·
-Frontend = 0 (N/A) → **52 / 52 files, each in exactly one phase.**
+**Phase totals:** BA = 16 · Sec = 1 · Obs = 6 · QA = 18 · Doc = 10 · I/D = 0 (negative verification) ·
+Frontend = 0 (N/A) → **51 / 51 files, each in exactly one phase.**
 
-**Delivery totals (FINAL):** **Present = 52** · **Pending = 0** → 52 total. All phases:
-BA = 16/16, Sec = 1/1, Obs = 6/6, QA = 19/19, Doc = 10/10.
+**Delivery totals (FINAL):** **Present = 51** · **Pending = 0** → 51 total. All phases:
+BA = 16/16, Sec = 1/1, Obs = 6/6, QA = 18/18, Doc = 10/10.
 
 ---
 
 *Generated as the mandated Segmented PR Review deliverable (AAP §0.6.2). This document is a living
 artifact: it was committed before Phase 1 and is re-committed at each phase transition and checkpoint.
-This revision reflects the **FINAL — Full Project Completion Verification** delivered state (52 of 52
+This revision reflects the **FINAL — Full Project Completion Verification** delivered state (51 of 51
 files). Five domain phases are APPROVED; **Phase 5 (QA / Test Integrity) is BLOCKED** because two
 final-AAP gates — a numeric > 85% coverage figure and the headline latency deltas — are not met within
 v1 and are deferred to v2 under cited AAP exceptions (§0.4.4 / §0.5.2 / §0.3.1). All 14 prior-review

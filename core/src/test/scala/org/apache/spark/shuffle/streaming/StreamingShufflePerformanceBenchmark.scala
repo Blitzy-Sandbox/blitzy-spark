@@ -126,7 +126,9 @@ object StreamingShufflePerformanceBenchmark extends BenchmarkBase {
 
   override def runBenchmarkSuite(mainArgs: Array[String]): Unit = {
     val heavyMb = shuffleHeavyBytes / (1024 * 1024)
-    runBenchmark(s"Shuffle-heavy workload (~${heavyMb}MB, $SHUFFLE_HEAVY_PARTITIONS partitions)") {
+    runBenchmark(
+      s"Shuffle-heavy workload (~${heavyMb}MB, $SHUFFLE_HEAVY_PARTITIONS partitions) " +
+        "[v1 parity vs sort; AAP 30-50% reduction is a v2 data-plane target]") {
       val benchmark =
         new Benchmark("Shuffle-heavy workload", SHUFFLE_HEAVY_RECORDS.toLong, output = output)
       benchmark.addCase("sort shuffle") { _ =>
@@ -138,7 +140,9 @@ object StreamingShufflePerformanceBenchmark extends BenchmarkBase {
       benchmark.run()
     }
 
-    runBenchmark("CPU-bound workload") {
+    runBenchmark(
+      "CPU-bound workload " +
+        "[v1 parity vs sort; AAP 5-10% improvement is a v2 data-plane target]") {
       val benchmark =
         new Benchmark("CPU-bound workload", CPU_BOUND_RECORDS.toLong, output = output)
       benchmark.addCase("sort shuffle") { _ =>
