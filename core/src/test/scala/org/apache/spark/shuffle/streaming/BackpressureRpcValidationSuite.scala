@@ -20,8 +20,8 @@ package org.apache.spark.shuffle.streaming
 import org.scalatest.matchers.must.Matchers
 
 import org.apache.spark.SparkFunSuite
-import org.apache.spark.shuffle.streaming.BackpressureRpcEndpoint.{Ack, Heartbeat, RateLimitRequest,
-  Timeout, validate}
+import org.apache.spark.shuffle.streaming.BackpressureRpcEndpoint.{validate, Ack, Heartbeat,
+  RateLimitRequest, Timeout}
 
 /**
  * Unit tests for [[BackpressureRpcEndpoint.validate]] -- the executor RPC channel's input-

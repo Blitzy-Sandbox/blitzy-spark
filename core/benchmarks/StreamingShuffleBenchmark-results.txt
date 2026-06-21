@@ -1,0 +1,48 @@
+================================================================================================
+Streaming Shuffle Write: 100 MB, 10 partitions
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.19+10-1-25.10.2-Ubuntu on Linux 6.6.122+
+Intel(R) Xeon(R) CPU @ 2.60GHz
+Streaming Shuffle Write:                    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+--------------------------------------------------------------------------------------------------------------------------
+sort shuffle write (disk .data + .index)              191            198           6        549.0           1.8       1.0X
+streaming shuffle write (in-memory buffer)             23             23           0       4643.5           0.2       8.5X
+
+
+================================================================================================
+Streaming Shuffle Read: 100 MB, 10 partitions
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.19+10-1-25.10.2-Ubuntu on Linux 6.6.122+
+Intel(R) Xeon(R) CPU @ 2.60GHz
+Streaming Shuffle Read:                   Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+block-store shuffle read (disk)                      82             83           1       1282.3           0.8       1.0X
+streaming shuffle read (in-memory serve)             35             35           0       3001.2           0.3       2.3X
+
+
+================================================================================================
+Streaming Shuffle Materialization Round-Trip: 100 MB, 10 partitions
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.19+10-1-25.10.2-Ubuntu on Linux 6.6.122+
+Intel(R) Xeon(R) CPU @ 2.60GHz
+Streaming Shuffle Materialize:                           Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+---------------------------------------------------------------------------------------------------------------------------------------
+sort shuffle materialize (disk write + read)                       286            300          20        366.1           2.7       1.0X
+streaming shuffle materialize (in-memory write + serve)             62             62           1       1694.3           0.6       4.6X
+
+
+================================================================================================
+Streaming Block Envelope: 2 MB block, CRC32C
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.19+10-1-25.10.2-Ubuntu on Linux 6.6.122+
+Intel(R) Xeon(R) CPU @ 2.60GHz
+Streaming Block Envelope:                 Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+envelope encode (32B header + CRC32C)                51             52           0          0.0      802152.6       1.0X
+envelope decode + CRC32C verify                      27             29           1          0.0      428237.0       1.9X
+
+

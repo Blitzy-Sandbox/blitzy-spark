@@ -54,8 +54,8 @@ import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
  * production control-plane sender, [[BackpressureRpcSender]], end to end -- the exact path
  * [[StreamingShuffleReader]] uses. They prove that a `Heartbeat`/`Ack`/`RateLimitRequest` sent from
  * a consumer executor actually reaches the producer's endpoint and drives its
- * [[BackpressureProtocol]] (closing the consumer->producer loop across executors), rather than only
- * mutating the consumer's local protocol instance. Because delivery is asynchronous fire-and-forget,
+ * [[BackpressureProtocol]] (closing the consumer->producer loop across executors), instead of
+ * mutating the consumer's local protocol instance. Because delivery is async fire-and-forget,
  * these tests await the effect with `eventually` (polling, never a fixed sleep).
  */
 class BackpressureRpcEndpointSuite extends SparkFunSuite with Matchers with Eventually {
