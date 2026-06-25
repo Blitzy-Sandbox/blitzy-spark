@@ -85,6 +85,14 @@ private[spark] class StreamingBuffer(
   private val spilled = new AtomicBoolean(false)
 
   /**
+   * Whether this buffer has been finalized for publication by its producing writer. Once set, the
+   * concurrent spill monitor must no longer spill this buffer (the writer has taken ownership of
+   * its bytes to frame and commit them), which is enforced by [[spillUnderLock]]. The flag is set
+   * exactly once, under [[lock]], by [[finalizeForCommit]] and is never cleared.
+   */
+  private val finalized = new AtomicBoolean(false)
+
+  /**
    * Append a slice of `bytes` to this buffer, updating the running checksum, the cumulative byte
    * count and the LRU access timestamp. The checksum and byte accumulator are updated atomically
    * with respect to a concurrent [[toBytes]] / [[checksum]] snapshot.
@@ -98,6 +106,13 @@ private[spark] class StreamingBuffer(
     crc.update(bytes, off, len)
     bytesWritten.addAndGet(len.toLong)
     lastAccessNanos.set(System.nanoTime())
+    // New resident bytes have arrived, so the buffer is no longer fully drained-to-disk. Clearing
+    // the flag here keeps `isSpilled` accurate across the writer's drain-and-reuse cycle, so the
+    // spill monitor continues to account for and (if needed) re-spill a buffer that refilled
+    // after an earlier spill rather than treating it as permanently spilled.
+    if (spilled.get()) {
+      spilled.set(false)
+    }
   }
 
   /** Convenience overload that appends the entire `bytes` array. */
@@ -163,7 +178,8 @@ private[spark] class StreamingBuffer(
   /**
    * Clear all accumulated state so the buffer can be reused after its contents have been
    * reclaimed (for example, acknowledged by the consumer or spilled to disk). Resets the byte
-   * accumulator, the running checksum, the cumulative byte count and the spilled flag.
+   * accumulator, the running checksum, the cumulative byte count, the spilled flag and the
+   * finalized flag, returning the buffer to a fully reusable state.
    */
   def reset(): Unit = {
     lock.synchronized {
@@ -171,8 +187,65 @@ private[spark] class StreamingBuffer(
       crc.reset()
       bytesWritten.set(0L)
       spilled.set(false)
+      finalized.set(false)
     }
     logTrace(s"StreamingBuffer(partition=$partitionId) reset for reuse")
+  }
+
+  /** Whether this buffer has been finalized for publication (see [[finalizeForCommit]]). */
+  def isFinalized: Boolean = finalized.get()
+
+  /**
+   * Atomically spill this buffer's current contents and release the heap they occupy.
+   *
+   * The byte snapshot, the durable store, and the heap release all happen under a single [[lock]]
+   * acquisition so a concurrent producer [[append]] can neither be lost nor partially captured: a
+   * producer that appends after this call observes a drained (size-zero) buffer and continues the
+   * serialized stream from there, so the spilled prefix plus the later resident bytes reconstruct
+   * the original stream exactly. The supplied `store` durably persists the snapshot (for example,
+   * `BlockManager.putBytes(..., DISK_ONLY)`); the buffer is reset to release its heap only when
+   * `store` returns `true`, so a failed store loses no data (the bytes remain resident). A buffer
+   * that has been [[finalizeForCommit]]-ed, or that holds no bytes, is never spilled.
+   *
+   * @param store persists the captured snapshot, returning `true` on a durable success
+   * @return the number of heap bytes released (the snapshot size) on a successful spill, else `0`
+   */
+  def spillUnderLock(store: StreamingBuffer.BufferSnapshot => Boolean): Long = lock.synchronized {
+    if (finalized.get() || bytesWritten.get() <= 0L) {
+      0L
+    } else {
+      val snap = StreamingBuffer.BufferSnapshot(
+        bytes = baos.toByteArray(),
+        checksum = crc.getValue(),
+        size = bytesWritten.get(),
+        lastAccess = lastAccessNanos.get())
+      if (store(snap)) {
+        baos.reset()
+        crc.reset()
+        bytesWritten.set(0L)
+        spilled.set(true)
+        snap.size
+      } else {
+        0L
+      }
+    }
+  }
+
+  /**
+   * Mark this buffer finalized for publication and atomically capture its remaining resident
+   * bytes as a consistent [[StreamingBuffer.BufferSnapshot]]. After this returns,
+   * [[spillUnderLock]] is a no-op, so the producing writer can safely frame and commit the
+   * returned bytes without the concurrent spill monitor racing to drain them. Idempotent with
+   * respect to the flag; the returned snapshot always reflects the bytes resident at the moment
+   * of the call.
+   */
+  def finalizeForCommit(): StreamingBuffer.BufferSnapshot = lock.synchronized {
+    finalized.set(true)
+    StreamingBuffer.BufferSnapshot(
+      bytes = baos.toByteArray(),
+      checksum = crc.getValue(),
+      size = bytesWritten.get(),
+      lastAccess = lastAccessNanos.get())
   }
 }
 

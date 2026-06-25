@@ -17,20 +17,26 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.io.{File, FileOutputStream, OutputStream}
+import java.io.{BufferedOutputStream, FileOutputStream, OutputStream}
+import java.nio.ByteBuffer
+import java.util.UUID
 import java.util.zip.CRC32C
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.util.control.NonFatal
 
-import org.apache.spark.{SparkEnv, TaskContext}
+import org.apache.spark.{SparkEnv, SparkException, TaskContext}
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.LogKeys._
 import org.apache.spark.memory.{MemoryConsumer, MemoryMode, TaskMemoryManager}
 import org.apache.spark.scheduler.MapStatus
-import org.apache.spark.serializer.SerializationStream
-import org.apache.spark.shuffle.{ShuffleWriteMetricsReporter, ShuffleWriter}
+import org.apache.spark.serializer.{SerializationStream, SerializerManager}
+import org.apache.spark.shuffle.{IndexShuffleBlockResolver, ShuffleWriteMetricsReporter,
+  ShuffleWriter}
+import org.apache.spark.shuffle.streaming.MemorySpillManager.{BufferKey, SpilledSegment}
 import org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope
-import org.apache.spark.storage.TempLocalBlockId
+import org.apache.spark.storage.{ShuffleBlockId, StorageLevel, TempLocalBlockId}
+import org.apache.spark.util.io.ChunkedByteBuffer
 
 /**
  * Producer (map) side writer for the streaming shuffle data path (feature F-103).
@@ -42,13 +48,9 @@ import org.apache.spark.storage.TempLocalBlockId
  * the streaming buffers approach their memory budget the largest partitions are spilled to local
  * disk, guaranteeing that a memory-bound map task degrades gracefully rather than failing.
  *
- * '''Single-inheritance design.''' Both [[ShuffleWriter]] and
- * [[org.apache.spark.memory.MemoryConsumer]] are concrete (abstract) classes, and Scala forbids
- * extending two classes. Because the object returned by `StreamingShuffleManager.getWriter` must
- * be a `ShuffleWriter[K, V]`, this class extends [[ShuffleWriter]] and '''composes''' a private
- * inner [[MemoryConsumer]] ([[StreamingShuffleMemoryConsumer]]) to participate in Spark's
- * cooperative spilling protocol. This mirrors how the sort path layers
- * `o.a.s.util.collection.Spillable` over a `MemoryConsumer`.
+ * Implements [[ShuffleWriter]] and '''composes''' a private inner [[MemoryConsumer]]
+ * ([[StreamingShuffleMemoryConsumer]]) to participate in Spark's cooperative spilling protocol.
+ * The rationale for composition over inheritance is recorded in the decision log (ADR-03).
  *
  * '''Memory budget.''' The total budget for streaming buffers is a configurable percentage of
  * executor memory: `streamingMemoryBudget = (executorMemory * bufferSizePercent) / 100`, where
@@ -59,34 +61,51 @@ import org.apache.spark.storage.TempLocalBlockId
  * once resident bytes reach `spillThreshold`% of the total budget, and reactively whenever the
  * [[org.apache.spark.memory.TaskMemoryManager]] asks the composed consumer to release memory.
  *
- * '''Zero data loss.''' Records are never silently dropped: every record is routed to exactly one
- * partition buffer and its serialized length is accounted in [[getPartitionLengths]]. Buffers and
- * all granted execution memory are released on both the success and failure paths in `stop`'s
- * `finally` block. On the failure path the spilled temporary blocks are deleted so that the DAG
- * scheduler's normal recomputation regenerates the output cleanly.
+ * '''Zero data loss.''' Records are never silently dropped: every record is routed to exactly
+ * one partition buffer, and at commit each partition's complete byte stream is reconstructed by
+ * concatenating its spilled segments (in spill order) ahead of its final resident bytes, so
+ * spilled bytes are published rather than discarded. Buffers and all granted execution memory are
+ * released on both the success and failure paths in `stop`'s `finally` block, and the transient
+ * spill blocks are always removed. On the failure path any committed output is removed so the DAG
+ * scheduler's normal recomputation regenerates it cleanly.
  *
- * '''v1 data plane.''' In this version the on-the-wire data plane is a logging-only stub (feature
- * F-115, `StreamingShuffleTransport`); the writer still produces the canonical 2 MiB
- * [[StreamingBlockEnvelope]] frames (with their per-block CRC32C) so the consumer's per-block
- * validation works once the Netty data plane lands, but it does not itself transmit them. The
- * authoritative output of `stop` is the [[MapStatus]] describing per-partition sizes, the map
- * task location, and an aggregate CRC32C over all serialized bytes.
+ * '''Publication (v1 data plane).''' The writer publishes through the standard fetchable channel
+ * (the on-the-wire data plane is a logging-only stub in v1; see decision log ADR-04, F-115): it
+ * frames every partition into the canonical 2 MiB [[StreamingBlockEnvelope]] frames (each with
+ * its per-block CRC32C), writes those frames sequentially to a single temporary data file, and
+ * commits the file and its per-partition index atomically via the shared
+ * [[org.apache.spark.shuffle.IndexShuffleBlockResolver]]. After the commit a reducer fetches a
+ * partition through the standard `MapOutputTracker` + `BlockTransferService` path and decodes the
+ * frames. The [[MapStatus]] returned from `stop` therefore describes the actual on-disk framed
+ * per-partition sizes, the map-task location, and an aggregate CRC32C over all serialized bytes.
  *
  * Instances are single-threaded with respect to [[write]]; the composed consumer's `spill` is
  * invoked synchronously on the same task thread by the `TaskMemoryManager`.
  *
- * @param handle       the streaming shuffle handle carrying the dependency and tuning parameters
- * @param mapId        the unique id of this shuffle map task
- * @param context      the task context, used to obtain the task memory manager
- * @param writeMetrics sink for bytes/records/time write metrics
- * @param config       the resolved streaming shuffle configuration (used for debug logging)
+ * @param handle         the streaming shuffle handle carrying the dependency and tuning
+ *                       parameters
+ * @param mapId          the unique id of this shuffle map task
+ * @param context        the task context, used to obtain the task memory manager
+ * @param writeMetrics   sink for bytes/records/time write metrics
+ * @param config         the resolved streaming shuffle configuration (used for debug logging)
+ * @param indexResolver  the shared block resolver used to commit the framed data file and its
+ *                       per-partition index so reducers can fetch the output; defaults to the
+ *                       executor's active shuffle block resolver
+ * @param spillManagerOpt the optional executor-wide [[MemorySpillManager]]; when present, this
+ *                       writer registers its buffers with it so the 100 ms utilization monitor
+ *                       can protect executor memory and routes its own spills through the same
+ *                       ledger, and when absent the writer spills to disk through a writer-local
+ *                       ledger
  */
 private[spark] class StreamingShuffleWriter[K, V, C](
     handle: StreamingShuffleHandle[K, V, C],
     mapId: Long,
     context: TaskContext,
     writeMetrics: ShuffleWriteMetricsReporter,
-    config: StreamingShuffleConfig)
+    config: StreamingShuffleConfig,
+    indexResolver: IndexShuffleBlockResolver =
+      SparkEnv.get.shuffleManager.shuffleBlockResolver.asInstanceOf[IndexShuffleBlockResolver],
+    spillManagerOpt: Option[MemorySpillManager] = None)
   extends ShuffleWriter[K, V] with Logging {
 
   private val dep = handle.dependency
@@ -101,6 +120,16 @@ private[spark] class StreamingShuffleWriter[K, V, C](
 
   /** A fresh serializer instance for this task (mirrors how the sort path serializes records). */
   private val serializerInstance = dep.serializer.newInstance()
+
+  /**
+   * Wraps each partition's output stream for compression and encryption exactly as the sort path
+   * does, so streaming output is byte-compatible with the symmetric unwrap on the consumer side
+   * ([[StreamingShuffleReader]] mirrors [[org.apache.spark.shuffle.BlockStoreShuffleReader]],
+   * which wraps every fetched block with `wrapStream`). Omitting this would corrupt reads
+   * whenever shuffle compression or encryption is enabled (both honor the existing
+   * `spark.shuffle.*` settings; compression is on by default).
+   */
+  private val serializerManager: SerializerManager = SparkEnv.get.serializerManager
 
   /**
    * Per-shuffle tuning captured at registration time. The [[StreamingShuffleHandle]] is the
@@ -130,8 +159,20 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   /** Resident-byte threshold at which a proactive spill of the largest buffer is triggered. */
   private val spillTriggerBytes: Long = (streamingMemoryBudget * spillThreshold) / 100L
 
-  /** Per-partition output lengths, accumulated as serialized bytes flow through the writer. */
+  /**
+   * Per-partition raw serialized output lengths, accumulated as bytes flow through the writer.
+   * These are the un-framed byte counts; the authoritative published lengths (which include the
+   * per-block envelope headers) are captured in [[publishedLengths]] at commit time.
+   */
   private val partitionLengths = new Array[Long](numPartitions)
+
+  /**
+   * Per-partition framed (on-the-wire) output lengths, populated at commit time. Each entry is
+   * the total number of bytes the partition occupies in the committed data file (the sum of its
+   * envelope header + payload bytes), so it is consistent with the offsets recorded in the index
+   * file and with the block sizes advertised in the returned [[MapStatus]].
+   */
+  private val publishedLengths = new Array[Long](numPartitions)
 
   /** Per-partition buffers, created lazily so empty partitions stay zero-length. */
   private val buffers = new Array[StreamingBuffer](numPartitions)
@@ -146,8 +187,14 @@ private[spark] class StreamingShuffleWriter[K, V, C](
    */
   private val aggregateChecksum = new CRC32C()
 
-  /** Registry of buffers spilled to local disk, retained so they can be cleaned up on failure. */
-  private val spilledSegments = new ArrayBuffer[SpilledSegment]()
+  /**
+   * Writer-local spill ledger, used only when no executor-wide [[MemorySpillManager]] is injected
+   * (for example in unit tests). Maps a reduce partition id to the ordered DISK_ONLY segments its
+   * buffer was spilled to. When a [[MemorySpillManager]] is present, the manager owns the ledger
+   * instead and this map stays empty. The segment order is the on-the-wire byte order and is read
+   * back at commit time ahead of the buffer's resident bytes.
+   */
+  private val localLedger = new HashMap[Int, ArrayBuffer[SpilledSegment]]()
 
   /** Composed memory consumer that lets this writer participate in cooperative spilling. */
   private val memoryConsumer = new StreamingShuffleMemoryConsumer(context.taskMemoryManager())
@@ -165,13 +212,19 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   private var stopping = false
   private var released = false
   private var mapStatus: MapStatus = null
+  // Set once the framed data file and its index have been committed via the index resolver, so
+  // the failure-path cleanup knows whether a committed map output must be removed.
+  private var committed = false
 
   if (config.debug) {
-    logDebug(s"StreamingShuffleWriter(shuffle=$shuffleId, map=$mapId): numPartitions=" +
-      s"$numPartitions, executorMemory=$executorMemoryBytes, bufferSizePercent=" +
-      s"$bufferSizePercent, streamingMemoryBudget=$streamingMemoryBudget, " +
-      s"perPartitionBudget=$perPartitionBudget, spillThreshold=$spillThreshold " +
-      s"(spillTriggerBytes=$spillTriggerBytes)")
+    logDebug(log"StreamingShuffleWriter(shuffle=${MDC(SHUFFLE_ID, shuffleId)}, " +
+      log"map=${MDC(MAP_ID, mapId)}): numPartitions=${MDC(NUM_PARTITIONS, numPartitions)}, " +
+      log"executorMemory=${MDC(MEMORY_SIZE, executorMemoryBytes)}, " +
+      log"bufferSizePercent=${MDC(PERCENT, bufferSizePercent)}, " +
+      log"streamingMemoryBudget=${MDC(STORAGE_MEMORY_SIZE, streamingMemoryBudget)}, " +
+      log"perPartitionBudget=${MDC(NUM_BYTES, perPartitionBudget)}, " +
+      log"spillThreshold=${MDC(THRESHOLD, spillThreshold)} " +
+      log"(spillTriggerBytes=${MDC(NUM_BYTES_TO_WARN, spillTriggerBytes)})")
   }
 
   /**
@@ -198,19 +251,30 @@ private[spark] class StreamingShuffleWriter[K, V, C](
         maybeSpill()
       }
     }
-    // Flush so every serialized byte has landed in its buffer before we frame and measure.
-    flushAllStreams()
-    pipelineBlocks()
+    // Close every serialization stream so each partition's complete byte stream (including any
+    // serializer trailer) has landed in its buffer before we frame and commit.
+    finishAllStreams()
+    // Frame each partition (spilled segments in order, then resident bytes) into <= 2 MiB
+    // envelopes, write them to a single temporary data file, and commit it and its per-partition
+    // index so the output is fetchable through the standard MapOutputTracker +
+    // BlockTransferService path.
+    frameAndCommitOutput()
     writeMetrics.incRecordsWritten(totalRecordsWritten)
     writeMetrics.incBytesWritten(totalBytesWritten)
     writeMetrics.incWriteTime(System.nanoTime() - startNanos)
     mapStatus = MapStatus(
-      blockManager.shuffleServerId, partitionLengths, mapId, aggregateChecksum.getValue())
+      blockManager.shuffleServerId, publishedLengths, mapId, aggregateChecksum.getValue())
     if (config.debug) {
-      logDebug(s"StreamingShuffleWriter(shuffle=$shuffleId, map=$mapId) wrote " +
-        s"$totalRecordsWritten records / $totalBytesWritten bytes across $numPartitions " +
-        s"partitions; generated $blocksGenerated blocks ($wireBytesGenerated wire bytes), " +
-        s"spilled $spillCount time(s) / $spilledBytesTotal bytes")
+      logDebug(log"StreamingShuffleWriter wrote map output " +
+        log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} map=${MDC(MAP_ID, mapId)} " +
+        log"attempt=${MDC(TASK_ATTEMPT_ID, context.taskAttemptId())}: " +
+        log"records=${MDC(RECORDS, totalRecordsWritten)} / " +
+        log"${MDC(NUM_BYTES, totalBytesWritten)} bytes across " +
+        log"${MDC(NUM_PARTITIONS, numPartitions)} partitions; generated " +
+        log"${MDC(NUM_BLOCKS, blocksGenerated)} blocks " +
+        log"(${MDC(NUM_BYTES_CURRENT, wireBytesGenerated)} wire bytes); spilled " +
+        log"${MDC(NUM_SPILLS, spillCount)} time(s) / " +
+        log"${MDC(NUM_BYTES_USED, spilledBytesTotal)} bytes")
     }
   }
 
@@ -232,12 +296,18 @@ private[spark] class StreamingShuffleWriter[K, V, C](
         }
       }
     } finally {
-      releaseResources(deleteSpilled = !success)
+      releaseResources(success = success)
     }
   }
 
-  /** Per-partition output lengths in bytes. */
-  override def getPartitionLengths(): Array[Long] = partitionLengths
+  /**
+   * Per-partition output lengths in bytes. After the output has been committed this returns the
+   * framed on-disk lengths ([[publishedLengths]]), which are consistent with the block sizes
+   * advertised in the [[MapStatus]] and the offsets in the committed index; before commit it
+   * returns the raw serialized lengths accumulated during writing.
+   */
+  override def getPartitionLengths(): Array[Long] =
+    if (committed) publishedLengths else partitionLengths
 
   // ---------------------------------------------------------------------------------------------
   // Internal helpers
@@ -250,21 +320,46 @@ private[spark] class StreamingShuffleWriter[K, V, C](
    */
   private def serStreamFor(partitionId: Int): SerializationStream = {
     if (serStreams(partitionId) == null) {
-      buffers(partitionId) =
-        new StreamingBuffer(partitionId, StreamingShuffleWriter.INITIAL_BUFFER_CAPACITY)
+      val buffer = new StreamingBuffer(
+        partitionId, StreamingShuffleWriter.INITIAL_BUFFER_CAPACITY)
+      buffers(partitionId) = buffer
+      // Register the buffer with the executor-wide spill monitor (when present) so its
+      // utilization is accounted and it is eligible for the 100 ms threshold spill (features
+      // F-109 / wiring of F-103 buffers into the monitor). The manager and this writer share one
+      // spill ledger keyed by the same BufferKey, so spills triggered by either path remain
+      // correctly ordered.
+      spillManagerOpt.foreach(_.registerBuffer(bufferKey(partitionId), buffer))
+      // Wrap the buffer-backed sink for compression and encryption (keyed by the reduce
+      // partition's shuffle block id) before serializing, symmetric with the consumer's
+      // `serializerManager.wrapStream` unwrap. The wrapped stream's trailer is flushed when the
+      // serialization stream is closed in `finishAllStreams`, so the framed bytes are complete.
       val out = new BufferBackedOutputStream(partitionId)
-      serStreams(partitionId) = serializerInstance.serializeStream(out)
+      val wrapped =
+        serializerManager.wrapStream(ShuffleBlockId(shuffleId, mapId, partitionId), out)
+      serStreams(partitionId) = serializerInstance.serializeStream(wrapped)
     }
     serStreams(partitionId)
   }
 
-  /** Flush every open serialization stream so its bytes are visible in the backing buffer. */
-  private def flushAllStreams(): Unit = {
+  /**
+   * The shared spill-ledger / registry key identifying this map task's buffer for `partitionId`.
+   */
+  private def bufferKey(partitionId: Int): BufferKey = BufferKey(shuffleId, mapId, partitionId)
+
+  /**
+   * Close every open serialization stream so its complete byte stream (including any serializer
+   * trailer written only on close) is visible in the backing buffer, then null the slot so the
+   * idempotent [[releaseResources]] does not attempt to close it again. Closing the
+   * [[SerializationStream]] does not close the underlying [[StreamingBuffer]], which remains
+   * readable for framing.
+   */
+  private def finishAllStreams(): Unit = {
     var i = 0
     while (i < numPartitions) {
       val s = serStreams(i)
       if (s != null) {
-        s.flush()
+        s.close()
+        serStreams(i) = null
       }
       i += 1
     }
@@ -310,7 +405,7 @@ private[spark] class StreamingShuffleWriter[K, V, C](
     var continue = true
     while (continue && freed < targetFreeBytes) {
       largestResidentBuffer() match {
-        case Some(buf) => freed += spillBuffer(buf)
+        case Some(buf) => freed += spillOnePartition(buf.partitionId, buf)
         case None => continue = false
       }
     }
@@ -332,90 +427,219 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   }
 
   /**
-   * Spill a single buffer to a temporary local block, preserving its bytes on disk before
-   * resetting it to reclaim heap. The spilled segment is recorded so it can be deleted if the map
-   * task ultimately fails. Returns the number of bytes freed.
+   * Spill a single partition's buffer to a DISK_ONLY block, releasing its heap, and record the
+   * resulting segment in the shared ledger. Routes through the injected [[MemorySpillManager]]
+   * when present (so the manager and writer share one ordered ledger) or through the writer-local
+   * ledger otherwise. The drain, store and heap release happen atomically under the buffer's
+   * monitor via [[StreamingBuffer#spillUnderLock]], so a buffer that has been finalized for
+   * commit or is empty is never spilled and a failed store loses no data. Returns the number of
+   * heap bytes freed.
+   *
+   * @param partitionId the reduce partition whose buffer is being spilled
+   * @param buffer      the buffer to spill
+   * @return the number of bytes freed on a successful spill, otherwise 0
    */
-  private def spillBuffer(buffer: StreamingBuffer): Long = {
-    val snap = buffer.snapshot()
-    if (snap.size <= 0L) {
+  private def spillOnePartition(partitionId: Int, buffer: StreamingBuffer): Long = {
+    val freed = spillManagerOpt match {
+      case Some(mgr) => mgr.spillBuffer(bufferKey(partitionId), buffer)
+      case None => localSpillStore(partitionId, buffer)
+    }
+    if (freed > 0L) {
+      spillCount += 1
+      spilledBytesTotal += freed
+      if (config.debug) {
+        logDebug(log"StreamingShuffleWriter spilled partition " +
+          log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} map=${MDC(MAP_ID, mapId)} " +
+          log"partition=${MDC(PARTITION_ID, partitionId)} (${MDC(NUM_BYTES, freed)} bytes) " +
+          log"to a DISK_ONLY block")
+      }
+    }
+    freed
+  }
+
+  /**
+   * Drain a partition's buffer to a DISK_ONLY [[org.apache.spark.storage.BlockManager]] block and
+   * append the segment to the writer-local ledger. Used only when no [[MemorySpillManager]] is
+   * injected. The atomic drain/store/reset is delegated to [[StreamingBuffer#spillUnderLock]].
+   *
+   * @param partitionId the reduce partition whose buffer is being spilled
+   * @param buffer      the buffer to spill
+   * @return the number of heap bytes released on a successful store, otherwise 0
+   */
+  private def localSpillStore(partitionId: Int, buffer: StreamingBuffer): Long = {
+    buffer.spillUnderLock { snapshot =>
+      try {
+        val blockId = TempLocalBlockId(UUID.randomUUID())
+        val stored = blockManager.putBytes(
+          blockId,
+          new ChunkedByteBuffer(ByteBuffer.wrap(snapshot.bytes)),
+          StorageLevel.DISK_ONLY,
+          tellMaster = false)
+        if (stored) {
+          localLedger.getOrElseUpdate(partitionId, new ArrayBuffer[SpilledSegment]())
+            .append(SpilledSegment(blockId, snapshot.size, snapshot.checksum))
+          true
+        } else {
+          logWarning(log"Failed to spill streaming buffer to disk; retaining it in memory: " +
+            log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} map=${MDC(MAP_ID, mapId)} " +
+            log"partition=${MDC(PARTITION_ID, partitionId)}")
+          false
+        }
+      } catch {
+        case NonFatal(t) =>
+          logWarning(log"Error spilling streaming buffer to disk; retaining it in memory: " +
+            log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} map=${MDC(MAP_ID, mapId)} " +
+            log"partition=${MDC(PARTITION_ID, partitionId)}", t)
+          false
+      }
+    }
+  }
+
+  /**
+   * The ordered spilled segments for `partitionId`, oldest spill first, read from the shared
+   * [[MemorySpillManager]] ledger when present or the writer-local ledger otherwise.
+   *
+   * @param partitionId the reduce partition whose spilled segments to retrieve
+   * @return the spilled segments in spill (on-the-wire) order
+   */
+  private def spilledSegmentsFor(partitionId: Int): Seq[SpilledSegment] = {
+    spillManagerOpt match {
+      case Some(mgr) => mgr.spilledSegmentsFor(bufferKey(partitionId))
+      case None => localLedger.get(partitionId).map(_.toSeq).getOrElse(Seq.empty)
+    }
+  }
+
+  /**
+   * Frame every partition's complete byte stream into at most 2 MiB CRC32C-protected envelopes,
+   * write them sequentially to a single temporary data file, and commit that file together with
+   * its per-partition index through the shared [[IndexShuffleBlockResolver]]. After this returns
+   * the map output is fetchable by reducers through the standard `MapOutputTracker` +
+   * `BlockTransferService` path, and [[publishedLengths]] holds the framed per-partition byte
+   * counts. The commit is atomic: a partially written temp file is deleted unless the commit
+   * succeeds.
+   */
+  private def frameAndCommitOutput(): Unit = {
+    val dataFile = indexResolver.getDataFile(shuffleId, mapId)
+    val dataTmp = indexResolver.createTempFile(dataFile)
+    val out = new BufferedOutputStream(new FileOutputStream(dataTmp))
+    var closed = false
+    try {
+      var p = 0
+      while (p < numPartitions) {
+        publishedLengths(p) = framePartition(p, out)
+        p += 1
+      }
+      out.flush()
+      out.close()
+      closed = true
+      indexResolver.writeMetadataFileAndCommit(
+        shuffleId, mapId, publishedLengths, Array.empty[Long], dataTmp)
+      committed = true
+      if (config.debug) {
+        logDebug(log"StreamingShuffleWriter committed fetchable map output " +
+          log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} map=${MDC(MAP_ID, mapId)}: " +
+          log"${MDC(NUM_BLOCKS, blocksGenerated)} framed block(s) / " +
+          log"${MDC(NUM_BYTES, wireBytesGenerated)} wire bytes across " +
+          log"${MDC(NUM_PARTITIONS, numPartitions)} partitions")
+      }
+    } finally {
+      if (!closed) {
+        try {
+          out.close()
+        } catch {
+          case NonFatal(e) =>
+            logWarning(log"Error closing streaming data temp file " +
+              log"${MDC(TEMP_FILE, dataTmp)} for shuffle=${MDC(SHUFFLE_ID, shuffleId)} " +
+              log"map=${MDC(MAP_ID, mapId)}", e)
+        }
+      }
+      if (!committed && dataTmp.exists()) {
+        dataTmp.delete()
+      }
+    }
+  }
+
+  /**
+   * Frame a single partition into the data stream `out`: read each spilled segment back in spill
+   * order, then the buffer's finalized resident bytes, slicing the concatenation into envelopes
+   * of at most [[StreamingShuffleWriter.BLOCK_SIZE]] bytes (each encoded by
+   * [[StreamingBlockEnvelope]] with its 32-byte header and per-block CRC32C). The buffer is
+   * finalized BEFORE the ledger is read so no concurrent spill can append a segment after the
+   * resident bytes are captured; the ledger is therefore complete and correctly ordered. Returns
+   * the total framed (header + payload) byte count written for the partition, which is 0 for an
+   * empty partition.
+   */
+  private def framePartition(partitionId: Int, out: OutputStream): Long = {
+    val residentSnapshot = Option(buffers(partitionId)).map(_.finalizeForCommit())
+    val segments = spilledSegmentsFor(partitionId)
+    if (segments.isEmpty && residentSnapshot.forall(_.size <= 0L)) {
       0L
     } else {
-      val (blockId, file) = blockManager.diskBlockManager.createTempLocalBlock()
-      val out = new FileOutputStream(file)
-      try {
-        out.write(snap.bytes)
-      } finally {
-        out.close()
+      val framer = new PartitionFramer(partitionId, out)
+      segments.foreach(seg => feedSegment(partitionId, seg, framer))
+      residentSnapshot.foreach { snap =>
+        if (snap.size > 0L) {
+          framer.feed(snap.bytes, 0, snap.bytes.length)
+        }
       }
-      spilledSegments +=
-        SpilledSegment(buffer.partitionId, blockId, file, snap.size, snap.checksum)
-      buffer.reset()
-      spillCount += 1
-      spilledBytesTotal += snap.size
-      if (config.debug) {
-        logDebug(s"StreamingShuffleWriter(shuffle=$shuffleId, map=$mapId) spilled partition " +
-          s"${buffer.partitionId} (${snap.size} bytes) to ${file.getName}")
-      }
-      snap.size
-    }
-  }
-
-  /** Frame every resident partition buffer into 2 MiB, CRC32C-protected block envelopes. */
-  private def pipelineBlocks(): Unit = {
-    var p = 0
-    while (p < numPartitions) {
-      val buf = buffers(p)
-      if (buf != null && buf.size > 0L) {
-        pipelinePartition(p, buf.snapshot().bytes)
-      }
-      p += 1
+      framer.finish()
+      framer.framedBytes
     }
   }
 
   /**
-   * Frame a single partition's bytes into consecutive blocks of at most
-   * [[StreamingShuffleWriter.BLOCK_SIZE]] bytes, encoding each into a [[StreamingBlockEnvelope]]
-   * (which computes the per-block CRC32C and prepends the 32-byte header) and handing it to the
-   * v1 transport.
+   * Read a spilled segment's bytes back from its DISK_ONLY block and feed them through `framer`
+   * in bounded chunks, so commit never re-materializes a whole partition on the heap. The block
+   * read holds a read lock that is released (and the block data disposed) before returning. A
+   * missing spilled block is unrecoverable for this map output, so it is raised as a
+   * [[SparkException]]; the DAG scheduler then recomputes the map task cleanly (zero data loss).
+   *
+   * The read lock is released without an explicit `TaskContext`: `getLocalBytes` records the lock
+   * under `BlockInfoManager.currentTaskAttemptId` (i.e. `TaskContext.get()`), so the matching
+   * release must use the same basis. Passing an explicit context whose attempt id differs from
+   * `TaskContext.get()` (as happens when no task is installed on the calling thread) would target
+   * the wrong lock holder, leaving the read lock pinned and deadlocking the subsequent
+   * `removeBlock` write-lock acquisition during cleanup.
    */
-  private def pipelinePartition(partitionId: Int, bytes: Array[Byte]): Unit = {
-    val total = bytes.length
-    var offset = 0
-    while (offset < total) {
-      val len = math.min(StreamingShuffleWriter.BLOCK_SIZE, total - offset)
-      val payload =
-        if (offset == 0 && len == total) bytes
-        else java.util.Arrays.copyOfRange(bytes, offset, offset + len)
-      val wire = StreamingBlockEnvelope.encode(shuffleId, mapId, partitionId, payload)
-      transmitBlock(partitionId, wire.remaining())
-      offset += len
-    }
-  }
-
-  /**
-   * v1 data-plane hand-off. The on-the-wire transport is intentionally a logging-only stub in
-   * this version (feature F-115, `StreamingShuffleTransport`): the encoded envelope remains
-   * resident in its per-partition buffer (or has been spilled to disk) and is advertised through
-   * the returned [[MapStatus]]. When the Netty data plane lands, the envelope is handed to the
-   * transport here, gated by the backpressure protocol; the v1 path performs no blocking work.
-   */
-  private def transmitBlock(partitionId: Int, wireSize: Int): Unit = {
-    blocksGenerated += 1
-    wireBytesGenerated += wireSize
-    if (config.debug) {
-      logTrace(s"StreamingShuffleWriter(shuffle=$shuffleId, map=$mapId) framed block for " +
-        s"partition $partitionId ($wireSize wire bytes; $blocksGenerated blocks so far)")
+  private def feedSegment(
+      partitionId: Int, segment: SpilledSegment, framer: PartitionFramer): Unit = {
+    blockManager.getLocalBytes(segment.blockId) match {
+      case Some(blockData) =>
+        try {
+          val in = blockData.toInputStream()
+          try {
+            val chunk = new Array[Byte](StreamingShuffleWriter.SEGMENT_READBACK_CHUNK)
+            var read = in.read(chunk)
+            while (read >= 0) {
+              if (read > 0) {
+                framer.feed(chunk, 0, read)
+              }
+              read = in.read(chunk)
+            }
+          } finally {
+            in.close()
+          }
+        } finally {
+          blockManager.releaseLockAndDispose(segment.blockId, blockData)
+        }
+      case None =>
+        throw new SparkException(s"Streaming shuffle spilled block ${segment.blockId} for " +
+          s"shuffle $shuffleId map $mapId partition $partitionId is missing; cannot " +
+          s"reconstruct the map output")
     }
   }
 
   /**
    * Release all resources held by this writer. Idempotent: safe to call from a double `stop`. The
-   * serialization streams are closed, every buffer is reset and dereferenced, and all granted
-   * execution memory is returned. When `deleteSpilled` is true (the failure path) the spilled
-   * temporary files are deleted so recomputation starts from a clean slate.
+   * serialization streams are closed, every buffer's transient DISK_ONLY spill blocks are
+   * removed, every buffer is reset (releasing its heap) and dereferenced (and deregistered from
+   * the spill manager when one is present), and all granted execution memory is returned. On the
+   * failure path (`success == false`) any already-committed map output is removed so the DAG
+   * scheduler's recomputation starts from a clean slate.
+   *
+   * @param success whether the map task succeeded; on failure committed output is removed
    */
-  private def releaseResources(deleteSpilled: Boolean): Unit = {
+  private def releaseResources(success: Boolean): Unit = {
     if (!released) {
       released = true
       var i = 0
@@ -426,10 +650,13 @@ private[spark] class StreamingShuffleWriter[K, V, C](
             s.close()
           } catch {
             case NonFatal(e) =>
-              logWarning(s"Error closing streaming serialization stream for partition $i", e)
+              logWarning(log"Error closing streaming serialization stream for " +
+                log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} map=${MDC(MAP_ID, mapId)} " +
+                log"partition ${MDC(PARTITION_ID, i)}", e)
           }
           serStreams(i) = null
         }
+        cleanupPartitionSpillState(i)
         val b = buffers(i)
         if (b != null) {
           b.reset()
@@ -437,15 +664,48 @@ private[spark] class StreamingShuffleWriter[K, V, C](
         }
         i += 1
       }
+      localLedger.clear()
       memoryConsumer.releaseAll()
-      if (deleteSpilled) {
-        spilledSegments.foreach { seg =>
-          if (seg.file.exists()) {
-            seg.file.delete()
-          }
+      if (!success && committed) {
+        try {
+          indexResolver.removeDataByMap(shuffleId, mapId)
+        } catch {
+          case NonFatal(e) =>
+            logWarning(log"Error removing committed streaming map output for " +
+              log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} map=${MDC(MAP_ID, mapId)} after a " +
+              log"failed map task", e)
         }
       }
-      spilledSegments.clear()
+    }
+  }
+
+  /**
+   * Remove the transient DISK_ONLY spill blocks recorded for `partitionId` and release the
+   * partition's buffer. When a [[MemorySpillManager]] is present this delegates to
+   * [[MemorySpillManager#reclaim]] (which removes the blocks, resets the buffer, clears the
+   * ledger and deregisters the buffer); otherwise the writer-local ledger's blocks are removed
+   * directly.
+   *
+   * @param partitionId the reduce partition whose spill state to clean up
+   */
+  private def cleanupPartitionSpillState(partitionId: Int): Unit = {
+    spillManagerOpt match {
+      case Some(mgr) =>
+        mgr.reclaim(bufferKey(partitionId))
+      case None =>
+        localLedger.get(partitionId).foreach { segments =>
+          segments.foreach { seg =>
+            try {
+              blockManager.removeBlock(seg.blockId, tellMaster = false)
+            } catch {
+              case NonFatal(e) =>
+                logWarning(log"Error removing spilled streaming block " +
+                  log"${MDC(BLOCK_ID, seg.blockId)} for shuffle=${MDC(SHUFFLE_ID, shuffleId)} " +
+                  log"map=${MDC(MAP_ID, mapId)} partition=${MDC(REDUCE_ID, partitionId)}", e)
+            }
+          }
+        }
+        localLedger.remove(partitionId)
     }
   }
 
@@ -543,24 +803,75 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Spilled-segment bookkeeping
+  // Bounded partition framer
   // ---------------------------------------------------------------------------------------------
 
   /**
-   * Record of a partition buffer that was spilled to a temporary local block.
+   * Slices a partition's byte stream into consecutive [[StreamingBlockEnvelope]] frames of at
+   * most [[StreamingShuffleWriter.BLOCK_SIZE]] payload bytes and writes them to the data stream
+   * `out`.
    *
-   * @param partitionId the reduce partition the spilled bytes belong to
-   * @param blockId     the temporary local block id allocated for the spill
-   * @param file        the on-disk file backing the temporary block
-   * @param length      the number of bytes spilled
-   * @param checksum    the CRC32C of the spilled bytes, for integrity validation
+   * Bytes are fed incrementally via [[feed]] (the producing caller streams spilled segments and
+   * the resident snapshot through it), so at most one [[StreamingShuffleWriter.BLOCK_SIZE]] block
+   * plus the input chunk is held on the heap at a time -- commit never re-materializes a whole
+   * partition. A full block is emitted as soon as the staging buffer fills; [[finish]] flushes
+   * the final partial block. Each emitted frame is encoded with its 32-byte header and per-block
+   * CRC32C, and the running [[StreamingShuffleWriter.blocksGenerated]] / `wireBytesGenerated`
+   * observability counters are advanced. Single-threaded; used only on the writer's task thread
+   * at commit.
+   *
+   * @param partitionId the reduce partition being framed (stamped into each envelope header)
+   * @param out         the data-file output stream the framed envelopes are written to
    */
-  private case class SpilledSegment(
-      partitionId: Int,
-      blockId: TempLocalBlockId,
-      file: File,
-      length: Long,
-      checksum: Long)
+  private final class PartitionFramer(partitionId: Int, out: OutputStream) {
+
+    private val block = new Array[Byte](StreamingShuffleWriter.BLOCK_SIZE)
+    private var fill = 0
+    private var framed = 0L
+
+    /**
+     * Append `len` bytes from `src` at `off`, emitting full blocks as the staging buffer fills.
+     */
+    def feed(src: Array[Byte], off: Int, len: Int): Unit = {
+      var pos = off
+      var remaining = len
+      while (remaining > 0) {
+        val space = StreamingShuffleWriter.BLOCK_SIZE - fill
+        val n = math.min(space, remaining)
+        System.arraycopy(src, pos, block, fill, n)
+        fill += n
+        pos += n
+        remaining -= n
+        if (fill == StreamingShuffleWriter.BLOCK_SIZE) {
+          emit(fill)
+          fill = 0
+        }
+      }
+    }
+
+    /** Flush any buffered remainder as a final, smaller-than-full envelope. */
+    def finish(): Unit = {
+      if (fill > 0) {
+        emit(fill)
+        fill = 0
+      }
+    }
+
+    /** Total framed (header + payload) bytes written for this partition. */
+    def framedBytes: Long = framed
+
+    private def emit(len: Int): Unit = {
+      val payload = if (len == block.length) block else java.util.Arrays.copyOf(block, len)
+      // encode copies payload into a fresh, flipped buffer, so reusing `block` afterward is safe.
+      val wire = StreamingBlockEnvelope.encode(shuffleId, mapId, partitionId, payload)
+      val arr = new Array[Byte](wire.remaining())
+      wire.get(arr)
+      out.write(arr)
+      framed += arr.length
+      blocksGenerated += 1
+      wireBytesGenerated += arr.length.toLong
+    }
+  }
 }
 
 private[spark] object StreamingShuffleWriter {
@@ -583,4 +894,11 @@ private[spark] object StreamingShuffleWriter {
    * the per-record write path cheap while still reacting promptly to buffer growth.
    */
   val SPILL_CHECK_RECORD_INTERVAL: Int = 1024
+
+  /**
+   * Chunk size, in bytes, used to read a spilled segment back from its DISK_ONLY block when
+   * framing at commit. Reading in bounded chunks (rather than materializing an entire segment)
+   * keeps commit memory bounded to roughly one block plus this chunk per partition.
+   */
+  val SEGMENT_READBACK_CHUNK: Int = 64 * 1024
 }

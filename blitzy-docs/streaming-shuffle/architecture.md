@@ -69,26 +69,27 @@ flowchart LR
 
 ## Producer-to-consumer data flow
 
-**Diagram 0.5-A — Streaming Shuffle Producer-to-Consumer Data Flow** shows the runtime data flow including the spill and fallback branches. A map task writes into per-partition buffers; below the spill threshold blocks are pipelined directly to the consumer, and at or above it the spill manager offloads to disk before the block is pipelined.
+**Diagram 0.5-A — Streaming Shuffle Producer-to-Consumer Data Flow** shows the runtime data flow including the spill, publication, and fallback branches. A map task writes records into per-partition in-memory buffers; at or above the spill threshold the spill manager offloads the largest buffers to disk (`DISK_ONLY`) and resets them to release heap. At task commit the writer assembles each partition's bytes (spilled segments oldest-first, followed by the resident buffer), frames them into ≤ 2 MiB `StreamingBlockEnvelope` records, and publishes them to a single shuffle data file through `IndexShuffleBlockResolver.writeMetadataFileAndCommit`. Because the v1 network transport is a logging-only stub (see [decision-log.md](decision-log.md)), the consumer does not receive a live socket stream; instead the reader fetches the published blocks through `MapOutputTracker` and `BlockTransferService`, exactly as the sort path does, and decodes the envelopes frame-by-frame. The backpressure protocol runs alongside this path as a flow-control signaling channel, and consumer acknowledgments drive buffer reclamation.
 
 ```mermaid
 flowchart TD
-    Map["Map task (producer)"] --> Writer["StreamingShuffleWriter<br/>(MemoryConsumer)"]
+    Map["Map task (producer)"] --> Writer["StreamingShuffleWriter<br/>(ShuffleWriter; composes a private MemoryConsumer)"]
     Writer --> Buffer["StreamingBuffer<br/>per-partition, CRC32C"]
     Buffer --> Util{"Utilization >= spillThreshold (80%)?"}
-    Util -->|"No"| Pipe["Pipeline block (<= 2MB)<br/>via BlockTransferService"]
-    Util -->|"Yes"| Spill["MemorySpillManager<br/>BlockManager.putBytes(DISK_ONLY)"]
-    Spill --> Pipe
-    Pipe --> BPGate["BackpressureProtocol<br/>token-bucket + heartbeat"]
-    BPGate --> Reader["StreamingShuffleReader (consumer)"]
-    Reader --> Validate{"CRC32C valid AND producer alive (<5s)?"}
-    Validate -->|"Yes"| Ack["Acknowledge -> buffer reclaim (<=100ms)"]
+    Util -->|"Yes"| Spill["MemorySpillManager<br/>BlockManager.putBytes(DISK_ONLY) + reset buffer"]
+    Util -->|"No"| Commit
+    Spill --> Commit["At commit, per partition:<br/>spilled segments (oldest-first) ++ resident;<br/>frame into <= 2 MiB StreamingBlockEnvelope records"]
+    Commit --> Publish["IndexShuffleBlockResolver.writeMetadataFileAndCommit<br/>(index + data file) -> MapStatus(shuffleServerId, lengths)"]
+    Publish --> Fetch["StreamingShuffleReader (consumer)<br/>MapOutputTracker + BlockTransferService fetch (<= 5 s)"]
+    Fetch --> Validate{"CRC32C valid AND fetch within 5 s?"}
+    Validate -->|"Yes"| Ack["Acknowledge -> MemorySpillManager.reclaim (<= 100 ms)"]
     Validate -->|"No"| Invalidate["Invalidate partial read<br/>throw FetchFailedException -> DAG recompute"]
-    BPGate -. "fallback condition met (F-111)" .-> Fallback["Revert to SortShuffleManager"]
-    legendNode["Legend: solid = normal streaming flow; dashed = automatic fallback;<br/>diamonds = decision gates; data loss is prevented via invalidation + recompute"]
+    BPGate["BackpressureProtocol + RpcEndpoint<br/>(signaling: heartbeat / ack / rate / timeout)"] -. "ack drives reclaim" .-> Ack
+    Reg{"Registration-time fallback<br/>condition met? (F-111)"} -. "Some(reason)" .-> Fallback["Delegate shuffle to<br/>inner SortShuffleManager"]
+    legendNode["Legend: solid = normal streaming publish-then-fetch flow;<br/>dashed = flow-control signaling / registration-time fallback;<br/>diamonds = decision gates; data loss is prevented via invalidation + DAG recompute"]
 ```
 
-The load-bearing guarantee is **zero data loss**: when a producer times out or a CRC32C check fails, the reader invalidates the partial read and throws `FetchFailedException`, so the existing DAG scheduler recomputes the lost map output — no scheduler change is required. When a fallback condition is met, the manager reverts that shuffle to the inner `SortShuffleManager`.
+The load-bearing guarantee is **zero data loss**: when a fetch exceeds the 5 s producer timeout or a CRC32C check fails, the reader invalidates the partial read and throws `FetchFailedException`, so the existing DAG scheduler recomputes the lost map output — no scheduler change is required. Fallback is evaluated when the shuffle is registered: if `StreamingShuffleManager.registerShuffle` detects a fallback condition (memory pressure, consumer lag, network saturation, or a producer/consumer version mismatch), it returns a sort handle so that shuffle uses the inner `SortShuffleManager` end-to-end rather than the streaming path.
 
 ## Components
 
@@ -98,11 +99,11 @@ The streaming subsystem comprises sixteen production classes (F-101–F-116) plu
 |---------|-------|----------------|
 | F-101 | `StreamingShuffleManager` | SPI entry point; dispatch and lifecycle. Composes an inner `SortShuffleManager` for delegation/fallback; registers `StreamingShuffleSource` with the `MetricsSystem` when `SparkEnv.get != null`; performs an ordered `stop()` (Backpressure → Spill → inner Sort → clear ids). |
 | F-102 | `StreamingShuffleHandle` | A `BaseShuffleHandle` subtype carrying `bufferSizePercent` / `spillThreshold` / `maxBandwidthMBps`; the dispatch discriminator on which `getWriter` / `getReader` pattern-match to route the streaming versus the delegated path. |
-| F-103 | `StreamingShuffleWriter` | Extends `MemoryConsumer`; per-partition buffer sizing (`perPartitionBudget = executorMemory × bufferSizePercent / 100 / numPartitions`, 2 MB block size); spills at the configured threshold; generates CRC32C checksums. |
-| F-104 | `StreamingShuffleReader` | Mirrors `BlockStoreShuffleReader.read` (honors the aggregator, key ordering, and map-side combine); polls in-progress blocks; on a 5 s producer timeout invalidates partial reads and throws `FetchFailedException` so the existing DAG scheduler recomputes (no scheduler change); validates a CRC32C per block with retransmission. |
+| F-103 | `StreamingShuffleWriter` | Implements `ShuffleWriter[K, V]` and composes a private `MemoryConsumer` for execution-memory accounting; per-partition buffer sizing (`perPartitionBudget = executorMemory × bufferSizePercent / 100 / numPartitions`, 2 MB block size); spills at the configured threshold; generates CRC32C checksums; at commit, frames each partition into `StreamingBlockEnvelope` records and publishes them via `IndexShuffleBlockResolver` so the output is fetchable through the standard map-output path. |
+| F-104 | `StreamingShuffleReader` | Mirrors `BlockStoreShuffleReader.read` (honors the aggregator, key ordering, and map-side combine); fetches published shuffle blocks through `MapOutputTracker` and `BlockTransferService` with a bounded await; on a 5 s producer timeout invalidates partial reads and throws `FetchFailedException` so the existing DAG scheduler recomputes (no scheduler change); decodes `StreamingBlockEnvelope` frames with bounded allocation and validates a CRC32C per block. |
 | F-105 | `StreamingShuffleBlockResolver` | Maintains a 3-level block index; implements `MigratableResolver` by delegating to the existing `IndexShuffleBlockResolver` to preserve block migration/decommission. |
 | F-106 | `StreamingBuffer` | Per-partition buffer built on a `ByteArrayOutputStream` with CRC32C, LRU eviction, and atomic counters. |
-| F-107 | `BackpressureProtocol` | Token-bucket plus 5 s heartbeat flow control; lock-free `AtomicLong` token accounting; monotonic acknowledgment merge. |
+| F-107 | `BackpressureProtocol` | Token-bucket plus 5 s heartbeat flow control; lock-free `AtomicLong` token accounting; per-stream monotonic acknowledgment merge keyed by `(shuffleId, partitionId, attemptId, executorId)`; a 10 s consumer-liveness / missing-ack detector. |
 | F-108 | `BackpressureRpcEndpoint` | A `ThreadSafeRpcEndpoint` named `streaming-shuffle-backpressure`, executor-only (refuses to register on the driver); carries heartbeat / ack / rate / timeout messages. |
 | F-109 | `MemorySpillManager` | Polls buffer utilization every 100 ms; spills the largest partitions (LRU) to disk via `BlockManager.putBytes(..., DISK_ONLY)` at the 80% threshold; reclaims buffers within 100 ms of acknowledgment; tracks metrics. |
 | F-110 | `network/TokenBucketRateLimiter` | A Guava `RateLimiter` wrapper (1 permit = 1 byte) capped at 80% of link capacity. |
@@ -120,11 +121,11 @@ Two architectural guarantees are load-bearing across these classes. **Coexistenc
 
 ### Backpressure protocol
 
-The backpressure protocol (F-107) provides consumer-to-producer flow control using a token bucket combined with a 5-second heartbeat. Token accounting is lock-free via `AtomicLong`, and acknowledgments are merged monotonically so that out-of-order or duplicate acks never regress the reclamation watermark. The protocol runs over the executor-only `BackpressureRpcEndpoint` (F-108) — a `ThreadSafeRpcEndpoint` registered under the name `streaming-shuffle-backpressure` that refuses to register on the driver — carrying heartbeat, acknowledgment, rate, and timeout messages. The bucket is capped at 80% of link capacity by `TokenBucketRateLimiter` (F-110), where one permit equals one byte.
+The backpressure protocol (F-107) provides consumer-to-producer flow control using a token bucket combined with a 5-second heartbeat. Token accounting is lock-free via `AtomicLong`, and acknowledgments are merged monotonically **per stream** — keyed by `(shuffleId, partitionId, attemptId, executorId)` — so that an out-of-order, duplicate, or out-of-scope ack can never regress another stream's reclamation watermark. A separate 10-second consumer-liveness / missing-ack detector identifies a stalled consumer. The protocol runs over the executor-only `BackpressureRpcEndpoint` (F-108) — a `ThreadSafeRpcEndpoint` registered under the name `streaming-shuffle-backpressure` that refuses to register on the driver — carrying heartbeat, acknowledgment, rate, and timeout messages; the endpoint validates message identity (ids, sequence numbers, executor/attempt identity) and bounds and sanitizes free-text reason fields before routing each ack to its corresponding per-stream state. The bucket is capped at 80% of link capacity by `TokenBucketRateLimiter` (F-110), where one permit equals one byte.
 
 ### Memory and spill loop
 
-`MemorySpillManager` (F-109) polls buffer utilization every 100 ms. When utilization reaches the 80% `spillThreshold`, it spills the largest partitions (LRU) to disk through the existing `BlockManager.putBytes(..., DISK_ONLY)` API — reusing the storage contract rather than altering it. Buffers are reclaimed within 100 ms of acknowledgment, and spill and reclaim events feed the metrics surface described in [observability.md](observability.md).
+`MemorySpillManager` (F-109) polls buffer utilization every 100 ms. When utilization reaches the 80% `spillThreshold`, it spills the largest partitions (LRU) to disk through the existing `BlockManager.putBytes(..., DISK_ONLY)` API — reusing the storage contract rather than altering it — and resets the spilled buffer so its heap is released immediately; the spilled bytes are tracked in a per-partition ordered ledger and folded back (oldest-first) into the published output at commit. Writer-created buffers are registered with the manager, and a consumer acknowledgment routed from the reader triggers reclamation within 100 ms; on `stop()` any still-registered buffers are reset before the registry is cleared. Spill and reclaim events feed the metrics surface described in [observability.md](observability.md).
 
 ### Wire envelope
 
@@ -160,7 +161,6 @@ The subsystem is strictly additive at the SPI boundary. `ShuffleExchangeExec`, a
 
 ## See also
 
-- [index.md](index.md) — streaming shuffle documentation landing page.
 - [configuration.md](configuration.md) — the five `spark.shuffle.streaming.*` keys and the dual-flag activation contract.
 - [observability.md](observability.md) — metrics, MDC correlation fields, and dashboards.
 - [decision-log.md](decision-log.md) — architecture decisions (including the v1 transport stub) and the requirement-to-source-to-test traceability matrix.

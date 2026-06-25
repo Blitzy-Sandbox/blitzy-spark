@@ -163,7 +163,11 @@ class MemorySpillManagerSuite extends SparkFunSuite with PrivateMethodTester {
       manager.invokePrivate(pollOnce())
 
       assert(largest.isSpilled, "the largest buffer should have been spilled first")
+      // The spill must actually release the heap, not merely flag the buffer (regression for the
+      // M1 finding that a "spilled" buffer was never reset).
+      assert(largest.size === 0L, "the spilled buffer's heap must be released")
       assert(!smaller.isSpilled, "the smaller buffer should remain in memory")
+      assert(smaller.size === 200L, "the unspilled buffer must retain its bytes")
       verifySpillWrites(blockManager, 1)
       assert(metrics.getSpillCount === 1L)
     }
@@ -189,7 +193,9 @@ class MemorySpillManagerSuite extends SparkFunSuite with PrivateMethodTester {
       manager.invokePrivate(pollOnce())
 
       assert(older.isSpilled, "the least-recently-used buffer should have been spilled")
+      assert(older.size === 0L, "the spilled buffer's heap must be released")
       assert(!newer.isSpilled, "the most-recently-used buffer should remain in memory")
+      assert(newer.size === 500L, "the unspilled buffer must retain its bytes")
       verifySpillWrites(blockManager, 1)
       assert(metrics.getSpillCount === 1L)
     }
@@ -236,5 +242,69 @@ class MemorySpillManagerSuite extends SparkFunSuite with PrivateMethodTester {
       // Reclaiming an unknown key must be a harmless no-op.
       manager.reclaim(keyFor(99))
     }
+  }
+
+  test("a successful spill releases the spilled buffer's heap") {
+    withManager() { (manager, blockManager, _) =>
+      stubSpillSucceeds(blockManager)
+      val buffer = bufferOf(0, 850)
+      manager.registerBuffer(keyFor(0), buffer)
+      assert(buffer.size === 850L)
+
+      manager.invokePrivate(pollOnce())
+
+      // Regression for the M1 finding: a spill must reset the buffer to actually reclaim the
+      // heap, not merely flag it spilled while the bytes stay resident. The flag and the released
+      // heap are asserted together so a future regression that drops the reset cannot pass
+      // silently.
+      assert(buffer.isSpilled, "the buffer must be marked spilled")
+      assert(buffer.size === 0L, "the spilled buffer's heap must be released")
+      assert(manager.invokePrivate(currentBufferedBytes()) === 0L,
+        "a reset buffer must no longer count toward buffered bytes")
+    }
+  }
+
+  test("reclaim removes the transient spilled blocks for the buffer") {
+    withManager() { (manager, blockManager, _) =>
+      stubSpillSucceeds(blockManager)
+      val buffer = bufferOf(0, 850)
+      val key = keyFor(0)
+      manager.registerBuffer(key, buffer)
+      // Poll once so the 850-byte buffer (85% of the 1000-byte denominator) crosses the 80%
+      // threshold and is spilled, recording exactly one DISK_ONLY block in the per-key ledger.
+      manager.invokePrivate(pollOnce())
+      assert(buffer.size === 0L)
+
+      manager.reclaim(key)
+
+      // The transient DISK_ONLY spill block recorded during the poll must be removed on reclaim
+      // so it does not leak on disk after the consumer acknowledges the partition.
+      verify(blockManager, atLeastOnce()).removeBlock(any(), anyBoolean())
+    }
+  }
+
+  test("stop() resets every still-registered buffer before clearing the registry") {
+    // This test drives the real lifecycle directly (rather than through withManager) so it can
+    // assert buffer state AFTER stop() has run; the manager is still stopped exactly once below.
+    val blockManager = mock(classOf[BlockManager])
+    val memoryManager = mock(classOf[MemoryManager])
+    when(memoryManager.maxOnHeapStorageMemory).thenReturn(MaxOnHeapBytes)
+    val metrics = new StreamingShuffleMetrics
+    val manager = new MemorySpillManager(blockManager, memoryManager, metrics, 80)
+    val b0 = bufferOf(0, 300)
+    val b1 = bufferOf(1, 200)
+    manager.registerBuffer(keyFor(0), b0)
+    manager.registerBuffer(keyFor(1), b1)
+    assert(b0.size === 300L)
+    assert(b1.size === 200L)
+
+    manager.stop()
+
+    // Regression for the M1 finding: stop() must release every live buffer's heap, not just drop
+    // registry references, otherwise the bytes the monitor was protecting would leak on teardown.
+    assert(b0.size === 0L, "stop() must reset every still-registered buffer")
+    assert(b1.size === 0L, "stop() must reset every still-registered buffer")
+    // stop() is idempotent: a second call is a harmless no-op.
+    manager.stop()
   }
 }

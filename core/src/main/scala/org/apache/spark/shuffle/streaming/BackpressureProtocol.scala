@@ -17,10 +17,13 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger, AtomicLong}
 
+import scala.jdk.CollectionConverters._
+
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.LogKeys._
 import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
 
 /**
@@ -121,8 +124,20 @@ private[spark] class BackpressureProtocol(
   /** Lock-free count of currently available credit bytes; initialized to the full capacity. */
   private val availableTokens = new AtomicLong(capacityBytes)
 
-  /** Monotonically non-decreasing acknowledgment high-water mark. */
-  private val ackWatermarkValue = new AtomicLong(0L)
+  /**
+   * Per-stream, monotonically non-decreasing acknowledgment high-water marks, keyed by
+   * [[StreamKey]] (shuffle, reduce partition, consumer attempt, consumer executor). Each
+   * [[AtomicLong]] is advanced under its own CAS loop. See decision log ADR-11.
+   */
+  private val ackWatermarks = new ConcurrentHashMap[StreamKey, AtomicLong]()
+
+  /**
+   * Per-stream `System.nanoTime` of the most recent consumer signal (a keyed acknowledgment or an
+   * explicit liveness stamp). Consulted by [[isConsumerTimedOut]] to detect a consumer that has
+   * gone silent for longer than [[BackpressureProtocol.CONSUMER_LIVENESS_TIMEOUT_MS]] (10 s).
+   * This is the consumer-failure detector, distinct from the single 5 s flow-control heartbeat.
+   */
+  private val lastConsumerSignalNanos = new ConcurrentHashMap[StreamKey, java.lang.Long]()
 
   /** `System.nanoTime` of the most recently recorded heartbeat. */
   private val lastHeartbeatNanos = new AtomicLong(System.nanoTime())
@@ -278,14 +293,14 @@ private[spark] class BackpressureProtocol(
     if (clamped >= effectiveThresholdPercent) {
       if (backpressureActive.compareAndSet(false, true)) {
         metrics.incrementBackpressureEvents()
-        logDebug(s"Backpressure ACTIVATED at utilization=$clamped% " +
-          s"(threshold=$effectiveThresholdPercent%)")
+        logDebug(log"Backpressure ACTIVATED at utilization=${MDC(PERCENT, clamped)}% " +
+          log"(threshold=${MDC(THRESHOLD, effectiveThresholdPercent)}%)")
       }
       true
     } else {
       if (backpressureActive.compareAndSet(true, false)) {
-        logDebug(s"Backpressure released at utilization=$clamped% " +
-          s"(threshold=$effectiveThresholdPercent%)")
+        logDebug(log"Backpressure released at utilization=${MDC(PERCENT, clamped)}% " +
+          log"(threshold=${MDC(THRESHOLD, effectiveThresholdPercent)}%)")
       }
       false
     }
@@ -298,34 +313,102 @@ private[spark] class BackpressureProtocol(
   def isBackpressureActive: Boolean = backpressureActive.get()
 
   // ---------------------------------------------------------------------------------------------
-  // Monotonic acknowledgment merge
+  // Per-stream monotonic acknowledgment merge
   // ---------------------------------------------------------------------------------------------
 
   /**
-   * Merge an acknowledgment for sequence number `seqNo` into the high-water mark.
+   * Merge an acknowledgment for sequence number `seqNo` into the high-water mark of the stream
+   * identified by `key`, and stamp that stream's consumer-liveness signal.
    *
-   * Uses a compare-and-set loop to advance [[ackWatermark]] only when `seqNo` is strictly greater
-   * than the current watermark, guaranteeing the watermark is monotonically non-decreasing even
-   * under concurrent, out-of-order, or duplicate acknowledgments.
+   * Uses a compare-and-set loop to advance the stream's watermark only when `seqNo` is strictly
+   * greater than its current value, so each per-stream watermark is monotonically non-decreasing
+   * even under concurrent, out-of-order, or duplicate acknowledgments. Per-stream keying isolates
+   * acknowledgment state (see decision log ADR-11).
    *
+   * @param key   the identity of the stream being acknowledged
    * @param seqNo the acknowledged sequence number
+   * @return the stream's acknowledgment high-water mark after the merge
    */
-  def mergeAck(seqNo: Long): Unit = {
+  def mergeAck(key: StreamKey, seqNo: Long): Long = {
+    val watermark = ackWatermarks.computeIfAbsent(key, _ => new AtomicLong(0L))
     var continue = true
     while (continue) {
-      val current = ackWatermarkValue.get()
+      val current = watermark.get()
       if (seqNo <= current) {
-        // Out-of-order or duplicate ack: never regress the watermark.
+        // Out-of-order or duplicate ack: never regress this stream's watermark.
         continue = false
-      } else if (ackWatermarkValue.compareAndSet(current, seqNo)) {
+      } else if (watermark.compareAndSet(current, seqNo)) {
         continue = false
       }
       // Otherwise the CAS lost a race; loop and retry against the fresh value.
     }
+    recordConsumerSignal(key)
+    watermark.get()
   }
 
-  /** The current monotonically non-decreasing acknowledgment high-water mark. */
-  def ackWatermark: Long = ackWatermarkValue.get()
+  /**
+   * The current monotonically non-decreasing acknowledgment high-water mark for `key`, or `0` if
+   * the stream has never been acknowledged.
+   */
+  def ackWatermark(key: StreamKey): Long = {
+    val watermark = ackWatermarks.get(key)
+    if (watermark == null) 0L else watermark.get()
+  }
+
+  /** The number of distinct streams for which acknowledgment state is currently tracked. */
+  def trackedStreamCount: Int = ackWatermarks.size()
+
+  // ---------------------------------------------------------------------------------------------
+  // Consumer liveness (10 s missing-ack / consumer-failure detector, per stream)
+  // ---------------------------------------------------------------------------------------------
+
+  /**
+   * Stamp the current time as the most recent consumer signal for `key`. A signal is any evidence
+   * the consumer is alive: a keyed acknowledgment (see [[mergeAck]], which calls this) or an
+   * explicit liveness update. This is distinct from [[recordHeartbeat]], which maintains the
+   * single 5 s flow-control heartbeat rather than per-stream consumer liveness.
+   */
+  def recordConsumerSignal(key: StreamKey): Unit = {
+    lastConsumerSignalNanos.put(key, java.lang.Long.valueOf(System.nanoTime()))
+  }
+
+  /**
+   * Test/diagnostic seam: stamp `key`'s most recent consumer signal at an explicit `nanos`
+   * timestamp (a `System.nanoTime`-domain value). Used to exercise the 10 s liveness boundary
+   * deterministically and available to a future scheduler-driven liveness sweep.
+   */
+  private[streaming] def markConsumerSignalAt(key: StreamKey, nanos: Long): Unit = {
+    lastConsumerSignalNanos.put(key, java.lang.Long.valueOf(nanos))
+  }
+
+  /**
+   * Whether the consumer behind `key` has gone silent for longer than the 10 s consumer-liveness
+   * window (see [[BackpressureProtocol.CONSUMER_LIVENESS_TIMEOUT_MS]]). A stream that has never
+   * signaled is treated as not-yet-started (returns `false`) so a consumer that has not begun
+   * cannot trigger a spurious fallback or invalidation. The producer/fallback path consults this
+   * to decide whether to invalidate a stalled stream or degrade to the sort path.
+   */
+  def isConsumerTimedOut(key: StreamKey): Boolean = {
+    val last = lastConsumerSignalNanos.get(key)
+    if (last == null) {
+      false
+    } else {
+      TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - last.longValue()) >
+        BackpressureProtocol.CONSUMER_LIVENESS_TIMEOUT_MS
+    }
+  }
+
+  /**
+   * The streams whose consumer has exceeded the 10 s liveness window, for runtime fallback
+   * evaluation. Computed against a single `now` snapshot so the result is internally consistent.
+   */
+  def timedOutStreams: Seq[StreamKey] = {
+    val now = System.nanoTime()
+    lastConsumerSignalNanos.entrySet().asScala.iterator.collect {
+      case e if TimeUnit.NANOSECONDS.toMillis(now - e.getValue.longValue()) >
+        BackpressureProtocol.CONSUMER_LIVENESS_TIMEOUT_MS => e.getKey
+    }.toSeq
+  }
 
   // ---------------------------------------------------------------------------------------------
   // Priority arbitration
@@ -367,7 +450,7 @@ private[spark] class BackpressureProtocol(
   def debugState: String =
     s"BackpressureProtocol[credits=$availableCredits/$capacityBytes, " +
       s"utilization=$currentUtilizationPercent%, backpressure=$isBackpressureActive, " +
-      s"ackWatermark=$ackWatermark, msSinceHeartbeat=$millisSinceLastHeartbeat]"
+      s"trackedStreams=$trackedStreamCount, msSinceHeartbeat=$millisSinceLastHeartbeat]"
 }
 
 /**
@@ -382,6 +465,15 @@ private[spark] object BackpressureProtocol {
    * the streaming-shuffle timing semantics.
    */
   val HEARTBEAT_INTERVAL_MS: Long = 5000L
+
+  /**
+   * The consumer-liveness window: 10 seconds. A consumer that has not signaled (acknowledged)
+   * within this window is treated as failed by [[BackpressureProtocol.isConsumerTimedOut]], which
+   * the runtime fallback/invalidation path consults. This is distinct from, and longer than, the
+   * 5 s flow-control [[HEARTBEAT_INTERVAL_MS]], matching the streaming-shuffle timing semantics
+   * (producer-connection 5 s, heartbeat 5 s, consumer liveness 10 s).
+   */
+  val CONSUMER_LIVENESS_TIMEOUT_MS: Long = 10000L
 
   /**
    * The default buffer-utilization percentage at which backpressure activates when no explicit
@@ -406,6 +498,25 @@ private[spark] case class StreamPriority(
     ageNanos: Long)
 
 /**
+ * The identity of a single consumer flow-control stream, used to key per-stream acknowledgment
+ * and consumer-liveness state in [[BackpressureProtocol]]. Two acknowledgments belong to the same
+ * stream iff their [[StreamKey]]s are equal, so an ack for one stream can never affect another.
+ * On the consumer side the tuple mirrors the producer's per-partition buffer identity, augmented
+ * with the consumer attempt and executor so that distinct consumer attempts of the same partition
+ * are tracked independently.
+ *
+ * @param shuffleId   the shuffle the stream belongs to
+ * @param partitionId the reduce partition the consumer is reading
+ * @param attemptId   the consumer task attempt id (uniquely identifies this consumer attempt)
+ * @param executorId  the executor id of the consumer
+ */
+private[spark] case class StreamKey(
+    shuffleId: Int,
+    partitionId: Int,
+    attemptId: Long,
+    executorId: String)
+
+/**
  * The protocol-level message algebraic data type exchanged between consumers and producers.
  *
  * These are pure, immutable, [[Serializable]] value objects: this file owns their definition so
@@ -416,24 +527,35 @@ private[spark] case class StreamPriority(
 private[spark] sealed trait BackpressureMessage extends Serializable
 
 /**
- * A liveness heartbeat emitted on the 5 s flow-control interval.
+ * A liveness heartbeat emitted on the 5 s flow-control interval. Carries the consumer's
+ * cross-executor correlation identity (executor, shuffle, attempt, and the reduce-partition range
+ * it consumes) so a producer receiving it can attribute the heartbeat to the correct stream(s).
  *
- * @param executorId  the identifier of the executor emitting the heartbeat
- * @param shuffleId   the shuffle the heartbeat pertains to
- * @param timestampMs the wall-clock time the heartbeat was produced, in epoch milliseconds
+ * @param executorId           the identifier of the executor emitting the heartbeat
+ * @param shuffleId            the shuffle the heartbeat pertains to
+ * @param attemptId            the consumer task attempt id (cross-executor correlation identity)
+ * @param reducePartitionRange the reduce-partition range the consumer reads, rendered as
+ *                             `"[start,end)"` (the `reduce_partition_range` correlation field)
+ * @param timestampMs          the wall-clock time the heartbeat was produced, in epoch millis
  */
 private[spark] case class Heartbeat(
     executorId: String,
     shuffleId: Int,
+    attemptId: Long,
+    reducePartitionRange: String,
     timestampMs: Long)
   extends BackpressureMessage
 
 /**
  * A sequence-numbered acknowledgment that lets the producer reclaim buffer space and advance its
- * acknowledgment watermark (see [[BackpressureProtocol.mergeAck]]).
+ * acknowledgment watermark (see [[BackpressureProtocol.mergeAck]]). The
+ * `(shuffleId, partitionId, attemptId, executorId)` tuple is the [[StreamKey]] the producer uses
+ * to advance exactly the acknowledged stream's watermark, never an unrelated stream's.
  *
  * @param shuffleId      the shuffle being acknowledged
  * @param partitionId    the reduce partition being acknowledged
+ * @param attemptId      the consumer task attempt id (part of the stream identity)
+ * @param executorId     the consumer executor id (part of the stream identity)
  * @param seqNo          the acknowledged sequence number (monotonic high-water mark input)
  * @param reclaimedBytes the number of buffer bytes the consumer has consumed and the producer may
  *                       therefore return to its credit window
@@ -441,6 +563,8 @@ private[spark] case class Heartbeat(
 private[spark] case class Ack(
     shuffleId: Int,
     partitionId: Int,
+    attemptId: Long,
+    executorId: String,
     seqNo: Long,
     reclaimedBytes: Long)
   extends BackpressureMessage
@@ -450,24 +574,29 @@ private[spark] case class Ack(
  *
  * @param shuffleId      the shuffle the update applies to
  * @param partitionId    the reduce partition the update applies to
+ * @param attemptId      the consumer task attempt id (cross-executor correlation identity)
  * @param maxBytesPerSec the new effective rate cap, in bytes per second
  */
 private[spark] case class RateUpdate(
     shuffleId: Int,
     partitionId: Int,
+    attemptId: Long,
     maxBytesPerSec: Long)
   extends BackpressureMessage
 
 /**
  * A timeout signal indicating a peer became unresponsive; the consumer uses it to invalidate a
- * partial read and the protocol surfaces it for fallback consideration.
+ * partial read and the protocol surfaces it for fallback consideration. The free-text `reason` is
+ * untrusted and is bounded and sanitized by the receiving endpoint before it is ever logged.
  *
  * @param shuffleId   the shuffle the timeout pertains to
  * @param partitionId the reduce partition the timeout pertains to
- * @param reason      a short, human-readable description of what timed out
+ * @param attemptId   the consumer task attempt id (cross-executor correlation identity)
+ * @param reason      a short, human-readable description of what timed out (untrusted free text)
  */
 private[spark] case class Timeout(
     shuffleId: Int,
     partitionId: Int,
+    attemptId: Long,
     reason: String)
   extends BackpressureMessage

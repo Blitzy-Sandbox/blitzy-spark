@@ -23,6 +23,7 @@ import scala.util.control.NonFatal
 
 import org.apache.spark.{ShuffleDependency, SparkConf, SparkEnv, TaskContext}
 import org.apache.spark.internal.Logging
+import org.apache.spark.internal.LogKeys._
 import org.apache.spark.rpc.RpcEndpointRef
 import org.apache.spark.shuffle.{ShuffleBlockResolver, ShuffleHandle, ShuffleManager,
   ShuffleReader, ShuffleReadMetricsReporter, ShuffleWriteMetricsReporter, ShuffleWriter}
@@ -51,12 +52,10 @@ import org.apache.spark.shuffle.sort.SortShuffleManager
  *
  * '''Shared block resolver.''' The resolver returned from [[shuffleBlockResolver]] is the inner
  * sort manager's [[org.apache.spark.shuffle.IndexShuffleBlockResolver]], '''not''' the streaming
- * resolver. Spark internals (notably `BlockManager.diagnoseShuffleBlockCorruption`) cast
- * `ShuffleManager.shuffleBlockResolver` directly to `IndexShuffleBlockResolver`, so exposing the
- * shared index resolver preserves that contract and keeps block migration / decommission state
- * unified. The streaming in-memory block index is maintained by a separate
- * [[StreamingShuffleBlockResolver]] held internally and constructed over that same shared index
- * resolver.
+ * resolver, preserving the cast contract relied on by Spark internals and keeping block migration
+ * / decommission state unified (see decision log ADR-16). The streaming in-memory block index is
+ * maintained by a separate [[StreamingShuffleBlockResolver]] held internally and constructed over
+ * that same shared index resolver.
  *
  * '''Observability.''' When a [[org.apache.spark.SparkEnv]] is available, the manager registers a
  * [[StreamingShuffleSource]] with the existing `MetricsSystem` so the four streaming metrics
@@ -218,7 +217,8 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
       SparkEnv.get.metricsSystem.registerSource(new StreamingShuffleSource(streamingMetrics))
     } catch {
       case NonFatal(e) =>
-        logWarning(s"Failed to register the streaming shuffle metrics source: ${e.getMessage}")
+        logWarning(log"Failed to register the streaming shuffle metrics source: " +
+          log"${MDC(ERROR, e.getMessage)}")
     }
   }
 
@@ -238,21 +238,35 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
 
   /**
    * Register a shuffle, returning a [[StreamingShuffleHandle]] when the streaming path is active
-   * and delegating to the inner sort manager otherwise. The handle carries the per-shuffle tuning
-   * parameters so the writer and reader honor them without re-reading the [[SparkConf]].
+   * '''and''' no automatic-fallback condition holds, and delegating to the inner sort manager
+   * otherwise. The handle carries the per-shuffle tuning parameters so the writer and reader
+   * honor them without re-reading the [[SparkConf]].
+   *
+   * Automatic fallback (feature F-111) is decided here, '''per shuffle''': when
+   * [[registrationFallbackReason]] reports a triggered condition the entire shuffle is registered
+   * on the inner [[org.apache.spark.shuffle.sort.SortShuffleManager]], so [[getWriter]] and
+   * [[getReader]] consistently route it to the sort-based path. See decision log ADR-14.
    */
   override def registerShuffle[K, V, C](
       shuffleId: Int,
       dependency: ShuffleDependency[K, V, C]): ShuffleHandle = {
     if (streamingActive) {
-      registeredStreamingShuffleIds.add(Integer.valueOf(shuffleId))
-      logDebug(s"Registering shuffle $shuffleId on the streaming data path")
-      new StreamingShuffleHandle(
-        shuffleId,
-        dependency,
-        streamingConfig.bufferSizePercent,
-        streamingConfig.spillThreshold,
-        streamingConfig.maxBandwidthMBps)
+      registrationFallbackReason() match {
+        case Some(reason) =>
+          logInfo(log"Streaming shuffle falling back to sort-based shuffle for shuffle " +
+            log"${MDC(SHUFFLE_ID, shuffleId)} (reason=${MDC(REASON, reason.message)})")
+          sortShuffleManager.registerShuffle(shuffleId, dependency)
+        case None =>
+          registeredStreamingShuffleIds.add(Integer.valueOf(shuffleId))
+          logDebug(log"Registering shuffle ${MDC(SHUFFLE_ID, shuffleId)} on the " +
+            log"streaming data path")
+          new StreamingShuffleHandle(
+            shuffleId,
+            dependency,
+            streamingConfig.bufferSizePercent,
+            streamingConfig.spillThreshold,
+            streamingConfig.maxBandwidthMBps)
+      }
     } else {
       sortShuffleManager.registerShuffle(shuffleId, dependency)
     }
@@ -260,9 +274,10 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
 
   /**
    * Get a writer for a map task. A [[StreamingShuffleHandle]] is routed to a
-   * [[StreamingShuffleWriter]]; any other handle is delegated to the inner sort manager. The
-   * fallback policy is consulted for memory pressure before constructing the streaming writer
-   * (see [[warnIfMemoryPressure]]).
+   * [[StreamingShuffleWriter]]; any other handle is delegated to the inner sort manager. A handle
+   * is a [[StreamingShuffleHandle]] only when [[registerShuffle]] already determined that no
+   * automatic-fallback condition held for the shuffle, so no per-task fallback check is performed
+   * here (see [[registrationFallbackReason]]).
    */
   override def getWriter[K, V](
       handle: ShuffleHandle,
@@ -271,8 +286,19 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
       metrics: ShuffleWriteMetricsReporter): ShuffleWriter[K, V] = {
     handle match {
       case streamingHandle: StreamingShuffleHandle[K @unchecked, V @unchecked, _] =>
-        warnIfMemoryPressure(streamingHandle.shuffleId, mapId)
-        new StreamingShuffleWriter(streamingHandle, mapId, context, metrics, streamingConfig)
+        // Inject the shared IndexShuffleBlockResolver so the writer's framed output is committed
+        // to the same fetchable channel reducers read from, and the executor's MemorySpillManager
+        // so the writer registers its buffers for 100 ms utilization monitoring / threshold
+        // spilling and shares one ordered spill ledger with the monitor (features F-103 / F-109
+        // wiring).
+        new StreamingShuffleWriter(
+          streamingHandle,
+          mapId,
+          context,
+          metrics,
+          streamingConfig,
+          streamingBlockResolver.indexResolver,
+          spillManagerOpt)
       case other =>
         sortShuffleManager.getWriter(other, mapId, context, metrics)
     }
@@ -308,7 +334,8 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
           context,
           metrics,
           protocol,
-          streamingMetrics)
+          streamingMetrics,
+          spillManagerOpt = spillManagerOpt)
       case other =>
         sortShuffleManager.getReader(
           other, startMapIndex, endMapIndex, startPartition, endPartition, context, metrics)
@@ -349,23 +376,25 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
       }
     } catch {
       case NonFatal(e) =>
-        logWarning(s"Failed to unregister the ${BackpressureRpcEndpoint.ENDPOINT_NAME} " +
-          s"endpoint during stop: ${e.getMessage}")
+        logWarning(log"Failed to unregister the " +
+          log"${MDC(ENDPOINT_NAME, BackpressureRpcEndpoint.ENDPOINT_NAME)} endpoint during " +
+          log"stop: ${MDC(ERROR, e.getMessage)}")
     }
 
     try {
       spillManagerOpt.foreach(_.stop())
     } catch {
       case NonFatal(e) =>
-        logWarning(s"Failed to stop the streaming shuffle spill manager during stop: " +
-          s"${e.getMessage}")
+        logWarning(log"Failed to stop the streaming shuffle spill manager during stop: " +
+          log"${MDC(ERROR, e.getMessage)}")
     }
 
     try {
       sortShuffleManager.stop()
     } catch {
       case NonFatal(e) =>
-        logWarning(s"Failed to stop the inner SortShuffleManager during stop: ${e.getMessage}")
+        logWarning(log"Failed to stop the inner SortShuffleManager during stop: " +
+          log"${MDC(ERROR, e.getMessage)}")
     }
 
     try {
@@ -373,7 +402,8 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
       registeredStreamingShuffleIds.clear()
     } catch {
       case NonFatal(e) =>
-        logWarning(s"Failed to clear streaming shuffle state during stop: ${e.getMessage}")
+        logWarning(log"Failed to clear streaming shuffle state during stop: " +
+          log"${MDC(ERROR, e.getMessage)}")
     }
   }
 
@@ -382,44 +412,67 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   // ------------------------------------------------------------------------------------------
 
   /**
-   * Whether the streaming data path is active. The decisive gate is
-   * `spark.shuffle.streaming.enabled`.
-   *
-   * The second half of the dual-flag activation contract (`spark.shuffle.manager=streaming`) is
-   * already satisfied by the very fact that this manager was instantiated: the reflective factory
-   * only resolves this class when streaming was selected, whether by the `"streaming"` alias or
-   * by the fully-qualified class name. Re-checking the literal `spark.shuffle.manager` value here
-   * would incorrectly disable streaming when it is selected by class name (the value would be the
-   * FQCN, not `"streaming"`), so the check is intentionally not duplicated.
+   * Whether the streaming data path is active under the dual-flag activation contract: the
+   * `"streaming"` alias must be selected '''and''' `spark.shuffle.streaming.enabled` must be
+   * `true`. Delegates to [[StreamingShuffleConfig.active]]; selection by fully-qualified class
+   * name leaves the path disengaged. See decision log ADR-02.
    */
-  private def streamingActive: Boolean = streamingConfig.enabled
+  private def streamingActive: Boolean = streamingConfig.active
 
   /**
-   * Consult the fallback policy for the one degradation condition observable when a writer is
-   * created -- memory pressure that would prevent streaming-buffer allocation -- and surface it
-   * for operators.
+   * Evaluate the automatic-fallback policy (feature F-111) at shuffle registration time and
+   * return the highest-priority triggered [[StreamingShuffleFallbackPolicy.FallbackReason]], or
+   * `None` when the streaming data path may proceed.
    *
-   * The writer type is intentionally '''not''' switched per map task. A
-   * [[StreamingShuffleHandle]] is created once per shuffle on the driver and shipped to every
-   * task, and the reader dispatches on that same handle type; swapping an individual writer to
-   * the sort path would desynchronize the on-the-wire format from what [[StreamingShuffleReader]]
-   * expects and break the zero-data-loss invariant. Graceful degradation under memory pressure is
-   * instead provided by the streaming writer's own cooperative spilling. The remaining fallback
-   * conditions (sustained consumer lag, network saturation, version mismatch) depend on runtime
-   * signals that are not available at dispatch time and are evaluated by the
-   * writer/reader/backpressure layers as those signals flow.
+   * The four policy conditions are wired to the signals observable on the driver at registration:
+   * memory pressure (the active memory manager's on-heap storage budget), consumer lag (the
+   * backpressure protocol's consumer-liveness detector), network saturation, and a
+   * [[producerStreamingVersion]] vs [[consumerStreamingVersion]] mismatch. Fallback is decided
+   * per shuffle at registration; see decision log ADR-14 (and deviations D-2 and D-3 for the v1
+   * network-saturation and version-mismatch signals).
+   *
+   * Returns `None` when no fallback policy is available (no active `SparkEnv`), which occurs only
+   * in isolated unit tests; on a real driver a `SparkEnv` is always present.
+   *
+   * @return the triggered fallback reason, or `None` to proceed with the streaming data path
    */
-  private def warnIfMemoryPressure(shuffleId: Int, mapId: Long): Unit = {
-    fallbackPolicyOpt.foreach { policy =>
+  private[streaming] def registrationFallbackReason()
+      : Option[StreamingShuffleFallbackPolicy.FallbackReason] = {
+    fallbackPolicyOpt.flatMap { policy =>
       val env = SparkEnv.get
       val canAllocate =
         env != null && env.memoryManager != null && env.memoryManager.maxOnHeapStorageMemory > 0L
-      if (policy.shouldFallbackForMemoryPressure(canAllocate)) {
-        logWarning(s"Streaming shuffle detected memory pressure creating a writer for shuffle " +
-          s"$shuffleId map $mapId; the streaming writer will spill to disk to degrade gracefully")
-      }
+      val consumerLagging = backpressureOpt.exists(_.timedOutStreams.nonEmpty)
+      val (producerRate, consumerRate, sustainedMs) =
+        if (consumerLagging) {
+          (1.0, 0.0, StreamingShuffleFallbackPolicy.CONSUMER_SLOWNESS_DURATION_MS + 1L)
+        } else {
+          (0.0, 0.0, 0L)
+        }
+      val networkUtilizationFraction = 0.0
+      policy.evaluate(
+        producerRate,
+        consumerRate,
+        sustainedMs,
+        canAllocate,
+        networkUtilizationFraction,
+        producerStreamingVersion,
+        consumerStreamingVersion)
     }
   }
+
+  /**
+   * The streaming-subsystem version reported by the producing side, used by
+   * [[registrationFallbackReason]]'s version-mismatch check. Defaults to the running Spark
+   * version; exposed as an overridable seam so tests can simulate a rolling-version mismatch.
+   */
+  private[streaming] def producerStreamingVersion: String = org.apache.spark.SPARK_VERSION
+
+  /**
+   * The streaming-subsystem version reported by the consuming side; see
+   * [[producerStreamingVersion]].
+   */
+  private[streaming] def consumerStreamingVersion: String = org.apache.spark.SPARK_VERSION
 
   // ------------------------------------------------------------------------------------------
   // Package-private accessors for tests and observability

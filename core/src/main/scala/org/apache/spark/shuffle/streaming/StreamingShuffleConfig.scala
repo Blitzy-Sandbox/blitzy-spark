@@ -47,10 +47,34 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) extends Logging {
 
   /**
    * Whether the opt-in streaming shuffle data path is enabled
-   * (`spark.shuffle.streaming.enabled`, default `false`). Streaming shuffle engages only when
-   * this flag is `true` and `spark.shuffle.manager` is also set to `streaming`.
+   * (`spark.shuffle.streaming.enabled`, default `false`). This is one half of the dual-flag
+   * activation contract; streaming engages only when this flag is `true` '''and''' the streaming
+   * manager is selected ([[managerSelected]]). See [[active]].
    */
   val enabled: Boolean = conf.get(STREAMING_SHUFFLE_ENABLED)
+
+  /**
+   * Whether the streaming shuffle manager is the selected shuffle manager, i.e. whether
+   * `spark.shuffle.manager` resolves to the streaming short-name alias
+   * ([[StreamingShuffleConfig.STREAMING_MANAGER_ALIAS]], `"streaming"`). This is the second half
+   * of the dual-flag activation contract; see [[active]]. Selection by fully-qualified class name
+   * leaves this `false`, so the streaming data path stays disengaged and every shuffle is
+   * delegated to the inner sort-based manager (see decision log ADR-02).
+   */
+  val managerSelected: Boolean =
+    conf.get(SHUFFLE_MANAGER) == StreamingShuffleConfig.STREAMING_MANAGER_ALIAS
+
+  /**
+   * Whether the streaming shuffle data path is active under the dual-flag activation contract:
+   * the streaming manager must be selected via the `"streaming"` alias ([[managerSelected]])
+   * '''and''' the opt-in flag must be enabled ([[enabled]]). When either half is absent the
+   * streaming manager delegates every shuffle to the inner sort-based manager, so the default
+   * behavior is provably identical to plain sort-based shuffle.
+   *
+   * @return `true` iff both `spark.shuffle.manager=streaming` and
+   *         `spark.shuffle.streaming.enabled=true`
+   */
+  def active: Boolean = managerSelected && enabled
 
   /**
    * Percentage of executor memory budgeted for streaming shuffle per-partition buffers
@@ -138,6 +162,14 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) extends Logging {
  * Factory and shared range constants for [[StreamingShuffleConfig]].
  */
 private[spark] object StreamingShuffleConfig {
+
+  /**
+   * The `spark.shuffle.manager` short-name alias that selects the streaming shuffle manager. This
+   * is the value the shuffle-manager alias map resolves to
+   * `org.apache.spark.shuffle.streaming.StreamingShuffleManager`, and the only selection form
+   * that engages the streaming data path (see [[StreamingShuffleConfig.managerSelected]]).
+   */
+  val STREAMING_MANAGER_ALIAS: String = "streaming"
 
   /** Fraction of raw link capacity the streaming data path is permitted to use (80%). */
   val BANDWIDTH_CAP_FACTOR: Double = 0.8

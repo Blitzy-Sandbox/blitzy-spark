@@ -17,16 +17,16 @@ These metrics are defined by `StreamingShuffleMetrics` (F-112) and registered wi
 
 ## Structured logging and the MDC schema
 
-All streaming-shuffle components mix in `org.apache.spark.internal.Logging`, which routes through log4j2 and supports a Mapped Diagnostic Context (MDC). Streaming shuffle populates the MDC (via the typed `LogKeys`) with four correlation fields that thread a single logical shuffle through the producer→consumer path:
+All streaming-shuffle components mix in `org.apache.spark.internal.Logging`, which routes through log4j2 and supports a Mapped Diagnostic Context (MDC). Streaming-shuffle runtime logs are emitted through the structured `log"..."` interpolator, which attaches each value to the MDC under a typed `LogKeys` key. The following correlation fields thread a single logical shuffle through the producer→consumer path; each is attached **where applicable** to a given log site — a log site emits a field only when that identifier is in scope:
 
 | Field | Meaning |
 |-------|---------|
 | `shuffle_id` | Identifier of the shuffle this log line belongs to. |
 | `map_id` | Identifier of the producing (map) task that wrote the block. |
-| `reduce_partition_range` | The consumer-side reduce partition range being read. |
-| `attempt_id` | Task attempt identifier, distinguishing retries of the same task. |
+| `range` | The consumer-side reduce partition range being read, formatted `[start, end)`. |
+| `task_attempt_id` | Task attempt identifier, distinguishing retries of the same task. |
 
-Because these fields are attached as structured MDC entries rather than embedded in free-text messages, they can be extracted and correlated by any log4j2-aware aggregation pipeline. Distributed-tracing-style correlation **across executor boundaries** is carried by the `BackpressureRpcEndpoint` (F-108): its heartbeat and acknowledgment messages propagate the shuffle/attempt identity between the producer and consumer executors, so a flow-control event observed on one executor can be tied back to the originating task on another. Verbose tracing of the streaming path can be turned on with `spark.shuffle.streaming.debug` (see [configuration.md](configuration.md)).
+Individual log sites additionally attach context-specific structured keys — for example `block_id`, `num_bytes`, `partition_id`, `reduce_id`, `executor_id`, and a bounded `reason` — so that spill, fetch, reclaim, and fallback events carry their own structured detail. Lifecycle log lines that have no shuffle identifier in scope (for example a component's one-time initialization message) are emitted as plain text by design, since no correlation field exists to attach. Because the correlation fields are attached as structured MDC entries rather than embedded in free-text messages, they can be extracted and correlated by any log4j2-aware aggregation pipeline. Distributed-tracing-style correlation **across executor boundaries** is carried by the `BackpressureRpcEndpoint` (F-108): its heartbeat and acknowledgment messages carry the shuffle, partition, reduce-partition-range, and task-attempt identity between the producer and consumer executors, so a flow-control event observed on one executor can be tied back to the originating task on another. Verbose tracing of the streaming path can be turned on with `spark.shuffle.streaming.debug` (see [configuration.md](configuration.md)).
 
 ## JMX exposition
 
@@ -103,7 +103,6 @@ Beyond the dashboard, streaming-shuffle read/write/spill activity **also** surfa
 
 ## See also
 
-- [index.md](index.md) — streaming shuffle documentation landing page.
 - [architecture.md](architecture.md) — component and protocol overview, including the metrics-emitting `MemorySpillManager` and `BackpressureProtocol`.
 - [configuration.md](configuration.md) — the five `spark.shuffle.streaming.*` keys and the dual-flag activation contract.
 - [decision-log.md](decision-log.md) — architecture decisions and the requirement-to-source-to-test traceability matrix.

@@ -17,21 +17,26 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, DataInputStream, InputStream}
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
+import scala.concurrent.Promise
+import scala.concurrent.duration.Duration
 import scala.util.control.NonFatal
 
 import org.apache.spark._
 import org.apache.spark.internal.Logging
-import org.apache.spark.network.buffer.ManagedBuffer
+import org.apache.spark.internal.LogKeys._
+import org.apache.spark.network.buffer.{FileSegmentManagedBuffer, ManagedBuffer, NioManagedBuffer}
+import org.apache.spark.network.shuffle.BlockFetchingListener
 import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader, ShuffleReadMetricsReporter}
 import org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope
-import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleBlockId}
-import org.apache.spark.util.CompletionIterator
+import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, EncryptedManagedBuffer,
+  ShuffleBlockId}
+import org.apache.spark.util.{CompletionIterator, ThreadUtils}
 import org.apache.spark.util.collection.ExternalSorter
 
 /**
@@ -75,9 +80,8 @@ import org.apache.spark.util.collection.ExternalSorter
  * `BackpressureRpcEndpoint` (feature F-108).
  *
  * '''v1 transport.''' The streaming data plane ships as a logging-only stub in v1 (feature
- * F-115); this reader is nonetheless a complete, production-grade implementation of the consumer
- * protocol and validation discipline, fetching through the existing block transfer service so it
- * is correct end-to-end the moment the Netty data plane lands.
+ * F-115); the reader fetches through the existing block transfer service. See decision log
+ * ADR-15.
  *
  * Instances are used by a single reduce task; the returned iterator is lazy, so the
  * fetch/validate/acknowledge work for each block happens as the consumer pulls it, mirroring how
@@ -101,6 +105,11 @@ import org.apache.spark.util.collection.ExternalSorter
  * @param producerTimeoutMs     producer-connection timeout, in milliseconds, before invalidation
  * @param maxRetransmitAttempts maximum transient-transport retransmission attempts per block
  * @param initialRetryBackoffMs initial exponential-backoff interval, in milliseconds
+ * @param spillManagerOpt       the producer's spill manager when co-located (v1, single
+ *                              executor); each acknowledged block reclaims its per-partition
+ *                              buffer through it. Reclaim on an unknown key is a safe no-op, so
+ *                              this is also correct when producer and consumer are on different
+ *                              executors and the authoritative reclaim happens producer-side.
  */
 private[spark] class StreamingShuffleReader[K, C](
     handle: StreamingShuffleHandle[K, _, C],
@@ -117,7 +126,8 @@ private[spark] class StreamingShuffleReader[K, C](
     serializerManager: SerializerManager = SparkEnv.get.serializerManager,
     producerTimeoutMs: Long = StreamingShuffleReader.PRODUCER_CONNECTION_TIMEOUT_MS,
     maxRetransmitAttempts: Int = StreamingShuffleReader.MAX_RETRANSMIT_ATTEMPTS,
-    initialRetryBackoffMs: Long = StreamingShuffleReader.INITIAL_RETRY_BACKOFF_MS)
+    initialRetryBackoffMs: Long = StreamingShuffleReader.INITIAL_RETRY_BACKOFF_MS,
+    spillManagerOpt: Option[MemorySpillManager] = None)
   extends ShuffleReader[K, C] with Logging {
 
   /** The shuffle dependency, the authoritative source of serializer/ordering/aggregator. */
@@ -140,8 +150,8 @@ private[spark] class StreamingShuffleReader[K, C](
     // (blockId, deserialization-ready stream) pair per block as the consumer pulls it.
     val wrappedStreams: Iterator[(BlockId, InputStream)] =
       blocksByAddress.flatMap { case (address, blockInfos) =>
-        blockInfos.iterator.map { case (blockId, _, mapIndex) =>
-          val payloadStream = fetchValidateAndAck(address, blockId, mapIndex)
+        blockInfos.iterator.map { case (blockId, blockSize, mapIndex) =>
+          val payloadStream = fetchValidateAndAck(address, blockId, mapIndex, blockSize)
           (blockId, serializerManager.wrapStream(blockId, payloadStream))
         }
       }
@@ -219,26 +229,22 @@ private[spark] class StreamingShuffleReader[K, C](
    * bytes, or a CRC32C / structural validation failure -- goes through [[invalidateAndThrow]]
    * so the partial read is discarded and the upstream stage is recomputed (zero data loss).
    *
-   * @param address  producer block-manager id; the fetch source and failure-report location
-   * @param blockId  the shuffle block id to fetch
-   * @param mapIndex the map index of the producing task (reported on invalidation)
+   * @param address      producer block-manager id; the fetch source and failure-report location
+   * @param blockId      the shuffle block id to fetch
+   * @param mapIndex     the map index of the producing task (reported on invalidation)
+   * @param expectedSize the producer-published (approximate) size of this block, used as the
+   *                     upfront fetch-budget guard before any byte is read
    * @return a stream positioned at the validated, concatenated block payload
    */
   private def fetchValidateAndAck(
       address: BlockManagerId,
       blockId: BlockId,
-      mapIndex: Int): InputStream = {
+      mapIndex: Int,
+      expectedSize: Long): InputStream = {
     val (mapId, reduceId) = mapAndReduceId(blockId)
     val buffer = fetchWithRetry(address, blockId, mapId, mapIndex, reduceId)
-    val rawBytes =
-      try {
-        readFully(buffer)
-      } catch {
-        case NonFatal(e) =>
-          invalidateAndThrow(address, mapId, mapIndex, reduceId,
-            s"Failed to read fetched bytes for streaming block $blockId: ${e.getMessage}", e)
-      }
-    val payload = decodeAndValidate(rawBytes, address, mapId, mapIndex, reduceId)
+    val payload =
+      decodeFramesFromBuffer(buffer, address, mapId, mapIndex, reduceId, expectedSize)
     acknowledge(blockId, payload.length)
     new ByteArrayInputStream(payload)
   }
@@ -250,6 +256,13 @@ private[spark] class StreamingShuffleReader[K, C](
    * passes or [[maxRetransmitAttempts]] is reached, the read is invalidated (which throws). The
    * loop is expressed without an early `return` so it produces no unreachable-code warnings under
    * the strict `-Wconf:any:e` gate.
+   *
+   * Each individual fetch is awaited for at most the time '''remaining''' to the producer
+   * deadline (see [[fetchBlockBounded]]). This is the difference between this method and a naive
+   * `fetchBlockSync` loop: `fetchBlockSync` awaits with `Duration.Inf`, so a producer that stalls
+   * mid-fetch would block the reduce thread forever and the 5 s deadline check below would never
+   * be reached. By bounding every await, a stalled producer surfaces as a `TimeoutException` and
+   * the partial read is invalidated immediately at the deadline (zero data loss).
    *
    * @return the fetched [[ManagedBuffer]] (never null and never empty)
    */
@@ -264,9 +277,16 @@ private[spark] class StreamingShuffleReader[K, C](
     var attempt = 0
     var backoffMs = initialRetryBackoffMs
     while (result == null) {
+      // Bound this fetch attempt by the time remaining to the producer deadline so that a
+      // stalled producer cannot block the reduce thread past the 5 s timeout (zero data loss).
+      val remainingMsForFetch = TimeUnit.NANOSECONDS.toMillis(deadlineNs - System.nanoTime())
+      if (remainingMsForFetch <= 0L) {
+        invalidateAndThrow(address, mapId, mapIndex, reduceId,
+          s"Producer connection timed out after $attempt attempt(s) / ${producerTimeoutMs}ms " +
+            s"fetching in-progress streaming block $blockId (deadline elapsed before fetch)")
+      }
       try {
-        val buf = blockManager.blockTransferService.fetchBlockSync(
-          address.host, address.port, address.executorId, blockId.toString, null)
+        val buf = fetchBlockBounded(address, blockId, remainingMsForFetch)
         if (buf == null || buf.size() <= 0L) {
           // Treat a missing/empty block as "not yet materialized": retry until the deadline.
           throw new IllegalStateException(
@@ -296,56 +316,178 @@ private[spark] class StreamingShuffleReader[K, C](
   }
 
   /**
-   * Read the entire contents of a [[ManagedBuffer]] into a byte array, releasing the buffer's
-   * reference even if reading fails. The full payload is needed up front so the CRC32C
-   * can be validated before any byte is handed to deserialization.
+   * Fetch a single block through the executor's existing [[org.apache.spark.network.
+   * BlockTransferService]], awaiting the result for at most `awaitMs` milliseconds. This is the
+   * bounded analogue of `BlockTransferService.fetchBlockSync`, which awaits with `Duration.Inf`
+   * and therefore can never honor the producer-connection deadline if a producer stalls
+   * mid-fetch. The success path mirrors `fetchBlockSync`: file-backed and encrypted buffers are
+   * passed through, while an in-memory transport buffer is copied onto the heap (as a
+   * [[NioManagedBuffer]]) so it survives after the asynchronous network callback returns.
+   *
+   * A finite-duration `awaitResult` throws an unwrapped `TimeoutException` (it is `NonFatal`),
+   * which the [[fetchWithRetry]] loop converts into a deadline check and, ultimately, an
+   * invalidation. The fetch is issued through the existing transfer service rather than a new
+   * transport, consistent with the v1 logging-only data-plane stub (feature F-115).
+   *
+   * @return the fetched [[ManagedBuffer]]
    */
-  private def readFully(buffer: ManagedBuffer): Array[Byte] = {
-    try {
-      val nio = buffer.nioByteBuffer()
-      val bytes = new Array[Byte](nio.remaining())
-      nio.get(bytes)
-      bytes
-    } finally {
-      buffer.release()
-    }
+  private def fetchBlockBounded(
+      address: BlockManagerId,
+      blockId: BlockId,
+      awaitMs: Long): ManagedBuffer = {
+    val result = Promise[ManagedBuffer]()
+    blockManager.blockTransferService.fetchBlocks(
+      address.host,
+      address.port,
+      address.executorId,
+      Array(blockId.toString),
+      new BlockFetchingListener {
+        override def onBlockFetchFailure(failedId: String, exception: Throwable): Unit = {
+          result.tryFailure(exception)
+        }
+        override def onBlockFetchSuccess(fetchedId: String, data: ManagedBuffer): Unit = {
+          data match {
+            case f: FileSegmentManagedBuffer => result.trySuccess(f)
+            case e: EncryptedManagedBuffer => result.trySuccess(e)
+            case _ =>
+              try {
+                val copy = ByteBuffer.allocate(data.size().toInt)
+                copy.put(data.nioByteBuffer())
+                copy.flip()
+                result.trySuccess(new NioManagedBuffer(copy))
+              } catch {
+                case NonFatal(e) => result.tryFailure(e)
+              }
+          }
+        }
+      },
+      null)
+    ThreadUtils.awaitResult(result.future, Duration(awaitMs, TimeUnit.MILLISECONDS))
   }
 
   /**
-   * Decode the fetched bytes as one or more concatenated [[StreamingBlockEnvelope]] frames,
-   * validating each frame's CRC32C, and return the concatenated validated payloads. A producer
-   * frames a partition into consecutive blocks of at most [[StreamingBlockEnvelope.HEADER_SIZE]]
-   * plus 2 MiB, so a single fetched block may contain several frames. Any structural decode error
-   * or checksum mismatch invalidates the read (which throws); a mismatch is, by design, not
-   * retransmitted in v1.
+   * Decode the fetched block as one or more concatenated [[StreamingBlockEnvelope]] frames,
+   * validating each frame's structure and CRC32C, and return the concatenated validated payloads.
+   *
+   * Unlike a "read the whole buffer, then decode" approach, this reads '''frame by frame''' from
+   * the buffer's input stream and never allocates an array sized from an unvalidated length: for
+   * each frame it (1) reads the fixed [[StreamingBlockEnvelope.HEADER_SIZE]]-byte header, (2)
+   * validates the declared payload length is within `[0, MAX_PAYLOAD_SIZE]` '''before''' the
+   * payload buffer is allocated, then (3) reads exactly that many payload bytes and verifies the
+   * CRC32C through the canonical envelope codec. A corrupt or non-streaming block therefore
+   * cannot force an unbounded allocation: the largest single allocation is one header plus one
+   * `<= 2 MiB` frame. An upfront budget guard additionally rejects a fetched block whose
+   * transport size grossly exceeds the size the producer published for this partition, before any
+   * byte is touched. Any structural decode error or checksum mismatch invalidates the read (which
+   * throws); a mismatch is not retransmitted in v1 (see decision log D-5).
    */
-  private def decodeAndValidate(
-      bytes: Array[Byte],
+  private def decodeFramesFromBuffer(
+      buffer: ManagedBuffer,
       address: BlockManagerId,
       mapId: Long,
       mapIndex: Int,
-      reduceId: Int): Array[Byte] = {
-    val assembled =
-      new ByteArrayOutputStream(math.max(bytes.length, StreamingBlockEnvelope.HEADER_SIZE))
-    var offset = 0
-    while (offset < bytes.length) {
-      val slice = ByteBuffer.wrap(bytes, offset, bytes.length - offset)
-      val envelope =
-        try {
-          StreamingBlockEnvelope.decode(slice)
-        } catch {
-          case NonFatal(e) =>
-            invalidateAndThrow(address, mapId, mapIndex, reduceId,
-              s"Corrupt streaming block envelope (shuffle $shuffleId, map $mapId, " +
-                s"reduce $reduceId): ${e.getMessage}", e)
-        }
-      if (!envelope.verifyChecksum()) {
-        invalidateAndThrow(address, mapId, mapIndex, reduceId,
-          s"CRC32C checksum mismatch for streaming block (shuffle $shuffleId, map $mapId, " +
-            s"reduce $reduceId, ${envelope.payloadLength} payload bytes)")
+      reduceId: Int,
+      expectedSize: Long): Array[Byte] = {
+    // Upfront budget guard: bound the fetched block size before reading any byte. The budget is a
+    // generous multiple of the producer-published (approximate) partition size plus one full
+    // frame of slack for envelope framing overhead and the lossy MapStatus size compression, so
+    // it never false-trips on a legitimate block but still rejects a wildly oversized buffer.
+    val maxFetchBytes =
+      math.max(expectedSize, 0L) * StreamingShuffleReader.FETCH_BUDGET_SLACK_FACTOR +
+        StreamingBlockEnvelope.MAX_PAYLOAD_SIZE
+    if (buffer.size() > maxFetchBytes) {
+      buffer.release()
+      invalidateAndThrow(address, mapId, mapIndex, reduceId,
+        s"Fetched streaming block for shuffle $shuffleId (map $mapId, reduce $reduceId) is " +
+          s"${buffer.size()} bytes, exceeding the maximum fetch budget of $maxFetchBytes bytes")
+    }
+    val assembled = new ByteArrayOutputStream(
+      math.max(StreamingBlockEnvelope.HEADER_SIZE, math.min(buffer.size(), 64L * 1024L).toInt))
+    val in =
+      try {
+        new DataInputStream(buffer.createInputStream())
+      } catch {
+        case NonFatal(e) =>
+          buffer.release()
+          invalidateAndThrow(address, mapId, mapIndex, reduceId,
+            s"Failed to open fetched streaming block (shuffle $shuffleId, map $mapId, " +
+              s"reduce $reduceId): ${e.getMessage}", e)
       }
-      assembled.write(envelope.payload)
-      offset += StreamingBlockEnvelope.HEADER_SIZE + envelope.payloadLength
+    try {
+      val header = new Array[Byte](StreamingBlockEnvelope.HEADER_SIZE)
+      var continue = true
+      while (continue) {
+        // Peek a single byte to distinguish a clean inter-frame EOF from a truncated header.
+        val first =
+          try {
+            in.read()
+          } catch {
+            case NonFatal(e) =>
+              invalidateAndThrow(address, mapId, mapIndex, reduceId,
+                s"I/O error reading streaming block frame header (shuffle $shuffleId, map " +
+                  s"$mapId, reduce $reduceId): ${e.getMessage}", e)
+          }
+        if (first < 0) {
+          continue = false
+        } else {
+          header(0) = first.toByte
+          try {
+            in.readFully(header, 1, StreamingBlockEnvelope.HEADER_SIZE - 1)
+          } catch {
+            case NonFatal(e) =>
+              invalidateAndThrow(address, mapId, mapIndex, reduceId,
+                s"Truncated streaming block frame header (shuffle $shuffleId, map $mapId, " +
+                  s"reduce $reduceId): ${e.getMessage}", e)
+          }
+          // Validate the declared payload length BEFORE allocating the payload buffer so a
+          // corrupt/oversized length cannot force an unbounded allocation.
+          val payloadLength =
+            ByteBuffer.wrap(header).getInt(StreamingShuffleReader.PAYLOAD_LENGTH_OFFSET)
+          if (payloadLength < 0 || payloadLength > StreamingBlockEnvelope.MAX_PAYLOAD_SIZE) {
+            invalidateAndThrow(address, mapId, mapIndex, reduceId,
+              s"Streaming block frame for shuffle $shuffleId (map $mapId, reduce $reduceId) " +
+                s"declares an out-of-range payload length $payloadLength " +
+                s"(max ${StreamingBlockEnvelope.MAX_PAYLOAD_SIZE})")
+          }
+          // Reassemble the full frame and reuse the canonical envelope decode + CRC32C check, so
+          // framing/checksum rules stay byte-identical to the producer's writer.
+          val frame = new Array[Byte](StreamingBlockEnvelope.HEADER_SIZE + payloadLength)
+          System.arraycopy(header, 0, frame, 0, StreamingBlockEnvelope.HEADER_SIZE)
+          try {
+            in.readFully(frame, StreamingBlockEnvelope.HEADER_SIZE, payloadLength)
+          } catch {
+            case NonFatal(e) =>
+              invalidateAndThrow(address, mapId, mapIndex, reduceId,
+                s"Truncated streaming block frame for shuffle $shuffleId (map $mapId, reduce " +
+                  s"$reduceId): expected $payloadLength payload bytes (${e.getMessage})", e)
+          }
+          val envelope =
+            try {
+              StreamingBlockEnvelope.decode(ByteBuffer.wrap(frame))
+            } catch {
+              case NonFatal(e) =>
+                invalidateAndThrow(address, mapId, mapIndex, reduceId,
+                  s"Corrupt streaming block envelope (shuffle $shuffleId, map $mapId, " +
+                    s"reduce $reduceId): ${e.getMessage}", e)
+            }
+          if (!envelope.verifyChecksum()) {
+            invalidateAndThrow(address, mapId, mapIndex, reduceId,
+              s"CRC32C checksum mismatch for streaming block (shuffle $shuffleId, map $mapId, " +
+                s"reduce $reduceId, ${envelope.payloadLength} payload bytes)")
+          }
+          assembled.write(envelope.payload)
+        }
+      }
+    } finally {
+      // Close the stream and always release the transport buffer. A close error must never mask
+      // an in-flight invalidation, so it is swallowed (the validated payload, if any, is already
+      // assembled on the heap).
+      try {
+        in.close()
+      } catch {
+        case NonFatal(_) =>
+      }
+      buffer.release()
     }
     assembled.toByteArray()
   }
@@ -353,17 +495,32 @@ private[spark] class StreamingShuffleReader[K, C](
   /**
    * Run the consumer-side acknowledgment protocol for a validated block: advance the ack
    * high-water mark, return the consumed bytes to the flow-control credit window so the producer
-   * can reclaim its buffer (within the 100 ms reclaim SLA), and stamp consumer liveness via a
-   * heartbeat. In v1 these update the local [[BackpressureProtocol]] state; the cross-executor
-   * carrier of these signals is the backpressure RPC endpoint (feature F-108).
+   * can reclaim its buffer (within the 100 ms reclaim SLA), stamp consumer liveness via a
+   * heartbeat, and -- when the producer's spill manager is co-located -- reclaim the producer's
+   * per-partition buffer for the acknowledged block (feature F-109). Reclaim on an unknown key is
+   * a safe no-op, so this is correct (best-effort) when producer and consumer are on different
+   * executors, where the authoritative reclaim happens producer-side. In v1 the flow-control
+   * updates mutate the local [[BackpressureProtocol]] state; the cross-executor carrier of these
+   * signals is the backpressure RPC endpoint (feature F-108).
    */
   private def acknowledge(blockId: BlockId, payloadBytes: Int): Unit = {
+    val (mapId, reduceId) = mapAndReduceId(blockId)
     val seqNo = ackSequence.incrementAndGet()
-    backpressure.mergeAck(seqNo)
+    // Identify this consumer stream so the ack advances exactly this stream's watermark (and
+    // stamps its consumer-liveness), never an unrelated stream's. blockManagerId is always set on
+    // a live executor; the defensive fallback keeps this correct under a mocked BlockManager.
+    val consumerExecutorId =
+      Option(blockManager.blockManagerId).map(_.executorId).getOrElse("unknown")
+    val streamKey = StreamKey(shuffleId, reduceId, context.taskAttemptId(), consumerExecutorId)
+    backpressure.mergeAck(streamKey, seqNo)
     backpressure.refill(payloadBytes.toLong)
     backpressure.recordHeartbeat()
-    logDebug(s"Acknowledged streaming block $blockId (ackSeq=$seqNo, $payloadBytes bytes) " +
-      s"for shuffle $shuffleId")
+    spillManagerOpt.foreach { manager =>
+      manager.reclaim(MemorySpillManager.BufferKey(shuffleId, mapId, reduceId))
+    }
+    logDebug(log"Acknowledged streaming block ${MDC(BLOCK_ID, blockId)} " +
+      log"shuffle=${MDC(SHUFFLE_ID, shuffleId)} (ackSeq=${MDC(COUNT, seqNo)}, " +
+      log"${MDC(NUM_BYTES, payloadBytes)} bytes)")
   }
 
   /**
@@ -383,9 +540,12 @@ private[spark] class StreamingShuffleReader[K, C](
       reason: String,
       cause: Throwable = null): Nothing = {
     metrics.incrementPartialReadInvalidations()
-    logWarning(s"Invalidating partial streaming read for shuffle $shuffleId (map $mapId, " +
-      s"mapIndex $mapIndex, reduce $reduceId); deferring to DAG-scheduler recomputation. " +
-      s"Reason: $reason")
+    logWarning(log"Invalidating partial streaming read; deferring to DAG-scheduler " +
+      log"recomputation: shuffle=${MDC(SHUFFLE_ID, shuffleId)} map=${MDC(MAP_ID, mapId)} " +
+      log"reduce=${MDC(REDUCE_ID, reduceId)} " +
+      log"range=${MDC(RANGE, s"[$startPartition, $endPartition)")} " +
+      log"attempt=${MDC(TASK_ATTEMPT_ID, context.taskAttemptId())} " +
+      log"reason=${MDC(REASON, reason)}")
     throw new FetchFailedException(address, shuffleId, mapId, mapIndex, reduceId, reason, cause)
   }
 
@@ -397,7 +557,8 @@ private[spark] class StreamingShuffleReader[K, C](
   private def mapAndReduceId(blockId: BlockId): (Long, Int) = blockId match {
     case ShuffleBlockId(_, mapId, reduceId) => (mapId, reduceId)
     case other =>
-      logWarning(s"Unexpected non-ShuffleBlockId $other for streaming shuffle $shuffleId")
+      logWarning(log"Unexpected non-ShuffleBlockId ${MDC(BLOCK_ID, other)} for streaming " +
+        log"shuffle ${MDC(SHUFFLE_ID, shuffleId)}")
       (-1L, startPartition)
   }
 
@@ -443,5 +604,20 @@ private[spark] object StreamingShuffleReader {
    * and capped by the time remaining to the producer-connection deadline.
    */
   val INITIAL_RETRY_BACKOFF_MS: Long = 1000L
-}
 
+  /**
+   * Byte offset of the big-endian `payloadLength` field inside a [[StreamingBlockEnvelope]]
+   * header. Read directly off the 32-byte header so a frame's declared payload length can be
+   * range-checked before the payload buffer is allocated (the M7 bounded-decode guard).
+   */
+  val PAYLOAD_LENGTH_OFFSET: Int = 20
+
+  /**
+   * Slack multiplier applied to the producer-published (approximate) partition size to derive the
+   * upfront fetch-budget guard. A fetched block larger than `expectedSize * factor + one full
+   * frame` is rejected before any byte is read. The factor is generous so it never false-trips on
+   * a legitimate block (envelope framing overhead plus the lossy `MapStatus` size compression),
+   * while still bounding a wildly oversized corrupt or non-streaming buffer.
+   */
+  val FETCH_BUDGET_SLACK_FACTOR: Long = 4L
+}

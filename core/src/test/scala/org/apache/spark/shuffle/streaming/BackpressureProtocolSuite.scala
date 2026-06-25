@@ -31,8 +31,11 @@ import org.apache.spark.util.Utils
  *
  * The suite covers the contractual behaviors of the protocol:
  *  - the 5 s flow-control heartbeat constant ([[BackpressureProtocol.HEARTBEAT_INTERVAL_MS]]);
- *  - the monotonic acknowledgment merge, exercised both sequentially (out-of-order/duplicate)
- *    and under concurrent contention -- the linchpin correctness property;
+ *  - the per-stream monotonic acknowledgment merge, exercised sequentially (out-of-order/
+ *    duplicate), for cross-stream isolation, and under concurrent contention -- the linchpin
+ *    correctness property;
+ *  - the 10 s per-stream consumer-liveness detector
+ *    ([[BackpressureProtocol.CONSUMER_LIVENESS_TIMEOUT_MS]]), distinct from the 5 s heartbeat;
  *  - the lock-free credit window (token bucket, one token == one byte) whose capacity is capped
  *    at 80% of the supplied link capacity, including refill saturation;
  *  - the composed sustained-rate limiter wiring (F-110), exercised indirectly here;
@@ -58,33 +61,62 @@ class BackpressureProtocolSuite extends SparkFunSuite {
     (protocol, metrics)
   }
 
+  /** A representative consumer stream identity used to key acknowledgment/liveness assertions. */
+  private def streamKey(
+      shuffleId: Int = 1,
+      partitionId: Int = 0,
+      attemptId: Long = 0L,
+      executorId: String = "exec-c"): StreamKey =
+    StreamKey(shuffleId, partitionId, attemptId, executorId)
+
   test("HEARTBEAT_INTERVAL_MS is the contractual 5 s flow-control interval") {
     // AAP timing semantics: the flow-control heartbeat liveness window is exactly 5 seconds.
     assert(BackpressureProtocol.HEARTBEAT_INTERVAL_MS === 5000L)
   }
 
-  test("mergeAck is monotonic and never regresses on out-of-order or duplicate acks") {
+  test("mergeAck is monotonic per stream and never regresses on out-of-order/duplicate acks") {
     val (protocol, _) = newProtocol()
-    assert(protocol.ackWatermark === 0L)
+    val key = streamKey()
+    assert(protocol.ackWatermark(key) === 0L)
 
-    protocol.mergeAck(5L)
-    assert(protocol.ackWatermark === 5L)
+    // mergeAck returns the stream's watermark after the merge.
+    assert(protocol.mergeAck(key, 5L) === 5L)
+    assert(protocol.ackWatermark(key) === 5L)
 
-    // An older, out-of-order ack must never pull the watermark backwards.
-    protocol.mergeAck(3L)
-    assert(protocol.ackWatermark === 5L)
+    // An older, out-of-order ack must never pull this stream's watermark backwards.
+    assert(protocol.mergeAck(key, 3L) === 5L)
+    assert(protocol.ackWatermark(key) === 5L)
 
     // A newer ack advances the watermark.
-    protocol.mergeAck(10L)
-    assert(protocol.ackWatermark === 10L)
+    assert(protocol.mergeAck(key, 10L) === 10L)
+    assert(protocol.ackWatermark(key) === 10L)
 
     // A duplicate ack is idempotent.
-    protocol.mergeAck(10L)
-    assert(protocol.ackWatermark === 10L)
+    assert(protocol.mergeAck(key, 10L) === 10L)
+    assert(protocol.ackWatermark(key) === 10L)
   }
 
-  test("mergeAck stays monotonic under concurrent out-of-order merges") {
+  test("mergeAck is isolated per stream: an ack for one stream never advances another (M3)") {
     val (protocol, _) = newProtocol()
+    val streamA = streamKey(partitionId = 0)
+    val streamB = streamKey(partitionId = 1)
+
+    // Advance stream A only; stream B is keyed independently and is unaffected.
+    protocol.mergeAck(streamA, 100L)
+    assert(protocol.ackWatermark(streamA) === 100L)
+    assert(protocol.ackWatermark(streamB) === 0L)
+
+    // A stale/out-of-scope ack targeting the unrelated stream B can never move A's watermark:
+    // this is the core M3 protection -- per-stream keying contains cross-stream contamination.
+    protocol.mergeAck(streamB, 1L)
+    assert(protocol.ackWatermark(streamA) === 100L)
+    assert(protocol.ackWatermark(streamB) === 1L)
+    assert(protocol.trackedStreamCount === 2)
+  }
+
+  test("mergeAck stays monotonic under concurrent out-of-order merges for a stream") {
+    val (protocol, _) = newProtocol()
+    val key = streamKey()
     val numThreads = 8
     val numTasks = 256
     val maxSubmitted = 1000L
@@ -98,7 +130,7 @@ class BackpressureProtocolSuite extends SparkFunSuite {
           override def run(): Unit = {
             startLatch.await()
             val seqNo = if (i == 0) maxSubmitted else Random.nextInt(maxSubmitted.toInt).toLong
-            protocol.mergeAck(seqNo)
+            protocol.mergeAck(key, seqNo)
           }
         })
       }
@@ -113,8 +145,38 @@ class BackpressureProtocolSuite extends SparkFunSuite {
         pool.awaitTermination(10L, TimeUnit.SECONDS),
         "backpressure concurrency pool did not terminate within the timeout")
     }
-    // The watermark equals the maximum value ever submitted and never regressed below it.
-    assert(protocol.ackWatermark === maxSubmitted)
+    // The stream's watermark equals the maximum value ever submitted and never regressed.
+    assert(protocol.ackWatermark(key) === maxSubmitted)
+  }
+
+  test("consumer liveness: the 10 s missing-ack detector is keyed per stream (M4)") {
+    val (protocol, _) = newProtocol()
+    val key = streamKey()
+
+    // AAP timing semantics: the consumer-liveness window is exactly 10 s, distinct from the 5 s
+    // flow-control heartbeat.
+    assert(BackpressureProtocol.CONSUMER_LIVENESS_TIMEOUT_MS === 10000L)
+
+    // A stream that has never signaled is treated as not-yet-started, not timed out (so a
+    // consumer that has not begun cannot trigger a spurious fallback/invalidation).
+    assert(!protocol.isConsumerTimedOut(key))
+    assert(protocol.timedOutStreams.isEmpty)
+
+    // A keyed ack stamps a fresh consumer signal, so the stream is live.
+    protocol.mergeAck(key, 1L)
+    assert(!protocol.isConsumerTimedOut(key))
+
+    // Drive the last-signal timestamp to more than 10 s ago: the consumer is now timed out and
+    // appears in the timed-out set the runtime fallback path consults.
+    val staleNanos = System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(
+      BackpressureProtocol.CONSUMER_LIVENESS_TIMEOUT_MS + 1000L)
+    protocol.markConsumerSignalAt(key, staleNanos)
+    assert(protocol.isConsumerTimedOut(key))
+    assert(protocol.timedOutStreams.contains(key))
+
+    // A fresh signal clears the timeout.
+    protocol.recordConsumerSignal(key)
+    assert(!protocol.isConsumerTimedOut(key))
   }
 
   test("credit window admits within the 80%-capped budget and rejects beyond it") {
@@ -185,10 +247,16 @@ class BackpressureProtocolSuite extends SparkFunSuite {
 
   test("BackpressureMessage ADT is matchable and Serializable") {
     val messages: Seq[BackpressureMessage] = Seq(
-      Heartbeat(executorId = "exec-1", shuffleId = 7, timestampMs = 123L),
-      Ack(shuffleId = 7, partitionId = 3, seqNo = 42L, reclaimedBytes = 2048L),
-      RateUpdate(shuffleId = 7, partitionId = 3, maxBytesPerSec = 1000000L),
-      Timeout(shuffleId = 7, partitionId = 3, reason = "producer unresponsive"))
+      Heartbeat(
+        executorId = "exec-1", shuffleId = 7, attemptId = 11L,
+        reducePartitionRange = "[0,4)", timestampMs = 123L),
+      Ack(
+        shuffleId = 7, partitionId = 3, attemptId = 11L, executorId = "exec-1",
+        seqNo = 42L, reclaimedBytes = 2048L),
+      RateUpdate(
+        shuffleId = 7, partitionId = 3, attemptId = 11L, maxBytesPerSec = 1000000L),
+      Timeout(
+        shuffleId = 7, partitionId = 3, attemptId = 11L, reason = "producer unresponsive"))
 
     // Every variant is an instance of the sealed supertype and is Serializable: the messages
     // cross executor boundaries via the backpressure RPC endpoint (F-108).
@@ -198,16 +266,19 @@ class BackpressureProtocolSuite extends SparkFunSuite {
     }
 
     // The Ack variant pattern-matches and exposes its acknowledged sequence number.
-    val ack: BackpressureMessage =
-      Ack(shuffleId = 1, partitionId = 2, seqNo = 99L, reclaimedBytes = 0L)
+    val ack: BackpressureMessage = Ack(
+      shuffleId = 1, partitionId = 2, attemptId = 0L, executorId = "exec-1",
+      seqNo = 99L, reclaimedBytes = 0L)
     val extractedSeqNo = ack match {
-      case Ack(_, _, seqNo, _) => seqNo
+      case Ack(_, _, _, _, seqNo, _) => seqNo
       case _ => -1L
     }
     assert(extractedSeqNo === 99L)
 
     // A genuine Java-serialization round-trip preserves the payload (case-class equality).
-    val original = Ack(shuffleId = 5, partitionId = 6, seqNo = 7L, reclaimedBytes = 8L)
+    val original = Ack(
+      shuffleId = 5, partitionId = 6, attemptId = 1L, executorId = "exec-2",
+      seqNo = 7L, reclaimedBytes = 8L)
     val roundTripped = Utils.deserialize[Ack](Utils.serialize(original))
     assert(roundTripped === original)
   }

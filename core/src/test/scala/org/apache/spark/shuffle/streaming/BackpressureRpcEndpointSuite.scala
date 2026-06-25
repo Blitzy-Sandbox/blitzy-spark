@@ -40,8 +40,10 @@ import org.apache.spark.rpc.{RpcEndpointRef, RpcEnv, ThreadSafeRpcEndpoint}
  *     the driver (the driver hosts no shuffle buffers to flow-control) and `Some(ref)` on an
  *     executor, registered under [[BackpressureRpcEndpoint.ENDPOINT_NAME]].
  *  3. '''Message routing.''' [[BackpressureRpcEndpoint.receive]] must route every
- *     [[BackpressureMessage]] variant to the correct [[BackpressureProtocol]] action and never
- *     throw on an unexpected message.
+ *     [[BackpressureMessage]] variant to the correct [[BackpressureProtocol]] action (an
+ *     [[Ack]] to its per-stream [[StreamKey]]) and never throw on an unexpected message.
+ *  4. '''Input validation.''' Malformed or out-of-scope messages are rejected before any
+ *     protocol state is touched, and an untrusted [[Timeout]] reason is bounded and sanitized.
  *
  * '''Harness.''' A single real [[RpcEnv]] is created in `beforeAll` and torn down in `afterAll`
  * (mirroring `RpcEnvSuite`) so the suite never leaks the RPC dispatcher threads that
@@ -145,16 +147,20 @@ class BackpressureRpcEndpointSuite extends SparkFunSuite {
     // reclaimedBytes == 0: only the monotonic watermark merge, no credit refill.
     val (endpointNoReclaim, protocolNoReclaim) = newEndpointWithMock()
     endpointNoReclaim.receive(
-      Ack(shuffleId = 1, partitionId = 2, seqNo = 42L, reclaimedBytes = 0L))
-    verify(protocolNoReclaim).mergeAck(meq(42L))
+      Ack(shuffleId = 1, partitionId = 2, attemptId = 10L, executorId = "exec-c",
+        seqNo = 42L, reclaimedBytes = 0L))
+    // The ack is routed to exactly the stream identified by its (shuffle, partition, attempt,
+    // executor) fields -- never an unrelated stream's watermark.
+    verify(protocolNoReclaim).mergeAck(meq(StreamKey(1, 2, 10L, "exec-c")), meq(42L))
     verify(protocolNoReclaim, never()).refill(anyLong())
     assert(endpointNoReclaim.acksReceived === 1L)
 
     // reclaimedBytes > 0: merge the watermark AND return the reclaimed bytes to the window.
     val (endpointReclaim, protocolReclaim) = newEndpointWithMock()
     endpointReclaim.receive(
-      Ack(shuffleId = 3, partitionId = 4, seqNo = 7L, reclaimedBytes = 512L))
-    verify(protocolReclaim).mergeAck(meq(7L))
+      Ack(shuffleId = 3, partitionId = 4, attemptId = 20L, executorId = "exec-d",
+        seqNo = 7L, reclaimedBytes = 512L))
+    verify(protocolReclaim).mergeAck(meq(StreamKey(3, 4, 20L, "exec-d")), meq(7L))
     verify(protocolReclaim).refill(meq(512L))
     assert(endpointReclaim.acksReceived === 1L)
   }
@@ -165,9 +171,10 @@ class BackpressureRpcEndpointSuite extends SparkFunSuite {
       val seqNo = 4242L
       // `send` is fire-and-forget for a ThreadSafeRpcEndpoint receive: the routing happens on the
       // RpcEnv message loop, so the verification must be retried until the message is delivered.
-      ref.send(Ack(shuffleId = 9, partitionId = 1, seqNo = seqNo, reclaimedBytes = 0L))
+      ref.send(Ack(shuffleId = 9, partitionId = 1, attemptId = 30L, executorId = "exec-e",
+        seqNo = seqNo, reclaimedBytes = 0L))
       eventually(timeout(5.seconds), interval(50.milliseconds)) {
-        verify(protocol).mergeAck(meq(seqNo))
+        verify(protocol).mergeAck(meq(StreamKey(9, 1, 30L, "exec-e")), meq(seqNo))
       }
     }
   }
@@ -175,10 +182,14 @@ class BackpressureRpcEndpointSuite extends SparkFunSuite {
   test("receive handles every BackpressureMessage variant and routes each correctly") {
     val (endpoint, protocol) = newEndpointWithMock()
 
-    val heartbeat = Heartbeat(executorId = "exec-7", shuffleId = 5, timestampMs = 123L)
-    val ack = Ack(shuffleId = 5, partitionId = 1, seqNo = 11L, reclaimedBytes = 64L)
-    val rateUpdate = RateUpdate(shuffleId = 5, partitionId = 1, maxBytesPerSec = 1000000L)
-    val timeoutMsg = Timeout(shuffleId = 5, partitionId = 1, reason = "producer unresponsive")
+    val heartbeat = Heartbeat(executorId = "exec-7", shuffleId = 5, attemptId = 40L,
+      reducePartitionRange = "[0,2)", timestampMs = 123L)
+    val ack = Ack(shuffleId = 5, partitionId = 1, attemptId = 40L, executorId = "exec-7",
+      seqNo = 11L, reclaimedBytes = 64L)
+    val rateUpdate = RateUpdate(shuffleId = 5, partitionId = 1, attemptId = 40L,
+      maxBytesPerSec = 1000000L)
+    val timeoutMsg = Timeout(shuffleId = 5, partitionId = 1, attemptId = 40L,
+      reason = "producer unresponsive")
 
     // Every variant is accepted by the total receive partial function and routed without error.
     Seq[BackpressureMessage](heartbeat, ack, rateUpdate, timeoutMsg).foreach { message =>
@@ -186,10 +197,10 @@ class BackpressureRpcEndpointSuite extends SparkFunSuite {
       endpoint.receive(message)
     }
 
-    // Heartbeat -> protocol.recordHeartbeat; Ack -> protocol.mergeAck (+ refill of reclaimed
-    // bytes). RateUpdate and Timeout carry no protocol side effect in v1.
+    // Heartbeat -> protocol.recordHeartbeat; Ack -> protocol.mergeAck on the ack's stream key
+    // (+ refill of reclaimed bytes). RateUpdate and Timeout carry no protocol side effect in v1.
     verify(protocol).recordHeartbeat()
-    verify(protocol).mergeAck(meq(11L))
+    verify(protocol).mergeAck(meq(StreamKey(5, 1, 40L, "exec-7")), meq(11L))
     verify(protocol).refill(meq(64L))
 
     // Each variant advances exactly its own observable counter.
@@ -210,6 +221,56 @@ class BackpressureRpcEndpointSuite extends SparkFunSuite {
     assert(endpoint.receive.isDefinedAt("not-a-backpressure-message"))
     endpoint.receive("not-a-backpressure-message")
     verifyNoInteractions(protocol)
+  }
+
+  test("receive rejects malformed/out-of-scope messages without touching the protocol (M6)") {
+    val (endpoint, protocol) = newEndpointWithMock()
+
+    // Negative identifiers, an empty executor id, an empty reduce range, a negative sequence
+    // number, and a negative reclaimed-byte count are each malformed/out-of-scope and must be
+    // dropped before any flow-control state is touched.
+    val malformed = Seq[BackpressureMessage](
+      Ack(shuffleId = -1, partitionId = 0, attemptId = 0L, executorId = "e",
+        seqNo = 1L, reclaimedBytes = 0L),
+      Ack(shuffleId = 0, partitionId = 0, attemptId = 0L, executorId = "",
+        seqNo = 1L, reclaimedBytes = 0L),
+      Ack(shuffleId = 0, partitionId = 0, attemptId = 0L, executorId = "e",
+        seqNo = -5L, reclaimedBytes = 0L),
+      Ack(shuffleId = 0, partitionId = 0, attemptId = 0L, executorId = "e",
+        seqNo = 1L, reclaimedBytes = -1L),
+      Heartbeat(executorId = "", shuffleId = 0, attemptId = 0L,
+        reducePartitionRange = "[0,1)", timestampMs = 0L),
+      Heartbeat(executorId = "e", shuffleId = 0, attemptId = 0L,
+        reducePartitionRange = "", timestampMs = 0L),
+      RateUpdate(shuffleId = 0, partitionId = -1, attemptId = 0L, maxBytesPerSec = 1L),
+      Timeout(shuffleId = -1, partitionId = 0, attemptId = 0L, reason = "x"))
+
+    malformed.foreach(endpoint.receive(_))
+
+    // Nothing reached the flow-control protocol, every message was tallied as rejected, and no
+    // routed counter advanced.
+    verifyNoInteractions(protocol)
+    assert(endpoint.messagesRejected === malformed.size.toLong)
+    assert(endpoint.acksReceived === 0L)
+    assert(endpoint.heartbeatsReceived === 0L)
+    assert(endpoint.rateUpdatesReceived === 0L)
+    assert(endpoint.timeoutsReceived === 0L)
+  }
+
+  test("receive bounds and sanitizes the untrusted Timeout reason before logging (M6)") {
+    val (endpoint, _) = newEndpointWithMock()
+
+    // A reason carrying newlines/control chars (a log-forging risk) and exceeding the length
+    // bound is accepted but bounded and stripped before it is retained or logged.
+    val pad = "x" * (BackpressureRpcEndpoint.MAX_REASON_LENGTH * 2)
+    val rawReason = "line1\nline2\tinjected\r" + pad
+    endpoint.receive(
+      Timeout(shuffleId = 1, partitionId = 0, attemptId = 0L, reason = rawReason))
+
+    assert(endpoint.timeoutsReceived === 1L)
+    val sanitized = endpoint.lastTimeoutReason
+    assert(!sanitized.exists(_.isControl), "control characters must be stripped")
+    assert(sanitized.length <= BackpressureRpcEndpoint.MAX_REASON_LENGTH)
   }
 
   test("endpoint is a ThreadSafeRpcEndpoint") {

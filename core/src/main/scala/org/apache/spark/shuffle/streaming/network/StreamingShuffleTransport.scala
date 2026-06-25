@@ -31,7 +31,7 @@ import org.apache.spark.network.buffer.ManagedBuffer
  * This is the single, intentional logging-only stub in the streaming shuffle subtree: it
  * performs structured logging and delegation only, reusing the executor's existing
  * [[org.apache.spark.network.BlockTransferService]] and introducing no new transport context,
- * ports, or Netty bootstrap. The full streaming data-plane is deferred to a future version.
+ * ports, or Netty bootstrap. The data-plane is deferred beyond v1; see decision log ADR-15.
  *
  * Every method below is real, side-effect-safe code: [[send]] logs the intended transmission
  * without sending bytes, [[receive]] decodes an already-delivered wire buffer, and [[fetch]]
