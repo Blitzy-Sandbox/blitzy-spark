@@ -40,24 +40,27 @@ import org.apache.spark.shuffle.sort.SortShuffleManager
  *     [[org.apache.spark.shuffle.sort.SortShuffleManager]], proving the zero default-behavior
  *     change.
  *
- *  2. '''Activation contract (AAP 0.1.1).''' Streaming engages only when '''both''' flags are
- *     set. With both set, the manager is a [[StreamingShuffleManager]], it reports the streaming
- *     path as active, and it registers a [[StreamingShuffleHandle]] for a shuffle dependency --
- *     proving the streaming SPI dispatch is engaged end-to-end.
+ *  2. '''Active-streaming parity (AAP 0.1.1, 0.2.1).''' Streaming engages only when '''both'''
+ *     flags are set. With both set, the manager is a [[StreamingShuffleManager]], it reports the
+ *     streaming path as active, it registers a [[StreamingShuffleHandle]] for a shuffle
+ *     dependency, and a real shuffle job driven through the active streaming data path produces
+ *     output '''identical''' to the sort path. This is asserted by running `reduceByKey`,
+ *     `groupByKey`, and `join` workloads (three distinct shuffle shapes) at >= 10 reduce
+ *     partitions on an active streaming context and comparing, element for element, against both
+ *     the deterministic oracle and a live sort baseline.
  *
- * '''v1 data-plane note (AAP F-115).''' In this version the streaming on-the-wire transport is,
- * by design, a logging-only stub: the producer frames CRC32C block envelopes but does not
- * transmit or materialize them through the block-fetch path, so a shuffle run with streaming
- * '''active''' cannot yet move data to consumers (the reader invalidates the partial read and
- * defers to DAG-scheduler recomputation). Full data-moving parity between the streaming and sort
- * data paths therefore lands with the post-v1 Netty data plane; the reader's
- * deserialize/aggregate/sort tail is already byte-identical to the sort path by construction.
- * Accordingly, this suite asserts streaming-vs-sort result parity on the (active) coexistence
- * path and asserts streaming-path '''engagement''' (handle dispatch) on the enabled path, rather
- * than driving a data-moving shuffle that the v1 stub cannot complete. This is the single
- * documented, intentional deviation permitted by the AAP pre-flight gate (AAP 0.9.1) and is
- * recorded here so the suite stays green and flake-free while remaining faithful to the feature
- * contract.
+ * '''v1 data-plane note (AAP F-115).''' In this version the streaming on-the-wire transport
+ * ([[org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport]]) is, by design, a
+ * logging-only stub: there is no in-flight Netty push of in-progress blocks from producers to
+ * consumers '''during''' a map task. Data parity is nonetheless achieved because the streaming
+ * writer frames each per-partition output as CRC32C-protected block envelopes and commits them
+ * through the shared [[org.apache.spark.shuffle.IndexShuffleBlockResolver]] at map completion,
+ * and the streaming reader fetches those committed blocks over the standard block-transfer path,
+ * decodes the envelopes, validates the CRC32C, and runs the same deserialize/aggregate/sort tail
+ * as the sort reader. The single documented, intentional v1 deviation permitted by the AAP
+ * pre-flight gate (AAP 0.9.1) is therefore the absence of the mid-task push transport, '''not'''
+ * an inability to move data: active streaming shuffles round-trip their full results with zero
+ * data loss, which this suite asserts directly.
  *
  * Each test builds its own [[org.apache.spark.SparkContext]] because the shuffle manager is fixed
  * at context creation and must never be mutated on a running context. The inherited `sc` field is
@@ -246,7 +249,14 @@ class StreamingShuffleIntegrationSuite extends SparkFunSuite with LocalSparkCont
     assert(runReduceByKey(sc) === expectedReduceByKey)
   }
 
-  test("enabling streaming engages the streaming dispatch path (StreamingShuffleHandle)") {
+  test("active streaming matches sort for reduceByKey, groupByKey, and join") {
+    // Sort baselines first, each on a fully independent context that is stopped before the
+    // next is created, so only one SparkContext is ever live at a time.
+    val sortReduceBaseline = LocalSparkContext.withSpark(sortContext())(runReduceByKey)
+    val sortGroupBaseline = LocalSparkContext.withSpark(sortContext())(runGroupByKey)
+    val sortJoinBaseline = LocalSparkContext.withSpark(sortContext())(runJoin)
+
+    // Active streaming context (both flags on); assigned to `sc` for automatic teardown.
     sc = streamingContext(enabled = true)
     val manager = sc.env.shuffleManager
     assert(manager.isInstanceOf[StreamingShuffleManager])
@@ -254,10 +264,9 @@ class StreamingShuffleIntegrationSuite extends SparkFunSuite with LocalSparkCont
       manager.asInstanceOf[StreamingShuffleManager].isStreamingActive,
       "with both spark.shuffle.manager=streaming and the opt-in flag the path must be active")
 
-    // Constructing the shuffled RDD registers the shuffle on the driver (no job is run); the
-    // returned handle is the dispatch discriminator the writer/reader pattern-match on. An active
-    // streaming manager must hand back a StreamingShuffleHandle here. The local val keeps the map
-    // closure free of any reference to the (non-serializable) suite, as RDD.map cleans eagerly.
+    // Confirm the active path dispatches a StreamingShuffleHandle for a real shuffle dependency.
+    // The local val keeps the map closure free of any reference to the (non-serializable) suite,
+    // as RDD.map cleans the closure eagerly.
     val partitions = numReducePartitions
     val shuffled = sc.parallelize(1 to recordCount, numInputPartitions)
       .map(i => (i % partitions, i))
@@ -268,6 +277,21 @@ class StreamingShuffleIntegrationSuite extends SparkFunSuite with LocalSparkCont
     assert(
       shuffleDependency.shuffleHandle.isInstanceOf[StreamingShuffleHandle[_, _, _]],
       "an active streaming manager must register a StreamingShuffleHandle for the shuffle")
+
+    // Drive three distinct shuffle shapes through the active streaming data path at
+    // numReducePartitions (>= 10) and assert exact equality against both the deterministic oracle
+    // and the live sort baseline. This proves active streaming moves data with zero loss and is
+    // result-identical to the sort path across reduceByKey, groupByKey, and join.
+    val streamingReduce = runReduceByKey(sc)
+    val streamingGroup = runGroupByKey(sc)
+    val streamingJoin = runJoin(sc)
+
+    assert(streamingReduce === expectedReduceByKey)
+    assert(streamingReduce === sortReduceBaseline)
+    assert(streamingGroup === expectedGroupByKey)
+    assert(streamingGroup === sortGroupBaseline)
+    assert(streamingJoin === expectedJoin)
+    assert(streamingJoin === sortJoinBaseline)
   }
 
   test("streaming manager coexists with the sort path across executors (local-cluster)") {

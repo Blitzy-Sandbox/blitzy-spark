@@ -368,12 +368,7 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
    */
   override def stop(): Unit = {
     try {
-      backpressureEndpointRefOpt.foreach { ref =>
-        val env = SparkEnv.get
-        if (env != null) {
-          env.rpcEnv.stop(ref)
-        }
-      }
+      stopBackpressureEndpoint()
     } catch {
       case NonFatal(e) =>
         logWarning(log"Failed to unregister the " +
@@ -382,7 +377,7 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
     }
 
     try {
-      spillManagerOpt.foreach(_.stop())
+      stopSpillManager()
     } catch {
       case NonFatal(e) =>
         logWarning(log"Failed to stop the streaming shuffle spill manager during stop: " +
@@ -390,7 +385,7 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
     }
 
     try {
-      sortShuffleManager.stop()
+      stopInnerSortManager()
     } catch {
       case NonFatal(e) =>
         logWarning(log"Failed to stop the inner SortShuffleManager during stop: " +
@@ -398,13 +393,50 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
     }
 
     try {
-      streamingBlockResolver.stop()
-      registeredStreamingShuffleIds.clear()
+      clearStreamingState()
     } catch {
       case NonFatal(e) =>
         logWarning(log"Failed to clear streaming shuffle state during stop: " +
           log"${MDC(ERROR, e.getMessage)}")
     }
+  }
+
+  /**
+   * Teardown step 1 of [[stop]]: unregister the executor-only backpressure RPC endpoint (a no-op
+   * on the driver, where no endpoint was registered; the protocol itself holds only in-memory
+   * atomics). Exposed as an overridable seam so tests can observe the deterministic
+   * Backpressure -> Spill -> Sort teardown order.
+   */
+  protected def stopBackpressureEndpoint(): Unit = {
+    backpressureEndpointRefOpt.foreach { ref =>
+      val env = SparkEnv.get
+      if (env != null) {
+        env.rpcEnv.stop(ref)
+      }
+    }
+  }
+
+  /**
+   * Teardown step 2 of [[stop]]: stop the executor-only memory spill monitor (idempotent; a no-op
+   * on the driver, where the option is `None`). Overridable teardown seam (see step 1).
+   */
+  protected def stopSpillManager(): Unit = spillManagerOpt.foreach(_.stop())
+
+  /**
+   * Teardown step 3 of [[stop]]: stop the inner sort manager, which also stops the shared
+   * [[shuffleBlockResolver]] (so it is the sole owner of that resolver's teardown). Overridable
+   * seam; see [[stopBackpressureEndpoint]].
+   */
+  protected def stopInnerSortManager(): Unit = sortShuffleManager.stop()
+
+  /**
+   * Teardown step 4 of [[stop]]: clear the in-memory streaming block index (which does not
+   * re-stop the shared resolver) and forget the tracked streaming shuffle ids. Overridable seam;
+   * see [[stopBackpressureEndpoint]].
+   */
+  protected def clearStreamingState(): Unit = {
+    streamingBlockResolver.stop()
+    registeredStreamingShuffleIds.clear()
   }
 
   // ------------------------------------------------------------------------------------------

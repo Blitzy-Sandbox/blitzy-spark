@@ -20,7 +20,7 @@ package org.apache.spark.shuffle.streaming
 import java.util.concurrent.atomic.{AtomicLong, AtomicReference}
 
 import org.apache.spark.SparkException
-import org.apache.spark.internal.{LogKeys, Logging, MessageWithContext}
+import org.apache.spark.internal.{Logging, LogKeys, MessageWithContext}
 import org.apache.spark.internal.LogKeys._
 import org.apache.spark.rpc.{RpcCallContext, RpcEndpointRef, RpcEnv, ThreadSafeRpcEndpoint}
 

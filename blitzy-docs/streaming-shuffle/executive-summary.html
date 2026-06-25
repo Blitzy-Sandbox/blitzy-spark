@@ -6,10 +6,24 @@
   <meta name="description" content="Executive summary of the opt-in streaming shuffle subsystem for Apache Spark: 30-50% lower shuffle latency, zero regression, zero data loss." />
   <title>Streaming Shuffle for Apache Spark &mdash; Executive Summary</title>
 
+  <!--
+    Subresource Integrity (SRI) posture for the pinned CDN assets below:
+      * Every CDN asset is pinned to an exact, immutable version and served over HTTPS, and every
+        static <link>/<script> below carries crossorigin="anonymous" (the CORS prerequisite for SRI).
+      * The per-file `integrity="sha384-..."` hash is intentionally left to be attached at deploy
+        time from the SERVING CDN's own published SRI for these exact files. Hardcoding a hash that
+        is not byte-verified against the exact bytes this CDN serves can hard-fail the asset (a CDN
+        may re-generate/re-minify a file, changing its hash), so the hash is supplied by deploy
+        policy rather than guessed here.
+      * The Mermaid dependency below is loaded as an ES module via `import` (see the module script
+        near the end of <body>). Standard SRI does NOT apply to ESM module specifiers — `integrity`
+        is an attribute of <script>/<link> elements only — so the Mermaid ESM import cannot carry a
+        standard integrity attribute; it remains version-pinned over HTTPS.
+  -->
   <!-- reveal.js 5.1.0 core stylesheet (pinned CDN) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css" crossorigin="anonymous" />
   <!-- reveal.js 5.1.0 base 'black' theme (optional baseline; fully overridden by the inline Blitzy brand styles below) -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="reveal-base-theme" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="reveal-base-theme" crossorigin="anonymous" />
 
   <!--
     Brand theme canonical source: blitzy-deck/references/blitzy-reveal-theme.css
@@ -364,7 +378,7 @@
       <section data-background-color="#0a0f1f">
         <div class="hero">
           <div class="brand">
-            <span class="hero-icon"><i data-lucide="zap"></i></span>
+            <span class="hero-icon"><i data-lucide="zap" aria-hidden="true"></i></span>
             <span class="wordmark">BLITZY &middot; APACHE SPARK</span>
           </div>
           <span class="eyebrow">Executive Summary &middot; Spark 4.2.0</span>
@@ -386,13 +400,13 @@
         <h2>The materialization <span class="accent">barrier</span></h2>
         <p class="small">Sort-based shuffle writes every map output to local disk, then reduce tasks fetch it back over the network. That <strong>write-to-disk-then-fetch</strong> step is a hard materialization barrier: producers and consumers never overlap, so shuffle-heavy stages pay full disk-write + fetch latency before any reduce work can begin.</p>
         <div class="icon-row">
-          <span class="icon-chip"><i data-lucide="cpu"></i> Map task produces</span>
-          <span class="icon-chip"><i data-lucide="hard-drive"></i> Spill to local disk</span>
-          <span class="icon-chip"><i data-lucide="arrow-right-left"></i> Network fetch</span>
-          <span class="icon-chip"><i data-lucide="hourglass"></i> Reduce waits</span>
+          <span class="icon-chip"><i data-lucide="cpu" aria-hidden="true"></i> Map task produces</span>
+          <span class="icon-chip"><i data-lucide="hard-drive" aria-hidden="true"></i> Spill to local disk</span>
+          <span class="icon-chip"><i data-lucide="arrow-right-left" aria-hidden="true"></i> Network fetch</span>
+          <span class="icon-chip"><i data-lucide="hourglass" aria-hidden="true"></i> Reduce waits</span>
         </div>
         <div class="callout">
-          <i data-lucide="alert-triangle"></i>
+          <i data-lucide="alert-triangle" aria-hidden="true"></i>
           <div>For latency-sensitive, shuffle-heavy pipelines (&ge;&nbsp;100&nbsp;MB, &ge;&nbsp;10&nbsp;partitions) the disk round-trip dominates end-to-end time &mdash; precisely the gap push-based shuffle (Project Magnet) does <em>not</em> target.</div>
         </div>
         <div class="deck-footer">Streaming Shuffle &middot; Executive Summary</div>
@@ -405,15 +419,15 @@
         <p class="small">A new <code>StreamingShuffleManager</code> SPI implementation pipes shuffle blocks directly from producer to consumer through bounded in-memory buffers governed by a backpressure protocol &mdash; and it <strong>coexists with</strong>, never replaces, the default sort path.</p>
         <div class="grid cols-3">
           <div class="card">
-            <div class="card-h"><i data-lucide="plug"></i> Opt-in &amp; pluggable</div>
+            <div class="card-h"><i data-lucide="plug" aria-hidden="true"></i> Opt-in &amp; pluggable</div>
             <div class="card-b">Selected via <code>spark.shuffle.manager=streaming</code>; default stays <code>sort</code>. Reflective factory needs no change.</div>
           </div>
           <div class="card cyan">
-            <div class="card-h"><i data-lucide="layers"></i> Bounded buffers + backpressure</div>
+            <div class="card-h"><i data-lucide="layers" aria-hidden="true"></i> Bounded buffers + backpressure</div>
             <div class="card-b">Per-partition in-memory buffers capped at a configurable % of executor memory; token-bucket flow control prevents overrun.</div>
           </div>
           <div class="card violet">
-            <div class="card-h"><i data-lucide="shield-check"></i> Graceful degradation</div>
+            <div class="card-h"><i data-lucide="shield-check" aria-hidden="true"></i> Graceful degradation</div>
             <div class="card-b">Holds an inner <code>SortShuffleManager</code> by composition and falls back automatically on any risk condition.</div>
           </div>
         </div>
@@ -424,7 +438,7 @@
       <section>
         <span class="eyebrow">Architecture</span>
         <h2>Diagram 0.2-A &mdash; <span class="accent">SPI Coexistence Topology</span></h2>
-        <pre class="mermaid">
+        <pre class="mermaid" role="img" aria-label="Diagram 0.2-A: Streaming Shuffle SPI Coexistence Topology">
 flowchart TB
     title["Diagram 0.2-A: Streaming Shuffle SPI Coexistence Topology"]
     UserCode["User Code (RDD / DataFrame / SQL)&lt;br/&gt;UNCHANGED"]
@@ -451,9 +465,9 @@ flowchart TB
         <span class="eyebrow">Activation &amp; Configuration</span>
         <h2>The <span class="accent">dual-flag</span> activation contract</h2>
         <div class="flags">
-          <span class="flag"><i data-lucide="check"></i> spark.shuffle.manager=streaming</span>
+          <span class="flag"><i data-lucide="check" aria-hidden="true"></i> spark.shuffle.manager=streaming</span>
           <span class="flag-and">AND</span>
-          <span class="flag"><i data-lucide="check"></i> spark.shuffle.streaming.enabled=true</span>
+          <span class="flag"><i data-lucide="check" aria-hidden="true"></i> spark.shuffle.streaming.enabled=true</span>
         </div>
         <p class="small muted">If either flag is absent, the inner <code>SortShuffleManager</code> handles <strong>all</strong> shuffle &mdash; behavior is identical to stock Spark. Keys are immutable for the application lifetime (no dynamic reconfiguration in v1) and range-validated fail-fast.</p>
         <table>
@@ -476,7 +490,7 @@ flowchart TB
       <section>
         <span class="eyebrow">Data Flow</span>
         <h2>Diagram 0.5-A &mdash; <span class="accent">Producer-to-Consumer Data Flow</span></h2>
-        <pre class="mermaid">
+        <pre class="mermaid" role="img" aria-label="Diagram 0.5-A: Streaming Shuffle Producer-to-Consumer Data Flow">
 flowchart TD
     Map["Map task (producer)"] --&gt; Writer["StreamingShuffleWriter&lt;br/&gt;(MemoryConsumer)"]
     Writer --&gt; Buffer["StreamingBuffer&lt;br/&gt;per-partition, CRC32C"]
@@ -500,7 +514,7 @@ flowchart TD
       <section>
         <span class="eyebrow">Integration</span>
         <h2>Diagram 0.4-A &mdash; <span class="accent">Integration Touchpoints</span></h2>
-        <pre class="mermaid">
+        <pre class="mermaid" role="img" aria-label="Diagram 0.4-A: Streaming Shuffle Integration Touchpoints">
 flowchart LR
     subgraph New["NEW streaming subsystem (shuffle/streaming/**)"]
         SSM["StreamingShuffleManager"]
@@ -546,9 +560,9 @@ flowchart LR
           <div class="tile center"><div class="stat violet">10 s</div><div class="label">Consumer liveness /<br/>missing-ack timeout</div></div>
         </div>
         <div class="icon-row" style="margin-top: 0.5em;">
-          <span class="icon-chip"><i data-lucide="gauge"></i> TokenBucketRateLimiter (F-110)</span>
-          <span class="icon-chip"><i data-lucide="heart-pulse"></i> Heartbeat</span>
-          <span class="icon-chip"><i data-lucide="network"></i> streaming-shuffle-backpressure</span>
+          <span class="icon-chip"><i data-lucide="gauge" aria-hidden="true"></i> TokenBucketRateLimiter (F-110)</span>
+          <span class="icon-chip"><i data-lucide="heart-pulse" aria-hidden="true"></i> Heartbeat</span>
+          <span class="icon-chip"><i data-lucide="network" aria-hidden="true"></i> streaming-shuffle-backpressure</span>
         </div>
         <div class="deck-footer">Streaming Shuffle &middot; Executive Summary</div>
       </section>
@@ -587,13 +601,13 @@ flowchart LR
         <h2>Fallback &amp; <span class="accent">zero data loss</span></h2>
         <p class="small muted"><code>StreamingShuffleFallbackPolicy</code> (F-111) reverts a shuffle to the inner sort path on any of four conditions; every failure path invalidates cleanly and defers to Spark's existing recomputation.</p>
         <div class="grid cols-4">
-          <div class="card"><div class="card-h"><i data-lucide="rabbit"></i> Slow consumer</div><div class="card-b">Consumer sustained 2&times; slower than producer for &gt;&nbsp;60&nbsp;s.</div></div>
-          <div class="card warn"><div class="card-h"><i data-lucide="memory-stick"></i> Memory pressure</div><div class="card-b">Buffer allocation would risk OOM.</div></div>
-          <div class="card cyan"><div class="card-h"><i data-lucide="wifi"></i> Network saturation</div><div class="card-b">&gt;&nbsp;90% link capacity utilized.</div></div>
-          <div class="card violet"><div class="card-h"><i data-lucide="git-compare"></i> Version mismatch</div><div class="card-b">Producer / consumer versions differ.</div></div>
+          <div class="card"><div class="card-h"><i data-lucide="rabbit" aria-hidden="true"></i> Slow consumer</div><div class="card-b">Consumer sustained 2&times; slower than producer for &gt;&nbsp;60&nbsp;s.</div></div>
+          <div class="card warn"><div class="card-h"><i data-lucide="memory-stick" aria-hidden="true"></i> Memory pressure</div><div class="card-b">Buffer allocation would risk OOM.</div></div>
+          <div class="card cyan"><div class="card-h"><i data-lucide="wifi" aria-hidden="true"></i> Network saturation</div><div class="card-b">&gt;&nbsp;90% link capacity utilized.</div></div>
+          <div class="card violet"><div class="card-h"><i data-lucide="git-compare" aria-hidden="true"></i> Version mismatch</div><div class="card-b">Producer / consumer versions differ.</div></div>
         </div>
         <div class="grid cols-2" style="margin-top:0.5em;">
-          <div class="tile"><div class="tile-title"><i data-lucide="shield-check"></i> Zero data loss invariant</div><div class="sub">Producer timeout, checksum mismatch, or consumer crash &rarr; invalidate partial read &rarr; <code>FetchFailedException</code> &rarr; DAG recompute.</div></div>
+          <div class="tile"><div class="tile-title"><i data-lucide="shield-check" aria-hidden="true"></i> Zero data loss invariant</div><div class="sub">Producer timeout, checksum mismatch, or consumer crash &rarr; invalidate partial read &rarr; <code>FetchFailedException</code> &rarr; DAG recompute.</div></div>
           <div class="tile center"><div class="stat warn">10</div><div class="label">Failure-injection scenarios validated for zero data loss</div></div>
         </div>
         <div class="deck-footer">Streaming Shuffle &middot; Executive Summary</div>
@@ -605,14 +619,14 @@ flowchart LR
         <h2>Telemetry that <span class="accent">reuses what exists</span></h2>
         <p class="small">Four metrics under the <code>shuffle.streaming.</code> namespace, registered through the existing Dropwizard <code>MetricsSystem</code> via <code>StreamingShuffleSource</code> (source name <code>streamingShuffle</code>). No new endpoint &mdash; they surface through the existing JMX, Prometheus, CSV, and SLF4J sinks.</p>
         <div class="grid cols-4">
-          <div class="tile metric"><div class="tile-title"><i data-lucide="gauge"></i> Gauge</div><div class="mono">bufferUtilizationPercent</div><div class="sub">Buffer fill level (0&ndash;100%).</div></div>
-          <div class="tile metric"><div class="tile-title"><i data-lucide="hard-drive-download"></i> Counter</div><div class="mono">spillCount</div><div class="sub">Disk spill events.</div></div>
-          <div class="tile metric"><div class="tile-title"><i data-lucide="activity"></i> Counter</div><div class="mono">backpressureEvents</div><div class="sub">Backpressure activations.</div></div>
-          <div class="tile metric"><div class="tile-title"><i data-lucide="shield-alert"></i> Counter</div><div class="mono">partialReadInvalidations</div><div class="sub">Partial reads invalidated on producer failure.</div></div>
+          <div class="tile metric"><div class="tile-title"><i data-lucide="gauge" aria-hidden="true"></i> Gauge</div><div class="mono">bufferUtilizationPercent</div><div class="sub">Buffer fill level (0&ndash;100%).</div></div>
+          <div class="tile metric"><div class="tile-title"><i data-lucide="hard-drive-download" aria-hidden="true"></i> Counter</div><div class="mono">spillCount</div><div class="sub">Disk spill events.</div></div>
+          <div class="tile metric"><div class="tile-title"><i data-lucide="activity" aria-hidden="true"></i> Counter</div><div class="mono">backpressureEvents</div><div class="sub">Backpressure activations.</div></div>
+          <div class="tile metric"><div class="tile-title"><i data-lucide="shield-alert" aria-hidden="true"></i> Counter</div><div class="mono">partialReadInvalidations</div><div class="sub">Partial reads invalidated on producer failure.</div></div>
         </div>
         <div class="callout" style="margin-top:0.5em;">
-          <i data-lucide="layout-dashboard"></i>
-          <div>A ready-to-import Grafana template (<code>dashboard.json</code>, title <em>&ldquo;Spark Streaming Shuffle&rdquo;</em>) plots all four as a 2&times;2 grid; MDC fields <code>shuffle_id</code>, <code>map_id</code>, <code>reduce_partition_range</code>, <code>attempt_id</code> correlate logs across the producer&rarr;consumer path.</div>
+          <i data-lucide="layout-dashboard" aria-hidden="true"></i>
+          <div>A ready-to-import Grafana template (<code>dashboard.json</code>, title <em>&ldquo;Spark Streaming Shuffle&rdquo;</em>) plots all four as a 2&times;2 grid; MDC fields <code>shuffle_id</code>, <code>map_id</code>, <code>range</code>, <code>task_attempt_id</code> correlate logs across the producer&rarr;consumer path.</div>
         </div>
         <div class="deck-footer">Streaming Shuffle &middot; Executive Summary</div>
       </section>
@@ -645,18 +659,18 @@ flowchart LR
         <h2>Quality <span class="accent">gates</span></h2>
         <div class="two-col" style="align-items:start;">
           <ul class="checklist">
-            <li><i data-lucide="check-circle"></i> Binary compatibility &mdash; additive-only public API (MiMa)</li>
-            <li><i data-lucide="check-circle"></i> Style &mdash; Scalastyle + Scalafmt (<code>maxColumn=98</code>)</li>
-            <li><i data-lucide="check-circle"></i> License &mdash; Apache RAT header on every new source file</li>
+            <li><i data-lucide="check-circle" aria-hidden="true"></i> Binary compatibility &mdash; additive-only public API (MiMa)</li>
+            <li><i data-lucide="check-circle" aria-hidden="true"></i> Style &mdash; Scalastyle + Scalafmt (<code>maxColumn=98</code>)</li>
+            <li><i data-lucide="check-circle" aria-hidden="true"></i> License &mdash; Apache RAT header on every new source file</li>
           </ul>
           <ul class="checklist">
-            <li><i data-lucide="check-circle"></i> Coverage &mdash; &gt;&nbsp;85% on new components</li>
-            <li><i data-lucide="check-circle"></i> Tests &mdash; 14 suites incl. failure-injection &amp; stress</li>
-            <li><i data-lucide="check-circle"></i> Build &mdash; compiles with zero errors, zero warnings</li>
+            <li><i data-lucide="check-circle" aria-hidden="true"></i> Coverage &mdash; &gt;&nbsp;85% on new components</li>
+            <li><i data-lucide="check-circle" aria-hidden="true"></i> Tests &mdash; 14 suites incl. failure-injection &amp; stress</li>
+            <li><i data-lucide="check-circle" aria-hidden="true"></i> Build &mdash; compiles with zero errors, zero warnings</li>
           </ul>
         </div>
         <div class="callout" style="margin-top:0.4em;">
-          <i data-lucide="git-branch"></i>
+          <i data-lucide="git-branch" aria-hidden="true"></i>
           <div>Strictly additive at the SPI boundary: only the alias map and the config registry are edited &mdash; <code>SortShuffleManager</code>, the DAG scheduler, and all AQE rules are untouched.</div>
         </div>
         <div class="deck-footer">Streaming Shuffle &middot; Executive Summary</div>
@@ -667,13 +681,13 @@ flowchart LR
         <span class="eyebrow">v1 Scope</span>
         <h2>One intentional <span class="accent">v1 deviation</span></h2>
         <div class="callout warn">
-          <i data-lucide="info"></i>
+          <i data-lucide="info" aria-hidden="true"></i>
           <div>The v1 network transport <code>StreamingShuffleTransport</code> (<strong>F-115</strong>) ships as a <strong>logging-only stub</strong> that reuses the executor's existing <code>BlockTransferService</code> and introduces no new <code>TransportContext</code>. This is the single documented, intentional exception to the no-placeholder rule &mdash; recorded in the decision log.</div>
         </div>
         <div class="grid cols-3" style="margin-top:0.5em;">
-          <div class="card good"><div class="card-h"><i data-lucide="package-check"></i> Self-describing wire</div><div class="card-b"><code>StreamingBlockEnvelope</code> (F-116): 32-byte big-endian header + &le;&nbsp;2&nbsp;MiB payload + CRC32C.</div></div>
-          <div class="card"><div class="card-h"><i data-lucide="lock"></i> Immutable config</div><div class="card-b">Keys read once at construction; no dynamic reconfiguration in v1.</div></div>
-          <div class="card violet"><div class="card-h"><i data-lucide="book-open"></i> Explainability</div><div class="card-b">Every non-trivial decision captured in <code>decision-log.md</code> with a traceability matrix.</div></div>
+          <div class="card good"><div class="card-h"><i data-lucide="package-check" aria-hidden="true"></i> Self-describing wire</div><div class="card-b"><code>StreamingBlockEnvelope</code> (F-116): 32-byte big-endian header + &le;&nbsp;2&nbsp;MiB payload + CRC32C.</div></div>
+          <div class="card"><div class="card-h"><i data-lucide="lock" aria-hidden="true"></i> Immutable config</div><div class="card-b">Keys read once at construction; no dynamic reconfiguration in v1.</div></div>
+          <div class="card violet"><div class="card-h"><i data-lucide="book-open" aria-hidden="true"></i> Explainability</div><div class="card-b">Every non-trivial decision captured in <code>decision-log.md</code> with a traceability matrix.</div></div>
         </div>
         <div class="deck-footer">Streaming Shuffle &middot; Executive Summary</div>
       </section>
@@ -700,8 +714,8 @@ flowchart LR
           </div>
         </div>
         <div class="icon-row center" style="justify-content:center; margin-top:0.6em;">
-          <span class="icon-chip"><i data-lucide="rocket"></i> Netty data plane</span>
-          <span class="icon-chip"><i data-lucide="sliders-horizontal"></i> Live tuning</span>
+          <span class="icon-chip"><i data-lucide="rocket" aria-hidden="true"></i> Netty data plane</span>
+          <span class="icon-chip"><i data-lucide="sliders-horizontal" aria-hidden="true"></i> Live tuning</span>
         </div>
         <div class="deck-footer">Streaming Shuffle &middot; Executive Summary</div>
       </section>
@@ -710,23 +724,23 @@ flowchart LR
       <section data-background-color="#0a0f1f">
         <div class="hero">
           <div class="brand">
-            <span class="hero-icon"><i data-lucide="zap"></i></span>
+            <span class="hero-icon"><i data-lucide="zap" aria-hidden="true"></i></span>
             <span class="wordmark">BLITZY &middot; APACHE SPARK</span>
           </div>
           <span class="eyebrow">Get Started</span>
           <h1>Enable it with <span class="accent">two flags</span></h1>
           <hr class="accent-rule" />
           <div class="flags">
-            <span class="flag"><i data-lucide="terminal"></i> --conf spark.shuffle.manager=streaming</span>
+            <span class="flag"><i data-lucide="terminal" aria-hidden="true"></i> --conf spark.shuffle.manager=streaming</span>
           </div>
           <div class="flags">
-            <span class="flag"><i data-lucide="terminal"></i> --conf spark.shuffle.streaming.enabled=true</span>
+            <span class="flag"><i data-lucide="terminal" aria-hidden="true"></i> --conf spark.shuffle.streaming.enabled=true</span>
           </div>
           <p class="small muted">Default behavior is unchanged until you opt in &mdash; <strong>30&ndash;50% lower shuffle latency</strong> for shuffle-heavy workloads, with zero regression and zero data loss.</p>
           <div class="icon-row" style="margin-top:0.4em;">
-            <span class="icon-chip"><i data-lucide="file-text"></i> architecture.md</span>
-            <span class="icon-chip"><i data-lucide="settings-2"></i> configuration.md</span>
-            <span class="icon-chip"><i data-lucide="line-chart"></i> observability.md</span>
+            <span class="icon-chip"><i data-lucide="file-text" aria-hidden="true"></i> architecture.md</span>
+            <span class="icon-chip"><i data-lucide="settings-2" aria-hidden="true"></i> configuration.md</span>
+            <span class="icon-chip"><i data-lucide="line-chart" aria-hidden="true"></i> observability.md</span>
           </div>
         </div>
         <div class="deck-footer">Streaming Shuffle &middot; Executive Summary</div>
@@ -737,12 +751,17 @@ flowchart LR
 
   <!-- ============================================================
        Initialization order (matters):
-         1) reveal.js  — initialize slides first
-         2) Mermaid    — render the pre.mermaid diagram blocks AFTER Reveal lays out slides
-         3) Lucide     — replace <i data-lucide> markers with SVG icons
-       reveal.js 5.1.0 (pinned CDN)
+         1) reveal.js   - initialize the slide deck first.
+         2) Lucide UMD  - load the icon library up front so window.lucide is
+                          defined before any later script references it.
+         3) Mermaid     - (ESM module; deferred until after parse) render the
+                          pre.mermaid diagram blocks AFTER Reveal lays out slides,
+                          then run the first idempotent Lucide icon pass.
+         4) Lucide      - a second idempotent icon pass on window 'load'.
+       All libraries are pinned CDN versions; static <script>/<link> tags carry
+       crossorigin="anonymous" (see the SRI-posture note in <head>).
   ============================================================ -->
-  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js" crossorigin="anonymous"></script>
   <script>
     // (1) Reveal first.
     Reveal.initialize({
@@ -759,7 +778,21 @@ flowchart LR
     });
   </script>
 
-  <!-- Mermaid 11.4.0 (ESM). Deferred module runs after parse, i.e. after Reveal.initialize. -->
+  <!-- Lucide 0.460.0 (UMD, pinned CDN). Loaded BEFORE the Mermaid ESM module below so that
+       window.lucide is guaranteed defined when that module's icon pass runs. -->
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js" crossorigin="anonymous"></script>
+  <script>
+    // Icon pass on full load (idempotent: createIcons only replaces remaining [data-lucide] markers).
+    window.addEventListener('load', function () {
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        window.lucide.createIcons();
+      }
+    });
+  </script>
+
+  <!-- Mermaid 11.4.0 (ESM). Deferred module: runs after parse, i.e. after the two classic
+       scripts above (reveal.js and the Lucide UMD) have executed, so both Reveal and
+       window.lucide are already defined when this module's icon pass runs. -->
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.esm.min.mjs';
     // (2) Mermaid render, with a dark theme compatible with the Blitzy palette.
@@ -811,17 +844,6 @@ flowchart LR
     if (window.lucide && typeof window.lucide.createIcons === 'function') {
       window.lucide.createIcons();
     }
-  </script>
-
-  <!-- Lucide 0.460.0 (UMD, pinned CDN) -->
-  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
-  <script>
-    // Icon pass on full load (idempotent: createIcons only replaces remaining [data-lucide] markers).
-    window.addEventListener('load', function () {
-      if (window.lucide && typeof window.lucide.createIcons === 'function') {
-        window.lucide.createIcons();
-      }
-    });
   </script>
 </body>
 </html>

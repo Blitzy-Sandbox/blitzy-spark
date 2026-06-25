@@ -17,12 +17,17 @@
 
 package org.apache.spark.shuffle.streaming
 
+import scala.collection.mutable.ListBuffer
+
 import org.mockito.Mockito.{mock, when}
 
-import org.apache.spark.{Partitioner, SharedSparkContext, ShuffleDependency, SparkConf,
-  SparkFunSuite}
+import org.apache.spark.{MapOutputTrackerMaster, Partitioner, SharedSparkContext,
+  ShuffleDependency, SparkConf, SparkFunSuite}
+import org.apache.spark.memory.MemoryTestingUtils
+import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.serializer.JavaSerializer
-import org.apache.spark.shuffle.ShuffleHandle
+import org.apache.spark.shuffle.{BlockStoreShuffleReader, ShuffleHandle}
+import org.apache.spark.storage.BlockManagerId
 
 /**
  * Unit tests for [[StreamingShuffleManager]] (feature F-101), the SPI entry point of the
@@ -67,6 +72,9 @@ class StreamingShuffleManagerSuite extends SparkFunSuite with SharedSparkContext
     new SparkConf(false)
       .set("spark.shuffle.manager", manager)
       .set("spark.shuffle.streaming.enabled", enabled.toString)
+      // The inner sort manager loads its executor components from `spark.app.id` the first time a
+      // delegated writer is requested; a real application always sets it.
+      .set("spark.app.id", "streaming-shuffle-manager-suite")
   }
 
   /** Runs `body` with a freshly constructed driver-side manager and always stops it afterward. */
@@ -244,5 +252,129 @@ class StreamingShuffleManagerSuite extends SparkFunSuite with SharedSparkContext
     // stop() must not throw and must clear the streaming registration bookkeeping.
     manager.stop()
     assert(manager.registeredStreamingShuffleCount === 0)
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // getWriter / getReader dispatch on the handle type
+  // ------------------------------------------------------------------------------------------
+
+  test("getWriter routes a StreamingShuffleHandle to the streaming writer and delegates others") {
+    withManager(confWith(streamingAlias, enabled = true)) { manager =>
+      // A real task context backed by a TaskMemoryManager is required because the streaming
+      // writer composes a MemoryConsumer (the same fixture StreamingShuffleWriterSuite uses).
+      val context = MemoryTestingUtils.fakeTaskContext(sc.env)
+      val writeMetrics = context.taskMetrics().shuffleWriteMetrics
+
+      // A StreamingShuffleHandle (produced only when streaming is active) routes to the streaming
+      // writer.
+      val streamingHandle = manager.registerShuffle(40, newDependency(40, 4))
+      assert(isStreamingHandle(streamingHandle))
+      val streamingWriter =
+        manager.getWriter[Int, Int](streamingHandle, 0L, context, writeMetrics)
+      assert(streamingWriter.isInstanceOf[StreamingShuffleWriter[_, _, _]],
+        "a StreamingShuffleHandle must dispatch to the streaming writer")
+
+      // A non-streaming handle (registered directly on the inner sort manager) is delegated to
+      // the sort writer and is never wrapped as streaming.
+      val sortHandle = manager.innerSortShuffleManager.registerShuffle(41, newDependency(41, 4))
+      assert(!isStreamingHandle(sortHandle))
+      val sortWriter = manager.getWriter[Int, Int](sortHandle, 0L, context, writeMetrics)
+      assert(!sortWriter.isInstanceOf[StreamingShuffleWriter[_, _, _]],
+        "a non-streaming handle must delegate to the inner sort writer")
+    }
+  }
+
+  test("getReader routes a StreamingShuffleHandle to the streaming reader and delegates others") {
+    withManager(confWith(streamingAlias, enabled = true)) { manager =>
+      val context = MemoryTestingUtils.fakeTaskContext(sc.env)
+      val readMetrics = context.taskMetrics().createTempShuffleReadMetrics()
+
+      // A StreamingShuffleHandle routes to the streaming reader (its constructor is light and
+      // does not consult the map-output tracker until read()).
+      val streamingHandle = manager.registerShuffle(42, newDependency(42, 4))
+      val streamingReader =
+        manager.getReader[Int, Int](streamingHandle, 0, 1, 0, 1, context, readMetrics)
+      assert(streamingReader.isInstanceOf[StreamingShuffleReader[_, _]],
+        "a StreamingShuffleHandle must dispatch to the streaming reader")
+
+      // A non-streaming handle delegates to the sort reader. The sort manager's getReader eagerly
+      // resolves map-output locations, so register a single map output for the sort shuffle id.
+      val sortShuffleId = 43
+      val sortHandle = manager.innerSortShuffleManager.registerShuffle(
+        sortShuffleId, newDependency(sortShuffleId, 4))
+      val tracker = sc.env.mapOutputTracker.asInstanceOf[MapOutputTrackerMaster]
+      tracker.registerShuffle(sortShuffleId, numMaps = 1, numReduces = 4)
+      tracker.registerMapOutput(sortShuffleId, mapIndex = 0,
+        MapStatus(BlockManagerId("e0", "host", 1), Array.fill(4)(1L), mapTaskId = 0L))
+      val sortReader =
+        manager.getReader[Int, Int](sortHandle, 0, 1, 0, 1, context, readMetrics)
+      assert(!sortReader.isInstanceOf[StreamingShuffleReader[_, _]])
+      assert(sortReader.isInstanceOf[BlockStoreShuffleReader[_, _]],
+        "a non-streaming handle must delegate to the sort reader (BlockStoreShuffleReader)")
+    }
+  }
+
+  // ------------------------------------------------------------------------------------------
+  // Executor-mode collaborator gating and ordered, idempotent shutdown
+  // ------------------------------------------------------------------------------------------
+
+  test("executor-mode collaborators are gated on and stop() cleans them up idempotently") {
+    // isDriver = false instructs the manager to build the executor-only collaborators: the memory
+    // spill monitor (a daemon poller) and the backpressure RPC endpoint. Both must be present,
+    // and stop() must tear them down without error and be safe to call twice.
+    val manager = new StreamingShuffleManager(
+      confWith(streamingAlias, enabled = true), isDriver = false)
+    try {
+      assert(manager.memorySpillManager.isDefined,
+        "the spill monitor must be created on an executor")
+      assert(manager.backpressureEndpointRef.isDefined,
+        "the backpressure RPC endpoint must be registered on an executor")
+      // The SparkEnv-gated collaborators are present on executors as well.
+      assert(manager.backpressureProtocol.isDefined)
+      assert(manager.fallbackPolicy.isDefined)
+    } finally {
+      // First teardown, then a second one: stop() must be idempotent and never throw.
+      manager.stop()
+      manager.stop()
+    }
+  }
+
+  test("stop() tears down collaborators in Backpressure -> Spill -> Sort -> state order") {
+    // Override the four ordered teardown seams to record their invocation order while still
+    // performing the real teardown (super), proving the documented Backpressure -> Spill -> Sort
+    // -> streaming-state sequence and that stop() is idempotent.
+    val order = ListBuffer.empty[String]
+    val manager = new StreamingShuffleManager(
+        confWith(streamingAlias, enabled = true), isDriver = true) {
+      override protected def stopBackpressureEndpoint(): Unit = {
+        order += "backpressure"
+        super.stopBackpressureEndpoint()
+      }
+      override protected def stopSpillManager(): Unit = {
+        order += "spill"
+        super.stopSpillManager()
+      }
+      override protected def stopInnerSortManager(): Unit = {
+        order += "sort"
+        super.stopInnerSortManager()
+      }
+      override protected def clearStreamingState(): Unit = {
+        order += "state"
+        super.clearStreamingState()
+      }
+    }
+    manager.registerShuffle(44, newDependency(44, 4))
+    assert(manager.registeredStreamingShuffleCount === 1)
+
+    manager.stop()
+    // The four teardown steps run exactly once, in the documented order.
+    assert(order.toSeq === Seq("backpressure", "spill", "sort", "state"))
+    // The real teardown ran (super was called): streaming registrations are cleared.
+    assert(manager.registeredStreamingShuffleCount === 0)
+
+    // stop() is idempotent and re-runs the ordered steps without error.
+    manager.stop()
+    assert(order.toSeq ===
+      Seq("backpressure", "spill", "sort", "state", "backpressure", "spill", "sort", "state"))
   }
 }

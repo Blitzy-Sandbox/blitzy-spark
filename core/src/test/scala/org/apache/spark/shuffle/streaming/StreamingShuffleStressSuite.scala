@@ -46,27 +46,25 @@ import org.apache.spark.util.Utils
  * that even an oversized override cannot push a single test past the budget, and every loop
  * runs at least once so the suite always has real coverage by default.
  *
- * '''Reconciling the soak target with the v1 data plane.''' In this version the streaming
- * on-the-wire data plane is, by design, a logging-only stub (feature F-115): the
- * producer-side [[StreamingShuffleWriter]] buffers, frames, spills, and releases
- * per-partition data, but it does not transmit it, and the consumer-side reader defers to the
- * existing block transfer service that the stub does not feed. Consequently an end-to-end
- * `reduceByKey` cannot round-trip '''through the streaming reader''' in v1. The suite
- * therefore exercises the two halves the v1 implementation can prove correct under sustained
- * load:
+ * '''Soak coverage with the streaming data path ACTIVE.''' In v1 the only documented, intentional
+ * deviation (feature F-115) is the absence of an in-flight Netty '''push''' transport: there is
+ * no mid-task push of in-progress blocks. Data still moves, because the producer-side
+ * [[StreamingShuffleWriter]] frames each per-partition output as CRC32C-protected envelopes and
+ * commits them through the shared `IndexShuffleBlockResolver` at map completion, and the
+ * consumer-side [[StreamingShuffleReader]] fetches those committed blocks over the standard block
+ * transfer service. An end-to-end `reduceByKey` therefore round-trips correctly through the
+ * active streaming path, so this suite stresses both halves with the data path '''active''':
  *
- *  1. '''Correctness + zero data loss under failure injection''' is validated through the
- *     [[StreamingShuffleManager]]'s coexistence guarantee. With
- *     `spark.shuffle.manager=streaming` installed but `spark.shuffle.streaming.enabled=false`,
- *     the manager delegates every shuffle to its composed `SortShuffleManager` -- the AAP's
- *     zero-regression / automatic-fallback path (AAP section 0.2.1.1). A sustained loop of
- *     `reduceByKey` jobs (>= 16 partitions) with roughly 10 percent transient, retried task
- *     faults asserts the correct aggregate on '''every''' iteration.
- *  2. '''No retained heap''' is validated against the streaming '''producer''' path that v1
- *     fully implements. With both flags on (`spark.shuffle.streaming.enabled=true`) the
- *     streaming writer is driven through many allocate / write / spill / stop cycles; after
- *     each cycle the task's memory consumption is asserted to return to zero, so a buffer or
- *     execution-memory leak would surface immediately as monotonic growth.
+ *  1. '''Correctness + zero data loss under failure injection''' is validated with the streaming
+ *     data path ACTIVE (`spark.shuffle.manager=streaming` and `spark.shuffle.streaming.enabled=
+ *     true`). A sustained loop of real `reduceByKey` jobs (>= 16 partitions) injects roughly 10
+ *     percent transient map-task faults; because the job runs on a `local[N, F]` master the
+ *     faulted task is retried and the streaming write recomputed, so every iteration must still
+ *     produce the correct aggregate -- proving zero data loss under sustained streaming retries.
+ *  2. '''No retained heap''' is validated against the streaming '''producer''' path. With both
+ *     flags on the streaming writer is driven through many allocate / write / spill / stop
+ *     cycles; after each cycle the task's memory consumption is asserted to return to zero, so a
+ *     buffer or execution-memory leak would surface immediately as monotonic growth.
  *
  * The choice of a buffer-count / task-memory accessor (rather than a brittle
  * absolute-JVM-memory measurement) follows the AAP's no-leak guidance: in local mode the
@@ -234,19 +232,17 @@ class StreamingShuffleStressSuite extends SparkFunSuite with LocalSparkContext {
   }
 
   test("continuous streaming shuffle with 10% failure injection completes with correct results") {
-    // The StreamingShuffleManager is installed (spark.shuffle.manager=streaming) but the
-    // streaming data path is disabled, so the manager delegates every shuffle to its composed
-    // SortShuffleManager -- the AAP zero-regression / automatic-fallback coexistence path.
-    // This is the route through which v1 guarantees correct end-to-end results, because the
-    // streaming data plane itself is a documented logging-only stub (feature F-115) that
-    // cannot round-trip through the streaming reader. A local[4, 4] master permits the
-    // injected task faults to be retried and recomputed (a plain local[N] master forces
+    // The streaming data path is ACTIVE (spark.shuffle.manager=streaming and
+    // spark.shuffle.streaming.enabled=true), so every reduceByKey in the sustained loop runs a
+    // real streaming shuffle: the writer commits framed per-partition blocks and the reader
+    // fetches and validates them. A local[4, 4] master permits the injected transient map-task
+    // faults to be retried and the streaming write recomputed (a plain local[N] master forces
     // maxFailures=1 and would not retry).
-    sc = new SparkContext(streamingConf("local[4, 4]", enabled = false))
+    sc = new SparkContext(streamingConf("local[4, 4]", enabled = true))
     val manager = streamingManagerOf(sc)
     assert(
-      !manager.isStreamingActive,
-      "streaming must be inactive so the manager delegates correctness to the sort path")
+      manager.isStreamingActive,
+      "both flags must activate the streaming data path for the active stress run")
 
     val deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(effectiveDurationMs)
     var iterations = 0

@@ -19,6 +19,7 @@ package org.apache.spark.shuffle.streaming
 
 import java.io.{ByteArrayOutputStream, IOException}
 import java.nio.ByteBuffer
+import java.util.concurrent.TimeUnit
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.NonFatal
@@ -50,9 +51,11 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  * Concretely, every failure must resolve in exactly one of three loss-free ways:
  *
  *  1. '''Invalidate-and-recompute.''' An in-flight read that cannot complete correctly (a
- *     producer timeout, a checksum mismatch, an abrupt mid-read stream termination, or any
- *     structurally corrupt frame) is invalidated rather than returning truncated or corrupt
- *     data. The reader increments `partialReadInvalidations` and constructs-and-throws a
+ *     producer timeout, an abrupt mid-read stream termination, or any structurally corrupt frame)
+ *     is invalidated rather than returning truncated or corrupt data. A CRC32C checksum mismatch
+ *     is first re-fetched up to a bounded number of retransmission attempts within the producer
+ *     deadline; only if the corruption persists is the read invalidated. On invalidation the
+ *     reader increments `partialReadInvalidations` and constructs-and-throws a
  *     [[org.apache.spark.shuffle.FetchFailedException]] immediately (SPARK-19276), which the
  *     existing DAG scheduler already handles by recomputing the upstream stage -- with no
  *     scheduler modification whatsoever.
@@ -64,13 +67,18 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  *     loss / duplication / reordering, and spilling buffered bytes to disk is byte-for-byte
  *     lossless.
  *
- * '''Determinism / no flakiness.''' Timeouts are injected through the reader's constructor
- * parameters (a 50 ms producer timeout, a single retransmission attempt, a 1 ms backoff) rather
- * than through real wall-clock sleeps, so a "5 s producer timeout" scenario fails fast and
- * deterministically. Spill decisions are driven through the spill manager's synchronous private
- * `pollOnce()` via [[org.scalatest.PrivateMethodTester]] (mirroring `MemorySpillManagerSuite`)
- * rather than its scheduled poll thread. The suite therefore runs well within the
- * `SparkFunSuite` time budget with zero reliance on timing.
+ * '''Determinism / no flakiness.''' Producer deadlines are injected through the reader's
+ * constructor parameters (a small producer timeout, a bounded retransmission attempt count, a
+ * 1 ms backoff) rather than through real wall-clock sleeps, so the "5 s producer timeout"
+ * scenario fails deterministically once its tiny injected deadline expires. That scenario models
+ * a '''silent / unresponsive producer''' (a transport that accepts the fetch but never invokes
+ * the listener), so the reader's bounded await genuinely expires at the injected deadline -- the
+ * real timeout mechanism -- rather than completing through an immediate transport error. Spill
+ * decisions are driven through the spill manager's synchronous private `pollOnce()` via
+ * [[org.scalatest.PrivateMethodTester]] (mirroring `MemorySpillManagerSuite`) rather than its
+ * scheduled poll thread. The single end-to-end recomputation scenario runs a real, deterministic
+ * Spark job whose one-time fetch failure resolves on the retried stage attempt. The suite
+ * therefore runs well within the `SparkFunSuite` time budget with negligible reliance on timing.
  *
  * '''Harness.''' Reader-level scenarios reuse the mock template established by
  * `BlockStoreShuffleReaderSuite`: a mocked [[org.apache.spark.MapOutputTracker]] resolves a
@@ -234,6 +242,19 @@ class StreamingShuffleFailureInjectionSuite
   }
 
   /**
+   * A mocked [[BlockTransferService]] whose `fetchBlocks` accepts the request but '''never'''
+   * invokes the [[BlockFetchingListener]] -- modeling a silent / unresponsive producer. The
+   * reader's bounded await therefore expires at the injected producer deadline (a genuine
+   * timeout) rather than completing through either the success or the failure callback.
+   */
+  private def transferSilent(): BlockTransferService = {
+    val transfer = mock(classOf[BlockTransferService])
+    doAnswer((_: InvocationOnMock) => null)
+      .when(transfer).fetchBlocks(any(), anyInt(), any(), any(), any(), any())
+    transfer
+  }
+
+  /**
    * Build a [[StreamingShuffleReader]] over the supplied transfer service and metrics. The
    * producer timeout, retransmission cap, and backoff are tiny so any transport failure
    * invalidates almost instantly; the credit window is unlimited (a non-positive link capacity)
@@ -279,25 +300,41 @@ class StreamingShuffleFailureInjectionSuite
   // reason, or a lossless round-trip / recompute -- never a silent or truncated result.
   // ===========================================================================================
 
-  // (1) Producer-connection timeout: the transport never yields the block, so after the (tiny,
-  // injected) deadline the reader invalidates and throws rather than returning partial data.
+  // (1) Producer-connection timeout: a SILENT producer accepts the fetch but never delivers the
+  // block (no listener callback at all), so the reader's bounded await expires at the injected
+  // producer deadline and the read is invalidated -- exercising the timeout MECHANISM itself, not
+  // an immediate transport error. A non-trivial deadline (200 ms) lets the test assert that the
+  // read genuinely blocked until the deadline rather than failing instantly.
   test("producer connection timeout (>5s) invalidates and throws FetchFailedException") {
     val metrics = new StreamingShuffleMetrics
     val serializer = newSerializer()
-    val transfer = transferReturning(
-      throw new IOException("simulated producer connection timeout"))
-    val reader = newReader(transfer, metrics, serializer, payloadSize = 64L)
+    val transfer = transferSilent()
+    val timeoutMs = 200L
+    val reader = newReader(
+      transfer, metrics, serializer, payloadSize = 64L, producerTimeoutMs = timeoutMs)
 
     assert(metrics.getPartialReadInvalidations === 0L)
+    val startNs = System.nanoTime()
     intercept[FetchFailedException] {
       reader.read().toList
     }
+    val elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs)
     assert(metrics.getPartialReadInvalidations === 1L,
       "a producer timeout must record exactly one partial-read invalidation")
+    // The invalidation was driven by the deadline-bounded await expiring against a silent
+    // producer, not by an immediate transport failure: at least half the injected deadline must
+    // have elapsed (an immediate error would return in single-digit milliseconds).
+    assert(elapsedMs >= timeoutMs / 2,
+      s"expected the read to block until the ~${timeoutMs}ms producer deadline, but returned " +
+        s"after only ${elapsedMs}ms (did the producer fail immediately instead of timing out?)")
   }
 
   // (2) CRC32C mismatch: a structurally valid frame whose payload was altered after the checksum
-  // was computed fails verification and is invalidated (never retransmitted in v1).
+  // was computed fails verification. The reader re-fetches it up to the bounded retransmission
+  // cap (here a single attempt) within the producer deadline; because this transport returns the
+  // same corrupt frame on every fetch, the corruption persists and the read is invalidated. (The
+  // transient case -- corrupt once, then a clean frame on retransmission succeeds -- is covered
+  // by StreamingShuffleReaderSuite.)
   test("CRC32C checksum mismatch invalidates and throws FetchFailedException") {
     val metrics = new StreamingShuffleMetrics
     val serializer = newSerializer()
@@ -310,7 +347,7 @@ class StreamingShuffleFailureInjectionSuite
       reader.read().toList
     }
     assert(metrics.getPartialReadInvalidations === 1L,
-      "a checksum mismatch must record exactly one partial-read invalidation")
+      "a persistently corrupt block must record exactly one partial-read invalidation")
   }
 
   // (3) Consumer crash mid-read: the fetch succeeds (non-empty buffer) but reading its bytes
@@ -462,12 +499,17 @@ class StreamingShuffleFailureInjectionSuite
       "memory pressure must fall back to sort to avoid an OutOfMemoryError, not lose data")
   }
 
-  // (10) Recoverable via recomputation: the injected failure is the very FetchFailedException
-  // the scheduler already handles (toTaskFailedReason yields FetchFailed), and once the upstream
-  // stage is recomputed a fresh read of the healthy producer returns the complete, correct data.
+  // (10) Recoverable via recomputation (end-to-end, active streaming). Two complementary proofs:
+  // (a) at the reader level, the streaming reader's invalidation surfaces as the very
+  // scheduler-recognized FetchFailed reason; (b) end to end, a REAL reduceByKey shuffle running
+  // with the streaming data path active throws that same FetchFailedException exactly once (on
+  // the first reduce-stage attempt), and the DAG scheduler recomputes the upstream streaming map
+  // stage and retries to completion with the full, correct output -- a genuine scheduler-driven
+  // recovery with zero data loss, requiring no scheduler modification.
   test("end-to-end: an injected fetch failure is recoverable via recomputation") {
     val serializer = newSerializer()
 
+    // (a) Reader level: a streaming-reader failure is the scheduler's FetchFailed reason.
     val failingMetrics = new StreamingShuffleMetrics
     val failingTransfer = transferReturning(
       throw new IOException("injected one-time fetch failure"))
@@ -479,19 +521,43 @@ class StreamingShuffleFailureInjectionSuite
       "the streaming failure must be the scheduler-recognized FetchFailed reason")
     assert(failingMetrics.getPartialReadInvalidations === 1L)
 
-    // After recomputation the producer is healthy; a fresh read returns the complete record set.
-    sc = new SparkContext("local", "streaming-shuffle-recompute", new SparkConf(false))
-    val expected = Seq((1, 10), (2, 20), (3, 30))
-    val healthyMetrics = new StreamingShuffleMetrics
-    val healthyFrame = encodeFrameBytes(serializeRecords(serializer, expected))
-    val healthyTransfer = transferReturning(managedBufferOf(healthyFrame))
-    val healthyReader = newReader(
-      healthyTransfer, healthyMetrics, serializer, payloadSize = healthyFrame.length.toLong,
-      producerTimeoutMs = 30000L)
-    val recovered = healthyReader.read().toList.map(r => (r._1, r._2)).sortBy(_._1)
+    // (b) End to end: a real active-streaming reduceByKey recovers from a one-time fetch failure.
+    val conf = new SparkConf()
+      .setMaster("local[2]")
+      .setAppName("streaming-shuffle-recompute")
+      .set("spark.ui.enabled", "false")
+      .set("spark.shuffle.manager", "streaming")
+      .set("spark.shuffle.streaming.enabled", "true")
+    sc = new SparkContext(conf)
+    assert(sc.env.shuffleManager.asInstanceOf[StreamingShuffleManager].isStreamingActive,
+      "both flags must activate the streaming data path for the end-to-end recovery test")
+
+    val numPartitions = 16
+    val records = (1 to 1000).map(i => (i % numPartitions, i))
+    val expected = records.groupBy(_._1).map { case (k, kvs) => (k, kvs.map(_._2).sum) }
+      .toSeq.sortBy(_._1)
+
+    // On the FIRST reduce-stage attempt (stageAttemptNumber == 0) every reduce task throws the
+    // scheduler-recognized FetchFailedException, forcing the DAG scheduler to recompute the
+    // upstream streaming map stage and retry the reduce stage; the retried attempt passes the
+    // records through unchanged. This is the canonical Spark fetch-failure-recovery injection
+    // (see TaskContextSuite). The local val keeps the closure free of the non-serializable suite.
+    val parts = numPartitions
+    val recovered = sc.parallelize(records, 8)
+      .reduceByKey(_ + _, parts)
+      .mapPartitions { iter =>
+        if (TaskContext.get().stageAttemptNumber() == 0) {
+          throw new FetchFailedException(null, 0, 0L, 0, 0,
+            "injected one-time streaming fetch failure")
+        }
+        iter
+      }
+      .collect()
+      .sortBy(_._1)
+      .toSeq
+
     assert(recovered === expected,
-      "the recomputed read must return the complete, correct records (zero data loss)")
-    assert(healthyMetrics.getPartialReadInvalidations === 0L,
-      "a healthy read must not record any invalidation")
+      "after scheduler recomputation the active streaming shuffle must return the complete, " +
+        "correct output (zero data loss)")
   }
 }

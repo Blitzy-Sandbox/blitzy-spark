@@ -58,19 +58,24 @@ import org.apache.spark.util.collection.ExternalSorter
  * corrupt. Both are unrecoverable for the in-flight read in v1, so this reader '''invalidates'''
  * the partial read rather than ever returning truncated or corrupt data. On a producer-connection
  * timeout (5 s; see [[StreamingShuffleReader.PRODUCER_CONNECTION_TIMEOUT_MS]]) or a CRC32C
- * mismatch that cannot be retransmitted, it (1) discards the partial read, (2) increments
+ * mismatch that persists across retransmission, it (1) discards the partial read, (2) increments
  * `partialReadInvalidations` via [[StreamingShuffleMetrics]], and (3) constructs and throws a
  * [[org.apache.spark.shuffle.FetchFailedException]] '''immediately'''. The
  * `FetchFailedException` constructor records the failure on the [[org.apache.spark.TaskContext]]
  * (SPARK-19276), so it must be thrown the instant it is created; the existing DAG scheduler then
  * recomputes the upstream stage with no scheduler modification whatsoever.
  *
- * '''Bounded retransmission before invalidation.''' Transient transport errors (including a block
- * that is momentarily not yet materialized) are retried with exponential backoff
+ * '''Bounded retransmission before invalidation.''' Both transient transport errors (including a
+ * block that is momentarily not yet materialized) and CRC32C checksum mismatches are
+ * retransmitted -- the block is re-fetched -- with exponential backoff
  * (see [[StreamingShuffleReader.INITIAL_RETRY_BACKOFF_MS]], doubling each attempt, capped at
  * [[StreamingShuffleReader.MAX_RETRANSMIT_ATTEMPTS]] attempts) while the producer-connection
- * deadline has not elapsed. Only after retransmission is exhausted, or the 5 s deadline passes,
- * is the read invalidated.
+ * deadline has not elapsed. A single deadline bounds the whole fetch/validate cycle, so the
+ * retransmission of a corrupt block can never push the total read past the 5 s producer timeout.
+ * Only after retransmission is exhausted, or the deadline passes, is the read invalidated. This
+ * realizes the AAP "validates checksums with retransmission" contract. Structural decode errors
+ * (an out-of-range frame length, a truncated frame, a corrupt envelope) are not retransmittable
+ * and invalidate the read immediately.
  *
  * '''Acknowledgment protocol.''' Each validated block is acknowledged through the shared
  * [[BackpressureProtocol]]: the monotonic acknowledgment high-water mark is advanced, the
@@ -224,10 +229,28 @@ private[spark] class StreamingShuffleReader[K, C](
 
   /**
    * Fetch a single in-progress streaming block, validate its CRC32C, acknowledge it, and return a
-   * deserialization-ready stream over the validated payload. Every failure mode -- producer
-   * timeout, transport error after exhausting retransmission, an I/O error reading the fetched
-   * bytes, or a CRC32C / structural validation failure -- goes through [[invalidateAndThrow]]
-   * so the partial read is discarded and the upstream stage is recomputed (zero data loss).
+   * deserialization-ready stream over the validated payload.
+   *
+   * '''A single producer-connection deadline bounds the whole fetch/validate cycle.''' One loop
+   * owns both kinds of retransmission so neither can push the total read past the 5 s timeout:
+   *   - a '''transient transport failure''' (a stalled/lost producer, a not-yet-materialized
+   *     block, or an I/O error) re-fetches the block, and
+   *   - a '''CRC32C checksum mismatch''' (raised as a [[RetransmittableBlockException]] by
+   *     [[decodeFramesFromBuffer]]) re-fetches a fresh copy of the block,
+   * each with exponential backoff bounded by the time remaining to the deadline. Only after the
+   * attempt budget ([[maxRetransmitAttempts]]) or the deadline is exhausted is the read
+   * invalidated through [[invalidateAndThrow]] (which discards the partial read and lets the DAG
+   * scheduler recompute -- zero data loss). A '''structural''' decode error (an out-of-range
+   * frame length, a truncated frame, a corrupt envelope) is not retransmittable:
+   * `decodeFramesFromBuffer` invalidates it immediately by throwing a
+   * [[org.apache.spark.shuffle.FetchFailedException]], which this loop re-throws without
+   * retrying. Implementing checksum retransmission here realizes the AAP "validates checksums
+   * with retransmission" contract.
+   *
+   * The loop is expressed without an early `return` so it produces no unreachable-code warnings
+   * under the strict `-Wconf:any:e` gate. Each individual fetch is awaited for at most the time
+   * remaining to the deadline (see [[fetchBlockBounded]]); a naive `fetchBlockSync` loop would
+   * await with `Duration.Inf` and a stalled producer would block the reduce thread forever.
    *
    * @param address      producer block-manager id; the fetch source and failure-report location
    * @param blockId      the shuffle block id to fetch
@@ -242,41 +265,11 @@ private[spark] class StreamingShuffleReader[K, C](
       mapIndex: Int,
       expectedSize: Long): InputStream = {
     val (mapId, reduceId) = mapAndReduceId(blockId)
-    val buffer = fetchWithRetry(address, blockId, mapId, mapIndex, reduceId)
-    val payload =
-      decodeFramesFromBuffer(buffer, address, mapId, mapIndex, reduceId, expectedSize)
-    acknowledge(blockId, payload.length)
-    new ByteArrayInputStream(payload)
-  }
-
-  /**
-   * Fetch a single block through the executor's existing block transfer service, polling/retrying
-   * transient transport failures (including a block not yet materialized) with
-   * exponential backoff. The total wait is bounded by [[producerTimeoutMs]]; once the deadline
-   * passes or [[maxRetransmitAttempts]] is reached, the read is invalidated (which throws). The
-   * loop is expressed without an early `return` so it produces no unreachable-code warnings under
-   * the strict `-Wconf:any:e` gate.
-   *
-   * Each individual fetch is awaited for at most the time '''remaining''' to the producer
-   * deadline (see [[fetchBlockBounded]]). This is the difference between this method and a naive
-   * `fetchBlockSync` loop: `fetchBlockSync` awaits with `Duration.Inf`, so a producer that stalls
-   * mid-fetch would block the reduce thread forever and the 5 s deadline check below would never
-   * be reached. By bounding every await, a stalled producer surfaces as a `TimeoutException` and
-   * the partial read is invalidated immediately at the deadline (zero data loss).
-   *
-   * @return the fetched [[ManagedBuffer]] (never null and never empty)
-   */
-  private def fetchWithRetry(
-      address: BlockManagerId,
-      blockId: BlockId,
-      mapId: Long,
-      mapIndex: Int,
-      reduceId: Int): ManagedBuffer = {
     val deadlineNs = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(producerTimeoutMs)
-    var result: ManagedBuffer = null
+    var payload: Array[Byte] = null
     var attempt = 0
     var backoffMs = initialRetryBackoffMs
-    while (result == null) {
+    while (payload == null) {
       // Bound this fetch attempt by the time remaining to the producer deadline so that a
       // stalled producer cannot block the reduce thread past the 5 s timeout (zero data loss).
       val remainingMsForFetch = TimeUnit.NANOSECONDS.toMillis(deadlineNs - System.nanoTime())
@@ -285,16 +278,38 @@ private[spark] class StreamingShuffleReader[K, C](
           s"Producer connection timed out after $attempt attempt(s) / ${producerTimeoutMs}ms " +
             s"fetching in-progress streaming block $blockId (deadline elapsed before fetch)")
       }
+      var buffer: ManagedBuffer = null
       try {
-        val buf = fetchBlockBounded(address, blockId, remainingMsForFetch)
-        if (buf == null || buf.size() <= 0L) {
+        buffer = fetchBlockBounded(address, blockId, remainingMsForFetch)
+        if (buffer == null || buffer.size() <= 0L) {
           // Treat a missing/empty block as "not yet materialized": retry until the deadline.
+          releaseQuietly(buffer)
           throw new IllegalStateException(
             s"Empty buffer received for in-progress streaming block $blockId")
         }
-        result = buf
+        // Decode + CRC32C validate. A checksum mismatch throws RetransmittableBlockException; a
+        // structural error throws FetchFailedException; both paths release the buffer internally.
+        payload =
+          decodeFramesFromBuffer(buffer, address, mapId, mapIndex, reduceId, expectedSize)
       } catch {
+        case ffe: FetchFailedException =>
+          // A non-retransmittable structural decode error (or an inner invalidation) has already
+          // discarded the partial read; never retry it.
+          throw ffe
+        case rbe: RetransmittableBlockException =>
+          // CRC32C mismatch: retransmit (re-fetch a fresh copy) within the producer deadline.
+          attempt += 1
+          val remainingNs = deadlineNs - System.nanoTime()
+          if (attempt >= maxRetransmitAttempts || remainingNs <= 0L) {
+            invalidateAndThrow(address, mapId, mapIndex, reduceId,
+              s"CRC32C checksum mismatch persisted after $attempt retransmission attempt(s) / " +
+                s"${producerTimeoutMs}ms for in-progress streaming block $blockId: " +
+                rbe.getMessage)
+          }
+          backoffMs = sleepWithBackoff(backoffMs, remainingNs)
         case NonFatal(e) =>
+          // Transient transport failure (timeout, not-yet-materialized, I/O): retransmit within
+          // the producer deadline.
           attempt += 1
           val remainingNs = deadlineNs - System.nanoTime()
           if (attempt >= maxRetransmitAttempts || remainingNs <= 0L) {
@@ -303,16 +318,40 @@ private[spark] class StreamingShuffleReader[K, C](
                 s"${producerTimeoutMs}ms fetching in-progress streaming block $blockId",
               e)
           }
-          // Exponential backoff, bounded by the time remaining to the producer deadline.
-          val remainingMs = TimeUnit.NANOSECONDS.toMillis(remainingNs)
-          val sleepMs = math.max(0L, math.min(backoffMs, remainingMs))
-          if (sleepMs > 0L) {
-            sleepBeforeRetry(sleepMs)
-          }
-          backoffMs = backoffMs * 2
+          backoffMs = sleepWithBackoff(backoffMs, remainingNs)
       }
     }
-    result
+    acknowledge(blockId, payload.length)
+    new ByteArrayInputStream(payload)
+  }
+
+  /**
+   * Sleep for the exponential backoff interval (bounded by the time remaining to the producer
+   * deadline) and return the doubled interval for the next retransmission. Factored out so both
+   * the transport-retry and checksum-retransmission branches share identical backoff behavior.
+   *
+   * @param backoffMs   the current backoff interval, in milliseconds
+   * @param remainingNs the nanoseconds remaining to the producer-connection deadline
+   * @return the backoff interval to use for the next attempt (doubled)
+   */
+  private def sleepWithBackoff(backoffMs: Long, remainingNs: Long): Long = {
+    val remainingMs = TimeUnit.NANOSECONDS.toMillis(remainingNs)
+    val sleepMs = math.max(0L, math.min(backoffMs, remainingMs))
+    if (sleepMs > 0L) {
+      sleepBeforeRetry(sleepMs)
+    }
+    backoffMs * 2
+  }
+
+  /** Release a transport buffer, swallowing any release error (used on the empty-buffer path). */
+  private def releaseQuietly(buffer: ManagedBuffer): Unit = {
+    if (buffer != null) {
+      try {
+        buffer.release()
+      } catch {
+        case NonFatal(_) =>
+      }
+    }
   }
 
   /**
@@ -325,7 +364,7 @@ private[spark] class StreamingShuffleReader[K, C](
    * [[NioManagedBuffer]]) so it survives after the asynchronous network callback returns.
    *
    * A finite-duration `awaitResult` throws an unwrapped `TimeoutException` (it is `NonFatal`),
-   * which the [[fetchWithRetry]] loop converts into a deadline check and, ultimately, an
+   * which the [[fetchValidateAndAck]] loop converts into a deadline check and, ultimately, an
    * invalidation. The fetch is issued through the existing transfer service rather than a new
    * transport, consistent with the v1 logging-only data-plane stub (feature F-115).
    *
@@ -378,8 +417,12 @@ private[spark] class StreamingShuffleReader[K, C](
    * cannot force an unbounded allocation: the largest single allocation is one header plus one
    * `<= 2 MiB` frame. An upfront budget guard additionally rejects a fetched block whose
    * transport size grossly exceeds the size the producer published for this partition, before any
-   * byte is touched. Any structural decode error or checksum mismatch invalidates the read (which
-   * throws); a mismatch is not retransmitted in v1 (see decision log D-5).
+   * byte is touched. A '''structural''' decode error (over-budget buffer, truncated/corrupt
+   * header, out-of-range payload length, truncated payload, undecodable envelope) is not
+   * retransmittable and invalidates the read immediately via [[invalidateAndThrow]]. A '''CRC32C
+   * checksum mismatch''', by contrast, throws a [[RetransmittableBlockException]] so the caller's
+   * fetch loop can re-fetch a fresh copy within the producer-connection deadline (bounded
+   * retransmission); only a mismatch that persists across retransmission invalidates the read.
    */
   private def decodeFramesFromBuffer(
       buffer: ManagedBuffer,
@@ -471,7 +514,9 @@ private[spark] class StreamingShuffleReader[K, C](
                     s"reduce $reduceId): ${e.getMessage}", e)
             }
           if (!envelope.verifyChecksum()) {
-            invalidateAndThrow(address, mapId, mapIndex, reduceId,
+            // Retransmittable: a corrupt copy may be re-fetched cleanly within the producer
+            // deadline. The buffer is released by this method's `finally`; the caller re-fetches.
+            throw new RetransmittableBlockException(
               s"CRC32C checksum mismatch for streaming block (shuffle $shuffleId, map $mapId, " +
                 s"reduce $reduceId, ${envelope.payloadLength} payload bytes)")
           }
@@ -574,6 +619,16 @@ private[spark] class StreamingShuffleReader[K, C](
         Thread.currentThread().interrupt()
     }
   }
+
+  /**
+   * Internal control signal raised by [[decodeFramesFromBuffer]] when a fetched frame fails its
+   * CRC32C check. Unlike a structural decode error, a checksum mismatch is '''retransmittable''':
+   * the [[fetchValidateAndAck]] loop catches this, re-fetches a fresh copy of the block within
+   * the producer-connection deadline, and invalidates the read only once retransmission is spent.
+   * It never escapes the reader (it is always either retried or converted to a
+   * [[org.apache.spark.shuffle.FetchFailedException]]).
+   */
+  private class RetransmittableBlockException(message: String) extends Exception(message)
 
 }
 
