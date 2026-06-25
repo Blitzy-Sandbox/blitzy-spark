@@ -1747,6 +1747,50 @@ package object config {
       .stringConf
       .createWithDefault("sort")
 
+  private[spark] val STREAMING_SHUFFLE_ENABLED =
+    ConfigBuilder("spark.shuffle.streaming.enabled")
+      .doc("When true, enables the opt-in streaming shuffle data path. Streaming shuffle " +
+        "engages only when spark.shuffle.manager is also set to streaming. Defaults to " +
+        "false, in which case the sort-based shuffle manager is used.")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
+  private[spark] val STREAMING_SHUFFLE_BUFFER_SIZE_PERCENT =
+    ConfigBuilder("spark.shuffle.streaming.bufferSizePercent")
+      .doc("Percentage of executor memory used for streaming shuffle per-partition " +
+        "buffers. Must be in the range [1, 50].")
+      .version("4.2.0")
+      .intConf
+      .checkValue(v => v >= 1 && v <= 50,
+        "spark.shuffle.streaming.bufferSizePercent must be in [1, 50]")
+      .createWithDefault(20)
+
+  private[spark] val STREAMING_SHUFFLE_SPILL_THRESHOLD =
+    ConfigBuilder("spark.shuffle.streaming.spillThreshold")
+      .doc("Percentage of buffer utilization that triggers a spill to disk. " +
+        "Must be in the range [50, 95].")
+      .version("4.2.0")
+      .intConf
+      .checkValue(v => v >= 50 && v <= 95,
+        "spark.shuffle.streaming.spillThreshold must be in [50, 95]")
+      .createWithDefault(80)
+
+  private[spark] val STREAMING_SHUFFLE_MAX_BANDWIDTH_MBPS =
+    ConfigBuilder("spark.shuffle.streaming.maxBandwidthMBps")
+      .doc("Per-executor streaming shuffle bandwidth limit in MB/s. A value of 0 means " +
+        "unlimited.")
+      .version("4.2.0")
+      .intConf
+      .createWithDefault(0)
+
+  private[spark] val STREAMING_SHUFFLE_DEBUG =
+    ConfigBuilder("spark.shuffle.streaming.debug")
+      .doc("When true, enables verbose debug logging for the streaming shuffle subsystem.")
+      .version("4.2.0")
+      .booleanConf
+      .createWithDefault(false)
+
   private[spark] val SHUFFLE_REDUCE_LOCALITY_ENABLE =
     ConfigBuilder("spark.shuffle.reduceLocality.enabled")
       .doc("Whether to compute locality preferences for reduce tasks")

@@ -1,0 +1,63 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#  syntax: [instance].sink|source.[name].[options]=[value]
+#
+#  This template shows how to surface the Streaming Shuffle subsystem's metrics
+#  through Spark's existing metrics system. It is a TEMPLATE: every real entry
+#  below is commented out, so this file activates nothing by default. To use it,
+#  copy the relevant lines into the file referenced by spark.metrics.conf
+#  (for example $SPARK_HOME/conf/metrics.properties) and uncomment them.
+#
+#  Streaming shuffle runs on executors and is opt-in: it engages only when BOTH
+#    spark.shuffle.manager=streaming  AND  spark.shuffle.streaming.enabled=true
+#  Otherwise the default sort-based shuffle is used and these metrics are absent.
+#
+#  Source (auto-registered; no configuration line required):
+#    When streaming shuffle is active, StreamingShuffleManager programmatically
+#    registers a metrics source named "streamingShuffle" with the executor
+#    MetricsSystem. You do NOT need an "*.source.*.class" entry for it. Its four
+#    metrics are published under the "shuffle.streaming." namespace:
+#
+#      shuffle.streaming.bufferUtilizationPercent   (gauge)   - current buffer fill level (percent)
+#      shuffle.streaming.spillCount                 (counter) - number of disk spill events
+#      shuffle.streaming.backpressureEvents         (counter) - number of backpressure activations
+#      shuffle.streaming.partialReadInvalidations   (counter) - partial reads invalidated on producer failure
+#
+#    The corresponding JMX ObjectName follows Spark's standard convention:
+#      metrics:name=<application-id>.<executor-id>.streamingShuffle.shuffle.streaming.<metric>
+#
+#  Sinks (reused; no new dependencies). All examples below are scoped to the
+#  "executor" instance and are commented out by default.
+#
+#  Enable the JMX sink on executors (inspect via JConsole / VisualVM):
+#executor.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
+#
+#  Enable the Prometheus servlet sink on executors (scrape /metrics/prometheus):
+#executor.sink.prometheusServlet.class=org.apache.spark.metrics.sink.PrometheusServlet
+#executor.sink.prometheusServlet.path=/metrics/prometheus
+#
+#  Enable the CSV sink on executors:
+#executor.sink.csv.class=org.apache.spark.metrics.sink.CsvSink
+#executor.sink.csv.period=10
+#executor.sink.csv.unit=seconds
+#executor.sink.csv.directory=/tmp/spark-streaming-shuffle-metrics
+#
+#  Enable the Slf4j sink on executors:
+#executor.sink.slf4j.class=org.apache.spark.metrics.sink.Slf4jSink
+#executor.sink.slf4j.period=10
+#executor.sink.slf4j.unit=seconds
