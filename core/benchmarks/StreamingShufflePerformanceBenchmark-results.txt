@@ -1,0 +1,12 @@
+================================================================================================
+Streaming Shuffle Performance
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+shuffle latency: streaming vs sort:       Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort shuffle                                       2480           2502          21          4.0         248.0       1.0X
+streaming shuffle                                  1490           1505          15          6.7         149.0       1.7X
+
+
