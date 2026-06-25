@@ -39,12 +39,15 @@ import org.apache.spark.internal.Logging
  *     loop can observe buffer state cheaply without contending on the producer's write path.
  *
  * '''Concurrency model.''' The underlying `ByteArrayOutputStream` and `CRC32C` are not
- * thread-safe, and the spill manager may snapshot a buffer (via [[toBytes]] / [[checksum]])
- * concurrently with the producer appending to it. All mutation and snapshotting of those two
- * structures is therefore guarded by a single private monitor, guaranteeing that a spill snapshot
- * is internally consistent: the bytes returned by [[toBytes]] and the value reported by
- * [[checksum]] always reflect the same prefix of appended data. The [[size]], [[lastAccess]] and
- * spilled flag are backed by atomics and can be read without acquiring the monitor.
+ * thread-safe, and the spill manager may read a buffer concurrently with the producer appending
+ * to it. All mutation and reading of those two structures is guarded by a single private monitor.
+ * Each of [[toBytes]] and [[checksum]] is individually consistent, but they are two independent
+ * locked operations: a producer append can occur between a [[toBytes]] call and a [[checksum]]
+ * call, so the two results can describe different prefixes of the data. Callers that need a
+ * mutually consistent bytes+checksum pair (spill and transport) MUST use [[snapshot]], which
+ * captures the bytes, checksum, size and access timestamp under a single monitor acquisition. The
+ * [[size]], [[lastAccess]] and spilled flag are backed by atomics and can be read without the
+ * monitor.
  *
  * '''Block sizing.''' The 2 MB canonical streaming block size is enforced by the WRITER, not by
  * this buffer. This class simply accumulates bytes and reports its [[size]] so that the writer
@@ -104,21 +107,45 @@ private[spark] class StreamingBuffer(
   def size: Long = bytesWritten.get()
 
   /**
-   * The CRC32C checksum of all bytes appended so far. Computed under [[lock]] so the returned
-   * value is consistent with a concurrent [[toBytes]] snapshot.
+   * The CRC32C checksum of all bytes appended so far, computed under [[lock]]. This is an
+   * independent locked read; to obtain a checksum that is mutually consistent with the buffer's
+   * bytes, use [[snapshot]] rather than pairing this call with [[toBytes]].
    */
   def checksum: Long = lock.synchronized {
     crc.getValue()
   }
 
   /**
-   * Return a defensive copy of the bytes accumulated so far and refresh the LRU access timestamp.
-   * The snapshot is taken under [[lock]] so it is internally consistent with [[checksum]].
+   * Return a defensive copy of the bytes accumulated so far and refresh the LRU access timestamp,
+   * taken under [[lock]]. This is an independent locked read; to obtain bytes that are mutually
+   * consistent with their checksum, use [[snapshot]] rather than pairing this call with
+   * [[checksum]].
    */
   def toBytes: Array[Byte] = lock.synchronized {
-    val snapshot = baos.toByteArray()
+    val bytes = baos.toByteArray()
     lastAccessNanos.set(System.nanoTime())
-    snapshot
+    bytes
+  }
+
+  /**
+   * Atomically capture the buffer's current contents and integrity metadata as a single,
+   * internally consistent [[StreamingBuffer.BufferSnapshot]]. The defensive byte copy and the
+   * CRC32C checksum are produced inside one [[lock]] acquisition, so the returned `bytes` and
+   * `checksum` always describe the same prefix of appended data even if a producer appends
+   * concurrently. Spill and transport callers that need both the bytes and the checksum MUST use
+   * this method instead of calling [[toBytes]] and [[checksum]] separately, which are two
+   * independent locked operations and can therefore observe different prefixes across the two
+   * calls. Also refreshes the LRU access timestamp.
+   */
+  def snapshot(): StreamingBuffer.BufferSnapshot = lock.synchronized {
+    val bytes = baos.toByteArray()
+    val now = System.nanoTime()
+    lastAccessNanos.set(now)
+    StreamingBuffer.BufferSnapshot(
+      bytes = bytes,
+      checksum = crc.getValue(),
+      size = bytesWritten.get(),
+      lastAccess = now)
   }
 
   /** Timestamp (`System.nanoTime`) of the most recent read or write, for LRU ordering. */
@@ -147,4 +174,24 @@ private[spark] class StreamingBuffer(
     }
     logTrace(s"StreamingBuffer(partition=$partitionId) reset for reuse")
   }
+}
+
+private[spark] object StreamingBuffer {
+
+  /**
+   * An internally consistent, point-in-time view of a [[StreamingBuffer]], produced atomically by
+   * [[StreamingBuffer.snapshot]] under the buffer's monitor. Because all four fields are captured
+   * in a single locked operation, `bytes` and `checksum` are guaranteed to describe the same
+   * prefix of appended data.
+   *
+   * @param bytes      defensive copy of the bytes accumulated at snapshot time
+   * @param checksum   CRC32C computed over exactly `bytes`
+   * @param size       number of bytes appended at snapshot time (equal to `bytes.length`)
+   * @param lastAccess `System.nanoTime` LRU timestamp recorded at snapshot time
+   */
+  case class BufferSnapshot(
+      bytes: Array[Byte],
+      checksum: Long,
+      size: Long,
+      lastAccess: Long)
 }

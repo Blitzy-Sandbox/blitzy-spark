@@ -20,5 +20,3 @@ Shuffle read (256MB, 200 partitions):     Best Time(ms)   Avg Time(ms)   Stdev(m
 ------------------------------------------------------------------------------------------------------------------------
 sort shuffle reader                                2140           2161          18          4.7         214.0       1.0X
 streaming shuffle reader                           1180           1192          11          8.5         118.0       1.8X
-
-

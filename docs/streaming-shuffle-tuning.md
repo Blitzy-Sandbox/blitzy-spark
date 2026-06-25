@@ -51,8 +51,9 @@ The streaming shuffle exposes three tuning knobs. Each takes effect at applicati
   <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
   <td>0</td>
   <td>
-    Per-executor streaming bandwidth limit in MB/s; <code>0</code> means unlimited. The effective
-    rate is always capped at 80% of link capacity regardless of the configured value.
+    Per-executor streaming bandwidth limit in MB/s. The default <code>0</code> (any non-positive
+    value) means unlimited: the rate limiter is disabled and no 80% cap is applied. When set to a
+    positive value, the effective send rate is capped at 80% of that configured value.
   </td>
   <td>4.2.0</td>
 </tr>
@@ -93,11 +94,11 @@ spark-submit \
 
 ## Bandwidth Limiting (maxBandwidthMBps)
 
-`spark.shuffle.streaming.maxBandwidthMBps` sets a per-executor limit, in MB/s, on the rate at which streaming data is sent. It defaults to `0`, which means unlimited. The limit is enforced by a token-bucket rate limiter in which one permit corresponds to one byte.
+`spark.shuffle.streaming.maxBandwidthMBps` sets a per-executor limit, in MB/s, on the rate at which streaming data is sent. It defaults to `0`, which means unlimited: at `0` (or any non-positive value) the rate limiter is disabled entirely and no cap is applied. When you set a positive value, that limit is enforced by a token-bucket rate limiter in which one permit corresponds to one byte.
 
-**The 80% bandwidth cap.** Even when you configure an explicit limit, the *effective* streaming rate is capped at 80% of the link capacity. This headroom is deliberately reserved for control traffic (heartbeats and acknowledgments) and for other workloads sharing the link, and it prevents the streaming path from saturating the network. Sustained network saturation above 90% link utilization is one of the conditions that triggers an automatic fallback to the sort-based shuffle, so the 80% cap helps keep the streaming path inside its safe operating envelope.
+**The 80% bandwidth cap.** The cap applies only when you configure a positive limit: the *effective* streaming rate is then 80% of the value you set (for example, `maxBandwidthMBps=500` yields an effective limit of 400 MB/s). This headroom is deliberately reserved for control traffic (heartbeats and acknowledgments) and for other workloads sharing the link, and it prevents the streaming path from saturating the network. When the value is left at the default of `0` (unlimited), the limiter is disabled and **no** 80% cap is applied, so set a positive value whenever you need an 80%-capped effective limit. Independently of this limiter, sustained network saturation above 90% link utilization is one of the conditions that triggers an automatic fallback to the sort-based shuffle.
 
-On shared clusters, set an explicit limit to prevent a single application from saturating the network and starving co-located jobs. On dedicated links, you can leave the value at `0` (unlimited) and rely on the built-in 80% cap.
+On shared clusters, set an explicit positive limit to prevent a single application from saturating the network and starving co-located jobs; the effective rate will be 80% of the value you configure. On dedicated links, you can leave the value at `0` (unlimited), which disables the limiter entirely — note that no 80% cap is applied in that case.
 
 ```bash
 # Cap streaming shuffle bandwidth at 500 MB/s per executor

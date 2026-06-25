@@ -21,47 +21,53 @@ import java.util.concurrent.ConcurrentHashMap
 
 import scala.jdk.CollectionConverters._
 
-import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.buffer.ManagedBuffer
 import org.apache.spark.network.client.StreamCallbackWithID
 import org.apache.spark.network.shuffle.MergedBlockMeta
 import org.apache.spark.serializer.SerializerManager
-import org.apache.spark.shuffle.{IndexShuffleBlockResolver, MigratableResolver, ShuffleBlockInfo, ShuffleBlockResolver}
+import org.apache.spark.shuffle.{IndexShuffleBlockResolver, MigratableResolver, ShuffleBlockInfo,
+  ShuffleBlockResolver}
 import org.apache.spark.storage.{BlockId, ShuffleBlockId, ShuffleMergedBlockId}
 
 /**
  * A [[ShuffleBlockResolver]] for the streaming shuffle path (feature F-105).
  *
- * The resolver has two clearly separated responsibilities:
+ * Two responsibilities:
  *
- *  1. '''Streaming block index.''' It maintains an in-memory, three-level index of the streaming
- *     shuffle blocks currently being produced/consumed on this executor. The index is keyed
- *     `shuffleId -> mapId -> partitionId` and yields a `StreamingBlockMetadata` value describing
- *     the block's byte range, CRC32C checksum and current location (in memory or spilled to
- *     disk). The streaming writer (F-103) registers blocks as their per-partition buffers become
- *     available, the streaming reader (F-104) looks them up while streaming, and the memory spill
- *     manager (F-109) flips a block to the spilled state when it reclaims heap. All three
- *     collaborators mutate the index exclusively through the register / lookup / mark-spilled /
- *     remove operations exposed below, all of which are thread-safe.
+ *  1. '''Streaming block index.''' Maintains an in-memory, three-level index of the streaming
+ *     shuffle blocks on this executor, keyed `shuffleId -> mapId -> partitionId` and yielding a
+ *     `StreamingBlockMetadata` value (byte range, CRC32C checksum, in-memory/spilled location).
+ *     The writer (F-103) registers blocks, the reader (F-104) looks them up, and the spill
+ *     manager (F-109) marks them spilled, all through the thread-safe register / lookup /
+ *     mark-spilled / remove operations below.
  *
- *  2. '''Migration by delegation.''' It PRESERVES the existing block-migration and decommission
- *     behaviour by composing an [[IndexShuffleBlockResolver]] and forwarding every
- *     [[MigratableResolver]] method to it verbatim. The streaming subsystem intentionally
- *     introduces no new migration semantics, so decommission / migration continues to behave
- *     exactly as it does for the sort-based shuffle. This delegation is the explicit
- *     zero-regression guarantee of the streaming feature and must not be reimplemented.
+ *  2. '''Migration by delegation.''' Every [[ShuffleBlockResolver]] data method and every
+ *     [[MigratableResolver]] method is forwarded verbatim to the shared `indexResolver`.
  *
- * Resolution order for [[getBlockData]] is: serve an in-memory streaming block directly when one
- * is registered for the requested [[ShuffleBlockId]]; otherwise (unknown block, spilled block, or
- * any non per-partition block id) delegate to the composed [[IndexShuffleBlockResolver]], which
- * reads the materialized sort-based index/data files.
+ * Resolution order for [[getBlockData]]: serve an in-memory streaming block directly when one is
+ * registered for the requested [[ShuffleBlockId]]; otherwise (unknown block, spilled block, or
+ * any non per-partition block id) delegate to `indexResolver`.
  *
- * The class is `private[spark]` and therefore introduces no new public binary-compatible API.
+ * `indexResolver` is the same [[IndexShuffleBlockResolver]] instance owned by the inner
+ * [[org.apache.spark.shuffle.sort.SortShuffleManager]] (injected at construction, not separately
+ * constructed), so migration/decommission state is shared rather than split. The
+ * `StreamingShuffleManager` exposes that shared `indexResolver` as its
+ * [[org.apache.spark.shuffle.ShuffleManager#shuffleBlockResolver]], so Spark internals that cast
+ * `ShuffleManager.shuffleBlockResolver` to [[IndexShuffleBlockResolver]] (for example
+ * `BlockManager`'s shuffle-corruption diagnosis) continue to work; this resolver is an internal
+ * collaborator for the in-memory streaming index and is not itself returned from
+ * `ShuffleManager.shuffleBlockResolver`. The shared `indexResolver`'s lifecycle is owned by the
+ * inner `SortShuffleManager`, so [[stop]] does not stop it.
  *
- * @param conf the active [[SparkConf]]; forwarded to the composed [[IndexShuffleBlockResolver]].
+ * The class is `private[spark]` and introduces no new public binary-compatible API.
+ *
+ * @param indexResolver the shared [[IndexShuffleBlockResolver]] owned by the inner
+ *                       `SortShuffleManager`; used for migration delegation and for resolving
+ *                       materialized (sort-based) shuffle blocks.
  */
-private[spark] class StreamingShuffleBlockResolver(conf: SparkConf)
+private[spark] class StreamingShuffleBlockResolver(
+    val indexResolver: IndexShuffleBlockResolver)
   extends ShuffleBlockResolver with Logging with MigratableResolver {
 
   import StreamingShuffleBlockResolver._
@@ -69,13 +75,6 @@ private[spark] class StreamingShuffleBlockResolver(conf: SparkConf)
   // Internal type aliases for the nested concurrent index, keeping signatures readable.
   private type PartitionIndex = ConcurrentHashMap[Int, StreamingBlockMetadata]
   private type MapIndex = ConcurrentHashMap[Long, PartitionIndex]
-
-  /**
-   * Delegate used for block migration / decommission and for resolving any materialized
-   * (sort-based) shuffle block. Constructed eagerly; its `BlockManager` dependency is resolved
-   * lazily on first use, so building it here is safe even before `SparkEnv` is fully initialized.
-   */
-  private val indexResolver = new IndexShuffleBlockResolver(conf)
 
   /**
    * Three-level streaming block index: `shuffleId -> (mapId -> (partitionId -> metadata))`.
@@ -288,11 +287,13 @@ private[spark] class StreamingShuffleBlockResolver(conf: SparkConf)
   // Lifecycle.
   // ---------------------------------------------------------------------------------------------
 
-  /** Stop the composed delegate and release all streaming-index state. */
+  /**
+   * Release the streaming-index state. The shared `indexResolver` is owned by the inner
+   * `SortShuffleManager`, which stops it; this resolver therefore does not stop it here.
+   */
   override def stop(): Unit = {
     val cleared = numStreamingBlocks
     blockIndex.clear()
-    indexResolver.stop()
     logInfo(s"Stopped StreamingShuffleBlockResolver; cleared $cleared streaming block(s)")
   }
 }

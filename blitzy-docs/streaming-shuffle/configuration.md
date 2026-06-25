@@ -22,7 +22,7 @@ Streaming shuffle engages **only when both** of the following are set:
 - `spark.shuffle.manager=streaming`, **and**
 - `spark.shuffle.streaming.enabled=true`.
 
-If either flag is absent (or set to any other value), the inner `SortShuffleManager` handles **all** shuffle and behavior is identical to a stock Spark deployment. The `streaming` selector resolves to `StreamingShuffleManager`, which composes — and falls back to — an inner `SortShuffleManager`; see [architecture.md](architecture.md) for how that composition and fallback work.
+If either flag is absent (or set to any other value), the inner `SortShuffleManager` handles **all** shuffle and behavior is identical to a stock Spark deployment. The `streaming` selector resolves to `StreamingShuffleManager`, which composes — and falls back to — an inner `SortShuffleManager`.
 
 Key guarantees for this configuration surface:
 
@@ -59,7 +59,4 @@ Both forms set the dual-flag activation contract; the remaining keys fall back t
 
 ## See also
 
-- [index.md](index.md) — streaming shuffle documentation landing page.
-- [architecture.md](architecture.md) — component model, dispatch, and the inner `SortShuffleManager` fallback.
-- [observability.md](observability.md) — metrics, MDC correlation fields, and dashboards.
-- [decision-log.md](decision-log.md) — architecture decisions and the requirement-to-source-to-test traceability matrix.
+Companion streaming-shuffle TechDocs — the documentation landing page, the architecture overview, the observability reference, and the decision log — are published in later checkpoints. Until they exist, this page is the authoritative reference for the streaming configuration surface.

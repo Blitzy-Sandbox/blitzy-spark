@@ -39,6 +39,13 @@ private[spark] case class StreamingBlockEnvelope(
     payload: Array[Byte],
     checksum: Int) {
 
+  // Enforce the payload invariant for every construction path, including direct construction of
+  // the case class. (encode/decode validate too, but the constructor is the authoritative guard.)
+  require(payload != null, "payload must not be null")
+  require(
+    payload.length <= StreamingBlockEnvelope.MAX_PAYLOAD_SIZE,
+    s"payload ${payload.length} exceeds max ${StreamingBlockEnvelope.MAX_PAYLOAD_SIZE}")
+
   /**
    * Recomputes the CRC32C over `payload` and compares it to the stored `checksum`.
    *

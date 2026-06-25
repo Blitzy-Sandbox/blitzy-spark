@@ -40,6 +40,7 @@ jquery.cookies.2.2.0.min.js
 jquery.dataTables.min.css
 jquery.dataTables.min.js
 jquery.mustache.js
+StreamingShuffleBenchmark-results.txt
 .*\.avsc
 .*\.txt
 .*\.json
