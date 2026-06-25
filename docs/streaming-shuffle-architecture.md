@@ -22,10 +22,15 @@ license: |
 * Table of contents
 {:toc}
 
-Streaming Shuffle is an **opt-in, pluggable** shuffle subsystem that streams shuffle data
-directly from producer (map) tasks to consumer (reduce) tasks through bounded in-memory buffers
-governed by a backpressure protocol, eliminating the write-to-disk-then-fetch materialization
-barrier of the default sort-based shuffle. Its goal is a **30–50% end-to-end latency
+Streaming Shuffle is an **opt-in, pluggable** shuffle subsystem whose goal is to move shuffle
+data from producer (map) tasks to consumer (reduce) tasks through bounded in-memory buffers
+governed by a backpressure protocol, minimizing the write-to-disk-then-fetch materialization
+cost of the default sort-based shuffle. In its v1 form (detailed in [Overview](#overview) and the
+[Producer-to-Consumer Data Flow](#producer-to-consumer-data-flow)), the producer holds output in
+those buffers — spilling to disk only under memory pressure — and, at task commit, **frames and
+publishes** each partition to a single shuffle file through the shared `IndexShuffleBlockResolver`;
+the consumer then fetches that published output over Spark's existing map-output path
+(`MapOutputTracker` + `BlockTransferService`). It targets a **30–50% end-to-end latency
 reduction** for shuffle-heavy workloads, with **zero regression** and **zero data loss**
 guaranteed by automatic graceful degradation back to the sort-based shuffle. The feature is
 delivered as a new `ShuffleManager` Service Provider Interface (SPI) implementation that
@@ -41,11 +46,18 @@ disk**, and only then can reduce tasks fetch it over the network. This write-the
 is a hard materialization barrier: the entire map stage must finish writing before the reduce
 stage can begin reading, which adds latency that dominates short, shuffle-heavy stages.
 
-Streaming Shuffle removes that barrier. Instead of writing to disk and waiting, the producer
-pipelines records through **per-partition in-memory buffers** toward the consumers as they are
-produced, using **backpressure-based flow control** to keep fast producers from overwhelming
-slower consumers. Data is spilled to disk **only under memory pressure** rather than on every
-shuffle, so the common case never touches the disk-materialization path. By default, these buffers are capped at 20% of executor memory in aggregate and begin spilling to disk at 80% utilization.
+Streaming Shuffle attacks that barrier. Instead of sorting and spilling every record to disk as
+it is produced, the producer accumulates output in **per-partition in-memory buffers**, using
+**backpressure-based flow control** to keep fast producers from overwhelming slower consumers, and
+spills to disk **only under memory pressure** rather than on every shuffle. At task commit it
+frames each partition's buffered (and any spilled) bytes into self-describing envelopes and
+**publishes them to a single shuffle file through the shared `IndexShuffleBlockResolver`**, so the
+output is fetchable over Spark's standard map-output path. The reduce side then fetches those
+published blocks through `MapOutputTracker` and `BlockTransferService` — exactly as the sort path
+does — rather than receiving a live socket stream: the dedicated network data-plane is deferred,
+and the v1 transport (`StreamingShuffleTransport`) is a **logging-only stub**. By default, these
+buffers are capped at 20% of executor memory in aggregate and begin spilling to disk at 80%
+utilization.
 
 The subsystem is strictly **opt-in** and is gated by a **dual-flag activation contract**. It
 engages only when **both** of the following are set:
@@ -141,50 +153,34 @@ The change is additive at the SPI boundary only. The following surfaces form a s
 * `ShuffleExchangeExec`, and
 * all Adaptive Query Execution (AQE) rules.
 
-The *Streaming Shuffle SPI Coexistence* diagram below shows how the new manager plugs into the
-unchanged dispatch boundary and coexists with the sort path.
+**Diagram 0.2-A — Streaming Shuffle SPI Coexistence Topology** below shows how the new manager
+plugs into the unchanged dispatch boundary and coexists with the sort path. It mirrors the
+canonical, rendered diagram in the companion TechDocs
+([`blitzy-docs/streaming-shuffle/architecture.md`](https://github.com/apache/spark/blob/master/blitzy-docs/streaming-shuffle/architecture.md)).
 
-```text
-                          Streaming Shuffle SPI Coexistence
-
-    +-----------------------------------------------------------------+
-    |  User Code  (RDD / DataFrame / SQL)                  UNCHANGED  |
-    +-----------------------------------------------------------------+
-                                   |
-                                   v
-    +-----------------------------------------------------------------+
-    |  ShuffleExchangeExec  +  Adaptive Query Execution    UNCHANGED  |
-    +-----------------------------------------------------------------+
-                                   |
-                                   v
-    +-----------------------------------------------------------------+
-    |  SparkEnv bootstrap  ->  ShuffleManager.create (reflective)     |
-    |                                                      UNCHANGED  |
-    +-----------------------------------------------------------------+
-                                   |
-                                   v
-    +-----------------------------------------------------------------+
-    |  spark.shuffle.manager  short-name alias map                    |
-    |  "sort"  /  "tungsten-sort"  /  "streaming" (NEW)               |
-    +-----------------------------------------------------------------+
-             |                                            |
-     "sort" / "tungsten-sort"                     "streaming" (NEW)
-             |                                            |
-             v                                            v
-    +------------------------+            +-------------------------------+
-    |  SortShuffleManager    |  delegate  |  StreamingShuffleManager      |
-    |  (default + fallback)  | <......... |  (NEW; holds an inner         |
-    |                        |  fallback  |   SortShuffleManager)         |
-    +------------------------+            +-------------------------------+
-             |                                            |
-             |  block index                               |  block migration
-             v                                            v
-    +-----------------------------------------------------------------+
-    |  IndexShuffleBlockResolver  (shared by both managers)           |
-    +-----------------------------------------------------------------+
-
-Legend: solid arrows ( | v -> ) = active dispatch path;  dashed arrow ( <... ) = delegation / fallback.
+```mermaid
+flowchart TB
+    title["Diagram 0.2-A: Streaming Shuffle SPI Coexistence Topology"]
+    UserCode["User Code (RDD / DataFrame / SQL)<br/>UNCHANGED"]
+    Exchange["ShuffleExchangeExec + AQE rules<br/>UNCHANGED (Tech Spec 5.2.4)"]
+    SparkEnvBoot["SparkEnv bootstrap<br/>ShuffleManager.create (reflective, L226)<br/>UNCHANGED"]
+    Factory{"shortShuffleMgrNames alias map<br/>ShuffleManager.scala L112-L114<br/>MODIFY: add 'streaming'"}
+    Sort["SortShuffleManager<br/>(default + fallback)<br/>UNCHANGED"]
+    Streaming["StreamingShuffleManager (F-101)<br/>NEW — holds inner SortShuffleManager"]
+    SharedResolver["IndexShuffleBlockResolver<br/>(shared, via delegation)"]
+    UserCode --> Exchange --> SparkEnvBoot --> Factory
+    Factory -->|"'sort' / 'tungsten-sort'"| Sort
+    Factory -->|"'streaming' (NEW)"| Streaming
+    Streaming -. "delegate / fallback" .-> Sort
+    Streaming -. "block migration delegation" .-> SharedResolver
+    Sort --> SharedResolver
+    legend["Legend: solid = active dispatch path; dashed = delegation/fallback;<br/>'UNCHANGED' = zero-modification surface; 'NEW'/'MODIFY' = in-scope edits"]
 ```
+
+The solid edges are the active dispatch path: `"sort"` / `"tungsten-sort"` resolve to the unchanged
+`SortShuffleManager`, while the new `"streaming"` alias resolves to `StreamingShuffleManager`. The
+dashed edges show that the streaming manager delegates to — and falls back to — the inner
+`SortShuffleManager`, and delegates block-migration calls to the shared `IndexShuffleBlockResolver`.
 
 ## Core Components
 
@@ -195,8 +191,8 @@ classes. Names are given exactly as they appear in the implementation.
 |-----------|----------------|
 | `StreamingShuffleManager` | SPI entry point; performs dispatch and lifecycle management; composes an inner `SortShuffleManager` for delegation and fallback; registers metrics; performs an ordered shutdown (Backpressure → Spill → inner Sort). |
 | `StreamingShuffleHandle` | A `BaseShuffleHandle` subtype that carries the tuning values (`bufferSizePercent`, `spillThreshold`, `maxBandwidthMBps`); acts as the dispatch discriminator that distinguishes the streaming path from the sort path. |
-| `StreamingShuffleWriter` | Producer-side writer (extends `MemoryConsumer`); maintains the per-partition in-memory buffers; pipelines data toward consumers; spills at the configured threshold; generates CRC32C checksums. |
-| `StreamingShuffleReader` | Consumer-side reader; issues in-progress block requests; mirrors the existing `BlockStoreShuffleReader` read flow (honoring the aggregator, key ordering, and map-side combine); validates CRC32C; on producer failure invalidates partial reads and throws `FetchFailedException` to trigger recomputation. |
+| `StreamingShuffleWriter` | Producer-side writer that **implements `ShuffleWriter`** and **composes a private `MemoryConsumer`** for execution-memory accounting; maintains the per-partition in-memory buffers; spills at the configured threshold; generates CRC32C checksums; and, at task commit, frames each partition into `StreamingBlockEnvelope` records and **publishes them through the shared `IndexShuffleBlockResolver`** so the output is fetchable over the standard map-output path. |
+| `StreamingShuffleReader` | Consumer-side reader; mirrors the existing `BlockStoreShuffleReader` read flow (honoring the aggregator, key ordering, and map-side combine); **fetches the published shuffle blocks through `MapOutputTracker` and `BlockTransferService`** and decodes the `StreamingBlockEnvelope` frames; validates a CRC32C per block and re-fetches a corrupt block (bounded retransmission) within the producer deadline; on a persistent checksum mismatch, a structural decode error, or a 5 s producer timeout it invalidates partial reads and throws `FetchFailedException` to trigger recomputation. |
 | `StreamingShuffleBlockResolver` | Maintains a 3-level block index; implements `MigratableResolver` by delegating to the shared `IndexShuffleBlockResolver`, preserving block-migration and decommission behavior. |
 | `StreamingBuffer` | Per-partition buffer (a byte-array output stream) with CRC32C, LRU tracking, and atomic counters. |
 | `BackpressureProtocol` | Consumer-to-producer token-bucket plus heartbeat flow control; performs a monotonic acknowledgment merge. |
@@ -212,56 +208,48 @@ classes. Names are given exactly as they appear in the implementation.
 ## Producer-to-Consumer Data Flow
 
 At run time, a map task hands its records to the `StreamingShuffleWriter`, which appends them to
-the appropriate per-partition `StreamingBuffer`. As long as buffer utilization stays below the
-spill threshold (80%), each buffered block (up to 2 MB) is pipelined toward the consumer through
-the executor's `BlockTransferService`; if utilization reaches the threshold, the
-`MemorySpillManager` first spills the largest partitions to disk (`DISK_ONLY`) and the block is
-pipelined afterward. Every block passes through the `BackpressureProtocol` gate, which paces the
-producer with token-bucket rate limiting and a heartbeat liveness signal. On the consumer side,
-the `StreamingShuffleReader` validates each block's CRC32C and confirms the producer is still
-alive. A valid block is acknowledged, allowing the producer-side buffer to be reclaimed; an
-invalid or orphaned block invalidates the partial read and raises `FetchFailedException`, which
-the existing DAG scheduler resolves by recomputing the upstream stage.
+the appropriate per-partition `StreamingBuffer`. The writer composes a private `MemoryConsumer`
+so the buffers participate in Spark's cooperative execution-memory accounting. While buffer
+utilization stays below the spill threshold (80%), records simply accumulate in memory; when
+utilization reaches the threshold, the `MemorySpillManager` spills the largest partitions to disk
+(`DISK_ONLY`) and resets those buffers to release heap. **At task commit**, the writer assembles
+each partition's bytes (spilled segments oldest-first, then the resident buffer), frames them into
+`StreamingBlockEnvelope` records (≤ 2 MiB each, CRC32C-protected), and **publishes them to a single
+shuffle file through `IndexShuffleBlockResolver.writeMetadataFileAndCommit`** — producing a
+`MapStatus` exactly as the sort path does. Because the v1 network transport is a logging-only stub,
+the consumer does not receive a live socket stream; instead the `StreamingShuffleReader` **fetches
+the published blocks through `MapOutputTracker` and `BlockTransferService`** and decodes the
+envelopes frame-by-frame. The reader validates each block's CRC32C; a corrupt block is re-fetched
+(bounded retransmission) within the producer deadline, and a valid block is acknowledged, which
+drives reclamation of the producer-side buffer. A persistent checksum mismatch, a structural
+decode error, or an exceeded 5 s producer timeout invalidates the partial read and raises
+`FetchFailedException`, which the existing DAG scheduler resolves by recomputing the upstream
+stage. The `BackpressureProtocol` runs **alongside** this path as a flow-control signaling channel
+(heartbeat / ack / rate / timeout over the executor-only `BackpressureRpcEndpoint`) rather than as
+a gate every block traverses, and automatic fallback to the inner `SortShuffleManager` is decided
+**when the shuffle is registered** (not mid-stream).
 
-The *Streaming Shuffle Producer-to-Consumer Data Flow* diagram below traces this path, including
-the spill and fallback branches.
+**Diagram 0.5-A — Streaming Shuffle Producer-to-Consumer Data Flow** below traces this path,
+including the spill, publication, and fallback branches. It mirrors the canonical, rendered diagram
+in the companion TechDocs
+([`blitzy-docs/streaming-shuffle/architecture.md`](https://github.com/apache/spark/blob/master/blitzy-docs/streaming-shuffle/architecture.md)).
 
-```text
-              Streaming Shuffle Producer-to-Consumer Data Flow
-
-  Map task (producer)
-        |
-        v
-  StreamingShuffleWriter  (extends MemoryConsumer)
-        |
-        v
-  StreamingBuffer  (per-partition, CRC32C)
-        |
-        v
-  ( utilization >= spillThreshold (80%) ? )
-        |                          |
-        | No                       | Yes
-        v                          v
-  pipeline block (<= 2 MB)    MemorySpillManager spills DISK_ONLY,
-  via BlockTransferService    then pipelines the block
-        |                          |
-        +-------------+------------+
-                      v
-  BackpressureProtocol gate (token-bucket + heartbeat) ....> Revert to SortShuffleManager
-        |                                                    (a fallback condition is met)
-        v
-  StreamingShuffleReader  (consumer)
-        |
-        v
-  ( CRC32C valid AND producer alive (< 5 s) ? )
-        |                          |
-        | Yes                      | No
-        v                          v
-  acknowledge ->              invalidate partial read ->
-  buffer reclaim (<= 100 ms)  throw FetchFailedException -> DAG recompute
-
-Legend: solid ( | v -> ) = normal streaming flow;  dashed ( ....> ) = automatic fallback;
-        "( ... ? )" = decision gate;  zero data loss is preserved via invalidation + recompute.
+```mermaid
+flowchart TD
+    Map["Map task (producer)"] --> Writer["StreamingShuffleWriter<br/>(ShuffleWriter; composes a private MemoryConsumer)"]
+    Writer --> Buffer["StreamingBuffer<br/>per-partition, CRC32C"]
+    Buffer --> Util{"Utilization >= spillThreshold (80%)?"}
+    Util -->|"Yes"| Spill["MemorySpillManager<br/>BlockManager.putBytes(DISK_ONLY) + reset buffer"]
+    Util -->|"No"| Commit
+    Spill --> Commit["At commit, per partition:<br/>spilled segments (oldest-first) ++ resident;<br/>frame into <= 2 MiB StreamingBlockEnvelope records"]
+    Commit --> Publish["IndexShuffleBlockResolver.writeMetadataFileAndCommit<br/>(index + data file) -> MapStatus(shuffleServerId, lengths)"]
+    Publish --> Fetch["StreamingShuffleReader (consumer)<br/>MapOutputTracker + BlockTransferService fetch (<= 5 s)"]
+    Fetch --> Validate{"CRC32C valid AND fetch within 5 s?"}
+    Validate -->|"Yes"| Ack["Acknowledge -> MemorySpillManager.reclaim (<= 100 ms)"]
+    Validate -->|"No"| Invalidate["Invalidate partial read<br/>throw FetchFailedException -> DAG recompute"]
+    BPGate["BackpressureProtocol + RpcEndpoint<br/>(signaling: heartbeat / ack / rate / timeout)"] -. "ack drives reclaim" .-> Ack
+    Reg{"Registration-time fallback<br/>condition met? (F-111)"} -. "Some(reason)" .-> Fallback["Delegate shuffle to<br/>inner SortShuffleManager"]
+    legendNode["Legend: solid = normal streaming publish-then-fetch flow;<br/>dashed = flow-control signaling / registration-time fallback;<br/>diamonds = decision gates; data loss is prevented via invalidation + DAG recompute"]
 ```
 
 The per-partition buffer budget is derived from the executor memory and the configured buffer
@@ -271,8 +259,8 @@ percentage, divided evenly across the shuffle's partitions:
 perPartitionBudget = (executorMemory × bufferSizePercent / 100) / numPartitions
 ```
 
-Blocks are pipelined at a 2 MB block size, so each partition's budget bounds how much in-flight
-data it may hold before spilling.
+Output is framed at a 2 MB block size, so each partition's budget bounds how much resident data it
+may hold in memory before the spill manager offloads it to disk.
 
 ## Wire Format
 

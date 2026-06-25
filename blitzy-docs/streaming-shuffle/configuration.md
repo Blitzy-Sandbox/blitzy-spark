@@ -59,4 +59,12 @@ Both forms set the dual-flag activation contract; the remaining keys fall back t
 
 ## See also
 
-Companion streaming-shuffle TechDocs — the documentation landing page, the architecture overview, the observability reference, and the decision log — are published in later checkpoints. Until they exist, this page is the authoritative reference for the streaming configuration surface.
+The companion streaming-shuffle TechDocs and end-user guides accompany this configuration reference:
+
+- [index.md](index.md) — the streaming-shuffle documentation landing page (including the ten zero-data-loss failure scenarios).
+- [architecture.md](architecture.md) — the component and protocol overview with the three Mermaid architecture diagrams.
+- [observability.md](observability.md) — metrics, the MDC correlation schema, JMX/Prometheus exposition, and the dashboard.
+- [decision-log.md](decision-log.md) — the architecture decision (ADR) table and the requirement → source → test traceability matrix.
+- [executive-summary.html](executive-summary.html) — the reveal.js executive presentation deck.
+- [dashboard.json](dashboard.json) — the Grafana dashboard template.
+- Jekyll end-user docs: [architecture](../../docs/streaming-shuffle-architecture.md), [guide](../../docs/streaming-shuffle-guide.md), [tuning](../../docs/streaming-shuffle-tuning.md), and [troubleshooting](../../docs/streaming-shuffle-troubleshooting.md).

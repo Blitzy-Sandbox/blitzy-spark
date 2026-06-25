@@ -416,7 +416,7 @@
       <section>
         <span class="eyebrow">The Solution</span>
         <h2>Stream the data, <span class="accent">skip the barrier</span></h2>
-        <p class="small">A new <code>StreamingShuffleManager</code> SPI implementation pipes shuffle blocks directly from producer to consumer through bounded in-memory buffers governed by a backpressure protocol &mdash; and it <strong>coexists with</strong>, never replaces, the default sort path.</p>
+        <p class="small">A new <code>StreamingShuffleManager</code> SPI implementation buffers shuffle output in bounded per-partition in-memory buffers (governed by a backpressure protocol), then <strong>frames and publishes</strong> each partition to a single shuffle file via <code>IndexShuffleBlockResolver</code>; the reducer fetches that published output over Spark&rsquo;s existing <code>MapOutputTracker</code>&nbsp;/&nbsp;<code>BlockTransferService</code> path &mdash; and it <strong>coexists with</strong>, never replaces, the default sort path.</p>
         <div class="grid cols-3">
           <div class="card">
             <div class="card-h"><i data-lucide="plug" aria-hidden="true"></i> Opt-in &amp; pluggable</div>
@@ -492,21 +492,22 @@ flowchart TB
         <h2>Diagram 0.5-A &mdash; <span class="accent">Producer-to-Consumer Data Flow</span></h2>
         <pre class="mermaid" role="img" aria-label="Diagram 0.5-A: Streaming Shuffle Producer-to-Consumer Data Flow">
 flowchart TD
-    Map["Map task (producer)"] --&gt; Writer["StreamingShuffleWriter&lt;br/&gt;(MemoryConsumer)"]
+    Map["Map task (producer)"] --&gt; Writer["StreamingShuffleWriter&lt;br/&gt;(ShuffleWriter; composes a private MemoryConsumer)"]
     Writer --&gt; Buffer["StreamingBuffer&lt;br/&gt;per-partition, CRC32C"]
     Buffer --&gt; Util{"Utilization &gt;= spillThreshold (80%)?"}
-    Util --&gt;|"No"| Pipe["Pipeline block (&lt;= 2MB)&lt;br/&gt;via BlockTransferService"]
-    Util --&gt;|"Yes"| Spill["MemorySpillManager&lt;br/&gt;BlockManager.putBytes(DISK_ONLY)"]
-    Spill --&gt; Pipe
-    Pipe --&gt; BPGate["BackpressureProtocol&lt;br/&gt;token-bucket + heartbeat"]
-    BPGate --&gt; Reader["StreamingShuffleReader (consumer)"]
-    Reader --&gt; Validate{"CRC32C valid AND producer alive (&lt;5s)?"}
-    Validate --&gt;|"Yes"| Ack["Acknowledge -&gt; buffer reclaim (&lt;=100ms)"]
+    Util --&gt;|"Yes"| Spill["MemorySpillManager&lt;br/&gt;BlockManager.putBytes(DISK_ONLY) + reset buffer"]
+    Util --&gt;|"No"| Commit
+    Spill --&gt; Commit["At commit, per partition:&lt;br/&gt;spilled segments (oldest-first) ++ resident;&lt;br/&gt;frame into &lt;= 2 MiB StreamingBlockEnvelope records"]
+    Commit --&gt; Publish["IndexShuffleBlockResolver.writeMetadataFileAndCommit&lt;br/&gt;(index + data file) -&gt; MapStatus(shuffleServerId, lengths)"]
+    Publish --&gt; Fetch["StreamingShuffleReader (consumer)&lt;br/&gt;MapOutputTracker + BlockTransferService fetch (&lt;= 5 s)"]
+    Fetch --&gt; Validate{"CRC32C valid AND fetch within 5 s?"}
+    Validate --&gt;|"Yes"| Ack["Acknowledge -&gt; MemorySpillManager.reclaim (&lt;= 100 ms)"]
     Validate --&gt;|"No"| Invalidate["Invalidate partial read&lt;br/&gt;throw FetchFailedException -&gt; DAG recompute"]
-    BPGate -. "fallback condition met (F-111)" .-&gt; Fallback["Revert to SortShuffleManager"]
-    legendNode["Legend: solid = normal streaming flow; dashed = automatic fallback;&lt;br/&gt;diamonds = decision gates; data loss is prevented via invalidation + recompute"]
+    BPGate["BackpressureProtocol + RpcEndpoint&lt;br/&gt;(signaling: heartbeat / ack / rate / timeout)"] -. "ack drives reclaim" .-&gt; Ack
+    Reg{"Registration-time fallback&lt;br/&gt;condition met? (F-111)"} -. "Some(reason)" .-&gt; Fallback["Delegate shuffle to&lt;br/&gt;inner SortShuffleManager"]
+    legendNode["Legend: solid = normal streaming publish-then-fetch flow;&lt;br/&gt;dashed = flow-control signaling / registration-time fallback;&lt;br/&gt;diamonds = decision gates; data loss is prevented via invalidation + DAG recompute"]
         </pre>
-        <div class="diagram-caption">On producer timeout or checksum mismatch the reader invalidates the partial read and throws <code>FetchFailedException</code> &mdash; the existing DAG scheduler recomputes. No scheduler change.</div>
+        <div class="diagram-caption">Published via <code>IndexShuffleBlockResolver</code>, then fetched over the standard map-output path; failures invalidate the partial read and trigger DAG recompute.</div>
         <div class="deck-footer">Streaming Shuffle &middot; Executive Summary</div>
       </section>
 
