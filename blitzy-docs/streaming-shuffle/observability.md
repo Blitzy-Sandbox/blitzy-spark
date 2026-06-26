@@ -46,31 +46,35 @@ The same pattern applies to `spillCount`, `backpressureEvents`, and `partialRead
 
 ## Prometheus exposition
 
-Streaming-shuffle metrics surface through Spark's **existing** Prometheus servlet — no new endpoint is added. Executor metrics are exposed at:
+Streaming-shuffle metrics surface through Spark's **existing** Prometheus servlet **sink** (`org.apache.spark.metrics.sink.PrometheusServlet`) — no new endpoint is added. This sink is part of the Dropwizard `MetricsSystem` and renders the **entire** metrics registry, including the `streamingShuffle` source, at the HTTP path configured for it in the operator's `metrics.properties`. The shipped template (F-118) configures it on executors at:
 
 ```
-/metrics/executors/prometheus
+/metrics/prometheus
 ```
 
-This endpoint is gated by `UI_PROMETHEUS_ENABLED` (the `spark.ui.prometheus.enabled` configuration); when it is enabled, the four metrics appear in the executor metrics scrape alongside Spark's built-in series. The `PrometheusServlet` renders dotted metric names with underscores, so the four streaming metrics match the following regular expression:
+The servlet sink is turned on through the operator's metrics configuration — the file referenced by `spark.metrics.conf` — exactly as shown in the `metrics.properties.template` (see the **Sink reuse** section below); for example `executor.sink.prometheusServlet.class=org.apache.spark.metrics.sink.PrometheusServlet` together with `executor.sink.prometheusServlet.path=/metrics/prometheus`. It is **not** gated by `spark.ui.prometheus.enabled`.
+
+This is a different endpoint from `/metrics/executors/prometheus`, and the two must not be confused. The `/metrics/executors/prometheus` endpoint is served by `PrometheusResource` and gated by `spark.ui.prometheus.enabled` (`UI_PROMETHEUS_ENABLED`); it exposes only a fixed set of built-in executor metrics — the `metrics_executor_*` series such as `rddBlocks` and `memoryUsed_bytes` — and **never** exposes custom Dropwizard metric sources. The four streaming-shuffle series therefore do **not** appear at `/metrics/executors/prometheus`; they appear only at the `PrometheusServlet` sink path above (`/metrics/prometheus`).
+
+`PrometheusServlet` renders dotted metric names with underscores and, because all four streaming metrics are exposed as gauges, emits **two** series per metric — one suffixed `_Number` and one suffixed `_Value`. A fully-qualified series therefore looks like `metrics_<app>_<executor-id>_streamingShuffle_shuffle_streaming_<metric>_Value`, so the four streaming metrics (eight series in total) match the following regular expression:
 
 ```
-.*_streamingShuffle_shuffle_streaming_(bufferUtilizationPercent|spillCount|backpressureEvents|partialReadInvalidations)
+.+_streamingShuffle_shuffle_streaming_(bufferUtilizationPercent|spillCount|backpressureEvents|partialReadInvalidations).*
 ```
 
-The expression is intentionally unanchored at the end so that any per-type suffix the exporter appends (for example a gauge `_Value` or a counter `_Count` segment) is still matched. These four leaf names are **byte-identical** to the panel expressions in [dashboard.json](dashboard.json), so a scrape configured with this regex produces exactly the series the dashboard plots.
+The trailing `.*` is **required**. Prometheus anchors `__name__=~` selectors and `metric_relabel_configs` `keep`/`drop` regexes at **both** ends (a full match), so the per-gauge `_Number`/`_Value` suffix the servlet appends must be consumed explicitly — a pattern that stops at the leaf name matches **zero** live series. Each alternation branch of this expression is **byte-identical** to the corresponding per-panel `__name__` expression in [dashboard.json](dashboard.json) (each panel uses `.+_streamingShuffle_shuffle_streaming_<leaf>.*`), so a scrape configured with this regex produces exactly the series the dashboard plots. The leading `.+` matches the application/executor prefix that the `MetricsSystem` prepends to executor-side series, and it likewise matches a driver or local-mode series that carries only the exporter's own `metrics_` prefix.
 
 Operators who want to scrape only the streaming-shuffle metrics can drop everything else with a `keep` action on `__name__`:
 
 ```yaml
 scrape_configs:
   - job_name: 'spark-streaming-shuffle'
-    metrics_path: '/metrics/executors/prometheus'
+    metrics_path: '/metrics/prometheus'
     static_configs:
       - targets: ['<executor-host>:<ui-port>']
     metric_relabel_configs:
       - source_labels: [__name__]
-        regex: '.*_streamingShuffle_shuffle_streaming_(bufferUtilizationPercent|spillCount|backpressureEvents|partialReadInvalidations)'
+        regex: '.+_streamingShuffle_shuffle_streaming_(bufferUtilizationPercent|spillCount|backpressureEvents|partialReadInvalidations).*'
         action: keep
 ```
 
