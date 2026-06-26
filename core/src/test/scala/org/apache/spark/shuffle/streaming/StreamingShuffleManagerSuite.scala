@@ -249,9 +249,48 @@ class StreamingShuffleManagerSuite extends SparkFunSuite with SharedSparkContext
       isDriver = true)
     manager.registerShuffle(21, newDependency(21, 4))
     assert(manager.registeredStreamingShuffleCount === 1)
-    // stop() must not throw and must clear the streaming registration bookkeeping.
+    // Populate the backpressure protocol's per-stream maps (as a consumer read would) so we can
+    // verify stop() returns them to their empty baseline (clean teardown, Issue #1).
+    val protocol = manager.backpressureProtocol.getOrElse(
+      fail("an active SparkEnv must provide a BackpressureProtocol"))
+    protocol.mergeAck(StreamKey(21, 0, 0L, "exec-a"), 1L)
+    assert(protocol.trackedStreamCount === 1)
+    // stop() must not throw, must clear the streaming registration bookkeeping, and must empty
+    // the backpressure tracking maps.
     manager.stop()
     assert(manager.registeredStreamingShuffleCount === 0)
+    assert(protocol.trackedStreamCount === 0)
+  }
+
+  test("unregisterShuffle evicts the backpressure protocol's per-stream state (Issue #1)") {
+    withManager(confWith(streamingAlias, enabled = true)) { manager =>
+      val protocol = manager.backpressureProtocol.getOrElse(
+        fail("an active SparkEnv must provide a BackpressureProtocol"))
+
+      // Simulate the consumer-side leak vector: several reduce-task attempts ack on two shuffles,
+      // each attempt a distinct StreamKey (keyed by the unique attempt id). Shuffle 7 is
+      // registered on the streaming path; shuffle 8 is NOT registered through this manager -- it
+      // stands in for the executor case, where getReader populates the maps but registerShuffle
+      // never ran (registerShuffle is driver-only). This proves the eviction is unconditional and
+      // not gated on the driver-only registered-id bookkeeping.
+      val shuffle7Keys = (0 until 4).map(p => StreamKey(7, p, p.toLong, "exec-a"))
+      val shuffle8Keys = (0 until 4).map(p => StreamKey(8, p, (100 + p).toLong, "exec-b"))
+      manager.registerShuffle(7, newDependency(7, 4))
+      shuffle7Keys.foreach(k => protocol.mergeAck(k, 1L))
+      shuffle8Keys.foreach(k => protocol.mergeAck(k, 1L))
+      assert(protocol.trackedStreamCount === 8)
+
+      // Unregistering shuffle 7 evicts exactly its 4 streams; shuffle 8 is untouched.
+      assert(manager.unregisterShuffle(7))
+      assert(protocol.trackedStreamCount === 4)
+      assert(shuffle7Keys.forall(k => protocol.ackWatermark(k) === 0L))
+      assert(shuffle8Keys.forall(k => protocol.ackWatermark(k) === 1L))
+
+      // Unregistering shuffle 8 -- never in the streaming bookkeeping -- still evicts its streams,
+      // confirming the cleanup fires under the executor topology too.
+      manager.unregisterShuffle(8)
+      assert(protocol.trackedStreamCount === 0)
+    }
   }
 
   // ------------------------------------------------------------------------------------------

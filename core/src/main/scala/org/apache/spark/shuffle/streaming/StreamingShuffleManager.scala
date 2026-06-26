@@ -343,13 +343,23 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   }
 
   /**
-   * Remove a shuffle's metadata. Local streaming bookkeeping (the tracked id and the in-memory
-   * streaming block index for the shuffle) is cleared, and the call is delegated to the inner
-   * sort manager, which owns the materialized index/data files via the shared resolver. The
-   * delegated boolean is returned.
+   * Remove a shuffle's metadata. Local streaming bookkeeping (the tracked id, the in-memory
+   * streaming block index, and the backpressure protocol's per-stream flow-control state for the
+   * shuffle) is cleared, and the call is delegated to the inner sort manager, which owns the
+   * materialized index/data files via the shared resolver. The delegated boolean is returned.
+   *
+   * The backpressure eviction is '''unconditional''' -- it is not gated on
+   * [[registeredStreamingShuffleIds]], because that set is populated only on the driver (by
+   * [[registerShuffle]]) whereas the leaking per-stream maps are populated '''consumer-side''',
+   * once per reduce-task attempt, by [[StreamingShuffleReader]] on each executor. Spark invokes
+   * `unregisterShuffle` on every executor when a shuffle is reclaimed (the block manager's
+   * `RemoveShuffle` broadcast), so evicting here keeps those maps bounded by the set of live
+   * shuffles on every node -- mirroring how the inner sort manager reclaims its own per-shuffle
+   * executor-side state. See QA Issue #1.
    */
   override def unregisterShuffle(shuffleId: Int): Boolean = {
     registeredStreamingShuffleIds.remove(Integer.valueOf(shuffleId))
+    backpressureOpt.foreach(_.removeShuffle(shuffleId))
     streamingBlockResolver.removeStreamingShuffle(shuffleId)
     sortShuffleManager.unregisterShuffle(shuffleId)
   }
@@ -430,11 +440,13 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   protected def stopInnerSortManager(): Unit = sortShuffleManager.stop()
 
   /**
-   * Teardown step 4 of [[stop]]: clear the in-memory streaming block index (which does not
-   * re-stop the shared resolver) and forget the tracked streaming shuffle ids. Overridable seam;
-   * see [[stopBackpressureEndpoint]].
+   * Teardown step 4 of [[stop]]: empty the backpressure protocol's per-stream flow-control maps
+   * (so they return to their baseline even for any shuffles still live at shutdown), clear the
+   * in-memory streaming block index (which does not re-stop the shared resolver), and forget the
+   * tracked streaming shuffle ids. Overridable seam; see [[stopBackpressureEndpoint]].
    */
   protected def clearStreamingState(): Unit = {
+    backpressureOpt.foreach(_.clear())
     streamingBlockResolver.stop()
     registeredStreamingShuffleIds.clear()
   }

@@ -411,6 +411,51 @@ private[spark] class BackpressureProtocol(
   }
 
   // ---------------------------------------------------------------------------------------------
+  // Per-stream state lifecycle (bounded retention)
+  // ---------------------------------------------------------------------------------------------
+
+  /**
+   * Evict all per-stream flow-control state -- both the acknowledgment high-water mark and the
+   * consumer-liveness stamp -- for every [[StreamKey]] belonging to `shuffleId`. Streams for
+   * other shuffles are untouched; a shuffle that was never tracked is a safe no-op.
+   *
+   * Per-stream entries are created lazily (once per reduce-task attempt) by [[mergeAck]] and
+   * [[recordConsumerSignal]], keyed by the unique consumer task-attempt id, so keys are never
+   * reused. Without eviction the two maps would grow for the entire lifetime of a long-lived
+   * per-executor protocol instance, an unbounded retained-heap leak. The streaming manager's
+   * `unregisterShuffle` calls this when a shuffle is reclaimed -- which, via the block manager's
+   * `RemoveShuffle` broadcast, reaches every executor -- so both maps stay bounded by the set of
+   * live shuffles, the same way the inner sort manager reclaims its per-shuffle executor state.
+   *
+   * Uses the `ConcurrentHashMap` key-set views' `removeIf`, which is thread-safe and weakly
+   * consistent: a concurrent [[mergeAck]] for the same shuffle would merely re-create its entry,
+   * reclaimed on the next unregister or at [[clear]]. In practice a shuffle is unregistered only
+   * after its tasks complete, so no such race occurs.
+   *
+   * @param shuffleId the shuffle whose per-stream state should be released
+   * @return the number of distinct acknowledgment streams evicted (for logging/tests)
+   */
+  def removeShuffle(shuffleId: Int): Int = {
+    val belongsToShuffle: java.util.function.Predicate[StreamKey] =
+      (key: StreamKey) => key.shuffleId == shuffleId
+    val trackedBefore = ackWatermarks.size()
+    ackWatermarks.keySet().removeIf(belongsToShuffle)
+    lastConsumerSignalNanos.keySet().removeIf(belongsToShuffle)
+    trackedBefore - ackWatermarks.size()
+  }
+
+  /**
+   * Release '''all''' per-stream flow-control state, emptying both the acknowledgment-watermark
+   * and consumer-liveness maps. Invoked from the streaming manager's `stop()` so the tracking
+   * maps return to their empty baseline at manager teardown, in addition to the incremental
+   * per-shuffle eviction performed by [[removeShuffle]]. Idempotent.
+   */
+  def clear(): Unit = {
+    ackWatermarks.clear()
+    lastConsumerSignalNanos.clear()
+  }
+
+  // ---------------------------------------------------------------------------------------------
   // Priority arbitration
   // ---------------------------------------------------------------------------------------------
 

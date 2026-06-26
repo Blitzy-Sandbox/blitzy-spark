@@ -179,6 +179,45 @@ class BackpressureProtocolSuite extends SparkFunSuite {
     assert(!protocol.isConsumerTimedOut(key))
   }
 
+  test("removeShuffle evicts one shuffle's per-stream state and bounds the maps (M5)") {
+    val (protocol, _) = newProtocol()
+
+    // Reproduce the leak vector: many reduce-task attempts for shuffle 1, each with a unique
+    // attemptId (so each is a distinct StreamKey that is never reused), plus an unrelated
+    // shuffle 2. Every ack also stamps consumer liveness, so BOTH tracking maps are populated.
+    val shuffle1Keys = (0 until 8).map { attempt =>
+      streamKey(shuffleId = 1, partitionId = attempt, attemptId = attempt.toLong)
+    }
+    val shuffle2Key = streamKey(shuffleId = 2, partitionId = 0, attemptId = 100L)
+    shuffle1Keys.foreach(k => protocol.mergeAck(k, 1L))
+    protocol.mergeAck(shuffle2Key, 1L)
+    assert(protocol.trackedStreamCount === 9)
+
+    // Drive shuffle 1's consumer-liveness stamps stale so we can prove the liveness map (not just
+    // the ack-watermark map) is cleared by the eviction.
+    val staleNanos = System.nanoTime() - TimeUnit.MILLISECONDS.toNanos(
+      BackpressureProtocol.CONSUMER_LIVENESS_TIMEOUT_MS + 1000L)
+    shuffle1Keys.foreach(k => protocol.markConsumerSignalAt(k, staleNanos))
+    assert(shuffle1Keys.forall(protocol.isConsumerTimedOut))
+
+    // Evicting shuffle 1 drops exactly its 8 streams from BOTH maps; shuffle 2 is untouched.
+    assert(protocol.removeShuffle(1) === 8)
+    assert(protocol.trackedStreamCount === 1)
+    assert(shuffle1Keys.forall(k => protocol.ackWatermark(k) === 0L))
+    assert(!protocol.timedOutStreams.exists(_.shuffleId == 1))
+    assert(protocol.ackWatermark(shuffle2Key) === 1L)
+
+    // Evicting an unregistered shuffle id is a safe no-op that touches nothing.
+    assert(protocol.removeShuffle(999) === 0)
+    assert(protocol.trackedStreamCount === 1)
+
+    // clear() returns all remaining per-stream state to the empty baseline (clean teardown).
+    protocol.clear()
+    assert(protocol.trackedStreamCount === 0)
+    assert(protocol.ackWatermark(shuffle2Key) === 0L)
+    assert(protocol.timedOutStreams.isEmpty)
+  }
+
   test("credit window admits within the 80%-capped budget and rejects beyond it") {
     // A 1000-byte link capacity yields an 800-byte credit window (the 80% BANDWIDTH_CAP_FACTOR).
     val (protocol, _) = newProtocol(linkCapacityBytes = 1000L)

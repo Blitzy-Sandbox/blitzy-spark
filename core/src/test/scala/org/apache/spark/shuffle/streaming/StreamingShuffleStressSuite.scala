@@ -303,10 +303,28 @@ class StreamingShuffleStressSuite extends SparkFunSuite with LocalSparkContext {
     dispatchWriter.write(byteRecords(64))
     assert(dispatchWriter.stop(success = true).isDefined)
     assert(dispatchContext.taskMemoryManager().getMemoryConsumptionForThisTask() === 0L)
+
+    // Backpressure no-leak coverage (Issue #1): the per-stream flow-control maps
+    // (ackWatermarks / consumer-liveness) are populated consumer-side, once per reduce-task
+    // attempt, and were previously never evicted -- growing without bound for the executor's
+    // lifetime. Simulate several attempts acking on this shuffle so the tracked-stream count is
+    // non-zero, then verify unregisterShuffle returns it to baseline.
+    val backpressure = manager.backpressureProtocol.getOrElse(
+      fail("an active SparkEnv must provide a BackpressureProtocol in local mode"))
+    val backpressureBaseline = backpressure.trackedStreamCount
+    (0 until numWriterPartitions).foreach { attempt =>
+      backpressure.mergeAck(
+        StreamKey(DISPATCH_SHUFFLE_ID, attempt, attempt.toLong, "exec-stress"), 1L)
+    }
+    assert(backpressure.trackedStreamCount === backpressureBaseline + numWriterPartitions)
+
     manager.unregisterShuffle(DISPATCH_SHUFFLE_ID)
     assert(
       manager.registeredStreamingShuffleCount === 0,
       "unregisterShuffle must return the streaming bookkeeping to its baseline")
+    assert(
+      backpressure.trackedStreamCount === backpressureBaseline,
+      "unregisterShuffle must return the backpressure tracked-stream count to its baseline")
 
     // No-leak stress: drive the streaming producer path through many allocate/write/spill/stop
     // cycles on a single reused task context. After every cycle the task must hold zero
