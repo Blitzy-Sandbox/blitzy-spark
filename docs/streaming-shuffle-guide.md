@@ -93,7 +93,7 @@ release; range-checked values are validated when the application starts.
     (together with <code>spark.shuffle.streaming.enabled=true</code>) to enable the streaming
     shuffle.
   </td>
-  <td>3.0.0</td>
+  <td>1.1.0</td>
 </tr>
 <tr>
   <td><code>spark.shuffle.streaming.enabled</code></td>

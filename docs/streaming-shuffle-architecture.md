@@ -153,34 +153,18 @@ The change is additive at the SPI boundary only. The following surfaces form a s
 * `ShuffleExchangeExec`, and
 * all Adaptive Query Execution (AQE) rules.
 
-**Diagram 0.2-A — Streaming Shuffle SPI Coexistence Topology** below shows how the new manager
-plugs into the unchanged dispatch boundary and coexists with the sort path. It mirrors the
+**Diagram 0.2-A — Streaming Shuffle SPI Coexistence Topology** shows how the new manager
+plugs into the unchanged dispatch boundary and coexists with the sort path. It is maintained as the
 canonical, rendered diagram in the companion TechDocs
-([`blitzy-docs/streaming-shuffle/architecture.md`](https://github.com/apache/spark/blob/master/blitzy-docs/streaming-shuffle/architecture.md)).
+([`blitzy-docs/streaming-shuffle/architecture.md`](https://github.com/apache/spark/blob/master/blitzy-docs/streaming-shuffle/architecture.md)),
+and is linked here rather than inlined because this Jekyll site renders Markdown with kramdown,
+which does not process Mermaid diagrams.
 
-```mermaid
-flowchart TB
-    title["Diagram 0.2-A: Streaming Shuffle SPI Coexistence Topology"]
-    UserCode["User Code (RDD / DataFrame / SQL)<br/>UNCHANGED"]
-    Exchange["ShuffleExchangeExec + AQE rules<br/>UNCHANGED (Tech Spec 5.2.4)"]
-    SparkEnvBoot["SparkEnv bootstrap<br/>ShuffleManager.create (reflective, L226)<br/>UNCHANGED"]
-    Factory{"shortShuffleMgrNames alias map<br/>ShuffleManager.scala L112-L114<br/>MODIFY: add 'streaming'"}
-    Sort["SortShuffleManager<br/>(default + fallback)<br/>UNCHANGED"]
-    Streaming["StreamingShuffleManager (F-101)<br/>NEW — holds inner SortShuffleManager"]
-    SharedResolver["IndexShuffleBlockResolver<br/>(shared, via delegation)"]
-    UserCode --> Exchange --> SparkEnvBoot --> Factory
-    Factory -->|"'sort' / 'tungsten-sort'"| Sort
-    Factory -->|"'streaming' (NEW)"| Streaming
-    Streaming -. "delegate / fallback" .-> Sort
-    Streaming -. "block migration delegation" .-> SharedResolver
-    Sort --> SharedResolver
-    legend["Legend: solid = active dispatch path; dashed = delegation/fallback;<br/>'UNCHANGED' = zero-modification surface; 'NEW'/'MODIFY' = in-scope edits"]
-```
-
-The solid edges are the active dispatch path: `"sort"` / `"tungsten-sort"` resolve to the unchanged
-`SortShuffleManager`, while the new `"streaming"` alias resolves to `StreamingShuffleManager`. The
-dashed edges show that the streaming manager delegates to — and falls back to — the inner
-`SortShuffleManager`, and delegates block-migration calls to the shared `IndexShuffleBlockResolver`.
+In that rendered diagram, the solid edges are the active dispatch path: `"sort"` / `"tungsten-sort"`
+resolve to the unchanged `SortShuffleManager`, while the new `"streaming"` alias resolves to
+`StreamingShuffleManager`. The dashed edges show that the streaming manager delegates to — and falls
+back to — the inner `SortShuffleManager`, and delegates block-migration calls to the shared
+`IndexShuffleBlockResolver`.
 
 ## Core Components
 
@@ -229,28 +213,11 @@ stage. The `BackpressureProtocol` runs **alongside** this path as a flow-control
 a gate every block traverses, and automatic fallback to the inner `SortShuffleManager` is decided
 **when the shuffle is registered** (not mid-stream).
 
-**Diagram 0.5-A — Streaming Shuffle Producer-to-Consumer Data Flow** below traces this path,
-including the spill, publication, and fallback branches. It mirrors the canonical, rendered diagram
-in the companion TechDocs
-([`blitzy-docs/streaming-shuffle/architecture.md`](https://github.com/apache/spark/blob/master/blitzy-docs/streaming-shuffle/architecture.md)).
-
-```mermaid
-flowchart TD
-    Map["Map task (producer)"] --> Writer["StreamingShuffleWriter<br/>(ShuffleWriter; composes a private MemoryConsumer)"]
-    Writer --> Buffer["StreamingBuffer<br/>per-partition, CRC32C"]
-    Buffer --> Util{"Utilization >= spillThreshold (80%)?"}
-    Util -->|"Yes"| Spill["MemorySpillManager<br/>BlockManager.putBytes(DISK_ONLY) + reset buffer"]
-    Util -->|"No"| Commit
-    Spill --> Commit["At commit, per partition:<br/>spilled segments (oldest-first) ++ resident;<br/>frame into <= 2 MiB StreamingBlockEnvelope records"]
-    Commit --> Publish["IndexShuffleBlockResolver.writeMetadataFileAndCommit<br/>(index + data file) -> MapStatus(shuffleServerId, lengths)"]
-    Publish --> Fetch["StreamingShuffleReader (consumer)<br/>MapOutputTracker + BlockTransferService fetch (<= 5 s)"]
-    Fetch --> Validate{"CRC32C valid AND fetch within 5 s?"}
-    Validate -->|"Yes"| Ack["Acknowledge -> MemorySpillManager.reclaim (<= 100 ms)"]
-    Validate -->|"No"| Invalidate["Invalidate partial read<br/>throw FetchFailedException -> DAG recompute"]
-    BPGate["BackpressureProtocol + RpcEndpoint<br/>(signaling: heartbeat / ack / rate / timeout)"] -. "ack drives reclaim" .-> Ack
-    Reg{"Registration-time fallback<br/>condition met? (F-111)"} -. "Some(reason)" .-> Fallback["Delegate shuffle to<br/>inner SortShuffleManager"]
-    legendNode["Legend: solid = normal streaming publish-then-fetch flow;<br/>dashed = flow-control signaling / registration-time fallback;<br/>diamonds = decision gates; data loss is prevented via invalidation + DAG recompute"]
-```
+**Diagram 0.5-A — Streaming Shuffle Producer-to-Consumer Data Flow** traces this path,
+including the spill, publication, and fallback branches. As with Diagram 0.2-A, it is maintained as
+the canonical, rendered diagram in the companion TechDocs
+([`blitzy-docs/streaming-shuffle/architecture.md`](https://github.com/apache/spark/blob/master/blitzy-docs/streaming-shuffle/architecture.md)),
+and is linked here rather than inlined because kramdown does not render Mermaid diagrams.
 
 The per-partition buffer budget is derived from the executor memory and the configured buffer
 percentage, divided evenly across the shuffle's partitions:

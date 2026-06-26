@@ -1,8 +1,8 @@
-# Code Review — Streaming Shuffle Subsystem (Checkpoint CP3 — VERIFICATION & CAPSTONE)
+# Code Review — Streaming Shuffle Subsystem (FINAL — VERIFICATION & CAPSTONE; supersedes CP3)
 
 This document is the **Segmented PR Review** ledger for the new **opt-in streaming shuffle subsystem** added to Apache Spark (`spark-parent_2.13`, `4.2.0-SNAPSHOT`). It records the multi-phase, file-partitioned review that governs the feature's merge into `master`.
 
-This revision of the ledger reflects the **CP3 — VERIFICATION & CAPSTONE** checkpoint, the final checkpoint of the feature. CP3 delivers the verification layer and the capstone artifacts on top of the CP1 foundation and the CP2 full-production runtime: the advanced **integration**, **integration-test**, **failure-injection**, **stress**, and **performance-benchmark** suites (completing the 14-suite F-121 set), the landing page (`index.md`), and the executive deck (`executive-summary.html`). It also lands the CP3 remediation of the runtime — bounded CRC32C retransmission in the reader, deterministic ordered teardown seams in the manager, and a latent import-order fix in the RPC endpoint — and the capstone documentation polish (decision-log alternatives/traceability, deck accuracy/accessibility, and a single consistent checksum narrative across all docs). **No feature file remains `DEFERRED`** at CP3, and the full **48-file** feature change set — including both benchmark baselines (`StreamingShuffleBenchmark-results.txt` and `StreamingShufflePerformanceBenchmark-results.txt`) — is committed and reviewed (see the Test & Benchmark phase).
+This revision of the ledger reflects the **FINAL** state of the feature. It advances the ledger beyond the **CP3 — VERIFICATION & CAPSTONE** checkpoint to incorporate the two changes that subsequently landed: a build/dependency security bump (`pom.xml` Netty `4.2.9.Final` → `4.2.15.Final` CVE remediation, with its companion `dev/.rat-excludes` update) and an additional F-121 test suite (`StreamingShuffleBlockResolverSuite.scala`) that adds dedicated coverage for the F-105 block resolver. On top of the CP1 foundation and the CP2 full-production runtime, the verification layer and the capstone artifacts delivered the advanced **integration**, **integration-test**, **failure-injection**, **stress**, and **performance-benchmark** suites (completing the F-121 suite set), the landing page (`index.md`), and the executive deck (`executive-summary.html`); together with the CP3 runtime remediation — bounded CRC32C retransmission in the reader, deterministic ordered teardown seams in the manager, and a latent import-order fix in the RPC endpoint — and the capstone documentation polish (decision-log alternatives/traceability, deck accuracy/accessibility, and a single consistent checksum narrative across all docs). **No feature file remains `DEFERRED`**, and the full **51-file** feature change set — including both benchmark baselines (`StreamingShuffleBenchmark-results.txt` and `StreamingShufflePerformanceBenchmark-results.txt`) — is committed and reviewed (see the Test & Benchmark phase).
 
 The streaming shuffle is delivered as a **new `ShuffleManager` Service Provider Interface (SPI) implementation** that *coexists with* — and never replaces — the default `SortShuffleManager`. The change is **strictly additive**: the default `spark.shuffle.manager` value remains `"sort"`, the reflective `SparkEnv` factory call site is untouched, and streaming engages only under an explicit dual-flag activation contract (`spark.shuffle.manager=streaming` **and** `spark.shuffle.streaming.enabled=true`). All out-of-scope surfaces — `DAGScheduler`, `TaskScheduler`, lineage / fault recovery, `ShuffleExchangeExec`, every Adaptive Query Execution (AQE) rule, the existing `SortShuffleManager`, and block-manager storage contracts — are preserved verbatim.
 
@@ -13,7 +13,7 @@ The streaming shuffle is delivered as a **new `ShuffleManager` Service Provider 
 | Target branch | `master` |
 | Base version | `4.2.0-SNAPSHOT` |
 | Feature | Opt-in streaming shuffle subsystem |
-| Checkpoint | CP3 — VERIFICATION & CAPSTONE (final) |
+| Checkpoint | FINAL — VERIFICATION & CAPSTONE (supersedes CP3; includes the post-CP3 Netty CVE bump and the F-105 resolver suite) |
 | Activation contract | `spark.shuffle.manager=streaming` **and** `spark.shuffle.streaming.enabled=true` |
 | Default behavior | Unchanged — `spark.shuffle.manager` remains `"sort"` |
 | New runtime dependencies | None (all primitives already declared in the build) |
@@ -22,19 +22,19 @@ The streaming shuffle is delivered as a **new `ShuffleManager` Service Provider 
 
 ### Scope Summary
 
-At CP3 the full feature change set is present, reviewed, and committed. Both benchmark result files are committed and in scope — including `StreamingShufflePerformanceBenchmark-results.txt`, whose baseline records the headline latency comparison (`sort shuffle` ≈ 2480 ms vs `streaming shuffle` ≈ 1490 ms, ~39.9% reduction / 1.7× relative; regenerable via `SPARK_GENERATE_BENCHMARK_FILES=1`).
+At the FINAL checkpoint the full feature change set is present, reviewed, and committed. Both benchmark result files are committed and in scope — including `StreamingShufflePerformanceBenchmark-results.txt`, whose baseline records the headline latency comparison (`sort shuffle` ≈ 2480 ms vs `streaming shuffle` ≈ 1490 ms, ~39.9% reduction / 1.7× relative; regenerable via `SPARK_GENERATE_BENCHMARK_FILES=1`).
 
 | Category | Present at CP3 | Not committed | Detail |
 |----------|---------------:|--------------:|--------|
-| Existing files **MODIFIED** | 2 | 0 | SPI alias map + internal config registry (both additive) |
+| Existing files **MODIFIED** | 4 | 0 | SPI alias map + internal config registry (both additive); plus the `pom.xml` Netty `4.2.9.Final`→`4.2.15.Final` CVE bump and its companion `dev/.rat-excludes` entry |
 | Production classes **CREATED** | 16 | 0 | All runtime/control-plane classes (F-101–F-116) present and reviewed |
 | Production resources **CREATED** | 2 | 0 | `package.scala` Scaladoc + `metrics.properties.template` (F-118) |
-| Test suites **CREATED** | 14 | 0 | All 14 F-121 suites present — 9 unit/component + integration, integration-test, failure-injection, stress, and performance-benchmark |
+| Test suites **CREATED** | 15 | 0 | The 14 planned F-121 suites (9 unit/component + integration, integration-test, failure-injection, stress, and performance-benchmark) plus `StreamingShuffleBlockResolverSuite` adding dedicated F-105 coverage |
 | Benchmark result files | 2 | 0 | Both baselines committed — `StreamingShuffleBenchmark-results.txt` and `StreamingShufflePerformanceBenchmark-results.txt` (the latter's baseline supports the 30–50% latency headline; regenerable via `SPARK_GENERATE_BENCHMARK_FILES=1`) |
 | Documentation artifacts **CREATED** | 11 | 0 | 7 TechDocs (`index`, `configuration`, `architecture`, `observability`, `decision-log`, `executive-summary.html`, `dashboard.json`) + 4 Jekyll pages |
 | Governance artifact **CREATED** | 1 | 0 | this `CODE_REVIEW.md` review ledger |
 
-At CP3, all **48 changed files** are present, reviewed, and committed — including both benchmark baselines. This is the full feature change set.
+At the FINAL checkpoint, all **51 changed files** are present, reviewed, and committed — including both benchmark baselines. This is the full feature change set.
 
 ### Review Lifecycle
 
@@ -45,52 +45,53 @@ The Segmented PR Review follows a strict commit cadence so the review ledger is 
 3. **Re-commit on every phase transition** — As each domain phase resolves, the ledger is updated with that phase's verdict and **re-committed** before the next phase opens.
 4. **Checkpoint verdict commit** — Once the checkpoint's in-scope files resolve, the **Final Verdict** for the checkpoint is recorded and the ledger is committed again.
 
-**Pre-flight gate criteria (CP3 scope, stated verbatim):**
+**Pre-flight gate criteria (FINAL scope):**
 
-- All CP3 VERIFICATION & CAPSTONE deliverables exist at their specified paths and are committed, including both benchmark baselines (`StreamingShuffleBenchmark-results.txt` and `StreamingShufflePerformanceBenchmark-results.txt`; the benchmark object is present and runs).
+- All feature deliverables exist at their specified paths and are committed, including both benchmark baselines (`StreamingShuffleBenchmark-results.txt` and `StreamingShufflePerformanceBenchmark-results.txt`; the benchmark object is present and runs).
 - No production-path method in the source set returns a placeholder stub. The v1 network transport (`StreamingShuffleTransport`, F-115) is the single documented, intentional logging-only stub exception **by design**, recorded in the decision log (ADR-15, deviation D-1).
-- `CODE_REVIEW.md` is present at the repository root and advanced to CP3.
+- `CODE_REVIEW.md` is present at the repository root and advanced to the FINAL checkpoint.
 
 ## Pre-Flight Gate
 
-**Status: `PASSED` (CP3 scope)** — every criterion applicable to the CP3 verification & capstone set is satisfied.
+**Status: `PASSED` (FINAL scope)** — every criterion applicable to the full feature change set is satisfied.
 
 | Check | Status | Notes |
 |-------|--------|-------|
-| All CP3 deliverable paths exist | ✅ PASSED | All 48 files in the [Changed-File Inventory](#changed-file-inventory) are present and committed, including both benchmark baselines (`StreamingShuffleBenchmark-results.txt` and `StreamingShufflePerformanceBenchmark-results.txt`). |
+| All feature deliverable paths exist | ✅ PASSED | All 51 files in the [Changed-File Inventory](#changed-file-inventory) are present and committed, including both benchmark baselines (`StreamingShuffleBenchmark-results.txt` and `StreamingShufflePerformanceBenchmark-results.txt`). |
 | No production placeholder stubs | ✅ PASSED | Runtime classes implement complete logic; the writer publishes fetchable output via `IndexShuffleBlockResolver`, the reader fetches with a bounded timeout and now performs bounded CRC32C retransmission, the spill manager reclaims real heap, and fallback delegates to sort. The v1 logging-only transport stub (F-115) is the single documented exception (decision log ADR-15 / D-1). |
-| `CODE_REVIEW.md` present at repository root | ✅ PASSED | This file, advanced to CP3. |
+| `CODE_REVIEW.md` present at repository root | ✅ PASSED | This file, advanced to the FINAL checkpoint. |
 | Build compiles — zero errors, zero warnings | ✅ PASSED | `./build/mvn -pl core -DskipTests compile` with `-Wconf:any:e` (warnings-as-errors), `-Wunused:imports`, `-release 17`. |
-| Tests compile and all 14 streaming suites pass | ✅ PASSED | `./build/mvn -pl core test-compile` succeeds; the full 14-suite F-121 set runs green (`failed 0`). |
+| Tests compile and all 15 streaming suites pass | ✅ PASSED | `./build/mvn -pl core test-compile` succeeds; the full 15-suite F-121 set (14 planned + `StreamingShuffleBlockResolverSuite`) runs green (`failed 0`). |
 | Scalastyle clean (`maxColumn=98`) | ✅ PASSED | SBT `core/scalastyle` + `core/Test/scalastyle` report 0 errors. CP3 fixed the `StreamingShuffleReaderSuite` import-order + non-ASCII + line-length blockers and a latent `BackpressureRpcEndpoint` import-order error, so the benchmark `core/Test/runMain` path is no longer gated. |
 | Apache RAT license headers | ✅ PASSED | Every new **source** file carries the ASF header; the benchmark result file is excluded through `dev/.rat-excludes`. Prose Markdown intentionally omits the header per repository convention. |
 | MiMa binary compatibility | ➖ ADDITIVE BY CONSTRUCTION (CI gate) | New public symbols are additive only — new `ConfigEntry` vals and new `private[spark]` classes; no existing signature is changed. |
 
 ## Review Phases
 
-The feature's changed files are partitioned into **eight sequential domain phases**. Every changed file appears in **exactly one** phase — including this ledger, which is reviewed in Phase 8. At CP3, each phase reviews every file in its domain (all are now present), resolving each to `APPROVED`; no file remains `DEFERRED`.
+The feature's changed files are partitioned into **eight sequential domain phases**. Every changed file appears in **exactly one** phase — including this ledger, which is reviewed in Phase 8. At the FINAL checkpoint, each phase reviews every file in its domain (all are now present), resolving each to `APPROVED`; no file remains `DEFERRED`.
 
 ### Phase 1 — SPI & Configuration Domain
 
 **Files**
 
-| File | Mode | Feature | CP3 Status |
+| File | Mode | Feature | Status |
 |------|------|---------|------------|
 | `core/src/main/scala/org/apache/spark/shuffle/ShuffleManager.scala` | MODIFIED | F-117 (SPI alias) | APPROVED |
 | `core/src/main/scala/org/apache/spark/internal/config/package.scala` | MODIFIED | F-117 (config keys) | APPROVED |
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleConfig.scala` | CREATE | F-114 | APPROVED |
+| `pom.xml` | MODIFIED | Build/dependency (Netty `4.2.9.Final`→`4.2.15.Final` CVE bump) | APPROVED |
 
-**Review criteria** — Edits must be additive-only; the default `spark.shuffle.manager` must remain `"sort"`; range checks must hold; the config accessor must encode the dual-flag activation contract.
+**Review criteria** — Edits must be additive-only; the default `spark.shuffle.manager` must remain `"sort"`; range checks must hold; the config accessor must encode the dual-flag activation contract; the dependency bump must be a version-only change that introduces no new dependency and no API/behavioral change.
 
-**Findings** — The `shortShuffleMgrNames` map gains exactly one `"streaming"` entry and the `SHUFFLE_MANAGER` default is unchanged. `StreamingShuffleConfig` carries `managerSelected` (true only when `spark.shuffle.manager` resolves to the `"streaming"` alias) and the composite `active` accessor, so the manager enforces both halves of the dual-flag contract (M9). Configuration remains immutable for the application lifetime. **CP3 regression check:** no CP3 diff to these three files; the CP3 dual-flag and parity tests in Phase 7 exercise this accessor live. Rationale lives in the decision log (ADR-01, ADR-02).
+**Findings** — The `shortShuffleMgrNames` map gains exactly one `"streaming"` entry and the `SHUFFLE_MANAGER` default is unchanged. `StreamingShuffleConfig` carries `managerSelected` (true only when `spark.shuffle.manager` resolves to the `"streaming"` alias) and the composite `active` accessor, so the manager enforces both halves of the dual-flag contract (M9). Configuration remains immutable for the application lifetime. The post-CP3 `pom.xml` change is a single-property version bump of the existing `<netty.version>` from `4.2.9.Final` to `4.2.15.Final` (a CVE remediation on an already-declared dependency); it adds no new dependency, changes no public API, and leaves the streaming subsystem's reuse of Netty (via the existing `BlockTransferService`) unchanged. **Regression check:** no diff to the three SPI/config files since CP3; the dual-flag and parity tests in Phase 7 exercise this accessor live. Rationale lives in the decision log (ADR-01, ADR-02).
 
-**CP3 Verdict: `APPROVED`** (3 of 3 files reviewed).
+**Verdict (FINAL): `APPROVED`** (4 of 4 files reviewed — the three CP3 SPI/config files plus the post-CP3 `pom.xml` Netty CVE bump reviewed at the FINAL checkpoint).
 
 ### Phase 2 — Manager & Dispatch Domain
 
 **Files**
 
-| File | Mode | Feature | CP3 Status |
+| File | Mode | Feature | Status |
 |------|------|---------|------------|
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleManager.scala` | CREATE | F-101 | APPROVED |
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleHandle.scala` | CREATE | F-102 | APPROVED |
@@ -105,7 +106,7 @@ The feature's changed files are partitioned into **eight sequential domain phase
 
 **Files**
 
-| File | Mode | Feature | CP3 Status |
+| File | Mode | Feature | Status |
 |------|------|---------|------------|
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleWriter.scala` | CREATE | F-103 | APPROVED |
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleReader.scala` | CREATE | F-104 | APPROVED |
@@ -122,7 +123,7 @@ The feature's changed files are partitioned into **eight sequential domain phase
 
 **Files**
 
-| File | Mode | Feature | CP3 Status |
+| File | Mode | Feature | Status |
 |------|------|---------|------------|
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/BackpressureProtocol.scala` | CREATE | F-107 | APPROVED |
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/BackpressureRpcEndpoint.scala` | CREATE | F-108 | APPROVED |
@@ -140,7 +141,7 @@ The feature's changed files are partitioned into **eight sequential domain phase
 
 **Files**
 
-| File | Mode | Feature | CP3 Status |
+| File | Mode | Feature | Status |
 |------|------|---------|------------|
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleMetrics.scala` | CREATE | F-112 | APPROVED |
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleSource.scala` | CREATE | F-113 | APPROVED |
@@ -157,7 +158,7 @@ The feature's changed files are partitioned into **eight sequential domain phase
 
 **Files**
 
-| File | Mode | Feature | CP3 Status |
+| File | Mode | Feature | Status |
 |------|------|---------|------------|
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/network/StreamingShuffleTransport.scala` | CREATE | F-115 (v1 stub) | APPROVED |
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/network/StreamingBlockEnvelope.scala` | CREATE | F-116 | APPROVED |
@@ -172,7 +173,7 @@ The feature's changed files are partitioned into **eight sequential domain phase
 
 **Files**
 
-| File | Mode | Feature | CP3 Status |
+| File | Mode | Feature | Status |
 |------|------|---------|------------|
 | `StreamingShuffleManagerSuite.scala` | CREATE | F-121 | APPROVED |
 | `StreamingShuffleHandleSuite.scala` | CREATE | F-121 | APPROVED |
@@ -188,8 +189,10 @@ The feature's changed files are partitioned into **eight sequential domain phase
 | `StreamingShuffleFailureInjectionSuite.scala` | CREATE | F-121 | APPROVED |
 | `StreamingShuffleStressSuite.scala` | CREATE | F-121 | APPROVED |
 | `StreamingShufflePerformanceBenchmark.scala` | CREATE | F-121 | APPROVED |
+| `StreamingShuffleBlockResolverSuite.scala` | CREATE | F-121 (F-105 coverage) | APPROVED |
 | `core/benchmarks/StreamingShuffleBenchmark-results.txt` | CREATE | F-121 | APPROVED |
 | `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt` | CREATE | F-121 | APPROVED |
+| `dev/.rat-excludes` | MODIFIED | Build/RAT (exclude `StreamingShuffleBenchmark-results.txt`) | APPROVED |
 
 **Review criteria** — Suites must compile, pass, and prove the AAP verification semantics: active-streaming output parity vs sort across ≥ 2 shuffle shapes at ≥ 10 partitions; exactly ten zero-data-loss failure scenarios with true 5 s-timeout and end-to-end recompute semantics; a 5-minute active-streaming stress run with ~10 % failure injection and no retained heap; a `BenchmarkBase` object whose run path is green and that writes no result file unless requested.
 
@@ -202,16 +205,18 @@ The feature's changed files are partitioned into **eight sequential domain phase
 - **`StreamingShuffleStressSuite`** — the sustained correctness/failure-injection loop now runs with **both flags enabled (active streaming)**, injects streaming-specific failure/fallback/retry conditions, and asserts correctness, no data loss, and no retained heap. Resolves S.
 - **`StreamingShufflePerformanceBenchmark`** — extends `BenchmarkBase` correctly; with the Scalastyle gate cleared, the canonical `core/Test/runMain …StreamingShufflePerformanceBenchmark` path runs both the sort and streaming cases green under the test JVM (which carries the JDK17 `--add-opens java.base/java.nio=ALL-UNNAMED` required by Kryo) and writes **no** result file unless `SPARK_GENERATE_BENCHMARK_FILES=1`. The over-length run-instruction Scaladoc line was wrapped ≤ 98. Resolves B1, B2.
 - **`StreamingShufflePerformanceBenchmark-results.txt`** — committed and reviewed: its baseline records the headline latency comparison (`sort shuffle` ≈ 2480 ms vs `streaming shuffle` ≈ 1490 ms, ~39.9 % reduction / 1.7× relative), regenerable on demand via `SPARK_GENERATE_BENCHMARK_FILES=1`.
+- **`StreamingShuffleBlockResolverSuite.scala`** (post-CP3, reviewed at the FINAL checkpoint) — adds dedicated unit coverage for the F-105 `StreamingShuffleBlockResolver` (its 3-level in-memory index and its `MigratableResolver` delegation to the shared `IndexShuffleBlockResolver`), complementing the resolver-exposure, publication, and active round-trip assertions already carried by the manager/writer/integration suites. It compiles and passes, lifting the F-121 set from 14 to **15** suites.
+- **`dev/.rat-excludes`** (post-CP3, reviewed at the FINAL checkpoint) — adds `StreamingShuffleBenchmark-results.txt` to the Apache RAT exclude list so the generated benchmark baseline (a data artifact that cannot carry an ASF source header) clears the RAT license gate. This is a build-hygiene, license-exclusion entry only — no code or behavior change — and is consistent with the Pre-Flight Gate note on benchmark-result exclusion.
 
-All 14 suites compile and pass; coverage now exercises the highest-risk semantic paths (reader parity, manager dispatch/lifecycle, active parity, true timeout/recompute, active stress) that previously undermined the > 85 % coverage claim.
+All 15 suites compile and pass; coverage now exercises the highest-risk semantic paths (reader parity, manager dispatch/lifecycle, active parity, true timeout/recompute, active stress, and dedicated block-resolver behavior) that previously undermined the > 85 % coverage claim.
 
-**CP3 Verdict: `APPROVED`** (all 14 suites + both benchmark baselines reviewed and committed).
+**Verdict (FINAL): `APPROVED`** (all 15 suites + both benchmark baselines + the `dev/.rat-excludes` RAT update reviewed and committed; `StreamingShuffleBlockResolverSuite` and `dev/.rat-excludes` reviewed at the FINAL checkpoint).
 
 ### Phase 8 — Documentation & Governance Domain
 
 **Files**
 
-| File | Mode | Feature | CP3 Status |
+| File | Mode | Feature | Status |
 |------|------|---------|------------|
 | `blitzy-docs/streaming-shuffle/index.md` | CREATE | F-119 | APPROVED |
 | `blitzy-docs/streaming-shuffle/configuration.md` | CREATE | F-119 | APPROVED |
@@ -235,7 +240,7 @@ All 14 suites compile and pass; coverage now exercises the highest-risk semantic
 - **`index.md`** — the ten landing-page failure scenarios were rewritten to mirror the ten `StreamingShuffleFailureInjectionSuite` tests one-to-one in order, and the checksum narrative aligned to bounded-retransmit-then-invalidate; Diagram 0.2-A remains byte-identical to `architecture.md` and all six sibling links resolve (resolves the index findings; R3 preserved).
 - **`architecture.md`** — the checksum-handling prose (data-flow narrative, F-104 component row, and failure summary) was aligned to bounded-retransmit-then-invalidate so the entire doc set tells one consistent story; the three Mermaid diagrams remain titled, legended, and referenced (R3).
 - **`docs/streaming-shuffle-troubleshooting.md`** and the other Jekyll pages already described retransmission-then-invalidation and are consistent; no CP3 diff was required.
-- **`CODE_REVIEW.md`** — this ledger is advanced to CP3: every changed file is mapped to exactly one phase, all phases resolve to `APPROVED`, the previously `DEFERRED` items are now reviewed, and the Final Verdict and Verdict History are updated (resolves the CODE_REVIEW.md / R5 finding).
+- **`CODE_REVIEW.md`** — this ledger is advanced to the **FINAL** checkpoint: all **51** changed files are mapped to exactly one phase (the post-CP3 `pom.xml` Netty CVE bump in Phase 1, and `StreamingShuffleBlockResolverSuite.scala` + `dev/.rat-excludes` in Phase 7), all phases resolve to `APPROVED`, no item remains `DEFERRED`, and the Final Verdict and Verdict History are updated through the FINAL checkpoint (resolves the CODE_REVIEW.md / R5 finding).
 - **`configuration.md`** and **`dashboard.json`** are unchanged and consistent.
 
 **CP3 Verdict: `APPROVED`** (12 of 12 files reviewed).
@@ -252,13 +257,14 @@ All 14 suites compile and pass; coverage now exercises the highest-risk semantic
 
 ## Changed-File Inventory
 
-This table lists every changed file across the whole feature, its mode, its feature ID, the single domain phase that owns it, and its CP3 status. All **48 files** are present and committed, and every file carries an `APPROVED` verdict.
+This table lists every changed file across the whole feature, its mode, its feature ID, the single domain phase that owns it, and its review status. All **51 files** are present and committed, and every file carries an `APPROVED` verdict.
 
-| File Path | Mode | Feature ID | Review Phase | CP3 Status |
+| File Path | Mode | Feature ID | Review Phase | Status |
 |-----------|------|-----------|--------------|------------|
 | `core/src/main/scala/org/apache/spark/shuffle/ShuffleManager.scala` | MODIFY | F-117 (SPI alias) | Phase 1 | APPROVED |
 | `core/src/main/scala/org/apache/spark/internal/config/package.scala` | MODIFY | F-117 (config keys) | Phase 1 | APPROVED |
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleConfig.scala` | CREATE | F-114 | Phase 1 | APPROVED |
+| `pom.xml` | MODIFY | Build/dependency (Netty CVE `4.2.9.Final`→`4.2.15.Final`) | Phase 1 | APPROVED |
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleManager.scala` | CREATE | F-101 | Phase 2 | APPROVED |
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleHandle.scala` | CREATE | F-102 | Phase 2 | APPROVED |
 | `core/src/main/scala/org/apache/spark/shuffle/streaming/StreamingShuffleWriter.scala` | CREATE | F-103 | Phase 3 | APPROVED |
@@ -290,8 +296,10 @@ This table lists every changed file across the whole feature, its mode, its feat
 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleFailureInjectionSuite.scala` | CREATE | F-121 | Phase 7 | APPROVED |
 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleStressSuite.scala` | CREATE | F-121 | Phase 7 | APPROVED |
 | `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShufflePerformanceBenchmark.scala` | CREATE | F-121 | Phase 7 | APPROVED |
+| `core/src/test/scala/org/apache/spark/shuffle/streaming/StreamingShuffleBlockResolverSuite.scala` | CREATE | F-121 (F-105 coverage) | Phase 7 | APPROVED |
 | `core/benchmarks/StreamingShuffleBenchmark-results.txt` | CREATE | F-121 | Phase 7 | APPROVED |
 | `core/benchmarks/StreamingShufflePerformanceBenchmark-results.txt` | CREATE | F-121 | Phase 7 | APPROVED |
+| `dev/.rat-excludes` | MODIFY | Build/RAT (exclude `StreamingShuffleBenchmark-results.txt`) | Phase 7 | APPROVED |
 | `blitzy-docs/streaming-shuffle/index.md` | CREATE | F-119 | Phase 8 | APPROVED |
 | `blitzy-docs/streaming-shuffle/configuration.md` | CREATE | F-119 | Phase 8 | APPROVED |
 | `blitzy-docs/streaming-shuffle/architecture.md` | CREATE | F-119 | Phase 8 | APPROVED |
@@ -309,20 +317,21 @@ This table lists every changed file across the whole feature, its mode, its feat
 
 ## Final Verdict
 
-**`APPROVED` (CP3 — VERIFICATION & CAPSTONE); overall feature `APPROVED` — cleared to merge.**
+**`APPROVED` (FINAL — VERIFICATION & CAPSTONE); overall feature `APPROVED` — cleared to merge.**
 
-The full feature change set is accepted: all **48 files** resolve to `APPROVED` in their owning phases, with **no `BLOCKED`** finding outstanding and **no file `DEFERRED`**. Every CP3 review finding is resolved at its root cause:
+The full feature change set is accepted: all **51 files** resolve to `APPROVED` in their owning phases, with **no `BLOCKED`** finding outstanding and **no file `DEFERRED`**. Every review finding through the FINAL checkpoint is resolved at its root cause:
 
 - **Reader semantics & retransmission (Phase 3 / Phase 7)** — the reader now performs bounded CRC32C retransmission within the 5 s producer deadline, invalidating only on persistent corruption, a structural decode error, or timeout; the reader suite proves sort-reader parity for aggregation, map-side combine, and key ordering, plus transient-checksum recovery (R-a..R-d).
 - **Manager dispatch & lifecycle (Phase 2 / Phase 7)** — `getWriter`/`getReader` dispatch, executor-mode collaborator gating, and idempotent ordered teardown (Backpressure → Spill → Sort) are tested against the new manager seams (M).
 - **Active-streaming parity (Phase 7)** — integration suites prove active dual-flag output equals the sort baseline across ≥ 2 shuffle shapes at ≥ 10 partitions (I, IT).
 - **Zero data loss (Phase 7)** — exactly ten failure scenarios with a true silent-producer 5 s timeout and an end-to-end DAG-recompute proof (F1, F2); the 5-minute stress run is active streaming with ~10 % failure injection and no retained heap (S).
 - **Benchmark run path (Phase 4 / Phase 7)** — the Scalastyle gate (reader suite + a latent RPC-endpoint import-order error) is cleared, so the `BenchmarkBase` run path is green for both sort and streaming cases and writes no result file unless requested (B1, B2).
-- **Capstone docs & governance (Phase 8)** — the decision log gains an alternatives column, a single F-115 deviation, and a complete bidirectional traceability matrix; the executive deck is accurate (MDC fields), accessible, and hardened (crossorigin/SRI posture, deterministic init order); the landing page scenarios match the suite; the checksum narrative is consistent across every doc; and this ledger is advanced to CP3 (R1, R2, R3, R4, R5).
+- **Capstone docs & governance (Phase 8)** — the decision log gains an alternatives column, a single F-115 deviation, and a complete bidirectional traceability matrix; the executive deck is accurate (MDC fields), accessible, and hardened (crossorigin/SRI posture, deterministic init order); the landing page scenarios match the suite; the checksum narrative is consistent across every doc; and this ledger is advanced to the FINAL checkpoint (R1, R2, R3, R4, R5).
+- **FINAL-checkpoint additions (Phase 1 / Phase 7)** — the post-CP3 `pom.xml` Netty `4.2.9.Final`→`4.2.15.Final` CVE remediation (a version-only bump of an already-declared dependency, no new dependency and no API change), its companion `dev/.rat-excludes` license-exclusion entry, and the new `StreamingShuffleBlockResolverSuite` (dedicated F-105 coverage, lifting the F-121 set to 15 suites) are each partitioned to exactly one phase and reviewed `APPROVED`.
 
-The change remains strictly additive — the default path is provably unchanged (`spark.shuffle.manager` remains `"sort"`; the reflective `SparkEnv` factory and every AQE/scheduler surface are untouched). The source set compiles with zero errors and zero warnings, all 14 streaming suites pass, and SBT `core/scalastyle` + `core/Test/scalastyle` report zero violations.
+The change remains strictly additive — the default path is provably unchanged (`spark.shuffle.manager` remains `"sort"`; the reflective `SparkEnv` factory and every AQE/scheduler surface are untouched). The source set compiles with zero errors and zero warnings, all 15 streaming suites pass, and SBT `core/scalastyle` + `core/Test/scalastyle` report zero violations.
 
-The v1 logging-only network-transport stub (F-115) remains the single documented, intentional placeholder, recorded in the decision log (ADR-15, deviation D-1); it does not affect correctness because the writer publishes fetchable output through `IndexShuffleBlockResolver` and the reader fetches through the standard map-output path. All **48** feature files — including both benchmark baselines — are committed and in scope.
+The v1 logging-only network-transport stub (F-115) remains the single documented, intentional placeholder, recorded in the decision log (ADR-15, deviation D-1); it does not affect correctness because the writer publishes fetchable output through `IndexShuffleBlockResolver` and the reader fetches through the standard map-output path. All **51** feature files — including both benchmark baselines — are committed and in scope.
 
 ### Verdict History
 
@@ -343,4 +352,7 @@ The table below shows the commit/re-commit cadence across checkpoints, satisfyin
 | CP3 · Phase 6 → 7 | Wire Transport — v1 stub discipline + envelope invariant re-verified | APPROVED (CP3) |
 | CP3 · Phase 7 → 8 | Test & Benchmark — active parity, true timeout/recompute, active stress, green benchmark path; all 14 suites + both benchmark baselines reviewed | APPROVED (CP3) |
 | CP3 · Phase 8 (governance) | Documentation & Governance — decision-log alternatives/traceability, accurate/accessible deck, aligned scenarios, ledger advanced to CP3 | APPROVED (CP3) |
-| CP3 · Checkpoint verdict | All 48 files `APPROVED`; no `DEFERRED`; F-115 single documented stub | **`APPROVED` (CP3); feature `APPROVED` — cleared to merge** |
+| CP3 · Checkpoint verdict | All 48 CP3-scope files `APPROVED`; no `DEFERRED`; F-115 single documented stub | `APPROVED` (CP3); feature `IN PROGRESS` (post-CP3 CVE/test deltas followed) |
+| CP5 · Pre-flight + verdict | Ledger advanced for the post-CP3 build/dependency delta: `pom.xml` Netty `4.2.9.Final`→`4.2.15.Final` CVE bump + companion `dev/.rat-excludes` entry, partitioned to Phase 1 / Phase 7 and reviewed | `APPROVED` (CP5); feature `IN PROGRESS` |
+| CP6 · Pre-flight + verdict | Ledger advanced for the post-CP3 test delta: `StreamingShuffleBlockResolverSuite.scala` (dedicated F-105 coverage) added to Phase 7, lifting the F-121 set to 15 suites | `APPROVED` (CP6); feature `IN PROGRESS` |
+| FINAL · Checkpoint verdict | All **51** files `APPROVED` across the eight domain phases; no `DEFERRED`; F-115 single documented stub; counts and partition reconciled to 51 files / 15 suites | **`APPROVED` (FINAL); feature `APPROVED` — cleared to merge** |
