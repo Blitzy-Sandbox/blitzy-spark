@@ -126,16 +126,17 @@ flowchart LR
     SRC --> MS
     FP -.->|"fallback"| SORT
 
-    L["Legend: solid arrow = runtime call/registration; dashed arrow = failure or fallback path; left cluster = unchanged existing engine (public APIs); right cluster = new isolated streaming package"]
+    L["Legend: solid arrow = runtime call/registration; dashed arrow = failure or fallback path; left cluster = unchanged existing engine (public APIs); right cluster = new isolated streaming package; bold text = new or modified element in PR #3"]
 ```
 
 **Legend.** Solid arrows are runtime calls or registrations; dashed arrows are
 failure or fallback paths. The left cluster is the unchanged existing engine,
 accessed only through public APIs; the right cluster is the new, isolated
-streaming package. Note the two dashed edges: the reader raises the standard
-`FetchFailedException` to the `DAGScheduler` on producer timeout, and the
-`FallbackPolicy` routes to the inner `SortShuffleManager` when any fallback
-condition trips.
+streaming package. **Bold** labels denote elements newly created or modified by
+this feature (for example, `StreamingShuffleManager`). Note the two dashed
+edges: the reader raises the standard `FetchFailedException` to the
+`DAGScheduler` on producer timeout, and the `FallbackPolicy` routes to the inner
+`SortShuffleManager` when any fallback condition trips.
 
 ## Figure 3 — Data Flow (Producer → Consumer)
 
@@ -156,7 +157,7 @@ flowchart LR
     RRD -.->|"CRC mismatch → retransmit"| XFER
     RRD -.->|"5s timeout → FetchFailedException"| RECOMP["DAG upstream recompute"]
 
-    L2["Legend: solid arrow = normal streaming data path; dashed arrow = memory-pressure, integrity, or failure handling; reader→buffer loop (ack) = backpressure acknowledgment"]
+    L2["Legend: solid arrow = normal streaming data path; dashed arrow = memory-pressure, integrity, or failure handling; reader→buffer loop (ack) = backpressure acknowledgment; bold text = new or modified element in PR #3 (none appear in this data-flow view)"]
 ```
 
 **Legend.** Solid arrows trace the normal streaming data path and the
@@ -164,7 +165,9 @@ reader&rarr;buffer acknowledgment loop; dashed arrows show memory-pressure
 handling (spill), integrity handling (CRC mismatch), and failure handling
 (producer timeout). The reader&rarr;buffer acknowledgment edge is the
 backpressure mechanism that reclaims buffer memory within 100&nbsp;ms of consumer
-acknowledgment. Each per-partition buffer is bounded by
+acknowledgment. **Bold** labels denote elements newly created or modified by
+this feature; this data-flow view contains none, as every node is a data-path
+step rather than a component. Each per-partition buffer is bounded by
 `(executorMemory × bufferSizePercent / 100) / numPartitions`; when utilization
 rises above the **80% spill threshold** the `MemorySpillManager` evicts the
 largest/LRU partitions to disk via `BlockManager` `DISK_ONLY` — this keeps the

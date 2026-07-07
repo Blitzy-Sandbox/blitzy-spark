@@ -24,7 +24,7 @@ import java.nio.ByteBuffer
 import org.mockito.ArgumentMatchers.{eq => meq}
 import org.mockito.Mockito.{mock, when}
 
-import org.apache.spark._
+import org.apache.spark.{Aggregator, LocalSparkContext, MapOutputTracker, ShuffleDependency, SparkConf, SparkContext, SparkFunSuite, TaskContext}
 import org.apache.spark.internal.config
 import org.apache.spark.memory.MemoryTestingUtils
 import org.apache.spark.network.buffer.{ManagedBuffer, NioManagedBuffer}

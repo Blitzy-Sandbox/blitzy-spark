@@ -17,16 +17,17 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.io.InputStream
-import java.net.SocketException
+import java.io.{IOException, InputStream}
+import java.net.{SocketException, SocketTimeoutException}
 import java.nio.ByteBuffer
 import java.util.Arrays
+import java.util.concurrent.ConcurrentHashMap
 
 import org.mockito.Mockito.{mock, when}
-import org.scalatest.concurrent.Eventually._
-import org.scalatest.time.SpanSugar._
+import org.scalatest.concurrent.Eventually
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
-import org.apache.spark._
+import org.apache.spark.{LocalSparkContext, ShuffleDependency, SparkConf, SparkContext, SparkEnv, SparkFunSuite, TaskContext}
 import org.apache.spark.internal.config
 import org.apache.spark.network.buffer.ManagedBuffer
 import org.apache.spark.serializer.{JavaSerializer, SerializerManager}
@@ -68,21 +69,25 @@ import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleB
  * `BlockStoreShuffleReaderSuite` and implement public engine interfaces, not streaming production
  * types.
  */
-class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with LocalSparkContext {
+class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with LocalSparkContext
+  with Eventually {
 
   // ---------------------------------------------------------------------------------------------
   // Test-only fixtures (public-interface implementations, not streaming production classes).
   // ---------------------------------------------------------------------------------------------
 
   /**
-   * A test-only [[InputStream]] that simulates a crashed or partitioned producer by throwing a
-   * [[SocketException]] on every read. The streaming reader classifies a socket failure anywhere in
+   * A test-only [[InputStream]] that simulates a crashed or partitioned producer by throwing the
+   * supplied [[IOException]] on every read. The failure is produced by a `makeFailure` thunk so a
+   * fresh exception instance is thrown per read (streams may be retried); callers choose the exact
+   * connection-failure subtype -- e.g. [[SocketException]] for a reset or
+   * [[SocketTimeoutException]] for a timeout. The streaming reader classifies any such failure in
    * the cause chain as a producer connection timeout, so this deterministically triggers
    * partial-read invalidation without any real five-second wait.
    */
-  private class CrashInputStream(message: String) extends InputStream {
-    override def read(): Int = throw new SocketException(message)
-    override def read(b: Array[Byte], off: Int, len: Int): Int = throw new SocketException(message)
+  private class CrashInputStream(makeFailure: () => IOException) extends InputStream {
+    override def read(): Int = throw makeFailure()
+    override def read(b: Array[Byte], off: Int, len: Int): Int = throw makeFailure()
   }
 
   /**
@@ -92,10 +97,10 @@ class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with LocalSpar
    * buffer creation -- so it flows into the reader's producer-timeout guard exactly as a real
    * connection reset would.
    */
-  private class ProducerCrashManagedBuffer(message: String) extends ManagedBuffer {
+  private class ProducerCrashManagedBuffer(makeFailure: () => IOException) extends ManagedBuffer {
     override def size(): Long = 128L
     override def nioByteBuffer(): ByteBuffer = ByteBuffer.allocate(0)
-    override def createInputStream(): InputStream = new CrashInputStream(message)
+    override def createInputStream(): InputStream = new CrashInputStream(makeFailure)
     override def convertToNetty(): AnyRef = throw new UnsupportedOperationException()
     override def convertToNettyForSsl(): AnyRef = throw new UnsupportedOperationException()
     override def retain(): ManagedBuffer = this
@@ -115,11 +120,12 @@ class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with LocalSpar
 
   /**
    * Drives a real [[StreamingShuffleReader]] `read()` against a single local producer block whose
-   * input stream fails with the supplied connection error, asserts that the failure surfaces as a
-   * [[FetchFailedException]] (the DAG-recompute contract), and returns the streaming metrics so the
-   * caller can assert partial-read invalidation. Requires `sc` to be initialized (for `SparkEnv`).
+   * input stream fails with the [[IOException]] produced by `makeFailure`, asserts that the failure
+   * surfaces as a [[FetchFailedException]] (the DAG-recompute contract), and returns the streaming
+   * metrics so the caller can assert partial-read invalidation. Requires `sc` to be initialized
+   * (for `SparkEnv`).
    */
-  private def readWithFailingProducer(failureMessage: String): StreamingShuffleMetrics = {
+  private def readWithProducerFailure(makeFailure: () => IOException): StreamingShuffleMetrics = {
     val shuffleId = 42
     val mapId = 0L
     val reduceId = 3
@@ -131,7 +137,7 @@ class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with LocalSpar
     when(blockManager.blockManagerId).thenReturn(localId)
     val shuffleBlockId = ShuffleBlockId(shuffleId, mapId, reduceId)
     when(blockManager.getLocalBlockData(shuffleBlockId))
-      .thenReturn(new ProducerCrashManagedBuffer(failureMessage))
+      .thenReturn(new ProducerCrashManagedBuffer(makeFailure))
 
     // A minimal streaming handle over a mocked dependency (no aggregation, no ordering).
     val dependency = mock(classOf[ShuffleDependency[Int, Int, Int]])
@@ -169,6 +175,48 @@ class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with LocalSpar
       reader.read().toList
     }
     streamingMetrics
+  }
+
+  /**
+   * Injects a [[SocketException]] (a connection reset / no-route producer crash) on every read.
+   * This is the default producer-failure vector for the crash and network-partition scenarios.
+   */
+  private def readWithFailingProducer(failureMessage: String): StreamingShuffleMetrics =
+    readWithProducerFailure(() => new SocketException(failureMessage))
+
+  /**
+   * Injects a [[SocketTimeoutException]] on every read, the canonical connect/read-timeout signal.
+   * Exercises the same producer-connection-timeout classification and invalidation path as a real
+   * five-second timeout, deterministically and without any wall-clock wait.
+   */
+  private def readWithTimingOutProducer(failureMessage: String): StreamingShuffleMetrics =
+    readWithProducerFailure(() => new SocketTimeoutException(failureMessage))
+
+  /**
+   * Reflectively invokes the private [[BackpressureProtocol]] `scan()` so the timeout-driven
+   * liveness cleanup can be exercised synchronously, without starting the daemon (which would race
+   * the assertions) and without modifying production code to widen the method's visibility.
+   */
+  private def invokeScan(protocol: BackpressureProtocol): Unit = {
+    val method = classOf[BackpressureProtocol].getDeclaredMethod("scan")
+    method.setAccessible(true)
+    method.invoke(protocol)
+  }
+
+  /** Reflectively reads the private producer-liveness map (keyed by boxed mapId). */
+  private def producerMap(
+      protocol: BackpressureProtocol): ConcurrentHashMap[java.lang.Long, java.lang.Long] = {
+    val field = classOf[BackpressureProtocol].getDeclaredField("producerLastActive")
+    field.setAccessible(true)
+    field.get(protocol).asInstanceOf[ConcurrentHashMap[java.lang.Long, java.lang.Long]]
+  }
+
+  /** Reflectively reads the private consumer-liveness map (keyed by executor id). */
+  private def consumerMap(
+      protocol: BackpressureProtocol): ConcurrentHashMap[String, java.lang.Long] = {
+    val field = classOf[BackpressureProtocol].getDeclaredField("consumerLastSeen")
+    field.setAccessible(true)
+    field.get(protocol).asInstanceOf[ConcurrentHashMap[String, java.lang.Long]]
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -331,6 +379,14 @@ class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with LocalSpar
     // contract; this is the window within which an unreachable producer is invalidated and a
     // FetchFailedException is thrown so the upstream stage is recomputed (no silent data loss).
     assert(StreamingShuffleReader.PRODUCER_CONNECTION_TIMEOUT_MS == 5000L)
+
+    // Drive the timeout path end to end: a producer whose stream fails with a socket timeout
+    // (the canonical connect/read-timeout signal) must be classified as a producer-connection
+    // failure, surface as a FetchFailedException (asserted inside the helper), and invalidate the
+    // partial read exactly once -- so no partially read block is ever handed to the reduce task.
+    sc = new SparkContext("local", "test", readerSparkConf())
+    val metrics = readWithTimingOutProducer("simulated producer connection timeout")
+    assert(metrics.partialReadInvalidationsCounter.getCount == 1L)
   }
 
   test("failure scenario 7: partial-read invalidation is atomic (once)") {
@@ -385,6 +441,31 @@ class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with LocalSpar
   }
 
   test("failure scenario 10: backpressure timeout handled without deadlock/leak") {
+    // Part 1 -- deterministic liveness-scan cleanup. A separate, un-started protocol is driven by
+    // invoking the private scan() reflectively so the 5s producer / 10s consumer timeout paths are
+    // exercised without any wall-clock wait and without racing the background scheduler.
+    val scanMetrics = new StreamingShuffleMetrics()
+    val scanProtocol = new BackpressureProtocol(
+      new StreamingShuffleConfig(new SparkConf(false)),
+      scanMetrics,
+      new TokenBucketRateLimiter(0, 1))
+    val now = System.currentTimeMillis()
+    producerMap(scanProtocol).put(java.lang.Long.valueOf(0L), java.lang.Long.valueOf(now - 6000L))
+    producerMap(scanProtocol).put(java.lang.Long.valueOf(1L), java.lang.Long.valueOf(now - 4000L))
+    scanProtocol.onHeartbeat("stale-consumer", now - 11000L)
+    scanProtocol.onHeartbeat("fresh-consumer", now - 9000L)
+    invokeScan(scanProtocol)
+    // The producer idle past 5s and the consumer silent past 10s are dropped; the fresher
+    // entries survive. Consumer eviction is recorded as a backpressure event while producer
+    // eviction is tracking-only, so exactly one event is counted -- stale liveness state is
+    // reclaimed without losing any data.
+    assert(!producerMap(scanProtocol).containsKey(java.lang.Long.valueOf(0L)))
+    assert(producerMap(scanProtocol).containsKey(java.lang.Long.valueOf(1L)))
+    assert(!consumerMap(scanProtocol).containsKey("stale-consumer"))
+    assert(consumerMap(scanProtocol).containsKey("fresh-consumer"))
+    assert(scanMetrics.backpressureCounter.getCount == 1L)
+
+    // Part 2 -- no deadlock / no leak under the running daemon.
     val conf = new StreamingShuffleConfig(new SparkConf(false))
     val metrics = new StreamingShuffleMetrics()
     // Unlimited (pass-through) limiter: the send gate must never block, so acquire cannot deadlock.

@@ -17,6 +17,9 @@
 
 package org.apache.spark.shuffle.streaming
 
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
+
 import org.apache.spark.{SparkConf, SparkFunSuite}
 import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
 
@@ -51,6 +54,42 @@ class BackpressureProtocolSuite extends SparkFunSuite {
       new StreamingShuffleConfig(new SparkConf(false)),
       new StreamingShuffleMetrics(),
       new TokenBucketRateLimiter(mbps, shuffles))
+  }
+
+  /**
+   * Reflectively invokes the private daemon `scan()` so the timeout-driven liveness cleanup can be
+   * exercised synchronously and deterministically -- without starting the background scheduler
+   * (which would race the assertions) and without modifying production code to widen `scan`'s
+   * visibility. The method is materialized in bytecode because the daemon scheduler invokes it.
+   */
+  private def invokeScan(protocol: BackpressureProtocol): Unit = {
+    val method = classOf[BackpressureProtocol].getDeclaredMethod("scan")
+    method.setAccessible(true)
+    method.invoke(protocol)
+  }
+
+  /**
+   * Reflectively reads the private producer-liveness map so a test can both seed stale/fresh
+   * entries with explicit timestamps and assert the post-scan cleanup. The map is keyed by mapId
+   * (a boxed [[java.lang.Long]]) with a last-active epoch-millis timestamp value.
+   */
+  private def producerMap(
+      protocol: BackpressureProtocol): ConcurrentHashMap[java.lang.Long, java.lang.Long] = {
+    val field = classOf[BackpressureProtocol].getDeclaredField("producerLastActive")
+    field.setAccessible(true)
+    field.get(protocol).asInstanceOf[ConcurrentHashMap[java.lang.Long, java.lang.Long]]
+  }
+
+  /**
+   * Reflectively reads the private consumer-liveness map so a test can assert which executors
+   * survive a scan. Consumer heartbeats are seeded through the public `onHeartbeat` API (whose
+   * timestamp argument is settable), so only the read side needs reflection here.
+   */
+  private def consumerMap(
+      protocol: BackpressureProtocol): ConcurrentHashMap[String, java.lang.Long] = {
+    val field = classOf[BackpressureProtocol].getDeclaredField("consumerLastSeen")
+    field.setAccessible(true)
+    field.get(protocol).asInstanceOf[ConcurrentHashMap[String, java.lang.Long]]
   }
 
   test("protocol constants match the spec") {
@@ -173,6 +212,97 @@ class BackpressureProtocolSuite extends SparkFunSuite {
     intercept[IllegalArgumentException] {
       limiter.setRate(-1.0)
     }
+  }
+
+  test("acquire enforces the send-credit gate when bandwidth limiting is enabled") {
+    // With a positive maxBandwidthMBps the credit gate is enabled, and pairing it with an
+    // unlimited pass-through rate limiter makes the token bucket the SOLE decider of acquire():
+    // the rate limiter always grants, so any denial is unambiguously a credit exhaustion.
+    val conf = new SparkConf(false).set("spark.shuffle.streaming.maxBandwidthMBps", "100")
+    val metrics = new StreamingShuffleMetrics()
+    val protocol = new BackpressureProtocol(
+      new StreamingShuffleConfig(conf), metrics, new TokenBucketRateLimiter(0, 1))
+
+    // No credit has been released yet, so a positive request is denied and recorded as a single
+    // backpressure event; the credit balance stays at zero.
+    assert(!protocol.acquire(1024L))
+    assert(metrics.backpressureCounter.getCount == 1L)
+    assert(protocol.status._2 == 0L)
+
+    // A consumer acknowledgment releases send credit equal to the bytes it reports consuming.
+    protocol.onConsumerAck(shuffleId = 0, mapId = 0L, reduceId = 0, bytesConsumed = 4096L,
+      seqNumber = 1)
+    assert(protocol.status._2 == 4096L)
+
+    // A request within the available credit is granted and debits the bucket by exactly that many
+    // bytes; no additional backpressure event is recorded on the success path.
+    assert(protocol.acquire(1024L))
+    assert(protocol.status._2 == 3072L)
+    assert(metrics.backpressureCounter.getCount == 1L)
+
+    // A request exceeding the remaining credit is denied and recorded as a second backpressure
+    // event, leaving the surviving credit untouched.
+    assert(!protocol.acquire(4096L))
+    assert(metrics.backpressureCounter.getCount == 2L)
+    assert(protocol.status._2 == 3072L)
+  }
+
+  test("scan evicts producers idle past 5s and consumers silent past 10s") {
+    // A visible metrics holder is constructed inline (newProtocol hides its own) so the consumer
+    // eviction's backpressure-event side effect can be asserted. scan() is driven reflectively
+    // instead of via start(), so the assertions never race the background scheduler.
+    val metrics = new StreamingShuffleMetrics()
+    val protocol = new BackpressureProtocol(
+      new StreamingShuffleConfig(new SparkConf(false)), metrics, new TokenBucketRateLimiter(0, 1))
+    val now = System.currentTimeMillis()
+
+    // Producer liveness is tracking-only (no metric). Seed one producer idle beyond the 5s
+    // timeout and one just inside it; the scan must drop only the stale entry.
+    producerMap(protocol).put(java.lang.Long.valueOf(1L), java.lang.Long.valueOf(now - 6000L))
+    producerMap(protocol).put(java.lang.Long.valueOf(2L), java.lang.Long.valueOf(now - 4000L))
+    // Consumer heartbeats are seeded through the public API with explicit stale/fresh timestamps.
+    protocol.onHeartbeat("stale-consumer", now - 11000L)
+    protocol.onHeartbeat("fresh-consumer", now - 9000L)
+
+    invokeScan(protocol)
+
+    // Stale producer dropped, fresh producer retained; producer eviction emits no metric.
+    assert(!producerMap(protocol).containsKey(java.lang.Long.valueOf(1L)))
+    assert(producerMap(protocol).containsKey(java.lang.Long.valueOf(2L)))
+    // Stale consumer removed and recorded as exactly one backpressure event; fresh one retained.
+    assert(!consumerMap(protocol).containsKey("stale-consumer"))
+    assert(consumerMap(protocol).containsKey("fresh-consumer"))
+    assert(metrics.backpressureCounter.getCount == 1L)
+  }
+
+  test("scan swallows a Throwable from metrics so the daemon is never disabled") {
+    // The scan body is wrapped in a Throwable guard so a transient failure cannot cancel the
+    // scheduled task and silently disable backpressure. A metrics stub throws exactly once from
+    // incBackpressureEvents to simulate that transient failure during consumer eviction.
+    val thrown = new AtomicBoolean(false)
+    val metrics = new StreamingShuffleMetrics() {
+      override def incBackpressureEvents(): Unit = {
+        if (thrown.compareAndSet(false, true)) {
+          throw new RuntimeException("injected transient metrics failure")
+        }
+        super.incBackpressureEvents()
+      }
+    }
+    val protocol = new BackpressureProtocol(
+      new StreamingShuffleConfig(new SparkConf(false)), metrics, new TokenBucketRateLimiter(0, 1))
+    val now = System.currentTimeMillis()
+
+    // First scan: evicting the stale consumer triggers incBackpressureEvents, which throws. The
+    // guard must swallow it (invokeScan does not propagate) and the throwing call records nothing.
+    protocol.onHeartbeat("stale-1", now - 11000L)
+    invokeScan(protocol)
+    assert(metrics.backpressureCounter.getCount == 0L)
+
+    // Second scan: the injected failure has already fired, so metrics now delegate to super. A
+    // fresh stale consumer is evicted and recorded, proving the scan survived the Throwable.
+    protocol.onHeartbeat("stale-2", now - 11000L)
+    invokeScan(protocol)
+    assert(metrics.backpressureCounter.getCount == 1L)
   }
 
 }

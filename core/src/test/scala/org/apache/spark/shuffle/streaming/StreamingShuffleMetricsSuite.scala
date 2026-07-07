@@ -106,6 +106,28 @@ class StreamingShuffleMetricsSuite extends SparkFunSuite {
     assert(registered.getCount == 2L)
   }
 
+  test("source registers each metric under its exact name and Dropwizard type") {
+    val metrics = new StreamingShuffleMetrics()
+    val source = new StreamingShuffleSource(metrics)
+    val gauges = source.metricRegistry.getGauges
+    val counters = source.metricRegistry.getCounters
+
+    // bufferUtilizationPercent is the only Gauge; the other three are Counters. Asserting the
+    // exact registry maps (not just name existence) locks in both the metric names and their
+    // Dropwizard types -- the observability contract consumed by JMX/Prometheus/CSV sinks.
+    assert(gauges.containsKey("bufferUtilizationPercent"))
+    assert(counters.containsKey("spillCount"))
+    assert(counters.containsKey("backpressureEvents"))
+    assert(counters.containsKey("partialReadInvalidations"))
+
+    // Cross-type negative checks: a Counter must not surface as a Gauge and vice versa, so a sink
+    // reading getGauges/getCounters sees each metric under exactly one type.
+    assert(!counters.containsKey("bufferUtilizationPercent"))
+    assert(!gauges.containsKey("spillCount"))
+    assert(!gauges.containsKey("backpressureEvents"))
+    assert(!gauges.containsKey("partialReadInvalidations"))
+  }
+
   /**
    * Returns `true` if the source's metric registry exposes a metric whose registered name either
    * equals `shortName` exactly or ends with it (tolerating a dotted/qualified prefix).

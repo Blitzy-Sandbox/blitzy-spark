@@ -20,7 +20,7 @@ package org.apache.spark.shuffle.streaming
 import org.mockito.ArgumentMatchers.{any, anyBoolean, eq => meq}
 import org.mockito.Mockito.{atLeastOnce, mock, verify, when}
 import org.scalatest.concurrent.Eventually
-import org.scalatest.time.SpanSugar._
+import org.scalatest.time.SpanSugar.convertIntToGrainOfTime
 
 import org.apache.spark.{SparkConf, SparkFunSuite}
 import org.apache.spark.storage.{BlockManager, ShuffleBlockId, StorageLevel}
@@ -99,6 +99,19 @@ class MemorySpillManagerSuite extends SparkFunSuite with Eventually {
     buffer
   }
 
+  /**
+   * Reflectively overrides a buffer's last-access timestamp. [[StreamingBuffer]] stamps
+   * `lastAccessTime` to "now" on every `append`, so two buffers created in the same test are
+   * effectively tied; the manager's spill ordering uses that timestamp as the LRU tie-breaker
+   * among equal-sized partitions. There is no public setter (the field is intentionally internal),
+   * so this test overrides it directly to make the LRU ordering deterministic.
+   */
+  private def setLastAccess(buffer: StreamingBuffer, millis: Long): Unit = {
+    val field = classOf[StreamingBuffer].getDeclaredField("lastAccessTime")
+    field.setAccessible(true)
+    field.setLong(buffer, millis)
+  }
+
   test("POLL_INTERVAL_MS is 100") {
     val manager =
       new MemorySpillManager(newConf(), newBlockManager(), new StreamingShuffleMetrics())
@@ -134,7 +147,10 @@ class MemorySpillManagerSuite extends SparkFunSuite with Eventually {
     val blockManager = newBlockManager()
     val manager = new MemorySpillManager(newConf(spillThreshold = 80), blockManager, metrics)
     manager.setBufferBudgetBytes(1000L)
-    manager.register(0, 0L, 0, bufferWith(0, 0L, 0, 900))
+    // The buffer reference is retained so the test can assert that spilling actually frees the
+    // in-memory bytes, not merely that a copy was persisted to disk.
+    val buffer = bufferWith(0, 0L, 0, 900)
+    manager.register(0, 0L, 0, buffer)
     manager.start()
     try {
       // 900 B of a 1000 B budget is 90% utilization, above the 80% spill threshold, so the poller
@@ -149,6 +165,10 @@ class MemorySpillManagerSuite extends SparkFunSuite with Eventually {
         meq(StorageLevel.DISK_ONLY),
         anyBoolean())(any())
       assert(manager.isSpilled(0, 0L, 0))
+      // Zero retained memory after spill: reset() released the buffered bytes (size drops to 0)
+      // and the manager stopped tracking the partition, so reported utilization returns to 0%.
+      assert(buffer.size == 0L)
+      assert(manager.utilizationPercent() == 0)
     } finally {
       manager.stop()
     }
@@ -171,6 +191,38 @@ class MemorySpillManagerSuite extends SparkFunSuite with Eventually {
       }
       // Exactly the largest partition is spilled; the smaller one stays in memory and no further
       // spill occurs because utilization is now below the threshold.
+      assert(manager.isSpilled(0, 0L, 0))
+      assert(!manager.isSpilled(0, 0L, 1))
+      assert(metrics.spillCounter.getCount == 1)
+    } finally {
+      manager.stop()
+    }
+  }
+
+  test("spill breaks ties between equal-sized partitions by evicting the least recently used") {
+    val metrics = new StreamingShuffleMetrics()
+    val blockManager = newBlockManager()
+    val manager = new MemorySpillManager(newConf(spillThreshold = 80), blockManager, metrics)
+    manager.setBufferBudgetBytes(1000L)
+    // Two equal-sized (500 B) partitions fill the budget to 100%. Because their sizes tie, the
+    // manager's largest-first ordering falls back to the least-recently-used timestamp. Evicting
+    // one 500 B partition drops utilization to 50% -- back under the 80% threshold -- so exactly
+    // one partition is spilled and the ordering under test is unambiguous.
+    val lru = bufferWith(0, 0L, 0, 500)
+    val mru = bufferWith(0, 0L, 1, 500)
+    // append() stamps both timestamps to "now"; override them so the LRU/MRU roles are explicit
+    // and the tie-break is deterministic rather than dependent on scheduling jitter.
+    setLastAccess(lru, 1000L)
+    setLastAccess(mru, 2000L)
+    manager.register(0, 0L, 0, lru)
+    manager.register(0, 0L, 1, mru)
+    manager.start()
+    try {
+      eventually(timeout(5.seconds), interval(50.milliseconds)) {
+        assert(metrics.spillCounter.getCount >= 1)
+      }
+      // The least-recently-used partition is evicted; the more-recently-used one stays in memory
+      // and no second spill occurs because utilization is now below the threshold.
       assert(manager.isSpilled(0, 0L, 0))
       assert(!manager.isSpilled(0, 0L, 1))
       assert(metrics.spillCounter.getCount == 1)
