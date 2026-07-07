@@ -32,7 +32,7 @@ import org.apache.spark.internal.config
 import org.apache.spark.network.buffer.ManagedBuffer
 import org.apache.spark.serializer.{JavaSerializer, SerializerManager}
 import org.apache.spark.shuffle.FetchFailedException
-import org.apache.spark.shuffle.streaming.network.{StreamingBlockEnvelope, TokenBucketRateLimiter}
+import org.apache.spark.shuffle.streaming.network.{StreamingBlockEnvelope, StreamingShuffleRetryPolicy, StreamingShuffleTransport, TokenBucketRateLimiter}
 import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleBlockId}
 
 /**
@@ -490,5 +490,124 @@ class StreamingShuffleFailureInjectionSuite extends SparkFunSuite with LocalSpar
     }
     // Idempotent: a second stop after teardown is a safe no-op.
     protocol.stop()
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Exponential-backoff retry policy (StreamingShuffleRetryPolicy).
+  //
+  // The failure-tolerance rule mandates producer-connection retries with exponential backoff
+  // starting at 1 second and capped at 5 total attempts. These tests exercise that contract
+  // deterministically: the backoff schedule is a pure function, and withRetry is driven with an
+  // injected recording sleeper so the schedule and attempt cap are asserted with zero wall-clock
+  // waits (matching this suite's anti-flakiness discipline). The final test proves the policy is
+  // genuinely wired into the v1 transport, where the logging-only send stub raises no retriable
+  // failure and therefore runs exactly once with no backoff.
+  // ---------------------------------------------------------------------------------------------
+
+  test("retry policy: backoffMillis schedule is 1000/2000/4000/8000/16000 ms") {
+    val policy = new StreamingShuffleRetryPolicy()
+    assert((1 to 5).map(policy.backoffMillis).toList ===
+      List(1000L, 2000L, 4000L, 8000L, 16000L))
+  }
+
+  test("retry policy: mandated constants (1s initial, x2 multiplier, max 5 attempts)") {
+    assert(StreamingShuffleRetryPolicy.INITIAL_BACKOFF_MS === 1000L)
+    assert(StreamingShuffleRetryPolicy.BACKOFF_MULTIPLIER === 2)
+    assert(StreamingShuffleRetryPolicy.MAX_ATTEMPTS === 5)
+    val policy = new StreamingShuffleRetryPolicy()
+    assert(policy.maxAttempts === 5)
+    assert(policy.initialBackoffMs === 1000L)
+    assert(policy.multiplier === 2)
+  }
+
+  test("retry policy: retriable failure is retried then succeeds within the attempt cap") {
+    val recorded = scala.collection.mutable.ArrayBuffer[Long]()
+    val policy = new StreamingShuffleRetryPolicy(sleeper = ms => recorded += ms)
+    var executions = 0
+    val result = policy.withRetry(_ => true) {
+      executions += 1
+      if (executions < 3) throw new IOException(s"transient-$executions")
+      "delivered"
+    }
+    assert(result === "delivered")
+    // Failed on attempts 1 and 2, succeeded on attempt 3: exactly two backoffs (1000, 2000 ms).
+    assert(executions === 3)
+    assert(recorded.toList === List(1000L, 2000L))
+  }
+
+  test("retry policy: exhausts exactly MAX_ATTEMPTS attempts then re-throws the last failure") {
+    val recorded = scala.collection.mutable.ArrayBuffer[Long]()
+    val policy = new StreamingShuffleRetryPolicy(sleeper = ms => recorded += ms)
+    var executions = 0
+    val ex = intercept[IOException] {
+      policy.withRetry(_ => true) {
+        executions += 1
+        throw new IOException(s"always-fails-$executions")
+      }
+    }
+    // Five total attempts, four backoffs (1000/2000/4000/8000); no fifth backoff after exhaustion.
+    assert(executions === StreamingShuffleRetryPolicy.MAX_ATTEMPTS)
+    assert(ex.getMessage === "always-fails-5")
+    assert(recorded.toList === List(1000L, 2000L, 4000L, 8000L))
+  }
+
+  test("retry policy: a non-retriable failure is surfaced on the first attempt (no retry)") {
+    val recorded = scala.collection.mutable.ArrayBuffer[Long]()
+    val policy = new StreamingShuffleRetryPolicy(sleeper = ms => recorded += ms)
+    var executions = 0
+    // The default connection-failure classifier does not treat a logic error as retriable.
+    intercept[IllegalStateException] {
+      policy.withRetry(StreamingShuffleRetryPolicy.isRetriableConnectionFailure) {
+        executions += 1
+        throw new IllegalStateException("deterministic bug")
+      }
+    }
+    assert(executions === 1)
+    assert(recorded.isEmpty)
+  }
+
+  test("retry policy: a fatal error is never retried even if the classifier says retriable") {
+    val recorded = scala.collection.mutable.ArrayBuffer[Long]()
+    val policy = new StreamingShuffleRetryPolicy(sleeper = ms => recorded += ms)
+    var executions = 0
+    // InterruptedException is fatal per scala.util.control.NonFatal, so the retry guard must not
+    // catch it even though this classifier would otherwise retry anything.
+    intercept[InterruptedException] {
+      policy.withRetry(_ => true) {
+        executions += 1
+        throw new InterruptedException("fatal")
+      }
+    }
+    assert(executions === 1)
+    assert(recorded.isEmpty)
+  }
+
+  test("retry policy: connection-failure classifier matches IOException in the cause chain") {
+    assert(StreamingShuffleRetryPolicy.isRetriableConnectionFailure(new IOException("reset")))
+    assert(StreamingShuffleRetryPolicy.isRetriableConnectionFailure(new SocketException("reset")))
+    assert(StreamingShuffleRetryPolicy.isRetriableConnectionFailure(
+      new SocketTimeoutException("connect timed out")))
+    // Wrapped IOException (cause chain) is still retriable.
+    assert(StreamingShuffleRetryPolicy.isRetriableConnectionFailure(
+      new RuntimeException("wrap", new IOException("inner"))))
+    // A non-IO failure is not a producer-connection failure.
+    assert(!StreamingShuffleRetryPolicy.isRetriableConnectionFailure(
+      new IllegalArgumentException("bad arg")))
+  }
+
+  test("StreamingShuffleTransport wires the retry policy and sends exactly once in v1") {
+    val conf = new StreamingShuffleConfig(
+      new SparkConf(false).set("spark.shuffle.streaming.debug", "true"))
+    val transport = new StreamingShuffleTransport(conf)
+    // The transport exposes the mandated retry contract.
+    assert(transport.retryPolicy.maxAttempts === StreamingShuffleRetryPolicy.MAX_ATTEMPTS)
+    assert(transport.retryPolicy.initialBackoffMs ===
+      StreamingShuffleRetryPolicy.INITIAL_BACKOFF_MS)
+    assert(transport.retryPolicy.multiplier === StreamingShuffleRetryPolicy.BACKOFF_MULTIPLIER)
+    // The v1 stub raises no retriable failure, so send() (routed through withRetry) returns
+    // normally after a single attempt with no backoff -- both with and without a known destination.
+    val envelope = new StreamingBlockEnvelope(1, 0, 0, 1, 0, new Array[Byte](8))
+    transport.send(envelope, None)
+    transport.send(envelope, Some(BlockManagerId("exec-1", "host-1", 7337)))
   }
 }

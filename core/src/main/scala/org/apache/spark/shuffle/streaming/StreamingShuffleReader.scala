@@ -81,6 +81,17 @@ import org.apache.spark.util.collection.ExternalSorter
  * the v1 transport is an intentional logging-only stub). Consequently v1 does not yet perform
  * envelope-level CRC32C verification or block retransmission on the read side.
  *
+ * Producer-connection retry in v1: like the envelope's CRC32C path above, the mandated
+ * exponential-backoff retry (1 s start, doubling, up to 5 attempts) is implemented and unit-tested
+ * as an isolated transport primitive --
+ * [[org.apache.spark.shuffle.streaming.network.StreamingShuffleRetryPolicy]] -- and is wired into
+ * [[org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport.send]]. This reader itself
+ * performs '''no''' per-block retry: on a producer-connection timeout it invalidates the partial
+ * read and throws [[FetchFailedException]] so the DAGScheduler recomputes the upstream stage.
+ * Because the v1 transport is a logging-only stub that raises no retriable connection failure, the
+ * retry loop turns over only once the v2 wire transport can raise one; v1 reduce-side recovery is
+ * driven entirely by standard DAG recomputation (Architectural Decision Log #2).
+ *
  * @tparam K the type of the keys being read
  * @tparam C the type of the combined values produced for the reduce task
  * @param handle the streaming shuffle handle carrying the shuffle dependency and resource envelope

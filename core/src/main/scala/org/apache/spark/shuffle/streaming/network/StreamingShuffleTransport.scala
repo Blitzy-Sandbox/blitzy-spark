@@ -75,6 +75,20 @@ private[spark] class StreamingShuffleTransport(conf: StreamingShuffleConfig) ext
   val isWireTransferAvailable: Boolean = false
 
   /**
+   * Exponential-backoff retry policy governing producer-connection failures on the send path.
+   *
+   * [[send]] routes through `retryPolicy.withRetry`, so when the v2 wire transport raises a
+   * transient connection failure the block transfer is retried on the mandated schedule (1 s
+   * start, doubling, up to 5 attempts) before the failure is surfaced and the reduce-side read
+   * turns it into a [[org.apache.spark.shuffle.FetchFailedException]] for DAG recomputation. In v1
+   * the send body is a logging-only stub that never raises a retriable failure, so `withRetry`
+   * executes it exactly once with no backoff sleeps and no behavioral change. Exposed to the
+   * streaming package so tests can assert the wiring and the retry contract.
+   */
+  private[streaming] val retryPolicy: StreamingShuffleRetryPolicy =
+    new StreamingShuffleRetryPolicy()
+
+  /**
    * Resolve the executor-scoped [[BlockTransferService]] from the active `SparkEnv`, reusing the
    * existing transport rather than creating a new one. Returns `None` in local/driver-only or test
    * contexts where `SparkEnv` (or its `BlockManager`) is not yet initialized, keeping construction
@@ -90,12 +104,16 @@ private[spark] class StreamingShuffleTransport(conf: StreamingShuffleConfig) ext
   }
 
   /**
-   * v1 logging-only stub for shipping a framed block to its consumer.
+   * Ship a framed block to its consumer, retrying transient producer-connection failures with
+   * exponential backoff (see [[retryPolicy]]).
    *
-   * When `spark.shuffle.streaming.debug` is enabled this logs the transfer it would perform over
-   * the reused `BlockTransferService`; otherwise it is a no-op. It never opens a new transport and
-   * never blocks. Actual wire streaming is a v2 concern (see the class Scaladoc); until then the
-   * manager's fallback delegates real traffic to the sort path.
+   * The actual transfer is delegated to [[sendOnce]] through `retryPolicy.withRetry`, which retries
+   * only non-fatal [[java.io.IOException]]-family failures on the mandated 1 s / doubling / max-5
+   * schedule and re-throws anything else (or the final failure) to the caller. In v1 [[sendOnce]]
+   * is a logging-only stub that never raises such a failure, so `withRetry` invokes it exactly once
+   * with no backoff sleeps -- the retry loop only turns over once the v2 wire transport can raise a
+   * real connection failure. Actual wire streaming is a v2 concern (see the class Scaladoc); until
+   * then the manager's fallback delegates real traffic to the sort path.
    *
    * @param envelope    the framed block (fixed 32-byte header + &le;2 MB CRC32C-checked payload)
    * @param destination the consumer's block-manager location, when known to the caller
@@ -103,6 +121,26 @@ private[spark] class StreamingShuffleTransport(conf: StreamingShuffleConfig) ext
   def send(
       envelope: StreamingBlockEnvelope,
       destination: Option[BlockManagerId] = None): Unit = {
+    retryPolicy.withRetry(StreamingShuffleRetryPolicy.isRetriableConnectionFailure) {
+      sendOnce(envelope, destination)
+    }
+  }
+
+  /**
+   * Perform a single (non-retried) send attempt.
+   *
+   * When `spark.shuffle.streaming.debug` is enabled this logs the transfer it would perform over
+   * the reused `BlockTransferService`; otherwise it is a no-op. It never opens a new transport and
+   * never blocks. This is the v1 logging-only stub body invoked (once) by [[send]] via the retry
+   * policy; the v2 wire transport will replace the body here with the real chunked, rate-limited
+   * transfer that can raise the retriable connection failures [[send]] is prepared to retry.
+   *
+   * @param envelope    the framed block (fixed 32-byte header + &le;2 MB CRC32C-checked payload)
+   * @param destination the consumer's block-manager location, when known to the caller
+   */
+  private def sendOnce(
+      envelope: StreamingBlockEnvelope,
+      destination: Option[BlockManagerId]): Unit = {
     if (conf.debug) {
       val dest = destination.map(_.toString).getOrElse("<consumer-driven pull>")
       val blockDesc = s"shuffle=${envelope.shuffleId} map=${envelope.mapId} " +
