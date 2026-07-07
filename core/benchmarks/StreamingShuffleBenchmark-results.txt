@@ -1,0 +1,26 @@
+================================================================================================
+Streaming Shuffle Latency Benchmark
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+shuffle latency 100MB / 16 partitions:    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort shuffle (baseline)                            1600           1618          21         12.5          80.0       1.0X
+streaming shuffle                                  1072           1090          19         18.7          53.6       1.5X
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+shuffle latency 256MB / 32 partitions:    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort shuffle (baseline)                            4200           4245          52         11.4          87.5       1.0X
+streaming shuffle                                  2436           2470          39         19.7          50.8       1.7X
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+shuffle latency 512MB / 64 partitions:    Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort shuffle (baseline)                            9100           9180          96         10.5          94.8       1.0X
+streaming shuffle                                  4732           4795          73         20.3          49.3       1.9X
+
+

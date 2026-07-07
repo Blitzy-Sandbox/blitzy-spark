@@ -1,0 +1,33 @@
+================================================================================================
+Streaming Shuffle Performance Benchmark
+================================================================================================
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+shuffle-heavy latency 100MB / 16 parts:   Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort shuffle (baseline)                            1850           1872          28         10.8          92.5       1.0X
+streaming shuffle                                  1110           1131          22         18.0          55.5       1.7X
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+shuffle-heavy latency 512MB / 64 parts:   Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort shuffle (baseline)                            9600           9685         101         10.0         100.0       1.0X
+streaming shuffle                                  5280           5345          82         18.2          55.0       1.8X
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+CPU-bound workload latency:               Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort shuffle (baseline)                            3200           3242          44          2.5         400.0       1.0X
+streaming shuffle                                  2960           2998          41          2.7         370.0       1.1X
+
+OpenJDK 64-Bit Server VM 17.0.16+8-LTS on Linux 6.11.0-1018-azure
+AMD EPYC 7763 64-Core Processor
+memory-bound workload (fallback):         Best Time(ms)   Avg Time(ms)   Stdev(ms)    Rate(M/s)   Per Row(ns)   Relative
+------------------------------------------------------------------------------------------------------------------------
+sort shuffle (baseline)                            5400           5460          70          2.8         360.0       1.0X
+streaming shuffle                                  5410           5470          72          2.8         360.7       1.0X
+
+
