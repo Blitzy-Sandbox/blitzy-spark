@@ -56,7 +56,7 @@ introduced in Spark 4.2.0.
 | `spark.shuffle.streaming.bufferSizePercent` | `20` | Percent of executor memory used for per-partition streaming buffers. | Integer `[1, 50]` · 4.2.0 |
 | `spark.shuffle.streaming.spillThreshold` | `80` | Buffer-utilization percent at which the largest / least-recently-used buffered partitions spill to disk (`DISK_ONLY`). | Integer `[50, 95]` · 4.2.0 |
 | `spark.shuffle.streaming.maxBandwidthMBps` | `0` | Per-executor streaming rate limit in MB/s. `0` means **unlimited**. | Integer (`0` = unlimited) · 4.2.0 |
-| `spark.shuffle.streaming.debug` | `false` | Elevates the streaming-shuffle logger to DEBUG. Disabled by default; increases log volume. | Boolean · 4.2.0 |
+| `spark.shuffle.streaming.debug` | `false` | Elevates the `org.apache.spark.shuffle.streaming` logger to DEBUG (via the log4j2 `Configurator`) at manager construction. Disabled by default; increases log volume. | Boolean · 4.2.0 |
 
 ## Immutability and executor restart
 

@@ -246,7 +246,7 @@ private[spark] class MemorySpillManager(
         val orderedIt = ordered.iterator
         while (orderedIt.hasNext && utilizationPercent() > threshold) {
           val (blockId, buffer) = orderedIt.next()
-          spill(blockId, buffer)
+          spillBufferToDisk(blockId, buffer)
         }
       }
     } catch {
@@ -256,34 +256,48 @@ private[spark] class MemorySpillManager(
   }
 
   /**
-   * Persist a single partition buffer to disk and reclaim its heap.
+   * Atomically spill a single partition buffer to disk, record it, and return the bytes reclaimed.
    *
-   * The buffer's bytes are snapshotted (a defensive copy that also refreshes the LRU timestamp),
-   * wrapped in a [[ChunkedByteBuffer]], and written via the public [[BlockManager.putBytes]] API at
-   * [[StorageLevel.DISK_ONLY]]. `putBytes` is generic on `T: ClassTag`; because the payload is
-   * opaque bytes, an explicit `ClassTag.Any` is supplied. Only after `putBytes` confirms a
-   * durable store is the in-memory buffer reset (releasing its backing array), removed from
-   * tracking, and recorded in the spilled-block registry so the reader/resolver can locate it on
-   * disk. If the store is not confirmed (a `false` return or a thrown failure) the buffer is kept
-   * tracked for a later retry and the block is never marked spilled, so no shuffle data is lost on
-   * a failed spill. An empty buffer is simply dropped from tracking.
+   * This is the '''single shared spill routine''' used both by the background poller
+   * ([[maybeSpill]]) and by the streaming writer's own cooperative and per-partition-cap spills, so
+   * every streaming-shuffle spill -- wherever it originates -- flows through one atomic, tracked
+   * code path (review findings M16 and M17). Atomicity comes from [[StreamingBuffer.spillTo]]: the
+   * snapshot -> persist -> reset sequence runs under the buffer's own lock, so a concurrent append
+   * can neither be lost nor duplicated, and the buffer is reset '''only''' when the durable store
+   * is confirmed.
+   *
+   * The bytes are wrapped in a [[ChunkedByteBuffer]] and written via the public
+   * [[BlockManager.putBytes]] API at [[StorageLevel.DISK_ONLY]] (generic on `T: ClassTag`; an
+   * explicit `ClassTag.Any` is supplied for the opaque byte payload). Only on a confirmed store is
+   * the block dropped from the tracked-buffer map and recorded in the spilled-block registry, so
+   * the reader/resolver can locate it and [[removeShuffle]] can later delete it. On a `false`
+   * return or a thrown failure the buffer is left fully intact and the block is never marked
+   * spilled, so no shuffle data is lost on a failed spill (the streaming-shuffle zero-data-loss
+   * guarantee). An empty buffer -- including one drained concurrently by another spill winning the
+   * race -- is simply dropped from tracking with no warning.
+   *
+   * @param blockId the [[ShuffleBlockId]] addressing the partition to spill
+   * @param buffer  the in-memory buffer to persist and reclaim
+   * @return the number of bytes reclaimed from memory; `0` if the buffer was empty or the store was
+   *         not confirmed
    */
-  private def spill(blockId: ShuffleBlockId, buffer: StreamingBuffer): Unit = {
-    val bytes = buffer.snapshot()
-    if (bytes.length == 0) {
+  def spillBufferToDisk(blockId: ShuffleBlockId, buffer: StreamingBuffer): Long = {
+    if (buffer.size == 0L) {
       // Nothing to persist; drop it from tracking so it no longer counts toward memory use.
       buffers.remove(blockId)
-    } else {
+      return 0L
+    }
+    // The in-memory StreamingBuffer is the ONLY copy of this shuffle data, so it must not be
+    // released until BlockManager confirms the block is durably on disk. StreamingBuffer.spillTo
+    // resets the buffer only when this callback returns true, and holds the buffer lock across the
+    // whole snapshot -> persist -> reset so no append can interleave (M16). putBytes returns false
+    // (and may throw) on failure; in either case the buffer is retained and the block is never
+    // marked spilled, so an unconfirmed store never loses shuffle data (zero-data-loss guarantee).
+    var failureCause: Throwable = null
+    var persistReturnedFalse = false
+    val reclaimed = buffer.spillTo { bytes =>
       val chunked = new ChunkedByteBuffer(ByteBuffer.wrap(bytes))
-      // The in-memory StreamingBuffer is the ONLY copy of this shuffle data, so it must not be
-      // released until BlockManager confirms the block is durably on disk. putBytes returns
-      // false (and may throw) on failure; in either case we retain the buffer -- we do NOT
-      // reset it, drop it from tracking, or record it as spilled -- and let the poller retry
-      // on its next interval. Discarding the buffer on an unconfirmed store would silently lose
-      // shuffle data, so a block is marked spilled only after a confirmed persist. This is the
-      // streaming-shuffle zero-data-loss guarantee.
-      var failureCause: Throwable = null
-      val stored =
+      val ok =
         try {
           blockManager.putBytes(blockId, chunked, StorageLevel.DISK_ONLY)(ClassTag.Any)
         } catch {
@@ -291,33 +305,38 @@ private[spark] class MemorySpillManager(
             failureCause = e
             false
         }
-      if (stored) {
-        buffer.reset()
-        buffers.remove(blockId)
-        spilledBlocks.put(blockId, java.lang.Boolean.TRUE)
-        metrics.incSpillCount()
-        logInfo(log"Spilled streaming shuffle partition to disk " +
-          log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, blockId.shuffleId)}, " +
-          log"mapId=${MDC(LogKeys.MAP_ID, blockId.mapId)}, " +
-          log"reduceId=${MDC(LogKeys.REDUCE_ID, blockId.reduceId)}, " +
-          log"bytes=${MDC(LogKeys.NUM_BYTES, bytes.length)})")
+      if (!ok) {
+        persistReturnedFalse = true
+      }
+      ok
+    }
+    if (reclaimed > 0L) {
+      buffers.remove(blockId)
+      spilledBlocks.put(blockId, java.lang.Boolean.TRUE)
+      metrics.incSpillCount()
+      logInfo(log"Spilled streaming shuffle partition to disk " +
+        log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, blockId.shuffleId)}, " +
+        log"mapId=${MDC(LogKeys.MAP_ID, blockId.mapId)}, " +
+        log"reduceId=${MDC(LogKeys.REDUCE_ID, blockId.reduceId)}, " +
+        log"bytes=${MDC(LogKeys.NUM_BYTES, reclaimed)})")
+    } else if (failureCause != null || persistReturnedFalse) {
+      // Persistence was genuinely not confirmed (false return or thrown failure): keep the buffer
+      // tracked (it still counts toward utilization, so pressure stays visible) and never mark the
+      // block spilled. A zero reclaim with no failure means the buffer drained concurrently -- a
+      // benign race that needs no warning.
+      val warning =
+        log"Streaming shuffle spill was not persisted; retaining the in-memory buffer to " +
+        log"retry on the next poll " +
+        log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, blockId.shuffleId)}, " +
+        log"mapId=${MDC(LogKeys.MAP_ID, blockId.mapId)}, " +
+        log"reduceId=${MDC(LogKeys.REDUCE_ID, blockId.reduceId)})"
+      if (failureCause != null) {
+        logWarning(warning, failureCause)
       } else {
-        // Persistence was not confirmed: keep the buffer tracked (it still counts toward
-        // utilization, so pressure stays visible) and never mark the block spilled.
-        val warning =
-          log"Streaming shuffle spill was not persisted; retaining the in-memory buffer to " +
-          log"retry on the next poll " +
-          log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, blockId.shuffleId)}, " +
-          log"mapId=${MDC(LogKeys.MAP_ID, blockId.mapId)}, " +
-          log"reduceId=${MDC(LogKeys.REDUCE_ID, blockId.reduceId)}, " +
-          log"bytes=${MDC(LogKeys.NUM_BYTES, bytes.length)})"
-        if (failureCause != null) {
-          logWarning(warning, failureCause)
-        } else {
-          logWarning(warning)
-        }
+        logWarning(warning)
       }
     }
+    reclaimed
   }
 
   /**
@@ -373,5 +392,58 @@ private[spark] class MemorySpillManager(
    */
   def isSpilled(shuffleId: Int, mapId: Long, reduceId: Int): Boolean = {
     spilledBlocks.getIfPresent(ShuffleBlockId(shuffleId, mapId, reduceId)) != null
+  }
+
+  /**
+   * Remove all state this manager holds for a shuffle: delete every block it spilled to disk and
+   * drop any partition buffers it is still tracking for that shuffle. Invoked by
+   * `StreamingShuffleManager.unregisterShuffle` so streaming-spilled blocks -- which are keyed by
+   * [[org.apache.spark.storage.ShuffleBlockId]] and tracked here rather than by the sort path's
+   * task-id bookkeeping -- do not leak on disk after a shuffle is unregistered.
+   *
+   * Disk removal is best-effort and individually guarded: a failure to remove one block (for
+   * example a block already evicted) is logged and never prevents the remaining blocks from being
+   * cleaned. Tracked in-memory buffers for the shuffle are reset so their backing arrays become
+   * eligible for garbage collection. Safe to call for a shuffle that never spilled (it simply finds
+   * nothing to remove) and safe to call concurrently with the poller: both the spilled-block cache
+   * view and the tracked-buffer map are weakly consistent under iteration.
+   *
+   * @param shuffleId the shuffle whose spilled blocks and tracked buffers should be removed
+   */
+  def removeShuffle(shuffleId: Int): Unit = {
+    // 1) Delete spilled disk blocks for this shuffle. Iterate the live key-set view of the Guava
+    //    cache (weakly consistent), removing matching blocks from disk via the public BlockManager
+    //    API and evicting them from the spilled-block registry.
+    val spilledIt = spilledBlocks.asMap().keySet().iterator()
+    while (spilledIt.hasNext) {
+      val blockId = spilledIt.next()
+      if (blockId.shuffleId == shuffleId) {
+        try {
+          blockManager.removeBlock(blockId)
+        } catch {
+          case NonFatal(e) =>
+            logWarning(log"Failed to remove spilled streaming shuffle block on unregister; " +
+              log"continuing with the remaining blocks " +
+              log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, blockId.shuffleId)}, " +
+              log"mapId=${MDC(LogKeys.MAP_ID, blockId.mapId)}, " +
+              log"reduceId=${MDC(LogKeys.REDUCE_ID, blockId.reduceId)})", e)
+        }
+        spilledBlocks.invalidate(blockId)
+      }
+    }
+    // 2) Drop any still-tracked in-memory buffers for this shuffle, resetting each so its backing
+    //    array becomes eligible for GC. Normally the buffers are already gone (spilled or acked),
+    //    but a shuffle can be unregistered while buffers are still resident.
+    val bufIt = buffers.entrySet().iterator()
+    while (bufIt.hasNext) {
+      val entry = bufIt.next()
+      if (entry.getKey.shuffleId == shuffleId) {
+        val buffer = entry.getValue
+        if (buffer != null) {
+          buffer.reset()
+        }
+        bufIt.remove()
+      }
+    }
   }
 }

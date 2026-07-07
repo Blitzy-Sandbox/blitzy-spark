@@ -185,6 +185,49 @@ private[spark] class StreamingBuffer(
     lastAccessTime = System.currentTimeMillis()
   }
 
+  /**
+   * Atomically snapshot, hand off for durable persistence, and -- only on confirmed persistence --
+   * reset this buffer as a single indivisible operation.
+   *
+   * This is the spill primitive that eliminates the append/snapshot/reset race called out in the
+   * streaming-shuffle review (finding M16). Because the entire snapshot -> persist -> reset
+   * sequence runs while holding [[lock]], no concurrent [[append]] can interleave: bytes can
+   * neither be lost (an append landing between a separate external snapshot and reset) nor
+   * duplicated or overwritten. The backing store is cleared '''only''' when `persist` confirms the
+   * bytes were durably stored, so a failed persist leaves the buffer fully intact -- guaranteeing
+   * zero data loss on a spill failure.
+   *
+   * The `persist` callback receives a defensive copy of the currently buffered bytes and must
+   * return `true` if and only if those bytes were durably materialized (for example, written to
+   * `BlockManager` DISK_ONLY storage). Because the callback runs while [[lock]] is held, callers
+   * must keep it to a single durable write and must never call back into this same buffer from
+   * within it (the monitor is non-reentrant across threads and re-entry would serialize
+   * incorrectly).
+   *
+   * @param persist callback that durably stores the supplied bytes and returns whether it succeeded
+   * @return the number of bytes reclaimed from the backing store (the size of the spilled snapshot)
+   *         when persistence succeeded; `0` when the buffer was empty or persistence was not
+   *         confirmed, in which case the buffer is left unchanged
+   */
+  def spillTo(persist: Array[Byte] => Boolean): Long = lock.synchronized {
+    val bytes = store.toByteArray()
+    lastAccessTime = System.currentTimeMillis()
+    if (bytes.length == 0) {
+      // Nothing buffered: no persistence attempted and nothing reclaimed.
+      0L
+    } else if (persist(bytes)) {
+      // Persistence confirmed: swap in a fresh store (releasing the grown array for GC, matching
+      // [[reset]]) and reset the running checksum. Reclaimed heap equals the snapshot just spilled.
+      store = new ByteArrayOutputStream(initialCapacity)
+      crc.reset()
+      lastAccessTime = System.currentTimeMillis()
+      bytes.length.toLong
+    } else {
+      // Persistence not confirmed: keep the buffer intact so no data is lost; the caller may retry.
+      0L
+    }
+  }
+
   override def toString: String =
     s"StreamingBuffer(shuffleId=$shuffleId, mapId=$mapId, reduceId=$reduceId, size=$size)"
 }

@@ -85,23 +85,26 @@ across the producer (map) and consumer (reduce) executor boundaries:
 
 * `shuffle_id` — the shuffle identifier;
 * `map_id` — the producing map task identifier;
-* `reduce_partition_range` — the reduce partition range being read;
-* `attempt_id` — the task attempt identifier.
+* `reduce_id` — the reduce partition identifier being read;
+* `task_attempt_id` — the task attempt identifier.
 
 As with all Spark MDC keys, these are **not shown in plain-text logs by default**. To surface them,
 either:
 
 * add the keys to your log4j2 `PatternLayout` — for example `%X{shuffle_id}`, `%X{map_id}`,
-  `%X{reduce_partition_range}`, and `%X{attempt_id}`; or
+  `%X{reduce_id}`, and `%X{task_attempt_id}`; or
 * enable [structured logging](configuration.html#structured-logging) by setting
   `spark.log.structuredLogging.enabled=true`, which emits JSON containing **all** MDC fields (ideal
   for querying logs at scale).
 
-For verbose diagnostics, set `spark.shuffle.streaming.debug=true` to elevate the streaming-shuffle
-logger to `DEBUG`. It is **off by default** and increases log volume, so enable it only while
-investigating an issue and disable it afterward. See the [Monitoring](monitoring.html) guide for the
-full MDC schema. Like every `spark.shuffle.streaming.*` key, changing `debug` requires an
-**executor restart** to take effect.
+For verbose diagnostics, set `spark.shuffle.streaming.debug=true`. At manager construction this
+elevates the `org.apache.spark.shuffle.streaming` logger to `DEBUG` via the log4j2 `Configurator`,
+so the diagnostics the streaming components gate behind the flag are actually emitted. If the
+active logging backend is not log4j2, the flag still gates those debug calls and you can raise that
+logger to `DEBUG` through your own logging configuration instead. It is **off by default** and
+increases log volume, so enable it only while investigating an issue and disable it afterward. See
+the [Monitoring](monitoring.html) guide for the full MDC schema. Like every
+`spark.shuffle.streaming.*` key, changing `debug` requires an **executor restart** to take effect.
 
 # Diagnosing Frequent Spills
 
@@ -175,9 +178,9 @@ the streaming backend itself:
 
 * Look for producer-executor crashes, long GC pauses (a pause exceeding the 5&nbsp;second timeout will
   trip it), or network partitions between executors.
-* Correlate the failing shuffle using the MDC keys `shuffle_id`, `map_id`, `reduce_partition_range`,
-  and `attempt_id` (see [Reading the Logs](#reading-the-logs-mdc-correlation-ids)) to pinpoint the
-  failing producer.
+* Correlate the failing shuffle using the MDC keys `shuffle_id`, `map_id`, `reduce_id`,
+  and `task_attempt_id` (see [Reading the Logs](#reading-the-logs-mdc-correlation-ids)) to pinpoint
+  the failing producer.
 * Repeated failures for the same producer usually indicate an infrastructure problem (an unhealthy
   node, a flaky network) rather than a streaming-shuffle defect.
 
@@ -196,15 +199,24 @@ than risk an incompatible transfer, reverts that shuffle to the sort-based path.
 
 **Action.** Ensure a **uniform Spark version across the entire cluster** — the driver and all
 executors. A mismatch most often appears during a rolling upgrade, or when a node is provisioned from
-a stale image. A version mismatch is one of the automatic
-[fallback](#confirming-and-understanding-automatic-fallback) conditions, so once versions are aligned
-(and the executors restarted) streaming resumes automatically.
+a stale image. A version mismatch is one of the
+[fallback policy](#confirming-and-understanding-automatic-fallback) conditions that will govern
+streaming in v2; in this release every shuffle already runs on the sort path regardless of version,
+so aligning versions is about forward-compatibility rather than re-enabling streaming today.
 
 # Confirming and Understanding Automatic Fallback
 
-To guarantee **zero regression**, the engine continuously monitors each streaming shuffle and
-automatically reverts the affected shuffle to the production-stable **sort-based** path when **any**
-of the following four conditions holds:
+To guarantee **zero regression**, the streaming backend chooses between the streaming and the
+production-stable **sort-based** path when each shuffle is *registered*. In this release (v1) that
+decision is unconditional: because the wire transport is a **logging-only stub** that puts no bytes
+on the wire (`StreamingShuffleTransport.isWireTransferAvailable` is `false`), the manager routes
+**every** shuffle to the sort path. Zero regression therefore holds *by construction* — no workload
+is ever placed on an incomplete streaming data path.
+
+The four conditions below are the **fallback policy** (`StreamingShuffleFallbackPolicy`) that will
+govern the streaming-versus-sort choice once real wire transfer lands (v2). The policy already
+exists and is consulted at registration, but in v1 the transport-capability gate above forces the
+sort path before any of these can take effect:
 
 1. **Slow consumer** — the consumer is sustained at **2&times; or more slower** than the producer for
    **more than 60&nbsp;seconds**.
@@ -214,21 +226,22 @@ of the following four conditions holds:
 4. **Version mismatch** — a producer/consumer protocol version mismatch is detected (see
    [Version-Mismatch Fallback](#version-mismatch-fallback)).
 
-On any trigger, only the affected shuffle falls back; the switch is transparent and guarantees the
-workload is never slower than the default sort-based shuffle. This is why memory-bound and
-poorly-fitting workloads see **no regression**.
+Once streaming is active (v2), only the affected shuffle falls back on any trigger; the switch is
+transparent and guarantees the workload is never slower than the default sort-based shuffle. This is
+why memory-bound and poorly-fitting workloads see **no regression**.
 
 **Do not confuse fallback with spilling.** Spilling (at `spark.shuffle.streaming.spillThreshold`,
 default `80`) writes buffered partitions to disk but keeps the shuffle **on the streaming path**;
 fallback abandons streaming for that shuffle entirely. See the
 [Streaming Shuffle Tuning](streaming-shuffle-tuning.html) guide for the full distinction.
 
-**How to confirm a fallback occurred.** When a shuffle has fallen back, its `streamingShuffle`
-metrics **flatline** for that shuffle — `bufferUtilizationPercent` stays at `0` and the counters do
-not advance — while the ordinary sort-shuffle metrics (shuffle read/write size, spill, fetch wait
+**How to confirm the sort path is in use.** When a shuffle runs on the sort path, its
+`streamingShuffle` metrics **flatline** — `bufferUtilizationPercent` stays at `0` and the counters
+do not advance — while the ordinary sort-shuffle metrics (shuffle read/write size, spill, fetch wait
 time) populate in the **Stages tab** of the Spark Web UI. Seeing sort-shuffle activity with no
 accompanying streaming metrics is the clearest confirmation that the shuffle is running on the
-sort-based path.
+sort-based path. **In v1 this is the expected steady state for every shuffle**, since the stub
+transport forces the sort path.
 
 # Common Misconfigurations
 

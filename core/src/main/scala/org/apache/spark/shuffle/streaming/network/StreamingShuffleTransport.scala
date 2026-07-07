@@ -55,6 +55,26 @@ import org.apache.spark.storage.BlockManagerId
 private[spark] class StreamingShuffleTransport(conf: StreamingShuffleConfig) extends Logging {
 
   /**
+   * Whether this transport can actually stream framed blocks producer-to-consumer over the wire.
+   *
+   * In v1 this is '''`false`''': [[send]] is a logging-only stub that never puts bytes on the wire
+   * (see the class Scaladoc and Architectural Decision Log #2). The streaming manager consults this
+   * flag as the authoritative capability gate: while it is `false`, `StreamingShuffleManager`
+   * '''must''' route every production shuffle through the inner `SortShuffleManager` so that
+   * shuffle output is always durably materialized and reducer-fetchable through the
+   * production-stable sort path. This is what makes the manager's "force sort fallback in v1"
+   * behavior honest and testable rather than reporting a successful `MapStatus` for bytes that
+   * were never transferred.
+   *
+   * When the v2 wire path lands (chunking a [[StreamingBlockEnvelope]] over the reused
+   * `BlockTransferService`, applying the token-bucket rate limit, and verifying the read-side
+   * CRC32C), this becomes `true` and the manager's per-shuffle streaming-eligibility check begins
+   * to take effect. It is a stable, immutable capability constant for the lifetime of the transport
+   * (configuration changes require an executor restart), so callers may read it without locking.
+   */
+  val isWireTransferAvailable: Boolean = false
+
+  /**
    * Resolve the executor-scoped [[BlockTransferService]] from the active `SparkEnv`, reusing the
    * existing transport rather than creating a new one. Returns `None` in local/driver-only or test
    * contexts where `SparkEnv` (or its `BlockManager`) is not yet initialized, keeping construction

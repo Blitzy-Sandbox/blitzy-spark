@@ -149,6 +149,14 @@ dispatch path; dashed arrow = composition-based fallback delegation to the sort 
 
 # Producer &rarr; consumer data flow
 
+> **v1 status.** This section describes the streaming data path's *design*. In this release (v1) the
+> wire transport is a **logging-only stub** (`StreamingShuffleTransport.isWireTransferAvailable` is
+> `false`), so the manager routes every real shuffle to the sort path (see
+> [Automatic fallback](#automatic-fallback-zero-regression)). The **buffering, framing, CRC32C
+> computation, memory spill, and backpressure bookkeeping** below are implemented and exercised; the
+> **over-the-wire transfer, reader-side CRC verification, and retransmission** land with the real
+> transport in v2.
+
 The streaming data path moves records from map tasks to reduce tasks without a disk round trip:
 
 1. **Buffer.** Map-task records are serialized into a **per-partition in-memory buffer**. Each buffer
@@ -157,9 +165,11 @@ The streaming data path moves records from map tasks to reduce tasks without a d
    configurable in the range `[1, 50]`.
 2. **Frame.** Buffered data is framed into blocks of **at most 2&nbsp;MB** for pipelining efficiency.
    Each block carries a **CRC32C** checksum for corruption detection.
-3. **Transfer.** Blocks are transferred by **reusing the executor-scoped `BlockTransferService`**; no
-   new network stack is instantiated. The transfer is subject to the backpressure protocol and, when
-   a bandwidth limit is configured, to token-bucket rate limiting.
+3. **Transfer (v2).** Blocks are transferred by **reusing the executor-scoped
+   `BlockTransferService`** — no new network stack is instantiated — subject to the backpressure
+   protocol and, when a bandwidth limit is configured, to token-bucket rate limiting. In v1 the
+   transport is a logging-only stub, so this step puts no bytes on the wire and the shuffle runs on
+   the sort path instead.
 4. **Consume.** The reduce-side **streaming reader** performs **in-progress reads**, polling
    producers for available data before the shuffle has fully completed. It honors the shuffle
    dependency's aggregator, key ordering, and map-side-combine semantics exactly like the sort-based
@@ -179,9 +189,11 @@ flowchart LR
     RDR -.->|"5 s timeout: FetchFailedException"| RECOMP["DAG upstream recompute"]
 ```
 
-*Figure 2: Producer &rarr; consumer data flow. Legend: solid arrow = normal streaming data path; dashed
-arrow = integrity/failure handling; the reader&rarr;buffer acknowledgment edge is the backpressure loop
-that reclaims memory within 100&nbsp;ms of acknowledgment.*
+*Figure 2: Producer &rarr; consumer data flow (design). Legend: solid arrow = normal streaming data
+path; dashed arrow = integrity/failure handling; the reader&rarr;buffer acknowledgment edge is the
+backpressure loop that reclaims memory within 100&nbsp;ms of acknowledgment. The over-the-wire
+transfer and the CRC-mismatch retransmit edge land with the real transport in v2; in v1 real shuffles
+use the sort path.*
 
 # Backpressure protocol
 
@@ -212,16 +224,25 @@ guidance on choosing a spill threshold.
 
 # Block-level integrity
 
-Every block (at most 2&nbsp;MB) is protected by a **CRC32C** checksum computed with the JDK-built-in
+Every block (at most 2&nbsp;MB) is framed with a **CRC32C** checksum computed with the JDK-built-in
 `java.util.zip.CRC32C` — the same checksum primitive the sort path uses, with no third-party CRC
-dependency. The reader verifies each block's checksum on receipt; a mismatch triggers
-**retransmission** of the affected block rather than failing the shuffle.
+dependency. The checksum is written into the `StreamingBlockEnvelope` header on the producer side
+today. **Reader-side verification on receipt and CRC-mismatch retransmission land with the real wire
+transport in v2**; in v1, block integrity on the production path is provided by the sort path that
+the manager falls back to.
 
 # Automatic fallback (zero regression)
 
-To guarantee **zero regression**, the engine continuously monitors each streaming shuffle and
-automatically reverts the affected shuffle to the sort-based path when **any** of the following four
-conditions holds:
+To guarantee **zero regression**, the streaming backend chooses between the streaming and the
+sort-based path when each shuffle is *registered*. In this release (v1) that choice is
+unconditional: the wire transport is a **logging-only stub**
+(`StreamingShuffleTransport.isWireTransferAvailable` is `false`), so the manager routes **every**
+shuffle to the production-stable sort path — zero regression holds *by construction*.
+
+The following four conditions are the **fallback policy** (`StreamingShuffleFallbackPolicy`) that
+will govern the streaming-versus-sort choice once real wire transfer lands (v2). The policy already
+exists and is consulted at registration; in v1 the transport-capability gate above forces the sort
+path before any of them can take effect:
 
 1. the consumer is sustained at **2&times; or more slower** than the producer for **more than 60
    seconds**;
@@ -230,8 +251,9 @@ conditions holds:
 3. **network saturation** is high, approaching ~90% of link capacity; or
 4. a **producer/consumer protocol version mismatch** is detected by the compatibility check.
 
-Because fallback is automatic and transparent, memory-bound workloads — and any workload that is not
-a good fit — see **no regression** relative to the default sort-based shuffle.
+Once streaming is active (v2), fallback is automatic and transparent — only the affected shuffle
+reverts — so memory-bound workloads, and any workload that is not a good fit, see **no regression**
+relative to the default sort-based shuffle.
 
 **Fallback is not the same as spilling.** Spilling (at the 80% spill threshold) writes buffered
 partitions to disk but keeps the shuffle on the streaming path; fallback abandons streaming for that
@@ -271,10 +293,11 @@ backend is active.
 
 Streaming-shuffle components log through Spark's standard logging framework
 (`org.apache.spark.internal.Logging`) tagged with MDC (Mapped Diagnostic Context) correlation-ID
-keys — `shuffle_id`, `map_id`, `reduce_partition_range`, and `attempt_id` — so operators can correlate
+keys — `shuffle_id`, `map_id`, `reduce_id`, and `task_attempt_id` — so operators can correlate
 log lines across the producer (map) and consumer (reduce) executor boundaries for a single shuffle.
-Set `spark.shuffle.streaming.debug=true` (default `false`) to elevate the streaming-shuffle logger to
-`DEBUG`; leave it off in normal operation to limit log volume.
+Set `spark.shuffle.streaming.debug=true` (default `false`) to elevate the
+`org.apache.spark.shuffle.streaming` logger to `DEBUG` via the log4j2 `Configurator` at manager
+construction; leave it off in normal operation to limit log volume.
 
 **No new Spark Web UI pages or tabs are added.** Streaming-shuffle metrics appear through pre-existing
 channels: the existing Stages tab, the Prometheus endpoint, and — for a purpose-built view — an
@@ -288,8 +311,9 @@ package:
 
 * `StreamingShuffleManager` — the `ShuffleManager` SPI entry point; performs handle dispatch and holds
   the inner `SortShuffleManager` for composition-based fallback.
-* `StreamingShuffleWriter` — the memory-buffered producer; a `MemoryConsumer` that buffers records
-  per partition and emits CRC32C-checked blocks.
+* `StreamingShuffleWriter` — the memory-buffered producer; a `ShuffleWriter` that **composes** a
+  `MemoryConsumer` and exposes its `spill(size, trigger)` contract, buffering records per partition
+  and framing CRC32C-checked blocks.
 * `StreamingShuffleReader` — the in-progress consumer; mirrors `BlockStoreShuffleReader` semantics
   (aggregation, ordering, and map-side combine).
 * `StreamingShuffleBlockResolver` — the in-memory/spilled block map; delegates migration to the sort
@@ -317,4 +341,3 @@ See also:
 * [Configuration &rarr; Shuffle Behavior](configuration.html#shuffle-behavior) — the five
   `spark.shuffle.streaming.*` properties.
 * [Monitoring](monitoring.html) — the streaming metrics and MDC logging schema.
-

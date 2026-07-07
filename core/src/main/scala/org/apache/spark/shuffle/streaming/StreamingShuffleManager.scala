@@ -178,6 +178,13 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   // Guards stop() so the ordered shutdown runs exactly once (idempotent across repeated calls).
   private[this] val stopped = new AtomicBoolean(false)
 
+  // Honor spark.shuffle.streaming.debug by raising the "org.apache.spark.shuffle.streaming" logger
+  // to DEBUG so the diagnostics the streaming components already gate behind the debug flag are
+  // actually emitted (see maybeElevateStreamingLogLevel). This runs regardless of whether streaming
+  // is active on this node, so an operator who set the flag can capture streaming diagnostics even
+  // from a pass-through (sort-fallback) manager.
+  maybeElevateStreamingLogLevel()
+
   // ==============================================================================================
   // Construction side effects: register the metrics source and start the daemons ONLY when the
   // streaming machinery is enabled (SparkEnv present AND streaming active). The RPC endpoint is
@@ -189,8 +196,16 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
     streamingConf.validate()
     // Register the streaming metrics source so every configured MetricsSystem sink exports the
     // four streaming metrics with no sink-specific wiring (mirrors how DAGSchedulerSource and
-    // ExecutorSource register their own telemetry).
-    SparkEnv.get.metricsSystem.registerSource(streamingSource)
+    // ExecutorSource register their own telemetry). LIFECYCLE GUARD: MetricsSystem.registerSource
+    // appends to its `sources` list BEFORE the underlying Dropwizard MetricRegistry rejects a
+    // duplicate metric-set name, so re-registering the same source name (e.g. when more than one
+    // StreamingShuffleManager is constructed in the same JVM -- common across tests) would leak a
+    // duplicate Source object even though the registry throws. Guard on the source name so
+    // registration is idempotent and never leaks; stop() removes exactly this source.
+    val metricsSystem = SparkEnv.get.metricsSystem
+    if (metricsSystem.getSourcesByName(streamingSource.sourceName).isEmpty) {
+      metricsSystem.registerSource(streamingSource)
+    }
     // Start the flow-control and spill daemons.
     backpressure.start()
     spillManager.start()
@@ -212,13 +227,84 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
 
   /**
    * Whether the given (about-to-register) shuffle may use the streaming path. Requires the
-   * streaming machinery to be enabled (dual activation gate + live SparkEnv) and the fallback
-   * policy to raise no immediate veto against a baseline, all-clear snapshot. Because
-   * `streamingEnabled` short-circuits the `&&`, `fallbackPolicy` is only dereferenced when it is
-   * guaranteed non-null (it is constructed whenever `streamingEnabled` is true).
+   * streaming machinery to be enabled (dual activation gate + live SparkEnv), the transport to be
+   * capable of actually moving bytes producer-to-consumer, and the fallback policy to raise no
+   * immediate veto against a baseline, all-clear snapshot.
+   *
+   * ==v1 forced sort fallback (zero-regression guarantee)==
+   * The `transport.isWireTransferAvailable` term is the authoritative capability gate. In v1 the
+   * transport is a logging-only stub, so this term is `false` and `canUseStreaming` is ALWAYS
+   * `false`: every production shuffle is therefore delegated to the inner `SortShuffleManager` by
+   * [[registerShuffle]], and the streaming writer/reader are never placed on a real task's data
+   * path. This is what makes "streaming coexists as an opt-in while sort stays the
+   * production-stable default" honest -- the backend is selectable via configuration, but until a
+   * durable, reducer-fetchable wire path exists, no map task can report a `MapStatus` for bytes
+   * that were never transferred (the Checkpoint-4 critical data-integrity finding). When the v2
+   * transport lands, `isWireTransferAvailable` becomes `true` and the per-shuffle
+   * [[isStreamingEligible]] check below begins to govern which shuffles stream and which continue
+   * to fall back to sort.
+   *
+   * Because `streamingEnabled` short-circuits the `&&`, both `transport` and `fallbackPolicy` are
+   * only dereferenced when they are guaranteed non-null (both are constructed whenever
+   * `streamingEnabled` is true).
    */
   private def canUseStreaming: Boolean =
-    streamingEnabled && !fallbackPolicy.shouldFallback(baselineFallbackStats)
+    streamingEnabled &&
+      transport.isWireTransferAvailable &&
+      !fallbackPolicy.shouldFallback(baselineFallbackStats)
+
+  /**
+   * Whether a specific shuffle's dependency is compatible with the streaming writer/reader data
+   * model. This is the per-shuffle eligibility gate that complements the executor-wide
+   * [[canUseStreaming]] capability gate, mirroring how `SortShuffleManager.registerShuffle` decides
+   * between its bypass-merge-sort, serialized, and base code paths per shuffle.
+   *
+   * The streaming writer serializes raw `(K, V)` records and performs no map-side aggregation, so a
+   * shuffle that requests '''map-side combine''' (where the reduce side expects pre-combined `C`
+   * values) cannot be served correctly by the streaming path and MUST fall back to sort. Any
+   * dependency deemed ineligible here is delegated to `sortShuffleManager.registerShuffle`, so its
+   * full set of sort-side decisions (bypass-merge, serialized shuffle, serializer relocation,
+   * partition-count thresholds, push-based merge) continues to apply unchanged. In v1 this method
+   * is effectively unreached because [[canUseStreaming]] is already `false` (stub transport), but
+   * it is wired now so the v2 wire path routes unsupported dependencies to sort from day one.
+   */
+  private def isStreamingEligible(dependency: ShuffleDependency[_, _, _]): Boolean =
+    !dependency.mapSideCombine
+
+  /**
+   * Honor `spark.shuffle.streaming.debug=true` by elevating the streaming package logger
+   * (`org.apache.spark.shuffle.streaming`) to DEBUG at runtime.
+   *
+   * The debug flag alone only decides whether the streaming components CALL `logDebug`; the
+   * effective logger level still governs whether the message is actually emitted, and the default
+   * level is INFO. Without this elevation, enabling the flag would appear to do nothing. This
+   * raises the level for the streaming package so those gated diagnostics reach the configured
+   * appenders, mirroring the AAP contract that the flag "elevates the streaming logger to DEBUG".
+   *
+   * It drives the same log4j2 backend Spark's own `Utils.setLogLevel` uses, via the log4j2 core
+   * `Configurator`, which creates a dedicated `LoggerConfig` for the named logger (unlike
+   * `getLoggerConfig`, which would return -- and wrongly mutate -- the nearest ancestor such as
+   * root). The whole call is wrapped so that a non-log4j2 logging backend degrades gracefully: the
+   * debug calls remain correctly gated by the flag, and operators can still raise the level for
+   * this logger through their own logging configuration. Streaming configuration is immutable for
+   * the application lifetime (v1 requires an executor restart to change it), so this runs exactly
+   * once, at construction.
+   */
+  private def maybeElevateStreamingLogLevel(): Unit = {
+    if (streamingConf.debug) {
+      try {
+        org.apache.logging.log4j.core.config.Configurator.setLevel(
+          "org.apache.spark.shuffle.streaming", org.apache.logging.log4j.Level.DEBUG)
+        logInfo("spark.shuffle.streaming.debug=true: elevated logger " +
+          "'org.apache.spark.shuffle.streaming' to DEBUG.")
+      } catch {
+        case t: Throwable =>
+          logWarning("Unable to elevate the 'org.apache.spark.shuffle.streaming' logger to " +
+            "DEBUG for spark.shuffle.streaming.debug=true; debug calls remain gated by the " +
+            "flag and can be enabled via your log4j2 configuration for that logger.", t)
+      }
+    }
+  }
 
   /**
    * Register a shuffle and obtain a handle for tasks. When the shuffle is eligible for streaming a
@@ -230,10 +316,12 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
   override def registerShuffle[K, V, C](
       shuffleId: Int,
       dependency: ShuffleDependency[K, V, C]): ShuffleHandle = {
-    if (canUseStreaming) {
+    if (canUseStreaming && isStreamingEligible(dependency)) {
       // ELIGIBLE: return a streaming handle stamped with this shuffle's resolved resource envelope
       // (buffer percent, spill threshold, bandwidth). getWriter/getReader pattern-match this exact
-      // type to route to the streaming components.
+      // type to route to the streaming components. NOTE: in v1 this branch is unreachable because
+      // canUseStreaming is gated on the stub transport's isWireTransferAvailable (false), so every
+      // shuffle takes the sort-fallback branch below; the branch is retained as the v2 data path.
       logInfo(s"Registering shuffle $shuffleId with the streaming shuffle backend " +
         s"(bufferSizePercent=${streamingConf.bufferSizePercent}, " +
         s"spillThreshold=${streamingConf.spillThreshold}, " +
@@ -245,9 +333,15 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
         streamingConf.spillThreshold,
         streamingConf.maxBandwidthMBps)
     } else {
-      // COEXISTENCE: not eligible (streaming inactive, no SparkEnv, or an immediate fallback veto)
-      // -> delegate to the production-stable inner SortShuffleManager. Every subsequent getWriter /
-      // getReader call for the returned handle likewise falls through to the sort path.
+      // COEXISTENCE / FORCED FALLBACK: the shuffle is delegated to the production-stable inner
+      // SortShuffleManager when streaming is inactive, when SparkEnv is absent, when the fallback
+      // policy vetoes, when the transport cannot yet stream bytes over the wire (always the case in
+      // v1), or when the dependency is not streaming-eligible (e.g. map-side combine). Delegating
+      // to sortShuffleManager.registerShuffle preserves ALL of the sort path's per-shuffle choices
+      // (bypass-merge-sort, serialized shuffle, serializer relocation, partition-count thresholds,
+      // push-based merge). Every subsequent getWriter/getReader call for the returned (base/sort)
+      // handle likewise falls through to the sort path, so shuffle output is always durably
+      // materialized and reducer-fetchable -- the zero-regression guarantee.
       sortShuffleManager.registerShuffle(shuffleId, dependency)
     }
   }
@@ -335,6 +429,15 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
     // (mapId, reduceId) entry at once -- no per-map iteration is required.
     taskIdMapsForShuffle.remove(shuffleId)
     shuffleBlockResolver.removeShuffle(shuffleId)
+    // DISK CLEANUP: the streaming spill path can persist per-partition blocks to disk via
+    // BlockManager.putBytes(ShuffleBlockId(...), bytes, DISK_ONLY). Those spilled blocks are
+    // tracked by the MemorySpillManager, NOT by the sort manager's task-id bookkeeping, so the
+    // sort manager's cleanup below would never remove them. Ask the spill manager to remove this
+    // shuffle's spilled blocks here so they do not leak on disk until the application exits. The
+    // spill manager is null for a pass-through (streaming-inactive / no-env) manager, so guard it.
+    if (spillManager != null) {
+      spillManager.removeShuffle(shuffleId)
+    }
     // COEXISTENCE: delegate to the inner SortShuffleManager so any shuffle it served (through the
     // sort fallback or when streaming was inactive) is also cleaned. Its unregisterShuffle is a
     // no-op for a shuffle id it never registered, so calling it unconditionally is safe and keeps

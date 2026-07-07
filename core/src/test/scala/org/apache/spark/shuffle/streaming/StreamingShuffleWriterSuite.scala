@@ -20,31 +20,34 @@ package org.apache.spark.shuffle.streaming
 import org.mockito.{Mock, MockitoAnnotations}
 import org.mockito.Answers.RETURNS_SMART_NULLS
 import org.mockito.ArgumentMatchers.{any, anyBoolean, eq => meq}
-import org.mockito.Mockito._
-import org.scalatest.PrivateMethodTester
+import org.mockito.Mockito.{atLeastOnce, reset, verify, when}
 import org.scalatest.matchers.must.Matchers
 
 import org.apache.spark.{Partitioner, SharedSparkContext, ShuffleDependency, SparkFunSuite}
-import org.apache.spark.memory.{MemoryConsumer, MemoryTestingUtils}
+import org.apache.spark.memory.{MemoryTestingUtils, UnifiedMemoryManager}
 import org.apache.spark.serializer.JavaSerializer
-import org.apache.spark.shuffle.streaming.network.{StreamingShuffleTransport, TokenBucketRateLimiter}
+import org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport
+import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
 import org.apache.spark.storage.{BlockManager, StorageLevel}
 import org.apache.spark.util.Utils
 
 /**
- * Unit suite for [[StreamingShuffleWriter]], the `MemoryConsumer`-backed streaming map-side shuffle
- * writer selected by `spark.shuffle.manager=streaming`. The suite is modeled on
+ * Unit suite for [[StreamingShuffleWriter]], the streaming map-side shuffle writer selected by
+ * `spark.shuffle.manager=streaming`. The suite is modeled on
  * `org.apache.spark.shuffle.sort.SortShuffleWriterSuite`: it mocks the [[BlockManager]] and the
  * [[ShuffleDependency]], drives the writer with an anonymous [[Partitioner]], and obtains a real
  * [[org.apache.spark.memory.TaskMemoryManager]] through
  * [[org.apache.spark.memory.MemoryTestingUtils.fakeTaskContext]] (the writer composes an inner
- * [[MemoryConsumer]] that requires one).
+ * [[org.apache.spark.memory.MemoryConsumer]] that requires one).
  *
- * The tests exercise the writer's public SPI (`write` / `stop` / `getPartitionLengths`) and its
- * memory discipline: the per-partition buffer-size 2 MB floor and the `MemoryConsumer.spill`
- * accounting. Because the v1 transport is a logging-only stub that puts no bytes on the wire, the
- * assertions target the writer's own accounting (records written, partition lengths, freed bytes,
- * spill telemetry) rather than any on-disk data file.
+ * The tests assert the writer's PUBLIC contract rather than its private internals: the shuffle SPI
+ * (`write` / `stop` / `getPartitionLengths`),
+ * the visible `MemoryConsumer` spill surface `spill(size, trigger): Long`, and the published
+ * per-partition buffer capacity `perPartitionBufferCapacityBytes` (which encodes the
+ * `(execution memory * bufferPercent / 100) / numPartitions` budget with a 2 MB floor). Because the
+ * v1 transport is a logging-only stub that puts no bytes on the wire, a dedicated test also proves
+ * the [[StreamingShuffleManager]] delegates to the durable sort path while the transport is
+ * stubbed, so a reported map status always corresponds to reducer-fetchable data.
  *
  * All collaborators are the real same-package production classes referenced (never redefined);
  * only the two Spark-owned integration points ([[BlockManager]] and [[ShuffleDependency]]) are
@@ -53,8 +56,7 @@ import org.apache.spark.util.Utils
 class StreamingShuffleWriterSuite
   extends SparkFunSuite
     with SharedSparkContext
-    with Matchers
-    with PrivateMethodTester {
+    with Matchers {
 
   @Mock(answer = RETURNS_SMART_NULLS)
   private var blockManager: BlockManager = _
@@ -74,6 +76,19 @@ class StreamingShuffleWriterSuite
   private val partitioner = new Partitioner() {
     def numPartitions: Int = numReducePartitions
     def getPartition(key: Any): Int = Utils.nonNegativeMod(key.hashCode, numReducePartitions)
+  }
+
+  /**
+   * The executor memory basis the writer sizes per-partition buffers against (finding M2). This
+   * mirrors `StreamingShuffleWriter.executorMemoryBytes` exactly: the writer budgets against the
+   * unified heap execution-memory pool ([[UnifiedMemoryManager.maxHeapMemory]]) and only falls back
+   * to `maxOnHeapStorageMemory` for a non-unified manager. Computing the expected buffer capacity
+   * from the same basis keeps the public-contract assertions on `perPartitionBufferCapacityBytes`
+   * exact and independent of the JVM heap the suite happens to run under.
+   */
+  private def executionMemoryBytes: Long = sc.env.memoryManager match {
+    case unified: UnifiedMemoryManager => unified.maxHeapMemory
+    case other => other.maxOnHeapStorageMemory
   }
 
   override def beforeEach(): Unit = {
@@ -166,14 +181,46 @@ class StreamingShuffleWriterSuite
     assert(status.isDefined)
   }
 
-  test("per-partition buffer size honors the 2 MB floor") {
+  test("v1 StreamingShuffleManager delegates to the sort path while the transport is stubbed") {
+    numReducePartitions = 5
+    resetDependency()
+    // Finding M11 / C1: a successful streaming write must never report a MapStatus for data that
+    // was not durably materialized. The v1 wire transport is a logging-only stub
+    // (StreamingShuffleTransport.isWireTransferAvailable == false), so even with streaming fully
+    // requested the manager must delegate every shuffle to the inner SortShuffleManager, whose
+    // writer/reader path produces durable, reducer-fetchable output. Streaming is enabled here so
+    // the ONLY thing forcing the fallback is the stub transport, then prove both the registered
+    // handle and the constructed writer come from the sort path (never the streaming components).
+    // Use sc.getConf (not the suite's raw conf): it is a live clone carrying spark.app.id, which
+    // the inner SortShuffleManager needs when it lazily loads its executor shuffle components on
+    // the delegated getWriter call. Enable streaming on the clone so the sole cause of the fallback
+    // is the stub transport.
+    val streamingConf = sc.getConf.set("spark.shuffle.streaming.enabled", "true")
+    val manager = new StreamingShuffleManager(streamingConf, isDriver = true)
+    try {
+      val handle = manager.registerShuffle(shuffleId, dependency)
+      assert(!handle.isInstanceOf[StreamingShuffleHandle[_, _, _]],
+        "v1 must delegate registration to the sort path while the wire transport is a stub")
+
+      val context = MemoryTestingUtils.fakeTaskContext(sc.env)
+      val writeMetrics = context.taskMetrics().shuffleWriteMetrics
+      val writer = manager.getWriter[Int, Int](handle, 5L, context, writeMetrics)
+      assert(!writer.isInstanceOf[StreamingShuffleWriter[_, _, _]],
+        "v1 must serve writes from the durable sort path, not the stub streaming writer")
+    } finally {
+      manager.stop()
+    }
+  }
+
+  test("per-partition buffer capacity applies the execution-memory budget and the 2 MB floor") {
     val twoMB = 2L * 1024L * 1024L
-    val execMem = sc.env.memoryManager.maxOnHeapStorageMemory
-    val budgetMethod = PrivateMethod[Long](Symbol("perPartitionBudgetBytes"))
+    val execMem = executionMemoryBytes
 
     // Below-floor case: a large fan-out drives the raw per-partition share under 2 MB, so the
-    // writer must clamp the buffer size up to the floor. The fan-out is derived from the live
+    // writer must clamp the buffer capacity up to the floor. The fan-out is derived from the live
     // executor memory so the test holds regardless of the JVM heap the suite runs under.
+    // The public `perPartitionBufferCapacityBytes` accessor (finding M10) is asserted directly
+    // rather than reaching a private field.
     val belowPct = 20
     val belowBudget = math.max(0L, execMem * belowPct / 100L)
     numReducePartitions = math.max(2, (belowBudget / twoMB).toInt + 2)
@@ -181,12 +228,12 @@ class StreamingShuffleWriterSuite
     assert(belowRaw < twoMB, s"test setup must drive the raw per-partition share below the " +
       s"floor, but raw=$belowRaw for numPartitions=$numReducePartitions")
     val (belowWriter, _, _) = newWriter(mapId = 10L, bufferSizePercent = belowPct)
-    assert(belowWriter.invokePrivate(budgetMethod()) === twoMB)
+    assert(belowWriter.perPartitionBufferCapacityBytes === twoMB)
     belowWriter.stop(success = false)
 
     // Above-floor case: a single partition at the maximum buffer percent leaves the computed share
     // comfortably above 2 MB (Spark requires systemMemory >= 450 MB, so execMem/2 >> 2 MB), so the
-    // writer must use the computed value unchanged rather than the floor.
+    // writer must publish the computed budget unchanged rather than the floor.
     val abovePct = 50
     numReducePartitions = 1
     val aboveBudget = math.max(0L, execMem * abovePct / 100L)
@@ -194,7 +241,7 @@ class StreamingShuffleWriterSuite
     assert(aboveExpected > twoMB, s"test setup must leave the computed share above the floor, " +
       s"but expected=$aboveExpected")
     val (aboveWriter, _, _) = newWriter(mapId = 11L, bufferSizePercent = abovePct)
-    val aboveActual = aboveWriter.invokePrivate(budgetMethod())
+    val aboveActual = aboveWriter.perPartitionBufferCapacityBytes
     assert(aboveActual === aboveExpected)
     assert(aboveActual > twoMB)
     aboveWriter.stop(success = false)
@@ -212,12 +259,12 @@ class StreamingShuffleWriterSuite
     writer.write(List((1, 10), (2, 20), (3, 30), (4, 40)).iterator)
     val spillsBefore = metrics.spillCounter.getCount
 
-    // The production spill trigger is the inner MemoryConsumer's spill(size, trigger): the writer
-    // holds it by composition (it does not itself extend MemoryConsumer). Reach that consumer to
-    // exercise the real pressure-driven spill path and assert it returns the freed byte count.
-    val consumerMethod = PrivateMethod[MemoryConsumer](Symbol("memoryConsumer"))
-    val consumer = writer.invokePrivate(consumerMethod())
-    val freed = consumer.spill(Long.MaxValue, consumer)
+    // Drive the writer's PUBLIC MemoryConsumer spill contract directly (findings M1 and M10):
+    // `spill(size, trigger): Long` is the visible, testable surface the AAP requires. The inner
+    // MemoryConsumer the memory manager triggers under pressure simply forwards to this same
+    // method, so this drives the identical production spill path. `trigger` is documented-unused
+    // (the writer always spills its own buffers), so `null` is passed.
+    val freed = writer.spill(Long.MaxValue, null)
 
     // spill(size, trigger) returns the number of bytes it reclaimed. Its contract only requires a
     // non-negative result, but buffered data was present here so the reclaim is strictly positive,
@@ -230,7 +277,7 @@ class StreamingShuffleWriterSuite
     writer.stop(success = false)
   }
 
-  test("stop(success = false) returns None and releases buffered memory") {
+  test("stop(success = false) returns None and retains no buffered memory") {
     numReducePartitions = 5
     val (writer, _, _) = newWriter(mapId = 4L, bufferSizePercent = 20)
     writer.write(List((1, 10), (2, 20), (3, 30), (4, 40)).iterator)
@@ -239,10 +286,9 @@ class StreamingShuffleWriterSuite
 
     // releaseAllResources() runs in stop()'s finally regardless of outcome: every partition buffer
     // is reset, unregistered, and nulled, and all execution memory reserved through the inner
-    // MemoryConsumer is freed. Assert both facets so "no memory retained" is verified concretely.
-    val buffersMethod = PrivateMethod[Array[StreamingBuffer]](Symbol("buffers"))
-    assert(writer.invokePrivate(buffersMethod()).forall(_ == null))
-    val consumerMethod = PrivateMethod[MemoryConsumer](Symbol("memoryConsumer"))
-    assert(writer.invokePrivate(consumerMethod()).getUsed() === 0L)
+    // MemoryConsumer is freed. The public MemoryConsumer spill contract (finding M10) is the
+    // observable proof that no buffered memory is retained: with every buffer already released, a
+    // maximal spill request finds no partition to persist and so reclaims exactly zero bytes.
+    assert(writer.spill(Long.MaxValue, null) === 0L)
   }
 }

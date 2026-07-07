@@ -18,22 +18,19 @@
 package org.apache.spark.shuffle.streaming
 
 import java.io.{ByteArrayOutputStream, IOException}
-import java.nio.ByteBuffer
 
 import scala.collection.mutable.ArrayBuffer
-import scala.reflect.ClassTag
 
 import org.apache.spark.{SparkEnv, TaskContext}
 import org.apache.spark.annotation.Since
-import org.apache.spark.internal.Logging
-import org.apache.spark.memory.{MemoryConsumer, MemoryMode}
+import org.apache.spark.internal.{Logging, LogKeys}
+import org.apache.spark.memory.{MemoryConsumer, MemoryMode, UnifiedMemoryManager}
 import org.apache.spark.scheduler.MapStatus
 import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.shuffle.{ShuffleWriteMetricsReporter, ShuffleWriter}
 import org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope
 import org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport
-import org.apache.spark.storage.{BlockManager, ShuffleBlockId, StorageLevel}
-import org.apache.spark.util.io.ChunkedByteBuffer
+import org.apache.spark.storage.{BlockManager, ShuffleBlockId}
 
 /**
  * The streaming map-side shuffle writer for the streaming shuffle backend
@@ -55,31 +52,50 @@ import org.apache.spark.util.io.ChunkedByteBuffer
  * in its collaborators inside the `org.apache.spark.shuffle.streaming` package, honoring the
  * feature's "zero cross-contamination" isolation discipline.
  *
+ * ==v1 status: off the production path==
+ * In v1 the wire transport is a logging-only stub that advertises no wire-transfer capability
+ * ([[StreamingShuffleTransport.isWireTransferAvailable]] is `false`), so the manager's
+ * `canUseStreaming` gate forces every shuffle to sort fallback and no map task is ever issued a
+ * streaming handle in production. This writer is therefore v2 groundwork exercised by its unit
+ * suite rather than a production code path. Its durability contract is the '''persist/spill
+ * channel''' below (records buffered on heap, bounded and spilled to disk); the wire channel is
+ * disabled while the transport reports no capability, so it can neither put bytes on the wire nor
+ * discard buffered bytes after a no-op send. This keeps the writer internally honest: it never
+ * counts or publishes bytes it did not durably retain.
+ *
  * ==Dual serialization channels==
  * Every record is serialized exactly once by the shared [[SerializerInstance]] and routed through
  * two sinks that share those bytes but differ in destination:
  *
- *  - '''Persist channel''' -- serialized bytes are appended into the reduce partition's on-heap
- *    [[StreamingBuffer]]. Each buffer is registered with the [[MemorySpillManager]], which spills
- *    the largest / least-recently-used buffers to disk ([[StorageLevel.DISK_ONLY]]) under memory
- *    pressure and reclaims them within 100 ms of a consumer acknowledgment. This is the durable
- *    side that guarantees buffered data is never lost.
- *  - '''Wire channel''' -- once a partition's buffer reaches the 2 MB block boundary, the bytes are
- *    framed into a [[StreamingBlockEnvelope]] (a fixed 32-byte big-endian header plus a payload of
- *    at most 2 MB, stamped with a CRC32C), gated by the [[BackpressureProtocol]], and handed to the
- *    [[StreamingShuffleTransport]]. In v1 the transport is a logging-only stub, so no bytes are put
- *    on the wire; the call still exercises the framing, backpressure, and transport surfaces so the
- *    v2 wire path is real and testable.
+ *  - '''Persist channel''' (always active) -- serialized bytes are appended into the reduce
+ *    partition's on-heap [[StreamingBuffer]]. Each buffer is registered with the
+ *    [[MemorySpillManager]], which spills the largest / least-recently-used buffers to disk
+ *    ([[org.apache.spark.storage.StorageLevel.DISK_ONLY]]) under memory pressure and reclaims them
+ *    within 100 ms of a consumer acknowledgment. Every spill -- background poll, cooperative
+ *    memory-manager spill, and per-partition cap -- flows through the single shared, atomic,
+ *    tracked routine [[MemorySpillManager.spillBufferToDisk]], so buffered data is never lost and
+ *    every spilled block is registered for cleanup on `unregisterShuffle`.
+ *  - '''Wire channel''' (v2, disabled in v1) -- once a partition's buffer reaches the 2 MB block
+ *    boundary, the bytes are framed into a [[StreamingBlockEnvelope]] (a fixed 32-byte big-endian
+ *    header plus a payload of at most 2 MB, stamped with a CRC32C), gated by the
+ *    [[BackpressureProtocol]], and handed to the [[StreamingShuffleTransport]]. This channel is
+ *    engaged only when the transport advertises wire-transfer capability; in v1 it is skipped
+ *    entirely so no buffered bytes are ever reset after a no-op send.
  *
  * ==Memory discipline==
- * The per-executor streaming buffer budget is `executorMemory x bufferSizePercent / 100` and each
+ * The per-executor streaming buffer budget is `executionMemory x bufferSizePercent / 100` and each
  * of the `numPartitions` reduce partitions receives an equal share of it, floored at one 2 MB wire
- * block (the preserved user formula `(executorMemory * bufferPercent) / numPartitions`). Execution
- * memory reserved through the inner [[MemoryConsumer]] is continuously reconciled with the live
- * buffered footprint, so growing buffers acquire memory (cooperatively triggering a spill under
- * pressure) and drained buffers release it. When the task memory manager cannot satisfy an
- * allocation it invokes the consumer's `spill`, which persists the largest buffers to disk and
- * frees their heap.
+ * block (the preserved user formula `(executorMemory * bufferPercent) / numPartitions`). The base
+ * is the executor's '''execution''' memory (`UnifiedMemoryManager.maxHeapMemory`), the pool that
+ * actually backs a [[MemoryConsumer]], not storage memory. That per-partition share is enforced as
+ * a real cap: when a partition buffer reaches it, the partition is spilled durably to bound its
+ * on-heap footprint. Execution memory reserved through the inner [[MemoryConsumer]] is continuously
+ * reconciled with the live buffered footprint; `reconcileMemory` '''honors''' the value returned by
+ * `acquireMemory` and, when the manager grants less than the footprint requires, spills the
+ * writer's own buffers until the footprint fits the reservation, so heap never exceeds accounted
+ * execution memory. When the task memory manager cannot satisfy an allocation it invokes the
+ * consumer's `spill`, which forwards to this writer's public [[spill]] to persist the largest
+ * buffers to disk and free their heap.
  *
  * ==Failure handling==
  * [[stop]] is idempotent: a map task may call `stop(success = true)` and then, on a later error,
@@ -129,6 +145,16 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   private val numPartitions = partitioner.numPartitions
   private val shuffleId = dep.shuffleId
 
+  // Contract guard (finding M4): the streaming writer has no map-side aggregation path -- it
+  // serializes and buffers raw (key, value) records and never applies dep.aggregator. Map-side
+  // combine must therefore be routed to the sort path. `StreamingShuffleManager` already excludes
+  // map-side-combine dependencies from streaming eligibility, so a streaming handle is never made
+  // for one; this require makes that invariant explicit and fail-fast, so the writer never silently
+  // drops the combine step and produces semantically wrong (uncombined) output.
+  require(!dep.mapSideCombine,
+    s"StreamingShuffleWriter does not support map-side combine (shuffleId=$shuffleId); the " +
+      "StreamingShuffleManager must route map-side-combine shuffles to the sort path")
+
   // Single serializer instance shared by both serialization channels (wire + persist). Records are
   // serialized as self-contained units so a wire block may be sliced at any 2 MB byte boundary.
   private val serInstance: SerializerInstance = dep.serializer.newInstance()
@@ -138,14 +164,22 @@ private[spark] class StreamingShuffleWriter[K, V, C](
 
   // -- Buffer sizing (memory discipline, AAP 0.7.1) ----------------------------------------------
 
-  // Executor on-heap memory used as the buffer-budget base. Sourced from the memory manager's
-  // maxOnHeapStorageMemory. Gated on SparkEnv for local/test-mode safety: when the memory manager
-  // is not initialized (e.g. a unit test constructing the writer directly) a nominal default is
-  // used so sizing stays well-defined and the 2 MB per-partition floor still applies.
+  // Executor on-heap memory used as the buffer-budget base (finding M2). The streaming buffers are
+  // accounted against the inner MemoryConsumer, which draws from the executor's EXECUTION memory
+  // pool, so the budget base must be that pool's size -- `UnifiedMemoryManager.maxHeapMemory`, the
+  // total on-heap pool shared by execution and storage -- and NOT `maxOnHeapStorageMemory`, which
+  // reports only the storage half and would systematically undersize the buffers relative to the
+  // memory they actually consume. Gated on SparkEnv for local/test-mode safety: when no memory
+  // manager is initialized (e.g. a unit test constructing the writer directly) a nominal default is
+  // used so sizing stays well-defined and the 2 MB per-partition floor still applies. A non-unified
+  // MemoryManager (none ships with Spark today) falls back to its storage-memory accessor.
   private val executorMemoryBytes: Long = {
     val env = SparkEnv.get
     if (env != null && env.memoryManager != null) {
-      env.memoryManager.maxOnHeapStorageMemory
+      env.memoryManager match {
+        case unified: UnifiedMemoryManager => unified.maxHeapMemory
+        case other => other.maxOnHeapStorageMemory
+      }
     } else {
       StreamingShuffleWriter.DEFAULT_EXECUTOR_MEMORY_BYTES
     }
@@ -156,11 +190,24 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   private val totalBufferBudgetBytes: Long =
     math.max(0L, executorMemoryBytes * handle.bufferSizePercent / 100L)
 
-  // Per-partition share of the budget with a 2 MB floor: (executorMemory x bufferPercent / 100) /
+  // Per-partition share of the budget with a 2 MB floor: (executionMemory x bufferPercent / 100) /
   // numPartitions, floored at one 2 MB wire block so a partition can always stage a full block.
+  // This is enforced as a REAL cap (finding M2): `write` spills a partition durably as soon as its
+  // buffer reaches this size, bounding each partition's on-heap footprint rather than merely sizing
+  // the initial allocation.
   private val perPartitionBudgetBytes: Long =
     math.max(totalBufferBudgetBytes / math.max(1, numPartitions),
       StreamingShuffleWriter.MIN_PARTITION_BUFFER_BYTES)
+
+  /**
+   * The enforced per-partition on-heap buffer capacity, in bytes. Exposed so tests and operators
+   * can verify the memory-discipline contract (finding M2): `(executionMemory x bufferSizePercent /
+   * 100) / numPartitions`, floored at one 2 MB block. When a partition buffer reaches this size the
+   * writer spills it durably, so no single partition can grow the writer's footprint without bound.
+   *
+   * @return the per-partition buffer capacity in bytes that the writer enforces via spilling
+   */
+  def perPartitionBufferCapacityBytes: Long = perPartitionBudgetBytes
 
   // Initial backing-store capacity for a partition buffer: the per-partition budget, but never more
   // than the default hint so high-fan-out shuffles do not over-allocate upfront (buffers grow on
@@ -206,21 +253,31 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   // this consumer with the existing `TaskMemoryManager` is what accounts the streaming buffers
   // against execution memory with no memory-model redesign: `reconcileMemory` acquires and frees
   // against it as buffers grow and drain, and under pressure the manager drives its `spill`
-  // callback below, which delegates to `spillBuffers`. The abstract `spill(size, trigger)` contract
-  // is satisfied by this instance (its constructor is protected, hence the anonymous subclass).
+  // callback below. Because the writer cannot itself extend `MemoryConsumer`, the abstract
+  // `spill(size, trigger)` contract is instead exposed on the writer as a public method (finding
+  // M1) and the inner consumer simply forwards to it -- so the same spill contract the memory
+  // manager invokes is directly visible and unit-testable on this writer.
   private val memoryConsumer: MemoryConsumer =
     new MemoryConsumer(
         context.taskMemoryManager(),
         context.taskMemoryManager().pageSizeBytes(),
         MemoryMode.ON_HEAP) {
       @throws(classOf[IOException])
-      override def spill(size: Long, trigger: MemoryConsumer): Long = spillBuffers(size)
+      override def spill(size: Long, trigger: MemoryConsumer): Long =
+        StreamingShuffleWriter.this.spill(size, trigger)
     }
 
-  logInfo(s"Initialized streaming shuffle writer: shuffleId=$shuffleId mapId=$mapId " +
-    s"numPartitions=$numPartitions bufferSizePercent=${handle.bufferSizePercent} " +
-    s"executorMemoryBytes=$executorMemoryBytes totalBufferBudgetBytes=$totalBufferBudgetBytes " +
-    s"perPartitionBudgetBytes=$perPartitionBudgetBytes")
+  // Structured init log with the streaming-shuffle correlation identifiers (finding M8): shuffle,
+  // map, and task-attempt ids are emitted through MDC so log aggregation can correlate every
+  // streaming event of this map task, alongside the resolved buffer-budget sizing.
+  logInfo(log"Initialized streaming shuffle writer " +
+    log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, shuffleId)}, " +
+    log"mapId=${MDC(LogKeys.MAP_ID, mapId)}, " +
+    log"taskAttemptId=${MDC(LogKeys.TASK_ATTEMPT_ID, context.taskAttemptId())}, " +
+    log"numPartitions=${MDC(LogKeys.NUM_PARTITIONS, numPartitions)}, " +
+    log"bufferSizePercent=${MDC(LogKeys.PERCENT, handle.bufferSizePercent)}, " +
+    log"totalBufferBudgetBytes=${MDC(LogKeys.NUM_BYTES, totalBufferBudgetBytes)}, " +
+    log"perPartitionCapacityBytes=${MDC(LogKeys.MEMORY_SIZE, perPartitionBudgetBytes)})")
 
   // -- ShuffleWriter SPI -------------------------------------------------------------------------
 
@@ -243,14 +300,26 @@ private[spark] class StreamingShuffleWriter[K, V, C](
       val recordBytes = serializeRecord(key, record._2)
       val buffer = bufferFor(partitionId)
       buffer.append(recordBytes)
-      // Keep the reserved execution memory aligned with the buffer's new footprint.
-      reconcileMemory()
       partitionLengths(partitionId) += recordBytes.length.toLong
       metricsReporter.incRecordsWritten(1L)
-      // Dispatch any full 2 MB wire blocks that the append completed.
+      // Account serialized output bytes as they are produced. In v1 the wire channel puts nothing
+      // on the wire (the transport is a stub and the manager forces sort fallback), so
+      // bytes-written is counted here at serialization rather than at wire send -- keeping the
+      // metric honest and identical across v1 and v2 (it reflects bytes actually serialized and
+      // buffered, never bytes claimed by a no-op send).
+      metricsReporter.incBytesWritten(recordBytes.length.toLong)
+      // Keep the reserved execution memory aligned with the buffer's new footprint; reconcileMemory
+      // honors the acquireMemory grant and spills any shortfall under pressure (finding M3).
+      reconcileMemory()
+      // Enforce the per-partition on-heap cap (finding M2): once a partition reaches its capacity,
+      // spill it durably so no single partition grows the writer's footprint without bound.
+      enforcePartitionCap(partitionId, buffer)
+      // Dispatch any full 2 MB wire blocks the append completed (no-op in v1: the wire channel is
+      // gated on the transport advertising wire-transfer capability).
       maybeFlushWireBlocks(partitionId, buffer)
     }
-    // Emit the trailing sub-block for every partition so each partition stream is complete.
+    // Emit each partition's trailing sub-block to complete its stream (no-op in v1: gated on the
+    // transport's wire-transfer capability).
     flushResidualBlocks()
     metricsReporter.incWriteTime(System.nanoTime() - writeStartNanos)
     // Publish the map output location and per-partition sizes. The 3-arg MapStatus.apply defaults
@@ -259,51 +328,80 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   }
 
   /**
-   * Body of the inner [[MemoryConsumer]]'s spill callback, invoked by the task memory manager under
-   * execution-memory pressure. Persists the largest partition buffers to disk
-   * ([[StorageLevel.DISK_ONLY]]) through the public [[BlockManager]] API -- the same mechanism the
-   * [[MemorySpillManager]] background poller uses -- then resets each spilled buffer to release its
-   * heap and frees the corresponding execution-memory reservation. This is the synchronous,
-   * pressure-driven complement to the spill manager's periodic 80% utilization poll. Per the
-   * [[MemoryConsumer]] contract it never calls `acquireMemory`, and it persists before releasing
-   * heap so buffered shuffle data is never lost on a spill.
+   * Spill the largest partition buffers to disk to release at least `size` bytes of execution
+   * memory, returning the bytes actually freed. This is the writer's public `MemoryConsumer`-style
+   * spill contract (finding M1): the writer cannot extend `MemoryConsumer` (Scala permits extending
+   * only one class and the SPI requires it to be a `ShuffleWriter[K, V]`), so the contract is
+   * exposed here and the inner consumer forwards to it -- making the exact behavior the task memory
+   * manager invokes under pressure directly visible and unit-testable on this writer. It is the
+   * synchronous, pressure-driven complement to the [[MemorySpillManager]]'s periodic 80% poll.
    *
-   * @param size the number of bytes the memory manager is asking the consumer to release
-   * @return the number of bytes actually released
+   * Buffers are ordered largest-first so the fewest spills reclaim the most, and every spill flows
+   * through the single shared, atomic, tracked routine [[MemorySpillManager.spillBufferToDisk]]:
+   * buffered data is never lost (a buffer is reset only on a confirmed durable store) and each
+   * spilled block is registered for cleanup on `unregisterShuffle` (findings M16 and M17). Per the
+   * [[MemoryConsumer]] contract this never calls `acquireMemory`, so it cannot recurse into memory
+   * acquisition or deadlock.
+   *
+   * @param size    the number of bytes the memory manager is asking the consumer to release
+   * @param trigger the consumer that triggered the spill (unused: this writer always spills its own
+   *                buffers); present to satisfy the `MemoryConsumer.spill` signature
+   * @return the number of bytes actually freed
    */
   @throws(classOf[IOException])
-  private def spillBuffers(size: Long): Long = {
+  def spill(size: Long, trigger: MemoryConsumer): Long = {
     var freed = 0L
-    try {
-      // Order allocated, non-empty buffers largest-first so the fewest spills reclaim the most.
-      val candidates = collectSpillCandidates()
-      val iterator = candidates.iterator
-      while (iterator.hasNext && freed < size) {
-        val (partitionId, buffer) = iterator.next()
-        val bytes = buffer.snapshot()
-        if (bytes.length > 0) {
-          val blockId = ShuffleBlockId(shuffleId, mapId, partitionId)
-          val chunked = new ChunkedByteBuffer(ByteBuffer.wrap(bytes))
-          // Persist before releasing heap so buffered shuffle data is never lost on spill.
-          val stored =
-            blockManager.putBytes(blockId, chunked, StorageLevel.DISK_ONLY)(ClassTag.Any)
-          if (stored) {
-            val reclaimed = buffer.size
-            buffer.reset()
-            streamingMetrics.incSpillCount()
-            memoryConsumer.freeMemory(reclaimed)
-            freed += reclaimed
-            if (debugEnabled) {
-              logDebug(s"streaming-shuffle spilled block to disk: shuffleId=$shuffleId " +
-                s"mapId=$mapId reduceId=$partitionId bytes=$reclaimed")
-            }
-          }
-        }
-      }
-    } catch {
-      case e: IOException =>
-        logError(s"streaming-shuffle spill failed: shuffleId=$shuffleId mapId=$mapId", e)
-        throw e
+    val candidates = collectSpillCandidates()
+    val iterator = candidates.iterator
+    while (iterator.hasNext && freed < size) {
+      val (partitionId, buffer) = iterator.next()
+      freed += spillPartition(partitionId, buffer, releaseReservation = true)
+    }
+    freed
+  }
+
+  /**
+   * Enforce the per-partition on-heap cap (finding M2): when a partition buffer reaches
+   * [[perPartitionBufferCapacityBytes]], spill it durably so no single partition can grow the
+   * writer's footprint without bound. Called after every append in [[write]].
+   *
+   * @param partitionId the reduce partition just appended to
+   * @param buffer      that partition's buffer
+   */
+  @throws(classOf[IOException])
+  private def enforcePartitionCap(partitionId: Int, buffer: StreamingBuffer): Unit = {
+    if (buffer.size >= perPartitionBudgetBytes) {
+      spillPartition(partitionId, buffer, releaseReservation = true)
+    }
+  }
+
+  /**
+   * Spill a single partition's buffer to disk through the shared spill routine and, optionally,
+   * release the corresponding execution-memory reservation.
+   *
+   * Routing through [[MemorySpillManager.spillBufferToDisk]] guarantees every streaming spill --
+   * the background poll, the cooperative memory-manager spill, and the per-partition cap --
+   * persists and TRACKS the block identically (findings M16 and M17): the spill is atomic (no
+   * append can interleave), buffered data is never lost on failure, and the block's
+   * [[ShuffleBlockId]] is recorded so `StreamingShuffleManager.unregisterShuffle` ->
+   * [[MemorySpillManager.removeShuffle]] can later delete it. The spill manager owns integrity,
+   * tracking, the spill-count metric, and INFO logging; this method only frees the reclaimed bytes
+   * from the inner consumer's reservation when `releaseReservation` is set (the cooperative and cap
+   * paths, which release memory the writer holds; the reconcile shortfall path passes `false`
+   * because that memory was never granted).
+   *
+   * @param partitionId        the reduce partition to spill
+   * @param buffer             the partition's buffer
+   * @param releaseReservation whether to free the reclaimed bytes from the inner consumer's
+   *                           reservation
+   * @return the number of bytes reclaimed from memory (0 if empty or the store was not confirmed)
+   */
+  private def spillPartition(
+      partitionId: Int, buffer: StreamingBuffer, releaseReservation: Boolean): Long = {
+    val blockId = ShuffleBlockId(shuffleId, mapId, partitionId)
+    val freed = spillManager.spillBufferToDisk(blockId, buffer)
+    if (freed > 0L && releaseReservation) {
+      memoryConsumer.freeMemory(freed)
     }
     freed
   }
@@ -384,10 +482,20 @@ private[spark] class StreamingShuffleWriter[K, V, C](
    * sub-block remainder re-appended, bounding each partition's on-heap footprint to roughly one
    * 2 MB block between flushes; [[reconcileMemory]] releases the drained execution memory.
    *
+   * '''Gated on transport capability (finding C1).''' In v1 the transport advertises no
+   * wire-transfer capability, so this method is a no-op: no bytes are put on the wire and -- the
+   * key correctness point -- no buffered bytes are ever reset after a no-op send. The persist/spill
+   * channel therefore remains the sole, durable output path, and the writer never discards data it
+   * has counted. The framing/backpressure/transport logic below is retained for v2, when the
+   * transport can actually transfer bytes.
+   *
    * @param partitionId the reduce partition id
    * @param buffer      the partition's buffer, known to be non-null
    */
   private def maybeFlushWireBlocks(partitionId: Int, buffer: StreamingBuffer): Unit = {
+    if (!transport.isWireTransferAvailable) {
+      return
+    }
     while (buffer.size >= StreamingBlockEnvelope.MAX_PAYLOAD_BYTES) {
       val snapshot = buffer.snapshot()
       val blockLength = math.min(StreamingBlockEnvelope.MAX_PAYLOAD_BYTES, snapshot.length)
@@ -407,8 +515,16 @@ private[spark] class StreamingShuffleWriter[K, V, C](
    * Flush every partition's sub-2 MB tail as a final wire block at end of [[write]]. These residual
    * blocks complete the partition streams; the underlying buffers are left registered so the spill
    * manager can still reclaim them and are ultimately released by [[stop]].
+   *
+   * '''Gated on transport capability (finding C1).''' Like [[maybeFlushWireBlocks]], this is a
+   * no-op in v1 (the transport advertises no wire-transfer capability), so no residual bytes are
+   * sent or discarded; the buffered tails remain in the durable persist/spill channel and are
+   * released by [[stop]].
    */
   private def flushResidualBlocks(): Unit = {
+    if (!transport.isWireTransferAvailable) {
+      return
+    }
     var partitionId = 0
     while (partitionId < numPartitions) {
       val buffer = buffers(partitionId)
@@ -423,12 +539,11 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   /**
    * Frame a single &le;2 MB block into a [[StreamingBlockEnvelope]] (CRC32C computed by the
    * envelope factory), consult the [[BackpressureProtocol]] send gate, and route the block through
-   * the [[StreamingShuffleTransport]]. The producer map id is narrowed to the envelope's 4-byte
-   * wire field. In v1 the transport is a logging-only stub, so no bytes are put on the wire; the
-   * call still exercises framing, backpressure, and transport end to end. When the send gate
-   * signals backpressure (only possible when a bandwidth cap is configured) v1 records the event
-   * and proceeds rather than hard-blocking, because there is no real consumer to grant credit
-   * against the stub transport; v2 will honor the gate.
+   * the [[StreamingShuffleTransport]]. Only reached when the transport advertises wire-transfer
+   * capability (the v2 path); in v1 the callers [[maybeFlushWireBlocks]] and
+   * [[flushResidualBlocks]] gate this off entirely. The producer map id is narrowed to the
+   * envelope's 4-byte wire field. Serialized-byte accounting is done once at record production in
+   * [[write]], never here, so bytes are never double-counted or attributed to a send.
    *
    * @param partitionId the reduce partition id
    * @param block       the block payload, guaranteed to be at most 2 MB
@@ -440,30 +555,57 @@ private[spark] class StreamingShuffleWriter[K, V, C](
       StreamingBlockEnvelope(shuffleId, mapId.toInt, partitionId, sequenceNumber, block)
     val admitted = backpressure.acquire(block.length.toLong)
     if (!admitted && debugEnabled) {
-      logDebug(s"streaming-shuffle backpressure signaled: shuffleId=$shuffleId mapId=$mapId " +
-        s"reduceId=$partitionId seq=$sequenceNumber bytes=${block.length}; proceeding in v1")
+      logDebug(log"streaming-shuffle backpressure signaled " +
+        log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, shuffleId)}, " +
+        log"mapId=${MDC(LogKeys.MAP_ID, mapId)}, " +
+        log"reduceId=${MDC(LogKeys.REDUCE_ID, partitionId)}, " +
+        log"bytes=${MDC(LogKeys.NUM_BYTES, block.length)})")
     }
     transport.send(envelope)
-    metricsReporter.incBytesWritten(block.length.toLong)
   }
 
   /**
    * Reconcile the execution memory reserved through the inner [[MemoryConsumer]] with the live
-   * bytes buffered on heap. Growing buffers acquire the shortfall via `acquireMemory` (which may
-   * cooperatively invoke the consumer's `spill` under pressure); drained or reset buffers release
-   * the excess via `freeMemory`. Keeping the consumer's `getUsed()` aligned with the buffered
-   * footprint is what lets the task memory manager account streaming buffers with no change to the
-   * executor memory model.
+   * bytes buffered on heap, '''honoring''' the value returned by `acquireMemory` (finding M3).
+   * Growing buffers request the shortfall via `acquireMemory` (which may cooperatively invoke the
+   * consumer's `spill` under pressure); drained or reset buffers release the excess via
+   * `freeMemory`. Because `acquireMemory` can grant less than requested, its return value is
+   * checked: when the grant falls short the writer spills its own buffers until the footprint fits
+   * the reservation, so on-heap usage never exceeds accounted execution memory. Keeping the
+   * consumer's `getUsed()` aligned with the buffered footprint is what lets the task memory manager
+   * account streaming buffers with no change to the executor memory model.
    */
   private def reconcileMemory(): Unit = {
     val buffered = totalBufferedBytes
     val held = memoryConsumer.getUsed()
     if (buffered > held) {
-      // acquireMemory may grant less than requested and may trigger a spill; any remaining
-      // shortfall is re-attempted on the next reconcile.
-      memoryConsumer.acquireMemory(buffered - held)
+      val required = buffered - held
+      val granted = memoryConsumer.acquireMemory(required)
+      if (granted < required) {
+        // M3: the task memory manager granted less than the live footprint needs (even after any
+        // cooperative spill it triggered via the consumer's spill callback). Honor the shortfall by
+        // spilling our own buffers until the on-heap footprint fits within the memory we actually
+        // hold, so heap never silently exceeds accounted execution memory.
+        spillToFitReservation()
+      }
     } else if (buffered < held) {
       memoryConsumer.freeMemory(held - buffered)
+    }
+  }
+
+  /**
+   * Spill largest-first, without releasing the reservation, until the live buffered footprint no
+   * longer exceeds the execution memory reserved through the inner [[MemoryConsumer]]. Used by
+   * [[reconcileMemory]] when `acquireMemory` grants less than the footprint requires (finding M3):
+   * the shortfall bytes were never granted, so the spilled heap is released while the reservation
+   * is kept, converging `totalBufferedBytes` down to `getUsed()`. Any resulting over-reservation is
+   * trimmed by the next [[reconcileMemory]] (its `buffered < held` branch) or by [[stop]].
+   */
+  private def spillToFitReservation(): Unit = {
+    val candidates = collectSpillCandidates().iterator
+    while (totalBufferedBytes > memoryConsumer.getUsed() && candidates.hasNext) {
+      val (partitionId, buffer) = candidates.next()
+      spillPartition(partitionId, buffer, releaseReservation = false)
     }
   }
 
