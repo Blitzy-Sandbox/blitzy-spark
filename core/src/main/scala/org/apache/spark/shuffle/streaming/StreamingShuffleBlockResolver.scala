@@ -29,7 +29,8 @@ import org.apache.spark.network.client.StreamCallbackWithID
 import org.apache.spark.network.netty.SparkTransportConf
 import org.apache.spark.network.shuffle.MergedBlockMeta
 import org.apache.spark.serializer.SerializerManager
-import org.apache.spark.shuffle.{IndexShuffleBlockResolver, MigratableResolver, ShuffleBlockInfo, ShuffleBlockResolver}
+import org.apache.spark.shuffle.{IndexShuffleBlockResolver, MigratableResolver, ShuffleBlockInfo,
+  ShuffleBlockResolver}
 import org.apache.spark.storage.{BlockId, BlockManager, ShuffleBlockId, ShuffleMergedBlockId}
 import org.apache.spark.util.collection.OpenHashSet
 

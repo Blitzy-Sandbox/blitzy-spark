@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.streaming
 
 import org.mockito.Mockito.{mock, when}
 
-import org.apache.spark._
+import org.apache.spark.{ShuffleDependency, SparkFunSuite}
 import org.apache.spark.shuffle.BaseShuffleHandle
 
 /**

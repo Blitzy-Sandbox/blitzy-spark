@@ -261,9 +261,12 @@ private[spark] class MemorySpillManager(
    * The buffer's bytes are snapshotted (a defensive copy that also refreshes the LRU timestamp),
    * wrapped in a [[ChunkedByteBuffer]], and written via the public [[BlockManager.putBytes]] API at
    * [[StorageLevel.DISK_ONLY]]. `putBytes` is generic on `T: ClassTag`; because the payload is
-   * opaque bytes, an explicit `ClassTag.Any` is supplied. The in-memory buffer is then reset (which
-   * releases its backing array), removed from tracking, and recorded in the spilled-block registry
-   * so the reader/resolver can locate it on disk. An empty buffer is simply dropped from tracking.
+   * opaque bytes, an explicit `ClassTag.Any` is supplied. Only after `putBytes` confirms a
+   * durable store is the in-memory buffer reset (releasing its backing array), removed from
+   * tracking, and recorded in the spilled-block registry so the reader/resolver can locate it on
+   * disk. If the store is not confirmed (a `false` return or a thrown failure) the buffer is kept
+   * tracked for a later retry and the block is never marked spilled, so no shuffle data is lost on
+   * a failed spill. An empty buffer is simply dropped from tracking.
    */
   private def spill(blockId: ShuffleBlockId, buffer: StreamingBuffer): Unit = {
     val bytes = buffer.snapshot()
@@ -272,16 +275,48 @@ private[spark] class MemorySpillManager(
       buffers.remove(blockId)
     } else {
       val chunked = new ChunkedByteBuffer(ByteBuffer.wrap(bytes))
-      blockManager.putBytes(blockId, chunked, StorageLevel.DISK_ONLY)(ClassTag.Any)
-      buffer.reset()
-      buffers.remove(blockId)
-      spilledBlocks.put(blockId, java.lang.Boolean.TRUE)
-      metrics.incSpillCount()
-      logInfo(log"Spilled streaming shuffle partition to disk " +
-        log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, blockId.shuffleId)}, " +
-        log"mapId=${MDC(LogKeys.MAP_ID, blockId.mapId)}, " +
-        log"reduceId=${MDC(LogKeys.REDUCE_ID, blockId.reduceId)}, " +
-        log"bytes=${MDC(LogKeys.NUM_BYTES, bytes.length)})")
+      // The in-memory StreamingBuffer is the ONLY copy of this shuffle data, so it must not be
+      // released until BlockManager confirms the block is durably on disk. putBytes returns
+      // false (and may throw) on failure; in either case we retain the buffer -- we do NOT
+      // reset it, drop it from tracking, or record it as spilled -- and let the poller retry
+      // on its next interval. Discarding the buffer on an unconfirmed store would silently lose
+      // shuffle data, so a block is marked spilled only after a confirmed persist. This is the
+      // streaming-shuffle zero-data-loss guarantee.
+      var failureCause: Throwable = null
+      val stored =
+        try {
+          blockManager.putBytes(blockId, chunked, StorageLevel.DISK_ONLY)(ClassTag.Any)
+        } catch {
+          case NonFatal(e) =>
+            failureCause = e
+            false
+        }
+      if (stored) {
+        buffer.reset()
+        buffers.remove(blockId)
+        spilledBlocks.put(blockId, java.lang.Boolean.TRUE)
+        metrics.incSpillCount()
+        logInfo(log"Spilled streaming shuffle partition to disk " +
+          log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, blockId.shuffleId)}, " +
+          log"mapId=${MDC(LogKeys.MAP_ID, blockId.mapId)}, " +
+          log"reduceId=${MDC(LogKeys.REDUCE_ID, blockId.reduceId)}, " +
+          log"bytes=${MDC(LogKeys.NUM_BYTES, bytes.length)})")
+      } else {
+        // Persistence was not confirmed: keep the buffer tracked (it still counts toward
+        // utilization, so pressure stays visible) and never mark the block spilled.
+        val warning =
+          log"Streaming shuffle spill was not persisted; retaining the in-memory buffer to " +
+          log"retry on the next poll " +
+          log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, blockId.shuffleId)}, " +
+          log"mapId=${MDC(LogKeys.MAP_ID, blockId.mapId)}, " +
+          log"reduceId=${MDC(LogKeys.REDUCE_ID, blockId.reduceId)}, " +
+          log"bytes=${MDC(LogKeys.NUM_BYTES, bytes.length)})"
+        if (failureCause != null) {
+          logWarning(warning, failureCause)
+        } else {
+          logWarning(warning)
+        }
+      }
     }
   }
 

@@ -54,15 +54,15 @@ to a single shuffle, across executor boundaries.
 |---|---|
 | `shuffle_id` | The shuffle identifier |
 | `map_id` | The producing map task identifier |
-| `reduce_partition_range` | The reduce partition range being consumed |
-| `attempt_id` | The task attempt identifier |
+| `reduce_id` | The reduce partition identifier |
+| `task_attempt_id` | The task attempt identifier |
 
 As with all Spark MDC keys, these fields are not shown in plain-text logs by
 default. There are two ways to surface them:
 
 - **Plain-text logs** — add the fields to the log4j2 `PatternLayout`, for
   example `%X{shuffle_id}` (and likewise `%X{map_id}`,
-  `%X{reduce_partition_range}`, `%X{attempt_id}`).
+  `%X{reduce_id}`, `%X{task_attempt_id}`).
 - **Structured (JSON) logs** — set `spark.log.structuredLogging.enabled=true` to
   emit JSON log events that include **all** MDC fields automatically, with no
   pattern edits required.

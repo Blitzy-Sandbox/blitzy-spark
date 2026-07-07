@@ -32,7 +32,8 @@ import org.apache.spark.internal.LogKeys
 import org.apache.spark.io.CompressionCodec
 import org.apache.spark.serializer.SerializerManager
 import org.apache.spark.shuffle.{FetchFailedException, ShuffleReader, ShuffleReadMetricsReporter}
-import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleBlockBatchId, ShuffleBlockFetcherIterator, ShuffleBlockId}
+import org.apache.spark.storage.{BlockId, BlockManager, BlockManagerId, ShuffleBlockBatchId,
+  ShuffleBlockFetcherIterator, ShuffleBlockId}
 import org.apache.spark.util.CompletionIterator
 import org.apache.spark.util.collection.ExternalSorter
 
@@ -69,6 +70,16 @@ import org.apache.spark.util.collection.ExternalSorter
  * resolved by the caller (`StreamingShuffleManager.getReader`) and passed in as `blocksByAddress`,
  * and blocks are fetched with the existing [[ShuffleBlockFetcherIterator]] over the reused
  * `BlockTransferService`. It changes nothing in the sort path or the scheduler.
+ *
+ * Block integrity in v1: because fetching reuses [[ShuffleBlockFetcherIterator]], per-block
+ * corruption detection is provided by Spark's existing shuffle checksum (governed by
+ * `spark.shuffle.checksum.enabled` / `spark.shuffle.checksum.algorithm`) on that reused fetch
+ * path -- the same integrity mechanism the sort path relies on. This reader does not parse
+ * [[org.apache.spark.shuffle.streaming.network.StreamingBlockEnvelope]] or call its CRC32C
+ * `verifyChecksum`; the envelope's verify-and-retransmit path belongs to the v2 wire transport
+ * and is deferred until that transport streams enveloped blocks (Architectural Decision Log #2 --
+ * the v1 transport is an intentional logging-only stub). Consequently v1 does not yet perform
+ * envelope-level CRC32C verification or block retransmission on the read side.
  *
  * @tparam K the type of the keys being read
  * @tparam C the type of the combined values produced for the reduce task
@@ -165,6 +176,10 @@ private[spark] class StreamingShuffleReader[K, C](
     // reused BlockTransferService. Streaming changes only: pass blocksByAddressSeq.iterator (a
     // re-iterable view of the captured descriptors) and wrap the completion iterator below for
     // producer-timeout detection.
+    // Block integrity: this reused path applies Spark's existing shuffle checksum (the
+    // SHUFFLE_CHECKSUM_ENABLED / SHUFFLE_CHECKSUM_ALGORITHM arguments passed below), which is the
+    // v1 corruption-detection mechanism. StreamingBlockEnvelope's CRC32C verify/retransmit is a v2
+    // wire-transport concern and is not exercised here (see the class Scaladoc and ADL #2).
     val rawStreams = new ShuffleBlockFetcherIterator(
       context,
       blockManager.blockStoreClient,

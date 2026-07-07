@@ -1463,8 +1463,8 @@ producer (map) and consumer (reduce) executor boundaries for a single shuffle:
 
 - `shuffle_id` - the shuffle identifier
 - `map_id` - the producing map task identifier
-- `reduce_partition_range` - the reduce partition range being consumed
-- `attempt_id` - the task attempt identifier
+- `reduce_id` - the reduce partition identifier
+- `task_attempt_id` - the task attempt identifier
 
 As with all Spark MDC keys, these are not shown in plain-text logs by default. Add them to the
 log4j2 `PatternLayout` (for example, `%X{shuffle_id}`), or enable

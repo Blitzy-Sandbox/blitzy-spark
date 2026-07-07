@@ -37,10 +37,14 @@ import org.apache.spark.annotation.Since
  * (see `org.apache.spark.shuffle.ShuffleChecksumUtils`), so the feature adds zero third-party CRC
  * dependency (Architectural Decision Log #3).
  *
- * Isolation: this class lives entirely in the streaming `network` subpackage and is produced by
- * `StreamingShuffleWriter` (which frames buffered bytes into &le;2 MB blocks) and consumed by
- * `StreamingShuffleReader` (which calls [[verifyChecksum]] and requests retransmission on a
- * mismatch). It has no dependency on, and no effect on, the existing sort-based shuffle code path.
+ * Isolation: this class lives entirely in the streaming `network` subpackage and defines the wire
+ * framing for the v2 streaming transport. In v2 the writer frames buffered bytes into &le;2 MB
+ * blocks and the reader calls [[verifyChecksum]], requesting retransmission on a mismatch. In v1
+ * the transport is a logging-only stub (Architectural Decision Log #2) that streams no enveloped
+ * bytes, so this envelope's CRC32C verify/retransmit path is not yet exercised on the read side;
+ * v1 block integrity is instead provided by Spark's existing shuffle checksum on the reused
+ * block-fetch path. This class has no dependency on, and no effect on, the existing sort-based
+ * shuffle code path.
  *
  * Note on `mapId`: the wire header stores `mapId` as a 4-byte `Int` per the protocol definition.
  * Callers that hold a `Long` map id (for example the per-partition `StreamingBuffer`) pass its
@@ -96,8 +100,9 @@ private[spark] class StreamingBlockEnvelope(
 
   /**
    * Recompute the CRC32C of the payload and compare it against the checksum carried in the header.
-   * Returns true when the payload is intact; a false result signals corruption and drives
-   * retransmission on the read side.
+   * Returns true when the payload is intact; a false result signals corruption and is intended
+   * to drive retransmission on the read side once the v2 wire transport streams enveloped blocks.
+   * In v1 the logging-only transport does not exercise this verify/retransmit path.
    */
   def verifyChecksum(): Boolean =
     StreamingBlockEnvelope.computeChecksum(payload) == checksum
