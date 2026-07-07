@@ -1,0 +1,66 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+#  syntax: [instance].sink|source.[name].[options]=[value]
+
+#  This is a template for wiring the Streaming Shuffle metrics source into
+#  Spark's internal metrics system. The metrics system is divided into
+#  instances which correspond to internal components. Accepted values for
+#  [instance] are "master", "worker", "executor", "driver", and
+#  "applications". A wildcard "*" can be used as an instance name, in which
+#  case all instances will inherit the supplied property.
+#
+#  A "source" specifies a set of grouped metrics; a "sink" specifies where
+#  metrics are delivered. The [name] field is the source/sink name and
+#  [options] are source/sink-specific properties.
+#
+#  The Streaming Shuffle source is named "streamingShuffle" and is provided
+#  by org.apache.spark.shuffle.streaming.StreamingShuffleSource. It exposes:
+#    bufferUtilizationPercent  (Gauge)   - percent of streaming buffer in use
+#    spillCount                (Counter) - buffer-to-disk spill count
+#    backpressureEvents        (Counter) - backpressure/throttle event count
+#    partialReadInvalidations  (Counter) - partial reads invalidated on failure
+#
+#  Notes:
+#    1. All example lines below are commented out. This is a template: copy it
+#    to $SPARK_HOME/conf/metrics.properties (or point -Dspark.metrics.conf at
+#    it) and uncomment the lines you need.
+#    2. The streamingShuffle source is registered automatically by
+#    StreamingShuffleManager when spark.shuffle.manager=streaming AND
+#    spark.shuffle.streaming.enabled=true. The source entries below are only
+#    needed to route it to additional common sources/sinks.
+
+## Examples
+
+# Enable the streaming shuffle source on executors
+# executor.source.streamingShuffle.class=org.apache.spark.shuffle.streaming.StreamingShuffleSource
+
+# Enable the streaming shuffle source on all instances (wildcard)
+# *.source.streamingShuffle.class=org.apache.spark.shuffle.streaming.StreamingShuffleSource
+
+# Enable JmxSink for all instances by class name
+# *.sink.jmx.class=org.apache.spark.metrics.sink.JmxSink
+
+# Enable PrometheusServlet for all instances by class name
+# *.sink.prometheusServlet.class=org.apache.spark.metrics.sink.PrometheusServlet
+# *.sink.prometheusServlet.path=/metrics/prometheus
+
+# Enable CsvSink for all instances by class name
+# *.sink.csv.class=org.apache.spark.metrics.sink.CsvSink
+# *.sink.csv.period=1
+# *.sink.csv.unit=minutes
+# *.sink.csv.directory=/tmp/
