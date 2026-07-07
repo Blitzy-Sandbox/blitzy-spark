@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Executive summary of Streaming Shuffle for Apache Spark — an opt-in, low-latency shuffle backend that coexists with sort-based shuffle as a production-stable fallback.">
+  <meta name="author" content="Blitzy">
+  <title>Streaming Shuffle for Apache Spark — Executive Summary</title>
+
+  <!--
+    ==========================================================================
+    Streaming Shuffle for Apache Spark — Executive Presentation
+    --------------------------------------------------------------------------
+    SELF-CONTAINED reveal.js deck. Everything (CSS + JS) is inline; the ONLY
+    external references are the three PINNED CDN assets below. This file adds
+    NO repository dependency and requires NO build wiring (it is not listed in
+    package.json / pom.xml / mkdocs.yml and references no local repo file).
+
+      * reveal.js 5.1.0  — slide framework (CSS + core script)
+      * Mermaid  11.4.0  — architecture / data-flow diagrams (ESM module)
+      * Lucide   0.460.0 — headline icons (UMD global `lucide`)
+
+    Open directly in any modern browser (network required only to fetch the
+    three pinned CDN assets). Satisfies the Executive Presentation rule
+    (AAP §0.7.3): 12-18 slides, Blitzy brand, Mermaid + Lucide, pinned CDNs.
+    ==========================================================================
+  -->
+
+  <!-- PINNED CDN: reveal.js 5.1.0 core stylesheet + black base theme -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css" id="theme">
+
+  <!--
+    Blitzy brand theme. This inline <style> is intentionally placed AFTER the
+    CDN <link>s so that, at equal specificity, source order lets these rules
+    win over black.css (e.g. the .reveal-viewport background gradient).
+    Uses a system font stack only — no web-font CDN, preserving the
+    "only three pinned CDNs" guardrail.
+  -->
+  <style>
+    :root {
+      --bg:        #0B0E17;   /* deep slate background          */
+      --bg2:       #141A2B;   /* gradient companion             */
+      --accent:    #5B8CFF;   /* primary Blitzy indigo/blue     */
+      --accent2:   #8A6CFF;   /* secondary violet accent        */
+      --fg:        #EAEEF7;   /* near-white foreground text     */
+      --muted:     #9AA7BF;   /* muted secondary text           */
+      --card:      #131A2C;   /* card surface                   */
+      --card-bd:   rgba(91,140,255,0.22);
+      --good:      #3FD8A4;   /* success / "stays streaming"    */
+      --warn:      #FFC24B;   /* caution / threshold            */
+      --bad:       #FF6B7A;   /* fallback / failure             */
+      --code:      #B9C7FF;   /* inline code text               */
+    }
+
+    html, body { height: 100%; }
+
+    /* Brand background gradient (overrides black.css .reveal-viewport). */
+    .reveal-viewport {
+      background:
+        radial-gradient(1200px 820px at 82% -12%, rgba(138,108,255,0.18), transparent 60%),
+        radial-gradient(1000px 720px at -12% 112%, rgba(91,140,255,0.16), transparent 55%),
+        linear-gradient(160deg, var(--bg) 0%, var(--bg2) 100%);
+      background-attachment: fixed;
+    }
+
+    .reveal {
+      font-family: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--fg);
+      font-size: 30px;
+      font-weight: 400;
+    }
+    .reveal .slides { text-align: left; }
+    .reveal .slides > section,
+    .reveal .slides > section > section { padding: 0 8px; }
+
+    /* Headings */
+    .reveal h1, .reveal h2, .reveal h3 {
+      color: var(--fg);
+      font-weight: 800;
+      letter-spacing: -0.012em;
+      line-height: 1.12;
+      text-transform: none;
+      margin: 0 0 0.35em;
+    }
+    .reveal h1 { font-size: 1.9em; }
+    .reveal h2 { font-size: 1.32em; }
+    .reveal h3 { font-size: 0.9em; color: var(--muted); font-weight: 700; }
+    .reveal .accent {
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+
+    .reveal a { color: var(--accent); text-decoration: none; }
+    .reveal a:hover { text-decoration: underline; }
+
+    .reveal ul, .reveal ol { display: block; margin: 0 0 0 1.15em; }
+    .reveal li { margin: 0.32em 0; line-height: 1.35; }
+    .reveal li::marker { color: var(--accent); }
+    .reveal strong { color: #FFFFFF; font-weight: 800; }
+
+    /* Inline code / config keys */
+    .reveal code, .reveal kbd {
+      font-family: "JetBrains Mono", "SF Mono", ui-monospace, Consolas, monospace;
+      color: var(--code);
+      background: rgba(91,140,255,0.10);
+      border: 1px solid var(--card-bd);
+      padding: 0.06em 0.42em;
+      border-radius: 6px;
+      font-size: 0.84em;
+    }
+
+    /* Slide header: icon chip + title + gradient accent rule */
+    .slide-head {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin: 0 0 26px;
+      padding-bottom: 16px;
+    }
+    .slide-head::after {
+      content: ""; position: absolute; left: 0; bottom: 0;
+      width: 190px; height: 3px; border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+    .slide-head h2 { margin: 0; }
+    .slide-head .ic {
+      flex: 0 0 auto;
+      width: 52px; height: 52px;
+      display: grid; place-items: center;
+      border-radius: 13px;
+      color: var(--accent);
+      background: linear-gradient(135deg, rgba(91,140,255,0.22), rgba(138,108,255,0.22));
+      border: 1px solid var(--card-bd);
+    }
+    .slide-head .ic svg { width: 28px; height: 28px; }
+
+    /* Grids + cards (KPIs, decision tiles) */
+    .grid { display: grid; gap: 18px; }
+    .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid.cols-5 { grid-template-columns: repeat(5, 1fr); }
+    .card {
+      background: linear-gradient(180deg, rgba(91,140,255,0.08), rgba(19,26,44,0.55));
+      border: 1px solid var(--card-bd);
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 10px 34px rgba(0,0,0,0.28);
+    }
+    .card .k {
+      font-size: 1.55em; font-weight: 900; line-height: 1.05;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .card .l { color: var(--muted); font-size: 0.6em; margin-top: 8px; line-height: 1.3; }
+    .card .card-title {
+      display: flex; align-items: center; gap: 9px;
+      font-weight: 800; font-size: 0.72em; color: var(--fg); margin-bottom: 6px;
+    }
+    .card .card-title svg { width: 20px; height: 20px; color: var(--accent); }
+    .card p { margin: 0; font-size: 0.62em; color: var(--muted); line-height: 1.4; }
+
+    /* Two-column split (diagram + notes) */
+    .split { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 28px; align-items: center; }
+    .split.diagram-wide { grid-template-columns: 1.35fr 0.65fr; }
+
+    /* Tables (configuration reference) */
+    .reveal table { width: 100%; border-collapse: collapse; font-size: 0.66em; margin-top: 6px; }
+    .reveal table th, .reveal table td {
+      border-bottom: 1px solid rgba(154,167,191,0.16);
+      padding: 11px 12px; text-align: left; vertical-align: top;
+    }
+    .reveal table th {
+      color: var(--accent); font-weight: 800;
+      border-bottom: 2px solid var(--card-bd);
+      text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.86em;
+    }
+    .reveal table tbody tr:hover td { background: rgba(91,140,255,0.05); }
+
+    /* Status pills */
+    .pill {
+      display: inline-block; padding: 3px 11px; border-radius: 999px;
+      font-size: 0.58em; font-weight: 800; letter-spacing: 0.03em;
+      border: 1px solid var(--card-bd);
+    }
+    .pill.good { color: var(--good); border-color: rgba(63,216,164,0.42); background: rgba(63,216,164,0.08); }
+    .pill.warn { color: var(--warn); border-color: rgba(255,194,75,0.42); background: rgba(255,194,75,0.08); }
+    .pill.bad  { color: var(--bad);  border-color: rgba(255,107,122,0.42); background: rgba(255,107,122,0.08); }
+
+    /* Utility helpers */
+    .muted  { color: var(--muted); }
+    .small  { font-size: 0.72em; }
+    .xsmall { font-size: 0.6em; }
+    .lead   { font-size: 0.96em; color: var(--fg); line-height: 1.4; }
+    .center { text-align: center; }
+    .mt     { margin-top: 18px; }
+    .mt-sm  { margin-top: 10px; }
+    .stack > * + * { margin-top: 12px; }
+
+    /* Mermaid diagram container (transparent, centered, bounded height) */
+    .reveal pre.mermaid {
+      background: transparent !important;
+      box-shadow: none !important;
+      width: 100%; margin: 0; padding: 0;
+      text-align: center; font-size: 15px; line-height: 1.2;
+    }
+    /* !important is required: Mermaid writes an inline max-width:<intrinsic>px on the
+       <svg>, which would otherwise override these rules and overflow the 1280x720 slide.
+       Constraining both dimensions (with an intrinsic viewBox aspect ratio) scales each
+       diagram down to fit while preserving proportions. */
+    .reveal pre.mermaid svg {
+      max-width: 100% !important;
+      max-height: 462px !important;
+      width: auto !important;
+      height: auto !important;
+    }
+
+    /* Title slide */
+    .title-wrap { text-align: center; }
+    .brand-badge {
+      display: inline-flex; align-items: center; gap: 10px;
+      padding: 8px 16px; border-radius: 999px;
+      border: 1px solid var(--card-bd); background: rgba(91,140,255,0.08);
+      color: var(--muted); font-size: 0.46em; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700;
+    }
+    .brand-badge svg { width: 18px; height: 18px; color: var(--accent); }
+    .hero-title {
+      font-size: 2.35em; font-weight: 900; line-height: 1.04; margin: 0.42em 0 0.16em;
+      background: linear-gradient(90deg, #EAEEF7 0%, var(--accent) 58%, var(--accent2) 100%);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .hero-sub { color: var(--muted); font-size: 0.9em; margin: 0 auto; max-width: 20em; }
+    .ver-row { margin-top: 30px; display: flex; gap: 12px; justify-content: center; align-items: center; }
+    .ver-pill {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 7px 15px; border-radius: 10px; font-size: 0.5em; font-weight: 700;
+      color: var(--fg); border: 1px solid var(--card-bd); background: rgba(19,26,44,0.6);
+    }
+    .ver-pill svg { width: 16px; height: 16px; color: var(--accent); }
+
+    /* Fixed footer / branding line */
+    .deck-footer {
+      position: fixed; bottom: 14px; left: 22px; z-index: 40;
+      font-size: 13px; letter-spacing: 0.05em; color: var(--muted); opacity: 0.82;
+      pointer-events: none;
+    }
+    .deck-footer b { color: var(--accent); font-weight: 800; }
+
+    /* Reveal slide-number chrome (bottom-right, brand-tinted) */
+    .reveal .slide-number {
+      background: rgba(11,14,23,0.7); color: var(--muted);
+      font-size: 14px; right: 18px; bottom: 12px; border-radius: 8px; padding: 3px 9px;
+    }
+
+    /* Flow arrow used in inline (non-mermaid) mini flows */
+    .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 0.66em; }
+    .flow .node {
+      padding: 8px 13px; border-radius: 10px; border: 1px solid var(--card-bd);
+      background: rgba(91,140,255,0.08); color: var(--fg); font-weight: 700;
+    }
+    .flow .arrow { color: var(--accent); font-weight: 800; }
+  </style>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+<!-- ================= SLIDE 1 · TITLE ================= -->
+      <section data-auto-animate>
+        <div class="title-wrap">
+          <span class="brand-badge"><i data-lucide="zap"></i> Blitzy &middot; Apache Spark</span>
+          <h1 class="hero-title">Streaming Shuffle<br>for Apache Spark</h1>
+          <p class="hero-sub">Opt-in, low-latency shuffle that coexists with sort as a production-stable fallback.</p>
+          <div class="ver-row">
+            <span class="ver-pill"><i data-lucide="git-branch"></i> Apache Spark 4.2.0</span>
+            <span class="ver-pill"><i data-lucide="rocket"></i> Feature: Streaming Shuffle</span>
+            <span class="ver-pill"><i data-lucide="shield-check"></i> Zero-regression by design</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SLIDE 2 · THE PROBLEM ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="alert-triangle"></i></span>
+          <h2>The Problem</h2>
+        </div>
+        <div class="split">
+          <div class="stack">
+            <p class="lead">Sort-based shuffle <strong>materializes all map output to local disk</strong> before any reduce task can begin.</p>
+            <ul>
+              <li>Full materialization adds <strong>latency</strong> to shuffle-heavy pipelines.</li>
+              <li>Reduce tasks stall on the slowest map write plus disk I/O.</li>
+              <li>Intermediate data is written, then re-read — pure overhead for pipelines that could stream.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title"><i data-lucide="hard-drive"></i> Today: sort-based shuffle</div>
+            <div class="flow">
+              <span class="node">Map</span><span class="arrow">&rarr;</span>
+              <span class="node">Disk</span><span class="arrow">&rarr;</span>
+              <span class="node">Reduce</span>
+            </div>
+            <p class="mt-sm">Every byte lands on disk before it can be read back.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SLIDE 3 · THE SOLUTION ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="zap"></i></span>
+          <h2>The Solution</h2>
+        </div>
+        <div class="split">
+          <div class="stack">
+            <p class="lead"><span class="accent"><strong>Streaming shuffle</strong></span> pipelines map output <strong>directly to reducers</strong> through bounded in-memory buffers, governed by backpressure.</p>
+            <ul>
+              <li><strong>Opt-in</strong> — enabled per application; sort remains the default.</li>
+              <li><strong>Coexists</strong> with sort-based shuffle as a production-stable fallback.</li>
+              <li><strong>Isolated</strong> — all logic lives in a dedicated <code>shuffle.streaming</code> package.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title"><i data-lucide="rocket"></i> Streaming shuffle</div>
+            <div class="flow">
+              <span class="node">Map</span><span class="arrow">&rarr;</span>
+              <span class="node">In-memory buffer</span><span class="arrow">&rarr;</span>
+              <span class="node">Reduce</span>
+            </div>
+            <p class="mt-sm">Data flows while it is produced — no full disk materialization on the happy path.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SLIDE 4 · OBJECTIVES / SUCCESS TARGETS ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="gauge"></i></span>
+          <h2>Objectives &amp; Success Targets</h2>
+        </div>
+        <div class="grid cols-3">
+          <div class="card"><div class="k">30–50%</div><div class="l">Latency reduction for shuffle-heavy workloads (100&nbsp;MB+ data, 10+ partitions)</div></div>
+          <div class="card"><div class="k">5–10%</div><div class="l">Improvement for CPU-bound workloads via reduced scheduler overhead</div></div>
+          <div class="card"><div class="k">Zero</div><div class="l">Regression for memory-bound workloads (automatic fallback validation)</div></div>
+          <div class="card"><div class="k">Zero</div><div class="l">Data loss under all failure scenarios — producer crashes, network partitions</div></div>
+          <div class="card"><div class="k">&lt;100&nbsp;ms</div><div class="l">Memory reclaim on acknowledgment; spill triggers at 80% buffer utilization</div></div>
+          <div class="card"><div class="k">Opt-in</div><div class="l">Off by default; sort stays the production-stable path</div></div>
+        </div>
+        <p class="small muted mt">Framed as engineering targets — the acceptance criteria for this feature.</p>
+      </section>
+
+      <!-- ================= SLIDE 5 · ARCHITECTURE (BEFORE) ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="layers"></i></span>
+          <h2>Architecture — Before <span class="muted small">(master &middot; sort-only)</span></h2>
+        </div>
+        <pre class="mermaid">
+flowchart TB
+  E["SparkEnv.initializeShuffleManager<br/>ShuffleManager.create"]
+  F["Factory: shortShuffleMgrNames<br/>{ sort, tungsten-sort }"]
+  S["SortShuffleManager<br/>(default)"]
+  W["SortShuffleWriter &middot; BlockStoreShuffleReader<br/>IndexShuffleBlockResolver"]
+  E --> F --> S --> W
+        </pre>
+        <p class="small muted center">Legend: solid arrow = active dispatch path. Every shuffle resolves to the single sort-based backend.</p>
+      </section>
+
+      <!-- ================= SLIDE 6 · ARCHITECTURE (AFTER) ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="git-branch"></i></span>
+          <h2>Architecture — After <span class="muted small">(streaming coexists with sort)</span></h2>
+        </div>
+        <pre class="mermaid">
+flowchart TB
+  E["SparkEnv &rarr; ShuffleManager.create<br/>(unchanged)"]
+  F["Factory: shortShuffleMgrNames<br/>{ sort, tungsten-sort, streaming }"]
+  S["SortShuffleManager<br/>(unchanged default)"]
+  SS["StreamingShuffleManager<br/>holds inner SortShuffleManager"]
+  N["New collaborators<br/>Writer &middot; Reader &middot; BlockResolver<br/>Backpressure &middot; MemorySpillManager<br/>FallbackPolicy &middot; Metrics/Source<br/>Transport"]
+  E --> F
+  F -->|"manager=sort"| S
+  F -->|"manager=streaming"| SS
+  SS --> N
+  SS -.->|"fallback"| S
+  classDef neu fill:#1b2540,stroke:#5B8CFF,stroke-width:2px,color:#EAEEF7;
+  class SS,N neu;
+        </pre>
+        <p class="small muted center">Legend: solid = active dispatch &middot; dashed = fallback delegation &middot; <span class="accent">highlighted</span> = new element. The only existing-line change is the <code>streaming</code> factory alias.</p>
+      </section>
+<!-- ================= SLIDE 7 · HOW IT WORKS (DATA FLOW) ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="activity"></i></span>
+          <h2>How It Works — Data Flow</h2>
+        </div>
+        <pre class="mermaid">
+flowchart LR
+  R["Map task<br/>records"]
+  B["Per-partition<br/>StreamingBuffer"]
+  EV["StreamingBlockEnvelope<br/>2 MB blocks &middot; CRC32C"]
+  T["StreamingShuffleTransport<br/>reuses BlockTransferService"]
+  RD["StreamingShuffleReader<br/>in-progress reads"]
+  IT["Reduce task<br/>iterator"]
+  SP["MemorySpillManager<br/>BlockManager DISK_ONLY &middot; LRU"]
+  DAG["DAG upstream<br/>recompute"]
+  R --> B --> EV --> T --> RD --> IT
+  B -->|"utilization &gt; 80%"| SP
+  RD -->|"ack: reclaim &lt; 100 ms"| B
+  RD -.->|"5 s timeout &rarr; FetchFailedException"| DAG
+  classDef neu fill:#1b2540,stroke:#5B8CFF,stroke-width:2px,color:#EAEEF7;
+  class B,EV,T,RD neu;
+        </pre>
+        <p class="small muted center">Legend: solid = normal streaming path &middot; dashed = failure handling &middot; the reader&rarr;buffer loop is the backpressure acknowledgment that reclaims memory in &lt;100&nbsp;ms.</p>
+      </section>
+
+      <!-- ================= SLIDE 8 · KEY DESIGN DECISIONS ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="git-branch"></i></span>
+          <h2>Key Design Decisions</h2>
+        </div>
+        <div class="grid cols-3">
+          <div class="card"><div class="card-title"><i data-lucide="layers"></i> Composition fallback</div><p>Hold an inner <code>SortShuffleManager</code> and delegate all non-streaming handles. Sort internals are never touched.</p></div>
+          <div class="card"><div class="card-title"><i data-lucide="recycle"></i> Reuse, don't rebuild</div><p>Least modification: <code>BlockTransferService</code>, <code>MemoryConsumer</code>, and <code>MetricsSystem</code> are reused as-is.</p></div>
+          <div class="card"><div class="card-title"><i data-lucide="shield-check"></i> Dual activation gate</div><p>Defense-in-depth opt-in — two independent flags must both be set to activate streaming.</p></div>
+          <div class="card"><div class="card-title"><i data-lucide="check"></i> JDK 17 CRC32C</div><p>Built-in <code>java.util.zip.CRC32C</code> — zero third-party checksum dependency.</p></div>
+          <div class="card"><div class="card-title"><i data-lucide="gauge"></i> Guava RateLimiter &amp; Cache</div><p>Already Spark Core dependencies — proven rate limiting and an LRU spill store.</p></div>
+          <div class="card"><div class="card-title"><i data-lucide="refresh-cw"></i> Standard fault path</div><p>Producer timeout throws <code>FetchFailedException</code>; the DAG scheduler recomputes — no scheduler changes.</p></div>
+        </div>
+      </section>
+
+      <!-- ================= SLIDE 9 · DUAL ACTIVATION GATE ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="shield-check"></i></span>
+          <h2>Dual Activation Gate</h2>
+        </div>
+        <div class="split">
+          <div class="stack">
+            <p class="lead">Streaming shuffle is active <strong>if and only if both</strong> conditions hold:</p>
+            <div class="card"><div class="card-title"><i data-lucide="git-branch"></i> Backend selected</div><p><code>spark.shuffle.manager=streaming</code> — resolves through the existing factory alias.</p></div>
+            <div class="card"><div class="card-title"><i data-lucide="zap"></i> Feature enabled</div><p><code>spark.shuffle.streaming.enabled=true</code> — opt-in flag (default <code>false</code>).</p></div>
+          </div>
+          <div class="stack">
+            <div class="card"><div class="card-title"><i data-lucide="lock"></i> Immutable configuration</div><p>No dynamic reconfiguration in v1 — changing any key requires an <strong>executor restart</strong>.</p></div>
+            <div class="card"><div class="card-title"><i data-lucide="layers"></i> Backend class</div><p class="xsmall"><code>org.apache.spark.shuffle.streaming.StreamingShuffleManager</code></p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SLIDE 10 · CONFIGURATION AT A GLANCE ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="sliders-horizontal"></i></span>
+          <h2>Configuration at a Glance</h2>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Key <span class="muted xsmall">(prefix <code>spark.shuffle.streaming.</code>)</span></th><th>Default</th><th>Range</th><th>Purpose</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>enabled</code></td><td>false</td><td>true / false</td><td>Opt-in flag</td></tr>
+            <tr><td><code>bufferSizePercent</code></td><td>20</td><td>1–50</td><td>Percent of executor memory for buffers</td></tr>
+            <tr><td><code>spillThreshold</code></td><td>80</td><td>50–95</td><td>Buffer utilization % that triggers spill</td></tr>
+            <tr><td><code>maxBandwidthMBps</code></td><td>0 (unlimited)</td><td>&ge;&nbsp;0</td><td>Per-executor rate limit</td></tr>
+            <tr><td><code>debug</code></td><td>false</td><td>true / false</td><td>Elevates the streaming logger to DEBUG</td></tr>
+          </tbody>
+        </table>
+        <p class="small muted mt">All keys are <strong>Since 4.2.0</strong>. Per-partition buffer size = <code>(executorMemory &times; bufferSizePercent / 100) / numPartitions</code>.</p>
+      </section>
+
+      <!-- ================= SLIDE 11 · AUTOMATIC FALLBACK ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="shield-check"></i></span>
+          <h2>Automatic Fallback <span class="muted small">(zero regression)</span></h2>
+        </div>
+        <p class="lead">On any of four conditions, the manager delegates to the inner sort path:</p>
+        <div class="grid cols-2">
+          <div class="card"><div class="card-title"><i data-lucide="timer"></i> Slow consumer</div><p>Consumer sustained <strong>&ge;2&times; slower</strong> than the producer for <strong>&gt;60&nbsp;s</strong>.</p></div>
+          <div class="card"><div class="card-title"><i data-lucide="memory-stick"></i> Memory pressure</div><p>Utilization near <strong>~95%</strong> — buffer allocation would risk OOM.</p></div>
+          <div class="card"><div class="card-title"><i data-lucide="network"></i> Network saturation</div><p>Link utilization exceeds <strong>~90%</strong> of capacity.</p></div>
+          <div class="card"><div class="card-title"><i data-lucide="git-branch"></i> Version mismatch</div><p>Producer / consumer compatibility check fails.</p></div>
+        </div>
+        <div class="mt flow" style="font-size:0.72em;">
+          <span class="pill warn">80% utilization &rarr; spill &middot; stays streaming</span>
+          <span class="arrow">vs</span>
+          <span class="pill bad">~95% pressure &rarr; fallback to sort</span>
+        </div>
+      </section>
+
+      <!-- ================= SLIDE 12 · FAILURE HANDLING / ZERO DATA LOSS ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="shield-check"></i></span>
+          <h2>Failure Handling &amp; Zero Data Loss</h2>
+        </div>
+        <div class="split">
+          <div class="stack">
+            <ul>
+              <li><strong>5&nbsp;s producer timeout</strong> &rarr; atomically invalidate the partial read.</li>
+              <li>Throw the standard <code>FetchFailedException</code> &rarr; <strong>DAG upstream recompute</strong>.</li>
+              <li><strong>CRC32C</strong> per 2&nbsp;MB block detects corruption &rarr; retransmit.</li>
+              <li>Retry with exponential backoff — <strong>1&nbsp;s start, max 5 attempts</strong>.</li>
+              <li>10&nbsp;s consumer heartbeat for liveness; decommission <strong>migration preserved</strong>.</li>
+            </ul>
+          </div>
+          <div class="card">
+            <div class="card-title"><i data-lucide="refresh-cw"></i> Recovery path</div>
+            <div class="flow" style="flex-direction:column; align-items:flex-start; gap:8px;">
+              <span class="node">Producer crash / timeout (5&nbsp;s)</span>
+              <span class="arrow">&darr;</span>
+              <span class="node">Invalidate partial read (atomic)</span>
+              <span class="arrow">&darr;</span>
+              <span class="node">FetchFailedException</span>
+              <span class="arrow">&darr;</span>
+              <span class="node">DAG recomputes upstream</span>
+            </div>
+          </div>
+        </div>
+      </section>
+<!-- ================= SLIDE 13 · OBSERVABILITY ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="activity"></i></span>
+          <h2>Observability</h2>
+        </div>
+        <div class="split">
+          <div class="stack">
+            <h3>Four metrics via <code>MetricsSystem</code> Source <code>streamingShuffle</code></h3>
+            <div class="grid cols-2">
+              <div class="card"><div class="card-title"><i data-lucide="gauge"></i> bufferUtilizationPercent</div><p>Gauge</p></div>
+              <div class="card"><div class="card-title"><i data-lucide="hard-drive"></i> spillCount</div><p>Counter</p></div>
+              <div class="card"><div class="card-title"><i data-lucide="waves"></i> backpressureEvents</div><p>Counter</p></div>
+              <div class="card"><div class="card-title"><i data-lucide="alert-triangle"></i> partialReadInvalidations</div><p>Counter</p></div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card"><div class="card-title"><i data-lucide="tag"></i> Structured logging (MDC)</div><p><code>shuffle_id</code> &middot; <code>map_id</code> &middot; <code>reduce_partition_range</code> &middot; <code>attempt_id</code></p></div>
+            <div class="card"><div class="card-title"><i data-lucide="network"></i> Surfaces &amp; endpoints</div><p>Prometheus endpoint + external Grafana dashboard. <strong>No new Spark Web UI</strong> — telemetry flows through existing channels.</p></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= SLIDE 14 · QUALITY GATES ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="list-checks"></i></span>
+          <h2>Quality Gates</h2>
+        </div>
+        <div class="grid cols-3">
+          <div class="card"><div class="k">&gt;85%</div><div class="l">Unit test coverage for all new components</div></div>
+          <div class="card"><div class="k">100%</div><div class="l">Unit + integration tests pass — zero flakiness</div></div>
+          <div class="card"><div class="k">10 / 10</div><div class="l">Failure-injection scenarios with zero data loss</div></div>
+          <div class="card"><div class="k">Zero</div><div class="l">Retained heap after the 5-minute stress test</div></div>
+          <div class="card"><div class="k">Clean</div><div class="l">Compiles without errors or warnings</div></div>
+          <div class="card"><div class="k">Clean</div><div class="l">Static analysis — zero critical issues</div></div>
+        </div>
+      </section>
+
+      <!-- ================= SLIDE 15 · RISKS & MITIGATIONS ================= -->
+      <section>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="alert-triangle"></i></span>
+          <h2>Risks &amp; Mitigations</h2>
+        </div>
+        <table>
+          <thead><tr><th>Risk</th><th>Mitigation</th></tr></thead>
+          <tbody>
+            <tr><td>v1 transport is a logging-only stub — it does not yet stream over the wire</td><td>Full sort fallback remains in force; a documented v2 plan completes wire streaming</td></tr>
+            <tr><td>Operator misconfigures the dual activation gate</td><td>Explicit documentation of both required flags; feature is off by default</td></tr>
+            <tr><td>Delegation overhead from the composition fallback</td><td>Negligible — the manager pattern-matches on handle type only</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ================= SLIDE 16 · SUMMARY / CALL TO ACTION ================= -->
+      <section data-auto-animate>
+        <div class="slide-head">
+          <span class="ic"><i data-lucide="rocket"></i></span>
+          <h2>Summary &amp; Next Steps</h2>
+        </div>
+        <div class="split">
+          <div class="stack">
+            <ul>
+              <li><strong>Opt-in</strong>, <strong>isolated</strong>, <strong>zero-regression</strong> by design.</li>
+              <li>Enable on <strong>shuffle-heavy workloads</strong> (100&nbsp;MB+, 10+ partitions).</li>
+              <li>Observe via Prometheus and the Grafana dashboard template.</li>
+              <li>Sort remains the production-stable default — fallback is automatic.</li>
+            </ul>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <div class="card-title"><i data-lucide="zap"></i> Enable it</div>
+              <p class="small"><code>spark.shuffle.manager=streaming</code><br><code>spark.shuffle.streaming.enabled=true</code></p>
+            </div>
+            <div class="card"><div class="card-title"><i data-lucide="shield-check"></i> Safe by default</div><p>Both flags off &rarr; you keep today's exact sort-based behavior.</p></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <!-- Persistent Blitzy branding line (fixed, bottom-left). Slide numbers render bottom-right via reveal.js. -->
+  <footer class="deck-footer"><b>Blitzy</b> &bull; Streaming Shuffle for Apache Spark</footer>
+
+  <!--
+    ==========================================================================
+    PINNED CDN scripts — the ONLY external references in this file.
+      * reveal.js 5.1.0  (classic script tag)
+      * Lucide   0.460.0 (UMD; exposes global `lucide`)
+      * Mermaid  11.4.0  (ESM module; imported below)
+    Versions are pinned exactly (no floating/rolling tags) so the deck is reproducible.
+    ==========================================================================
+  -->
+  <script src="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+
+  <!-- Mermaid v11 ships as ESM from the CDN, so it MUST be imported as a module. -->
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.esm.min.mjs';
+    // Dark theme to match the Blitzy deck. startOnLoad is OFF on purpose: reveal.js
+    // hides non-current slides with display:none, and rendering a Mermaid diagram in a
+    // zero-size container collapses it. Instead we render each diagram lazily, when its
+    // slide becomes visible (see the bootstrap's ready/slidechanged handlers), so Mermaid
+    // measures real dimensions and lays the diagram out correctly.
+    // wrappingWidth is raised from the default (200) so multi-word node labels are not
+    // clipped by Mermaid's label max-width; the whole SVG is still scaled to fit the slide
+    // by the !important max-width/max-height rules in the stylesheet.
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'dark',
+      flowchart: { htmlLabels: true, useMaxWidth: true, wrappingWidth: 400 }
+    });
+    // Re-run hook: render only the not-yet-processed <pre class="mermaid"> nodes within
+    // `root` (defaults to the whole document). Scoping to the current slide keeps Mermaid
+    // away from hidden slides. Safe to call repeatedly — processed diagrams are skipped.
+    window.__mermaidRun = function (root) {
+      try {
+        var scope = root || document;
+        var nodes = Array.prototype.slice.call(
+          scope.querySelectorAll('pre.mermaid:not([data-processed="true"])'));
+        if (nodes.length) { mermaid.run({ nodes: nodes }); }
+      } catch (e) { /* diagrams already processed or not yet measurable */ }
+    };
+  </script>
+
+  <!-- Deck bootstrap: initialize reveal.js, render icons, and keep diagrams/icons fresh on navigation. -->
+  <script>
+    // Initialize reveal.js with a fixed 1280x720 canvas and c/t slide numbering.
+    Reveal.initialize({ hash: true, slideNumber: 'c/t', width: 1280, height: 720, margin: 0.06 });
+
+    // Render Lucide icons (the UMD build exposes the global `lucide`).
+    if (window.lucide && lucide.createIcons) { lucide.createIcons(); }
+
+    // Render the Mermaid diagram(s) on the currently visible slide (correct sizing),
+    // then keep icons fresh. A short rAF defer lets reveal.js finish laying out the
+    // slide so Mermaid can measure real dimensions. The module may still be loading
+    // on the very first call, so __mermaidRun is guarded.
+    function refreshCurrentSlide() {
+      var current = (window.Reveal && Reveal.getCurrentSlide) ? Reveal.getCurrentSlide() : document;
+      requestAnimationFrame(function () {
+        if (window.__mermaidRun) { window.__mermaidRun(current); }
+        if (window.lucide) { lucide.createIcons(); }
+        // A lazily-rendered diagram changes the slide's height, so ask reveal.js to
+        // recompute layout and re-center the slide once the SVG has been inserted.
+        if (window.Reveal && Reveal.layout) { setTimeout(function () { Reveal.layout(); }, 80); }
+      });
+    }
+
+    // Render on first ready (covers direct hash navigation to a diagram slide) and on
+    // every slide change so lazily-shown diagrams/icons render while their slide is visible.
+    Reveal.on('ready', refreshCurrentSlide);
+    Reveal.on('slidechanged', refreshCurrentSlide);
+  </script>
+</body>
+</html>

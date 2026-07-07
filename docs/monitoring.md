@@ -1421,6 +1421,17 @@ These metrics are exposed by Spark executors.
   - shuffle-server.usedDirectMemory
   - shuffle-server.usedHeapMemory
 
+- namespace=streamingShuffle (metrics are of type counter or gauge)
+  - **note:** these metrics are emitted only when the streaming shuffle backend is active
+    (`spark.shuffle.manager=streaming` and `spark.shuffle.streaming.enabled=true`). They surface
+    automatically through all configured `MetricsSystem` sinks (JMX/Prometheus/CSV/Slf4j) and the
+    `/metrics/executors/prometheus` endpoint, exposed as
+    `<application>.<executorId>.streamingShuffle.<metricName>`.
+  - bufferUtilizationPercent (gauge - current per-executor streaming buffer utilization, 0-100)
+  - spillCount (counter - number of buffered partitions spilled to disk)
+  - backpressureEvents (counter - number of backpressure throttle/timeout events)
+  - partialReadInvalidations (counter - number of in-progress reads invalidated on producer failure)
+
 - namespace=HiveExternalCatalog
   - **note:** these metrics are conditional to a configuration parameter:
     `spark.metrics.staticSources.enabled` (default is true)
@@ -1442,6 +1453,27 @@ These metrics are exposed by Spark executors.
   - Optional namespace(s). Metrics in this namespace are defined by user-supplied code, and
   configured using the Spark plugin API. See "Advanced Instrumentation" below for how to load
   custom plugins into Spark.
+
+### Streaming Shuffle Structured Logging (MDC)
+
+When the streaming shuffle backend is active, its components emit logs through Spark's standard
+logging framework (`org.apache.spark.internal.Logging`) tagged with the following MDC (Mapped
+Diagnostic Context) correlation-ID keys. These let operators correlate log lines across the
+producer (map) and consumer (reduce) executor boundaries for a single shuffle:
+
+- `shuffle_id` - the shuffle identifier
+- `map_id` - the producing map task identifier
+- `reduce_partition_range` - the reduce partition range being consumed
+- `attempt_id` - the task attempt identifier
+
+As with all Spark MDC keys, these are not shown in plain-text logs by default. Add them to the
+log4j2 `PatternLayout` (for example, `%X{shuffle_id}`), or enable
+[structured logging](configuration.html#structured-logging) by setting
+`spark.log.structuredLogging.enabled=true` to include all MDC fields in the JSON output. Set
+`spark.shuffle.streaming.debug=true` to elevate the streaming-shuffle logger to DEBUG; it is
+disabled by default and per-executor streaming log volume is capped at under 10 MB/hour. See the
+[Streaming Shuffle Troubleshooting](streaming-shuffle-troubleshooting.html) guide for how to
+interpret these logs and metrics.
 
 ### Source = JVM Source
 Notes:
