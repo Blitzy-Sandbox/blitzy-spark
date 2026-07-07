@@ -19,7 +19,7 @@ verdict.
 | Feature | Opt-in, memory-buffered streaming shuffle backend coexisting with sort-based shuffle |
 | Target branch | `master` (Apache Spark `4.2.0-SNAPSHOT`) |
 | Reviewer | Automated pre-flight review gate |
-| Review date | `YYYY-MM-DD` *(placeholder — recorded at each phase run)* |
+| Review date | `2026-07-07` |
 | Overall status | **APPROVED** — see [Final Verdict](#final-verdict) |
 | Artifact lifecycle | Seeded at the pre-flight gate; updated per review phase; finalized at the verdict |
 
@@ -330,6 +330,24 @@ The items below are design risks carried over from the AAP decision log (§0.7.4
 No open blockers. All findings are accepted or mitigated and are consistent with the AAP's
 zero-regression guarantee.
 
+### Post-Review Remediation (2026-07-07)
+
+A subsequent checkpoint review surfaced items beyond the accepted/mitigated design risks above —
+two security items and a style item. All were remediated in a dedicated pass; each is **Resolved**
+and re-validated. None touched the preservation boundary (AAP §0.6.2) or the sort path.
+
+| ID | Severity | Area | Item | Resolution / Status |
+|----|----------|------|------|---------------------|
+| R-1 | Major | Security — RPC input validation | `BackpressureProtocol` / `BackpressureRpcEndpoint` forwarded and applied RPC payloads without bounds — `onConsumerAck` applied an unbounded `tokens.addAndGet(bytesConsumed)`, and throttle/heartbeat lacked identifier/timestamp checks. | **Resolved.** Two-layer defense added: the RPC endpoint drops structurally-invalid messages (negative identifiers/bytes, empty executor id, non-positive timestamp) at the trust boundary before forwarding; the protocol re-validates and clamps magnitudes (per-ack byte ceiling, rate ceiling, forward clock-skew bound) and accumulates send credit via a saturating CAS (`addCreditSaturating`) that cannot overflow. Rejections emit MDC-tagged structured warnings. Eight new tests assert the drops/clamps (`BackpressureProtocolSuite` 13→18, `BackpressureRpcEndpointSuite` 7→10). |
+| R-2 | Minor | Style — imports | Three files used wildcard companion imports (`import X._`): `BackpressureRpcEndpoint.scala` (L62), `StreamingShuffleReader.scala` (L112), `StreamingShuffleFallbackPolicy.scala` (L103). | **Resolved.** Each converted to an explicit named-member import listing only the members actually used. `scalastyle:check` clean. |
+| R-3 | Major | Security — supply chain | `blitzy-docs/streaming-shuffle/executive-summary.html` pinned `mermaid@11.4.0`, which is affected by CVE-2025-54881 / CVE-2025-54880 (XSS; affects `>= 11.0.0-alpha.1, < 11.10.0`). | **Resolved.** Mermaid CDN pin bumped `11.4.0 → 11.10.0` (first fixed release; API-compatible within the 11.x line) at all three references (two header comments + the ESM import URL). The `reveal.js@5.1.0` and `lucide@0.460.0` pins, the 16-slide deck, the Blitzy brand, and full self-containment are unchanged. |
+
+An additional in-scope build hygiene fix was applied in the same pass (not a checkpoint finding, but
+required for a clean full-tree gate): `StreamingShuffleFailureInjectionSuite.scala` (L20) had an
+import-order violation (`{IOException, InputStream}`) flagged only when ScalaStyle is run over the
+test source tree; reordered to `{InputStream, IOException}`. Full-tree `scalastyle:check` (1019 files)
+now reports **zero** errors and **zero** warnings.
+
 ## Final Verdict
 
 **Verdict: APPROVED**
@@ -350,18 +368,20 @@ satisfies the AAP in full and is approved to land on `master`.
 
 ## Sign-off
 
-Reviewed and approved by the **Automated pre-flight review gate** on `YYYY-MM-DD` *(placeholder)*.
-Segmented review complete — all phases `PASS`; verdict **APPROVED**.
+Reviewed and approved by the **Automated pre-flight review gate** on `2026-07-07`.
+Segmented review complete — all phases `PASS`; verdict **APPROVED** (post-review remediation applied
+2026-07-07 — see [Findings](#findings) § Post-Review Remediation).
 
 ## Revision History
 
 | Date | Phase | Change |
 |------|-------|--------|
-| `YYYY-MM-DD` | Pre-Flight Gate | Artifact seeded at the repository root; baseline, in-scope, and preservation surfaces recorded. |
-| `YYYY-MM-DD` | Phase 1 — Milestone / Deliverable Verification | Recorded deliverable inventory verification; `Status: PASS`. |
-| `YYYY-MM-DD` | Phase 2 — Code Quality & Conventions | Recorded style/convention verification; `Status: PASS`. |
-| `YYYY-MM-DD` | Phase 3 — AAP Compliance Matrix | Populated the requirement→file compliance matrix; `Status: PASS`. |
-| `YYYY-MM-DD` | Phase 4 — Scope Boundary & Preservation | Recorded preservation-boundary verification; `Status: PASS`. |
-| `YYYY-MM-DD` | Phase 5 — Quality Gates | Marked all seven quality gates; `Status: PASS`. |
-| `YYYY-MM-DD` | Phase 6 — Observability & Documentation | Recorded observability + documentation verification; `Status: PASS`. |
-| `YYYY-MM-DD` | Final Verdict | Consolidated all phases; recorded **Verdict: APPROVED** and sign-off. |
+| `2026-07-07` | Pre-Flight Gate | Artifact seeded at the repository root; baseline, in-scope, and preservation surfaces recorded. |
+| `2026-07-07` | Phase 1 — Milestone / Deliverable Verification | Recorded deliverable inventory verification; `Status: PASS`. |
+| `2026-07-07` | Phase 2 — Code Quality & Conventions | Recorded style/convention verification; `Status: PASS`. |
+| `2026-07-07` | Phase 3 — AAP Compliance Matrix | Populated the requirement→file compliance matrix; `Status: PASS`. |
+| `2026-07-07` | Phase 4 — Scope Boundary & Preservation | Recorded preservation-boundary verification; `Status: PASS`. |
+| `2026-07-07` | Phase 5 — Quality Gates | Marked all seven quality gates; `Status: PASS`. |
+| `2026-07-07` | Phase 6 — Observability & Documentation | Recorded observability + documentation verification; `Status: PASS`. |
+| `2026-07-07` | Final Verdict | Consolidated all phases; recorded **Verdict: APPROVED** and sign-off. |
+| `2026-07-07` | Post-Review Remediation | Addressed checkpoint-review findings: hardened backpressure RPC input validation (bounds + saturating credit), converted three wildcard companion imports to explicit named imports, and bumped the executive-summary Mermaid CDN pin `11.4.0 → 11.10.0` (CVE-2025-54881/54880). Re-validated: `scalastyle:check` clean over 1019 files, `core` compiles warning-free, all streaming suites pass. `Status: PASS`. |

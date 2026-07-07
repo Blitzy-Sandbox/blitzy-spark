@@ -17,7 +17,7 @@
     package.json / pom.xml / mkdocs.yml and references no local repo file).
 
       * reveal.js 5.1.0  — slide framework (CSS + core script)
-      * Mermaid  11.4.0  — architecture / data-flow diagrams (ESM module)
+      * Mermaid  11.10.0 — architecture / data-flow diagrams (ESM module)
       * Lucide   0.460.0 — headline icons (UMD global `lucide`)
 
     Open directly in any modern browser (network required only to fetch the
@@ -985,7 +985,7 @@ flowchart LR
     PINNED CDN scripts — the ONLY external references in this file.
       * reveal.js 5.1.0  (classic script tag)
       * Lucide   0.460.0 (UMD; exposes global `lucide`)
-      * Mermaid  11.4.0  (ESM module; imported below)
+      * Mermaid  11.10.0 (ESM module; imported below)
     Versions are pinned exactly (no floating/rolling tags) so the deck is reproducible.
     ==========================================================================
   -->
@@ -994,7 +994,7 @@ flowchart LR
 
   <!-- Mermaid v11 ships as ESM from the CDN, so it MUST be imported as a module. -->
   <script type="module">
-    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.4.0/dist/mermaid.esm.min.mjs';
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.10.0/dist/mermaid.esm.min.mjs';
     // Dark theme to match the Blitzy deck. startOnLoad is OFF on purpose: reveal.js
     // hides non-current slides with display:none, and rendering a Mermaid diagram in a
     // zero-size container collapses it. Instead we render each diagram lazily, when its

@@ -100,7 +100,9 @@ private[spark] class StreamingShuffleFallbackPolicy(
     metrics: StreamingShuffleMetrics)
   extends Logging {
 
-  import StreamingShuffleFallbackPolicy._
+  import StreamingShuffleFallbackPolicy.{MEMORY_PRESSURE_THRESHOLD_PERCENT,
+    NETWORK_SATURATION_THRESHOLD_PERCENT, SLOW_CONSUMER_MIN_SUSTAINED_MILLIS,
+    SLOW_CONSUMER_RATE_MULTIPLIER}
 
   // Record the resolved streaming configuration once, when the policy is created. This is gated at
   // DEBUG (and therefore by spark.shuffle.streaming.debug), so it adds no overhead in normal

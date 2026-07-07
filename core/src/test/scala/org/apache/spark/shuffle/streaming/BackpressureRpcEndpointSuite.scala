@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle.streaming
 
-import org.mockito.Mockito.{mock, verify, when}
+import org.mockito.Mockito.{mock, never, verify, when}
 
 import org.apache.spark.{LocalSparkContext, SparkConf, SparkContext, SparkFunSuite}
 import org.apache.spark.rpc.{RpcCallContext, RpcEnv}
@@ -87,6 +87,40 @@ class BackpressureRpcEndpointSuite extends SparkFunSuite with LocalSparkContext 
     val (_, protocol, endpoint) = newFixture()
     endpoint.receive.apply(BackpressureRpcEndpoint.Heartbeat("exec-1", 123L))
     verify(protocol).onHeartbeat("exec-1", 123L)
+  }
+
+  test("receive drops a ConsumerAck with a negative field at the trust boundary") {
+    val (_, protocol, endpoint) = newFixture()
+    // The endpoint is the trust boundary for remote backpressure signals. A negative shuffleId --
+    // or a negative byte count, which is never legitimate -- marks a malformed message that must
+    // be dropped and never forwarded to the protocol.
+    endpoint.receive.apply(BackpressureRpcEndpoint.ConsumerAck(-1, 2L, 3, 4096L, 5))
+    endpoint.receive.apply(BackpressureRpcEndpoint.ConsumerAck(1, 2L, 3, -1L, 5))
+    verify(protocol, never()).onConsumerAck(-1, 2L, 3, 4096L, 5)
+    verify(protocol, never()).onConsumerAck(1, 2L, 3, -1L, 5)
+  }
+
+  test("receive drops a ThrottleRequest with negative fields at the trust boundary") {
+    val (_, protocol, endpoint) = newFixture()
+    // A negative shuffleId or a negative target rate is structurally malformed and dropped before
+    // it can reach the protocol. (The valid positive-rate range is enforced by the protocol.)
+    endpoint.receive.apply(BackpressureRpcEndpoint.ThrottleRequest(-1, 999L))
+    endpoint.receive.apply(BackpressureRpcEndpoint.ThrottleRequest(1, -5L))
+    verify(protocol, never()).onThrottleRequest(-1, 999L)
+    verify(protocol, never()).onThrottleRequest(1, -5L)
+  }
+
+  test("receive drops a Heartbeat with an empty id or non-positive timestamp") {
+    val (_, protocol, endpoint) = newFixture()
+    // An empty executor id cannot be correlated and a non-positive timestamp is nonsensical; both
+    // are dropped at the boundary. (The forward-skew ceiling on the timestamp is enforced by the
+    // protocol as defense-in-depth.)
+    endpoint.receive.apply(BackpressureRpcEndpoint.Heartbeat("", 123L))
+    endpoint.receive.apply(BackpressureRpcEndpoint.Heartbeat("exec-1", 0L))
+    endpoint.receive.apply(BackpressureRpcEndpoint.Heartbeat("exec-1", -1L))
+    verify(protocol, never()).onHeartbeat("", 123L)
+    verify(protocol, never()).onHeartbeat("exec-1", 0L)
+    verify(protocol, never()).onHeartbeat("exec-1", -1L)
   }
 
   test("receiveAndReply answers GetBackpressureStatus with a BackpressureStatus snapshot") {

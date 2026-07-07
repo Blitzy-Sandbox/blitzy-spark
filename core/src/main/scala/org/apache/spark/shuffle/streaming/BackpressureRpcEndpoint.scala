@@ -18,7 +18,7 @@
 package org.apache.spark.shuffle.streaming
 
 import org.apache.spark.annotation.Since
-import org.apache.spark.internal.Logging
+import org.apache.spark.internal.{Logging, LogKeys}
 import org.apache.spark.rpc.{RpcCallContext, RpcEnv, ThreadSafeRpcEndpoint}
 
 /**
@@ -59,28 +59,100 @@ private[spark] class BackpressureRpcEndpoint(
     protocol: BackpressureProtocol)
   extends ThreadSafeRpcEndpoint with Logging {
 
-  import BackpressureRpcEndpoint._
+  import BackpressureRpcEndpoint.{BackpressureStatus, ConsumerAck, ENDPOINT_NAME,
+    GetBackpressureStatus, Heartbeat, ThrottleRequest}
 
   /**
-   * Handle one-way (fire-and-forget) backpressure messages. Each case simply decodes the payload
-   * and forwards it to [[BackpressureProtocol]]; per-message logging is emitted at DEBUG so it can
-   * be enabled selectively via `spark.shuffle.streaming.debug` without adding hot-path overhead.
+   * Handle one-way (fire-and-forget) backpressure messages. This endpoint is the '''trust
+   * boundary''' for backpressure signals arriving from remote executors, so each decoded payload is
+   * validated before it is forwarded to [[BackpressureProtocol]]. A message that fails validation
+   * is dropped with a WARN log (and never reaches the protocol); a well-formed message is logged at
+   * DEBUG -- selectable via `spark.shuffle.streaming.debug` without hot-path overhead -- and then
+   * forwarded. The protocol independently enforces the numeric accounting ceilings (credit clamp,
+   * rate/skew bounds) as defense-in-depth, so validation here focuses on structural form.
    */
   override def receive: PartialFunction[Any, Unit] = {
-    case ConsumerAck(shuffleId, mapId, reduceId, bytesConsumed, seqNumber) =>
-      logDebug(s"Received ConsumerAck(shuffleId=$shuffleId, mapId=$mapId, " +
-        s"reduceId=$reduceId, bytesConsumed=$bytesConsumed, seqNumber=$seqNumber)")
-      protocol.onConsumerAck(shuffleId, mapId, reduceId, bytesConsumed, seqNumber)
+    case ack: ConsumerAck =>
+      if (isWellFormed(ack)) {
+        logDebug(s"Received ConsumerAck(shuffleId=${ack.shuffleId}, mapId=${ack.mapId}, " +
+          s"reduceId=${ack.reduceId}, bytesConsumed=${ack.bytesConsumed}, " +
+          s"seqNumber=${ack.seqNumber})")
+        protocol.onConsumerAck(ack.shuffleId, ack.mapId, ack.reduceId, ack.bytesConsumed,
+          ack.seqNumber)
+      }
 
-    case ThrottleRequest(shuffleId, targetBytesPerSec) =>
-      logDebug(s"Received ThrottleRequest(shuffleId=$shuffleId, " +
-        s"targetBytesPerSec=$targetBytesPerSec)")
-      protocol.onThrottleRequest(shuffleId, targetBytesPerSec)
+    case req: ThrottleRequest =>
+      if (isWellFormed(req)) {
+        logDebug(s"Received ThrottleRequest(shuffleId=${req.shuffleId}, " +
+          s"targetBytesPerSec=${req.targetBytesPerSec})")
+        protocol.onThrottleRequest(req.shuffleId, req.targetBytesPerSec)
+      }
 
-    case Heartbeat(executorId, timestampMillis) =>
-      logDebug(s"Received Heartbeat(executorId=$executorId, " +
-        s"timestampMillis=$timestampMillis)")
-      protocol.onHeartbeat(executorId, timestampMillis)
+    case hb: Heartbeat =>
+      if (isWellFormed(hb)) {
+        logDebug(s"Received Heartbeat(executorId=${hb.executorId}, " +
+          s"timestampMillis=${hb.timestampMillis})")
+        protocol.onHeartbeat(hb.executorId, hb.timestampMillis)
+      }
+  }
+
+  /**
+   * Validate a decoded [[ConsumerAck]] at the RPC trust boundary. Shuffle, map and reduce ids and
+   * the sequence number are always non-negative in Spark, and a byte count can never be negative;
+   * any negative field marks a malformed or malicious message that is dropped. The numeric upper
+   * bound on the released credit is enforced by [[BackpressureProtocol.onConsumerAck]].
+   *
+   * @return `true` if the message is structurally well-formed and may be forwarded
+   */
+  private def isWellFormed(ack: ConsumerAck): Boolean = {
+    if (ack.shuffleId < 0 || ack.mapId < 0L || ack.reduceId < 0 || ack.seqNumber < 0 ||
+        ack.bytesConsumed < 0L) {
+      logWarning(log"Dropping malformed streaming shuffle ConsumerAck at the RPC boundary: " +
+        log"shuffleId=${MDC(LogKeys.SHUFFLE_ID, ack.shuffleId)} " +
+        log"mapId=${MDC(LogKeys.MAP_ID, ack.mapId)} " +
+        log"reduceId=${MDC(LogKeys.REDUCE_ID, ack.reduceId)} " +
+        log"bytesConsumed=${MDC(LogKeys.NUM_BYTES, ack.bytesConsumed)} " +
+        log"seqNumber=${MDC(LogKeys.VALUE, ack.seqNumber)}")
+      false
+    } else {
+      true
+    }
+  }
+
+  /**
+   * Validate a decoded [[ThrottleRequest]] at the RPC trust boundary. A negative `shuffleId` or a
+   * negative target rate is malformed and dropped; the valid rate range and the "record a
+   * backpressure event" semantics are owned by [[BackpressureProtocol.onThrottleRequest]].
+   *
+   * @return `true` if the message is structurally well-formed and may be forwarded
+   */
+  private def isWellFormed(req: ThrottleRequest): Boolean = {
+    if (req.shuffleId < 0 || req.targetBytesPerSec < 0L) {
+      logWarning(log"Dropping malformed streaming shuffle ThrottleRequest at the RPC boundary: " +
+        log"shuffleId=${MDC(LogKeys.SHUFFLE_ID, req.shuffleId)} " +
+        log"targetBytesPerSec=${MDC(LogKeys.NUM_BYTES, req.targetBytesPerSec)}")
+      false
+    } else {
+      true
+    }
+  }
+
+  /**
+   * Validate a decoded [[Heartbeat]] at the RPC trust boundary. A null/empty executor id cannot be
+   * correlated, and a non-positive timestamp is nonsensical; either is dropped. The forward-skew
+   * ceiling on the timestamp is enforced by [[BackpressureProtocol.onHeartbeat]].
+   *
+   * @return `true` if the message is structurally well-formed and may be forwarded
+   */
+  private def isWellFormed(hb: Heartbeat): Boolean = {
+    if (hb.executorId == null || hb.executorId.isEmpty || hb.timestampMillis <= 0L) {
+      logWarning(log"Dropping malformed streaming shuffle Heartbeat at the RPC boundary: " +
+        log"executorId=${MDC(LogKeys.EXECUTOR_ID, hb.executorId)} " +
+        log"timestampMillis=${MDC(LogKeys.TIMESTAMP, hb.timestampMillis)}")
+      false
+    } else {
+      true
+    }
   }
 
   /**

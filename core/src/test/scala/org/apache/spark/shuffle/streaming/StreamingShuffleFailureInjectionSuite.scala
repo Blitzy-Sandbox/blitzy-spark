@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle.streaming
 
-import java.io.{IOException, InputStream}
+import java.io.{InputStream, IOException}
 import java.net.{SocketException, SocketTimeoutException}
 import java.nio.ByteBuffer
 import java.util.Arrays

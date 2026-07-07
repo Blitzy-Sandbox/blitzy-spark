@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 
 import org.apache.spark.annotation.Since
-import org.apache.spark.internal.Logging
+import org.apache.spark.internal.{Logging, LogKeys}
 import org.apache.spark.shuffle.streaming.network.TokenBucketRateLimiter
 
 /**
@@ -95,6 +95,39 @@ private[spark] class BackpressureProtocol(
   private val SHUTDOWN_TIMEOUT_MS = 1000L
   // Name of the single daemon scan thread.
   private val SCAN_THREAD_NAME = "streaming-backpressure-scan"
+
+  // ---------------------------------------------------------------------------------------------
+  // Security bounds for RPC-originated flow-control payloads.
+  //
+  // The backpressure callbacks below (onConsumerAck / onThrottleRequest / onHeartbeat) are invoked
+  // with values decoded off the RPC wire by BackpressureRpcEndpoint and therefore originate from
+  // *remote* executors. They must be treated as untrusted input: a malformed or malicious payload
+  // must never be allowed to overflow the credit accumulator, inflate send credit without bound
+  // (which would silently defeat backpressure), pollute the liveness/active-shuffle tracking maps
+  // with negative identifiers, or corrupt the liveness math in scan(). These constants define the
+  // single source of truth for the acceptable ranges; validation is performed both here (the
+  // authoritative state owner) and, as defense-in-depth, at the RPC trust boundary.
+  // ---------------------------------------------------------------------------------------------
+
+  // Absolute ceiling on outstanding send credit, in bytes. onConsumerAck clamps the token bucket to
+  // this value so the credit AtomicLong can never overflow and a fast (or hostile) consumer can
+  // never inflate credit past the ceiling. 1 TiB is many orders of magnitude above any legitimate
+  // per-executor shuffle credit yet ~2^23x below Long.MaxValue, leaving no realistic overflow risk.
+  private val MAX_CREDIT_BYTES = 1L << 40
+
+  // Upper bound on the bytes a single consumer acknowledgment may release. An ack above this is
+  // rejected outright as malformed; legitimate acks are bounded by the (much smaller) per-partition
+  // buffer capacity, so this is a defensive guard rather than a functional limit.
+  private val MAX_ACK_BYTES = MAX_CREDIT_BYTES
+
+  // Upper bound on a dynamically requested throttle rate, in bytes/second. A request above this is
+  // treated as malformed and ignored; no physical executor link approaches 1 TiB/s.
+  private val MAX_RATE_BYTES_PER_SEC = 1L << 40
+
+  // Maximum tolerated forward clock skew, in millis, for a consumer heartbeat timestamp. A
+  // heartbeat dated more than this far in the future is implausible (bad clock or malformed) and
+  // is rejected so it cannot make a dead consumer look perpetually alive in scan()'s silence math.
+  private val MAX_HEARTBEAT_SKEW_MS = 3600000L
 
   // A bandwidth cap is configured only when maxBandwidthMBps is positive; 0 means unlimited. When
   // unlimited, the credit gate in acquire() is disabled (see acquire() for the rationale).
@@ -178,11 +211,21 @@ private[spark] class BackpressureProtocol(
    * 100 ms by `MemorySpillManager` / `StreamingShuffleWriter`, not here). The producer identified
    * by `mapId` is also marked live so [[scan]] does not treat it as timed out.
    *
-   * @param shuffleId     the shuffle this acknowledgment belongs to
-   * @param mapId         the producer (map task) whose data was consumed
-   * @param reduceId      the reduce partition that consumed the data
-   * @param bytesConsumed number of bytes the consumer drained (credit released); ignored if <= 0
-   * @param seqNumber     the block sequence number acknowledged (for correlation/observability)
+   * '''Security.''' The arguments are decoded off the RPC wire and therefore originate from a
+   * remote executor; they are treated as untrusted input. A message carrying a negative identifier
+   * or sequence number is rejected wholesale (it would otherwise pollute the liveness and
+   * active-shuffle tracking maps). Credit is released only for a strictly positive `bytesConsumed`
+   * no greater than [[MAX_ACK_BYTES]], and the resulting credit is clamped to [[MAX_CREDIT_BYTES]]
+   * via a saturating add, so a malformed or hostile acknowledgment can neither overflow the credit
+   * [[AtomicLong]] nor inflate credit without bound (either of which would defeat backpressure).
+   *
+   * @param shuffleId     the shuffle this acknowledgment belongs to (must be >= 0)
+   * @param mapId         the producer (map task) whose data was consumed (must be >= 0)
+   * @param reduceId      the reduce partition that consumed the data (must be >= 0)
+   * @param bytesConsumed number of bytes the consumer drained (credit released); ignored if <= 0,
+   *                      rejected if greater than [[MAX_ACK_BYTES]]
+   * @param seqNumber     the block sequence number acknowledged (for correlation/observability;
+   *                      must be >= 0)
    */
   def onConsumerAck(
       shuffleId: Int,
@@ -190,8 +233,30 @@ private[spark] class BackpressureProtocol(
       reduceId: Int,
       bytesConsumed: Long,
       seqNumber: Int): Unit = {
+    // SECURITY: validate the (remote-originated) payload before mutating any state. Shuffle, map
+    // and reduce ids and the sequence number are always non-negative in Spark; a negative value
+    // marks a malformed or malicious message that must not be allowed to create garbage entries.
+    if (shuffleId < 0 || mapId < 0L || reduceId < 0 || seqNumber < 0) {
+      logWarning(log"Rejecting malformed streaming shuffle ConsumerAck with a " +
+        log"negative identifier: shuffleId=${MDC(LogKeys.SHUFFLE_ID, shuffleId)} " +
+        log"mapId=${MDC(LogKeys.MAP_ID, mapId)} " +
+        log"reduceId=${MDC(LogKeys.REDUCE_ID, reduceId)} " +
+        log"seqNumber=${MDC(LogKeys.VALUE, seqNumber)}")
+      return
+    }
+    // SECURITY: an ack larger than the maximum creditable per-ack byte count is malformed and must
+    // be dropped; it would otherwise attempt to release an impossible amount of credit in one step.
+    if (bytesConsumed > MAX_ACK_BYTES) {
+      logWarning(log"Rejecting streaming shuffle ConsumerAck: bytesConsumed " +
+        log"${MDC(LogKeys.NUM_BYTES, bytesConsumed)} exceeds the maximum creditable per-ack byte " +
+        log"count for shuffle ${MDC(LogKeys.SHUFFLE_ID, shuffleId)} " +
+        log"map ${MDC(LogKeys.MAP_ID, mapId)}")
+      return
+    }
     if (bytesConsumed > 0L) {
-      tokens.addAndGet(bytesConsumed)
+      // Saturating add: credit rises toward but never past MAX_CREDIT_BYTES, so the AtomicLong can
+      // never overflow and a fast (or hostile) consumer can never inflate credit past the ceiling.
+      addCreditSaturating(bytesConsumed)
     }
     producerLastActive.put(mapId, System.currentTimeMillis())
     activeShuffleIds.add(shuffleId)
@@ -203,19 +268,34 @@ private[spark] class BackpressureProtocol(
 
   /**
    * Apply a dynamic throttle requested by a consumer under backpressure. Adjusts the rate limiter
-   * to `targetBytesPerSec` and records a backpressure event. A non-positive target is rejected with
-   * a warning (the limiter requires a positive rate); in unlimited pass-through mode the limiter
+   * to `targetBytesPerSec` and records a backpressure event. A target outside the valid range
+   * `(0, `[[MAX_RATE_BYTES_PER_SEC]]`]` is rejected with a warning (the limiter requires a positive
+   * rate and no physical link approaches the ceiling); in unlimited pass-through mode the limiter
    * ignores the update, matching the v1 "no dynamic reconfiguration" constraint.
    *
-   * @param shuffleId        the shuffle requesting the throttle
+   * '''Security.''' `shuffleId` is decoded off the RPC wire; a negative value is malformed and the
+   * request is dropped before any state is recorded. `targetBytesPerSec` is bounded so a hostile
+   * request can neither disable throttling with a non-positive rate nor set an absurd rate.
+   *
+   * @param shuffleId        the shuffle requesting the throttle (must be >= 0)
    * @param targetBytesPerSec the desired maximum send rate in bytes/second
    */
   def onThrottleRequest(shuffleId: Int, targetBytesPerSec: Long): Unit = {
-    if (targetBytesPerSec > 0L) {
+    // SECURITY: reject a malformed shuffle identifier before recording any state.
+    if (shuffleId < 0) {
+      logWarning(log"Rejecting streaming shuffle ThrottleRequest with a negative shuffleId " +
+        log"${MDC(LogKeys.SHUFFLE_ID, shuffleId)}")
+      return
+    }
+    // A positive, bounded target adjusts the limiter; a non-positive or implausibly large target is
+    // rejected (the limiter requires a positive rate, and MAX_RATE_BYTES_PER_SEC is far above any
+    // real link capacity).
+    if (targetBytesPerSec > 0L && targetBytesPerSec <= MAX_RATE_BYTES_PER_SEC) {
       rateLimiter.setRate(targetBytesPerSec.toDouble)
     } else {
-      logWarning(s"Ignoring throttle request for shuffleId=$shuffleId with non-positive " +
-        s"targetBytesPerSec=$targetBytesPerSec")
+      logWarning(log"Ignoring streaming shuffle throttle request with out-of-range " +
+        log"targetBytesPerSec=${MDC(LogKeys.NUM_BYTES, targetBytesPerSec)} for shuffle " +
+        log"${MDC(LogKeys.SHUFFLE_ID, shuffleId)}")
     }
     activeShuffleIds.add(shuffleId)
     // A throttle request is itself a backpressure event, recorded whether or not the rate changed.
@@ -224,17 +304,34 @@ private[spark] class BackpressureProtocol(
 
   /**
    * Record a consumer heartbeat, refreshing the consumer's liveness timestamp so [[scan]] does not
-   * evict it. A null executor id is ignored defensively.
+   * evict it.
    *
-   * @param executorId     the consumer executor id
-   * @param timestampMillis the heartbeat timestamp in epoch millis
+   * '''Security.''' Both arguments are decoded off the RPC wire. A null or empty executor id cannot
+   * be correlated and is ignored so it cannot create a phantom liveness entry. The timestamp is
+   * validated to be strictly positive and no more than [[MAX_HEARTBEAT_SKEW_MS]] in the future; an
+   * implausible timestamp would otherwise corrupt the silence computation in [[scan]] (a future
+   * timestamp yields a negative "silent" duration, making a dead consumer look perpetually alive).
+   *
+   * @param executorId     the consumer executor id (must be non-empty)
+   * @param timestampMillis the heartbeat timestamp in epoch millis (must be > 0 and not far future)
    */
   def onHeartbeat(executorId: String, timestampMillis: Long): Unit = {
-    if (executorId != null) {
-      consumerLastSeen.put(executorId, timestampMillis)
-      if (debugEnabled) {
-        logDebug(s"Consumer heartbeat: executorId=$executorId ts=$timestampMillis")
-      }
+    // SECURITY: an empty/blank executor id cannot be correlated and must not create a fake entry.
+    if (executorId == null || executorId.isEmpty) {
+      logWarning("Ignoring streaming shuffle heartbeat with an empty executor id")
+      return
+    }
+    // SECURITY: reject an implausible timestamp so it cannot corrupt scan()'s silence math.
+    val now = System.currentTimeMillis()
+    if (timestampMillis <= 0L || timestampMillis > now + MAX_HEARTBEAT_SKEW_MS) {
+      logWarning(log"Ignoring streaming shuffle heartbeat with an implausible timestamp " +
+        log"${MDC(LogKeys.TIMESTAMP, timestampMillis)} from executor " +
+        log"${MDC(LogKeys.EXECUTOR_ID, executorId)}")
+      return
+    }
+    consumerLastSeen.put(executorId, timestampMillis)
+    if (debugEnabled) {
+      logDebug(s"Consumer heartbeat: executorId=$executorId ts=$timestampMillis")
     }
   }
 
@@ -282,6 +379,30 @@ private[spark] class BackpressureProtocol(
    * @return a tuple of (number of active shuffles, available send credit in bytes)
    */
   def status: (Int, Long) = (activeShuffleIds.size(), tokens.get())
+
+  /**
+   * Atomically add `delta` bytes of send credit, saturating at [[MAX_CREDIT_BYTES]]. Lock-free: a
+   * bounded compare-and-set retry loop with no synchronization on the token math. Because the
+   * result is clamped to the ceiling, the credit [[AtomicLong]] can never overflow no matter how
+   * many or how large the acknowledgments are -- this is the core defense against a malformed or
+   * hostile `ConsumerAck` inflating credit and thereby defeating backpressure.
+   *
+   * @param delta positive number of credit bytes to add (validated and bounded by the caller)
+   */
+  private def addCreditSaturating(delta: Long): Unit = {
+    var updated = false
+    while (!updated) {
+      val current = tokens.get()
+      // `current` is always within [0, MAX_CREDIT_BYTES], so (MAX_CREDIT_BYTES - current) >= 0 and
+      // the subtraction cannot overflow; the branch clamps the sum to the ceiling.
+      val room = MAX_CREDIT_BYTES - current
+      val next = if (delta >= room) MAX_CREDIT_BYTES else current + delta
+      if (tokens.compareAndSet(current, next)) {
+        updated = true
+      }
+      // else: lost the race with a concurrent ack/acquire; re-read and retry.
+    }
+  }
 
   /**
    * Atomically debit `numBytes` of credit from the token bucket if enough is available. Lock-free:

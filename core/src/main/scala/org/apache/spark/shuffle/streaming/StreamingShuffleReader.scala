@@ -109,7 +109,8 @@ private[spark] class StreamingShuffleReader[K, C](
     shouldBatchFetch: Boolean = false)
   extends ShuffleReader[K, C] with Logging {
 
-  import StreamingShuffleReader._
+  import StreamingShuffleReader.{MAX_CAUSE_DEPTH, PRODUCER_CONNECTION_TIMEOUT_MS, UNKNOWN_MAP_ID,
+    UNKNOWN_MAP_INDEX, UNKNOWN_REDUCE_ID}
 
   private val dep = handle.dependency
 

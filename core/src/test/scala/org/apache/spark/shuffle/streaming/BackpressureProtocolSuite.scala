@@ -92,6 +92,20 @@ class BackpressureProtocolSuite extends SparkFunSuite {
     field.get(protocol).asInstanceOf[ConcurrentHashMap[String, java.lang.Long]]
   }
 
+  /**
+   * Reflectively reads one of the private security-bound `Long` constants (`MAX_ACK_BYTES`,
+   * `MAX_CREDIT_BYTES`, `MAX_RATE_BYTES_PER_SEC`, `MAX_HEARTBEAT_SKEW_MS`). These bounds are
+   * intentionally not exposed by the production class, so the input-validation tests read them
+   * here rather than duplicating the literals -- keeping the assertions pinned to the exact
+   * production values without modifying production code. The fields are materialized in bytecode
+   * (they are read by the validation paths), so the reflective read is stable.
+   */
+  private def readPrivateLong(protocol: BackpressureProtocol, name: String): Long = {
+    val field = classOf[BackpressureProtocol].getDeclaredField(name)
+    field.setAccessible(true)
+    field.get(protocol).asInstanceOf[Long]
+  }
+
   test("protocol constants match the spec") {
     // The scan-interval and producer/consumer timeout thresholds are private vals inside
     // BackpressureProtocol (read only by the internal daemon scan and start()). The production
@@ -303,6 +317,89 @@ class BackpressureProtocolSuite extends SparkFunSuite {
     protocol.onHeartbeat("stale-2", now - 11000L)
     invokeScan(protocol)
     assert(metrics.backpressureCounter.getCount == 1L)
+  }
+
+  test("onConsumerAck drops acks with negative identifiers") {
+    val protocol = newProtocol()
+    // Each field is a distinct malformed (possibly hostile) RPC payload: shuffle/map/reduce ids
+    // and the sequence number are always non-negative in Spark. A negative value must be dropped
+    // before any credit is released or any liveness / active-shuffle entry is created.
+    protocol.onConsumerAck(shuffleId = -1, mapId = 0L, reduceId = 0, bytesConsumed = 4096L,
+      seqNumber = 1)
+    protocol.onConsumerAck(shuffleId = 0, mapId = -1L, reduceId = 0, bytesConsumed = 4096L,
+      seqNumber = 1)
+    protocol.onConsumerAck(shuffleId = 0, mapId = 0L, reduceId = -1, bytesConsumed = 4096L,
+      seqNumber = 1)
+    protocol.onConsumerAck(shuffleId = 0, mapId = 0L, reduceId = 0, bytesConsumed = 4096L,
+      seqNumber = -1)
+    // No credit released, no active shuffle recorded, no producer-liveness entry created.
+    assert(protocol.status == (0, 0L))
+    assert(producerMap(protocol).isEmpty)
+  }
+
+  test("onConsumerAck drops an ack above the per-ack byte ceiling") {
+    val protocol = newProtocol()
+    val maxAckBytes = readPrivateLong(protocol, "MAX_ACK_BYTES")
+    // One byte over the documented per-ack maximum marks a malformed ack that would attempt to
+    // release an impossible amount of credit in a single step; the whole message is dropped, so no
+    // credit is released and no liveness / active-shuffle state is recorded.
+    protocol.onConsumerAck(shuffleId = 0, mapId = 0L, reduceId = 0,
+      bytesConsumed = maxAckBytes + 1L, seqNumber = 1)
+    assert(protocol.status == (0, 0L))
+    assert(producerMap(protocol).isEmpty)
+  }
+
+  test("onConsumerAck saturates send credit and never overflows") {
+    val protocol = newProtocol()
+    val maxAckBytes = readPrivateLong(protocol, "MAX_ACK_BYTES")
+    val maxCreditBytes = readPrivateLong(protocol, "MAX_CREDIT_BYTES")
+    // Each ack carries the maximum permitted per-ack byte count. With a naive additive counter,
+    // repeating it would overflow the credit AtomicLong into negative territory and defeat
+    // backpressure. The saturating add must instead clamp at the ceiling and stay strictly
+    // positive no matter how many maximal acks arrive.
+    (1 to 8).foreach { seq =>
+      protocol.onConsumerAck(shuffleId = 0, mapId = 0L, reduceId = 0,
+        bytesConsumed = maxAckBytes, seqNumber = seq)
+    }
+    val (_, creditNow) = protocol.status
+    assert(creditNow == maxCreditBytes)
+    assert(creditNow > 0L)
+  }
+
+  test("onThrottleRequest drops a negative shuffleId and records no event") {
+    val metrics = new StreamingShuffleMetrics()
+    val protocol = new BackpressureProtocol(
+      new StreamingShuffleConfig(new SparkConf(false)),
+      metrics,
+      new TokenBucketRateLimiter(100, 1))
+    // A negative shuffle id is malformed and must be dropped before any state is recorded: it may
+    // create neither an active-shuffle entry nor a backpressure event.
+    protocol.onThrottleRequest(shuffleId = -1, targetBytesPerSec = 4096L)
+    assert(protocol.status._1 == 0)
+    assert(metrics.backpressureCounter.getCount == 0L)
+    // A well-formed request (non-negative id) is still recorded as a backpressure event, proving
+    // only the malformed request was rejected.
+    protocol.onThrottleRequest(shuffleId = 0, targetBytesPerSec = 4096L)
+    assert(protocol.status._1 == 1)
+    assert(metrics.backpressureCounter.getCount == 1L)
+  }
+
+  test("onHeartbeat drops empty ids and implausible timestamps") {
+    val protocol = newProtocol()
+    val maxSkewMs = readPrivateLong(protocol, "MAX_HEARTBEAT_SKEW_MS")
+    val now = System.currentTimeMillis()
+    // An empty id cannot be correlated; a non-positive or far-future timestamp would corrupt the
+    // silence computation in scan() (a future timestamp makes a dead consumer look alive). All are
+    // dropped, leaving the consumer-liveness map empty.
+    protocol.onHeartbeat(executorId = "", timestampMillis = now)
+    protocol.onHeartbeat(executorId = "exec-zero", timestampMillis = 0L)
+    protocol.onHeartbeat(executorId = "exec-neg", timestampMillis = -1L)
+    protocol.onHeartbeat(executorId = "exec-future", timestampMillis = now + maxSkewMs + 60000L)
+    assert(consumerMap(protocol).isEmpty)
+    // A well-formed heartbeat (non-empty id, plausible timestamp) is still recorded.
+    protocol.onHeartbeat(executorId = "exec-ok", timestampMillis = now)
+    assert(consumerMap(protocol).containsKey("exec-ok"))
+    assert(!consumerMap(protocol).containsKey("exec-future"))
   }
 
 }
