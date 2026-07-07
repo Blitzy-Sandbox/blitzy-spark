@@ -133,9 +133,19 @@ private[spark] object TokenBucketRateLimiter {
    * Compute the effective refill rate in bytes/second from the configured bandwidth budget:
    * `(maxBandwidthMBps * LINK_CAPACITY_FACTOR / numConcurrentShuffles) * 1024 * 1024`. The shuffle
    * count is floored at 1 so a zero/negative caller value cannot divide by zero.
+   *
+   * A non-positive `maxBandwidthMBps` is the ''unlimited'' sentinel and yields `0.0`, mirroring the
+   * class constructor's pass-through mode. Returning `0.0` (rather than a negative rate for a
+   * negative budget) keeps this helper consistent with the constructor and never hands a caller a
+   * value that Guava's `RateLimiter.create` would reject.
    */
   def effectiveBytesPerSecond(maxBandwidthMBps: Int, numConcurrentShuffles: Int): Double = {
-    val shuffles = math.max(1, numConcurrentShuffles)
-    (maxBandwidthMBps * LINK_CAPACITY_FACTOR / shuffles) * BYTES_PER_MB
+    if (maxBandwidthMBps <= 0) {
+      // Non-positive budget == unlimited pass-through (matches the constructor); no positive rate.
+      0.0
+    } else {
+      val shuffles = math.max(1, numConcurrentShuffles)
+      (maxBandwidthMBps * LINK_CAPACITY_FACTOR / shuffles) * BYTES_PER_MB
+    }
   }
 }

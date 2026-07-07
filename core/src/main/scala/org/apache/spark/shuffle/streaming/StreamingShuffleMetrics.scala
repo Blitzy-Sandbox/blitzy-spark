@@ -19,7 +19,7 @@ package org.apache.spark.shuffle.streaming
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import com.codahale.metrics.Counter
+import com.codahale.metrics.{Counter, Gauge}
 
 import org.apache.spark.annotation.Since
 
@@ -30,10 +30,11 @@ import org.apache.spark.annotation.Since
  * The streaming shuffle backend (`spark.shuffle.manager=streaming`) uses these metrics to expose
  * the runtime health of its in-memory buffering, spill, and backpressure subsystems:
  *
- *  - `bufferUtilizationPercent` - a gauge (0-100) reporting the percentage of the per-executor
- *    streaming buffer budget currently occupied. It is backed by a single [[AtomicInteger]] that
- *    `MemorySpillManager` refreshes on every 100 ms utilization poll and that is read back by the
- *    gauge registered in `StreamingShuffleSource` via [[currentBufferUtilization]].
+ *  - `bufferUtilizationPercent` - a Dropwizard [[Gauge]] (0-100) reporting the percentage of the
+ *    per-executor streaming buffer budget currently occupied. It is backed by a single
+ *    [[AtomicInteger]] that `MemorySpillManager` refreshes on every 100 ms utilization poll; the
+ *    live gauge is exposed via [[bufferUtilizationGauge]] for `StreamingShuffleSource` to register,
+ *    and the raw value via [[currentBufferUtilization]].
  *  - `spillCount` - a counter of the number of buffered partitions spilled to disk.
  *  - `backpressureEvents` - a counter of the number of backpressure throttling events raised by
  *    the flow-control protocol.
@@ -41,9 +42,10 @@ import org.apache.spark.annotation.Since
  *    atomically invalidated because a producer failed before the shuffle completed.
  *
  * '''Metric-name contract.''' The four metric names above form a public, stable contract:
- * `StreamingShuffleSource` registers each object under exactly these names, and
- * `docs/monitoring.md` plus the external Grafana dashboard reference them as
- * `shuffle.streaming.<name>`. They must not be renamed without updating every consumer.
+ * `StreamingShuffleSource` registers each object under exactly these names (the canonical
+ * constants live in the companion [[StreamingShuffleMetrics$]]), and `docs/monitoring.md` plus the
+ * external Grafana dashboard reference them as `streamingShuffle.<metricName>`. They must not be
+ * renamed without updating every consumer.
  *
  * '''Thread-safety and overhead.''' Increment and update calls originate concurrently from many
  * executor threads (map-side writers, the spill monitor, the backpressure daemon, and reduce-side
@@ -77,6 +79,17 @@ private[spark] class StreamingShuffleMetrics {
   private val partialReadInvalidations = new Counter()
 
   /**
+   * Live Dropwizard [[Gauge]] view over the `bufferUtilizationPercent` metric. Its `getValue` reads
+   * the backing [[AtomicInteger]] on every invocation, so `StreamingShuffleSource` can register
+   * this exact instance and always observe the latest value written by [[updateBufferUtilization]]
+   * rather than snapshotting a divergent copy at registration time. This mirrors how Spark's own
+   * `Source` implementations register live gauges (see `DAGSchedulerSource`).
+   */
+  private val bufferUtilizationGaugeInstance: Gauge[Int] = new Gauge[Int] {
+    override def getValue: Int = bufferUtilization.get()
+  }
+
+  /**
    * Returns the live [[Counter]] backing the `spillCount` metric so that `StreamingShuffleSource`
    * can register this exact instance with its `MetricRegistry`.
    */
@@ -95,10 +108,19 @@ private[spark] class StreamingShuffleMetrics {
   def partialReadInvalidationsCounter: Counter = partialReadInvalidations
 
   /**
-   * Returns the current buffer utilization as an integer percentage in [0, 100]. The gauge
-   * registered by `StreamingShuffleSource` for `bufferUtilizationPercent` delegates to this.
+   * Returns the current buffer utilization as an integer percentage in [0, 100]. Reads the same
+   * backing [[AtomicInteger]] as [[bufferUtilizationGauge]], so callers that only need the scalar
+   * value can avoid the [[Gauge]] indirection.
    */
   def currentBufferUtilization: Int = bufferUtilization.get()
+
+  /**
+   * Returns the live [[Gauge]] backing the `bufferUtilizationPercent` metric so that
+   * `StreamingShuffleSource` registers this exact instance with its `MetricRegistry` rather than
+   * constructing a divergent gauge. The returned gauge reflects every subsequent
+   * [[updateBufferUtilization]] because it reads the shared backing [[AtomicInteger]] on each call.
+   */
+  def bufferUtilizationGauge: Gauge[Int] = bufferUtilizationGaugeInstance
 
   /**
    * Records the latest observed buffer utilization for the `bufferUtilizationPercent` gauge.
@@ -130,4 +152,27 @@ private[spark] class StreamingShuffleMetrics {
    * Increments the `partialReadInvalidations` counter by one. Safe to call from multiple threads.
    */
   def incPartialReadInvalidations(): Unit = partialReadInvalidations.inc()
+}
+
+/**
+ * Canonical metric-name constants for the four streaming-shuffle metrics. Centralizing the names
+ * here is the single source of truth that prevents drift between this holder,
+ * `StreamingShuffleSource` (which registers each metric under exactly these names),
+ * `docs/monitoring.md`, and the external Grafana dashboard. The `MetricsSystem` exports them under
+ * `streamingShuffle.<metricName>`.
+ */
+@Since("4.2.0")
+private[spark] object StreamingShuffleMetrics {
+
+  /** Metric name for the buffer-utilization gauge (`streamingShuffle.bufferUtilizationPercent`). */
+  val BUFFER_UTILIZATION_PERCENT: String = "bufferUtilizationPercent"
+
+  /** Metric name for the spill counter (`streamingShuffle.spillCount`). */
+  val SPILL_COUNT: String = "spillCount"
+
+  /** Metric name for the backpressure-events counter (`streamingShuffle.backpressureEvents`). */
+  val BACKPRESSURE_EVENTS: String = "backpressureEvents"
+
+  /** Metric name for the partial-read-invalidations counter. */
+  val PARTIAL_READ_INVALIDATIONS: String = "partialReadInvalidations"
 }

@@ -71,8 +71,23 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
   /**
    * Per-executor streaming rate limit in MB/s (`spark.shuffle.streaming.maxBandwidthMBps`).
    * A value of `0` (the default) is the ''unlimited'' sentinel and disables rate limiting.
+   *
+   * '''Fail-fast safety.''' The backing [[org.apache.spark.internal.config.ConfigEntry]]
+   * intentionally carries no `checkValue` -- `0` is the public ''unlimited'' sentinel and there is
+   * no upper bound -- so this accessor is the single, non-bypassable guard that rejects a negative
+   * budget at read time. Every consumer (the token-bucket rate limiter, [[effectiveBandwidthMBps]],
+   * and [[validate]]) resolves the value through here, so a negative value can never silently
+   * propagate into the rate computation without an explicit [[validate]] call.
+   *
+   * @throws IllegalArgumentException if the configured value is negative
    */
-  def maxBandwidthMBps: Int = conf.get(config.SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS)
+  def maxBandwidthMBps: Int = {
+    val configured = conf.get(config.SHUFFLE_STREAMING_MAX_BANDWIDTH_MBPS)
+    require(configured >= 0,
+      s"spark.shuffle.streaming.maxBandwidthMBps must be >= 0 (0 means unlimited), " +
+        s"but was $configured")
+    configured
+  }
 
   /** Whether the streaming logger is elevated to DEBUG (`spark.shuffle.streaming.debug`). */
   def debug: Boolean = conf.get(config.SHUFFLE_STREAMING_DEBUG)
@@ -131,6 +146,8 @@ private[spark] class StreamingShuffleConfig(conf: SparkConf) {
    *    rate limiter applies no throttling regardless of concurrency.
    *  - If `numConcurrentShuffles <= 0` the divisor is treated as `1` to avoid division by zero,
    *    yielding the full budget for the single (or as-yet-unknown) shuffle.
+   *  - A negative budget cannot occur here: the [[maxBandwidthMBps]] accessor rejects negative
+   *    values at read time (fail-fast), so this method never returns a negative per-shuffle budget.
    *
    * Integer division is intentional: the refill rate is expressed in whole MB/s and any fractional
    * remainder is discarded, which keeps the aggregate share at or under the configured link budget.
