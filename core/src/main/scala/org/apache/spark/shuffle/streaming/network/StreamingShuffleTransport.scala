@@ -156,4 +156,43 @@ private[spark] class StreamingShuffleTransport(conf: StreamingShuffleConfig) ext
       }
     }
   }
+
+  /**
+   * The TCP keepalive probe interval the v2 wire path applies to its producer-to-consumer
+   * connections, exposed as an instance accessor for symmetry with the other transport tunables.
+   * Delegates to the companion constant [[StreamingShuffleTransport.TCP_KEEPALIVE_INTERVAL_MS]];
+   * see that constant for the full rationale and the v1-vs-v2 coexistence semantics.
+   */
+  def tcpKeepAliveIntervalMs: Long = StreamingShuffleTransport.TCP_KEEPALIVE_INTERVAL_MS
+}
+
+/**
+ * Companion object holding the transport-layer protocol constants for streaming shuffle.
+ */
+@Since("4.2.0")
+private[spark] object StreamingShuffleTransport {
+
+  /**
+   * TCP keepalive probe interval, in milliseconds, for streaming-shuffle producer-to-consumer
+   * connections (AAP network discipline: "TCP keepalive enabled with 5-second interval").
+   *
+   * ==Coexistence semantics (v1 vs. v2)==
+   * In v1 this class is a logging-only stub that never opens a socket (see
+   * [[StreamingShuffleTransport.isWireTransferAvailable]] `== false`), so there is no streaming
+   * connection on which to set a keepalive option yet. Any real traffic in v1 flows through the
+   * reused executor-scoped `BlockTransferService`, whose Netty channels already honor Spark's
+   * existing keepalive ''enablement'' switch `spark.<module>.io.enableTcpKeepAlive` via
+   * `org.apache.spark.network.util.TransportConf.enableTcpKeepAlive` -- so v1 inherits keepalive
+   * behavior from the existing transport rather than introducing a parallel one, consistent with
+   * the feature's "least modification to the network transport layer" discipline (Architectural
+   * Decision Log #2).
+   *
+   * When the v2 wire path lands (chunking a [[StreamingBlockEnvelope]] over the reused transport
+   * and verifying the read-side CRC32C), it applies this 5-second probe interval to the streaming
+   * connections it manages, keeping the mandated keepalive cadence explicit and colocated with the
+   * other streaming protocol constants (5 s producer timeout, 10 s consumer heartbeat, 2 MB block
+   * size). It is a stable, immutable constant for the lifetime of the transport (configuration
+   * changes require an executor restart), so callers may read it without locking.
+   */
+  val TCP_KEEPALIVE_INTERVAL_MS: Long = 5000L
 }

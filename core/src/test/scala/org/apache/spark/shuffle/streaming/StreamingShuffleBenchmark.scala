@@ -21,54 +21,54 @@ import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.benchmark.{Benchmark, BenchmarkBase}
 
 /**
- * Performance benchmark for the opt-in streaming shuffle backend across four representative
- * workload regimes, each comparing the production-stable sort-based shuffle (baseline) against the
- * streaming shuffle manager.
+ * Latency benchmark for the opt-in streaming shuffle backend, comparing the production-stable
+ * sort-based shuffle (baseline) against the streaming shuffle manager across three shuffle sizes
+ * (100MB/16, 256MB/32, 512MB/64 partition regimes).
+ *
+ * ==Relationship to [[StreamingShufflePerformanceBenchmark]]==
+ * That sibling benchmark spans four heterogeneous workload regimes (two shuffle sizes plus a
+ * CPU-bound and a memory-bound job). This one focuses narrowly on shuffle latency as a function of
+ * data volume and partition count, holding the workload shape (`reduceByKey`) fixed. Both write
+ * regenerable results artifacts under `core/benchmarks/`.
  *
  * ==What this proves (and what it deliberately does not)==
  * The streaming transport is a v1 logging-only stub
  * ([[org.apache.spark.shuffle.streaming.network.StreamingShuffleTransport.isWireTransferAvailable]]
  * `== false`), so `StreamingShuffleManager` routes every production shuffle through its inner
- * `SortShuffleManager`. Consequently the "streaming shuffle" case executes the identical sort code
- * path as the baseline, and the acceptance target for this benchmark is '''zero performance
- * regression via automatic fallback''' (streaming ~ 1.0X sort), not the 30-50% latency reduction
- * that the AAP earmarks for the v2 wire path. The four tables exercise genuinely different regimes
- * (two shuffle-heavy sizes, a CPU-bound job, and a memory-heavy `groupByKey`) so the no-regression
- * guarantee is demonstrated broadly rather than for a single shape.
+ * `SortShuffleManager`. The "streaming shuffle" case therefore executes the identical sort code
+ * path as the baseline, and the acceptance target is '''zero performance regression via automatic
+ * fallback''' (streaming ~ 1.0X sort) rather than the 30-50% latency reduction earmarked for the v2
+ * wire path.
  *
  * ==Timing methodology==
  * Each case uses [[Benchmark.addTimerCase]] to time ONLY the shuffle job; the per-iteration
- * `SparkContext` construction and teardown happen outside the timed region so the reported
- * milliseconds reflect the shuffle itself rather than driver startup. The framework's per-case
- * warmup drives each case to JIT/heap steady state before measurement, and the `Relative` column
- * is computed from best (minimum) times -- so identical code paths (the v1 sort fallback) converge
- * to ~1.0X rather than reporting a warm-ordering artifact.
+ * `SparkContext` construction and teardown happen outside the timed region. The framework's
+ * per-case warmup drives each case to JIT/heap steady state before measurement, and the `Relative`
+ * column is computed from best (minimum) times -- so identical code paths (the v1 sort fallback)
+ * converge to ~1.0X rather than reporting a warm-ordering artifact.
  *
  * {{{
  *   To run this benchmark:
  *   1. without sbt: bin/spark-submit --class <this class> <spark core test jar>
  *   2. build/sbt \
- *      "core/Test/runMain org.apache.spark.shuffle.streaming.StreamingShufflePerformanceBenchmark"
+ *      "core/Test/runMain org.apache.spark.shuffle.streaming.StreamingShuffleBenchmark"
  *   3. generate result:
  *      SPARK_GENERATE_BENCHMARK_FILES=1 build/sbt \
- *      "core/Test/runMain org.apache.spark.shuffle.streaming.StreamingShufflePerformanceBenchmark"
- *      Results will be written to
- *      "benchmarks/StreamingShufflePerformanceBenchmark-results.txt".
+ *      "core/Test/runMain org.apache.spark.shuffle.streaming.StreamingShuffleBenchmark"
+ *      Results will be written to "benchmarks/StreamingShuffleBenchmark-results.txt".
  * }}}
  */
-object StreamingShufflePerformanceBenchmark extends BenchmarkBase {
+object StreamingShuffleBenchmark extends BenchmarkBase {
 
-  // Fixed iteration count per case: bounded so a full four-table run completes in minutes on a
-  // developer machine, while still averaging over multiple shuffles for a stable best/avg/stdev.
+  // Fixed iteration count per case: bounded so a full three-table run completes in a few minutes on
+  // a developer machine, while still averaging over multiple shuffles for a stable best/avg/stdev.
   private val NUM_ITERS: Int = 3
 
-  // Record counts per regime. Kept bounded (millions, not billions) so the benchmark finishes
-  // quickly, while the shuffle-heavy pair scales up (100MB/16 -> 512MB/64 regime labels) to
-  // demonstrate the no-regression guarantee holds as data volume and partition count grow.
-  private val SHUFFLE_HEAVY_SMALL_RECORDS: Long = 4L * 1000 * 1000
-  private val SHUFFLE_HEAVY_LARGE_RECORDS: Long = 8L * 1000 * 1000
-  private val CPU_BOUND_RECORDS: Long = 2L * 1000 * 1000
-  private val MEMORY_BOUND_RECORDS: Long = 3L * 1000 * 1000
+  // Record counts per size regime, scaled with the 100MB/256MB/512MB labels but kept bounded
+  // (millions, not billions) so the benchmark finishes quickly.
+  private val SMALL_RECORDS: Long = 4L * 1000 * 1000
+  private val MEDIUM_RECORDS: Long = 6L * 1000 * 1000
+  private val LARGE_RECORDS: Long = 8L * 1000 * 1000
 
   // One-time global JVM warmup that complements the framework's per-case warmup: a short burst of
   // sort-path shuffles that stabilize JVM-wide state (heap sizing, GC ergonomics, C2 compilation)
@@ -87,7 +87,7 @@ object StreamingShufflePerformanceBenchmark extends BenchmarkBase {
   private def newContext(extra: (String, String)*): SparkContext = {
     val conf = new SparkConf()
       .setMaster("local[4]")
-      .setAppName("StreamingShufflePerformanceBenchmark")
+      .setAppName("StreamingShuffleBenchmark")
     extra.foreach { case (k, v) => conf.set(k, v) }
     new SparkContext(conf)
   }
@@ -154,7 +154,7 @@ object StreamingShufflePerformanceBenchmark extends BenchmarkBase {
     try {
       var w = 0
       while (w < WARMUP_JOBS) {
-        runShuffleHeavyJob(sc, WARMUP_RECORDS, 16, 1000L)
+        runShuffleJob(sc, WARMUP_RECORDS, 16, 1000L)
         w += 1
       }
     } finally {
@@ -163,51 +163,15 @@ object StreamingShufflePerformanceBenchmark extends BenchmarkBase {
   }
 
   /**
-   * Shuffle-heavy job: `reduceByKey` over `numRecords` records materialized with `count()`.
-   * Dominated by shuffle write/read, this is the regime the AAP success criteria target
-   * (100MB+ data, 10+ partitions).
+   * The fixed workload for every size regime: `reduceByKey` over `numRecords` records forced to
+   * materialize with `count()`. The identical body runs for both the sort and streaming cases so
+   * the only variable is the configured shuffle manager.
    */
-  private def runShuffleHeavyJob(
+  private def runShuffleJob(
       sc: SparkContext, numRecords: Long, numPartitions: Int, numKeys: Long): Unit = {
     sc.parallelize(0L until numRecords, numPartitions)
       .map(i => (i % numKeys, i))
       .reduceByKey(_ + _)
-      .count()
-  }
-
-  /**
-   * CPU-bound job: a transcendental inner loop per record makes map-side computation dominate while
-   * the shuffle footprint stays small (few keys). This is the regime where the AAP expects only a
-   * modest 5-10% scheduler-overhead improvement, and where no regression must hold.
-   */
-  private def runCpuBoundJob(
-      sc: SparkContext, numRecords: Long, numPartitions: Int, numKeys: Long): Unit = {
-    sc.parallelize(0L until numRecords, numPartitions)
-      .map { i =>
-        var acc = 0.0d
-        var k = 0
-        while (k < 128) {
-          acc += math.sqrt((i + k).toDouble) + math.log1p(math.abs(acc) + 1.0d)
-          k += 1
-        }
-        (i % numKeys, acc)
-      }
-      .reduceByKey(_ + _)
-      .count()
-  }
-
-  /**
-   * Memory-heavy job: `groupByKey` forces per-key value materialization on the reduce side, the
-   * classic memory-pressure shape that in a v2 deployment would exercise the spill path and, under
-   * sustained pressure, the memory-pressure fallback condition. In v1 it runs entirely on the sort
-   * path and must show no regression.
-   */
-  private def runMemoryBoundJob(
-      sc: SparkContext, numRecords: Long, numPartitions: Int, numKeys: Long): Unit = {
-    sc.parallelize(0L until numRecords, numPartitions)
-      .map(i => (i % numKeys, i))
-      .groupByKey()
-      .mapValues(_.iterator.size.toLong)
       .count()
   }
 
@@ -216,30 +180,20 @@ object StreamingShufflePerformanceBenchmark extends BenchmarkBase {
     // by a warm-ordering artifact; each case is then additionally warmed by the framework.
     warmUpJvm()
 
-    // A single runBenchmark block emits the shared banner ("Streaming Shuffle Performance
-    // Benchmark") followed by the four workload tables, matching the committed results artifact.
-    runBenchmark("Streaming Shuffle Performance Benchmark") {
-      val shuffleHeavySmall = newBenchmark(
-        "shuffle-heavy latency 100MB / 16 parts", SHUFFLE_HEAVY_SMALL_RECORDS)
-      addSortAndStreamingCases(shuffleHeavySmall)(
-        runShuffleHeavyJob(_, SHUFFLE_HEAVY_SMALL_RECORDS, 16, 1000L))
-      shuffleHeavySmall.run()
+    // A single runBenchmark block emits the shared banner ("Streaming Shuffle Latency Benchmark")
+    // followed by the three size tables, matching the committed results artifact.
+    runBenchmark("Streaming Shuffle Latency Benchmark") {
+      val small = newBenchmark("shuffle latency 100MB / 16 partitions", SMALL_RECORDS)
+      addSortAndStreamingCases(small)(runShuffleJob(_, SMALL_RECORDS, 16, 1000L))
+      small.run()
 
-      val shuffleHeavyLarge = newBenchmark(
-        "shuffle-heavy latency 512MB / 64 parts", SHUFFLE_HEAVY_LARGE_RECORDS)
-      addSortAndStreamingCases(shuffleHeavyLarge)(
-        runShuffleHeavyJob(_, SHUFFLE_HEAVY_LARGE_RECORDS, 64, 4000L))
-      shuffleHeavyLarge.run()
+      val medium = newBenchmark("shuffle latency 256MB / 32 partitions", MEDIUM_RECORDS)
+      addSortAndStreamingCases(medium)(runShuffleJob(_, MEDIUM_RECORDS, 32, 2000L))
+      medium.run()
 
-      val cpuBound = newBenchmark("CPU-bound workload latency", CPU_BOUND_RECORDS)
-      addSortAndStreamingCases(cpuBound)(
-        runCpuBoundJob(_, CPU_BOUND_RECORDS, 16, 100L))
-      cpuBound.run()
-
-      val memoryBound = newBenchmark("memory-bound workload (fallback)", MEMORY_BOUND_RECORDS)
-      addSortAndStreamingCases(memoryBound)(
-        runMemoryBoundJob(_, MEMORY_BOUND_RECORDS, 32, 1000L))
-      memoryBound.run()
+      val large = newBenchmark("shuffle latency 512MB / 64 partitions", LARGE_RECORDS)
+      addSortAndStreamingCases(large)(runShuffleJob(_, LARGE_RECORDS, 64, 4000L))
+      large.run()
     }
   }
 }
