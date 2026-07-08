@@ -89,6 +89,10 @@ private[spark] class MemorySpillManager(
     metrics: StreamingShuffleMetrics)
   extends Logging {
 
+  // Streaming-only MDC correlation-id key/formatter, defined inside the streaming package to keep
+  // shared LogKeys untouched (see StreamingShuffleLogKeys for the coexistence rationale).
+  import StreamingShuffleLogKeys.{REDUCE_PARTITION_RANGE, singlePartition}
+
   /**
    * Utilization polling cadence, in milliseconds. This is deliberately identical to the memory
    * reclamation SLA: because the poller fires every 100 ms and consumer acknowledgments reclaim
@@ -314,22 +318,24 @@ private[spark] class MemorySpillManager(
       buffers.remove(blockId)
       spilledBlocks.put(blockId, java.lang.Boolean.TRUE)
       metrics.incSpillCount()
+      val reduceRange = singlePartition(blockId.reduceId)
       logInfo(log"Spilled streaming shuffle partition to disk " +
         log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, blockId.shuffleId)}, " +
         log"mapId=${MDC(LogKeys.MAP_ID, blockId.mapId)}, " +
-        log"reduceId=${MDC(LogKeys.REDUCE_ID, blockId.reduceId)}, " +
+        log"reducePartitionRange=${MDC(REDUCE_PARTITION_RANGE, reduceRange)}, " +
         log"bytes=${MDC(LogKeys.NUM_BYTES, reclaimed)})")
     } else if (failureCause != null || persistReturnedFalse) {
       // Persistence was genuinely not confirmed (false return or thrown failure): keep the buffer
       // tracked (it still counts toward utilization, so pressure stays visible) and never mark the
       // block spilled. A zero reclaim with no failure means the buffer drained concurrently -- a
       // benign race that needs no warning.
+      val reduceRange = singlePartition(blockId.reduceId)
       val warning =
         log"Streaming shuffle spill was not persisted; retaining the in-memory buffer to " +
         log"retry on the next poll " +
         log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, blockId.shuffleId)}, " +
         log"mapId=${MDC(LogKeys.MAP_ID, blockId.mapId)}, " +
-        log"reduceId=${MDC(LogKeys.REDUCE_ID, blockId.reduceId)})"
+        log"reducePartitionRange=${MDC(REDUCE_PARTITION_RANGE, reduceRange)})"
       if (failureCause != null) {
         logWarning(warning, failureCause)
       } else {
@@ -422,11 +428,12 @@ private[spark] class MemorySpillManager(
           blockManager.removeBlock(blockId)
         } catch {
           case NonFatal(e) =>
+            val reduceRange = singlePartition(blockId.reduceId)
             logWarning(log"Failed to remove spilled streaming shuffle block on unregister; " +
               log"continuing with the remaining blocks " +
               log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, blockId.shuffleId)}, " +
               log"mapId=${MDC(LogKeys.MAP_ID, blockId.mapId)}, " +
-              log"reduceId=${MDC(LogKeys.REDUCE_ID, blockId.reduceId)})", e)
+              log"reducePartitionRange=${MDC(REDUCE_PARTITION_RANGE, reduceRange)})", e)
         }
         spilledBlocks.invalidate(blockId)
       }

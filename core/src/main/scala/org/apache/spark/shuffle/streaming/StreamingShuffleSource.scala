@@ -17,7 +17,7 @@
 
 package org.apache.spark.shuffle.streaming
 
-import com.codahale.metrics.{Gauge, MetricRegistry}
+import com.codahale.metrics.MetricRegistry
 
 import org.apache.spark.annotation.Since
 import org.apache.spark.metrics.source.Source
@@ -45,15 +45,17 @@ import org.apache.spark.metrics.source.Source
  *  - `backpressureEvents` - a counter of backpressure throttling events raised by flow control.
  *  - `partialReadInvalidations` - a counter of in-progress reads invalidated on producer failure.
  *
- * '''Shared-instance wiring.''' The three counters are registered as the exact `Counter` objects
- * owned by the supplied [[StreamingShuffleMetrics]] (obtained through its `*Counter` accessors)
- * rather than freshly-created counters. This is the crux of the observability wiring: increments
- * performed at the producing call sites (`incSpillCount()`, `incBackpressureEvents()`,
- * `incPartialReadInvalidations()`) mutate the very same objects the `MetricsSystem` reports, so
- * remote increments are always reflected in the exported values. Registering fresh counters here
- * (for example via `metricRegistry.counter(...)`) would silently decouple them from those sites.
- * The gauge instead delegates to [[StreamingShuffleMetrics.currentBufferUtilization]] so that
- * every scrape observes the most recently published value.
+ * '''Shared-instance wiring.''' The gauge and the three counters are all registered as the exact
+ * metric objects owned by the supplied [[StreamingShuffleMetrics]] (obtained through its
+ * `bufferUtilizationGauge` and `*Counter` accessors) rather than freshly-created metrics. This is
+ * the crux of the observability wiring: increments performed at the producing call sites
+ * (`incSpillCount()`, `incBackpressureEvents()`, `incPartialReadInvalidations()`) mutate the very
+ * same objects the `MetricsSystem` reports, so remote increments are always reflected in the
+ * exported values. Registering fresh counters here (for example via `metricRegistry.counter(...)`)
+ * would silently decouple them from those sites. The gauge likewise reads the shared backing
+ * [[java.util.concurrent.atomic.AtomicInteger]] on every scrape (via
+ * [[StreamingShuffleMetrics.bufferUtilizationGauge]]), so it always observes the most recently
+ * published value.
  *
  * All reads are single lock-free atomic loads, keeping telemetry overhead well under the 1% CPU
  * budget mandated for the streaming shuffle feature.
@@ -68,11 +70,13 @@ private[spark] class StreamingShuffleSource(metrics: StreamingShuffleMetrics) ex
 
   override val metricRegistry: MetricRegistry = new MetricRegistry()
 
-  // `bufferUtilizationPercent` is a live gauge: each scrape reads the most recent utilization
-  // percentage that `MemorySpillManager` publishes into the shared metrics holder.
-  metricRegistry.register(MetricRegistry.name("bufferUtilizationPercent"), new Gauge[Int] {
-    override def getValue: Int = metrics.currentBufferUtilization
-  })
+  // `bufferUtilizationPercent` is a live gauge: register the SAME Gauge instance owned by
+  // StreamingShuffleMetrics (via its `bufferUtilizationGauge` accessor) rather than a freshly
+  // constructed anonymous gauge. Both read the identical backing AtomicInteger that
+  // `MemorySpillManager` refreshes every 100 ms, so behavior is unchanged; using the accessor keeps
+  // gauge ownership in the metrics holder, exactly mirroring how the counters below are wired.
+  metricRegistry.register(
+    MetricRegistry.name("bufferUtilizationPercent"), metrics.bufferUtilizationGauge)
 
   // Register the SAME Counter instances that StreamingShuffleMetrics increments so that every
   // increment at the producing call sites is reflected in the exported metric. Creating fresh

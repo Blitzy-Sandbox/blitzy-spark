@@ -406,8 +406,14 @@ private[spark] class StreamingShuffleManager(conf: SparkConf, isDriver: Boolean)
         // in-progress reads with partial-read invalidation over the reused BlockTransferService.
         val blocksByAddress = SparkEnv.get.mapOutputTracker.getMapSizesByExecutorId(
           handle.shuffleId, startMapIndex, endMapIndex, startPartition, endPartition)
+        // Thread the reduce-partition range through to the reader so its structured logs carry the
+        // exact `reduce_partition_range` correlation id (see StreamingShuffleLogKeys). The
+        // remaining constructor params (serializerManager/blockManager/mapOutputTracker/
+        // shouldBatchFetch) keep their SparkEnv-derived defaults, so they are skipped via named
+        // arguments here.
         new StreamingShuffleReader[K, C](
-          h, blocksByAddress, context, metrics, streamingMetrics, streamingConf)
+          h, blocksByAddress, context, metrics, streamingMetrics, streamingConf,
+          startPartition = startPartition, endPartition = endPartition)
       case _ =>
         // COEXISTENCE: non-streaming handles (and streaming handles when streaming is inactive on
         // this executor) are read by the inner SortShuffleManager unchanged.

@@ -138,6 +138,10 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   extends ShuffleWriter[K, V]
   with Logging {
 
+  // Streaming-only MDC correlation-id keys/formatters, defined inside the streaming package to keep
+  // shared LogKeys untouched (see StreamingShuffleLogKeys for the coexistence rationale).
+  import StreamingShuffleLogKeys.{ATTEMPT_ID, REDUCE_PARTITION_RANGE, singlePartition}
+
   // -- Derived shuffle metadata ------------------------------------------------------------------
 
   private val dep = handle.dependency
@@ -273,7 +277,7 @@ private[spark] class StreamingShuffleWriter[K, V, C](
   logInfo(log"Initialized streaming shuffle writer " +
     log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, shuffleId)}, " +
     log"mapId=${MDC(LogKeys.MAP_ID, mapId)}, " +
-    log"taskAttemptId=${MDC(LogKeys.TASK_ATTEMPT_ID, context.taskAttemptId())}, " +
+    log"attemptId=${MDC(ATTEMPT_ID, context.taskAttemptId())}, " +
     log"numPartitions=${MDC(LogKeys.NUM_PARTITIONS, numPartitions)}, " +
     log"bufferSizePercent=${MDC(LogKeys.PERCENT, handle.bufferSizePercent)}, " +
     log"totalBufferBudgetBytes=${MDC(LogKeys.NUM_BYTES, totalBufferBudgetBytes)}, " +
@@ -558,7 +562,7 @@ private[spark] class StreamingShuffleWriter[K, V, C](
       logDebug(log"streaming-shuffle backpressure signaled " +
         log"(shuffleId=${MDC(LogKeys.SHUFFLE_ID, shuffleId)}, " +
         log"mapId=${MDC(LogKeys.MAP_ID, mapId)}, " +
-        log"reduceId=${MDC(LogKeys.REDUCE_ID, partitionId)}, " +
+        log"reducePartitionRange=${MDC(REDUCE_PARTITION_RANGE, singlePartition(partitionId))}, " +
         log"bytes=${MDC(LogKeys.NUM_BYTES, block.length)})")
     }
     transport.send(envelope)

@@ -105,6 +105,15 @@ import org.apache.spark.util.collection.ExternalSorter
  * @param blockManager the block manager providing the block store client for fetches
  * @param mapOutputTracker the map-output tracker passed through to the fetch iterator
  * @param shouldBatchFetch whether contiguous shuffle blocks may be fetched in a single batch
+ * @param startPartition the first reduce partition (inclusive) this reader consumes. Defaults to
+ *                       the sentinel [[StreamingShuffleReader.UNSPECIFIED_PARTITION]], which the
+ *                       reader resolves to this task's own reduce partition so single-partition
+ *                       callers (e.g. unit tests) need not supply it. A constructor default cannot
+ *                       reference the sibling `context` parameter, hence the sentinel indirection.
+ * @param endPartition one past the last reduce partition (exclusive) this reader consumes. Defaults
+ *                     to the same sentinel, resolved to `startPartition + 1`. Together with
+ *                     `startPartition` this forms the `reduce_partition_range` structured-logging
+ *                     correlation id (see [[StreamingShuffleLogKeys]]).
  */
 @Since("4.2.0")
 private[spark] class StreamingShuffleReader[K, C](
@@ -117,11 +126,28 @@ private[spark] class StreamingShuffleReader[K, C](
     serializerManager: SerializerManager = SparkEnv.get.serializerManager,
     blockManager: BlockManager = SparkEnv.get.blockManager,
     mapOutputTracker: MapOutputTracker = SparkEnv.get.mapOutputTracker,
-    shouldBatchFetch: Boolean = false)
+    shouldBatchFetch: Boolean = false,
+    startPartition: Int = StreamingShuffleReader.UNSPECIFIED_PARTITION,
+    endPartition: Int = StreamingShuffleReader.UNSPECIFIED_PARTITION)
   extends ShuffleReader[K, C] with Logging {
 
   import StreamingShuffleReader.{MAX_CAUSE_DEPTH, PRODUCER_CONNECTION_TIMEOUT_MS, UNKNOWN_MAP_ID,
-    UNKNOWN_MAP_INDEX, UNKNOWN_REDUCE_ID}
+    UNKNOWN_MAP_INDEX, UNKNOWN_REDUCE_ID, UNSPECIFIED_PARTITION}
+  // Streaming-only MDC correlation-id keys/formatters, defined inside the streaming package to keep
+  // shared LogKeys untouched (see StreamingShuffleLogKeys for the coexistence rationale).
+  import StreamingShuffleLogKeys.{ATTEMPT_ID, REDUCE_PARTITION_RANGE, range, singlePartition}
+
+  // Resolve the reduce-partition range used as the `reduce_partition_range` correlation id. The
+  // production caller (StreamingShuffleManager.getReader) always supplies an explicit
+  // [startPartition, endPartition); callers that omit it (e.g. single-partition unit tests) pass
+  // the UNSPECIFIED_PARTITION sentinel and fall back to this task's own reduce partition as the
+  // degenerate range [partitionId, partitionId + 1). See StreamingShuffleLogKeys for the value
+  // convention.
+  private val resolvedStartPartition: Int =
+    if (startPartition == UNSPECIFIED_PARTITION) context.partitionId() else startPartition
+  private val resolvedEndPartition: Int =
+    if (endPartition == UNSPECIFIED_PARTITION) resolvedStartPartition + 1 else endPartition
+  private val reducePartitionRange: String = range(resolvedStartPartition, resolvedEndPartition)
 
   private val dep = handle.dependency
 
@@ -293,9 +319,9 @@ private[spark] class StreamingShuffleReader[K, C](
     if (conf.debug) {
       logDebug(
         log"Starting streaming shuffle read for shuffle " +
-          log"${MDC(LogKeys.SHUFFLE_ID, handle.shuffleId)} reduce partition " +
-          log"${MDC(LogKeys.REDUCE_ID, context.partitionId())} attempt " +
-          log"${MDC(LogKeys.TASK_ATTEMPT_ID, context.taskAttemptId())}")
+          log"${MDC(LogKeys.SHUFFLE_ID, handle.shuffleId)} reduce partition range " +
+          log"${MDC(REDUCE_PARTITION_RANGE, reducePartitionRange)} attempt " +
+          log"${MDC(ATTEMPT_ID, context.taskAttemptId())}")
     }
   }
 
@@ -384,8 +410,8 @@ private[spark] class StreamingShuffleReader[K, C](
         log"${MDC(LogKeys.TIMEOUT, PRODUCER_CONNECTION_TIMEOUT_MS)} ms; " +
         log"invalidating partial read for shuffle " +
         log"${MDC(LogKeys.SHUFFLE_ID, shuffleId)} map ${MDC(LogKeys.MAP_ID, mapId)} " +
-        log"reduce ${MDC(LogKeys.REDUCE_ID, reduceId)} attempt " +
-        log"${MDC(LogKeys.TASK_ATTEMPT_ID, context.taskAttemptId())}",
+        log"reduce partition range ${MDC(REDUCE_PARTITION_RANGE, singlePartition(reduceId))} " +
+        log"attempt ${MDC(ATTEMPT_ID, context.taskAttemptId())}",
       cause)
     // SPARK-19276: construct-and-throw in one statement so the TaskContext fetch-failed flag set by
     // the constructor is never leaked by a build-then-skip path.
@@ -506,4 +532,12 @@ private[spark] object StreamingShuffleReader {
 
   /** Sentinel map index used when a failed producer's map index is unknown. */
   val UNKNOWN_MAP_INDEX: Int = -1
+
+  /**
+   * Sentinel used as the default for the `startPartition`/`endPartition` constructor parameters.
+   * A constructor default expression cannot reference sibling constructor parameters (such as
+   * `context`), so callers that omit the reduce-partition range pass this sentinel and the reader
+   * resolves the effective range from its [[org.apache.spark.TaskContext]] in the class body.
+   */
+  val UNSPECIFIED_PARTITION: Int = -1
 }

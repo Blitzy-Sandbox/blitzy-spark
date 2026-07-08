@@ -84,6 +84,10 @@ private[spark] class BackpressureProtocol(
     rateLimiter: TokenBucketRateLimiter)
   extends Logging {
 
+  // Streaming-only MDC correlation-id key/formatter, defined inside the streaming package to keep
+  // shared LogKeys untouched (see StreamingShuffleLogKeys for the coexistence rationale).
+  import StreamingShuffleLogKeys.{REDUCE_PARTITION_RANGE, singlePartition}
+
   // Daemon scan cadence: run liveness detection once per second (AAP 0.5.2 + folder spec #8).
   private val SCAN_INTERVAL_MS = 1000L
   // Producer connection timeout: a producer silent longer than this is treated as failed. Kept
@@ -240,7 +244,7 @@ private[spark] class BackpressureProtocol(
       logWarning(log"Rejecting malformed streaming shuffle ConsumerAck with a " +
         log"negative identifier: shuffleId=${MDC(LogKeys.SHUFFLE_ID, shuffleId)} " +
         log"mapId=${MDC(LogKeys.MAP_ID, mapId)} " +
-        log"reduceId=${MDC(LogKeys.REDUCE_ID, reduceId)} " +
+        log"reducePartitionRange=${MDC(REDUCE_PARTITION_RANGE, singlePartition(reduceId))} " +
         log"seqNumber=${MDC(LogKeys.VALUE, seqNumber)}")
       return
     }

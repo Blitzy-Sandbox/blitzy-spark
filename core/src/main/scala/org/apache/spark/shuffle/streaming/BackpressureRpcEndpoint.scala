@@ -61,6 +61,9 @@ private[spark] class BackpressureRpcEndpoint(
 
   import BackpressureRpcEndpoint.{BackpressureStatus, ConsumerAck, ENDPOINT_NAME,
     GetBackpressureStatus, Heartbeat, ThrottleRequest}
+  // Streaming-only MDC correlation-id key/formatter, defined inside the streaming package to keep
+  // shared LogKeys untouched (see StreamingShuffleLogKeys for the coexistence rationale).
+  import StreamingShuffleLogKeys.{REDUCE_PARTITION_RANGE, singlePartition}
 
   /**
    * Handle one-way (fire-and-forget) backpressure messages. This endpoint is the '''trust
@@ -110,7 +113,7 @@ private[spark] class BackpressureRpcEndpoint(
       logWarning(log"Dropping malformed streaming shuffle ConsumerAck at the RPC boundary: " +
         log"shuffleId=${MDC(LogKeys.SHUFFLE_ID, ack.shuffleId)} " +
         log"mapId=${MDC(LogKeys.MAP_ID, ack.mapId)} " +
-        log"reduceId=${MDC(LogKeys.REDUCE_ID, ack.reduceId)} " +
+        log"reducePartitionRange=${MDC(REDUCE_PARTITION_RANGE, singlePartition(ack.reduceId))} " +
         log"bytesConsumed=${MDC(LogKeys.NUM_BYTES, ack.bytesConsumed)} " +
         log"seqNumber=${MDC(LogKeys.VALUE, ack.seqNumber)}")
       false

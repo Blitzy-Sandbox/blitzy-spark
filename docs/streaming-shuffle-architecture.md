@@ -293,7 +293,7 @@ backend is active.
 
 Streaming-shuffle components log through Spark's standard logging framework
 (`org.apache.spark.internal.Logging`) tagged with MDC (Mapped Diagnostic Context) correlation-ID
-keys — `shuffle_id`, `map_id`, `reduce_id`, and `task_attempt_id` — so operators can correlate
+keys — `shuffle_id`, `map_id`, `reduce_partition_range`, and `attempt_id` — so operators can correlate
 log lines across the producer (map) and consumer (reduce) executor boundaries for a single shuffle.
 Set `spark.shuffle.streaming.debug=true` (default `false`) to elevate the
 `org.apache.spark.shuffle.streaming` logger to `DEBUG` via the log4j2 `Configurator` at manager

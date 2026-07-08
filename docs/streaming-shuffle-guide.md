@@ -151,7 +151,7 @@ actually running before you rely on it:
   mere presence confirms the backend is active. See the [Monitoring](monitoring.html) guide for the
   full metric list.
 * **Logs.** Streaming-shuffle components emit structured logs tagged with the MDC correlation-ID keys
-  `shuffle_id`, `map_id`, `reduce_id`, and `task_attempt_id`, which let you correlate log
+  `shuffle_id`, `map_id`, `reduce_partition_range`, and `attempt_id`, which let you correlate log
   lines across the producer (map) and consumer (reduce) boundaries for a single shuffle. Set
   `spark.shuffle.streaming.debug=true` for verbose diagnostics. See the [Monitoring](monitoring.html)
   guide for how to surface these keys in your log layout.

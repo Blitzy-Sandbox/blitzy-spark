@@ -85,14 +85,15 @@ across the producer (map) and consumer (reduce) executor boundaries:
 
 * `shuffle_id` — the shuffle identifier;
 * `map_id` — the producing map task identifier;
-* `reduce_id` — the reduce partition identifier being read;
-* `task_attempt_id` — the task attempt identifier.
+* `reduce_partition_range` — the half-open range of reduce partitions being read, formatted
+  `[start, end)` (a single reduce partition appears as the degenerate range `[p, p+1)`);
+* `attempt_id` — the task attempt identifier.
 
 As with all Spark MDC keys, these are **not shown in plain-text logs by default**. To surface them,
 either:
 
 * add the keys to your log4j2 `PatternLayout` — for example `%X{shuffle_id}`, `%X{map_id}`,
-  `%X{reduce_id}`, and `%X{task_attempt_id}`; or
+  `%X{reduce_partition_range}`, and `%X{attempt_id}`; or
 * enable [structured logging](configuration.html#structured-logging) by setting
   `spark.log.structuredLogging.enabled=true`, which emits JSON containing **all** MDC fields (ideal
   for querying logs at scale).
@@ -178,8 +179,8 @@ the streaming backend itself:
 
 * Look for producer-executor crashes, long GC pauses (a pause exceeding the 5&nbsp;second timeout will
   trip it), or network partitions between executors.
-* Correlate the failing shuffle using the MDC keys `shuffle_id`, `map_id`, `reduce_id`,
-  and `task_attempt_id` (see [Reading the Logs](#reading-the-logs-mdc-correlation-ids)) to pinpoint
+* Correlate the failing shuffle using the MDC keys `shuffle_id`, `map_id`, `reduce_partition_range`,
+  and `attempt_id` (see [Reading the Logs](#reading-the-logs-mdc-correlation-ids)) to pinpoint
   the failing producer.
 * Repeated failures for the same producer usually indicate an infrastructure problem (an unhealthy
   node, a flaky network) rather than a streaming-shuffle defect.
