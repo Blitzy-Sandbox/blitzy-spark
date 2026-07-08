@@ -1446,6 +1446,63 @@ Apart from these, the following properties are also available, and may be useful
   </td>
   <td>3.4.0</td>
 </tr>
+<tr>
+  <td><code>spark.shuffle.streaming.enabled</code></td>
+  <td>false</td>
+  <td>
+    Opt-in flag for the streaming shuffle backend, which pipelines map-output data directly to
+    reduce tasks through bounded in-memory buffers instead of materializing shuffle files to disk.
+    This takes effect <b>only</b> when it is combined with <code>spark.shuffle.manager=streaming</code>;
+    both must be set (the "dual activation gate"). When streaming is not active, or whenever a
+    fallback condition is met, Spark transparently uses the default sort-based shuffle, so there is
+    no behavior change unless you explicitly opt in. Configuration is immutable for the application
+    lifetime; changing it requires an executor restart. See
+    <a href="streaming-shuffle-guide.html">Streaming Shuffle</a> for details.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.bufferSizePercent</code></td>
+  <td>20</td>
+  <td>
+    Percent of executor memory used for per-partition streaming buffers, as an integer in the
+    range <code>[1, 50]</code>. Each partition's buffer is sized approximately as
+    <code>(executorMemory &times; bufferSizePercent / 100) / numPartitions</code>. Only used when the
+    streaming shuffle backend is active.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.spillThreshold</code></td>
+  <td>80</td>
+  <td>
+    Buffer-utilization percent, as an integer in the range <code>[50, 95]</code>, at which the
+    streaming shuffle spills the largest / least-recently-used buffered partitions to disk
+    (<code>DISK_ONLY</code>) to relieve memory pressure. Only used when the streaming shuffle
+    backend is active.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.maxBandwidthMBps</code></td>
+  <td>0</td>
+  <td>
+    Per-executor streaming rate limit in MB/s. The default <code>0</code> means unlimited. When
+    set to a positive value, the effective per-shuffle refill rate is
+    <code>maxBandwidthMBps / numConcurrentShuffles</code>. Only used when the streaming shuffle
+    backend is active.
+  </td>
+  <td>4.2.0</td>
+</tr>
+<tr>
+  <td><code>spark.shuffle.streaming.debug</code></td>
+  <td>false</td>
+  <td>
+    Elevates the streaming-shuffle logger to DEBUG. Disabled by default; enable only for
+    diagnostics, as it increases log volume. Only used when the streaming shuffle backend is active.
+  </td>
+  <td>4.2.0</td>
+</tr>
 </table>
 
 ### Spark UI
