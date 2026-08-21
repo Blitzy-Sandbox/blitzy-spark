@@ -92,9 +92,11 @@
 //                       the predicate check.
 //
 // Output is deterministic: every collection printed is sorted or built in a fixed order, so
-// re-running an unchanged source produces byte-identical bytes and a diff between revisions
-// means something. Every value emitted is read from the graph; nothing is estimated, inferred
-// or filled in.
+// re-running an unchanged source produces byte-identical output and a diff between revisions
+// means something. The one field that legitimately differs between a run against a fresh
+// workspace and a run against a warm one is `load_mode`, whose whole purpose is to record that
+// difference. Every value emitted is read from the graph; nothing is estimated, inferred or
+// filled in.
 //
 // THE PREDICATE SET, AND THE TWO TRAPS IN DERIVING IT
 // ---------------------------------------------------
