@@ -1,0 +1,467 @@
+{
+  "slug": "03-parameterized-unguarded-handler-sink",
+  "query_source": "queries/joern/03-parameterized-unguarded-handler-sink.sc",
+  "source_sha256": "d7850cc1d123e612fe6a0badf26b2319f2186f4384c56ec4a6f55ba5a63af6cc",
+  "invocation": {
+    "command": [
+      "joern",
+      "--script",
+      "queries/joern/03-parameterized-unguarded-handler-sink.sc"
+    ],
+    "params": {},
+    "started_at": "2026-08-21T10:17:17Z",
+    "ended_at": "2026-08-21T10:17:32Z",
+    "exit_code": 0
+  },
+  "markers": {
+    "start_marker_seen": true,
+    "result_region_parsed": true
+  },
+  "compiled": true,
+  "ran": true,
+  "returns": [
+    {
+      "handler": "org.apache.spark.deploy.ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+      "sink": "java.lang.ProcessBuilder.start:java.lang.Process()",
+      "path": [
+        "org.apache.spark.deploy.ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.rpc.RpcEndpoint.receiveAndReply$:scala.PartialFunction(org.apache.spark.rpc.RpcEndpoint,org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.storage.BlockManagerStorageEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.storage.BlockManagerStorageEndpoint$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "org.apache.spark.util.Utils$.getHeapHistogram:java.lang.String[]()",
+        "java.lang.ProcessBuilder.start:java.lang.Process()"
+      ],
+      "predicates_on_path": []
+    },
+    {
+      "handler": "org.apache.spark.deploy.ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+      "sink": "org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)",
+      "path": [
+        "org.apache.spark.deploy.ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.rpc.RpcEndpoint.receiveAndReply$:scala.PartialFunction(org.apache.spark.rpc.RpcEndpoint,org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)"
+      ],
+      "predicates_on_path": []
+    },
+    {
+      "handler": "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+      "sink": "org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)",
+      "path": [
+        "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)"
+      ],
+      "predicates_on_path": []
+    },
+    {
+      "handler": "org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()",
+      "sink": "java.lang.ProcessBuilder.start:java.lang.Process()",
+      "path": [
+        "org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()",
+        "org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "org.apache.spark.deploy.worker.ExecutorRunner.start:void()",
+        "org.apache.spark.deploy.worker.ExecutorRunner$$anon$1.run:void()",
+        "org.apache.spark.deploy.worker.ExecutorRunner.org$apache$spark$deploy$worker$ExecutorRunner$$fetchAndRunExecutor:void()",
+        "java.lang.ProcessBuilder.start:java.lang.Process()"
+      ],
+      "predicates_on_path": []
+    },
+    {
+      "handler": "org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()",
+      "sink": "org.apache.spark.deploy.worker.DriverRunner.<init>:void(org.apache.spark.SparkConf,java.lang.String,java.io.File,java.io.File,org.apache.spark.deploy.DriverDescription,org.apache.spark.rpc.RpcEndpointRef,java.lang.String,java.lang.String,org.apache.spark.SecurityManager,scala.collection.immutable.Map)",
+      "path": [
+        "org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()",
+        "org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "org.apache.spark.deploy.worker.DriverRunner.<init>:void(org.apache.spark.SparkConf,java.lang.String,java.io.File,java.io.File,org.apache.spark.deploy.DriverDescription,org.apache.spark.rpc.RpcEndpointRef,java.lang.String,java.lang.String,org.apache.spark.SecurityManager,scala.collection.immutable.Map)"
+      ],
+      "predicates_on_path": []
+    },
+    {
+      "handler": "org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()",
+      "sink": "org.apache.spark.deploy.worker.ExecutorRunner.<init>:void(java.lang.String,int,org.apache.spark.deploy.ApplicationDescription,int,int,org.apache.spark.rpc.RpcEndpointRef,java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.io.File,java.io.File,java.lang.String,org.apache.spark.SparkConf,scala.collection.immutable.Seq,scala.Enumeration$Value,int,scala.collection.immutable.Map)",
+      "path": [
+        "org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()",
+        "org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "org.apache.spark.deploy.worker.ExecutorRunner.<init>:void(java.lang.String,int,org.apache.spark.deploy.ApplicationDescription,int,int,org.apache.spark.rpc.RpcEndpointRef,java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.io.File,java.io.File,java.lang.String,org.apache.spark.SparkConf,scala.collection.immutable.Seq,scala.Enumeration$Value,int,scala.collection.immutable.Map)"
+      ],
+      "predicates_on_path": []
+    },
+    {
+      "handler": "org.apache.spark.deploy.worker.WorkerWatcher.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+      "sink": "java.lang.ProcessBuilder.start:java.lang.Process()",
+      "path": [
+        "org.apache.spark.deploy.worker.WorkerWatcher.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.rpc.RpcEndpoint.receiveAndReply$:scala.PartialFunction(org.apache.spark.rpc.RpcEndpoint,org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.storage.BlockManagerStorageEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.storage.BlockManagerStorageEndpoint$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "org.apache.spark.util.Utils$.getHeapHistogram:java.lang.String[]()",
+        "java.lang.ProcessBuilder.start:java.lang.Process()"
+      ],
+      "predicates_on_path": []
+    },
+    {
+      "handler": "org.apache.spark.deploy.worker.WorkerWatcher.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+      "sink": "org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)",
+      "path": [
+        "org.apache.spark.deploy.worker.WorkerWatcher.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.rpc.RpcEndpoint.receiveAndReply$:scala.PartialFunction(org.apache.spark.rpc.RpcEndpoint,org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)"
+      ],
+      "predicates_on_path": []
+    }
+  ],
+  "return_count": 8,
+  "spurious_count": 0,
+  "spurious_test": "A return is spurious when an authentication or ACL predicate from the set the query derived at execution time lies on the emitted path between the handler entry and the sink; on-path presence is the entire test, and control dependence of the sink on that predicate is not required.",
+  "diagnostics": {
+    "parameters": {
+      "declared": [
+        {
+          "name": "handlerPattern",
+          "type": "string",
+          "value_used": "receive=org\\.apache\\.spark\\.deploy\\..*\\.receive:.*;receiveAndReply=org\\.apache\\.spark\\.deploy\\..*\\.receiveAndReply:.*",
+          "declared_default": "receive=org\\.apache\\.spark\\.deploy\\..*\\.receive:.*;receiveAndReply=org\\.apache\\.spark\\.deploy\\..*\\.receiveAndReply:.*",
+          "origin": "default_value",
+          "generalizes_over": "the identity of the entry point: any method the graph holds, selected by an anchored full-match regex over its full name, whatever its name, its enclosing type or its package",
+          "parsed_alternatives": [
+            {
+              "label": "receive",
+              "pattern": "org\\.apache\\.spark\\.deploy\\..*\\.receive:.*"
+            },
+            {
+              "label": "receiveAndReply",
+              "pattern": "org\\.apache\\.spark\\.deploy\\..*\\.receiveAndReply:.*"
+            }
+          ]
+        },
+        {
+          "name": "sinkPattern",
+          "type": "string",
+          "value_used": "createDriver=org\\.apache\\.spark\\.deploy\\..*createDriver:.*;DriverRunner=org\\.apache\\.spark\\.deploy\\.worker\\.DriverRunner\\.<init>:.*;process_launch=(java\\.lang\\.ProcessBuilder\\.start|java\\.lang\\.Runtime\\.exec):.*;ExecutorRunner_additional=org\\.apache\\.spark\\.deploy\\.worker\\.ExecutorRunner\\.<init>:.*",
+          "declared_default": "createDriver=org\\.apache\\.spark\\.deploy\\..*createDriver:.*;DriverRunner=org\\.apache\\.spark\\.deploy\\.worker\\.DriverRunner\\.<init>:.*;process_launch=(java\\.lang\\.ProcessBuilder\\.start|java\\.lang\\.Runtime\\.exec):.*;ExecutorRunner_additional=org\\.apache\\.spark\\.deploy\\.worker\\.ExecutorRunner\\.<init>:.*",
+          "origin": "default_value",
+          "generalizes_over": "the identity of the privileged sink: any method the graph holds, selected the same way, including a constructor and a method with no body of its own",
+          "parsed_alternatives": [
+            {
+              "label": "createDriver",
+              "pattern": "org\\.apache\\.spark\\.deploy\\..*createDriver:.*"
+            },
+            {
+              "label": "DriverRunner",
+              "pattern": "org\\.apache\\.spark\\.deploy\\.worker\\.DriverRunner\\.<init>:.*"
+            },
+            {
+              "label": "process_launch",
+              "pattern": "(java\\.lang\\.ProcessBuilder\\.start|java\\.lang\\.Runtime\\.exec):.*"
+            },
+            {
+              "label": "ExecutorRunner_additional",
+              "pattern": "org\\.apache\\.spark\\.deploy\\.worker\\.ExecutorRunner\\.<init>:.*"
+            }
+          ]
+        },
+        {
+          "name": "maxDepth",
+          "type": "string at the invocation boundary, parsed by this script as a positive integer",
+          "value_used": "20",
+          "value_parsed": 20,
+          "declared_default": "20",
+          "origin": "default_value",
+          "generalizes_over": "how far the traversal may follow call edges from an entry point, so that a handler and a sink further apart than the default pair can still be related"
+        }
+      ],
+      "origin_rule": "the value in force is compared with the declared default: `default_value` where they are equal and `override` where they differ. A parameter arrives as a string with no provenance, so a caller who passed exactly the declared default is recorded the same way as one who passed nothing",
+      "pattern_list_format": "one or more alternatives separated by `;`, each of the form <label>=<regex> — the label is everything before the first `=`, trimmed, and the regex is everything after it, taken verbatim; an alternative with no `=` is labelled with its own pattern text",
+      "pattern_list_format_limitation": "the format defines no escape for its own separator, so a `;` cannot appear inside a pattern",
+      "label_note": "a label is a name and nothing more: the script resolves and reports every alternative identically, whatever its label says",
+      "match_mode": "anchored full match against a method full name as the frontend records it — owner type, method name, then a signature"
+    },
+    "load_mode": "imported_persisted_cpg",
+    "workspace": "queries/joern/.workspace",
+    "cpg_source": "harness/cpg/spark.cpg",
+    "cpg_project_name": "spark.cpg",
+    "cpg_method_count": 445567,
+    "derived_predicates": {
+      "type_declaration_selector": "org\\.apache\\.spark\\.SecurityManager",
+      "resolved_type_declarations": [
+        "org.apache.spark.SecurityManager"
+      ],
+      "member_names_on_type_declaration": [
+        "WILDCARD_ACL",
+        "aclsOn",
+        "adminAcls",
+        "adminAclsGroups",
+        "authOn",
+        "authSecretFileConf",
+        "defaultAclUsers",
+        "defaultSSLOptions",
+        "hadoopConf",
+        "ioEncryptionKey",
+        "modifyAcls",
+        "modifyAclsGroups",
+        "org$apache$spark$internal$Logging$$log_",
+        "rpcSSLOptions",
+        "secretKey",
+        "sparkConf",
+        "sslRpcEnabled",
+        "viewAcls",
+        "viewAclsGroups"
+      ],
+      "name_selector": "^(check.*Permissions|acls.*|isAuthenticationEnabled)$",
+      "match_mode": "anchored full match",
+      "exposed_as_a_parameter": false,
+      "methods_considered": 126,
+      "pattern_matched": [
+        "aclsEnabled",
+        "aclsOn",
+        "aclsOn_$eq",
+        "checkAdminPermissions",
+        "checkModifyPermissions",
+        "checkUIViewPermissions",
+        "isAuthenticationEnabled"
+      ],
+      "exclusion_rules": [
+        {
+          "rule": "scala_setter_suffix",
+          "applied": true,
+          "removed": [
+            "aclsOn_$eq"
+          ]
+        },
+        {
+          "rule": "field_member_name_collision",
+          "applied": true,
+          "removed": [
+            "aclsOn"
+          ]
+        },
+        {
+          "rule": "field_accessor_setter_evidence",
+          "applied": false,
+          "removed": []
+        }
+      ],
+      "resolved": [
+        "org.apache.spark.SecurityManager.aclsEnabled:boolean()",
+        "org.apache.spark.SecurityManager.checkAdminPermissions:boolean(java.lang.String)",
+        "org.apache.spark.SecurityManager.checkModifyPermissions:boolean(java.lang.String)",
+        "org.apache.spark.SecurityManager.checkUIViewPermissions:boolean(java.lang.String)",
+        "org.apache.spark.SecurityManager.isAuthenticationEnabled:boolean()"
+      ],
+      "count": 5
+    },
+    "handler_anchors": [
+      {
+        "label": "receive",
+        "selector": "org\\.apache\\.spark\\.deploy\\..*\\.receive:.*",
+        "resolved_count": 8,
+        "resolved": [
+          "org.apache.spark.deploy.ClientEndpoint.receive:scala.PartialFunction()",
+          "org.apache.spark.deploy.DriverRedirectConsolePlugin.receive:java.lang.Object(java.lang.Object)",
+          "org.apache.spark.deploy.DriverTimeoutDriverPlugin.receive:java.lang.Object(java.lang.Object)",
+          "org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint.receive:scala.PartialFunction()",
+          "org.apache.spark.deploy.master.Master.receive:scala.PartialFunction()",
+          "org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()",
+          "org.apache.spark.deploy.worker.WorkerWatcher.receive:scala.PartialFunction()",
+          "org.apache.spark.deploy.yarn.ApplicationMaster$AMEndpoint.receive:scala.PartialFunction()"
+        ],
+        "returns_contributed": 3
+      },
+      {
+        "label": "receiveAndReply",
+        "selector": "org\\.apache\\.spark\\.deploy\\..*\\.receiveAndReply:.*",
+        "resolved_count": 6,
+        "resolved": [
+          "org.apache.spark.deploy.ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+          "org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+          "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+          "org.apache.spark.deploy.worker.Worker.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+          "org.apache.spark.deploy.worker.WorkerWatcher.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+          "org.apache.spark.deploy.yarn.ApplicationMaster$AMEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)"
+        ],
+        "returns_contributed": 5
+      }
+    ],
+    "sink_anchors": [
+      {
+        "label": "createDriver",
+        "selector": "org\\.apache\\.spark\\.deploy\\..*createDriver:.*",
+        "resolved_count": 1,
+        "resolved": [
+          "org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)"
+        ],
+        "returns_contributed": 3
+      },
+      {
+        "label": "DriverRunner",
+        "selector": "org\\.apache\\.spark\\.deploy\\.worker\\.DriverRunner\\.<init>:.*",
+        "resolved_count": 1,
+        "resolved": [
+          "org.apache.spark.deploy.worker.DriverRunner.<init>:void(org.apache.spark.SparkConf,java.lang.String,java.io.File,java.io.File,org.apache.spark.deploy.DriverDescription,org.apache.spark.rpc.RpcEndpointRef,java.lang.String,java.lang.String,org.apache.spark.SecurityManager,scala.collection.immutable.Map)"
+        ],
+        "returns_contributed": 1
+      },
+      {
+        "label": "process_launch",
+        "selector": "(java\\.lang\\.ProcessBuilder\\.start|java\\.lang\\.Runtime\\.exec):.*",
+        "resolved_count": 1,
+        "resolved": [
+          "java.lang.ProcessBuilder.start:java.lang.Process()"
+        ],
+        "returns_contributed": 3
+      },
+      {
+        "label": "ExecutorRunner_additional",
+        "selector": "org\\.apache\\.spark\\.deploy\\.worker\\.ExecutorRunner\\.<init>:.*",
+        "resolved_count": 1,
+        "resolved": [
+          "org.apache.spark.deploy.worker.ExecutorRunner.<init>:void(java.lang.String,int,org.apache.spark.deploy.ApplicationDescription,int,int,org.apache.spark.rpc.RpcEndpointRef,java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.io.File,java.io.File,java.lang.String,org.apache.spark.SparkConf,scala.collection.immutable.Seq,scala.Enumeration$Value,int,scala.collection.immutable.Map)"
+        ],
+        "returns_contributed": 1
+      }
+    ],
+    "bridges": {
+      "thread_boundary": {
+        "rule": "from a frontier method to the `run` of an anonymous type it allocates, whose full name is the enclosing type followed by `$$anon$` and a number",
+        "keyed_off": "the frontier method the traversal is standing on — its own enclosing type and, for the partial-function rule, its own name — so the rule follows whatever a caller's pattern resolved rather than a name written into this script",
+        "fired": true,
+        "succeeded": true,
+        "matched_types": 20,
+        "distinct_connections": 14,
+        "needed_by_an_emitted_path": true,
+        "connections_on_emitted_paths": [
+          "org.apache.spark.deploy.worker.ExecutorRunner.start:void() ==> org.apache.spark.deploy.worker.ExecutorRunner$$anon$1.run:void()"
+        ],
+        "connections": [
+          "org.apache.spark.BarrierCoordinator$ContextBarrierState.initTimerTask:void(org.apache.spark.BarrierCoordinator$ContextBarrierState) ==> org.apache.spark.BarrierCoordinator$ContextBarrierState$$anon$2.run:void()",
+          "org.apache.spark.HeartbeatReceiver$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1) ==> org.apache.spark.HeartbeatReceiver$$anonfun$receiveAndReply$1$$anon$1.run:void()",
+          "org.apache.spark.SparkContext.stopInNewThread:void() ==> org.apache.spark.SparkContext$$anon$3.run:void()",
+          "org.apache.spark.deploy.master.Master$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1) ==> org.apache.spark.deploy.master.Master$$anonfun$receive$1$$anon$1.run:void()",
+          "org.apache.spark.deploy.worker.DriverRunner.start:void() ==> org.apache.spark.deploy.worker.DriverRunner$$anon$2.run:void()",
+          "org.apache.spark.deploy.worker.ExecutorRunner.start:void() ==> org.apache.spark.deploy.worker.ExecutorRunner$$anon$1.run:void()",
+          "org.apache.spark.executor.CoarseGrainedExecutorBackend.org$apache$spark$executor$CoarseGrainedExecutorBackend$$decommissionSelf:void() ==> org.apache.spark.executor.CoarseGrainedExecutorBackend$$anon$2.run:void()",
+          "org.apache.spark.rpc.netty.MessageLoop.<init>:void(org.apache.spark.rpc.netty.Dispatcher) ==> org.apache.spark.rpc.netty.MessageLoop$$anon$1.run:void()",
+          "org.apache.spark.rpc.netty.NettyRpcEnv.askAbortable:org.apache.spark.rpc.AbortableRpcFuture(org.apache.spark.rpc.netty.RequestMessage,org.apache.spark.rpc.RpcTimeout,scala.reflect.ClassTag) ==> org.apache.spark.rpc.netty.NettyRpcEnv$$anon$1.run:void()",
+          "org.apache.spark.scheduler.cluster.k8s.KubernetesClusterSchedulerBackend$KubernetesDriverEndpoint$$anonfun$generateExecID$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1) ==> org.apache.spark.scheduler.cluster.k8s.KubernetesClusterSchedulerBackend$KubernetesDriverEndpoint$$anonfun$generateExecID$1$$anon$3.run:void()",
+          "org.apache.spark.storage.BlockManagerDecommissioner.<init>:void(org.apache.spark.SparkConf,org.apache.spark.storage.BlockManager) ==> org.apache.spark.storage.BlockManagerDecommissioner$$anon$1.run:void()",
+          "org.apache.spark.storage.BlockManagerDecommissioner.<init>:void(org.apache.spark.SparkConf,org.apache.spark.storage.BlockManager) ==> org.apache.spark.storage.BlockManagerDecommissioner$$anon$2.run:void()",
+          "org.apache.spark.util.SparkShutdownHookManager.install:void() ==> org.apache.spark.util.SparkShutdownHookManager$$anon$2.run:void()",
+          "org.apache.spark.util.logging.FileAppender.<init>:void(java.io.InputStream,java.io.File,int,boolean) ==> org.apache.spark.util.logging.FileAppender$$anon$1.run:void()"
+        ]
+      },
+      "partialfunction_boundary": {
+        "rule": "from a frontier method to every method of the synthetic partial-function type it allocates, whose full name is the enclosing type followed by `$$anonfun$`, the method's own name and a number",
+        "keyed_off": "the frontier method the traversal is standing on — its own enclosing type and, for the partial-function rule, its own name — so the rule follows whatever a caller's pattern resolved rather than a name written into this script",
+        "fired": true,
+        "succeeded": true,
+        "matched_types": 34,
+        "distinct_connections": 34,
+        "needed_by_an_emitted_path": true,
+        "connections_on_emitted_paths": [
+          "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+          "org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction() ==> org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+          "org.apache.spark.storage.BlockManagerStorageEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.storage.BlockManagerStorageEndpoint$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)"
+        ],
+        "connections": [
+          "org.apache.spark.BarrierCoordinator.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.BarrierCoordinator$$anonfun$receiveAndReply$1 [4 methods]",
+          "org.apache.spark.HeartbeatReceiver.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.HeartbeatReceiver$$anonfun$receiveAndReply$1 [7 methods]",
+          "org.apache.spark.MapOutputTrackerMasterEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.MapOutputTrackerMasterEndpoint$$anonfun$receiveAndReply$1 [5 methods]",
+          "org.apache.spark.deploy.ClientEndpoint.receive:scala.PartialFunction() ==> org.apache.spark.deploy.ClientEndpoint$$anonfun$receive$1 [6 methods]",
+          "org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint.org$apache$spark$deploy$client$StandaloneAppClient$ClientEndpoint$$askAndReplyAsync:void(org.apache.spark.rpc.RpcEndpointRef,org.apache.spark.rpc.RpcCallContext,java.lang.Object) ==> org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint$$anonfun$org$apache$spark$deploy$client$StandaloneAppClient$ClientEndpoint$$askAndReplyAsync$1 [5 methods]",
+          "org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint.receive:scala.PartialFunction() ==> org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint$$anonfun$receive$1 [12 methods]",
+          "org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint$$anonfun$receiveAndReply$1 [6 methods]",
+          "org.apache.spark.deploy.master.Master.receive:scala.PartialFunction() ==> org.apache.spark.deploy.master.Master$$anonfun$receive$1 [44 methods]",
+          "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1 [30 methods]",
+          "org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction() ==> org.apache.spark.deploy.worker.Worker$$anonfun$receive$1 [33 methods]",
+          "org.apache.spark.deploy.worker.Worker.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.deploy.worker.Worker$$anonfun$receiveAndReply$1 [5 methods]",
+          "org.apache.spark.deploy.worker.WorkerWatcher.receive:scala.PartialFunction() ==> org.apache.spark.deploy.worker.WorkerWatcher$$anonfun$receive$1 [5 methods]",
+          "org.apache.spark.deploy.yarn.ApplicationMaster$AMEndpoint.receive:scala.PartialFunction() ==> org.apache.spark.deploy.yarn.ApplicationMaster$AMEndpoint$$anonfun$receive$1 [3 methods]",
+          "org.apache.spark.deploy.yarn.ApplicationMaster$AMEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.deploy.yarn.ApplicationMaster$AMEndpoint$$anonfun$receiveAndReply$1 [10 methods]",
+          "org.apache.spark.executor.CoarseGrainedExecutorBackend.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.executor.CoarseGrainedExecutorBackend$$anonfun$receiveAndReply$1 [8 methods]",
+          "org.apache.spark.internal.plugin.PluginEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.internal.plugin.PluginEndpoint$$anonfun$receiveAndReply$1 [3 methods]",
+          "org.apache.spark.rpc.RpcEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.rpc.RpcEndpoint$$anonfun$receiveAndReply$1 [3 methods]",
+          "org.apache.spark.rpc.RpcTimeout.addMessageIfTimeout:scala.PartialFunction() ==> org.apache.spark.rpc.RpcTimeout$$anonfun$addMessageIfTimeout$1 [5 methods]",
+          "org.apache.spark.rpc.netty.RpcEndpointVerifier.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.rpc.netty.RpcEndpointVerifier$$anonfun$receiveAndReply$1 [3 methods]",
+          "org.apache.spark.scheduler.OutputCommitCoordinator$OutputCommitCoordinatorEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.scheduler.OutputCommitCoordinator$OutputCommitCoordinatorEndpoint$$anonfun$receiveAndReply$1 [3 methods]",
+          "org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend$DriverEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend$DriverEndpoint$$anonfun$receiveAndReply$1 [24 methods]",
+          "org.apache.spark.scheduler.cluster.YarnSchedulerBackend$YarnSchedulerEndpoint$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1) ==> org.apache.spark.scheduler.cluster.YarnSchedulerBackend$YarnSchedulerEndpoint$$anonfun$receiveAndReply$1$$anonfun$applyOrElse$6 [7 methods]",
+          "org.apache.spark.scheduler.cluster.YarnSchedulerBackend$YarnSchedulerEndpoint$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1) ==> org.apache.spark.scheduler.cluster.YarnSchedulerBackend$YarnSchedulerEndpoint$$anonfun$receiveAndReply$1$$anonfun$applyOrElse$9 [7 methods]",
+          "org.apache.spark.scheduler.cluster.YarnSchedulerBackend$YarnSchedulerEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.scheduler.cluster.YarnSchedulerBackend$YarnSchedulerEndpoint$$anonfun$receiveAndReply$1 [7 methods]",
+          "org.apache.spark.scheduler.cluster.k8s.KubernetesClusterSchedulerBackend$KubernetesDriverEndpoint.generateExecID:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.scheduler.cluster.k8s.KubernetesClusterSchedulerBackend$KubernetesDriverEndpoint$$anonfun$generateExecID$1 [4 methods]",
+          "org.apache.spark.scheduler.cluster.k8s.KubernetesClusterSchedulerBackend$KubernetesDriverEndpoint.ignoreRegisterExecutorAtStoppedContext:scala.PartialFunction() ==> org.apache.spark.scheduler.cluster.k8s.KubernetesClusterSchedulerBackend$KubernetesDriverEndpoint$$anonfun$ignoreRegisterExecutorAtStoppedContext$1 [3 methods]",
+          "org.apache.spark.scheduler.local.LocalEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.scheduler.local.LocalEndpoint$$anonfun$receiveAndReply$1 [3 methods]",
+          "org.apache.spark.sql.execution.streaming.continuous.EpochCoordinator.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.sql.execution.streaming.continuous.EpochCoordinator$$anonfun$receiveAndReply$1 [5 methods]",
+          "org.apache.spark.sql.execution.streaming.runtime.ContinuousRecordEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.sql.execution.streaming.runtime.ContinuousRecordEndpoint$$anonfun$receiveAndReply$1 [3 methods]",
+          "org.apache.spark.sql.execution.streaming.state.StateStoreCoordinator.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.sql.execution.streaming.state.StateStoreCoordinator$$anonfun$receiveAndReply$1 [36 methods]",
+          "org.apache.spark.storage.BlockManagerMasterEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.storage.BlockManagerMasterEndpoint$$anonfun$receiveAndReply$1 [9 methods]",
+          "org.apache.spark.storage.BlockManagerMasterHeartbeatEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.storage.BlockManagerMasterHeartbeatEndpoint$$anonfun$receiveAndReply$1 [3 methods]",
+          "org.apache.spark.storage.BlockManagerStorageEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.storage.BlockManagerStorageEndpoint$$anonfun$receiveAndReply$1 [9 methods]",
+          "org.apache.spark.streaming.scheduler.ReceiverTracker$ReceiverTrackerEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.streaming.scheduler.ReceiverTracker$ReceiverTrackerEndpoint$$anonfun$receiveAndReply$1 [8 methods]"
+        ]
+      }
+    },
+    "traversal": {
+      "direction": "forward over callee edges, one traversal per resolved entry point, from the node set `handlerPattern` resolved to the node set `sinkPattern` resolved",
+      "generality": "the traversal reads both ends from the resolved node sets and tests membership by method full name, so no step of it depends on an entry point's name, a sink's name, or the package either lies in",
+      "relation_expressed": "reachability over call edges: a return says a chain of calls, plus the bridges recorded above, runs from the entry point to the sink. Whether a value the entry point received arrives at an argument of the sink is a different relation, over data dependence, which this formulation does not express and does not claim to",
+      "max_call_depth": 20,
+      "max_call_depth_source": "the `maxDepth` parameter",
+      "bound_reached": true,
+      "entry_points_truncated_at_bound": 6,
+      "entry_points_traversed": 14,
+      "sink_methods_resolved": 4,
+      "methods_seen_summed_over_entry_points": 193135,
+      "expansion_restriction": "the frontier expands only through a method the graph carries a body for; an operator pseudo-method and a derived predicate are never expanded, so no emitted path has a predicate as an intermediate node. A sink or a predicate is still recognised wherever it is reached, including where the graph carries no body for it",
+      "expansion_restriction_evidence": {
+        "methods_the_graph_carries_a_body_for": 380022,
+        "methods_the_graph_carries_no_body_for": 65545,
+        "methods_carrying_no_body_that_hold_a_callee_edge": 0,
+        "reading": "a method carrying no body holds no callee edge to follow, so the bodied methods are the whole of what any callee traversal could expand through; the restriction is therefore a property of this graph rather than a choice of code base, and it is measured here rather than asserted"
+      },
+      "path_selection": "one return per (entry point, sink) pair, whose path is the breadth-first discovery path; successors are visited in full-name order and returns are sorted, so the output is reproducible",
+      "predicate_check_reach": "the emitted path nodes, plus one outgoing call step from each of them",
+      "predicates_on_path_dependence_on_the_bound": "the paths this run emitted are the paths reachable within the bound above, so the predicates found on them are a property of that bound as well as of the graph: a path stopping at a construction does not traverse what a path continuing past it traverses. A caller changing `maxDepth` changes which paths exist to be checked, and this field records that rather than smoothing it over",
+      "returns_emitted": 8,
+      "returns_removed_by_deduplication": 0,
+      "returns_whose_emitted_path_carries_a_derived_predicate": 0,
+      "deepest_emitted_sink_depth": 5,
+      "returns_whose_path_traverses_a_trait_default_method_forwarder": 4,
+      "returns_traversing_a_trait_default_method_forwarder": [
+        "org.apache.spark.deploy.ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> java.lang.ProcessBuilder.start:java.lang.Process()",
+        "org.apache.spark.deploy.ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)",
+        "org.apache.spark.deploy.worker.WorkerWatcher.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> java.lang.ProcessBuilder.start:java.lang.Process()",
+        "org.apache.spark.deploy.worker.WorkerWatcher.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) ==> org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)"
+      ],
+      "no_returns_explanation": null
+    }
+  },
+  "not_evaluable": null,
+  "failure_reason": null,
+  "stderr_ref": {
+    "path": "queries/joern/.workspace/03-parameterized-unguarded-handler-sink.stderr.log",
+    "line_range": [
+      1,
+      8
+    ]
+  },
+  "graph": {
+    "source": "harness/cpg/spark.cpg",
+    "loaded_with": "importCpg",
+    "built": false
+  },
+  "revisions": [
+    {
+      "executed_at": "2026-08-21T10:17:17Z",
+      "source_sha256": "d7850cc1d123e612fe6a0badf26b2319f2186f4384c56ec4a6f55ba5a63af6cc",
+      "compiled": true,
+      "ran": true,
+      "return_count": 8,
+      "spurious_count": 0
+    }
+  ],
+  "revision_count": 1
+}
