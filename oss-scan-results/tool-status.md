@@ -58,12 +58,12 @@ describe a parse that never happened, and they are reported as not determined ra
 | Parse status | `absent` for `trivy` only; **not determined** for the other eight | `absent` follows from an artifact that was never written, which is observable without parsing anything. `clean`, `partial` and `failed` each describe the outcome of a parse, and no parse was performed |
 | Records parsed and rejected | **not determined** for all nine | No adapter ran, so no record was ever parsed or rejected. A reject count of zero would assert a clean parse that never took place |
 | Finding count | **no numeric count for any tool** — see section 3 | A tool's finding count is the number of rows carrying its token in `findings.json`, and `findings.json` does not exist |
-| Both reconciliation assertions, and the row-validation result | **not evaluated** — see section 4 | Neither has a right-hand side to evaluate against |
+| Both reconciliation assertions, and the row-validation result | **not evaluated** — see section 7 | Neither has a right-hand side to evaluate against |
 
 What this file *can* state, and does, is every fact Phase 1 produced: for all nine tools the
 execution state, the exit status, the elapsed time, whether an artifact was written and how large it
 is, and — read independently from each artifact's own structure — how many records that artifact
-holds. Sections 5 to 7 carry the datadog block, the dependency-feed block and the two
+holds. Sections 4 to 6 carry the datadog block, the dependency-feed block and the two
 record-versus-reality checks only Phase 1 can make. Section 8 reports each of the six Done-when
 conditions on its own.
 
@@ -119,7 +119,7 @@ single recorded name for it — a recorded tool condition, never grounds to re-r
 **The artifact's own record count, for the eight artifacts that exist.** This is *not* a finding
 count and is not a dataset row count. It is the number of records each artifact holds by its own
 structure, counted directly from the artifact and independently of any row-building traversal — the
-left-hand side of the per-tool reconciliation assertion in section 4, which was never evaluated
+left-hand side of the per-tool reconciliation assertion in section 7, which was never evaluated
 because there is no right-hand side to compare it against.
 
 | Tool | Records in the artifact | Record locator counted | Independent agreement with the tool's own reported total |
@@ -169,7 +169,7 @@ copying its contents.
 Too Many Requests` with a `Retry-After` of 1800 s while Trivy's Java dependency scanner was resolving
 a POM, and the repository blocks subsequent requests from the same address until that clears. The
 failure is in remote POM resolution and not in the vulnerability database, which Trivy read from cache
-— its own database metadata is on `trivy.stdout.log` line 7 and is reported in section 6. Its stderr
+— its own database metadata is on `trivy.stdout.log` line 7 and is reported in section 5. Its stderr
 lines 1-6 record its three scanners as enabled together with cache and recommendation notes, and line
 7 a `WARN` about a POM dependency version it could not determine.
 
@@ -200,7 +200,7 @@ from (`harness/ENVIRONMENT.md` §12) — so nothing in this run distinguishes `v
 scanned with the package count found in it, and 85 `failed resolution` lines at stderr lines 59-190,
 each naming a POM under `$SPARK_SRC` whose transitive resolution did not complete because a sibling
 Spark module at `4.1.0-SNAPSHOT` was not found in a repository. Recorded as a tool condition bearing
-on what the tool was able to resolve; nothing is concluded from it here. Feed state is in section 6.
+on what the tool was able to resolve; nothing is concluded from it here. Feed state is in section 5.
 
 ### 2.3 `dependency-check`
 
@@ -231,7 +231,7 @@ The runner was given `HARNESS_DC_DATA_DIR=/opt/blitzy-harness/dependency-check/d
 command line, recorded in `dependency-check.meta.json` as `extra_env`. That is the per-clone operation
 `harness/ENVIRONMENT.md` §13 requires — the H2 database takes no concurrent writers — and the runner
 reads its data directory from that variable by design, so it is not a change to the scanner's
-configuration. Feed state is in section 6.
+configuration. Feed state is in section 5.
 
 ### 2.4 `gitleaks`
 
@@ -330,7 +330,7 @@ language; and lines 21-23 report that some files were skipped or only partially 
 scan was limited to files tracked by git, and that 39 files were only partially analyzed owing to
 parsing or internal errors. These are the tool's own statements about the extent of its scan, recorded
 so that no count derived from this artifact is later read as exhaustive. Taint configuration is a
-separate matter and is in section 7.
+separate matter and is in section 6.
 
 ### 2.7 `semgrep`
 
@@ -410,7 +410,7 @@ languages its rules cover, and Scala is not among them — a configuration fact 
 banner, recorded independently by `harness/ENVIRONMENT.md` §5, and stated here because a count from
 this artifact should not be read as covering a language the tool's own banner does not list. Its
 summary block adds 1,093 rules evaluated, 96 rules with matches, and a duration of 58.840 s. Its
-credential-gated path is in section 5.
+credential-gated path is in section 4.
 
 ---
 
@@ -449,7 +449,81 @@ condition 2 is reported as never reached rather than failed.
 
 ---
 
-## 4. The assertions, the row-validation result, and adapter limitations
+## 4. `datadog-static-analyzer` — the AI path
+
+| Fact | Value | Source |
+|---|---|---|
+| AI / secrets path | **unavailable** | `harness/ENVIRONMENT.md` §5 records it as UNAVAILABLE; the runner reported the path DISABLED (`datadog-static-analyzer.stdout.log` line 6) and the analyzer's own banner reads `secrets enabled : false` (line 24) |
+| Credential source | the environment variables **`DD_API_KEY`** and **`DD_APP_KEY`** — **names only** | `harness/ENVIRONMENT.md` §5; `harness/bin/run-datadog-static-analyzer.sh` lines 39-44 |
+| State of those variables | `absent` / `absent`, as the literal word | the runner's own line 6, which prints the literal `absent` for an unset variable by construction |
+| Static-analysis path | enabled — `static analysis enabled: true` (line 23), 1,093 bundled rules | its own configuration banner |
+
+**No value of either variable exists in this environment, none was read, and no value appears in this
+file, in any deliverable, or in any log this run wrote.** Only the names appear. The runner switches
+the path on only when `HARNESS_DD_SECRETS=1` and both variables are genuinely set; neither condition
+held, so `--enable-secrets false` is what executed — the baked configuration, unchanged.
+
+---
+
+## 5. Dependency-feed state
+
+For each of the three dependency scanners: the vulnerability-database version or timestamp **as the
+tool's own output reports it**, and one of exactly four update outcomes. A separate network probe was
+not used and would not answer the question — it would evidence what the network could reach, not what
+the tool used.
+
+The four outcomes are kept distinct and none is collapsed into another: `succeeded`; `failed`, where
+the baked configuration attempted an update that did not complete; `not attempted`, where it performs
+no update at all; and `not reported`, where the tool emits no feed metadata. Reporting a tool that
+never tried as having failed would invent a failure.
+
+| Tool | Feed version / timestamp, from the tool's own output | Update outcome | Records in the artifact | Pinned commit date |
+|---|---|---|---|---|
+| `trivy` | `{"Version":2,"NextUpdate":"2026-08-22T01:31:14.037675793Z","UpdatedAt":"2026-08-21T01:31:14.037676497Z","DownloadedAt":"2026-08-21T03:07:51.763463561Z"}` — the database metadata Trivy itself emitted, on `trivy.stdout.log` line 7 | **`not attempted`** — the baked configuration passes `--skip-db-update --skip-java-db-update` (`harness/bin/run-trivy.sh` line 26), so no update was tried | not applicable — artifact absent | `2025-10-23T19:31:06Z` |
+| `osv-scanner` | **none emitted.** Neither its stdout nor its 190 lines of stderr carries a database version, timestamp or feed identifier | **`not reported`** — the tool emits no feed metadata. Its runner records the feed as the online OSV and deps.dev APIs with no local database (`harness/bin/run-osv-scanner.sh` line 9), so there is no update step to have succeeded or failed; `failed` would invent a failure and `not attempted` would imply a skipped update the tool has no notion of | 288 | `2025-10-23T19:31:06Z` |
+| `dependency-check` | `NVD API Last Checked` `2026-08-21T03:07:24Z`, `NVD API Last Modified` `2026-08-20T20:00:06-04`, `NVD Cache Last Checked` `2026-08-21T03:07:24Z`, `NVD Cache Last Modified` `2026-08-20T20:00:06-04` — the `scanInfo.dataSource` entries the tool wrote into its own artifact, with `engineVersion` `13.0.0`. Its stdout prints no feed timestamp; the runner's banner records the data directory and a 247,603,200 B `odc.mv.db` (`dependency-check.stdout.log` lines 6-7) | **`not attempted`** — the baked configuration passes `--noupdate` (`harness/bin/run-dependency-check.sh` line 33), so no update was tried | 1,742 | `2025-10-23T19:31:06Z` |
+
+The record counts in that table are the artifacts' own record counts from section 1, not finding
+counts; no dataset row count exists for any tool.
+
+**A stale or unreachable feed does not stop the run,** and none of the three states above stopped it.
+Feed state is recorded for the same reason a crashed tool is: a low count from a stale feed is
+otherwise indistinguishable from a genuine absence of findings.
+
+**The commit-date caveat, stated beside the counts.** The pinned commit is dated
+**`2025-10-23T19:31:06Z`** — read once by `git -C "$SPARK_SRC" log -1 --format=%cI` and recorded in
+`run-record.md` §3.1, from which this appearance is taken so the two cannot diverge. A dependency tree
+of that vintage will show CVEs the upstream project has since moved past, while the feeds above are
+current to 2026-08-21. **Counts are reported exactly as found with that date beside them. Nothing is
+corrected, adjusted, or annotated as stale.**
+
+---
+
+## 6. The two record-versus-reality checks only Phase 1 can make
+
+Each of these would stop the run on a disagreement, reporting both values, with this file finalized
+before exit. **Both agreed.** Neither is the disagreement that stopped this run; that one is
+`gitleaks` (section 2.4).
+
+| Check | Recorded | Observed | Agrees |
+|---|---|---|---|
+| **Opengrep taint setting** | `harness/ENVIRONMENT.md` §5: ENABLED, `--taint-intrafile --dataflow-traces` | the runner echoed exactly those flags (`opengrep.stdout.log` line 7, from `harness/bin/run-opengrep.sh` lines 43-44), and the tool's own output carries dataflow-trace material: 58 occurrences of its taint-source trace marker in `opengrep.stdout.log`, and 58 of the 849 SARIF results carry a `codeFlows` entry | **yes** — taint was not observed disabled |
+| **datadog AI path** | `harness/ENVIRONMENT.md` §5: UNAVAILABLE, credential source the variables `DD_API_KEY` and `DD_APP_KEY` | the runner reported the path DISABLED with both variables `absent`, and the analyzer's own banner reads `secrets enabled : false` | **yes** — the path was not observed available |
+
+**Taint is reported here only as a configuration fact:** the setting baked into the runner, checked
+against the record and against the tool's own output. **This file makes no claim about Opengrep's
+taint coverage for any language, including Scala** — not that it is covered, and not that it is not.
+The two counts of 58 above evidence that the engine emitted dataflow traces on this scan; they
+evidence nothing about which languages those traces covered, and nothing is extrapolated from them.
+`harness/ENVIRONMENT.md` §5 records its own account of language coverage and is the place to read it;
+this file neither repeats nor contradicts it.
+
+`harness/ENVIRONMENT.md` was not edited to reconcile anything. Where a disagreement exists, as with
+`gitleaks`, both values are reported and the disagreement stands as the environment failure it is.
+
+---
+
+## 7. The assertions, the row-validation result, and adapter limitations
 
 Both assertions are reported with their outcome. An assertion recorded only on success could never be
 recorded as failed, so each is stated here whether or not it was reached.
@@ -501,80 +575,6 @@ been exercised.
 
 ---
 
-## 5. `datadog-static-analyzer` — the AI path
-
-| Fact | Value | Source |
-|---|---|---|
-| AI / secrets path | **unavailable** | `harness/ENVIRONMENT.md` §5 records it as UNAVAILABLE; the runner reported the path DISABLED (`datadog-static-analyzer.stdout.log` line 6) and the analyzer's own banner reads `secrets enabled : false` (line 24) |
-| Credential source | the environment variables **`DD_API_KEY`** and **`DD_APP_KEY`** — **names only** | `harness/ENVIRONMENT.md` §5; `harness/bin/run-datadog-static-analyzer.sh` lines 39-44 |
-| State of those variables | `absent` / `absent`, as the literal word | the runner's own line 6, which prints the literal `absent` for an unset variable by construction |
-| Static-analysis path | enabled — `static analysis enabled: true` (line 23), 1,093 bundled rules | its own configuration banner |
-
-**No value of either variable exists in this environment, none was read, and no value appears in this
-file, in any deliverable, or in any log this run wrote.** Only the names appear. The runner switches
-the path on only when `HARNESS_DD_SECRETS=1` and both variables are genuinely set; neither condition
-held, so `--enable-secrets false` is what executed — the baked configuration, unchanged.
-
----
-
-## 6. Dependency-feed state
-
-For each of the three dependency scanners: the vulnerability-database version or timestamp **as the
-tool's own output reports it**, and one of exactly four update outcomes. A separate network probe was
-not used and would not answer the question — it would evidence what the network could reach, not what
-the tool used.
-
-The four outcomes are kept distinct and none is collapsed into another: `succeeded`; `failed`, where
-the baked configuration attempted an update that did not complete; `not attempted`, where it performs
-no update at all; and `not reported`, where the tool emits no feed metadata. Reporting a tool that
-never tried as having failed would invent a failure.
-
-| Tool | Feed version / timestamp, from the tool's own output | Update outcome | Records in the artifact | Pinned commit date |
-|---|---|---|---|---|
-| `trivy` | `{"Version":2,"NextUpdate":"2026-08-22T01:31:14.037675793Z","UpdatedAt":"2026-08-21T01:31:14.037676497Z","DownloadedAt":"2026-08-21T03:07:51.763463561Z"}` — the database metadata Trivy itself emitted, on `trivy.stdout.log` line 7 | **`not attempted`** — the baked configuration passes `--skip-db-update --skip-java-db-update` (`harness/bin/run-trivy.sh` line 26), so no update was tried | not applicable — artifact absent | `2025-10-23T19:31:06Z` |
-| `osv-scanner` | **none emitted.** Neither its stdout nor its 190 lines of stderr carries a database version, timestamp or feed identifier | **`not reported`** — the tool emits no feed metadata. Its runner records the feed as the online OSV and deps.dev APIs with no local database (`harness/bin/run-osv-scanner.sh` line 9), so there is no update step to have succeeded or failed; `failed` would invent a failure and `not attempted` would imply a skipped update the tool has no notion of | 288 | `2025-10-23T19:31:06Z` |
-| `dependency-check` | `NVD API Last Checked` `2026-08-21T03:07:24Z`, `NVD API Last Modified` `2026-08-20T20:00:06-04`, `NVD Cache Last Checked` `2026-08-21T03:07:24Z`, `NVD Cache Last Modified` `2026-08-20T20:00:06-04` — the `scanInfo.dataSource` entries the tool wrote into its own artifact, with `engineVersion` `13.0.0`. Its stdout prints no feed timestamp; the runner's banner records the data directory and a 247,603,200 B `odc.mv.db` (`dependency-check.stdout.log` lines 6-7) | **`not attempted`** — the baked configuration passes `--noupdate` (`harness/bin/run-dependency-check.sh` line 33), so no update was tried | 1,742 | `2025-10-23T19:31:06Z` |
-
-The record counts in that table are the artifacts' own record counts from section 1, not finding
-counts; no dataset row count exists for any tool.
-
-**A stale or unreachable feed does not stop the run,** and none of the three states above stopped it.
-Feed state is recorded for the same reason a crashed tool is: a low count from a stale feed is
-otherwise indistinguishable from a genuine absence of findings.
-
-**The commit-date caveat, stated beside the counts.** The pinned commit is dated
-**`2025-10-23T19:31:06Z`** — read once by `git -C "$SPARK_SRC" log -1 --format=%cI` and recorded in
-`run-record.md` §3.1, from which this appearance is taken so the two cannot diverge. A dependency tree
-of that vintage will show CVEs the upstream project has since moved past, while the feeds above are
-current to 2026-08-21. **Counts are reported exactly as found with that date beside them. Nothing is
-corrected, adjusted, or annotated as stale.**
-
----
-
-## 7. The two record-versus-reality checks only Phase 1 can make
-
-Each of these would stop the run on a disagreement, reporting both values, with this file finalized
-before exit. **Both agreed.** Neither is the disagreement that stopped this run; that one is
-`gitleaks` (section 2.4).
-
-| Check | Recorded | Observed | Agrees |
-|---|---|---|---|
-| **Opengrep taint setting** | `harness/ENVIRONMENT.md` §5: ENABLED, `--taint-intrafile --dataflow-traces` | the runner echoed exactly those flags (`opengrep.stdout.log` line 7, from `harness/bin/run-opengrep.sh` lines 43-44), and the tool's own output carries dataflow-trace material: 58 occurrences of its taint-source trace marker in `opengrep.stdout.log`, and 58 of the 849 SARIF results carry a `codeFlows` entry | **yes** — taint was not observed disabled |
-| **datadog AI path** | `harness/ENVIRONMENT.md` §5: UNAVAILABLE, credential source the variables `DD_API_KEY` and `DD_APP_KEY` | the runner reported the path DISABLED with both variables `absent`, and the analyzer's own banner reads `secrets enabled : false` | **yes** — the path was not observed available |
-
-**Taint is reported here only as a configuration fact:** the setting baked into the runner, checked
-against the record and against the tool's own output. **This file makes no claim about Opengrep's
-taint coverage for any language, including Scala** — not that it is covered, and not that it is not.
-The two counts of 58 above evidence that the engine emitted dataflow traces on this scan; they
-evidence nothing about which languages those traces covered, and nothing is extrapolated from them.
-`harness/ENVIRONMENT.md` §5 records its own account of language coverage and is the place to read it;
-this file neither repeats nor contradicts it.
-
-`harness/ENVIRONMENT.md` was not edited to reconcile anything. Where a disagreement exists, as with
-`gitleaks`, both values are reported and the disagreement stands as the environment failure it is.
-
----
-
 ## 8. Where the run reached, condition by condition
 
 **The run is incomplete.** It is neither wholly successful nor wholly failed, and this file claims
@@ -589,11 +589,11 @@ other eight have none, no parse having been performed. No tool is `clean`, `part
 | # | Condition | Verdict |
 |---|---|---|
 | 1 | Every tool ran once with its baked configuration, each with a log carrying stdout, stderr, elapsed time and either an exit code or `exit_status: timeout`; every tool that wrote output has a raw artifact, and a tool that wrote none is recorded with parse status `absent`, its exit code and its stderr | **passed, with one qualification.** All nine were invoked once with no arguments, individually and serially; all nine have `<tool>.stdout.log`, `<tool>.stderr.log` and `<tool>.meta.json` carrying elapsed seconds and an integer exit code; no tool terminated without one. Eight wrote a raw artifact. `trivy` wrote none and is recorded in section 2.1 with parse status `absent`, exit status `1` and its stderr referenced by line range. The qualification is `gitleaks`: it ran to completion, but its 34 records are not attributable to the pinned tree (section 2.4) |
-| 2 | `findings.json` and `findings.csv` contain every row from every artifact, each row carrying `tool`, `scanner_class`, `severity_norm` and `in_scope`, with no row dropped; row validation passes; and the per-tool reconciliation assertions pass | **never reached.** Phase 2 was never entered: no row was built, neither file was written, and neither assertion was evaluated (sections 3 and 4). Not marked failed: no artifact was determined `failed`, since determining that requires a parse, so the clause that would mark this condition failed on an unreconcilable artifact is not engaged |
+| 2 | `findings.json` and `findings.csv` contain every row from every artifact, each row carrying `tool`, `scanner_class`, `severity_norm` and `in_scope`, with no row dropped; row validation passes; and the per-tool reconciliation assertions pass | **never reached.** Phase 2 was never entered: no row was built, neither file was written, and neither assertion was evaluated (sections 3 and 7). Not marked failed: no artifact was determined `failed`, since determining that requires a parse, so the clause that would mark this condition failed on an unreconcilable artifact is not engaged |
 | 3 | `severity-map.md` carries a row for all nine tools, including any that produced no finding | **never reached.** `oss-scan-results/severity-map.md` does not exist. Two per-tool inputs it would have resolved are recorded here instead: `checkov`'s `severity` is `null` on all six of its records (section 2.5) and `joern` emits no severity at all (section 2.8) |
 | 4 | `tool-status.md` lists all nine, including any that failed or timed out, each with its parse status, its records parsed and rejected, and its row-validation result | **not met.** `run-record.md` §5 recorded this condition as never reached at the point that file was finalized, before this one existed. This file now delivers the part a Phase-1 stop can support: all nine tools listed by their join-key token, each with execution state, exit status, elapsed time, artifact state, and the artifact's own record count where an artifact exists. The remainder of the condition is not met and cannot be, Phase 2 never having been entered — parse status is determined for `trivy` alone, no tool has a records-parsed or records-rejected count, and there is no row-validation result. Reported as not met rather than passed |
 | 5 | Phase 3 delivers three or more committed queries with recorded outcomes, spurious-return counts and the three effort measures, the graph having been read rather than built | **never reached.** No query source was written and the Phase 3 driver was never launched (`run-record.md` section 6). Recorded separately, because it is the one part of the condition that does hold: the graph was **read and not built** on both occasions it was opened in this run — the gate's coverage check and `harness/bin/run-joern.sh` — each with `importCpg`, and `importCode` was used nowhere |
-| 6 | `run-record.md` states the `$SPARK_SRC` path scanned, its commit and date, and every tool failure and missing module | **passed.** `run-record.md` §3.1 gives the path, commit and commit date as read from the tree; §4.2 gives every tool that failed or terminated with its exit status; §4.3 records that `harness/ENVIRONMENT.md` marks no module as having produced no JAR. This file does not restate those facts, except the commit date, which section 6 must carry beside the counts and takes from that single read |
+| 6 | `run-record.md` states the `$SPARK_SRC` path scanned, its commit and date, and every tool failure and missing module | **passed.** `run-record.md` §3.1 gives the path, commit and commit date as read from the tree; §4.2 gives every tool that failed or terminated with its exit status; §4.3 records that `harness/ENVIRONMENT.md` marks no module as having produced no JAR. This file does not restate those facts, except the commit date, which section 5 must carry beside the counts and takes from that single read |
 
 **The `absent` exception, and its limits.** A tool whose artifact is absent has nothing to count:
 "not applicable — artifact absent" replaces both assertions for `trivy`, the run is not stopped for
@@ -610,7 +610,7 @@ Every value in this file traces to one of three sources and to nothing else.
 | Source | What came from it |
 |---|---|
 | `harness/artifacts/logs/*` | every exit code, `exit_status`, elapsed time, start timestamp and `extra_env`; every runner banner fact — Trivy's database metadata and its missing-artifact trailer, the taint flags, the datadog credential-source line and its configuration banner, joern's query counts and collector tally; and every tool-reported scan-coverage figure for `opengrep`, `semgrep`, `gitleaks` and `dependency-check`, referenced by path and line range |
-| `harness/artifacts/raw/*` | artifact presence and byte size; every record count in sections 1, 4 and 6, each derived from the artifact's own structure via its record locator, independently of any row-building traversal; the `checkov` top-level shape, `summary` block and null severities; the `dependency-check` `scanInfo` feed timestamps and its one analysis exception; the SARIF version, driver, rule counts, `codeFlows` counts and `uriBaseId` observations; the gitleaks field-level redaction check |
+| `harness/artifacts/raw/*` | artifact presence and byte size; every record count in sections 1, 5 and 7, each derived from the artifact's own structure via its record locator, independently of any row-building traversal; the `checkov` top-level shape, `summary` block and null severities; the `dependency-check` `scanInfo` feed timestamps and its one analysis exception; the SARIF version, driver, rule counts, `codeFlows` counts and `uriBaseId` observations; the gitleaks field-level redaction check |
 | `harness/ENVIRONMENT.md`, and `oss-scan-results/run-record.md` for facts that file owns | the uniform runner contract (§8), the recorded Opengrep taint setting and the datadog AI-path availability with its credential-source variable names (§5), the artifact-shape notes (§12) and the per-clone data-directory requirement (§13); and from `run-record.md` the pinned commit and commit date, the per-runner path bases, the gitleaks tree determination and the publication state |
 
 `harness/bin/run-<tool>.sh` was read for each runner's documented exit-code contract and its baked
