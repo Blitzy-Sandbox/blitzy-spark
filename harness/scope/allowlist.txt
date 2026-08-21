@@ -1,0 +1,12 @@
+core/src/main/**
+common/network-common/src/main/**
+common/network-shuffle/src/main/**
+common/network-yarn/src/main/**
+sql/catalyst/src/main/**
+sql/core/src/main/**
+sql/connect/**/src/main/**
+sql/hive/src/main/**
+sql/hive-thriftserver/src/main/**
+resource-managers/kubernetes/**/src/main/**
+resource-managers/yarn/src/main/**
+python/pyspark/**
