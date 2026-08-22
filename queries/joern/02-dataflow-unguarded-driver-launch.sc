@@ -53,22 +53,41 @@
 //     second case as the first.
 //  2. `switchWorkspace` is called BEFORE any load. It closes the current workspace and opens
 //     another, so a load performed first would be discarded by it.
-//  3. The load is idempotent. The workspace is shared with the other Phase 3 queries and with
-//     the environment gate's own coverage check, so by the time this script runs the project
-//     will very likely already exist; where it does, it is opened rather than imported again,
-//     which avoids a duplicate project. Opening an existing project is still reading. Which of
-//     the two happened is recorded in `diagnostics.load_mode`.
+//  3. The load is idempotent AND provenance-checked. The workspace is persistent scratch shared
+//     with the other Phase 3 queries and with the environment gate's own coverage check, so by
+//     the time this script runs the project will very likely already exist — but a project's
+//     NAME is derived from its input path's last segment and is therefore not evidence of its
+//     contents. Before an existing project is opened, the input path Joern recorded for it when
+//     it was created is canonicalized and compared with the canonical path of the graph this
+//     script is contracted to read; a mismatch, or a recorded path that no longer canonicalizes,
+//     FAILS THE RUN CLOSED through the failure protocol below rather than substituting a stale
+//     graph for the pinned one. On a match the verified identity — the canonical graph path, its
+//     size in bytes, and the project's own recorded input path — is recorded in
+//     `diagnostics.graph_identity`. Which of import or open happened is recorded in
+//     `diagnostics.load_mode`. Opening an existing project is still reading.
 //  4. The data-flow layer is engaged AFTER the load, because it operates on the loaded graph.
 //     Its outcome is read back from the graph it returns rather than assumed.
 //
-// RESULT CONTRACT
-// ---------------
-// One JSON object, printed strictly between `---BLITZY-RESULT-BEGIN---` and
+// RESULT CONTRACT, AND THE FAILURE PROTOCOL THAT IS ITS OTHER HALF
+// ---------------------------------------------------------------
+// On success: one JSON object, printed strictly between `---BLITZY-RESULT-BEGIN---` and
 // `---BLITZY-RESULT-END---`, with nothing else in that region — the driver slices it and parses
 // it, so a single stray line there would be read as a runtime failure that did not happen. All
-// graph work therefore completes before the BEGIN marker is printed, which also keeps the
-// data-flow engine's own progress and warning output well clear of the region. The object has
-// exactly two top-level keys:
+// graph work completes, and the whole document is built as one string, BEFORE the BEGIN marker
+// is printed, which also keeps the data-flow engine's own progress and warning output well clear
+// of the region: the markers are emitted only once a complete result exists.
+//
+// On failure: NO result region is printed at all. Any failure — a provenance mismatch, an empty
+// graph, an exception from the data-flow engine — is written to STDERR as one
+// `---BLITZY-FAILURE---` line naming the stage, the exception type and its message, followed by
+// the stack trace, and the exception is then re-raised so the process terminates with a non-zero
+// exit status. That combination — start marker present, result region absent, exit status
+// non-zero — is what tells the driver a run compiled and did not complete. Emitting a result
+// region after a caught failure, as an earlier revision of this script did, would have the
+// driver classify a failed or partial run as a successful one, so no error path here produces a
+// payload of any kind.
+//
+// The success object has exactly two top-level keys:
 //
 //   {
 //     "returns": [
@@ -89,6 +108,8 @@
 // keys:
 //
 //   load_mode           whether the project was imported or opened (see above).
+//   graph_identity      the canonical path of the graph read, its size in bytes, the input path
+//                       the workspace project recorded, and how the two were compared.
 //   cpg_method_count    method count read from the loaded graph; evidence it loaded non-empty.
 //   dataflow_layer      the layer command that was run, the overlay state read from the graph
 //                       before and after running it, the reachability step used, and the call
@@ -96,10 +117,14 @@
 //   derived_predicates  the authentication/ACL predicate set, derived from the graph at
 //                       execution time and never hardcoded, with every exclusion rule that
 //                       fired and exactly what each removed.
+//   handler_selection   the entry-point discriminator, every candidate it accepted, and every
+//                       candidate it excluded with the rule that excluded it and the evidence.
 //   handler_anchors     each entry-point anchor with the node count it resolved to and the
 //                       names resolved — zero counts included.
-//   source_nodes        what was resolved as the driver-submission message, per entry point,
-//                       by which of the two rules, and which entry points yielded none.
+//   source_nodes        what was resolved as the driver-submission message and its
+//                       command-bearing value, per entry point and per source class, the type
+//                       evidence each node was selected on, and — named explicitly — every
+//                       entry point that yielded no qualifying source at all.
 //   sink_anchors        each sink anchor with its label and kind, the argument-selection rule
 //                       that fired per sink method, the node counts — zeros included — the
 //                       flow counts at both call depths, and, where an anchor returned no
@@ -108,8 +133,10 @@
 //                       whether it was applied, what it connected, and whether an emitted path
 //                       needed it.
 //   traversal           the call-depth bound and what is known about reaching it, how a path is
-//                       composed, how returns are selected, and the reach of both the flow
-//                       filter and the separate predicate check.
+//                       composed, how returns are selected, the flows emitted per source class,
+//                       how many flows carried a predicate on their own elements, and the reach
+//                       of the predicate check — together with the statement that no flow is
+//                       filtered out for carrying one.
 //
 // Output is deterministic: every collection printed is sorted or built in a fixed order, and
 // returns are de-duplicated and sorted, so re-running an unchanged source produces
@@ -139,6 +166,36 @@
 // of the three name patterns. The same holds for a private helper of a matching method, and for
 // the channel-setup constructors of an authentication or SASL bootstrap.
 //
+// WHICH METHODS ARE ENTRY ANCHORS, AND WHY NAME AND PACKAGE ARE NOT ENOUGH
+// -----------------------------------------------------------------------
+// The class names its entry point as `receive` / `receiveAndReply` in the `deploy` package, and
+// selecting on exactly that — a name and an enclosing-type prefix — resolves methods that are
+// not standalone-mode RPC handler declarations at all: a driver-plugin `receive` that happens to
+// share the name, a YARN endpoint outside standalone mode, and a trait's inherited default that
+// has no declaration of its own and whose body is a forwarder. Each of those becomes an entry
+// point that never received the message the class is about, so the entry set is qualified
+// STRUCTURALLY, by three mechanical tests over the graph, applied in this order and each
+// recorded with what it removed:
+//
+//   1. SIGNATURE. An `RpcEndpoint` handler declares `scala.PartialFunction()` (for `receive`) or
+//      `scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)` (for `receiveAndReply`). A
+//      method of the same name with any other signature implements a different interface.
+//   2. ENCLOSING TYPE. Under `org.apache.spark.deploy.` and NOT under
+//      `org.apache.spark.deploy.yarn.`, because the class the probe was asked about is
+//      standalone deploy mode and a YARN endpoint is a different deployment.
+//   3. ITS OWN CASE BODIES. A declared partial-function handler allocates the synthetic
+//      partial-function class that carries its case bodies, so one of its outgoing calls names a
+//      type whose full name is its OWN enclosing type followed by the frontend's partial-function
+//      infix and its OWN method name. An inherited trait default allocates nothing of the kind:
+//      its only call is the trait's static forwarder. This test is what tells a declaration from
+//      an inherited default without reading a line number or naming a type.
+//
+// Nothing is hardcoded: the set is whatever those three tests accept on the graph in front of
+// them, and every candidate they reject is reported in `diagnostics.handler_selection` with the
+// rule and the evidence. For this formulation the third test does double duty — the partial-
+// function class it looks for is also where this query's sources live, as the next section sets
+// out — so an entry point that fails it has no source to select in any case.
+//
 // THE TWO BOUNDARIES THIS FORMULATION HAS TO DEAL WITH
 // ---------------------------------------------------
 // Over a JVM-bytecode frontend, two properties of Scala compilation — not of the code being
@@ -148,13 +205,12 @@
 //   * At the entry-point end the boundary bears on SOURCE SELECTION, not on traversal. A handler
 //     returning a partial function does not contain its own case bodies: it allocates a
 //     synthetic partial-function class and the bodies live on that class. The named handler
-//     therefore carries no message parameter at all, so selecting "the handler's parameter"
-//     naively resolves the wrong node or none, and the flow query then returns empty for a
-//     reason that has nothing to do with the code under analysis. The message is resolved
-//     inside the synthetic body instead — the parameter of the body the handler's own partial
-//     function class declares — and, where the handler is not a partial function and carries a
-//     message parameter directly, that parameter is used and no bridge is needed. Which of the
-//     two applied is recorded per entry point.
+//     therefore carries no message parameter at all, and the parameter the synthetic body does
+//     carry is the erased universal object type, which is evidence of nothing: every partial
+//     function ever compiled has one, whatever message it handles. Sources are therefore
+//     selected by TYPE EVIDENCE inside that body, as the next section sets out, and never from
+//     the erased parameter. Which body class carried a handler's sources is recorded per entry
+//     point.
 //   * At the sink end a method that hands work to a thread does not call the work: it allocates
 //     an anonymous class and the runtime invokes its `run`. A data-flow relation follows data
 //     dependence, and an allocation-to-runtime handoff is not one, so a flow does not continue
@@ -163,22 +219,58 @@
 //     this formulation anchors at the sinks above the boundary. The boundary itself is resolved
 //     from the graph and recorded, so the limit is evidence rather than an assertion.
 //
-// THE FLOW FILTER AND `predicates_on_path` ARE TWO DIFFERENT THINGS
-// ----------------------------------------------------------------
-// A flow is discarded when the query's own predicate check finds a derived predicate on the
-// flow itself — an element that is a call to a predicate, or an element sitting inside one.
-// That filter is what makes this a query for the unguarded class, and it is why no predicate
-// appears among the flow elements of an emitted return.
+// WHAT A SOURCE IS, AND WHY THE ERASED PARAMETER IS NOT ONE
+// --------------------------------------------------------
+// The class names the driver-submission message and the command it carries, so sources are bound
+// to that message by TYPE EVIDENCE the handler's own body carries, and to nothing weaker. Two
+// type names are pinned in this file — the submission message case class and the driver
+// description it carries — exactly as the three sinks are pinned by name. Everything else about
+// the source set is DERIVED from the graph at execution time:
 //
-// `predicates_on_path` is then computed separately over the emitted path, as found, and its
-// reach is wider in two ways: the path carries the named entry point and the sink method, which
-// no flow element covered, and the check looks at each path node plus one outgoing call step
-// from it. So the second pass can find what the filter did not, and where it does the return is
-// emitted anyway with `predicates_on_path` populated — a return is never dropped for carrying a
-// predicate, and a predicate is never added to make one look as though it does. Whether a
-// predicate lies on a path is a property of this formulation and of the path it emitted: a flow
-// that ends at a construction does not traverse what a flow continuing past it traverses, and
-// both are correct answers about their own path.
+//   * the accessor that reads a description off a deploy message is derived, as a method on a
+//     deploy-message type whose return type is the driver-description type, with a
+//     default-argument supplier excluded by its name prefix;
+//   * the command- and jar-bearing members of the description are derived from that type's own
+//     members, by return type and by name;
+//   * a deploy message OTHER than the pinned submission message that also carries a description
+//     accessor is a DIFFERENT source class — the internal hand-off from one of these endpoints
+//     to another — and is resolved, labelled and counted separately. It is never folded into the
+//     submission-message set, because a value that arrived on an internal message did not arrive
+//     from a submitter, and the two answer different questions.
+//
+// Within an entry point's own body scope — the entry point itself plus the methods of the
+// synthetic partial-function classes it allocates, transitively — a source node is then one of:
+//
+//   A  a value whose static type IS the message: the cast the pattern match compiles to, and any
+//      identifier or local carrying that type;
+//   B  a call to the derived description accessor OF that message — the command-bearing value
+//      read off it;
+//   C  a call to a derived command- or jar-bearing member of the description reached from B.
+//
+// What is deliberately NOT a source is the erased `java.lang.Object` parameter of a synthetic
+// partial-function body. Every partial function compiled over a bytecode frontend has one,
+// whatever messages it handles, so admitting it makes every handler a driver-submission source
+// and lets an unrelated message's accessors into the flows. An entry point with no qualifying
+// source is REPORTED, by name, in `diagnostics.source_nodes.handlers_with_no_qualifying_source`
+// — a named absence is evidence; a generic parameter standing in for evidence is not.
+//
+// EVERY ATTRIBUTABLE FLOW IS EMITTED; `predicates_on_path` IS WHERE PREDICATES ARE REPORTED
+// -----------------------------------------------------------------------------------------
+// A flow whose elements carry a derived predicate is NOT discarded. Discarding it would remove
+// from the result set precisely the returns the mechanical spurious test exists to classify, and
+// would make a spurious count of zero a property of the filter rather than a measurement. So
+// every flow that can be attributed to an entry point and a sink is emitted as a return, with
+// `predicates_on_path` populated from what the graph carries, and the number of flows whose own
+// elements carried a predicate is reported in `diagnostics` beside it as a separate measure.
+//
+// `predicates_on_path` is computed over the emitted path, as found, and its reach is wider than
+// the flow elements in two ways: the path carries the named entry point and the sink method,
+// which no flow element covered, and the check looks at each path node plus one outgoing call
+// step from it. A predicate is never added to make a return look as though it has one, and a
+// return is never dropped for having one. Whether a predicate lies on a path is a property of
+// this formulation and of the path it emitted: a flow that ends at a construction does not
+// traverse what a flow continuing past it traverses, and both are correct answers about their own
+// path. Applying the spurious definition to those lists is the driver's step, not this script's.
 // ===========================================================================================
 
 import io.shiftleft.codepropertygraph.generated.nodes.{AstNode, Call, CfgNode, Expression, Method}
@@ -188,13 +280,17 @@ import io.joern.dataflowengineoss.queryengine.EngineContext
 val WORKSPACE_PATH = "queries/joern/.workspace"
 val CPG_PATH       = "harness/cpg/spark.cpg"
 
-// --- The three markers of the query-to-driver contract. ------------------------------------
-val MARKER_START = "---BLITZY-START---"
-val MARKER_BEGIN = "---BLITZY-RESULT-BEGIN---"
-val MARKER_END   = "---BLITZY-RESULT-END---"
+// --- The markers of the query-to-driver contract. -------------------------------------------
+// The three stdout markers, and the stderr marker that carries a failure. A failure never
+// produces a result region, so BEGIN and END are printed on exactly one path through the script.
+val MARKER_START   = "---BLITZY-START---"
+val MARKER_BEGIN   = "---BLITZY-RESULT-BEGIN---"
+val MARKER_END     = "---BLITZY-RESULT-END---"
+val MARKER_FAILURE = "---BLITZY-FAILURE---"
 
 // --- Selectors. Every one is an anchored full-match regex over a graph property. -----------
 val DEPLOY_TYPE_SELECTOR      = "org\\.apache\\.spark\\.deploy\\..*"
+val DEPLOY_YARN_TYPE_SELECTOR = "org\\.apache\\.spark\\.deploy\\.yarn\\..*"
 val SECURITY_MANAGER_SELECTOR = "org\\.apache\\.spark\\.SecurityManager"
 val PREDICATE_NAME_SELECTOR   = "^(check.*Permissions|acls.*|isAuthenticationEnabled)$"
 val SCALA_SETTER_SUFFIX       = "_$eq"
@@ -205,23 +301,46 @@ val PROCESS_LAUNCH_SELECTOR =
   "(java\\.lang\\.ProcessBuilder\\.start|java\\.lang\\.Runtime\\.exec).*"
 val EXECUTOR_RUNNER_SELECTOR = "org\\.apache\\.spark\\.deploy\\.worker\\.ExecutorRunner\\.<init>.*"
 
-// --- Source selection: the driver-submission message. --------------------------------------
-// A partial function's case bodies live on the synthetic class the handler allocates, whose
-// full name is the handler's own enclosing type followed by this infix, the handler's name and
-// a number. The message is the parameter at this index of the body that class declares, whose
-// erased type over a bytecode frontend is the universal object type.
-val PARTIAL_FUNCTION_INFIX     = "$$anonfun$"
-val PARTIAL_FUNCTION_BODY_NAME = "applyOrElse"
-val MESSAGE_PARAMETER_INDEX    = 1
-val MESSAGE_PARAMETER_TYPE     = "java.lang.Object"
+// --- The entry-point discriminator. See WHICH METHODS ARE ENTRY ANCHORS in the header. -----
+// The two names the class asks for, the two signatures an `RpcEndpoint` handler declares, and
+// the frontend's infix for the synthetic class that carries a partial function's case bodies.
+val HANDLER_NAMES = List("receive", "receiveAndReply")
+val HANDLER_SIGNATURES = List(
+  "scala.PartialFunction()",
+  "scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)")
+val PARTIAL_FUNCTION_INFIX = "$$anonfun$"
 
-// A destructured driver-submission field is a read of the driver description off the message,
-// so the accessors are derived from the graph: a method on a deploy-message type whose return
-// type is the driver description. A default-argument supplier carries that same return type
+// The prefix the frontend gives an operator pseudo-method. Such a call is never evidence about
+// which interface a method implements, so it is left out of the evidence the discriminator
+// reports, and it is never followed as a source-scope edge.
+val OPERATOR_PREFIX = "<operator>"
+
+// --- Source selection: the driver-submission message and the value it carries. --------------
+// See WHAT A SOURCE IS in the header. Two type names are pinned here, exactly as the three
+// sinks are pinned by name: the driver-submission message the class names, and the driver
+// description it carries. Everything else — which accessor reads the description off a message,
+// which members of the description carry the command and the jar, and which other deploy
+// message carries a description as an internal hand-off — is DERIVED from the graph below.
+val SUBMISSION_MESSAGE_TYPE = "org.apache.spark.deploy.DeployMessages$RequestSubmitDriver"
+val DRIVER_DESCRIPTION_TYPE = "org.apache.spark.deploy.DriverDescription"
+
+// A method on a deploy-message type whose return type is the driver description is the accessor
+// that reads it off the message. A default-argument supplier carries that same return type
 // without being a field read, and is excluded by its name prefix.
 val DEPLOY_MESSAGE_SELECTOR = "org\\.apache\\.spark\\.deploy\\.DeployMessages\\$.*"
-val DRIVER_DESCRIPTION_TYPE = "org.apache.spark.deploy.DriverDescription"
 val DEFAULT_ARGUMENT_PREFIX = "copy$default$"
+
+// The command- and jar-bearing members of the description, derived from its own members: a
+// method returning a type that carries a command, or a method whose name names a command or a
+// jar. A synthetic accessor and a default-argument supplier are excluded.
+val DESCRIPTION_COMMAND_TYPE_SELECTOR = "org\\.apache\\.spark\\.deploy\\.Command"
+val DESCRIPTION_COMMAND_NAME_SELECTOR = "(?i)(command|jar|jarurl|mainclass|arguments)"
+
+// The two labelled source classes. The first is a value that arrived from a submitter; the
+// second is the internal hand-off between two of these endpoints. They are resolved, reported
+// and counted separately, and never merged.
+val SOURCE_CLASS_SUBMISSION = "driver_submission_message_from_a_submitter"
+val SOURCE_CLASS_INTERNAL   = "internal_endpoint_to_endpoint_driver_handoff"
 
 // --- Sink selection: the command- or jar-bearing argument. ---------------------------------
 // A sink's command or jar argument is identified from the sink method's own formal parameters:
@@ -294,6 +413,38 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
       .mkString("{\n", ",\n", "\n" + indent + "}")
 
 // ===========================================================================================
+// The failure protocol. See RESULT CONTRACT in the header.
+//
+// One function, used by every error path in this script, so that a failure cannot be reported
+// two ways. It writes the stage, the exception type and the message to stderr as a single
+// marked line, follows it with the stack trace for a human reading the captured log, and then
+// re-raises: the run therefore ends with the start marker printed on stdout, NO result region,
+// and a non-zero exit status, which is the shape the driver classifies as "compiled, did not
+// complete". stdout is flushed first so that whatever the script had already printed cannot be
+// interleaved into the stderr report.
+// ===========================================================================================
+
+def reportFailureAndRaise(stage: String, failure: Throwable): Nothing = {
+  System.out.flush()
+  System.err.println(
+    MARKER_FAILURE + " stage=" + stage + " type=" + failure.getClass.getName +
+      " message=" + Option(failure.getMessage).getOrElse(""))
+  failure.printStackTrace(System.err)
+  System.err.flush()
+  throw failure
+}
+
+/**
+ * The canonical, symlink-resolved path of a file, or None where it does not resolve. Used on
+ * both sides of the graph-provenance comparison, so that a clone-relative path, an absolute
+ * path and a symlink to the same graph compare equal while a different graph does not.
+ */
+def canonicalPathOf(rawPath: String): Option[String] =
+  scala.util
+    .Try(java.nio.file.Paths.get(rawPath).toRealPath().toString)
+    .toOption
+
+// ===========================================================================================
 // The query. `exec` takes no parameters: see INVOCATION in the header.
 // ===========================================================================================
 
@@ -320,18 +471,50 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
     switchWorkspace(WORKSPACE_PATH)
 
     // -------------------------------------------------------------------------------------
-    // (3) Idempotent load. The workspace is shared with the other Phase 3 queries and with
-    //     the gate's coverage check, so the project is likely to be present already; opening
-    //     it is reading, and it avoids a duplicate.
+    // (3) Idempotent, provenance-checked load. The workspace is persistent scratch shared with
+    //     the other Phase 3 queries and with the gate's coverage check, so a project of this
+    //     name is likely to be present already — and a project name is only the last segment of
+    //     the input path it was created from, so it is not evidence of what the project holds.
+    //     An existing project is therefore opened only when the input path Joern recorded for it
+    //     canonicalizes to the same file as the graph this script reads; anything else fails the
+    //     run closed.
     // -------------------------------------------------------------------------------------
     stage = "load_graph"
     val projectName = CPG_PATH.split('/').last
+
+    val cpgCanonicalPath = canonicalPathOf(CPG_PATH).getOrElse(
+      throw new RuntimeException(
+        "the graph this script is contracted to read does not resolve to a file: " + CPG_PATH +
+          " (relative to the working directory, which must be the directory containing " +
+          "`harness/`)"))
+    val cpgSizeBytes = java.nio.file.Files.size(java.nio.file.Paths.get(cpgCanonicalPath))
+
+    val existingProject   = workspace.projects.find(_.name == projectName)
+    val recordedInputPath = existingProject.map(_.inputPath)
+    val recordedCanonical = recordedInputPath.flatMap(canonicalPathOf)
+    val provenanceOutcome =
+      existingProject match {
+        case None => "no_existing_project_the_pinned_graph_was_imported"
+        case Some(_) if recordedCanonical.contains(cpgCanonicalPath) =>
+          "existing_project_recorded_input_path_canonicalizes_to_the_pinned_graph"
+        case Some(_) =>
+          throw new RuntimeException(
+            "the workspace already holds a project named `" + projectName + "` whose recorded " +
+              "input path is not the graph this script reads: recorded `" +
+              recordedInputPath.getOrElse("") + "` canonicalizing to `" +
+              recordedCanonical.getOrElse("<does not resolve>") + "`, expected `" +
+              cpgCanonicalPath + "`. Opening it would substitute a stale or foreign graph for " +
+              "the pinned one, so the run fails closed. Remove the stale project from " +
+              WORKSPACE_PATH + " (it is scratch) and re-run")
+      }
+
     val loadMode =
-      if (workspace.projects.exists(_.name == projectName)) {
+      if (existingProject.isDefined) {
         val opened = open(projectName)
         if (opened.isEmpty) {
           throw new RuntimeException(
-            "project is present in the workspace but could not be opened: " + projectName)
+            "project is present in the workspace and its provenance was verified, but it could " +
+              "not be opened: " + projectName)
         }
         "opened_existing_project"
       } else {
@@ -339,11 +522,48 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
         "imported_persisted_cpg"
       }
 
+    // Read back the project the run is actually working against, so the recorded identity is
+    // the loaded project's own and not the pre-load observation.
+    val loadedProject = workspace.projects.find(_.name == projectName)
+
     val methodCount = cpg.method.size
     diagnostics.append("load_mode"        -> jsonString(loadMode))
     diagnostics.append("workspace"        -> jsonString(WORKSPACE_PATH))
     diagnostics.append("cpg_source"       -> jsonString(CPG_PATH))
     diagnostics.append("cpg_project_name" -> jsonString(projectName))
+    diagnostics.append(
+      "graph_identity" -> jsonBlockObject(
+        Seq(
+          "declared_relative_path" -> jsonString(CPG_PATH),
+          "canonical_path"         -> jsonString(cpgCanonicalPath),
+          "size_bytes"             -> jsonString(cpgSizeBytes.toString),
+          "project_recorded_input_path" ->
+            (recordedInputPath.orElse(loadedProject.map(_.inputPath)) match {
+              case Some(path) => jsonString(path)
+              case None       => "null"
+            }),
+          "project_recorded_input_path_canonical" ->
+            (recordedCanonical
+              .orElse(loadedProject.map(_.inputPath).flatMap(canonicalPathOf)) match {
+              case Some(path) => jsonString(path)
+              case None       => "null"
+            }),
+          "project_directory" ->
+            (loadedProject.map(_.path.toString) match {
+              case Some(path) => jsonString(path)
+              case None       => "null"
+            }),
+          "project_applied_overlays" ->
+            jsonStringArray(loadedProject.map(_.appliedOverlays.toList).getOrElse(Nil).sorted),
+          "verification_rule" -> jsonString(
+            "an existing workspace project is opened only when the input path it recorded at " +
+              "creation canonicalizes — symlinks resolved — to the same file as the graph path " +
+              "above; a mismatch, or a recorded path that no longer resolves, fails the run " +
+              "closed rather than reading a stale graph. Size is recorded as evidence and is " +
+              "deliberately not the test: applying an overlay legitimately changes the copy the " +
+              "project holds without changing which graph it came from"),
+          "outcome" -> jsonString(provenanceOutcome)),
+        "    "))
     diagnostics.append("cpg_method_count" -> jsonInt(methodCount))
     if (methodCount == 0) {
       throw new RuntimeException("the loaded graph reports zero methods: " + CPG_PATH)
@@ -466,8 +686,12 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
     // -------------------------------------------------------------------------------------
     // (6) Entry-point anchors. Selected by name AND by the full name of the type that encloses
     //     them, so an endpoint declared inside another type is reached too — a selector keyed
-    //     to outer classes alone would silently miss the endpoints that sit on inner classes.
-    //     Every anchor is reported with the node count it resolved to, zero counts included.
+    //     to outer classes alone would silently miss the endpoints that sit on inner classes —
+    //     and then qualified structurally by the three tests in WHICH METHODS ARE ENTRY ANCHORS,
+    //     which is what separates a declared standalone RPC handler from a same-named plugin
+    //     method, a YARN endpoint and an inherited trait default. Every anchor is reported with
+    //     the node count it resolved to, zero counts included, and every candidate the
+    //     discriminator rejected is reported with the rule that rejected it.
     // -------------------------------------------------------------------------------------
     stage = "resolve_handler_anchors"
 
@@ -504,15 +728,120 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
         "resolved_count" -> jsonInt(anchor.methods.size),
         "resolved"       -> jsonStringArray(anchor.methods.map(_.fullName))))
 
-    val handlerAnchors = List("receive", "receiveAndReply").map { handlerName =>
+    /** A candidate rejected by the discriminator, with the rule and the evidence it was read on. */
+    final case class HandlerExclusion(fullName: String, rule: String, evidence: String)
+
+    val handlerCandidates = resolved(
+      HANDLER_NAMES.flatMap(handlerName =>
+        cpg.method
+          .nameExact(handlerName)
+          .where(_.typeDecl.fullName(DEPLOY_TYPE_SELECTOR))
+          .l))
+
+    val handlerExclusions = scala.collection.mutable.ListBuffer.empty[HandlerExclusion]
+
+    /**
+     * The full names of the synthetic partial-function types a method allocates for its own case
+     * bodies: an outgoing call into a type named for this method's own enclosing type, the
+     * frontend's partial-function infix and this method's own name. A declared partial-function
+     * handler has at least one; an inherited trait default has none, and its calls name the
+     * trait's static forwarder instead.
+     */
+    def ownPartialFunctionBodyAllocations(method: Method): List[String] = {
+      val owner  = method.typeDecl.fullName.headOption.getOrElse("")
+      val prefix = owner + PARTIAL_FUNCTION_INFIX + method.name + "$"
+      method.call.methodFullName.l.filter(_.startsWith(prefix)).distinct.sorted
+    }
+
+    val handlerMethodsAccepted = handlerCandidates.filter { candidate =>
+      val owner      = candidate.typeDecl.fullName.headOption.getOrElse("")
+      val signature  = candidate.signature
+      val ownBodies  = ownPartialFunctionBodyAllocations(candidate)
+      val otherCalls =
+        candidate.call.methodFullName.l
+          .filterNot(_.startsWith(OPERATOR_PREFIX))
+          .distinct
+          .sorted
+
+      if (!HANDLER_SIGNATURES.contains(signature)) {
+        handlerExclusions.append(
+          HandlerExclusion(
+            candidate.fullName,
+            "signature_is_not_an_rpc_endpoint_handler_signature",
+            "signature is `" + signature + "`, and an RpcEndpoint handler declares one of " +
+              HANDLER_SIGNATURES.mkString("`", "`, `", "`")))
+        false
+      } else if (owner.matches(DEPLOY_YARN_TYPE_SELECTOR)) {
+        handlerExclusions.append(
+          HandlerExclusion(
+            candidate.fullName,
+            "enclosing_type_is_outside_standalone_deploy",
+            "enclosing type `" + owner + "` matches " + DEPLOY_YARN_TYPE_SELECTOR +
+              ", and the class this query attempts is standalone deploy mode"))
+        false
+      } else if (ownBodies.isEmpty) {
+        handlerExclusions.append(
+          HandlerExclusion(
+            candidate.fullName,
+            "declares_no_partial_function_body_class_of_its_own",
+            "no outgoing call names a type beginning `" + owner + PARTIAL_FUNCTION_INFIX +
+              candidate.name + "$`, so this is an inherited trait default rather than a " +
+              "declaration; its non-operator calls are " +
+              (if (otherCalls.isEmpty) "none" else otherCalls.mkString("`", "`, `", "`"))))
+        false
+      } else true
+    }
+
+    val handlerAnchors = HANDLER_NAMES.map { handlerName =>
       Anchor(
         handlerName,
         "user_named",
-        "method name is exactly `" + handlerName + "` and the enclosing type full name matches " +
-          DEPLOY_TYPE_SELECTOR,
-        resolved(
-          cpg.method.nameExact(handlerName).where(_.typeDecl.fullName(DEPLOY_TYPE_SELECTOR)).l))
+        "method name is exactly `" + handlerName + "`, the enclosing type full name matches " +
+          DEPLOY_TYPE_SELECTOR + " and not " + DEPLOY_YARN_TYPE_SELECTOR + ", the signature is " +
+          "one an RpcEndpoint handler declares, and the method allocates the partial-function " +
+          "body class of its own name",
+        handlerMethodsAccepted.filter(_.name == handlerName))
     }
+
+    diagnostics.append(
+      "handler_selection" -> jsonBlockObject(
+        Seq(
+          "name_selector"                    -> jsonStringArray(HANDLER_NAMES),
+          "enclosing_type_selector"          -> jsonString(DEPLOY_TYPE_SELECTOR),
+          "excluded_enclosing_type_selector" -> jsonString(DEPLOY_YARN_TYPE_SELECTOR),
+          "signature_selector"               -> jsonStringArray(HANDLER_SIGNATURES),
+          "own_body_class_rule" -> jsonString(
+            "an outgoing call whose method full name begins with the candidate's own enclosing " +
+              "type, `" + PARTIAL_FUNCTION_INFIX + "` and the candidate's own name — the " +
+              "evidence that the candidate DECLARES the partial function rather than inheriting " +
+              "a trait default"),
+          "rule_order" -> jsonStringArray(
+            List(
+              "signature_is_not_an_rpc_endpoint_handler_signature",
+              "enclosing_type_is_outside_standalone_deploy",
+              "declares_no_partial_function_body_class_of_its_own")),
+          "candidates_considered" -> jsonInt(handlerCandidates.size),
+          "candidates"            -> jsonStringArray(handlerCandidates.map(_.fullName)),
+          "accepted_count"        -> jsonInt(handlerMethodsAccepted.size),
+          "accepted"              -> jsonStringArray(handlerMethodsAccepted.map(_.fullName)),
+          "excluded_count"        -> jsonInt(handlerExclusions.size),
+          "excluded" -> jsonBlockArray(
+            handlerExclusions.toList
+              .sortBy(_.fullName)
+              .map(exclusion =>
+                jsonObject(Seq(
+                  "full_name" -> jsonString(exclusion.fullName),
+                  "rule"      -> jsonString(exclusion.rule),
+                  "evidence"  -> jsonString(exclusion.evidence)))),
+            "      "),
+          "trait_forwarder_note" -> jsonString(
+            "a trait's static forwarder remains a traversal bridge — a flow may run through " +
+              "one, and the traversal block reports when one did — it is only barred from being " +
+              "a place a flow STARTS"),
+          "why_it_matters_to_this_formulation" -> jsonString(
+            "the third test looks for the very partial-function class this query's sources live " +
+              "inside, so an entry point that fails it has no source to select in any case")),
+        "    "))
 
     diagnostics.append(
       "handler_anchors" -> jsonBlockArray(handlerAnchors.map(renderAnchor), "    "))
@@ -520,105 +849,197 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
     val handlerMethods = resolved(handlerAnchors.flatMap(_.methods))
 
     // -------------------------------------------------------------------------------------
-    // (7) Source nodes: the driver-submission message, per entry point. This is where the
-    //     partial-function boundary bites, so both shapes are resolved from the graph rather
-    //     than assumed, and which one applied is recorded per entry point.
+    // (7) Source nodes: the driver-submission message and the command-bearing value it carries,
+    //     per entry point. See WHAT A SOURCE IS in the header. Sources are bound to the pinned
+    //     submission message by type evidence the handler's own body scope carries; the erased
+    //     `java.lang.Object` parameter of a synthetic partial-function body is never a source,
+    //     because every partial function has one whatever it handles.
     //
-    //     Rule A — the entry point declares a message parameter itself. That happens where the
-    //              handler is not a partial function, and no bridge is needed.
-    //     Rule B — the entry point allocates a synthetic partial-function class and the message
-    //              is the parameter of the body that class declares. This is the bridge.
-    //     Rule C — in addition, a read of the driver description off the message inside such a
-    //              body is carried as a source, because the destructured field is the value the
-    //              class is about and a flow may begin at the read rather than at the parameter.
+    //     Rule A — a value whose static type IS a qualifying message: the cast the pattern match
+    //              compiles to, and any identifier carrying that type.
+    //     Rule B — a call to the derived description accessor OF a qualifying message.
+    //     Rule C — a call to a derived command- or jar-bearing member of the description.
+    //
+    //     Two source classes are kept apart and never merged: the pinned submission message,
+    //     which is a value that arrived from a submitter, and any other deploy message carrying
+    //     a description accessor, which is the internal hand-off from one of these endpoints to
+    //     another. A rule-C node is attributed to whichever class the handler's scope carries
+    //     evidence for; where a scope carries both, the rule-C nodes there are not admitted and
+    //     the scope is named, because attributing them either way would be a guess.
     // -------------------------------------------------------------------------------------
     stage = "resolve_source_nodes"
 
-    val messageAccessors = cpg.method
+    // The accessor that reads a driver description off a deploy message, derived from the graph:
+    // a method on a deploy-message type whose return type is the description. A default-argument
+    // supplier carries that same return type without being a field read, and is excluded by its
+    // name prefix.
+    val descriptionAccessorMethods = cpg.method
       .where(_.typeDecl.fullName(DEPLOY_MESSAGE_SELECTOR))
       .l
       .filter(_.methodReturn.typeFullName == DRIVER_DESCRIPTION_TYPE)
       .filterNot(_.name.startsWith(DEFAULT_ARGUMENT_PREFIX))
+      .distinctBy(_.fullName)
+      .sortBy(_.fullName)
+
+    val submissionAccessors = descriptionAccessorMethods
+      .filter(m => ownerOf(m) == SUBMISSION_MESSAGE_TYPE)
+      .map(_.fullName)
+    val internalAccessors = descriptionAccessorMethods
+      .filterNot(m => ownerOf(m) == SUBMISSION_MESSAGE_TYPE)
+      .map(_.fullName)
+    val submissionAccessorSet = submissionAccessors.toSet
+    val internalAccessorSet   = internalAccessors.toSet
+
+    // The message types each class covers: the pinned submission message, and every OTHER
+    // deploy-message type that carries a description accessor.
+    val submissionMessageTypes = List(SUBMISSION_MESSAGE_TYPE)
+    val internalMessageTypes = descriptionAccessorMethods
+      .map(ownerOf)
+      .filter(_.nonEmpty)
+      .filterNot(_ == SUBMISSION_MESSAGE_TYPE)
+      .distinct
+      .sorted
+
+    // The command- and jar-bearing members of the description, derived from its own members by
+    // return type or by name, with a default-argument supplier excluded the same way.
+    val descriptionMembers = cpg.typeDecl
+      .fullNameExact(DRIVER_DESCRIPTION_TYPE)
+      .method
+      .l
+      .filterNot(_.name.startsWith(DEFAULT_ARGUMENT_PREFIX))
+      .filter(m =>
+        m.methodReturn.typeFullName.matches(DESCRIPTION_COMMAND_TYPE_SELECTOR) ||
+          m.name.matches(DESCRIPTION_COMMAND_NAME_SELECTOR))
       .map(_.fullName)
       .distinct
       .sorted
-    val messageAccessorSet = messageAccessors.toSet
+    val descriptionMemberSet = descriptionMembers.toSet
 
-    val sourceNodeHandler   = scala.collection.mutable.HashMap.empty[Long, String]
-    val sourceNodes         = scala.collection.mutable.ListBuffer.empty[CfgNode]
-    val partialFunctionTypes = scala.collection.mutable.TreeSet.empty[String]
+    if (submissionAccessors.isEmpty) {
+      throw new RuntimeException(
+        "no accessor returning `" + DRIVER_DESCRIPTION_TYPE + "` was found on the pinned " +
+          "driver-submission message type `" + SUBMISSION_MESSAGE_TYPE + "` in the loaded " +
+          "graph, so this formulation has no source to bind to and a zero result would be a " +
+          "property of the selector rather than of the code. Either the pinned type name does " +
+          "not exist in this graph or the module carrying it produced no bytecode")
+    }
+
+    // The type declaration full names of the graph, materialized once. A handler's body scope is
+    // every type whose full name begins with that handler's own partial-function prefix, which
+    // reaches nested case bodies too because their names extend the same prefix.
+    val allTypeDeclFullNames = cpg.typeDecl.fullName.l.distinct
+
+    val sourceNodeHandler          = scala.collection.mutable.HashMap.empty[Long, String]
+    val sourceNodeClass            = scala.collection.mutable.HashMap.empty[Long, String]
+    val sourceNodes                = scala.collection.mutable.ListBuffer.empty[CfgNode]
+    val partialFunctionTypes       = scala.collection.mutable.TreeSet.empty[String]
     val partialFunctionConnections = scala.collection.mutable.TreeSet.empty[String]
     val partialFunctionBodyNames   = scala.collection.mutable.TreeSet.empty[String]
-    val renderedSources = scala.collection.mutable.ListBuffer.empty[String]
-    val handlersWithoutSource = scala.collection.mutable.TreeSet.empty[String]
+    val renderedSources            = scala.collection.mutable.ListBuffer.empty[String]
+    val handlersWithoutSource      = scala.collection.mutable.TreeSet.empty[String]
+    val scopesWithBothClasses      = scala.collection.mutable.TreeSet.empty[String]
+    var submissionSourceNodeCount  = 0
+    var internalSourceNodeCount    = 0
+    var descriptionMemberNodesHeld = 0
 
     handlerMethods.foreach { handler =>
-      // Rule A — a message parameter declared by the entry point itself.
-      val directParameters = handler.parameter
-        .index(MESSAGE_PARAMETER_INDEX)
-        .l
-        .filter(_.typeFullName == MESSAGE_PARAMETER_TYPE)
+      // The handler's own body scope: the handler itself, plus every method of every type whose
+      // full name begins with the handler's own partial-function prefix. A nested case body's
+      // type name extends that same prefix, so the scope is transitive by construction.
+      val scopePrefix = ownerOf(handler) + PARTIAL_FUNCTION_INFIX + handler.name + "$"
+      val scopeTypes  = allTypeDeclFullNames.filter(_.startsWith(scopePrefix)).sorted
+      val scopeBodies = scopeTypes.flatMap(methodsOfType).distinctBy(_.fullName).sortBy(_.fullName)
+      val scopeMethods = (handler :: scopeBodies).distinctBy(_.fullName).sortBy(_.fullName)
 
-      // Rule B — the synthetic partial-function class this entry point allocates, and the body
-      //          it declares. The body is selected by name; where the frontend names it
-      //          otherwise, the fallback selects, on the same class, a method whose parameter at
-      //          the message index carries the erased message type. Which applied is recorded.
-      val calleeOwners = handler.callee.l.map(ownerOf).distinct
-      val partialFunctionTypesHere = allocatedAnonymousTypes(
-        ownerOf(handler), PARTIAL_FUNCTION_INFIX + handler.name + "$", calleeOwners)
-      partialFunctionTypesHere.foreach(partialFunctionTypes.add)
-
-      val bodiesByName = partialFunctionTypesHere.flatMap(t =>
-        methodsOfType(t).filter(_.name == PARTIAL_FUNCTION_BODY_NAME))
-      val bodyRule = if (bodiesByName.nonEmpty) "named_body" else "erased_message_parameter"
-      val bodies =
-        if (bodiesByName.nonEmpty) bodiesByName
-        else
-          partialFunctionTypesHere.flatMap(t =>
-            methodsOfType(t).filter(m =>
-              m.parameter
-                .index(MESSAGE_PARAMETER_INDEX)
-                .l
-                .exists(_.typeFullName == MESSAGE_PARAMETER_TYPE)))
-      bodies.foreach { body =>
+      scopeTypes.foreach(partialFunctionTypes.add)
+      scopeBodies.foreach { body =>
         partialFunctionBodyNames.add(body.fullName)
         partialFunctionConnections.add(handler.fullName + " ==> " + body.fullName)
       }
 
-      val bridgedParameters = bodies.flatMap(
-        _.parameter
-          .index(MESSAGE_PARAMETER_INDEX)
-          .l
-          .filter(_.typeFullName == MESSAGE_PARAMETER_TYPE))
+      // Rule A — values whose static type IS a qualifying message.
+      def typedValuesOf(messageTypes: List[String]): List[Expression] =
+        messageTypes.flatMap { messageType =>
+          scopeMethods.flatMap { scopeMethod =>
+            val casts = scopeMethod.ast.isCall.l
+              .filter(_.typeFullName == messageType)
+              .filter(_.name.startsWith(OPERATOR_PREFIX))
+            val identifiers = scopeMethod.ast.isIdentifier.l.filter(_.typeFullName == messageType)
+            casts.map(node => node: Expression) ++ identifiers.map(node => node: Expression)
+          }
+        }
 
-      // Rule C — a read of the driver description off the message, inside such a body.
-      val destructuredReads =
-        bodies.flatMap(_.call.l).filter(c => messageAccessorSet.contains(c.methodFullName))
+      // Rule B — calls to the derived description accessor of a qualifying message.
+      def accessorCallsOf(accessorSet: Set[String]): List[Call] =
+        scopeMethods.flatMap(_.call.l).filter(c => accessorSet.contains(c.methodFullName))
 
-      val here: List[CfgNode] =
-        directParameters.map(node => node: CfgNode) ++
-          bridgedParameters.map(node => node: CfgNode) ++
-          destructuredReads.map(node => node: CfgNode)
+      val submissionTypedValues  = typedValuesOf(submissionMessageTypes)
+      val submissionAccessorHits = accessorCallsOf(submissionAccessorSet)
+      val internalTypedValues    = typedValuesOf(internalMessageTypes)
+      val internalAccessorHits   = accessorCallsOf(internalAccessorSet)
 
-      here.foreach { node =>
-        sourceNodeHandler.put(node.id, handler.fullName)
-        sourceNodes.append(node)
+      val submissionEvidence = submissionTypedValues.nonEmpty || submissionAccessorHits.nonEmpty
+      val internalEvidence   = internalTypedValues.nonEmpty || internalAccessorHits.nonEmpty
+
+      // Rule C — calls to a derived command- or jar-bearing member of the description. Held only
+      // where exactly one of the two classes has evidence in this scope, so the attribution is a
+      // fact about the scope rather than a choice; where both do, they are named and dropped.
+      val descriptionMemberHits =
+        scopeMethods.flatMap(_.call.l).filter(c => descriptionMemberSet.contains(c.methodFullName))
+      val descriptionMemberClass =
+        if (submissionEvidence && !internalEvidence) Some(SOURCE_CLASS_SUBMISSION)
+        else if (internalEvidence && !submissionEvidence) Some(SOURCE_CLASS_INTERNAL)
+        else None
+      if (descriptionMemberHits.nonEmpty && submissionEvidence && internalEvidence) {
+        scopesWithBothClasses.add(handler.fullName)
       }
-      if (here.isEmpty) handlersWithoutSource.add(handler.fullName)
+
+      val classified: List[(CfgNode, String)] =
+        submissionTypedValues.map(node => (node: CfgNode, SOURCE_CLASS_SUBMISSION)) ++
+          submissionAccessorHits.map(node => (node: CfgNode, SOURCE_CLASS_SUBMISSION)) ++
+          internalTypedValues.map(node => (node: CfgNode, SOURCE_CLASS_INTERNAL)) ++
+          internalAccessorHits.map(node => (node: CfgNode, SOURCE_CLASS_INTERNAL)) ++
+          (descriptionMemberClass match {
+            case Some(sourceClass) =>
+              descriptionMemberHits.map(node => (node: CfgNode, sourceClass))
+            case None => Nil
+          })
+
+      classified.foreach { case (node, sourceClass) =>
+        // A node reached by two rules is one source node; the first rule that claimed it in the
+        // fixed order above owns it, so the attribution does not depend on iteration order.
+        if (!sourceNodeHandler.contains(node.id)) {
+          sourceNodeHandler.put(node.id, handler.fullName)
+          sourceNodeClass.put(node.id, sourceClass)
+          sourceNodes.append(node)
+          if (sourceClass == SOURCE_CLASS_SUBMISSION) submissionSourceNodeCount += 1
+          else internalSourceNodeCount += 1
+        }
+      }
+      if (descriptionMemberClass.isDefined) descriptionMemberNodesHeld += descriptionMemberHits.size
+
+      if (classified.isEmpty) handlersWithoutSource.add(handler.fullName)
 
       renderedSources.append(
         jsonObject(Seq(
-          "handler"                     -> jsonString(handler.fullName),
-          "direct_message_parameters"   -> jsonInt(directParameters.size),
-          "partial_function_types"      -> jsonStringArray(partialFunctionTypesHere),
-          "partial_function_body_rule"  -> jsonString(bodyRule),
-          "partial_function_bodies"     -> jsonStringArray(bodies.map(_.fullName).distinct.sorted),
-          "bridged_message_parameters"  -> jsonInt(bridgedParameters.size),
-          "destructured_field_reads"    -> jsonStringArray(
-            destructuredReads.map(_.methodFullName).distinct.sorted),
-          "bridge_needed"               -> jsonBool(directParameters.isEmpty),
-          "bridge_succeeded"            -> jsonBool(bridgedParameters.nonEmpty),
-          "resolved_source_nodes"       -> jsonInt(here.size))))
+          "handler"                        -> jsonString(handler.fullName),
+          "scope_prefix"                   -> jsonString(scopePrefix),
+          "scope_types"                    -> jsonStringArray(scopeTypes),
+          "scope_methods"                  -> jsonInt(scopeMethods.size),
+          "rule_a_submission_typed_values" -> jsonInt(submissionTypedValues.size),
+          "rule_b_submission_accessor_calls" -> jsonInt(submissionAccessorHits.size),
+          "rule_a_internal_typed_values"   -> jsonInt(internalTypedValues.size),
+          "rule_b_internal_accessor_calls" -> jsonInt(internalAccessorHits.size),
+          "rule_c_description_member_calls" -> jsonInt(descriptionMemberHits.size),
+          "rule_c_attributed_to" -> jsonString(
+            descriptionMemberClass.getOrElse(
+              if (descriptionMemberHits.isEmpty) "not_applicable_no_description_member_call"
+              else "not_attributable_both_or_neither_class_has_evidence_in_this_scope")),
+          "source_classes_present" -> jsonStringArray(
+            (if (submissionEvidence) List(SOURCE_CLASS_SUBMISSION) else Nil) ++
+              (if (internalEvidence) List(SOURCE_CLASS_INTERNAL) else Nil)),
+          "resolved_source_nodes" -> jsonInt(classified.map(_._1.id).distinct.size),
+          "erased_object_parameter_admitted" -> jsonBool(false))))
     }
 
     val sourceNodeList = sourceNodes.toList
@@ -626,28 +1047,70 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
     diagnostics.append(
       "source_nodes" -> jsonBlockObject(
         Seq(
-          "rule_a_direct_message_parameter" -> jsonString(
-            "the parameter at the message index of the entry point itself, where its type is " +
-              "the erased message type — used where the entry point is not a partial function"),
-          "rule_b_partial_function_body_parameter" -> jsonString(
-            "the parameter at the message index of the body declared by the synthetic " +
-              "partial-function type the entry point allocates, whose full name is the entry " +
-              "point's enclosing type followed by `" + PARTIAL_FUNCTION_INFIX + "`, the entry " +
-              "point's own name and a number — the named entry point declares no message " +
-              "parameter, so this is the bridge that makes a source resolvable at all"),
-          "rule_c_destructured_driver_submission_field" -> jsonString(
-            "a call, inside such a body, to an accessor on a deploy-message type whose return " +
-              "type is `" + DRIVER_DESCRIPTION_TYPE + "`, excluding a default-argument " +
-              "supplier by its `" + DEFAULT_ARGUMENT_PREFIX + "` name prefix"),
-          "message_parameter_index"     -> jsonInt(MESSAGE_PARAMETER_INDEX),
-          "message_parameter_type"      -> jsonString(MESSAGE_PARAMETER_TYPE),
-          "message_accessor_selector"   -> jsonString(
+          "binding" -> jsonString(
+            "sources are bound to the pinned driver-submission message type and the pinned " +
+              "driver-description type by type evidence inside each entry point's own body " +
+              "scope; the erased `java.lang.Object` parameter of a synthetic partial-function " +
+              "body is NEVER a source, because every partial function compiled over a bytecode " +
+              "frontend has one whatever messages it handles, so admitting it would make every " +
+              "entry point a driver-submission source"),
+          "pinned_submission_message_type" -> jsonString(SUBMISSION_MESSAGE_TYPE),
+          "pinned_driver_description_type" -> jsonString(DRIVER_DESCRIPTION_TYPE),
+          "body_scope_rule" -> jsonString(
+            "the entry point itself, plus every method of every type whose full name begins " +
+              "with the entry point's own enclosing type, `" + PARTIAL_FUNCTION_INFIX + "` and " +
+              "the entry point's own name — which reaches a nested case body too, because its " +
+              "type name extends that same prefix"),
+          "rule_a_message_typed_value" -> jsonString(
+            "an operator call in that scope whose static type is a qualifying message type — the " +
+              "cast a pattern match compiles to — or an identifier carrying that type"),
+          "rule_b_description_accessor_call" -> jsonString(
+            "a call in that scope to a method on a deploy-message type whose return type is `" +
+              DRIVER_DESCRIPTION_TYPE + "`, excluding a default-argument supplier by its `" +
+              DEFAULT_ARGUMENT_PREFIX + "` name prefix"),
+          "rule_c_description_member_call" -> jsonString(
+            "a call in that scope to a member of `" + DRIVER_DESCRIPTION_TYPE + "` whose return " +
+              "type matches " + DESCRIPTION_COMMAND_TYPE_SELECTOR + " or whose name matches " +
+              DESCRIPTION_COMMAND_NAME_SELECTOR + " — the command- and jar-bearing values, " +
+              "admitted only where exactly one source class has evidence in the same scope"),
+          "message_accessor_selector" -> jsonString(
             "enclosing type matches " + DEPLOY_MESSAGE_SELECTOR + " and return type is " +
               DRIVER_DESCRIPTION_TYPE),
-          "resolved_message_accessors"  -> jsonStringArray(messageAccessors),
+          "source_class_submission" -> jsonBlockObject(
+            Seq(
+              "label" -> jsonString(SOURCE_CLASS_SUBMISSION),
+              "meaning" -> jsonString(
+                "a value carried by the pinned driver-submission message — the message a " +
+                  "submitter sends, which is the class the probe was asked about"),
+              "message_types"      -> jsonStringArray(submissionMessageTypes),
+              "resolved_accessors" -> jsonStringArray(submissionAccessors),
+              "source_nodes"       -> jsonInt(submissionSourceNodeCount)),
+            "      "),
+          "source_class_internal" -> jsonBlockObject(
+            Seq(
+              "label" -> jsonString(SOURCE_CLASS_INTERNAL),
+              "meaning" -> jsonString(
+                "a value carried by a deploy message OTHER than the submission message that " +
+                  "also carries a driver description — the internal hand-off from one of these " +
+                  "endpoints to another. Reported and counted separately and never folded into " +
+                  "the submission set, because a value that arrived on an internal message did " +
+                  "not arrive from a submitter"),
+              "message_types"      -> jsonStringArray(internalMessageTypes),
+              "resolved_accessors" -> jsonStringArray(internalAccessors),
+              "source_nodes"       -> jsonInt(internalSourceNodeCount)),
+            "      "),
+          "resolved_description_members" -> jsonStringArray(descriptionMembers),
+          "description_member_source_nodes_held" -> jsonInt(descriptionMemberNodesHeld),
+          "scopes_where_a_description_member_read_was_not_attributable" ->
+            jsonStringArray(scopesWithBothClasses.toList),
           "per_handler"                 -> jsonBlockArray(renderedSources.toList, "      "),
           "total_resolved_source_nodes" -> jsonInt(sourceNodeList.size),
-          "handlers_with_no_resolved_source" -> jsonStringArray(handlersWithoutSource.toList)),
+          "handlers_with_no_qualifying_source" -> jsonStringArray(handlersWithoutSource.toList),
+          "handlers_with_no_qualifying_source_note" -> jsonString(
+            "an entry point named here carries no value of the pinned message type and no call " +
+              "to a derived description accessor anywhere in its body scope, so this " +
+              "formulation has no source for it. It is named rather than given the erased " +
+              "partial-function parameter as a stand-in")),
         "    "))
 
 
@@ -746,12 +1209,18 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
     val renderedSinkAnchors  = scala.collection.mutable.ListBuffer.empty[String]
     var flowsAtConfigured    = 0
     var flowsAtDefault       = 0
-    var flowsFiltered        = 0
+    var flowsWithPredicate   = 0
     var flowsUnattributed    = 0
     var deepestFlowMethods   = 0
     var boundChangedOutcome  = false
+    val flowsBySourceClass   = scala.collection.mutable.HashMap.empty[String, Int]
 
-    /** The derived predicates the flow itself carries: a call to one, or an element inside one. */
+    /**
+     * The derived predicates the flow itself carries: a call to one, or an element inside one.
+     * This is a MEASURE, not a filter — a flow carrying one is emitted like any other, and the
+     * count of such flows is reported beside the returns. Filtering them out here would remove
+     * from the result set exactly the returns the mechanical spurious test exists to classify.
+     */
     def predicatesOnFlow(elements: List[AstNode]): List[String] = {
       val insidePredicate = elements.collect { case node: CfgNode => node.method.fullName }
       val callsPredicate  = elements.collect { case node: Call => node.methodFullName }
@@ -813,9 +1282,9 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
       flowsAtDefault += defaultFlows.size
       if (configuredFlows.size != defaultFlows.size) boundChangedOutcome = true
 
-      var anchorFiltered     = 0
-      var anchorUnattributed = 0
-      var anchorContributed  = 0
+      var anchorWithPredicate = 0
+      var anchorUnattributed  = 0
+      var anchorContributed   = 0
 
       configuredFlows.foreach { flow =>
         val elements    = flow.elements
@@ -824,35 +1293,40 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
 
         val handlerName = elements.flatMap(node => sourceNodeHandler.get(node.id)).headOption
         val sinkName    = elements.reverse.flatMap(node => sinkNodeMethod.get(node.id)).headOption
+        val sourceClass = elements.flatMap(node => sourceNodeClass.get(node.id)).headOption
 
         (handlerName, sinkName) match {
           case (Some(handlerFullName), Some(sinkFullName)) =>
-            // The flow filter. A flow carrying a derived predicate is not part of the unguarded
-            // class this query asks for, so it is discarded here and counted.
+            // Every attributable flow is emitted. A flow whose own elements carry a derived
+            // predicate is counted here as a measure and emitted like any other — the mechanical
+            // spurious test is applied by the driver to `predicates_on_path`, and it cannot run
+            // on a return this query removed.
             if (predicatesOnFlow(elements).nonEmpty) {
-              anchorFiltered += 1
-              flowsFiltered += 1
-            } else {
-              val path = composePath(handlerFullName, sinkFullName, elements)
-
-              // The second pass, computed over the emitted path as found: a path node that is
-              // itself a predicate, plus the predicates each path node calls directly. A return
-              // is emitted whatever this finds, and nothing is added to it that the graph does
-              // not carry.
-              val pathNodes =
-                path.map(fullName => (fullName, cpg.method.fullNameExact(fullName).l))
-              val predicatesOnPath = pathNodes.flatMap { case (fullName, nodes) =>
-                val itself = if (predicateSet.contains(fullName)) List(fullName) else Nil
-                val called = nodes
-                  .flatMap(_.call.methodFullName.l)
-                  .filter(predicateSet.contains)
-                  .distinct
-                  .sorted
-                itself ++ called
-              }
-              emitted.append(Emitted(handlerFullName, sinkFullName, path, predicatesOnPath))
-              anchorContributed += 1
+              anchorWithPredicate += 1
+              flowsWithPredicate += 1
             }
+            sourceClass.foreach(label =>
+              flowsBySourceClass.put(label, flowsBySourceClass.getOrElse(label, 0) + 1))
+
+            val path = composePath(handlerFullName, sinkFullName, elements)
+
+            // The second pass, computed over the emitted path as found: a path node that is
+            // itself a predicate, plus the predicates each path node calls directly. A return is
+            // emitted whatever this finds, and nothing is added to it that the graph does not
+            // carry.
+            val pathNodes =
+              path.map(fullName => (fullName, cpg.method.fullNameExact(fullName).l))
+            val predicatesOnPath = pathNodes.flatMap { case (fullName, nodes) =>
+              val itself = if (predicateSet.contains(fullName)) List(fullName) else Nil
+              val called = nodes
+                .flatMap(_.call.methodFullName.l)
+                .filter(predicateSet.contains)
+                .distinct
+                .sorted
+              itself ++ called
+            }
+            emitted.append(Emitted(handlerFullName, sinkFullName, path, predicatesOnPath))
+            anchorContributed += 1
           case _ =>
             anchorUnattributed += 1
             flowsUnattributed += 1
@@ -888,7 +1362,7 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
             "sink_node_count"                -> jsonInt(anchorSinkNodes.size),
             "flows_at_configured_bound"      -> jsonInt(configuredFlows.size),
             "flows_at_engine_default_bound"  -> jsonInt(defaultFlows.size),
-            "flows_filtered_by_flow_filter"  -> jsonInt(anchorFiltered),
+            "flows_whose_elements_carry_a_predicate" -> jsonInt(anchorWithPredicate),
             "flows_not_attributable"         -> jsonInt(anchorUnattributed),
             "returns_contributed"            -> jsonInt(anchorContributed),
             "sink_nodes_when_no_flow_returned" -> jsonBlockArray(zeroFlowEvidence, "        ")),
@@ -1017,7 +1491,11 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
           "bound_changed_outcome_versus_engine_default" -> jsonBool(boundChangedOutcome),
           "flows_at_configured_bound"                   -> jsonInt(flowsAtConfigured),
           "flows_at_engine_default_bound"               -> jsonInt(flowsAtDefault),
-          "flows_filtered_by_flow_filter"               -> jsonInt(flowsFiltered),
+          "flows_whose_elements_carry_a_predicate"       -> jsonInt(flowsWithPredicate),
+          "flows_emitted_by_source_class" -> jsonBlockObject(
+            List(SOURCE_CLASS_SUBMISSION, SOURCE_CLASS_INTERNAL).map(label =>
+              label -> jsonInt(flowsBySourceClass.getOrElse(label, 0))),
+            "      "),
           "flows_not_attributable"                      -> jsonInt(flowsUnattributed),
           "deepest_emitted_flow_distinct_methods" ->
             (if (deepestFlowMethods == 0) "null" else jsonInt(deepestFlowMethods)),
@@ -1036,37 +1514,51 @@ def jsonBlockObject(fields: Seq[(String, String)], indent: String): String =
           "return_selection" -> jsonString(
             "one return per distinct (entry point, sink, path, predicates) tuple, sorted, so a " +
               "flow that differs from another only below the method level is emitted once"),
-          "flow_filter_reach" -> jsonString(
-            "the flow's own elements: an element that is a call to a derived predicate, or an " +
-              "element sitting inside one. A flow carrying either is discarded and counted, so " +
-              "no emitted path has a predicate among its flow elements"),
+          "no_flow_filter" -> jsonString(
+            "no flow is discarded for carrying a predicate. `flows_whose_elements_carry_a_" +
+              "predicate` above is a measure over the flow's own elements — an element that is a " +
+              "call to a derived predicate, or an element sitting inside one — and every one of " +
+              "those flows is emitted as a return like any other. Filtering them would remove " +
+              "from the result set exactly the returns the mechanical spurious test exists to " +
+              "classify, and would make a spurious count of zero a property of this query rather " +
+              "than a measurement"),
           "predicate_check_reach" -> jsonString(
             "the emitted path nodes, plus one outgoing call step from each of them — wider than " +
-              "the filter, and over a path that carries the entry point and the sink method " +
-              "which no flow element covered")),
+              "the element-level measure, and over a path that carries the entry point and the " +
+              "sink method which no flow element covered"),
+          "spurious_determination" -> jsonString(
+            "not made here. `predicates_on_path` is reported per return and the mechanical " +
+              "on-path test is applied downstream: a return is spurious when an authentication " +
+              "or ACL predicate lies on the path from the entry point to the sink, and for no " +
+              "other reason")),
         "    "))
+
+    // -------------------------------------------------------------------------------------
+    // (11) The result region: the BEGIN marker, one JSON object, the END marker, and nothing
+    //      else between them. It is inside this block, and last, on purpose — the whole document
+    //      is built as one string first, so the markers are printed only once a complete result
+    //      exists, and any failure above leaves this unreached.
+    // -------------------------------------------------------------------------------------
+    stage = "emit_result"
+    val document =
+      "{\n" +
+        "  " + jsonString("returns") + ": " + jsonBlockArray(renderedReturns.toList, "  ") +
+        ",\n" +
+        "  " + jsonString("diagnostics") + ": " + jsonBlockObject(diagnostics.toList, "  ") +
+        "\n" +
+        "}"
+
+    println(MARKER_BEGIN)
+    println(document)
+    println(MARKER_END)
 
   } catch {
     case scala.util.control.NonFatal(failure) =>
-      // A failure is recorded against the stage that produced it and the result region is still
-      // emitted, so the driver reads a parseable result rather than an unexplained silence.
-      diagnostics.append(
-        "error" -> jsonObject(Seq(
-          "stage"   -> jsonString(stage),
-          "type"    -> jsonString(failure.getClass.getName),
-          "message" -> jsonString(Option(failure.getMessage).getOrElse("")))))
+      // No result region on a failure: the stage, the exception type and the message go to
+      // stderr and the exception is re-raised, so the run exits non-zero with the start marker
+      // printed and nothing that could be read as a result. A partial diagnostics buffer is
+      // deliberately discarded rather than published as a success-shaped payload.
+      reportFailureAndRaise(stage, failure)
   }
-
-  // (11) The result region: the BEGIN marker, one JSON object, the END marker, and nothing else
-  //      between them. Every graph read above has already completed.
-  val document =
-    "{\n" +
-      "  " + jsonString("returns") + ": " + jsonBlockArray(renderedReturns.toList, "  ") + ",\n" +
-      "  " + jsonString("diagnostics") + ": " + jsonBlockObject(diagnostics.toList, "  ") + "\n" +
-      "}"
-
-  println(MARKER_BEGIN)
-  println(document)
-  println(MARKER_END)
 }
 

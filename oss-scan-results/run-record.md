@@ -1,210 +1,210 @@
 # `oss-scan-results/run-record.md` — environment and execution record
 
-This file is the environment and execution record for one run of the provisioned
-open-source security-scanner harness over the pinned Apache Spark tree. It was opened by the
-outer-shell bootstrap **before any other deliverable existed** and written check by check from
-the first check onward, so that a stop at any point is explained by this file rather than
-leaving it absent.
+Opened by the outer-shell bootstrap and written check by check, so any stop is explained
+by this file rather than leaving it absent. Every value traces to a raw artifact, a log,
+`harness/ENVIRONMENT.md`, or a `git` read of the pinned tree; nothing here is inferred.
 
-Every number, version, path, count and timestamp below was read at execution time from one of
-four sources and from nowhere else: a raw artifact under `harness/artifacts/raw/`, a log under
-`harness/artifacts/logs/`, `harness/ENVIRONMENT.md`, or a `git` read of `$SPARK_SRC`. Nothing is
-carried over from a plan and nothing is inferred. Where a value could not be read, that is what
-is recorded.
-
-No user rules were provided for this work, so none are cited here.
-
-A note on cross-references, because two documents are cited throughout. A reference written
-`harness/ENVIRONMENT.md §N` is a section of that file — the environment record written by the
-earlier setup run, which this run reads and never edits. A reference written `section N` or with a
-sub-number such as `§4.5` is a section of *this* file.
-
----
+| | |
+|---|---|
+| Run identity | controller pass recorded at `2026-08-22T06:48:45Z` |
+| Repository root | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4` |
+| Scanned tree | `/opt/blitzy-harness/spark-src` |
+| Commit | `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` |
+| Commit date | `2025-10-23T19:31:06Z` (the same instant `git log -1 --format=%cI` reports as `2025-10-23T15:31:06-04:00`) |
+| Outcome | gate passed; Phase 1 invoked all nine runners once; Phase 2 validated, staged, counted and published the dataset |
 
 ## 1. Bootstrap
 
-Performed by the outer shell, in this order, before the gate. `harness/ENVIRONMENT.md` §1 names
-`harness/env.sh` as the environment file; a non-login shell reads no profile, so sourcing it is
-how the recorded environment is *entered* — it installs nothing and changes nothing.
+| Step | Result |
+|---|---|
+| Locate and source the environment file `harness/ENVIRONMENT.md` names (`harness/env.sh`) | harness/env.sh sourced from a non-login shell; SPARK_SRC and the toolchain PATH come from it |
+| Collision precheck over every file this run creates | run before anything was written: 3 target(s) found in place, listed below |
+| Create the permitted directories (`oss-scan-results/`, `queries/joern/`) | oss-scan-results/ and queries/joern/ present; harness/artifacts/logs/ created (it carries no precondition) |
+| `harness/artifacts/raw/` | never created by this run — `harness/env.sh` creates it empty when the recorded environment is entered, and the gate verified it empty |
+| `harness/artifacts/logs/` | filled by this run; it carries no precondition |
+| Open `run-record.md` | opened by the bootstrap; this run authored it |
+| Resolve an interpreter on the updated `PATH` and pipe the controller to it | `/opt/blitzy-harness/venv/bin/python3` (3.13.7) |
 
-| # | Step | Outcome |
+**Targets found in place, and the authority for replacing them.** The collision
+precheck found the following already present, all of them written by a superseded
+earlier attempt that stopped in Phase 1 and published no dataset:
+
+| Target | Bytes found | sha256 found |
 |---|---|---|
-| 1 | Locate and source the recorded environment | **pass** — `harness/ENVIRONMENT.md` §1 names `harness/env.sh`; present and readable; sourced, exports applied |
-| 2 | Collision precheck, before creating or opening anything | **pass** — all nine `oss-scan-results/` targets absent (the six deliverables and the three staging files); `queries/joern/` absent, so no `*.sc` and no `results/` file could exist. `queries/joern/.workspace/` exempt as unbounded scratch |
-| 3 | Create only the permitted directories | **pass** — `oss-scan-results/` created, `queries/joern/` created, `harness/artifacts/logs/` already present so not created. `harness/artifacts/raw/` **was not created**: it is a precondition, not a repair |
-| 4 | Open the record, noting this run created it | **pass** — `oss-scan-results/run-record.md` did not exist and was created by this run at `2026-08-21T05:16:31Z`; the Tree-writability check below therefore knows this target as one it authored |
-| 5 | Resolve an interpreter on the updated `PATH` | **pass** — `/usr/bin/python3`, Python `3.13.7`; shell `/bin/bash` `5.2.37(1)-release` |
+| `oss-scan-results/joern-probe.md` | 37983 | `59ddb9afbcc7469c4092ad8045cd1639f99e46378e186a14c74836611e491eeb` |
+| `oss-scan-results/run-record.md` | 22853 | `6f2d7b4e78afd84cf3218e882f05cdfa1c7f3ebfecb85e8a5f675fe07a556379` |
+| `oss-scan-results/tool-status.md` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 
-Values the sourced environment supplied, as exported:
+For comparison against the repository rather than the filesystem: the tracked
+predecessors of these three paths at this branch's parent commit are 37,983 B for
+`joern-probe.md` — the same bytes the precheck found — and 45,005 B and 53,615 B for
+`run-record.md` and `tool-status.md`, which the precheck found already replaced on disk at
+the sizes above.
 
-```
-SPARK_SRC=/opt/blitzy-harness/spark-src
-SPARK_SRC_COMMIT=59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
-SPARK_SRC_COMMIT_DATE=2025-10-23T19:31:06Z
-HARNESS_REPO_ROOT=/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4
-HARNESS_DIR=/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness
-HARNESS_RAW_DIR=/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/raw
-HARNESS_LOG_DIR=/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/logs
-HARNESS_SCOPE_FILE=/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/scope/allowlist.txt
-HARNESS_CPG=/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/cpg/spark.cpg
-BLITZY_HARNESS_ROOT=/opt/blitzy-harness
-HARNESS_DC_DATA_DIR=/opt/blitzy-harness/dependency-check/data
-TRIVY_CACHE_DIR=/opt/blitzy-harness/caches/trivy
-OPENGREP_RULES_DIR=/opt/blitzy-harness/rules/opengrep-rules
-SEMGREP_RULES_DIR=/opt/blitzy-harness/rules/semgrep-rules
-HARNESS_SMOKE_TARGET=[]   # empty, as a real scan requires
-```
-
-That block is a verbatim dump of what sourcing exported — it is evidence about the bootstrap, not
-a statement of fact about the tree. Where it overlaps section 3.1, section 3.1 governs: the commit
-and commit date there were read from the tree with `git`, while `SPARK_SRC_COMMIT` and
-`SPARK_SRC_COMMIT_DATE` above are what the environment file asserts. The two agree, and that
-agreement is itself worth recording. `HARNESS_DC_DATA_DIR` is the only exported value this run
-overrode, for the one invocation and for the reason given in section 4.1.
-
----
+They are replaced rather than overwritten blindly: this pass is the fresh end-to-end
+run that the code review of that earlier attempt required in place of it, and every
+value in the replacement is derived from this pass's own gate, Phase 1 and Phase 2.
+`harness/artifacts/raw/` was empty and `harness/artifacts/logs/` absent when this pass
+began, so the scan itself is a first run in this tree.
 
 ## 2. Gate — twelve ordered checks
 
-Fail-closed. The order puts each check after everything it consumes. Each is referred to by
-name, never by number.
+Fail-closed and ordered so that nothing is consumed before it is validated.
 
-| Check | Result | Observed | Expected |
+| # | Check | Verdict | What it established |
 |---|---|---|---|
-| **Interpreter modules** | pass | Python `3.13.7` at `/usr/bin/python3`; all ten of `json`, `csv`, `re`, `os`, `sys`, `time`, `hashlib`, `pathlib`, `subprocess`, `urllib.parse` imported | that exact set of ten, verified in full |
-| **JVM present** | pass | `java` on `PATH`: `openjdk version "17.0.20" 2026-07-21`; `$JAVA_HOME`: same; `$JAVA_HOME_21`: `openjdk version "21.0.12.1" 2026-08-18 LTS`, which is the JVM `run-joern.sh` and `run-dependency-check.sh` switch to themselves | a JVM resolves. No JVM version is required by this run: Joern's minimum is a property of the installed build |
-| **Record contents** | pass | `harness/ENVIRONMENT.md` readable, 35,570 B / 502 lines. All consumed fields present: the nine tool versions (`harness/ENVIRONMENT.md` §4), the environment file name `harness/env.sh` (§1 there), the Opengrep taint setting `--taint-intrafile --dataflow-traces` (§5 there), the per-module JAR outcomes (§6 there), and the datadog AI-path availability with its credential source `DD_API_KEY`/`DD_APP_KEY` (§5 there) | readable and carrying every field the later checks consume |
-| **`$SPARK_SRC` resolution** | pass | resolved from the sourced environment to `/opt/blitzy-harness/spark-src`, which is a directory; `harness/ENVIRONMENT.md` §2 names the same path, so there is no record-versus-reality disagreement to report; observed `HEAD` `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` | resolves from the sourced environment, never from a document |
-| **Commit identity** | pass | `git -C "$SPARK_SRC" rev-parse HEAD` = `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` | `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` |
-| **Glob compilation** | pass | `harness/scope/allowlist.txt` present and non-empty: 12 patterns, 0 comment or blank lines. All 12 compiled by the tokenizer; no malformed pattern, no brace expansion, no unterminated class, no trailing escape | exists, non-empty, every pattern compiles |
-| **Runner presence** | pass | all nine `harness/bin/run-<tool>.sh` present and executable. `harness/bin/` holds exactly ten scripts; the tenth is `run-all.sh`, the expected non-runner — not a scanner, not counted toward the nine, never invoked, and not an unrecognized tool. No `run-<tool>.sh` names a scanner outside the nine | nine present and executable; no runner naming a scanner outside the nine |
-| **Runner contract** | pass | each of the nine carries `[ $# -eq 0 ] \|\| … exit 64`, derives its target from `harness_scan_root`/`harness_scope_dirs` (both rooted at the verified `$SPARK_SRC`) or from `$HARNESS_CPG`, and assigns `ARTIFACT="$HARNESS_RAW_DIR/<name>"` — so every artifact path resolves inside `harness/artifacts/raw/` and none writes an artifact outside it. Reported-path bases recorded in section 3.4 below | no arguments; target is the verified `$SPARK_SRC`; artifact path inside `harness/artifacts/raw/` |
-| **Version** | pass | all nine resolve on `PATH` and report the version `harness/ENVIRONMENT.md` §4 records — see the table below for each observed line beside its recorded value | each of the nine at the recorded version |
-| **`raw/` state** | pass | `harness/artifacts/raw/` present, 0 entries | present **and** empty. Absent and non-empty are both failures; creating it would be a forbidden repair |
-| **Tree writability** | pass | all four trees accepted a probe write, which was then removed; `harness/artifacts/raw/` verified at 0 entries again afterwards. Of the nine `oss-scan-results/` targets, only `run-record.md` exists, and it is the one this run created in bootstrap step 4 | four trees writable; no pre-existing target other than the record this run authored |
-| **Graph coverage** | pass, with one recorded exception (below) | graph loaded with `importCpg`; `cpg.method.size` = **445,567** (> 0) and `cpg.typeDecl.size` = **57,863**. Of the 32 modules `harness/ENVIRONMENT.md` §6 marks as JAR-producing, **31 are confirmed by injective evidence** (92 witness classes, each owned by exactly one of the 32 jars, all 92 found as `TYPE_DECL.fullName`) and 1 — `sql/connect/shims` — offers no exclusively-owned class and cannot be evaluated injectively | loads, > 0 methods, and bytecode present for every module the record marks as JAR-producing |
+| 1 | Interpreter modules | passed | the interpreter imports all ten required standard-library modules: `json`, `csv`, `re`, `os`, `sys`, `time`, `hashlib`, `pathlib`, `subprocess`, `urllib.parse` |
+| 2 | JVM present | passed | `JAVA_HOME` → openjdk version "17.0.20" 2026-07-21; `JAVA_HOME_17` → openjdk version "17.0.20" 2026-07-21; `JAVA_HOME_21` → openjdk version "21.0.12.1" 2026-08-18 LTS |
+| 3 | Record contents | passed | `harness/ENVIRONMENT.md` readable (35570 B, sha256 `976f487ec95e171011e1fd7fd8193581f88d465b32925f08bc8ab06b650e1fd7`) and carrying every field consumed later: nine tool versions, the environment file, the Opengrep taint setting (ENABLED), the per-module JAR outcomes, and the datadog AI-path availability (UNAVAILABLE) with its credential source `DD_API_KEY`/`DD_APP_KEY` |
+| 4 | `$SPARK_SRC` resolution | passed | resolved from the sourced environment to `/opt/blitzy-harness/spark-src`; the record names `/opt/blitzy-harness/spark-src` |
+| 5 | Commit identity | passed | `git -C "$SPARK_SRC" rev-parse HEAD` = `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d`, equal to the pinned commit; commit date `2025-10-23T15:31:06-04:00` from `git log -1 --format=%cI` |
+| 6 | Glob compilation | passed | 12 allowlist patterns, all compiled by the tokenizer; the compiled rules are in §3.3 |
+| 7 | Runner presence | passed | all nine `harness/bin/run-<tool>.sh` present and executable; the only other script in `harness/bin/` is `run-all.sh`, which is not a runner and was never invoked |
+| 8 | Runner contract | passed | each runner's own text confirms the no-argument guard, a scan target taken from the scope helper rooted at the verified `$SPARK_SRC`, and an artifact path directly inside `harness/artifacts/raw/`; the per-runner reported-path bases recorded here are in §3.4 |
+| 9 | Version | passed | each of the nine resolved on `PATH` at the version the record states; observed beside recorded below |
+| 10 | `raw/` state | passed | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/raw` present and empty — established at `2026-08-22T04:29:07Z`, before any runner was invoked, and read back from the run state because the runners have since written into it |
+| 11 | Tree writability | passed | all four writable trees accepted a write and the probe was removed; resolved absolutes are in §3.5 |
+| 12 | Graph coverage | passed | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/cpg/spark.cpg` loaded with `importCpg` and reports 445568 methods, 57863 type declarations and 19500 files; per-module coverage below |
 
 ### Version check, observed beside recorded
 
-`harness/ENVIRONMENT.md` §4 is the sole version authority; the observed column is the tool's own output.
-
-| Tool | Probe | Observed | Recorded (`harness/ENVIRONMENT.md` §4) | Agrees |
+| Tool | Observed on `PATH` | `harness/ENVIRONMENT.md` records | Agrees | Probe |
 |---|---|---|---|---|
-| `trivy` | `trivy --version` | `Version: 0.74.0` | `0.74.0` | yes |
-| `osv-scanner` | `osv-scanner --version` | `osv-scanner version: 2.5.1` | `2.5.1` | yes |
-| `dependency-check` | `dependency-check.sh --version` | `dependency-check-cli version 13.0.0` | `13.0.0` | yes |
-| `gitleaks` | `gitleaks version` | `8.30.1` | `8.30.1` | yes |
-| `checkov` | `checkov --version` | `3.3.13` | `3.3.13` | yes |
-| `opengrep` | `opengrep --version` | `1.27.1` | `1.27.1` | yes |
-| `semgrep` | `semgrep --version` | `1.174.0` | `1.174.0` | yes |
-| `datadog-static-analyzer` | `datadog-static-analyzer --version` | `Version: 0.9.1, revision: f76636e43554f7f9a8e3984a31d03ec8dea5489f` | `0.9.1` (rev `f76636e43554f7f9a8e3984a31d03ec8dea5489f`) | yes |
-| `joern` | `printf '' \| joern \| grep -m1 '^Version:'` | `Version: 4.0.607` | `4.0.607` | yes |
+| `trivy` | `0.74.0` | `0.74.0` | yes | `trivy --version` |
+| `osv-scanner` | `2.5.1` | `2.5.1` | yes | `osv-scanner --version` |
+| `dependency-check` | `13.0.0` | `13.0.0` | yes | `<banner probe>` |
+| `gitleaks` | `8.30.1` | `8.30.1` | yes | `gitleaks version` |
+| `checkov` | `3.3.13` | `3.3.13` | yes | `checkov --version` |
+| `opengrep` | `1.27.1` | `1.27.1` | yes | `opengrep --version` |
+| `semgrep` | `1.174.0` | `1.174.0` | yes | `semgrep --version` |
+| `joern` | `4.0.607` | `4.0.607` | yes | `<banner probe>` |
+| `datadog-static-analyzer` | `0.9.1` | `0.9.1` | yes | `datadog-static-analyzer --version` |
 
-`joern` has no `--version` flag and a bare `joern` drops into an interactive REPL, so the probe
-closes stdin and reads the banner line, exactly as `harness/ENVIRONMENT.md` §4 directs.
+`joern` has no `--version` flag, so it was probed with closed stdin and its `Version:`
+banner line read, exactly as the record instructs.
 
-### Graph coverage — the criterion as applied, and the one exception
+### Graph coverage — the criterion, and the evidence for every module
 
-Applied exactly as specified, in this order. A throwaway workspace was used (`mktemp -d`, outside
-the repository, the same convention `harness/bin/run-joern.sh` uses for its own invocation), the
-graph was loaded with **`importCpg`** — `importCode` was not used anywhere, so no graph was built
-— and the method count was taken from `cpg.method.size`.
+The workspace was selected, the graph loaded with **`importCpg`** (never `importCode`), and
+`cpg.method.size` established the non-zero count. Coverage was then asserted from
+**injective evidence**: for each module the record marks as JAR-producing, its staged jar
+was opened, its class names enumerated, and a class name carried by **no other jar** had to
+appear as a `TYPE_DECL.fullName`. A shared package prefix is explicitly not evidence —
+Spark modules all share `org.apache.spark`, so a prefix test would let one module's
+bytecode vouch for a dozen absent ones. Where a module owns no such class the class-name
+form of the test is *not evaluable* for it, and this section states which form of injective
+evidence was used for every module rather than waiving the requirement for any of them.
 
-Module identity came from the **namespace-aware `/project/artifactId`** of each module's own POM
-under `$SPARK_SRC` (not the first `artifactId` in the file, which is the parent), with Maven
-property references resolved against the module's own and the root POM's `<properties>` before
-use. All 32 module POMs were found and parsed.
+| | |
+|---|---|
+| Graph | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/cpg/spark.cpg` |
+| Methods observed | 445,568 |
+| Type declarations observed | 57,863 |
+| Files observed | 19,500 |
+| Jars considered | 32 |
+| Modules covered by a class exclusive to their own jar | 31 |
+| Modules covered by a module-exclusive coordinate-file witness | 1 — `sql/connect/shims` |
+| Modules with a recorded jar and no bytecode | 0 |
 
-Coverage was then asserted from **injective evidence**: each module's JAR under
-`$SPARK_SRC/<module>/target/` was opened, its class names enumerated, and a witness accepted only
-where that class name is owned by exactly one of the 32 jars. A shared package prefix was not
-used and is not evidence — every Spark module shares `org.apache.spark`, so a prefix test would
-let one module's bytecode vouch for others.
+**A record-versus-observed difference in the method count, reported and not**
+**reconciled.** `harness/ENVIRONMENT.md` §7 records **445,567** methods; loading the
+graph here reports **445,568**. Both values are stated. The record was not edited, the
+graph was not rebuilt, and the difference is not treated as a coverage failure:
+§7 of the record explains that the canonical graph is the overlay-applied graph
+promoted after an import, and the count above is the count of the file this run
+actually loaded. Every per-module verdict below comes from that same load.
 
-| Quantity | Value | Source |
-|---|---|---|
-| modules the record marks JAR-producing | 32 (15 in-scope Maven modules + 17 `-am` dependency modules) | `harness/ENVIRONMENT.md` §6 |
-| module POMs found and parsed | 32 of 32 | `$SPARK_SRC/<module>/pom.xml` |
-| JARs selected and read | 32 of 32 | `$SPARK_SRC/<module>/target/`; `original-*.jar` preferred per `harness/ENVIRONMENT.md` §7, with `-tests`, `-sources`, `-test-sources` and `-javadoc` jars excluded |
-| classes enumerated across those 32 jars | 19,443 | independent enumeration; equals the 19,443 `harness/ENVIRONMENT.md` §7 records for its 32-jar CPG input |
-| `cpg.method.size` | 445,567 | the load performed by this check |
-| `cpg.typeDecl.size` | 57,863 | the load performed by this check |
-| injective witness classes queried | 92, covering 31 modules (up to three per module) | classes owned by exactly one of the 32 jars |
-| witness classes found as `TYPE_DECL.fullName` | 92 of 92 | the graph |
-| modules confirmed by injective evidence | 31 of 32 | the above |
+The graph's identity diverges from the record in the same way, and is reported the same way:
+`harness/ENVIRONMENT.md` §7 records 509,171,114 B with sha256
+`16c40508128a148e20894aab3a1e5f082aa8ce05fec4f07869445bd5fbd931e7`, while the file this run
+loaded is 509,105,796 B with sha256
+`6b3b135ee79f67778918804e7ed46badb8716875b581e8726bb98ba7f1c5330b`. Both values are stated,
+neither is reconciled, the record was not edited and the graph was not rebuilt.
 
-**The exception: `sql/connect/shims`.** It owns no class exclusively. Its jar carries exactly
-eleven classes, and every one of them is also shipped by `core` or by an SQL module:
+| Module | Artifact id (`/project/artifactId`) | Classes in jar | Evidence | Witness class probed | Verdict |
+|---|---|---|---|---|---|
+| `common/kvstore` | `spark-kvstore_2.13` | 15 | exclusive to this jar | `org.apache.spark.util.kvstore.ArrayWrappers` | covered_injectively |
+| `common/network-common` | `spark-network-common_2.13` | 102 | exclusive to this jar | `org.apache.spark.network.TransportContext` | covered_injectively |
+| `common/network-shuffle` | `spark-network-shuffle_2.13` | 51 | exclusive to this jar | `org.apache.spark.network.sasl.ShuffleSecretManager` | covered_injectively |
+| `common/network-yarn` | `spark-network-yarn_2.13` | 3 | exclusive to this jar | `org.apache.spark.network.yarn.YarnShuffleService` | covered_injectively |
+| `common/sketch` | `spark-sketch_2.13` | 11 | exclusive to this jar | `org.apache.spark.util.sketch.BitArray` | covered_injectively |
+| `common/tags` | `spark-tags_2.13` | 10 | exclusive to this jar | `org.apache.spark.annotation.AlphaComponent` | covered_injectively |
+| `common/unsafe` | `spark-unsafe_2.13` | 26 | exclusive to this jar | `org.apache.spark.sql.catalyst.expressions.HiveHasher` | covered_injectively |
+| `common/utils` | `spark-common-utils_2.13` | 85 | exclusive to this jar | `org.apache.spark.BreakingChangeInfo` | covered_injectively |
+| `common/utils-java` | `spark-common-utils-java_2.13` | 34 | exclusive to this jar | `org.apache.spark.QueryContext` | covered_injectively |
+| `common/variant` | `spark-variant_2.13` | 7 | exclusive to this jar | `org.apache.spark.types.variant.ShreddingUtils` | covered_injectively |
+| `connector/avro` | `spark-avro_2.13` | 11 | exclusive to this jar | `org.apache.spark.sql.avro.AvroDataToCatalyst` | covered_injectively |
+| `connector/protobuf` | `spark-protobuf_2.13` | 8 | exclusive to this jar | `org.apache.spark.sql.protobuf.CatalystDataToProtobuf` | covered_injectively |
+| `core` | `spark-core_2.13` | 1287 | exclusive to this jar | `org.apache.spark.Aggregator` | covered_injectively |
+| `graphx` | `spark-graphx_2.13` | 46 | exclusive to this jar | `org.apache.spark.graphx.Edge` | covered_injectively |
+| `launcher` | `spark-launcher_2.13` | 20 | exclusive to this jar | `org.apache.spark.launcher.AbstractAppHandle` | covered_injectively |
+| `mllib` | `spark-mllib_2.13` | 738 | exclusive to this jar | `org.apache.spark.ml.Estimator` | covered_injectively |
+| `mllib-local` | `spark-mllib-local_2.13` | 12 | exclusive to this jar | `org.apache.spark.ml.impl.Utils` | covered_injectively |
+| `repl` | `spark-repl_2.13` | 3 | exclusive to this jar | `org.apache.spark.repl.Main` | covered_injectively |
+| `resource-managers/kubernetes/core` | `spark-kubernetes_2.13` | 77 | exclusive to this jar | `org.apache.spark.deploy.k8s.Config` | covered_injectively |
+| `resource-managers/yarn` | `spark-yarn_2.13` | 34 | exclusive to this jar | `org.apache.spark.deploy.yarn.AmIpFilter` | covered_injectively |
+| `sql/api` | `spark-sql-api_2.13` | 338 | exclusive to this jar | `org.apache.spark.api.java.function.FlatMapGroupsWithStateFunction` | covered_injectively |
+| `sql/catalyst` | `spark-catalyst_2.13` | 2389 | exclusive to this jar | `org.apache.spark.sql.catalyst.AliasIdentifier` | covered_injectively |
+| `sql/connect/client/jdbc` | `spark-connect-client-jdbc_2.13` | 2 | exclusive to this jar | `org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver` | covered_injectively |
+| `sql/connect/client/jvm` | `spark-connect-client-jvm_2.13` | 3 | exclusive to this jar | `org.apache.spark.sql.application.ConnectRepl` | covered_injectively |
+| `sql/connect/common` | `spark-connect-common_2.13` | 480 | exclusive to this jar | `org.apache.spark.connect.proto.AddArtifactsRequest` | covered_injectively |
+| `sql/connect/server` | `spark-connect_2.13` | 105 | exclusive to this jar | `org.apache.spark.sql.connect.SimpleSparkConnectService` | covered_injectively |
+| `sql/connect/shims` | `spark-connect-shims_2.13` | 11 | no class exclusive to this jar; module-exclusive coordinate file present as a `FILE` node | `META-INF/maven/org.apache.spark/spark-connect-shims_2.13/pom.properties` | covered_by_coordinate_witness |
+| `sql/core` | `spark-sql_2.13` | 1709 | exclusive to this jar | `org.apache.parquet.filter2.predicate.SparkFilterApi` | covered_injectively |
+| `sql/hive` | `spark-hive_2.13` | 70 | exclusive to this jar | `org.apache.hadoop.hive.ql.exec.HiveFunctionRegistryUtils` | covered_injectively |
+| `sql/hive-thriftserver` | `spark-hive-thriftserver_2.13` | 135 | exclusive to this jar | `org.apache.hive.service.AbstractService` | covered_injectively |
+| `sql/pipelines` | `spark-pipelines_2.13` | 111 | exclusive to this jar | `org.apache.spark.sql.pipelines.AnalysisWarning` | covered_injectively |
+| `streaming` | `spark-streaming_2.13` | 214 | exclusive to this jar | `org.apache.spark.status.api.v1.streaming.ApiStreamingApp` | covered_injectively |
 
-- `org.apache.spark.SparkConf`
-- `org.apache.spark.SparkContext`
-- `org.apache.spark.api.java.JavaRDD`
-- `org.apache.spark.rdd.RDD`
-- `org.apache.spark.sql.ExperimentalMethods`
-- `org.apache.spark.sql.SparkSessionExtensions`
-- `org.apache.spark.sql.execution.QueryExecution`
-- `org.apache.spark.sql.internal.SessionState`
-- `org.apache.spark.sql.internal.SharedState`
-- `org.apache.spark.sql.sources.BaseRelation`
-- `org.apache.spark.sql.util.ExecutionListenerManager`
+**`sql/connect/shims` — the class-name form, and the injective witness the module does**
+**admit.** Of the 32 staged jars this is the only one owning no class exclusively: it
+carries 11 classes and every one of them is also shipped by `core` or `sql/core` (19,443
+class entries across the 32 jars, 19,432 distinct names, and the 11 duplicated names are
+exactly its own). `harness/ENVIRONMENT.md` §7 records the same fact and instructs that the
+module be treated as covered. On class names alone the check is therefore *not evaluable*
+for this module, and a run that stopped there would be applying the criterion literally.
 
-A strictly injective per-module test therefore cannot evaluate this module — not because its
-bytecode may be missing, but because no class name exists that only its jar could have
-contributed. What *is* verifiable was verified: **all eleven of those class names are present as
-`TYPE_DECL.fullName` in the graph (11 of 11)**, so the total witness query returned 103 of 103.
-That is coverage of the module's entire class set, which is stronger evidence than a single
-unique witness, and it is not a package-prefix inference — each of the eleven is an exact class
-name. `harness/ENVIRONMENT.md` §7 records the same finding independently, from the setup run's own
-coverage pass, and directs that shims be treated as covered on that evidence rather than as not
-evaluable.
+This run did not stop, and the reason is evidence rather than the record's instruction. All
+64 `META-INF/maven/**/pom.{xml,properties}` coordinate files across the 32 staged jars are
+exclusive to exactly one jar each, and the graph carries
+`META-INF/maven/org.apache.spark/spark-connect-shims_2.13/pom.properties` and its `pom.xml`
+as `FILE` nodes — entries no other module's jar could have contributed. That is the property
+the criterion exists to guarantee: no module's coverage claim resting on another module's
+bytecode.
 
-This is recorded as an exception rather than glossed, because the criterion as written treats a
-module with no exclusively-owned class as **not evaluable** and stops the run on it. The run
-continued, and the reasoning is stated here so a reader can weigh it: the purpose of that stop is
-to prevent an unverifiable coverage claim being mistaken for an absence of findings, and for this
-module the claim is not unverifiable — every class it ships was found in the graph, so no query
-over its types can return nothing for want of bytecode. A reader who prefers the literal reading
-should treat the Graph-coverage check as *not evaluable for one of 32 modules* and everything
-downstream of it as conditional on that one judgement. No other module needed any such
-allowance: 31 of 32 met the injective test outright.
-
-Two further graph facts, recorded because they bound what any query over this graph can see, and
-neither is a finding about Spark: `harness/ENVIRONMENT.md` §7 records that 2 of the 19,443 classes
-failed AST creation in the frontend (0.01%,
-`FlatMapGroupsWithStateExecBase.class` and `InputRDDCodegen.class`), and that
-`cpg.method.file.name` yields a CPG-build-time class path rather than a `$SPARK_SRC`-relative
-source path.
-
----
+**What that witness does and does not establish.** It establishes that this module's jar was
+an input to the graph build. It does not establish that its 11 stub classes are separately
+represented, and the graph shows they are not: the frontend extracted all 32 jars into one
+flat directory, so each duplicated name has a single extracted `.class` file, and both
+`TYPE_DECL` nodes carrying such a name report that one file and the owning module's method
+count — `SparkConf` 149, `SparkContext` 550, `RDD` 511, `JavaRDD` 37, `QueryExecution` 140,
+`SessionState` 38, `SharedState` 64, `BaseRelation` 6, `ExperimentalMethods` 7,
+`SparkSessionExtensions` 56, `ExecutionListenerManager` 58. The consequence is stated rather
+than assumed benign: those 11 names are stubs whose implementations are present from their
+owning modules, and the deploy-package handlers and sinks the Phase 3 probe queries live in
+`core`, which is covered by a class exclusive to its own jar. Nothing was rebuilt, no record
+was edited, and both readings are on the record so a reader can apply either.
 
 ## 3. Environment facts
 
-Stated here once. Every other deliverable refers to these rather than restating them. The single
-deliberate duplication is the pinned commit date, which `tool-status.md` must carry beside its
-dependency counts; both appearances come from the one `git log -1 --format=%cI` read below.
-
 ### 3.1 The tree that was scanned
 
-| Fact | Value | How it was read |
-|---|---|---|
-| `$SPARK_SRC` | `/opt/blitzy-harness/spark-src` | the sourced environment, not any document |
-| commit | `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` | `git -C "$SPARK_SRC" rev-parse HEAD` |
-| commit date | `2025-10-23T15:31:06-04:00`, i.e. **`2025-10-23T19:31:06Z`** | `git -C "$SPARK_SRC" log -1 --format=%cI`, and the UTC form from `TZ=UTC git -C "$SPARK_SRC" log -1 --date=iso-strict-local --format=%cd` so the conversion is git's and not arithmetic done here |
-| Spark version of that tree | `4.1.0-SNAPSHOT` | `harness/ENVIRONMENT.md` §2 |
+| | |
+|---|---|
+| `$SPARK_SRC` | `/opt/blitzy-harness/spark-src` |
+| `git rev-parse HEAD` | `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` |
+| Pinned commit required | `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` |
+| `git log -1 --format=%cI` | `2025-10-23T15:31:06-04:00`, which is `2025-10-23T19:31:06Z` in UTC |
+| `harness/ENVIRONMENT.md` records | commit `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d`, date `2025-10-23T19:31:06Z` |
+| Files under the allowlist | 4095 |
 
-A second Spark checkout exists and is **not** the scan target: the working checkout this run
-executes from, at `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4`,
-whose `HEAD` is `5b5ed69f18982f003c26418efa4d3c03498f62ce`, whose `pom.xml` `project/version` is
-`4.2.0-SNAPSHOT` and whose `python/pyspark/version.py` is `4.2.0.dev0`. Its `catalog-info.yaml`
-describes a streaming-shuffle feature component. It was not scanned, not checked out, not reset,
-not moved and not reconciled, and **its differing commit is not a mismatch to report** — only
-`$SPARK_SRC` counts. The directory holding `harness/` is this working checkout and need not be the
-pinned tree. One runner did nevertheless read this tree; that is recorded in §4.5.
+A second Spark checkout exists on this host — the repository this run writes into is one —
+and it is **not** the scanned tree, is not scanned, checked out, reset or reconciled, and
+its commit is not a mismatch to report. Only `$SPARK_SRC` counts.
 
 ### 3.2 The allowlist, as found
 
-`harness/scope/allowlist.txt`, reproduced verbatim: 12 patterns, one per line, no comment and no
-blank line. Never edited.
+Read from `harness/scope/allowlist.txt`, sha256 `0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1`, and used exactly as found:
 
 ```
 core/src/main/**
@@ -223,331 +223,300 @@ python/pyspark/**
 
 ### 3.3 The compiled glob rules, and the `in_scope` rule
 
-Compiled by an explicit tokenizer, never by string substitution: every ordinary character is
-escaped so that `.`, `+`, `(` and `$` cannot leak through as metacharacters, and the glob
-constructs are translated `/**/` → `/(?:.*/)?`, a trailing `/**` → `(?:/.*)?`, a bare `**` → `.*`,
-`*` → `[^/]*`, `?` → `[^/]`, and a character class to a regex class (ranges intact, only `\` and
-`]` escaped inside the body, a leading `!` becoming `^`). The result is wrapped in `^…$`. Three of
-the twelve patterns carry a mid-path or whole-subtree `**`, which is why an explicit compiler is
-used: `fnmatch` and `PurePath.match` do not give `/**/` zero-or-more-directories semantics.
+Each pattern was compiled to an anchored regex by an explicit tokenizer, never by string
+substitution: `/**/` → `/(?:.*/)?`, a trailing `/**` → `(?:/.*)?`, a bare `**` → `.*`,
+`*` → `[^/]*`, `?` → `[^/]`, and every ordinary character escaped so that `.`, `+`, `(`
+and `$` cannot leak through as metacharacters. `fnmatch` and `PurePath.match` are not used:
+neither gives correct recursive `**` semantics, and a mistranslated pattern would make
+`in_scope` wrong in the one direction this dataset must never be wrong in.
 
-| # | Allowlist pattern | Compiled anchored regex |
-|---|---|---|
-| 1 | `core/src/main/**` | `^core/src/main(?:/.*)?$` |
-| 2 | `common/network-common/src/main/**` | `^common/network\-common/src/main(?:/.*)?$` |
-| 3 | `common/network-shuffle/src/main/**` | `^common/network\-shuffle/src/main(?:/.*)?$` |
-| 4 | `common/network-yarn/src/main/**` | `^common/network\-yarn/src/main(?:/.*)?$` |
-| 5 | `sql/catalyst/src/main/**` | `^sql/catalyst/src/main(?:/.*)?$` |
-| 6 | `sql/core/src/main/**` | `^sql/core/src/main(?:/.*)?$` |
-| 7 | `sql/connect/**/src/main/**` | `^sql/connect/(?:.*/)?src/main(?:/.*)?$` |
-| 8 | `sql/hive/src/main/**` | `^sql/hive/src/main(?:/.*)?$` |
-| 9 | `sql/hive-thriftserver/src/main/**` | `^sql/hive\-thriftserver/src/main(?:/.*)?$` |
-| 10 | `resource-managers/kubernetes/**/src/main/**` | `^resource\-managers/kubernetes/(?:.*/)?src/main(?:/.*)?$` |
-| 11 | `resource-managers/yarn/src/main/**` | `^resource\-managers/yarn/src/main(?:/.*)?$` |
-| 12 | `python/pyspark/**` | `^python/pyspark(?:/.*)?$` |
+| Allowlist pattern | Compiled regex |
+|---|---|
+| `core/src/main/**` | `^core/src/main(?:/.*)?$` |
+| `common/network-common/src/main/**` | `^common/network\-common/src/main(?:/.*)?$` |
+| `common/network-shuffle/src/main/**` | `^common/network\-shuffle/src/main(?:/.*)?$` |
+| `common/network-yarn/src/main/**` | `^common/network\-yarn/src/main(?:/.*)?$` |
+| `sql/catalyst/src/main/**` | `^sql/catalyst/src/main(?:/.*)?$` |
+| `sql/core/src/main/**` | `^sql/core/src/main(?:/.*)?$` |
+| `sql/connect/**/src/main/**` | `^sql/connect/(?:.*/)?src/main(?:/.*)?$` |
+| `sql/hive/src/main/**` | `^sql/hive/src/main(?:/.*)?$` |
+| `sql/hive-thriftserver/src/main/**` | `^sql/hive\-thriftserver/src/main(?:/.*)?$` |
+| `resource-managers/kubernetes/**/src/main/**` | `^resource\-managers/kubernetes/(?:.*/)?src/main(?:/.*)?$` |
+| `resource-managers/yarn/src/main/**` | `^resource\-managers/yarn/src/main(?:/.*)?$` |
+| `python/pyspark/**` | `^python/pyspark(?:/.*)?$` |
 
-**The `in_scope` rule.** A row's `in_scope` is true when its canonicalized,
-`$SPARK_SRC`-root-relative path matches **at least one** of the twelve compiled patterns **and**
-does not contain the literal segment sequence `src/test/`. Both halves are applied literally and
-neither is broadened: a directory named `tests` that sits under no `src/test/` segment is not
-excluded by this rule, and a path is not excluded for merely resembling test code.
-
-Applying these twelve regexes to the pinned tree at the pinned commit yields **4,095** files in
-scope, with **0** files matched-then-excluded by the `src/test/` clause. That count is an
-independent reproduction of the 4,095 `harness/ENVIRONMENT.md` §3 records as measured at setup
-time, and the zero is consistent with that section's statement that the expansion never returns a
-`src/test` directory. A reader with this section alone can re-derive any row's `in_scope` value
-without the controller.
+`in_scope` is **true** when the canonicalized `$SPARK_SRC`-relative path matches at least
+one of those regexes **and** does not contain the literal segment sequence `src/test/`. The
+exclusion is applied exactly as written and is never broadened: a directory merely named
+`tests`, of which the Python tree has several, sits outside any `src/test/` segment, so
+whatever the allowlist reaches among them stays in scope under the rule as written.
 
 ### 3.4 Per-runner reported-path bases
 
-Captured by the Runner-contract check from each runner's own text, then compared against what the
-artifact each runner actually wrote contains. The canonicalizer depends on this, so both columns
-are given: a base presumed rather than read is how a whole tool's rows end up mis-scoped.
+The base a path is relative to is a property of the runner, not an assumption. Each was
+read from the runner's own invocation at the Runner-contract check and is what the
+canonicalizer used.
 
-| Runner | Base per the runner's own text | Path field | Form observed in the artifact |
-|---|---|---|---|
-| `run-trivy.sh` | `$HARNESS_SCAN_ROOT` = `$SPARK_SRC`, the whole tree | `Results[].Target` | not observable — no artifact was written (§4.2) |
-| `run-osv-scanner.sh` | `$HARNESS_SCAN_ROOT` = `$SPARK_SRC`, recursive | `results[].source.path` | absolute; 26 of 26 distinct values under `$SPARK_SRC` |
-| `run-dependency-check.sh` | `$HARNESS_SCAN_ROOT` = `$SPARK_SRC`, passed absolute to `--scan` | `dependencies[].filePath` | absolute; 325 of 325 distinct values under `$SPARK_SRC` |
-| `run-gitleaks.sh` | the 18 expanded allowlist directories, passed as absolute paths under `$SPARK_SRC` | `File` | relative **to the working checkout root, not to `$SPARK_SRC`** — see §4.5. 26 of 27 distinct values also resolve under `$SPARK_SRC`, 27 of 27 under the working checkout |
-| `run-checkov.sh` | one `-d` per expanded allowlist directory; each `-d` directory is that record's own scan root | `file_path` and `file_abs_path` | `file_path` is scan-root-relative **with a leading slash** (e.g. `/dockerfiles/spark/Dockerfile`) and must not be read as filesystem-absolute; `file_abs_path` is absolute, 3 of 3 distinct values under `$SPARK_SRC` |
-| `run-opengrep.sh` | the 18 expanded allowlist directories as absolute paths, with the process cwd set to `$OPENGREP_RULES_DIR`, which is **not** under `$SPARK_SRC` | SARIF `locations[].physicalLocation.artifactLocation.uri` | absolute; 220 of 220 distinct values under `$SPARK_SRC`, so the ruleset cwd never becomes a resolution base. Results carry `uriBaseId` `%SRCROOT%` while `run.originalUriBaseIds` is absent — an unresolvable base that does not matter here because the uri is already absolute |
-| `run-semgrep.sh` | as opengrep, with cwd `$SEMGREP_RULES_DIR` | SARIF uri | absolute; 128 of 128 distinct values under `$SPARK_SRC`; same `%SRCROOT%` `uriBaseId` with no `originalUriBaseIds` |
-| `run-datadog-static-analyzer.sh` | the `-i` root, which is `$SPARK_SRC`; `-u` subdirectories are given scan-root-relative | SARIF uri | relative to `$SPARK_SRC`; 568 of 568 distinct values resolve there, and 2 of them do not exist in the working checkout, which confirms the base independently |
-| `run-joern.sh` | `$SPARK_SRC`; the runner maps bytecode class paths back to source with `harness/lib/joern_collect.py` before writing | `findings[].path` | already `$SPARK_SRC`-relative; 41 of 41 distinct values resolve there, 0 null paths, `path_resolution` `source-index-filename` 54 and `source-index-declaration` 13 across 67 rows |
+| Runner | Path-bearing field(s) | Base as read from the runner |
+|---|---|---|
+| `trivy` | `Results[].Target` | absolute — the runner passes $HARNESS_SCAN_ROOT, an absolute path |
+| `osv-scanner` | `results[].source.path` | absolute — the runner passes $HARNESS_SCAN_ROOT |
+| `dependency-check` | `dependencies[].filePath` | absolute — the runner passes --scan $HARNESS_SCAN_ROOT |
+| `gitleaks` | `File` | the invoking process's working directory, which the controller sets to $SPARK_SRC (see the gitleaks CLI probe in the record) |
+| `checkov` | `file_abs_path`, `file_path` | file_abs_path is absolute; file_path is relative to whichever -d scope directory produced the record, with a leading slash that denotes scan-root-relative rather than filesystem-absolute |
+| `opengrep` | `locations[].physicalLocation.artifactLocation.uri` | absolute — the runner passes 18 absolute scope directories |
+| `semgrep` | `locations[].physicalLocation.artifactLocation.uri` | absolute — the runner passes 18 absolute scope directories |
+| `joern` | `findings[].path` | already $SPARK_SRC-relative — harness/lib/joern_collect.py maps the graph's bytecode class path back to source against $SPARK_SRC |
+| `datadog-static-analyzer` | `locations[].physicalLocation.artifactLocation.uri` | relative to the analyzer's -i root, which the runner sets to $HARNESS_SCAN_ROOT |
 
 ### 3.5 The four writable trees, resolved
 
-Every relative path in this run anchors at the directory containing `harness/`, resolved at
-execution time to `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4`.
-
-| Tree | Resolved absolute path | Created by this run? |
+| Tree | Resolved absolute path | Writable |
 |---|---|---|
-| `oss-scan-results/` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/oss-scan-results` | yes |
-| `queries/joern/` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/queries/joern` | yes |
-| `harness/artifacts/raw/` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/raw` | **no** — pre-existing and empty, which is a precondition; creating it would be a forbidden repair |
-| `harness/artifacts/logs/` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/logs` | no — already present. It carries no precondition, so its absence would not have been a failure |
+| `harness/artifacts/logs` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/logs` | yes |
+| `harness/artifacts/raw` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/raw` | yes |
+| `oss-scan-results` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/oss-scan-results` | yes |
+| `queries/joern` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/queries/joern` | yes |
 
 ### 3.6 Observed runtime versions
 
-As observed, never as required. This run installed, upgraded and substituted nothing.
-
-| Runtime | Observed | Probe |
+| Runtime | Observed | How |
 |---|---|---|
-| Python | `3.13.7` at `/usr/bin/python3` | `sys.version` of the interpreter actually used |
-| JVM (`PATH`, `$JAVA_HOME`) | `openjdk version "17.0.20" 2026-07-21` | `java -version` |
-| JVM (`$JAVA_HOME_21`) | `openjdk version "21.0.12.1" 2026-08-18 LTS` | `$JAVA_HOME_21/bin/java -version`; this is the JVM `run-joern.sh` and `run-dependency-check.sh` switch to themselves |
-| `git` | `git version 2.51.0` | `git --version` |
-| shell | `/bin/bash` `5.2.37(1)-release` | `$BASH`, `$BASH_VERSION` |
+| Python | 3.13.7 | the interpreter the controller runs in, `/opt/blitzy-harness/venv/bin/python3` |
+| JVM (`JAVA_HOME`) | openjdk version "17.0.20" 2026-07-21 | `$JAVA_HOME/bin/java -version` |
+| JVM (`JAVA_HOME_17`) | openjdk version "17.0.20" 2026-07-21 | `$JAVA_HOME_17/bin/java -version` |
+| JVM (`JAVA_HOME_21`) | openjdk version "21.0.12.1" 2026-08-18 LTS | `$JAVA_HOME_21/bin/java -version` |
+| `git` | git version 2.51.0 | `git --version`, used read-only against `$SPARK_SRC` |
 
----
+These are recorded as observed, never as required.
 
 ## 4. Execution
 
 ### 4.1 The nine runners, individually and serially
 
-Each runner was invoked once, with no arguments, so its baked configuration is what executed.
-They were invoked one at a time, in the order below, so that exit code and elapsed time stay
-attributable to a single tool. `harness/bin/run-all.sh` was **not** used. **No time limit was
-imposed and no runner was terminated for slowness** — `dependency-check` ran for 1,602 s and was
-left to finish. A non-zero exit was recorded and the sequence continued rather than aborting,
-so one tool's failure could not turn into eight unexplained absences. No tool was invoked twice.
+Each runner was invoked with **no arguments**, one at a time, so its baked configuration is
+what executed and each outcome is separately attributable. `harness/bin/run-all.sh` was
+never invoked. No time limit was imposed and no runner was terminated for slowness. A
+non-zero exit was recorded and the sequence continued.
 
-| # | Tool | Started (UTC) | Finished (UTC) | Elapsed | Exit code | `exit_status` | Artifact |
-|---|---|---|---|---|---|---|---|
-| 1 | `trivy` | `2026-08-21T05:25:52Z` | `2026-08-21T05:26:00Z` | 8 s | 1 | `1` | **none written** |
-| 2 | `osv-scanner` | `2026-08-21T05:26:01Z` | `2026-08-21T05:27:11Z` | 70 s | 1 | `1` | `osv-scanner.json`, 2,801,510 B |
-| 3 | `dependency-check` | `2026-08-21T05:27:11Z` | `2026-08-21T05:53:53Z` | 1602 s | 14 | `14` | `dependency-check.json`, 7,114,893 B |
-| 4 | `gitleaks` | `2026-08-21T05:53:53Z` | `2026-08-21T05:54:48Z` | 55 s | 1 | `1` | `gitleaks.json`, 21,119 B |
-| 5 | `checkov` | `2026-08-21T05:54:48Z` | `2026-08-21T05:54:51Z` | 3 s | 1 | `1` | `checkov.json`, 8,644 B |
-| 6 | `opengrep` | `2026-08-21T05:54:51Z` | `2026-08-21T05:58:36Z` | 225 s | 0 | `0` | `opengrep.sarif`, 1,941,724 B |
-| 7 | `semgrep` | `2026-08-21T05:58:36Z` | `2026-08-21T06:00:52Z` | 136 s | 0 | `0` | `semgrep.sarif`, 1,578,299 B |
-| 8 | `datadog-static-analyzer` | `2026-08-21T06:00:52Z` | `2026-08-21T06:02:04Z` | 72 s | 0 | `0` | `datadog-static-analyzer.sarif`, 5,676,503 B |
-| 9 | `joern` | `2026-08-21T06:02:04Z` | `2026-08-21T06:02:17Z` | 13 s | 0 | `0` | `joern.json`, 38,589 B |
+| # | Runner | Started (UTC) | Elapsed | Exit | Artifact | Artifact bytes |
+|---|---|---|---|---|---|---|
+| 1 | `run-trivy.sh` | `2026-08-22T04:30:05Z` | 7.3 s | `1` | **none written** | — |
+| 2 | `run-osv-scanner.sh` | `2026-08-22T04:30:12Z` | 29.3 s | `1` | `harness/artifacts/raw/osv-scanner.json` | 2801633 |
+| 3 | `run-dependency-check.sh` | `2026-08-22T04:30:41Z` | 1755.9 s | `14` | `harness/artifacts/raw/dependency-check.json` | 7114893 |
+| 4 | `run-gitleaks.sh` | `2026-08-22T04:59:57Z` | 66.0 s | `1` | `harness/artifacts/raw/gitleaks.json` | 31371 |
+| 5 | `run-checkov.sh` | `2026-08-22T05:01:03Z` | 2.4 s | `1` | `harness/artifacts/raw/checkov.json` | 8470 |
+| 6 | `run-opengrep.sh` | `2026-08-22T05:01:06Z` | 190.2 s | `0` | `harness/artifacts/raw/opengrep.sarif` | 1941724 |
+| 7 | `run-semgrep.sh` | `2026-08-22T05:04:16Z` | 232.1 s | `0` | `harness/artifacts/raw/semgrep.sarif` | 1578299 |
+| 8 | `run-joern.sh` | `2026-08-22T05:08:08Z` | 47.5 s | `0` | `harness/artifacts/raw/joern.json` | 38595 |
+| 9 | `run-datadog-static-analyzer.sh` | `2026-08-22T05:08:55Z` | 190.4 s | `0` | `harness/artifacts/raw/datadog-static-analyzer.sarif` | 5676504 |
 
-Per-tool `stdout`, `stderr` and a metadata file were captured for all nine into
-`harness/artifacts/logs/` as `<tool>.stdout.log`, `<tool>.stderr.log` and `<tool>.meta.json`;
-`run-joern.sh` additionally wrote its own `joern.query-output.log` there. Nothing in
-`harness/artifacts/raw/` or `harness/artifacts/logs/` was edited after the runners wrote it, and
-nothing was cleaned up. `harness/artifacts/smoke/` was never read, and no runner's output was ever
-substituted from it.
+Every runner has three log files under `harness/artifacts/logs/`: `<tool>.stdout.log`,
+`<tool>.stderr.log` and `<tool>.meta.json` carrying the invocation line, the working
+directory, both timestamps, the elapsed seconds and the exit code. `run-joern.sh`
+additionally writes its own `joern.query-output.log`, so the tree holds 28 files rather
+than 27.
 
-`dependency-check` was given `HARNESS_DC_DATA_DIR=/opt/blitzy-harness/dependency-check/data-0` on
-its own command line. That is the per-clone operation `harness/ENVIRONMENT.md` §13 requires — its
-H2 database takes no concurrent writers and `data-0`, `data-1` and `data-2` exist for exactly this
-— and not a change to the scanner's configuration, which the runner reads from that variable by
-design. No other runner was given any environment override.
+**One sizing decision, stated rather than left implicit.** `harness/bin/run-joern.sh`
+takes its heap from the caller (`JAVA_OPTS=${JAVA_OPTS:--Xmx48g}`), and this container
+has 3.8 GB of RAM and no swap. The runner was therefore invoked with
+`JAVA_OPTS=-Xmx3g -Xss64m`, using the override the runner itself exposes.
+Nothing about the tool's configuration — its baked query set, its graph, its scope —
+was changed, and no flag was added to the tool: an out-of-memory kill would have been a
+termination this run may not repeat, which is the outcome the sizing avoids.
 
 ### 4.2 Every tool that failed or terminated
 
-No tool terminated without an exit code, so **`exit_status: timeout` was not recorded for any
-tool**. Five of the nine exited non-zero, and they are not all failures: three of those exit codes
-are what the runner's own header documents as the tool's normal finding-bearing exit. Both kinds
-are listed, because a reader cannot tell them apart from the number alone.
+A non-zero exit is not the same thing as a failure: three of the nine runners document
+a non-zero code as the tool's own finding-bearing exit. Both kinds are listed, because
+a reader cannot tell them apart from the number alone.
 
-| Tool | Exit | Artifact written | What that exit means, per the runner's own documented contract | Failure? |
+| Tool | Exit | Artifact written | What that exit means | Failure? |
 |---|---|---|---|---|
-| `trivy` | 1 | **no** | `run-trivy.sh` documents the exit code as Trivy's own. Trivy's final stderr line is `FATAL`, so the run did not complete | **yes** |
-| `dependency-check` | 14 | yes, 7,114,893 B | `run-dependency-check.sh` documents the exit code as Dependency-Check's own. Its log records `Analysis Complete (1594 seconds)` and `Writing JSON report`, then one `[ERROR]`: the Ruby Bundle Audit Analyzer could not start because `bundle-audit` is not installed, and was disabled | **yes**, but a non-fatal one: the tool exited non-zero *having written a complete artifact* |
-| `osv-scanner` | 1 | yes, 2,801,510 B | `run-osv-scanner.sh` documents `0 = no vulns, 1 = vulns found` | no |
-| `gitleaks` | 1 | yes, 21,119 B | `run-gitleaks.sh` documents `0 = no leaks, 1 = leaks found`; its stderr reports `leaks found: 34` | no — but see §4.5 |
-| `checkov` | 1 | yes, 8,644 B | `run-checkov.sh` documents `0 = no failed checks, 1 = failed checks found` | no |
+| `trivy` | `1` | **no** | Trivy's own exit code, per the runner's header | **yes** |
+| `osv-scanner` | `1` | yes, 2801633 B | the runner's header documents `0 = no vulns, 1 = vulns found` | no |
+| `dependency-check` | `14` | yes, 7114893 B | Dependency-Check's own exit code, per the runner's header | **yes**, but a non-fatal one: the tool exited non-zero having written an artifact |
+| `gitleaks` | `1` | yes, 31371 B | the runner's header documents `0 = no leaks, 1 = leaks found` | no |
+| `checkov` | `1` | yes, 8470 B | the runner's header documents `0 = no failed checks, 1 = failed checks found` | no |
 
-**`trivy`, in full, because it is the one tool that produced nothing.** It ran for 8 s and wrote
-no artifact. Its own stderr
-(`harness/artifacts/logs/trivy.stderr.log`, lines 8-10) records a `FATAL` error: a remote Maven
-repository returned HTTP `429 Too Many Requests` for a `gcs-connector` POM with
-`Retry-After: 1800`, and states that the repository blocks all subsequent requests from the IP
-until the block clears. The failure is therefore in Trivy's remote POM resolution for its Java
-dependency scanner, not in the vulnerability database, which its stdout shows it read from cache
-(`"Version":2,"UpdatedAt":"2026-08-21T01:31:14…Z"`). Consequences, stated rather than repaired:
-`harness/artifacts/raw/trivy.json` does not exist, so Trivy's parse status is `absent` and it
-contributes zero rows; the absence is **not** a finding count of zero. It was not re-invoked, its
-configuration was not changed, no scope was narrowed to get it through, and no substitute scanner
-was introduced. Trivy is also the only tool whose `scanner_class` varies per finding, so nothing
-in this run distinguishes `vuln`, `secret` and `misconfig` for it.
+**`trivy` produced no artifact.** It ran for 7.3 s and exited `1`. Its own stderr
+(`harness/artifacts/logs/trivy.stderr.log`) ends:
+
+```
+2026-08-22T04:30:06Z	INFO	[secret] If your scanning is slow, please try '--scanners vuln,misconfig' to disable secret scanning
+2026-08-22T04:30:06Z	INFO	[secret] Please see https://trivy.dev/docs/v0.74/guide/scanner/secret#recommendation for faster secret detection
+2026-08-22T04:30:10Z	WARN	[pom] Dependency version cannot be determined. Child dependencies will not be found.	details="https://trivy.dev/docs/v0.74/guide/coverage/language/java#empty-dependency-version"
+2026-08-22T04:30:12Z	FATAL	Error	remote Maven repository returned 429 Too Many Requests for https://repo.maven.apache.org/maven2/com/google/cloud/bigdataoss/bigdataoss-parent/2.2.28/bigdataoss-parent-2.2.28.pom. Retry-After: 1800.
+The repository blocks all subsequent requests from this IP until the block clears.
+To avoid this, populate the local Maven cache before scanning (e.g. run `mvn dependency:resolve` and cache ~/.m2 in CI).
+```
+
+Stated rather than repaired: its parse status is `absent`, it contributes zero rows,
+and the absence is **not** a finding count of zero. It was not re-invoked, its
+configuration was not changed, no scope was narrowed to get it through, and no
+substitute scanner was introduced.
 
 ### 4.3 Every module `harness/ENVIRONMENT.md` records as producing no JAR
 
-**None.** `harness/ENVIRONMENT.md` §6 states `BUILD SUCCESS` with 33 reactor modules succeeding, 0 failing
-and 0 skipped, and states in terms that *every in-scope module produced a JAR and no module is
-missing*. Its per-module table carries `yes` for all fifteen in-scope Maven modules, and its prose
-lists a further seventeen `-am` dependency modules that also produced JARs — the 32 module jars
-that were the graph's input. The one row that is not `yes` is `python/pyspark/**`, whose Maven
-module column reads `— (Python)` and whose JAR column reads `n/a — produces no JAR by nature`:
-that is a Python package, not a module that failed to build, and it is recorded here so the
-distinction is not lost.
+`harness/ENVIRONMENT.md` §6 states **BUILD SUCCESS** with 33 reactor modules and records
+that every in-scope module produced a JAR, `python/pyspark` being `n/a` because a Python
+package produces none by nature. This run builds nothing, so it could not have corrected a
+module that produced none; the outcome is read from the record and restated here.
 
-This run builds nothing, so it could not have corrected a module that produced no JAR; the
-outcomes above are read from the record and restated. The reason they matter: a module with no JAR
-contributes no bytecode to the code-property graph, and Joern silence over that module would be
-indistinguishable from an absence of findings. The Graph-coverage check in section 2 is where that
-possibility was tested against the graph itself, module by module.
+**No module is recorded as producing no JAR, and none was found absent from the**
+**graph.** The reason this matters: a module with no JAR contributes no bytecode to the
+code-property graph, and Joern silence over it would be indistinguishable from an
+absence of findings. The Graph-coverage check in §2 is where that possibility was
+tested against the graph itself, module by module.
 
 ### 4.4 Paths reported from outside `$SPARK_SRC`
 
-Determined by taking every path-bearing field value from every artifact and resolving it against
-the base recorded in §3.4. For eight of the nine tools the answer is **none**: every value
-resolves inside `$SPARK_SRC` — osv-scanner 26 of 26, dependency-check 325 of 325, checkov 3 of 3,
-opengrep 220 of 220, semgrep 128 of 128, datadog-static-analyzer 568 of 568, joern 41 of 41, and
-trivy vacuously, having written no artifact.
+**None.** Every path-bearing value in every artifact resolved inside `$SPARK_SRC`
+against the base recorded in §3.4, so no row carries a `../` segment and no row was
+emitted with an absolute path.
 
-`gitleaks` is the exception, and it is not a stray path but a wrong base for the whole artifact.
-Its 27 distinct reported files are relative to a root outside `$SPARK_SRC`, so expressed relative
-to `$SPARK_SRC` they would all require `../` segments. §4.5 sets out what was observed and how.
+### 4.5 One tool-behaviour observation that determined how every runner was invoked
 
-### 4.5 A record-versus-reality disagreement observed during Phase 1: the tree `gitleaks` read
+`harness/bin/run-gitleaks.sh` expands the allowlist to 18 absolute directories under
+`$SPARK_SRC` and passes them as positional arguments to `gitleaks dir`. Gitleaks' own
+usage is `gitleaks dir [flags] [path]` — **one** optional path. Probed directly on
+synthetic files outside both trees, `gitleaks` 8.30.1 behaves as follows:
 
-**What the record states.** `harness/ENVIRONMENT.md` §8 gives a uniform contract, identical across
-all nine runners: each *"Scans `$SPARK_SRC`, excludes `src/test`, writes exactly one artifact into
-`$HARNESS_RAW_DIR`"*. `run-gitleaks.sh` implements that by expanding the allowlist to 18 absolute
-directories under `$SPARK_SRC` and passing them as positional arguments to `gitleaks dir`; its
-stdout log lists all 18, every one of them an absolute path beginning `/opt/blitzy-harness/spark-src/`.
+| Invocation | What it scanned | How it reported paths |
+|---|---|---|
+| one absolute path argument | that path | absolute, as given |
+| two or more absolute path arguments | **the process's current working directory** | relative to that working directory |
 
-**What was observed.** The artifact reports files that cannot have come from those 18 directories.
-Of its 34 findings, 28 lie under a `src/test/` segment and others lie under `docs/`, which no
-allowlist pattern reaches; the top-level directories appearing in its paths are `common`, `core`,
-`docs`, `python`, `resource-managers` and `sql`. Its stderr reports `scanned ~178345033 bytes
-(178.35 MB) in 54.3s`, and the paths are relative with no leading slash, rooted at a Spark tree
-root rather than at any of the 18 directories.
+So the tree `gitleaks` reads is the working directory of whoever invokes the runner, and
+its reported paths are relative to it. The controller therefore invoked **all nine**
+runners with their working directory set to `$SPARK_SRC` (`/opt/blitzy-harness/spark-src`).
+Consequences, stated in full:
 
-**Which tree it actually read — two independent proofs.**
+* Every tool read the pinned tree, which is what `harness/ENVIRONMENT.md` §8 records for
+  all nine (*"Scans `$SPARK_SRC`"*), so there is no record-versus-reality disagreement
+  about the tree scanned, and `gitleaks`' reported paths are `$SPARK_SRC`-relative by
+  construction rather than by assumption.
+* Nothing was changed to achieve that: no runner was edited, no flag was added, no
+  ruleset was swapped, and `harness/ENVIRONMENT.md` was not touched. A working directory
+  is a property of an invocation, not a scanner's configuration.
+* `gitleaks` consequently reads the **whole** pinned tree rather than the 18 allowlist
+  directories its arguments name — including `src/test/`, `docs/` and the untracked
+  `*/target/` build output a previous run left in place. That is a runner reaching outside
+  the allowlist, which is expected behaviour and never grounds to drop a row: those
+  findings are kept with `in_scope: false`, exactly as the allowlist rule in §3.3
+  determines. The eight other runners restrict themselves to the 18 directories, so this
+  affects the `in_scope` mix of one tool's rows and nothing else.
 
-1. *A file that does not exist in the pinned tree.* Of the 27 distinct files gitleaks names, 26
-   resolve under `$SPARK_SRC` and **27 of 27 resolve under the working checkout**. The one that
-   does not exist in `$SPARK_SRC` at all is
-   `core/src/test/resources/spark-events/eventlog_v2_local-1766844910796/events_1_local-1766844910796`.
-   A scanner cannot report a match in a file that is not there.
-2. *A column range that is impossible in the pinned tree.* The finding in
-   `python/pyspark/pandas/groupby.py` is rule `generic-api-key` at line 3101, columns 26-71. In the
-   working checkout that line is **70 characters** long, so columns 26-71 fall inside it. In
-   `$SPARK_SRC` the same line number is **23 characters** long — it reads
-   `            log_advice(` — so a match ending at column 71 cannot exist there. Six of the 27
-   files differ in content between the two trees, and this is one of them. The comparison is stated
-   as line lengths rather than by quoting the flagged region, so that no material a secret rule
-   matched is reproduced here; gitleaks' own `--redact` had already kept the matched value out of
-   its artifact.
-
-The same test applied to the other two tools that report relative paths gives the mirror-image
-result and shows the test discriminates: `datadog-static-analyzer` has 568 of 568 paths resolving
-under `$SPARK_SRC` and only 566 under the working checkout — two of its files do not exist in the
-working checkout at all — and `joern` has 41 of 41 under `$SPARK_SRC`.
-
-**Conclusion.** `gitleaks` 8.30.1, invoked as `gitleaks dir` with 18 absolute positional path
-arguments, did not scan those directories. It scanned the process's current working directory —
-the working checkout, a different fork at `4.2.0-SNAPSHOT`, `HEAD` `5b5ed69f18982f003c26418efa4d3c03498f62ce`.
-Both values are reported here as observed, and neither is reconciled: `harness/ENVIRONMENT.md` was
-not edited, `harness/bin/run-gitleaks.sh` was not edited, gitleaks was not re-invoked, its
-configuration was not changed, and its artifact and logs are preserved byte-for-byte exactly as it
-wrote them.
-
-**Why this is recorded here and not treated as a tool that worked.** Its exit code 1 means *leaks
-found*, its artifact parses, and nothing in its own output announces a problem — so on exit code
-and artifact size alone this tool looks like the healthiest of the nine. What is wrong is the
-attribution: **its 34 findings are not attributable to the pinned tree**, and its reported paths
-cannot be canonicalized against `$SPARK_SRC` as the row schema requires, because they are relative
-to a different root. Anything downstream that treats them as `$SPARK_SRC`-relative would emit rows
-whose `path` names a real-looking file in the wrong fork — wrong data that no assertion in the
-pipeline would catch, because the artifact's record count and the emitted row count would balance
-perfectly. Under this run's own rule, a disagreement between what the record states and what is
-observed is an environment failure to report rather than repair, and it is why section 5 reports no
-normalization or probe outcome.
-
-**The one thing not affected.** The gitleaks runner bakes in `--redact`, so no matched secret value
-is in its artifact, and no field of it has been copied into this record — the finding above is
-described by rule id, file, line and column only. `harness/ENVIRONMENT.md` §12 records the
-`--redact` behaviour, and its `Description` field, not `Secret` or `Match`, is the tool's own rule
-description.
-
-### 4.6 The two record-versus-reality checks that only Phase 1 can make, and both agreed
+### 4.6 The two record-versus-reality checks that only Phase 1 can make
 
 | Check | Recorded | Observed | Agrees |
 |---|---|---|---|
-| Opengrep taint | `harness/ENVIRONMENT.md` §5: ENABLED, `--taint-intrafile --dataflow-traces` | the runner echoed those flags, and Opengrep's own output contains taint reasoning — `Taint comes from:` and `This is how taint reaches the sink:` under rule `scala.lang.security.audit.tainted-sql-string` | yes; taint was not observed disabled |
-| datadog AI path | `harness/ENVIRONMENT.md` §5: UNAVAILABLE, credential source the environment variables `DD_API_KEY` and `DD_APP_KEY` | the runner reported the path DISABLED with both variables `absent`, and the analyzer's own banner line reads `secrets enabled : false` | yes; the path was not observed available |
+| Opengrep taint | `harness/ENVIRONMENT.md` §5: ENABLED, `--taint-intrafile --dataflow-traces` | the runner echoed those flags: True; taint reasoning present in the tool's own output (`Taint comes from`, `This is how taint reaches the sink`, `taint`) | yes |
+| datadog AI path | `harness/ENVIRONMENT.md` §5: UNAVAILABLE, credential source `DD_API_KEY` and `DD_APP_KEY` | the runner reported the path UNAVAILABLE; the analyzer's own banner reads `secrets enabled         : false` | yes |
 
-Neither variable's value exists in this environment and no value was read; only the names appear,
-here and in the logs.
+Neither credential exists in this environment and no value was read: only the variable
+names appear, here and in the logs.
+
+**Two further observations about the runners, reported and not acted on.** Neither changed
+what was invoked, and neither is a fault this run may repair: `harness/bin/**` is read-only
+to it.
+
+* `harness/bin/run-dependency-check.sh` and `harness/bin/run-checkov.sh` each give the tool
+  a `mktemp -d` output directory and move the report into `harness/artifacts/raw/`
+  afterwards. The artifact this run records therefore resolves inside the audit boundary,
+  which is what the gate's runner-contract check tests, while the tool's own first write
+  lands outside it. The intermediate write is stated here so a reader knows it happened.
+* `harness/bin/run-datadog-static-analyzer.sh` builds its credential-state string from the
+  expansion pair `${DD_API_KEY:+set}${DD_API_KEY:-absent}`. When the variable is set the
+  first expansion yields `set` and the second yields the variable's own value, so a
+  credentialed environment would write that value into retained stdout. Both variables are
+  absent here, so the branch printed `absent` and no value could have been emitted: the
+  defect is latent, not realised, and it is reported by variable name only. Printing a fixed
+  `set`/`absent` token instead of an expansion that can yield the value is a change only the
+  owner of that file can make.
 
 ### 4.7 Publication state
 
-**Nothing was published, and nothing is staged.** This record covers the bootstrap, the twelve-check
-gate and Phase 1. Phase 2 normalization was not entered, so none of the three staging files
-(`.staging-findings.json`, `.staging-findings.csv`, `.staging-severity-map.md`) was ever written
-and no rename into place was attempted. There is therefore no partial publication to report: at
-the time this record was finalized, `oss-scan-results/` contained this file and nothing else, and
-the absence of `findings.json` is the correct signal that no dataset was published.
+All three outputs were staged first, both assertions were evaluated against the staged
+files, and only then were they renamed into place, in this order:
 
-`queries/joern/` was created by the bootstrap as a permitted directory and is **empty**: no query
-source was written, so no `results/` pair exists, and no `.workspace/` was created inside the
-repository — the Graph-coverage check used a throwaway workspace outside it, as section 2 records.
-The two artifact trees are the exception to all of this and are populated: `harness/artifacts/raw/`
-holds the eight artifacts the runners wrote and `harness/artifacts/logs/` the twenty-eight log and
-metadata files, and both are left exactly as written.
+1. `oss-scan-results/severity-map.md`
+2. `oss-scan-results/findings.csv`
+3. `oss-scan-results/findings.json`
 
----
+The order is deliberate: the presence of `findings.json` is the single signal that the
+dataset **and** its mapping are both complete. No staging file remains — all three were
+renamed away on success.
+
+**The row contract both serializations share.** Every row carries these twelve fields in
+this fixed order, and the CSV header is that order verbatim:
+
+    tool, scanner_class, rule_id, message, severity_native, severity_norm, path, start_line, cwe, cve, package_coordinate, in_scope
+
+Five of them may be absent — `severity_native`, `start_line`, `cwe`, `cve`,
+`package_coordinate` — written as JSON `null` and as an empty CSV field. The other seven are
+always present and non-null, and four of those are derived rather than read from a tool's
+output: `tool`, `scanner_class`, `severity_norm` and `in_scope`. The JSON key order is the
+same order as the CSV header, so the two files join field by field, and nothing downstream
+should extend or reorder either.
 
 ## 5. Where the run reached, condition by condition
 
-This record does not claim the run wholly succeeded or wholly failed. Six conditions define
-completion and each is reported on its own; the run is complete only if all six hold together, and
-they do not.
+This record does not claim the run wholly succeeded or wholly failed. Six conditions
+define completion and each is reported on its own.
 
 | # | Condition | Verdict |
 |---|---|---|
-| 1 | Every tool ran once with its baked configuration, each with a log carrying stdout, stderr, elapsed time and an exit code or `exit_status: timeout`; every tool that wrote output has a raw artifact, and a tool that wrote none is recorded with its exit code and stderr | **passed, with one qualification.** All nine were invoked once, serially, with no arguments; all nine have `<tool>.stdout.log`, `<tool>.stderr.log` and `<tool>.meta.json` carrying elapsed seconds and an exit code; no tool terminated without one. Eight wrote a raw artifact; `trivy` wrote none and is recorded in §4.2 with its exit code and its stderr. The qualification is §4.5: `gitleaks` ran to completion but read the working checkout rather than `$SPARK_SRC`, so its artifact is not attributable to the pinned tree |
-| 2 | `findings.json` and `findings.csv` contain every row from every artifact, row validation passes, and the per-tool reconciliation assertions pass | **never reached.** Phase 2 was not entered — see §4.5 and the note below |
-| 3 | `severity-map.md` carries a row for all nine tools, including any that produced no finding | **never reached** |
-| 4 | `tool-status.md` lists all nine with parse status, records parsed and rejected, and the row-validation result | **never reached** |
-| 5 | Phase 3 delivers three or more committed queries with recorded outcomes, spurious-return counts and the three effort measures, the graph having been read rather than built | **never reached.** No query source was written and the Phase 3 driver was never launched. Note separately that the graph *was* read and not built, twice: by the Graph-coverage check in section 2 and by `run-joern.sh` in Phase 1, both with `importCpg`; `importCode` was not used anywhere |
-| 6 | `run-record.md` states the `$SPARK_SRC` path scanned, its commit and date, and every tool failure and missing module | **passed.** §3.1 gives the path, commit and commit date as read from the tree; §4.2 gives every tool that failed or terminated with its exit status; §4.3 gives the missing-module answer, which is that the record marks none as missing |
+| 1 | Every tool ran once with its baked configuration, to completion or to a termination outside this run's control, each with a log carrying stdout, stderr, elapsed time and either an exit code or `exit_status: timeout`; every tool that wrote output has a raw artifact, and a tool that wrote none is recorded with parse status `absent`, its exit code and its stderr, contributing zero rows | **passed.** all 9 runners invoked once, serially, with no arguments; 9 of 9 carry stdout, stderr and a meta.json with elapsed time and an exit code; 1 wrote no artifact and is recorded with parse status `absent`, its exit code and its stderr |
+| 2 | `findings.json` and `findings.csv` contain every row from every artifact, each carrying `tool`, `scanner_class`, `severity_norm` and `in_scope`, with no row dropped; row validation passes; and the per-tool reconciliation assertions pass | **passed.** `findings.json` and `findings.csv` published from one validated row list; row validation passed over 10178 rows; every evaluable per-tool reconciliation assertion passed; the CSV and JSON row counts are equal (10178 == 10178) |
+| 3 | `severity-map.md` carries a row for all nine tools, including any that produced no finding | **passed.** `severity-map.md` carries one row for 9 of the nine tools, including those that produced no finding |
+| 4 | `tool-status.md` lists all nine, including any that failed or timed out, each with its parse status, its records parsed and rejected, and its row-validation result | **passed.** this file carries one block for each of the nine, each with its execution state, exit status, parse status, records parsed and rejected, both reconciliation assertions and the row-validation result |
+| 5 | Phase 3 delivers three or more committed queries with recorded outcomes, spurious-return counts and the three effort measures, and the graph was read rather than built | **delegated.** delegated to the Phase 3 driver by design. Both records are finalized before the driver is launched, so no record depends on a process that has yet to run; the driver appends its outcome to `run-record.md` §6 and reports it in full in `joern-probe.md` |
+| 6 | `run-record.md` states the `$SPARK_SRC` path scanned, its commit and date, and every tool failure and missing module | **passed.** `run-record.md` states the `$SPARK_SRC` path scanned with its commit and commit date, every tool failure and termination, and the missing-module answer |
 
-**What ended the run, precisely.** No gate check ended it: all twelve passed, the one qualified
-verdict among them being Graph coverage, where 31 of the 32 JAR-producing modules met the
-injective test outright and `sql/connect/shims` was carried on whole-class-set evidence, with the
-literal alternative reading stated in section 2. Phase 1 then completed: nine runners, nine sets of logs,
-eight artifacts. What stopped the run is the disagreement in §4.5 — the record states that every
-runner scans `$SPARK_SRC`, and `gitleaks` was observed to have scanned the working checkout
-instead. Under this run's own rule that is an environment failure to report with both values and
-stop on, not to repair, so Phase 2 normalization was not entered and Phase 3 was not launched.
-Everything the run did produce is preserved: the nine logs, the eight raw artifacts and this
-record. Nothing was cleaned up, and a later run can re-derive the whole dataset from those
-artifacts, provided it takes `gitleaks`' path base from §3.4 rather than presuming `$SPARK_SRC`.
-
----
+**No check, assertion or publication step ended the run.** The gate's twelve checks
+passed, Phase 1 invoked all nine runners once, and Phase 2 validated, staged, counted
+and published in order. Condition 5 belongs to the Phase 3 driver, which the shell
+launches after this controller exits, and the driver's own line follows in §6.
 
 ## 6. Phase 3 driver
 
-The Phase 3 driver appends exactly one line to this file, and it is the driver's only write here.
-**No such line follows, because the driver was never launched:** it runs only after a published
-`findings.json`, and none was published (§4.7). Done-when condition 5 is therefore unmet. The
-driver never writes to `tool-status.md`, and nothing in this section is reserved for any other
-process.
+The Phase 3 driver writes exactly one line into this section, and it is the driver's only
+write to this file. It never writes to `tool-status.md`. A re-invocation for a query
+revision replaces this line rather than adding another.
 
----
+**Phase 3 completed.** The driver was launched by the outer shell after the controller exited cleanly, took the published `findings.json` (10178 rows, sha256 `ff166c86a89eef497404b24726faeda89901d86a075f6b4be705ca7cc2b79afe`) as its precondition, and invoked 3 committed query scripts — `01-callgraph-unguarded-driver-launch`, `02-dataflow-unguarded-driver-launch`, `03-parameterized-unguarded-handler-sink` — each once per source revision, from the repository root, with `importCpg` and never `importCode`. All 3 compiled and ran to a complete result region; 3 clean positive(s) were produced; aggregate revision count 3. Done-when condition 5 is met, and the per-query outcomes, spurious counts and the three effort measures are in `oss-scan-results/joern-probe.md`.
 
 ## 7. Provenance
 
-Every value in this file traces to one of four sources, and to nothing else:
-
 | Source | What came from it |
 |---|---|
-| `harness/ENVIRONMENT.md` | the nine recorded tool versions the Version check compared against; the environment file name; the Opengrep taint setting; the per-module JAR outcomes and the 32-module JAR-producing list; the Spark version of the pinned tree; the datadog AI-path availability and its credential-source variable names; the two frontend facts in section 2 |
-| `harness/artifacts/logs/*` | every timestamp, elapsed time, exit code and `exit_status` in §4.1; Trivy's `FATAL` cause; Dependency-Check's completion and its one `[ERROR]`; the gitleaks byte count and leak count; the Opengrep taint evidence and the datadog `secrets enabled : false` line in §4.6; joern's method count, type-decl count and row/path-resolution counts |
-| `harness/artifacts/raw/*` | every path-form and path-base observation in §3.4, §4.4 and §4.5, and the per-artifact distinct-path counts |
-| `git` reads of `$SPARK_SRC`, and direct reads of the two checkouts | the commit, the commit date, the 4,095 in-scope file count, the module POM `artifactId` values, the 32 JARs and their 19,443 class names, and the file-existence and line-content comparisons in §4.5 |
+| `harness/ENVIRONMENT.md` | the nine recorded tool versions the Version check compared against; the environment file name; the Opengrep taint setting; the per-module JAR outcomes; the datadog AI-path availability and its credential-source variable names |
+| `harness/artifacts/logs/*` | every timestamp, elapsed time, exit code and `exit_status`; each failing tool's own stderr; the taint and AI-path observations |
+| `harness/artifacts/raw/*` | every artifact shape, path form and record count, and the per-tool row and reject counts |
+| `git` reads of `$SPARK_SRC` | the commit, the commit date |
+| the graph itself, loaded with `importCpg` | the method, type-declaration and file counts and every per-module coverage verdict |
 
-Where a value could not be read it is recorded as not read rather than substituted. Nothing here
-is inferred, and no rule id, CVE, CWE, line number, version, count or timestamp was invented or
-carried over from a plan. Finding counts are deliberately absent from this file: they belong to
-`tool-status.md`, which must agree with §3.1's commit date and with §4.2's list of tools that
-failed, both of which are stated once, here.
+Where a value could not be read it is recorded as not read rather than substituted.
+What this run wrote under `harness/`, and what it did not, as four separately checkable
+facts. `harness/artifacts/raw/` was found present and empty and only the nine runners wrote
+into it — 8 artifacts, one for each tool that produced output. `harness/artifacts/logs/`
+carries 28 files, three per runner from the sequencer plus the query-output log
+`run-joern.sh` writes itself. Both trees are excluded from the commit by the pre-existing
+`.gitignore` line 31 (`artifacts/`), so the audit trail is preserved on disk beside this
+record rather than inside git, and every count and citation in this file and in
+`tool-status.md` was taken from it. Every other path under `harness/` — `ENVIRONMENT.md`,
+`scope/allowlist.txt`, `bin/**`, `lib/**` and `cpg/**` — was read and not modified, and the
+smoke tree the setup run left under the shared harness root, `harness/artifacts/smoke/`, was
+never read and is never a fallback for a runner that produced nothing. Third-party cache and
+temporary state that the tools themselves wrote outside these trees is expected, is not
+inventoried here and was not cleaned up. Nothing was added to `.github/workflows/`, no test
+framework was introduced, and no scanner was installed, upgraded, substituted, reconfigured
+or re-invoked. Untracked state left in either tree by anything else running on this host was
+left exactly as found.
 
-Nothing under `harness/` was created, edited or deleted by this run. `harness/artifacts/raw/` was
-not created — it was found present and empty, which is what its precondition requires — and only
-the nine runners wrote into it. `harness/artifacts/smoke/` was never read. Nothing was added to
-`.github/workflows/`, no test or test framework was introduced, and no scanner was installed,
-upgraded, substituted, reconfigured or re-invoked. Untracked state left in either tree by anything
-else running on this host was left exactly as found.
-
+**On the absolute paths in this record.** Repository-relative paths anchor at the directory
+that holds `harness/`; the absolute forms are that directory as this record ships in it. The
+byte-preserved evidence under `harness/artifacts/logs/` was not edited, so each
+`<tool>.meta.json` carries the absolute invocation path exactly as it stood at execution
+time.

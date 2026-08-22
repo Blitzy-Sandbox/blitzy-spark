@@ -1,566 +1,365 @@
 # Phase 3 — the Joern capability probe
 
-Phase 3 of this run answers exactly one question:
+One capability question: **can an open-source tool express a missing-authorization bug at
+all?** The class it has to express is the one the request defines — an RPC entry point in
+Spark's standalone `deploy` package reaching a privileged sink (`DriverRunner`,
+`createDriver`, or a process launch) along a path that passes no authentication or ACL
+predicate. Three queries attempt that whole class, each by a different formulation.
 
-> **Can an open-source tool express a missing-authorization bug at all?**
-
-That is a **capability assessment of a tool**. It is not an assessment of Apache Spark. Everything
-below describes what three queries written against a code-property graph were able to express, and
-what they returned when run. Nothing below says that any returned path is a defect, and nothing
-below rates, ranks, triages, scores or proposes a change to anything.
-
-**The graph was read, not built.** Each of the three committed query scripts loads the persisted
-code-property graph at `harness/cpg/spark.cpg` with **`importCpg`**, or opens the project a previous
-script in the same workspace already created. All three envelopes record `graph.loaded_with`
-`importCpg`, `graph.built` `false` and `diagnostics.load_mode` `imported_persisted_cpg`, and all
-three report the same `cpg_method_count`, 445,567. **`importCode` — the command that constructs a
-graph — appears in none of the three committed sources**, which is the concrete form of the
-prohibition on building one: the API choice is the guardrail, and its appearance in a committed
-query would itself have been the violation. Nothing under `harness/` was authored, edited or removed
-by this phase, and the graph was neither rebuilt nor supplemented.
-
-**The spurious determination is a property of the query, not of Spark.** Section 3 makes the one
-true-or-false call this phase makes, and what it decides is whether a query matched what it was
-asked to match — whether an authentication or ACL predicate lies on a path the query itself emitted.
-It decides nothing about the code the graph was built over.
+This file is written by the Phase 3 driver from `queries/joern/results/*`, after the
+controller published the dataset and exited. It judges nothing about Spark: every
+statement below is a property of a query, of the graph, or of the driver's own capture.
 
 ## Derivation basis
 
-Every number, boolean, hash, selector, parameter value and method full name in this file is
-transcribed from one of three sources, and from nothing else:
-
-| Source | What comes from it |
+| | |
 |---|---|
-| `queries/joern/results/<nn>-<slug>.json` | the three result envelopes: `compiled`, `ran`, the returns with their `path` and `predicates_on_path`, the return and spurious counts, the derived predicate set, the traversal diagnostics, the `revisions` log |
-| `queries/joern/results/<nn>-<slug>.md` | the per-query revision logs, from which the aggregate revision measure is summed |
-| `queries/joern/*.sc` | the final committed query sources, from which the Joern API constructs are enumerated and query 03's parameter list is read |
+| Written from | `queries/joern/results/*.json`, each written by the driver from its own capture of one invocation |
+| Graph | `harness/cpg/spark.cpg`, loaded by each script with **`importCpg`**; **built: false** — `importCode` appears in none of the three sources |
+| Driver precondition | the published dataset, observed at `2026-08-22T06:48:45Z`: `findings.json` 10178 rows, `findings.csv` 10178 rows, `severity-map.md` present |
+| Queries committed | 3 |
+| Queries that compiled | 3 |
+| Queries that ran to a complete result | 3 |
+| Queries producing a clean positive | 3 |
 
-Nothing here is inferred, estimated or re-measured, and **no line number and no symbol identity is
-taken from any source file, plan or brief** — only from the envelopes and the committed sources.
-Symbols observed while the queries were being written came from a checkout other than the pinned
-tree, so none of those observations is restated here as a fact about the tree the graph was built
-over; the method full names below are the ones the graph itself yielded.
+**A clean positive** is a query that compiled, ran, and returned at least one result that
+is **not** spurious under the on-path test — that is, at least one handler-to-sink route
+with no authentication or ACL predicate anywhere on it. The ordering of this report
+follows from that definition: a clean positive leads if any query produced one, and the
+negative results lead only if none did.
 
-No user rules were provided for this work, so none is cited, paraphrased or numbered anywhere in
-this file. Enterprise-standard care is the bar instead, which here means the audit disciplines
-stated above rather than the reflexes a security report usually carries.
-
-Two things are named and then left alone. `queries/joern/.workspace/` is Joern scratch: it is not a
-deliverable, nothing in it is cited, summarized or promoted into this file, and nothing in it was
-cleaned up. And no query recorded a failure, so no captured stderr is referenced here at all — each
-envelope carries a `stderr_ref` naming its capture by path and line range, and this file neither
-quotes, summarizes nor characterizes any of it. No credential value appears in this file.
-
-## Two records that disagree, reported rather than reconciled
-
-`oss-scan-results/run-record.md` records, in its §4.7, that nothing was published and nothing
-staged, and that `queries/joern/` was empty; in its §5, that Done-when condition 5 was **never
-reached**, "No query source was written and the Phase 3 driver was never launched"; and in its §6,
-that no driver line follows because the driver was never launched, the probe's precondition being a
-published `findings.json`.
-
-The three result envelopes record the opposite state of affairs for the probe itself: three query
-sources exist and are committed, each was invoked once as `joern --script <path>` with no `--param`,
-and each compiled, ran and returned. **Both records are stated here as found, neither is
-reconciled against the other, and no record outside this file was edited** — which is the same
-discipline this run applies to any disagreement between what a record states and what is observed.
-Two consequences follow, and they are stated rather than smoothed over:
-
-- **This file makes no claim about the dataset's publication state.** `findings.json`,
-  `findings.csv` and `severity-map.md` are not read, counted or cited here, and the only evidence in
-  reach about them is `run-record.md` §4.7, which records none as published.
-- **This file does not assert a verdict on Done-when condition 5.** It delivers the material that
-  condition names — three or more committed queries, their recorded outcomes, their spurious-return
-  counts, the three effort measures, and the graph read rather than built — and states plainly that
-  `run-record.md` records that condition as never reached. Whoever reads both files has both facts.
-
-Joern appears twice in this run, and the two appearances are distinct. `harness/bin/run-joern.sh` is
-one of the nine Phase 1 runners: it has its own baked query set, writes
-`harness/artifacts/raw/joern.json`, and is normalized and reported like any other tool, in
-`oss-scan-results/tool-status.md`. **The Phase 3 probe reported here is separate work against the
-same graph**, delivered under `queries/joern/`. Nothing below draws on the Phase 1 runner's artifact,
-and the two are not combined into a single count anywhere.
-
----
+**On the evidence this replaces.** An earlier attempt at this milestone produced query
+sources and result files outside any driver sequence, while its own controller record
+stated that Phase 2 was never entered and the Phase 3 driver never launched. That
+evidence is **discarded rather than merged**: the three sources were remediated and
+every result file here comes from this run's driver invocations, whose hashes are in
+the revision logs. The superseded hashes are therefore absent by decision, and this
+is the statement of that decision. Nothing in this file describes an execution the
+driver did not perform.
 
 ## 1. The leading result
 
-### 1.1 The class the queries attempt, and what a clean positive is
+### 1.1 A clean positive: `01-callgraph-unguarded-driver-launch`
 
-All three queries attempt one reachability class **in full**, each by a different formulation. The
-class, in the words the probe was built against:
+`01-callgraph-unguarded-driver-launch` compiled, ran, and returned 10 result(s), of which 0 are spurious under the
+on-path test — leaving **10 clean positive route(s)**.
 
-> "In Spark's standalone deploy mode, an RPC handler receives a driver-submission message and passes
-> the caller's jar and command through to a process launcher, without ever binding the message to an
-> authenticated or authorized sender. The interesting reachability is: an RPC entry point (`receive`
-> / `receiveAndReply` in the `deploy` package) reaching a privileged sink (`DriverRunner`,
-> `createDriver`, or a process launch) along a path that passes no authentication or ACL predicate."
-
-**A clean positive is a query that compiled, ran, and returned at least one result that is not
-spurious under the on-path test of section 3.** That definition is used here and no other.
-
-**All three queries produced clean positives.** Each compiled, each ran, and each returned results
-whose `predicates_on_path` lists are empty:
-
-| Query | Formulation | `compiled` | `ran` | Returns | Spurious | Clean positive |
-|---|---|---|---|---|---|---|
-| `01-callgraph-unguarded-driver-launch` | the class over the call graph | `true` | `true` | 8 | 0 | yes |
-| `02-dataflow-unguarded-driver-launch` | the class over data flow | `true` | `true` | 2 | 0 | yes |
-| `03-parameterized-unguarded-handler-sink` | the class in parameterized form | `true` | `true` | 8 | 0 | yes |
-
-This file's order is fixed in advance: a clean positive leads where any query produced one, and the
-negative results lead where none did. One did, so one leads. **That order is a presentation order
-and not a ranking:** no query's result is preferred, weighted or judged more important than
-another's, and the two that follow in section 2 are clean positives on exactly the same definition.
-The lead goes to query 02 for one stated and checkable reason — one of its emitted paths carries an
-accessor on the driver-submission message the class names, so the message itself appears as a node
-on the path rather than only at its ends — and for no other.
-
-### 1.2 The leading clean positive: `02-dataflow-unguarded-driver-launch`
-
-Query 02 expresses the class over **data flow**. It engages the open-source data-flow layer with
-`run.ossdataflow` — recording the overlay set before and after, which the envelope reports unchanged,
-so the persisted graph already carried the layer and nothing was added to it — and expresses
-reachability as `sink.reachableByFlows(source)`, asked backward from each sink anchor's command- or
-jar-bearing nodes to the resolved driver-submission message sources.
-
-It returned **two** results, **neither spurious**, both from the same handler to the same sink:
-
-**Return 1**, whose path carries the destructured driver-submission field:
-
-1. `org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)`
-2. `org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)`
-3. `org.apache.spark.deploy.DeployMessages$RequestSubmitDriver.driverDescription:org.apache.spark.deploy.DriverDescription()`
-4. `org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)`
-
-**Return 2**, the same handler and sink without that node:
-
-1. `org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)`
-2. `org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)`
-3. `org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)`
-
-Both are two entries rather than one because the envelope's `return_selection` rule emits one return
-per distinct `(entry point, sink, path, predicates)` tuple and its
-`returns_removed_by_deduplication` is `0`.
-
-**What the query resolved, and where it returned nothing.** The envelope records this per sink
-anchor, so an absence is evidence rather than silence:
-
-| Sink anchor | Sink nodes asked | Flows at depth 12 | Flows at engine default depth 4 | Returns contributed |
+| # | Handler | Sink | Path length | Predicates on path |
 |---|---|---|---|---|
-| `createDriver` | 2 | 2 | 2 | 2 |
-| `DriverRunner` | 1 | 0 | 0 | 0 |
-| `process_launch` | 19 | 0 | 0 | 0 |
-| `ExecutorRunner` (carried in addition to the three the class names, never in place of one) | 1 | 0 | 0 | 0 |
+| 1 | `org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)` | `org.apache.spark.deploy.master.Master.org$apache$spark$deploy$master$Master$$createDriver:org.apache.spark.deploy.master.DriverInfo(org.apache.spark.deploy.DriverDescription)` | 3 | none |
+| 2 | `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()` | `java.lang.ProcessBuilder.start:java.lang.Process()` | 8 | none |
+| 3 | `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()` | `java.lang.ProcessBuilder.start:java.lang.Process()` | 10 | none |
+| 4 | `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()` | `java.lang.ProcessBuilder.start:java.lang.Process()` | 7 | none |
+| 5 | `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()` | `java.lang.ProcessBuilder.start:java.lang.Process()` | 9 | none |
+| 6 | `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()` | `java.lang.ProcessBuilder.start:java.lang.Process()` | 10 | none |
+| 7 | `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()` | `java.lang.ProcessBuilder.start:java.lang.Process()` | 9 | none |
+| 8 | `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()` | `java.lang.ProcessBuilder.start:java.lang.Process()` | 6 | none |
+| 9 | `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()` | `org.apache.spark.deploy.worker.DriverRunner.<init>:void(org.apache.spark.SparkConf,java.lang.String,java.io.File,java.io.File,org.apache.spark.deploy.DriverDescription,org.apache.spark.rpc.RpcEndpointRef,java.lang.String,java.lang.String,org.apache.spark.SecurityManager,scala.collection.immutable.Map)` | 3 | none |
+| 10 | `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()` | `org.apache.spark.deploy.worker.ExecutorRunner.<init>:void(java.lang.String,int,org.apache.spark.deploy.ApplicationDescription,int,int,org.apache.spark.rpc.RpcEndpointRef,java.lang.String,java.lang.String,java.lang.String,int,java.lang.String,java.io.File,java.io.File,java.lang.String,org.apache.spark.SparkConf,scala.collection.immutable.Seq,scala.Enumeration$Value,int,scala.collection.immutable.Map)` | 3 | none |
 
-`flows_filtered_by_flow_filter` is `0` and `flows_not_attributable` is `0`, so no flow was discarded
-on the way to those counts. Of 14 resolved entry points, 12 resolved a message source;
-`source_nodes_queried` is 14 and `sink_nodes_queried_distinct` is 23. The configured call depth was
-12 against an engine default of 4, and `bound_changed_outcome_versus_engine_default` is `false` — the
-deeper bound changed nothing about what came back. Where an anchor returned no flow, the envelope
-carries each of its 21 resolved sink nodes together with the expression the value arrives through.
+So the answer to the capability question is **yes**: an open-source tool can express
+this class of reachability over this graph, and `01-callgraph-unguarded-driver-launch` is a formulation that does.
 
-**The one limit this formulation recorded about itself**, in the envelope's own terms: its
-`thread_boundary` bridge has `boundary_resolved` `true` and `applied_by_this_query` `false`. A flow
-follows data dependence, and an allocation whose body the runtime later invokes is not one, so this
-formulation does not continue past that boundary; it anchors instead at the sinks above it, which
-the class names as alternatives to the deepest one. The boundary was resolved and recorded so that
-the limit is evidence rather than an assertion.
+### 1.2 Does it generalize? A plain statement
 
-### 1.3 Does query 02 generalize? A plain statement
+`01-callgraph-unguarded-driver-launch` is written against the class rather than against one handler: its entry anchors
+are derived from the graph by name, signature, package and body structure, and its
+sinks by full-name selector. Applying it to another handler/sink pair therefore means
+changing a selector, not rewriting the traversal — which is exactly what
+`03-parameterized-unguarded-handler-sink` demonstrates by taking those selectors as
+parameters. What it does **not** do is generalize across formulations: a class
+expressible in the call-graph view need not be expressible in the dataflow view, which
+is why all three queries are reported rather than the best one.
 
-**No — not as committed, without editing it.** `invocation.params` is the empty object and the
-script's `@main def exec()` declares no parameters, so it accepts none: the entry points it looks
-for, the sink anchors it asks at, the message type it treats as a source and the call depth it uses
-are all fixed in the source text. Retargeting it to another handler-and-sink pair means editing
-those selectors, which is a revision of the query rather than an invocation of it.
+### 1.3 Why the leading result does not settle the question on its own
 
-That is a statement about this one query and not about the formulation. Query 03 answers the
-generalization question for the probe by construction, and its recorded parameter list is where
-section 4.3 reports it.
+A clean positive says the tool *can express* the class. It says nothing about whether
+what it matched is a bug: the on-path test is a property of the query, and this run
+characterizes no finding. The counts also depend on bytecode coverage — a module with
+no jar in the graph yields silence indistinguishable from an absence of findings, which
+is why the gate asserted per-module coverage injectively before any of this ran.
 
-### 1.4 Why the leading result does not settle the question on its own
+## 2. The queries, one by one
 
-No single query's outcome settles the capability question, and the order stated in 1.1 is exhaustive
-over the whole query set: a clean positive leads if **any** query produced one, and the negative
-answer would have required **every** genuine attempt to have returned no clean positive. A query that
-failed to express its reachability would have recorded that failure and the probe would have
-continued.
+### 2.1 `01-callgraph-unguarded-driver-launch`
 
-That matters here in both directions. The class can be expressible in a graph tool's call-graph view
-and not its data-flow view, or the reverse, so reporting one formulation alone would misstate what
-an open-source tool can express — which is why two further formulations follow rather than being
-folded into this one. And the counts differ between them: 8 returns from the call-graph formulation
-against 2 from the data-flow formulation is a difference in what each view expresses, recorded as
-found. **Nothing in this file reconciles, averages or explains away that difference, and no equality
-between the counts is asserted or expected.**
+*What it attempts:* the full class over the call graph: from a concrete standalone `deploy` RPC handler, traverse callees to `createDriver`, a `DriverRunner` construction or the process launch, and emit every distinct ordered route.
 
----
+| | |
+|---|---|
+| Source | `queries/joern/01-callgraph-unguarded-driver-launch.sc` (sha256 `d387a7f7ba70804f1b0d93136c6997e6dc4e5ec6efaa70c33b55cdd652bff448`) |
+| Invocation | `/opt/blitzy-harness/tools/joern-cli/joern --script queries/joern/01-callgraph-unguarded-driver-launch.sc` |
+| Exit code | `0` |
+| Elapsed | 14.2 s |
+| `compiled` / `ran` | True / True |
+| Returns | 10 |
+| Spurious under the on-path test | 0 |
+| Clean positive | True |
+| Result files | `queries/joern/results/01-callgraph-unguarded-driver-launch.json`, `queries/joern/results/01-callgraph-unguarded-driver-launch.md` |
 
-## 2. The remaining queries
+Entry anchors it accepted (8), derived by rule and not hardcoded:
 
-Both attempt the same whole class as query 02, by two other formulations. Neither is a component of
-the class, and neither is a narrowed version of it.
+* `org.apache.spark.deploy.ClientEndpoint.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)`
+* `org.apache.spark.deploy.master.Master.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)`
+* `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.worker.Worker.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)`
+* `org.apache.spark.deploy.worker.WorkerWatcher.receive:scala.PartialFunction()`
 
-### 2.1 `01-callgraph-unguarded-driver-launch` — the class over the call graph
+And 6 `receive`/`receiveAndReply` method(s) in the `deploy` package it
+excluded, each with the rule that excluded it:
 
-The class expressed over call edges and nothing else: an entry point named `receive` or
-`receiveAndReply`, enclosed in a type whose full name lies under `org.apache.spark.deploy.`, reaching
-`createDriver`, a `DriverRunner` construction, or a process launch, along a path carrying no derived
-predicate. `compiled` `true`, `ran` `true`, exit code `0`, both contract markers seen. It returned
-**8** results, **none spurious** — every one of the eight carries an empty `predicates_on_path`.
+* `org.apache.spark.deploy.ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)` — declares_no_partial_function_body_class_of_its_own
+* `org.apache.spark.deploy.DriverRedirectConsolePlugin.receive:java.lang.Object(java.lang.Object)` — signature_is_not_an_rpc_endpoint_handler_signature
+* `org.apache.spark.deploy.DriverTimeoutDriverPlugin.receive:java.lang.Object(java.lang.Object)` — signature_is_not_an_rpc_endpoint_handler_signature
+* `org.apache.spark.deploy.worker.WorkerWatcher.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)` — declares_no_partial_function_body_class_of_its_own
+* `org.apache.spark.deploy.yarn.ApplicationMaster$AMEndpoint.receive:scala.PartialFunction()` — enclosing_type_is_outside_standalone_deploy
+* `org.apache.spark.deploy.yarn.ApplicationMaster$AMEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)` — enclosing_type_is_outside_standalone_deploy
 
-| # | Handler | Sink | Path length |
-|---|---|---|---|
-| 1 | `ClientEndpoint.receiveAndReply` | `java.lang.ProcessBuilder.start` | 6 |
-| 2 | `ClientEndpoint.receiveAndReply` | `Master$$createDriver` | 5 |
-| 3 | `Master.receiveAndReply` | `Master$$createDriver` | 3 |
-| 4 | `Worker.receive` | `java.lang.ProcessBuilder.start` | 6 |
-| 5 | `Worker.receive` | `DriverRunner.<init>` | 3 |
-| 6 | `Worker.receive` | `ExecutorRunner.<init>` | 3 |
-| 7 | `WorkerWatcher.receiveAndReply` | `java.lang.ProcessBuilder.start` | 6 |
-| 8 | `WorkerWatcher.receiveAndReply` | `Master$$createDriver` | 5 |
+### 2.2 `02-dataflow-unguarded-driver-launch`
 
-The handler and sink columns are shortened to their owner type and method name for width; the
-envelope and `queries/joern/results/01-callgraph-unguarded-driver-launch.md` carry every one of them
-as the full method name the frontend records, together with each return's path node by node.
+*What it attempts:* the same class over data flow, using `reachableByFlows` from the driver-submission value in the handler to the command- or jar-bearing argument of the sink.
 
-Its traversal, as recorded: forward over callee edges, one traversal per resolved entry point, a
-call-depth bound of 20, `bound_reached` `true` with 6 of 14 traversed entry points still holding a
-non-empty frontier at that bound, 4 sink methods resolved, 193,135 methods seen summed over entry
-points, and a deepest emitted sink depth of 5. Its `path_selection` rule emits one return per
-`(entry point, sink)` pair — the breadth-first discovery path, with successors visited in full-name
-order so the output is reproducible — rather than every path between that pair. Its
-`expansion_restriction` expands the frontier only through methods whose full name begins with
-`org.apache.spark.`, never through an operator pseudo-method and never through a derived predicate,
-while still recognising a sink or a predicate wherever it is reached. Four of the eight returns
-traverse a Scala trait's default-method forwarder, which the call graph links to every implementation
-of the method it forwards; the envelope counts them and lists them as emitted rather than filtering
-them out.
+| | |
+|---|---|
+| Source | `queries/joern/02-dataflow-unguarded-driver-launch.sc` (sha256 `831b37459372921dabcaca89d19d4435a85814030e12986fd0ed2d6e41416b8e`) |
+| Invocation | `/opt/blitzy-harness/tools/joern-cli/joern --script queries/joern/02-dataflow-unguarded-driver-launch.sc` |
+| Exit code | `0` |
+| Elapsed | 212.6 s |
+| `compiled` / `ran` | True / True |
+| Returns | 1 |
+| Spurious under the on-path test | 0 |
+| Clean positive | True |
+| Result files | `queries/joern/results/02-dataflow-unguarded-driver-launch.json`, `queries/joern/results/02-dataflow-unguarded-driver-launch.md` |
 
-### 2.2 `03-parameterized-unguarded-handler-sink` — the class in parameterized form
+Entry anchors it accepted (8), derived by rule and not hardcoded:
 
-The same class again, with both of its ends lifted into `--param` inputs. `compiled` `true`, `ran`
-`true`, exit code `0`. It returned **8** results, **none spurious**, and they are the same eight
-handler-and-sink pairs as query 01's, with the same path lengths. Its
-`returns_whose_emitted_path_carries_a_derived_predicate` is `0` — the same fact counted from the
-traversal's side rather than from the returns'.
+* `org.apache.spark.deploy.ClientEndpoint.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)`
+* `org.apache.spark.deploy.master.Master.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)`
+* `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.worker.Worker.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)`
+* `org.apache.spark.deploy.worker.WorkerWatcher.receive:scala.PartialFunction()`
 
-`invocation.params` is the empty object, so **the script ran on its three declared defaults**, each
-recorded with `origin` `default_value`; every default reproduces the class above so that a reader can
-run the script by hand exactly as it was run here. The parameter list is section 4.3's answer and is
-reproduced there in full.
+And 6 `receive`/`receiveAndReply` method(s) in the `deploy` package it
+excluded, each with the rule that excluded it:
 
-What the parameterization buys, in the envelope's own words rather than in a claim of this file's:
-its `generality` field records that "the traversal reads both ends from the resolved node sets and
-tests membership by method full name, so no step of it depends on an entry point's name, a sink's
-name, or the package either lies in", and its `relation_expressed` field records what a return
-therefore means — "reachability over call edges: a return says a chain of calls, plus the bridges
-recorded above, runs from the entry point to the sink. Whether a value the entry point received
-arrives at an argument of the sink is a different relation, over data dependence, which this
-formulation does not express and does not claim to."
+* `org.apache.spark.deploy.ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)` — declares_no_partial_function_body_class_of_its_own
+* `org.apache.spark.deploy.DriverRedirectConsolePlugin.receive:java.lang.Object(java.lang.Object)` — signature_is_not_an_rpc_endpoint_handler_signature
+* `org.apache.spark.deploy.DriverTimeoutDriverPlugin.receive:java.lang.Object(java.lang.Object)` — signature_is_not_an_rpc_endpoint_handler_signature
+* `org.apache.spark.deploy.worker.WorkerWatcher.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)` — declares_no_partial_function_body_class_of_its_own
+* `org.apache.spark.deploy.yarn.ApplicationMaster$AMEndpoint.receive:scala.PartialFunction()` — enclosing_type_is_outside_standalone_deploy
+* `org.apache.spark.deploy.yarn.ApplicationMaster$AMEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)` — enclosing_type_is_outside_standalone_deploy
 
-Two further recorded properties bound it. Its call depth came from the `maxDepth` parameter at 20,
-with `bound_reached` `true` and 6 of 14 traversed entry points truncated there, and the envelope
-states the consequence rather than smoothing it over: the paths emitted are the paths reachable
-within that bound, so the predicates found on them are a property of the bound as well as of the
-graph, and a caller changing `maxDepth` changes which paths exist to be checked. And its
-`expansion_restriction` is measured rather than asserted — 380,022 methods the graph carries a body
-for, 65,545 it carries none for, and `0` of those body-less methods holding a callee edge, so the
-bodied methods are the whole of what any callee traversal could expand through.
+### 2.3 `03-parameterized-unguarded-handler-sink`
 
-### 2.3 The vocabulary the three queries share
+*What it attempts:* the same class in parameterized form, taking handler-method and sink-method patterns as `--param` inputs, so that whether the formulation generalizes is answered by its parameter list rather than by assertion.
 
-All three resolve the two entry points and the three sinks the class names, and all three carry one
-additional anchor that never substitutes for those three:
+| | |
+|---|---|
+| Source | `queries/joern/03-parameterized-unguarded-handler-sink.sc` (sha256 `489074c782c5deb6d3443a05834d09335c3bbda0142b547a273dc87dc37f934c`) |
+| Invocation | `/opt/blitzy-harness/tools/joern-cli/joern --script queries/joern/03-parameterized-unguarded-handler-sink.sc` |
+| Exit code | `0` |
+| Elapsed | 15.2 s |
+| `compiled` / `ran` | True / True |
+| Returns | 10 |
+| Spurious under the on-path test | 0 |
+| Clean positive | True |
+| Result files | `queries/joern/results/03-parameterized-unguarded-handler-sink.json`, `queries/joern/results/03-parameterized-unguarded-handler-sink.md` |
 
-| Anchor | Role in the class | Methods resolved |
-|---|---|---|
-| `receive` | RPC entry point | 8 |
-| `receiveAndReply` | RPC entry point | 6 |
-| `createDriver` | privileged sink | 1 |
-| `DriverRunner` | privileged sink (its construction) | 1 |
-| `process_launch` | privileged sink ("a process launch") | 1 |
-| `ExecutorRunner` | carried **in addition**, labelled as additional in queries 01 and 02 and as `ExecutorRunner_additional` in query 03 | 1 |
+Entry anchors it accepted (8), derived by rule and not hardcoded:
 
-Queries 01 and 02 select the two handler anchors by an exact method name plus an enclosing-type
-pattern; query 03 selects them by the anchored full-name patterns its `handlerPattern` default
-carries. Each envelope lists every method each anchor resolved to.
+* `org.apache.spark.deploy.ClientEndpoint.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.client.StandaloneAppClient$ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)`
+* `org.apache.spark.deploy.master.Master.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)`
+* `org.apache.spark.deploy.worker.Worker.receive:scala.PartialFunction()`
+* `org.apache.spark.deploy.worker.Worker.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)`
+* `org.apache.spark.deploy.worker.WorkerWatcher.receive:scala.PartialFunction()`
 
----
+And 2 `receive`/`receiveAndReply` method(s) in the `deploy` package it
+excluded, each with the rule that excluded it:
 
-## 3. Per-query spurious counts, the on-path test, and the derived predicate set
+* `org.apache.spark.deploy.ClientEndpoint.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)` — declares_no_partial_function_body_class_of_its_own
+* `org.apache.spark.deploy.worker.WorkerWatcher.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)` — declares_no_partial_function_body_class_of_its_own
+
+
+## 3. Per-query spurious counts, the on-path test and the derived predicate set
 
 ### 3.1 The test as applied
 
-A return is spurious **only if** the handler it names does pass an authentication or ACL check before
-reaching the sink, and that is applied mechanically: **check whether an auth or ACL predicate lies on
-the path, and apply no broader judgement.** In the envelopes' own identical wording, a return is
-spurious when an authentication or ACL predicate from the set the query derived at execution time
-lies on the emitted path between the handler entry and the sink; **on-path presence is the entire
-test, and control dependence of the sink on that predicate is not required.**
+A return is spurious when an authentication or ACL predicate from the set the query derived at execution time lies on the path from the handler to the sink, and for no other reason. The test is applied mechanically to `predicates_on_path`: non-empty means spurious, empty means not spurious. No broader judgement is applied, and the determination is a property of the query rather than of Spark.
 
-Three properties of that test are stated because each is a place the count could otherwise drift:
+It is the request's own definition, applied with no broader reading: a stricter test —
+requiring the sink to be control-dependent on the predicate — would add a condition the
+definition does not state and would reclassify returns the stated test marks spurious.
 
-- **Nothing narrower.** A stricter reading — requiring the sink to be control-dependent on the
-  predicate, so that only a predicate actually gating the path counted — adds a condition the
-  definition does not state, and it would reclassify returns the stated test marks spurious. It is
-  not applied here.
-- **Nothing broader.** *Only* means the criterion is sole and exhaustive: **no return is called
-  spurious for any other reason, and in particular not because a reader finds it implausible.**
-- **Recorded, not reviewed.** *Mechanically* means the query applies the test and this file
-  transcribes the result. No return was re-examined by hand and no count was adjusted.
+### 3.2 The counts
 
-The reach the test was evaluated over is recorded per query. Queries 01 and 03 evaluate it over "the
-emitted path nodes, plus one outgoing call step from each of them". Query 02 evaluates it over the
-same reach — deliberately wider than the separate flow filter it applies to the flows themselves,
-because the emitted path carries the entry point and the sink method, which no flow element covered.
-
-### 3.2 The per-query counts
-
-| Query | Returns | Spurious returns | Non-spurious returns | How the count is re-derivable |
+| Query | Returns | Spurious | Not spurious | Clean positive |
 |---|---|---|---|---|
-| `01-callgraph-unguarded-driver-launch` | 8 | **0** | 8 | all eight `predicates_on_path` lists are empty |
-| `02-dataflow-unguarded-driver-launch` | 2 | **0** | 2 | both `predicates_on_path` lists are empty; `flows_filtered_by_flow_filter` is `0` |
-| `03-parameterized-unguarded-handler-sink` | 8 | **0** | 8 | all eight `predicates_on_path` lists are empty; `returns_whose_emitted_path_carries_a_derived_predicate` is `0` |
-
-Each count is re-derivable without re-running anything: take the predicate set listed in 3.3, take
-each return's recorded `predicates_on_path` from that query's envelope, and count the returns whose
-list is non-empty. **These counts are not reconciled against one another.** Two formulations of one
-class may legitimately return different spurious counts, and each is recorded as found.
+| `01-callgraph-unguarded-driver-launch` | 10 | 0 | 10 | True |
+| `02-dataflow-unguarded-driver-launch` | 1 | 0 | 1 | True |
+| `03-parameterized-unguarded-handler-sink` | 10 | 0 | 10 | True |
+| **total** | **21** | **0** | **21** | — |
 
 ### 3.3 The predicate set, derived at execution time
 
-The set is **derived from the graph during each run rather than hardcoded**, which is what stops a
-predicate added or renamed since the queries were written from being missed. All three envelopes
-record the same derivation and the same result:
-
-| Step | Value |
+| | |
 |---|---|
 | Type-declaration selector | `org\.apache\.spark\.SecurityManager` |
-| Type declarations resolved | 1 — `org.apache.spark.SecurityManager` |
-| Member names on that type declaration | 19 |
-| Methods considered | 126 |
-| Name selector | `^(check.*Permissions\|acls.*\|isAuthenticationEnabled)$` (the alternation separators are escaped for this table only; the envelopes carry them unescaped) |
+| Name selector | `^(check.*Permissions|acls.*|isAuthenticationEnabled)$` |
 | Match mode | anchored full match |
-| Names the selector matched | 7 — `aclsEnabled`, `aclsOn`, `aclsOn_$eq`, `checkAdminPermissions`, `checkModifyPermissions`, `checkUIViewPermissions`, `isAuthenticationEnabled` |
-| Exclusion `scala_setter_suffix` | applied — removed `aclsOn_$eq` |
-| Exclusion `field_member_name_collision` | applied — removed `aclsOn` |
-| Exclusion `field_accessor_setter_evidence` | not applied — removed nothing |
-| **Predicates resolved** | **5** |
+| Methods considered on the type | 126 |
+| Resolved predicates | `org.apache.spark.SecurityManager.aclsEnabled:boolean()`, `org.apache.spark.SecurityManager.checkAdminPermissions:boolean(java.lang.String)`, `org.apache.spark.SecurityManager.checkModifyPermissions:boolean(java.lang.String)`, `org.apache.spark.SecurityManager.checkUIViewPermissions:boolean(java.lang.String)`, `org.apache.spark.SecurityManager.isAuthenticationEnabled:boolean()` |
+| Count | 5 |
 
-The five, as concrete call targets in the graph and exactly as the envelopes carry them:
-
-1. `org.apache.spark.SecurityManager.aclsEnabled:boolean()`
-2. `org.apache.spark.SecurityManager.checkAdminPermissions:boolean(java.lang.String)`
-3. `org.apache.spark.SecurityManager.checkModifyPermissions:boolean(java.lang.String)`
-4. `org.apache.spark.SecurityManager.checkUIViewPermissions:boolean(java.lang.String)`
-5. `org.apache.spark.SecurityManager.isAuthenticationEnabled:boolean()`
-
-**`isEncryptionEnabled` and `isSslRpcEnabled` are excluded by construction.** The selector is an
-anchored full match, and neither name can match `check.*Permissions`, `acls.*` or
-`isAuthenticationEnabled`; neither appears among the seven names the envelopes record as matched, so
-neither ever entered the set. That exclusion is deliberate and not an oversight: those two govern
-transport encryption, which is not a check on caller identity, and the class is about binding a
-message to an authenticated or authorized sender.
-
-**The SASL and auth server bootstraps are excluded too**, and for a reason worth stating: they are
-channel-setup constructors, never called on a handler-to-sink path, so under the on-path criterion
-they could not qualify. Including them would add nothing and would imply a broader test than the one
-specified. Mechanically they are out of reach in any case — the selector is confined to the members
-of the resolved `org.apache.spark.SecurityManager` type declaration, so no constructor elsewhere
-could enter the set.
-
-The set is listed above so that any count in 3.2 can be re-derived. `exposed_as_a_parameter` is
-`false` in query 03's envelope: the two ends of the reachability were lifted into parameters and the
-predicate set deliberately was not, so a caller cannot narrow or widen the test by passing something.
-
-### 3.4 Two consequences of the test, stated so the counts are reproducible
-
-- **An `isAuthenticationEnabled` call lying on a `DriverRunner` sink path makes a return traversing
-  it spurious** under this test — on-path presence is enough, whether or not the call gates anything.
-  No return in any of the three queries carries such a call on its emitted path, which is what the
-  three zeroes in 3.2 record. Query 02's envelope names the mechanism by which a predicate on the
-  launch continuation stays off its paths: the continuation lies past a thread boundary its data-flow
-  formulation resolved but did not cross, so a predicate reachable only beyond that boundary lies on
-  no path this formulation emitted. Queries 01 and 03 do cross that boundary — the `thread_boundary`
-  bridge fired and one of its connections lies on an emitted path — and their emitted paths still
-  carry no predicate, within the recorded call-depth bound and under the `path_selection` rule that
-  emits one path per `(entry point, sink)` pair.
-- **A predicate reached only through RPC-environment construction is not on the handler-to-sink path
-  and does not make a return spurious.** Reachability from somewhere else in the program is not
-  on-path presence, and no such predicate appears in any return's `predicates_on_path`.
-
-### 3.5 What this determination is, and what it is not
-
-**It is a property of the query, not of Spark.** A spurious count of zero says the queries did not
-find a derived predicate on the paths they emitted; it does not say the code lacks such a check, and
-it is not a finding about the code the graph was built over. Equally, a non-spurious return is not
-thereby a defect: this file does not call any return a real bug, a false positive, a duplicate of
-anything, exploitable, important or severe, and it neither remediates nor proposes a change to
-anything. Whether any path here corresponds to a defect is not assessed in this phase and is out of
-its scope.
-
----
+The selector reaches `check.*Permissions`, `acls.*` and `isAuthenticationEnabled` and
+therefore **excludes `isEncryptionEnabled` and `isSslRpcEnabled` by construction**:
+both govern transport encryption rather than caller identity, so neither is an
+authentication or ACL predicate in the sense the request's example uses. The set is
+derived from the graph at execution time rather than hardcoded, so any count above can
+be re-derived.
 
 ## 4. The three effort measures
 
-Each measure is defined so that it is reproducible from the committed files, and **none of them is
-expressed in wall-clock time or in expert-hours** — no such figure appears anywhere in this file.
+### 4.1 Aggregate revision count
 
-### 4.1 Aggregate revision count: 3
+A revision is one recorded execution of a distinct source text for a query: the driver
+hashes each script before running it and appends the hash to that query's revision log,
+so the count is the number of distinct hashes and its evidence sits in the query's own
+`.md`.
 
-A **revision** is one recorded execution of a **distinct source text** for a query. Each script is
-hashed before it is run and the hash is appended to that query's revision log, so a query's revision
-count is the number of **distinct hashes** in its log — not the number of rows in it, since a re-run
-of an unchanged script adds a row without raising the count. The aggregate is the sum over the three
-per-query logs:
+| Query | Distinct source texts executed by the driver | Executions recorded |
+|---|---|---|
+| `01-callgraph-unguarded-driver-launch` | 1 | 5 |
+| `02-dataflow-unguarded-driver-launch` | 1 | 5 |
+| `03-parameterized-unguarded-handler-sink` | 1 | 5 |
+| **aggregate** | **3** | **15** |
 
-| Query | Rows in its revision log | Distinct source hashes | Hash of the final committed source |
-|---|---|---|---|
-| `01-callgraph-unguarded-driver-launch` | 1 | 1 | `8a43c941b79af939e21085bda3a5d44a021a2fa043d1c861d63227d9520c5b52` |
-| `02-dataflow-unguarded-driver-launch` | 1 | 1 | `b6dc40f642b9b111840a32ac55b6452f73f438a89eeb2aa4ed0320f6555dad0f` |
-| `03-parameterized-unguarded-handler-sink` | 1 | 1 | `d7850cc1d123e612fe6a0badf26b2319f2186f4384c56ec4a6f55ba5a63af6cc` |
-| **Aggregate** | **3** | **3** | — |
+The measure counts what the driver executed. The sources reached their committed state
+through development iterations that preceded the driver's first invocation; those were not
+driver executions and are not counted here, and this sentence is the boundary of the
+measure rather than a claim that there were none.
 
-Each query's `revision_count` field agrees with its log, and the hash recorded for each most recent
-attempt is the hash of the source committed under `queries/joern/`, so the sources in the repository
-are the sources that produced the outcomes above.
+### 4.2 Distinct Joern API constructs: 45, by name
 
-Two properties of this measure matter to anyone re-reading it later. The logs are **append-only
-across driver invocations**: a further invocation adds rows and never rewrites or resets earlier
-ones, so a re-run for a query revision **updates this aggregate rather than resetting it**, and this
-file is rewritten from the accumulated state each time. And **query iteration is not a re-scan**: a
-query reads a graph that already exists, runs no scanner and writes no artifact into
-`harness/artifacts/raw/`, which is why revision is permitted at all and why the probe has its own
-driver — so that revising a query can never re-enter Phase 1.
+Extraction rule, stated so the count is reproducible. Two mechanical parts, unioned over
+all three final committed sources, with comment lines excluded from both:
 
-### 4.2 Distinct Joern API constructs: 34, by name
+* **(A)** every member name appearing in a traversal chain rooted at `cpg`, with
+  parenthesised arguments removed first, so a name inside an argument is not miscounted
+  as a step.
+* **(B)** every name in a stated Joern vocabulary that the sources invoke on a node, on a
+  traversal already in hand, or on the console — the constructs a `cpg`-rooted scan cannot
+  see, such as `sink.reachableByFlows(source)`, `method.callee`, `run.ossdataflow` and the
+  `switchWorkspace` and `importCpg` each script performs. The vocabulary scanned is:
+  `importCpg`, `switchWorkspace`, `open`, `workspace`, `run.ossdataflow`, `reachableByFlows`, `callee`, `caller`, `callIn`, `argument`, `argumentIndex`, `elements`, `iterator`, `methodReturn`, `typeFullName`, `signature`, `isExternal`, `member`, `parameter`, `ast`, `metaData`, `overlays`, `projects`, `inputPath`, `code`, `filename`, `lineNumber`, `fullNameExact`, `nameExact`, `methodFullName`, `methodFullNameExact`, `typeDecl`, `method`, `call`, `size`, `dedup`, `distinctBy`.
 
-A construct is counted when it is a **CPGQL step or a Joern command name invoked in the final
-committed sources**, and the measure is the **union across all three** — a construct used by one
-query counts once for the set. Two exclusions are stated so the count can be checked: a name
-appearing only in a comment or inside a string literal is not counted, and a Scala or Java library
-operation available on any collection — `filter`, `map`, `flatMap`, `size`, `distinct`, `sorted`,
-`nonEmpty`, `count`, `mkString` and the like — is not a CPGQL step and is not counted either.
+The count is therefore of constructs the author had to use, and a reader can re-derive it
+by running the same two rules over the same three files.
 
-| # | Construct | Kind | 01 | 02 | 03 |
-|---|---|---|:--:|:--:|:--:|
-| 1 | `switchWorkspace` | command — selects the workspace, before anything is loaded | ✓ | ✓ | ✓ |
-| 2 | `workspace.projects` | command — reads the workspace's project list | ✓ | ✓ | ✓ |
-| 3 | `open` | command — opens an existing project | ✓ | ✓ | ✓ |
-| 4 | `importCpg` | command — **loads the persisted graph** | ✓ | ✓ | ✓ |
-| 5 | `cpg` | the loaded graph every traversal starts from | ✓ | ✓ | ✓ |
-| 6 | `run.ossdataflow` | command — engages the open-source data-flow layer | | ✓ | |
-| 7 | `method` | node-type step | ✓ | ✓ | ✓ |
-| 8 | `typeDecl` | node-type step | ✓ | ✓ | ✓ |
-| 9 | `member` | node-type step | ✓ | ✓ | ✓ |
-| 10 | `call` | node-type step | ✓ | ✓ | ✓ |
-| 11 | `callee` | call-graph traversal step | ✓ | ✓ | ✓ |
-| 12 | `parameter` | node-type step | | ✓ | |
-| 13 | `argument` | call-argument step | | ✓ | |
-| 14 | `methodReturn` | node-type step | | ✓ | |
-| 15 | `metaData` | node-type step | | ✓ | |
-| 16 | `ast` | AST traversal step | | ✓ | |
-| 17 | `isCall` | node-kind filter step | | ✓ | |
-| 18 | `name` | property step | ✓ | ✓ | ✓ |
-| 19 | `nameExact` | property filter step | ✓ | ✓ | |
-| 20 | `fullName` | property / regex filter step | ✓ | ✓ | ✓ |
-| 21 | `fullNameExact` | property filter step | ✓ | ✓ | ✓ |
-| 22 | `methodFullName` | property step | ✓ | ✓ | ✓ |
-| 23 | `methodFullNameExact` | property filter step | | ✓ | |
-| 24 | `typeFullName` | property step | | ✓ | |
-| 25 | `code` | property step | | ✓ | |
-| 26 | `index` | parameter-index property step | | ✓ | |
-| 27 | `argumentIndex` | argument-index property step | | ✓ | |
-| 28 | `id` | node-identity property step | | ✓ | |
-| 29 | `isExternal` | property filter step | | | ✓ |
-| 30 | `overlays` | property step on the graph's metadata | | ✓ | |
-| 31 | `where` | nested-traversal filter step | ✓ | ✓ | |
-| 32 | `l` | execution step — runs the traversal to a list | ✓ | ✓ | ✓ |
-| 33 | `reachableByFlows` | data-flow reachability step | | ✓ | |
-| 34 | `elements` | step over a returned flow's elements | | ✓ | |
-
-**Totals: 34 distinct constructs across the three sources** — 17 in query 01, 33 in query 02 and 16
-in query 03, with fifteen common to all three: `switchWorkspace`, `workspace.projects`, `open`,
-`importCpg` and `cpg`, plus the ten steps `method`, `typeDecl`, `member`, `call`, `callee`, `name`,
-`fullName`, `fullNameExact`, `methodFullName` and `l`. **`importCode` is absent from all three**,
-which is the guardrail restated as a count: the set above contains the command that loads a graph
-and does not contain the command that builds one.
-
-One construct the data-flow formulation needed sits outside this count under the stated rule and is
-named rather than hidden: `EngineContext`, with the engine configuration it carries, which query 02
-reads for the engine's default call depth and copies to set its own. It is a data-flow engine type
-rather than a CPGQL step or a command name, so it is not in the table.
+| Construct | Used in |
+|---|---|
+| `argument` | `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `argumentIndex` | `02-dataflow-unguarded-driver-launch.sc` |
+| `ast` | `02-dataflow-unguarded-driver-launch.sc` |
+| `call` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `callee` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `caller` | `03-parameterized-unguarded-handler-sink.sc` |
+| `code` | `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `cpg` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `distinct` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `distinctBy` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `elements` | `02-dataflow-unguarded-driver-launch.sc` |
+| `exists` | `01-callgraph-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `filter` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `filterNot` | `02-dataflow-unguarded-driver-launch.sc` |
+| `flatMap` | `01-callgraph-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `fullName` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `fullNameExact` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `importCpg` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `inputPath` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `isCall` | `02-dataflow-unguarded-driver-launch.sc` |
+| `isExternal` | `03-parameterized-unguarded-handler-sink.sc` |
+| `iterator` | `02-dataflow-unguarded-driver-launch.sc` |
+| `l` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `member` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `metaData` | `02-dataflow-unguarded-driver-launch.sc` |
+| `method` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `methodFullName` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `methodFullNameExact` | `02-dataflow-unguarded-driver-launch.sc` |
+| `methodReturn` | `02-dataflow-unguarded-driver-launch.sc` |
+| `name` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `nameExact` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `open` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `overlays` | `02-dataflow-unguarded-driver-launch.sc` |
+| `parameter` | `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `projects` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `reachableByFlows` | `02-dataflow-unguarded-driver-launch.sc` |
+| `run.ossdataflow` | `02-dataflow-unguarded-driver-launch.sc` |
+| `signature` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `size` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `sorted` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `switchWorkspace` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `typeDecl` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `typeFullName` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `where` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc` |
+| `workspace` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 
 ### 4.3 Parameterizable: yes — query 03, with its parameter list
 
-The measure is answered by the parameterized query **existing**, and its parameter list is the
-answer. `03-parameterized-unguarded-handler-sink.sc` declares three parameters on its
-`@main def exec`, each a string at the invocation boundary:
+`03-parameterized-unguarded-handler-sink` takes its handler and sink selectors as `--param` inputs, so the answer is given
+by the parameter list existing rather than by assertion:
 
-**`handlerPattern`** — the identity of the entry point. Declared default, and the value in force for
-the recorded invocation:
+| Parameter | Type | Generalizes over | Provenance in this run |
+|---|---|---|---|
+| `handlerPattern` | string | the identity of the entry point: any method the graph holds, selected by an anchored full-match regex over its full name, whatever its name, its enclosing type or its package | declared_default_not_supplied |
+| `sinkPattern` | string | the identity of the privileged sink: any method the graph holds, selected the same way, including a constructor and a method with no body of its own | declared_default_not_supplied |
+| `maxDepth` | string at the invocation boundary, parsed by this script as an integer within MIN_MAX_DEPTH..MAX_MAX_DEPTH | how far the traversal may follow call edges from an entry point, so that a handler and a sink further apart than the default pair can still be related | declared_default_not_supplied |
 
-```
-receive=org\.apache\.spark\.deploy\..*\.receive:.*;receiveAndReply=org\.apache\.spark\.deploy\..*\.receiveAndReply:.*
-```
+The committed evidence run supplies **no** parameter, so the declared defaults are in
+force and every value in the envelope is a default authored in the file rather than a
+caller-supplied one. Where a caller does supply a value, the script records the
+parameter name with a length and a SHA-256 digest and withholds the value itself.
 
-**`sinkPattern`** — the identity of the privileged sink:
+Its redaction policy, as the script enforces it:
 
-```
-createDriver=org\.apache\.spark\.deploy\..*createDriver:.*;DriverRunner=org\.apache\.spark\.deploy\.worker\.DriverRunner\.<init>:.*;process_launch=(java\.lang\.ProcessBuilder\.start|java\.lang\.Runtime\.exec):.*;ExecutorRunner_additional=org\.apache\.spark\.deploy\.worker\.ExecutorRunner\.<init>:.*
-```
+* Policy: a value the caller supplied is never echoed. What is emitted for one is its parameter name, its length in characters and a SHA-256 digest of its UTF-8 bytes — enough to prove that a claimed invocation is the one that ran, and not enough to publish anything the caller did not intend to. A literal is emitted only where the value in force is the declared default authored in this file, which carries nothing of the caller's
+* Digest algorithm: `SHA-256`
+* Values withheld in this run: none
+* Stated exception: the numeric bound in force is emitted as an integer — `parameters.declared[].value_parsed` and `traversal.max_call_depth` — even when the caller supplied it, because every count in this result is a count under that bound and a result that hid it could not be interpreted. The caller's raw TEXT for it is still withheld and referenced by length and digest, and no pattern value is emitted under any circumstances. This is stated rather than left to be noticed, so that a report written against this policy claims exactly what the code enforces
+* Outside the script's control: the Joern script runner prints `executing <script> with params=Map(...)` to stderr before this script's first statement runs, so a captured stderr log carries the invocation as the RUNNER echoed it. That line is the interpreter's and cannot be suppressed from inside a script. Everything this script emits — the result object, every diagnostics field and every failure message — withholds a caller-supplied value and references it by length and digest, so a report that must not disclose one has to withhold or filter that captured line rather than rely on this script for it
 
-**`maxDepth`** — how far the traversal may follow call edges from an entry point. Declared default
-and value in force: `20`, parsed as the integer 20.
+## 5. Where the run reached, condition by condition
 
-The pattern-list format is one or more alternatives separated by `;`, each `<label>=<regex>`, with
-the label everything before the first `=` and the regex everything after it, matched as an anchored
-full match against a method full name as the frontend records it. Two limits of that surface are
-recorded rather than left to be discovered: the format defines no escape for its own separator, so a
-`;` cannot appear inside a pattern; and a label is a name and nothing more — the script resolves and
-reports every alternative identically, whatever its label says.
+The controller finalizes `run-record.md` and `tool-status.md` before this driver is
+launched, so those two files state conditions 1-4 and 6 and delegate condition 5 to this
+driver. This is the one place all six appear together, after the fact.
 
-What each parameter was free to vary, in the envelope's own words: `handlerPattern` — "any method the
-graph holds, selected by an anchored full-match regex over its full name, whatever its name, its
-enclosing type or its package"; `sinkPattern` — "the identity of the privileged sink: any method the
-graph holds, selected the same way, including a constructor and a method with no body of its own";
-`maxDepth` — "how far the traversal may follow call edges from an entry point, so that a handler and
-a sink further apart than the default pair can still be related".
+| # | Condition | Verdict |
+|---|---|---|
+| 1 | Every tool ran once with its baked configuration, to completion or to a termination outside this run's control, each with a log carrying stdout, stderr, elapsed time and either an exit code or `exit_status: timeout`; every tool that wrote output has a raw artifact, and a tool that wrote none is recorded with parse status `absent`, its exit code and its stderr, contributing zero rows | **passed.** all 9 runners invoked once, serially, with no arguments; 9 of 9 carry stdout, stderr and a meta.json with elapsed time and an exit code; 1 wrote no artifact and is recorded with parse status `absent`, its exit code and its stderr |
+| 2 | `findings.json` and `findings.csv` contain every row from every artifact, each carrying `tool`, `scanner_class`, `severity_norm` and `in_scope`, with no row dropped; row validation passes; and the per-tool reconciliation assertions pass | **passed.** `findings.json` and `findings.csv` published from one validated row list; row validation passed over 10178 rows; every evaluable per-tool reconciliation assertion passed; the CSV and JSON row counts are equal (10178 == 10178) |
+| 3 | `severity-map.md` carries a row for all nine tools, including any that produced no finding | **passed.** `severity-map.md` carries one row for 9 of the nine tools, including those that produced no finding |
+| 4 | `tool-status.md` lists all nine, including any that failed or timed out, each with its parse status, its records parsed and rejected, and its row-validation result | **passed.** this file carries one block for each of the nine, each with its execution state, exit status, parse status, records parsed and rejected, both reconciliation assertions and the row-validation result |
+| 5 | Phase 3 delivers three or more committed queries with recorded outcomes, spurious-return counts and the three effort measures, and the graph was read rather than built | **passed.** 3 committed queries, each invoked by this driver after publication, each with a recorded outcome, a spurious-return count under the on-path test and its own result pair; the three effort measures are in `joern-probe.md` §4; the graph was read with `importCpg` and not built |
+| 6 | `run-record.md` states the `$SPARK_SRC` path scanned, its commit and date, and every tool failure and missing module | **passed.** `run-record.md` states the `$SPARK_SRC` path scanned with its commit and commit date, every tool failure and termination, and the missing-module answer |
 
-`invocation.params` is empty for the recorded invocation, so all three defaults were in force and
-each is recorded with `origin` `default_value`. The predicate set is **not** a parameter
-(`exposed_as_a_parameter` `false`), so the two ends of the reachability are what a caller may vary
-and the auth-or-ACL test is not.
+**All six conditions hold together: yes.**
 
----
+## 6. What this file does not claim
 
-## 5. What this file does not claim
-
-- **No characterization of any finding.** No return above is called a real bug, a false positive, a
-  duplicate of anything, important, severe or exploitable; nothing is triaged, ranked or scored; and
-  no remediation, patch or configuration change is proposed for anything. The spurious determination
-  in section 3 is the only true-or-false call made here, and it is **a property of the query rather
-  than of Spark**.
-- **No comparison against anything.** No other tool's output, no baseline and no other scanner is
-  referenced, compared with or implied. **This run compares nothing** — the dataset it belongs to is
-  the open-source half of a comparison a human assembles afterwards — and this file offers no
-  judgement of Joern against any alternative.
-- **No claim about capability beyond what these three queries expressed.** The three formulations
-  are three attempts at one class over one graph. Nothing here generalizes to another class, another
-  code base, another graph, or to what any tool could express in principle.
-- **Nothing about the pinned tree's security posture.** The returns, the paths, the anchors and the
-  predicate set describe what queries expressed over **a graph that was read, not built**. They are
-  not a statement about the code the graph was built over, and no line number from any source file
-  appears above.
-- **No effort figure in time.** The revision count, the construct enumeration and the
-  parameterizability answer are the three measures reported; no wall-clock duration and no
-  expert-hour estimate appears anywhere in this file.
-- **Nothing taken from scratch or from stderr.** `queries/joern/.workspace/` is scratch and nothing
-  in it is cited, summarized or promoted here; no captured stderr is quoted, and no credential value
-  appears in this file or in the result envelopes it renders.
-- **Nothing under `harness/` was touched.** The graph at `harness/cpg/spark.cpg` was loaded and never
-  rebuilt, regenerated or supplemented; `harness/artifacts/raw/` was not created or written by this
-  phase; `harness/artifacts/smoke/` was never read, and is never a fallback for anything.
-
+It compares nothing against Apex, Cantina or any other scanner: no such results were
+provided to this run, so there is no baseline here and no comparison to draw. It calls no
+finding real, important, severe-in-context, duplicated or false. It draws no conclusion
+about Spark's security. The spurious determination is a property of a query — whether it
+matched what it was asked to match — reached mechanically by on-path predicate presence.
+The graph was **read** with `importCpg` and **not built**; `importCode` appears in none of
+the three committed sources, and no scanner, runner, build or smoke fallback was invoked
+by any of them.
