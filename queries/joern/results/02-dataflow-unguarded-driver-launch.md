@@ -6,11 +6,13 @@ did not write this file, and nothing in it is asserted that the driver did not o
 | | |
 |---|---|
 | Query source | `queries/joern/02-dataflow-unguarded-driver-launch.sc` |
-| Source sha256 | `831b37459372921dabcaca89d19d4435a85814030e12986fd0ed2d6e41416b8e` |
+| Source sha256 | `045b5df31ff41bb03abe92020421e3a432dd711a96880bf0d3f48e3d50363edd` |
 | Invoked | `/opt/blitzy-harness/tools/joern-cli/joern --script queries/joern/02-dataflow-unguarded-driver-launch.sc` |
 | Parameters | none — the script's declared defaults are in force |
-| Started / ended (UTC) | `2026-08-22T06:49:00Z` / `2026-08-22T06:52:32Z` |
-| Elapsed | 212.6 s |
+| JVM | `openjdk version "21.0.12.1" 2026-08-18 LTS` (`JAVA_HOME=/opt/blitzy-harness/tools/jdk-21.0.12.1+1`) |
+| `JAVA_OPTS` | `-Xmx48g -Xss64m` |
+| Started / ended (UTC) | `2026-08-22T10:28:10Z` / `2026-08-22T10:31:43Z` |
+| Elapsed | 213.4 s |
 | Exit code | `0` |
 | Start marker seen | True |
 | Result region parsed | True |
@@ -24,13 +26,13 @@ did not write this file, and nothing in it is asserted that the driver did not o
 ## 1. The precondition, as the driver observed it
 
 The driver runs only after the controller has published the dataset. This is what it
-observed at `2026-08-22T06:48:45Z`, immediately before invoking this query — not an assumption:
+observed at `2026-08-22T10:28:10Z`, immediately before invoking this query — not an assumption:
 
 | Published output | Present | Rows | Bytes | sha256 |
 |---|---|---|---|---|
-| `oss-scan-results/findings.json` | True | 10178 | 5817891 | `ff166c86a89eef497404b24726faeda89901d86a075f6b4be705ca7cc2b79afe` |
-| `oss-scan-results/findings.csv` | True | 10178 | 3320044 | `91a84eaa03626819a038bbba0173cefb9aac7688759fd3eb2043cf8aa78ff3d3` |
-| `oss-scan-results/severity-map.md` | True | — | 4449 | `e456b520054f4f2b2ee2164880d2ffdbf606c748c13cd48167f36f7b8b992868` |
+| `oss-scan-results/findings.json` | True | 10178 | 5806988 | `2b3fb2dbb5c2f30c711524a5a0be141aab8445e00814a7fdf6f8ba6c6f664f51` |
+| `oss-scan-results/findings.csv` | True | 10178 | 3309257 | `68ae2e4ed1b0f9197a4e813c4e73f9d9c2a9864143d9f56c8173af9aa5f25e13` |
+| `oss-scan-results/severity-map.md` | True | — | 6049 | `ebf11a85342c7e62c3a2ad1f403ea13672dd1bd579746f85969ac47798a8207f` |
 
 ## 2. Outcome
 
@@ -72,7 +74,7 @@ any earlier measurement is not missed.
 | | |
 |---|---|
 | Type-declaration selector | `org\.apache\.spark\.SecurityManager` |
-| Name selector | `^(check.*Permissions|acls.*|isAuthenticationEnabled)$` |
+| Name selector | `^(check.*Permissions\|acls.*\|isAuthenticationEnabled)$` |
 | Match mode | anchored full match |
 | Methods considered | 126 |
 | Resolved | `org.apache.spark.SecurityManager.aclsEnabled:boolean()`, `org.apache.spark.SecurityManager.checkAdminPermissions:boolean(java.lang.String)`, `org.apache.spark.SecurityManager.checkModifyPermissions:boolean(java.lang.String)`, `org.apache.spark.SecurityManager.checkUIViewPermissions:boolean(java.lang.String)`, `org.apache.spark.SecurityManager.isAuthenticationEnabled:boolean()` |
@@ -300,7 +302,10 @@ Exclusion rules applied in order, each with what it removed:
 ```json
 {
   "canonical_path": "/opt/blitzy-harness/cpg/spark.cpg",
+  "content_digest": "sha-256:6b3b135ee79f67778918804e7ed46badb8716875b581e8726bb98ba7f1c5330b",
+  "content_digest_reverified_after_load": true,
   "declared_relative_path": "harness/cpg/spark.cpg",
+  "digest_verification_rule": "the content digest above is taken at the canonical path before the load and taken again after it, and a difference in either the digest or the size fails the run closed: that is what ties the graph checked to the graph read across the check-then-load window. What the digest proves depends on which branch ran, so both are stated. On `imported_persisted_cpg` it is the digest of the file `importCpg` read. On `opened_existing_project` it is the digest of the pinned source file whose identity the project's recorded input path ties the project to \u2014 not of the project's own copy, which is a separate artifact that applying an overlay legitimately changes, exactly as the size rule above states. No expected digest is hardcoded here and none is compared against any record: the digest detects a change across the window and records what was read, and nothing else",
   "outcome": "existing_project_recorded_input_path_canonicalizes_to_the_pinned_graph",
   "project_applied_overlays": [
     "base",
@@ -309,8 +314,8 @@ Exclusion rules applied in order, each with what it removed:
     "dataflowOss",
     "typerel"
   ],
-  "project_directory": "queries/joern/.workspace/spark.cpg",
-  "project_recorded_input_path": "harness/cpg/spark.cpg",
+  "project_directory": "/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/queries/joern/.workspace/spark.cpg",
+  "project_recorded_input_path": "/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/cpg/spark.cpg",
   "project_recorded_input_path_canonical": "/opt/blitzy-harness/cpg/spark.cpg",
   "size_bytes": "509105796",
   "verification_rule": "an existing workspace project is opened only when the input path it recorded at creation canonicalizes \u2014 symlinks resolved \u2014 to the same file as the graph path above; a mismatch, or a recorded path that no longer resolves, fails the run closed rather than reading a stale graph. Size is recorded as evidence and is deliberately not the test: applying an overlay legitimately changes the copy the project holds without changing which graph it came from"
@@ -1056,8 +1061,10 @@ invocations, and the count below is the number of distinct hashes in it.
 | 3 | `2026-08-22T06:19:27Z` | `831b37459372921dabcaca89d19d4435a85814030e12986fd0ed2d6e41416b8e` | True | True | 1 | 0 |
 | 4 | `2026-08-22T06:29:23Z` | `831b37459372921dabcaca89d19d4435a85814030e12986fd0ed2d6e41416b8e` | True | True | 1 | 0 |
 | 5 | `2026-08-22T06:49:00Z` | `831b37459372921dabcaca89d19d4435a85814030e12986fd0ed2d6e41416b8e` | True | True | 1 | 0 |
+| 6 | `2026-08-22T10:08:45Z` | `3adf06420af2203240768263fb84923efa1ef6f5acb5c54f241daf1ddd5e5b62` | True | True | 1 | 0 |
+| 7 | `2026-08-22T10:28:10Z` | `045b5df31ff41bb03abe92020421e3a432dd711a96880bf0d3f48e3d50363edd` | True | True | 1 | 0 |
 
-Distinct source texts executed by the driver: **1**.
+Distinct source texts executed by the driver: **3**. Executions recorded: **7**.
 
 ## 7. What this file does not claim
 

@@ -1,7 +1,7 @@
 {
   "slug": "02-dataflow-unguarded-driver-launch",
   "query_source": "queries/joern/02-dataflow-unguarded-driver-launch.sc",
-  "source_sha256": "831b37459372921dabcaca89d19d4435a85814030e12986fd0ed2d6e41416b8e",
+  "source_sha256": "045b5df31ff41bb03abe92020421e3a432dd711a96880bf0d3f48e3d50363edd",
   "invocation": {
     "command": [
       "/opt/blitzy-harness/tools/joern-cli/joern",
@@ -10,32 +10,42 @@
     ],
     "params": {},
     "working_directory": ".",
-    "started_at": "2026-08-22T06:49:00Z",
-    "ended_at": "2026-08-22T06:52:32Z",
-    "elapsed_seconds": 212.6,
+    "jvm": {
+      "java_home": "/opt/blitzy-harness/tools/jdk-21.0.12.1+1",
+      "java_executable": "/opt/blitzy-harness/tools/jdk-21.0.12.1+1/bin/java",
+      "version_output": [
+        "openjdk version \"21.0.12.1\" 2026-08-18 LTS",
+        "OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)",
+        "OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)"
+      ]
+    },
+    "java_opts": "-Xmx48g -Xss64m",
+    "started_at": "2026-08-22T10:28:10Z",
+    "ended_at": "2026-08-22T10:31:43Z",
+    "elapsed_seconds": 213.4,
     "exit_code": 0,
     "driven_by": "the Phase 3 driver, launched by the outer shell after the controller exited cleanly and the dataset was published"
   },
   "precondition_observed_by_the_driver": {
     "findings.json": {
       "published": true,
-      "bytes": 5817891,
-      "sha256": "ff166c86a89eef497404b24726faeda89901d86a075f6b4be705ca7cc2b79afe",
+      "bytes": 5806988,
+      "sha256": "2b3fb2dbb5c2f30c711524a5a0be141aab8445e00814a7fdf6f8ba6c6f664f51",
       "rows": 10178
     },
     "findings.csv": {
       "published": true,
-      "bytes": 3320044,
-      "sha256": "91a84eaa03626819a038bbba0173cefb9aac7688759fd3eb2043cf8aa78ff3d3",
+      "bytes": 3309257,
+      "sha256": "68ae2e4ed1b0f9197a4e813c4e73f9d9c2a9864143d9f56c8173af9aa5f25e13",
       "rows": 10178
     },
     "severity-map.md": {
       "published": true,
-      "bytes": 4449,
-      "sha256": "e456b520054f4f2b2ee2164880d2ffdbf606c748c13cd48167f36f7b8b992868"
+      "bytes": 6049,
+      "sha256": "ebf11a85342c7e62c3a2ad1f403ea13672dd1bd579746f85969ac47798a8207f"
     },
     "all_published": true,
-    "observed_at": "2026-08-22T06:48:45Z"
+    "observed_at": "2026-08-22T10:28:10Z"
   },
   "markers": {
     "start_marker_seen": true,
@@ -69,9 +79,11 @@
       "declared_relative_path": "harness/cpg/spark.cpg",
       "canonical_path": "/opt/blitzy-harness/cpg/spark.cpg",
       "size_bytes": "509105796",
-      "project_recorded_input_path": "harness/cpg/spark.cpg",
+      "content_digest": "sha-256:6b3b135ee79f67778918804e7ed46badb8716875b581e8726bb98ba7f1c5330b",
+      "content_digest_reverified_after_load": true,
+      "project_recorded_input_path": "/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/cpg/spark.cpg",
       "project_recorded_input_path_canonical": "/opt/blitzy-harness/cpg/spark.cpg",
-      "project_directory": "queries/joern/.workspace/spark.cpg",
+      "project_directory": "/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/queries/joern/.workspace/spark.cpg",
       "project_applied_overlays": [
         "base",
         "callgraph",
@@ -80,6 +92,7 @@
         "typerel"
       ],
       "verification_rule": "an existing workspace project is opened only when the input path it recorded at creation canonicalizes — symlinks resolved — to the same file as the graph path above; a mismatch, or a recorded path that no longer resolves, fails the run closed rather than reading a stale graph. Size is recorded as evidence and is deliberately not the test: applying an overlay legitimately changes the copy the project holds without changing which graph it came from",
+      "digest_verification_rule": "the content digest above is taken at the canonical path before the load and taken again after it, and a difference in either the digest or the size fails the run closed: that is what ties the graph checked to the graph read across the check-then-load window. What the digest proves depends on which branch ran, so both are stated. On `imported_persisted_cpg` it is the digest of the file `importCpg` read. On `opened_existing_project` it is the digest of the pinned source file whose identity the project's recorded input path ties the project to — not of the project's own copy, which is a separate artifact that applying an overlay legitimately changes, exactly as the size rule above states. No expected digest is hardcoded here and none is compared against any record: the digest detects a change across the window and records what was read, and nothing else",
       "outcome": "existing_project_recorded_input_path_canonicalizes_to_the_pinned_graph"
     },
     "cpg_method_count": 445568,
@@ -1086,15 +1099,36 @@
       "spurious_count": 0
     },
     {
-      "executed_at": "2026-08-22T06:49:00Z",
-      "source_sha256": "831b37459372921dabcaca89d19d4435a85814030e12986fd0ed2d6e41416b8e",
       "compiled": true,
+      "elapsed_seconds": 212.6,
+      "executed_at": "2026-08-22T06:49:00Z",
+      "exit_code": 0,
       "ran": true,
       "return_count": 1,
-      "spurious_count": 0,
+      "source_sha256": "831b37459372921dabcaca89d19d4435a85814030e12986fd0ed2d6e41416b8e",
+      "spurious_count": 0
+    },
+    {
+      "compiled": true,
+      "elapsed_seconds": 225.1,
+      "executed_at": "2026-08-22T10:08:45Z",
       "exit_code": 0,
-      "elapsed_seconds": 212.6
+      "ran": true,
+      "return_count": 1,
+      "source_sha256": "3adf06420af2203240768263fb84923efa1ef6f5acb5c54f241daf1ddd5e5b62",
+      "spurious_count": 0
+    },
+    {
+      "compiled": true,
+      "elapsed_seconds": 213.4,
+      "executed_at": "2026-08-22T10:28:10Z",
+      "exit_code": 0,
+      "ran": true,
+      "return_count": 1,
+      "source_sha256": "045b5df31ff41bb03abe92020421e3a432dd711a96880bf0d3f48e3d50363edd",
+      "spurious_count": 0
     }
   ],
-  "revision_count": 5
+  "revision_count": 3,
+  "execution_count": 7
 }

@@ -48,7 +48,7 @@ important or duplicated, and no two tools' findings are called the same issue.
 | Started / finished (UTC) | `2026-08-22T04:30:05Z` / `2026-08-22T04:30:12Z` |
 | Elapsed | 7.3 s |
 | Exit status | `1` |
-| stdout / stderr | `harness/artifacts/logs/trivy.stdout.log` / `harness/artifacts/logs/trivy.stderr.log` |
+| stdout / stderr | `harness/artifacts/logs/trivy.stdout.log:1-12` / `harness/artifacts/logs/trivy.stderr.log:1-10` |
 | Artifact | **none written** |
 | Artifact shape, as detected | — |
 | Adapter | — |
@@ -63,7 +63,7 @@ important or duplicated, and no two tools' findings are called the same issue.
 | Row-validation result | passed over all 10178 rows of the dataset |
 
 **No artifact, so no finding count.** The runner was invoked and exited `1`; the
-cause is in its own stderr at `harness/artifacts/logs/trivy.stderr.log`. Its contribution to
+cause is in its own stderr at `harness/artifacts/logs/trivy.stderr.log:1-10`. Its contribution to
 the dataset is zero rows, and that is not a finding of nothing. Both reconciliation
 assertions are recorded as *not applicable — artifact absent*, which is the one
 exception the request grants, and it does not leave the run incomplete.
@@ -77,7 +77,7 @@ exception the request grants, and it does not leave the run incomplete.
 | Started / finished (UTC) | `2026-08-22T04:30:12Z` / `2026-08-22T04:30:41Z` |
 | Elapsed | 29.3 s |
 | Exit status | `1` |
-| stdout / stderr | `harness/artifacts/logs/osv-scanner.stdout.log` / `harness/artifacts/logs/osv-scanner.stderr.log` |
+| stdout / stderr | `harness/artifacts/logs/osv-scanner.stdout.log:1-9` / `harness/artifacts/logs/osv-scanner.stderr.log:1-190` |
 | Artifact | `harness/artifacts/raw/osv-scanner.json` (2801633 B) |
 | Artifact shape, as detected | native: results[].packages[].vulnerabilities[] |
 | Adapter | the osv-scanner native adapter |
@@ -100,7 +100,7 @@ exception the request grants, and it does not leave the run incomplete.
 | Started / finished (UTC) | `2026-08-22T04:30:41Z` / `2026-08-22T04:59:57Z` |
 | Elapsed | 1755.9 s |
 | Exit status | `14` |
-| stdout / stderr | `harness/artifacts/logs/dependency-check.stdout.log` / `harness/artifacts/logs/dependency-check.stderr.log` |
+| stdout / stderr | `harness/artifacts/logs/dependency-check.stdout.log:1-69` / `harness/artifacts/logs/dependency-check.stderr.log` (empty — 0 lines) |
 | Artifact | `harness/artifacts/raw/dependency-check.json` (7114893 B) |
 | Artifact shape, as detected | native: dependencies[].vulnerabilities[] |
 | Adapter | the dependency-check native adapter |
@@ -130,7 +130,7 @@ by inference:
 | Started / finished (UTC) | `2026-08-22T04:59:57Z` / `2026-08-22T05:01:03Z` |
 | Elapsed | 66.0 s |
 | Exit status | `1` |
-| stdout / stderr | `harness/artifacts/logs/gitleaks.stdout.log` / `harness/artifacts/logs/gitleaks.stderr.log` |
+| stdout / stderr | `harness/artifacts/logs/gitleaks.stdout.log:1-27` / `harness/artifacts/logs/gitleaks.stderr.log:1-2` |
 | Artifact | `harness/artifacts/raw/gitleaks.json` (31371 B) |
 | Artifact shape, as detected | native: a top-level array |
 | Adapter | the gitleaks native adapter |
@@ -153,7 +153,7 @@ by inference:
 | Started / finished (UTC) | `2026-08-22T05:01:03Z` / `2026-08-22T05:01:06Z` |
 | Elapsed | 2.4 s |
 | Exit status | `1` |
-| stdout / stderr | `harness/artifacts/logs/checkov.stdout.log` / `harness/artifacts/logs/checkov.stderr.log` |
+| stdout / stderr | `harness/artifacts/logs/checkov.stdout.log:1-2870` / `harness/artifacts/logs/checkov.stderr.log` (empty — 0 lines) |
 | Artifact | `harness/artifacts/raw/checkov.json` (8470 B) |
 | Artifact shape, as detected | native: results.failed_checks[] (object or array top level) |
 | Adapter | the checkov native adapter |
@@ -176,7 +176,7 @@ by inference:
 | Started / finished (UTC) | `2026-08-22T05:01:06Z` / `2026-08-22T05:04:16Z` |
 | Elapsed | 190.2 s |
 | Exit status | `0` |
-| stdout / stderr | `harness/artifacts/logs/opengrep.stdout.log` / `harness/artifacts/logs/opengrep.stderr.log` |
+| stdout / stderr | `harness/artifacts/logs/opengrep.stdout.log:1-5603` / `harness/artifacts/logs/opengrep.stderr.log:1-25` |
 | Artifact | `harness/artifacts/raw/opengrep.sarif` (1941724 B) |
 | Artifact shape, as detected | SARIF 2.1.0 (version=2.1.0 with runs[]) |
 | Adapter | the shared SARIF adapter |
@@ -199,7 +199,7 @@ by inference:
 | Started / finished (UTC) | `2026-08-22T05:04:16Z` / `2026-08-22T05:08:08Z` |
 | Elapsed | 232.1 s |
 | Exit status | `0` |
-| stdout / stderr | `harness/artifacts/logs/semgrep.stdout.log` / `harness/artifacts/logs/semgrep.stderr.log` |
+| stdout / stderr | `harness/artifacts/logs/semgrep.stdout.log:1-11` / `harness/artifacts/logs/semgrep.stderr.log:1-30` |
 | Artifact | `harness/artifacts/raw/semgrep.sarif` (1578299 B) |
 | Artifact shape, as detected | SARIF 2.1.0 (version=2.1.0 with runs[]) |
 | Adapter | the shared SARIF adapter |
@@ -222,7 +222,7 @@ by inference:
 | Started / finished (UTC) | `2026-08-22T05:08:08Z` / `2026-08-22T05:08:55Z` |
 | Elapsed | 47.5 s |
 | Exit status | `0` |
-| stdout / stderr | `harness/artifacts/logs/joern.stdout.log` / `harness/artifacts/logs/joern.stderr.log` |
+| stdout / stderr | `harness/artifacts/logs/joern.stdout.log:1-17` / `harness/artifacts/logs/joern.stderr.log` (empty — 0 lines) |
 | Artifact | `harness/artifacts/raw/joern.json` (38595 B) |
 | Artifact shape, as detected | native: findings[] |
 | Adapter | the joern native adapter |
@@ -245,7 +245,7 @@ by inference:
 | Started / finished (UTC) | `2026-08-22T05:08:55Z` / `2026-08-22T05:12:06Z` |
 | Elapsed | 190.4 s |
 | Exit status | `0` |
-| stdout / stderr | `harness/artifacts/logs/datadog-static-analyzer.stdout.log` / `harness/artifacts/logs/datadog-static-analyzer.stderr.log` |
+| stdout / stderr | `harness/artifacts/logs/datadog-static-analyzer.stdout.log:1-47` / `harness/artifacts/logs/datadog-static-analyzer.stderr.log` (empty — 0 lines) |
 | Artifact | `harness/artifacts/raw/datadog-static-analyzer.sarif` (5676504 B) |
 | Artifact shape, as detected | SARIF 2.1.0 (version=2.1.0 with runs[]) |
 | Adapter | the shared SARIF adapter |
@@ -258,6 +258,34 @@ by inference:
 | Per-tool reconciliation assertion | record count 6832 == rows 6832 + rejects 0 |
 | Overall CSV/JSON row-count assertion | CSV 10178 rows == JSON 10178 rows |
 | Row-validation result | passed over all 10178 rows of the dataset |
+| Ruleset provenance | **not pinned** — the analyzer detected no local SAST configuration and fetched its default rules from the Datadog API during this invocation, per `harness/artifacts/logs/datadog-static-analyzer.stdout.log:8`; the same log records the config method as `none`, no local file and no remote configuration, at `harness/artifacts/logs/datadog-static-analyzer.stdout.log:16` |
+| Rules in the fetched ruleset | 1093 static-analysis rules, per `harness/artifacts/logs/datadog-static-analyzer.stdout.log:19`; 1093 rules evaluated, per `harness/artifacts/logs/datadog-static-analyzer.stdout.log:42` |
+
+**The ruleset behind these 6832 rows is not pinned, so the count is not reproducible from the
+recorded environment alone.** This tool contributed 6832 of the dataset's 10178 rows, and the
+rules that produced them were fetched over the network while the runner ran rather than read
+from a local configuration — the two facts above, at lines 8 and 16 of its own stdout, are the
+tool's own statement of that, and nothing else in this run identifies the set that arrived.
+
+Both sides of the identity are recorded here, unreconciled, because this record does not
+adjudicate between them and `harness/ENVIRONMENT.md` is read and never edited. That file's §5
+*Ruleset identity* gives this tool's ruleset as its own bundled rules, 1093 static-analysis
+rules, all bundled, and — unlike the Opengrep and Semgrep CE rows of that same table, each of
+which carries a pinned ruleset commit — records no commit, revision or digest for it. The
+tool's own stdout states instead that no SAST configuration was detected and the default rules
+came from the Datadog API. The rule count agrees on both sides at 1093. The version and
+revision recorded for this tool in `harness/ENVIRONMENT.md` §4 are the analyzer build's, the
+same pair the tool prints at lines 14-15 of its stdout, and the rules were fetched while it
+ran, so that pair does not identify them.
+
+The consequence for a reader of the counts: an invocation of the same runner, with the same
+baked configuration and no arguments, at a later date may load a different set of rules and
+emit a different row count, and neither this record nor `harness/ENVIRONMENT.md` carries a
+revision against which the two sets could be told apart. Nothing was reconfigured to make this
+so, nothing was retried, and no rule, finding or count of this tool's is characterized here:
+this is the provenance of the ruleset, not a judgement of what it reported. The tool's secrets
+and AI path is a separate fact, recorded in §4 as *UNAVAILABLE* on both sides with its
+credential source named by variable name only.
 
 ## 3. The finding count, and what each numeric zero means
 
@@ -295,9 +323,9 @@ outcomes are distinguished and none is collapsed into another: `succeeded`, `fai
 
 | Tool | Feed | Version or timestamp | Update outcome | Evidence |
 |---|---|---|---|---|
-| `dependency-check` | the H2 database odc.mv.db in $HARNESS_DC_DATA_DIR | engine 13.0.0; NVD API Last Checked: 2026-08-22T01:54:12Z; NVD API Last Modified: 2026-08-21T20:00:05-04; NVD Cache Last Checked: 2026-08-22T01:54:12Z; NVD Cache Last Modified: 2026-08-21T20:00:05-04 | **not attempted** | the report's own dataSources block in harness/artifacts/raw/dependency-check.json, and the runner's echoed invocation in harness/artifacts/logs/dependency-check.stdout.log |
-| `osv-scanner` | the live OSV API (api.osv.dev) plus api.deps.dev — no offline database | not reported — the tool queries at scan time and states no feed version | **not attempted** | harness/artifacts/logs/osv-scanner.stdout.log and harness/artifacts/logs/osv-scanner.stderr.log; the runner performs no database update because the tool holds no local database to update |
-| `trivy` | trivy.db and trivy-java-db in the shared cache $TRIVY_CACHE_DIR | 2026-08-22T00:59:13.136195619Z | **not attempted** | harness/artifacts/logs/trivy.stdout.log (the runner echoes the cache's own metadata.json and passes --skip-db-update --skip-java-db-update) |
+| `dependency-check` | the H2 database odc.mv.db in $HARNESS_DC_DATA_DIR | engine 13.0.0; NVD API Last Checked: 2026-08-22T01:54:12Z; NVD API Last Modified: 2026-08-21T20:00:05-04; NVD Cache Last Checked: 2026-08-22T01:54:12Z; NVD Cache Last Modified: 2026-08-21T20:00:05-04 | **not attempted** | the report's own dataSources block in harness/artifacts/raw/dependency-check.json, and the runner's echoed invocation in harness/artifacts/logs/dependency-check.stdout.log:1-69 |
+| `osv-scanner` | the live OSV API (api.osv.dev) plus api.deps.dev — no offline database | not reported — the tool queries at scan time and states no feed version | **not attempted** | harness/artifacts/logs/osv-scanner.stdout.log:1-9 and harness/artifacts/logs/osv-scanner.stderr.log:1-190; the runner performs no database update because the tool holds no local database to update |
+| `trivy` | trivy.db and trivy-java-db in the shared cache $TRIVY_CACHE_DIR | 2026-08-22T00:59:13.136195619Z | **not attempted** | harness/artifacts/logs/trivy.stdout.log:1-12 (the runner echoes the cache's own metadata.json and passes --skip-db-update --skip-java-db-update) |
 
 **The commit-date caveat, stated beside the counts.** The pinned commit is dated `2025-10-23T19:31:06Z`.
 A dependency tree of that vintage will show CVEs the upstream project has since moved
@@ -357,14 +385,19 @@ native shape, and no result used a valid construct the shared adapter does not r
 
 | Source | What came from it |
 |---|---|
-| `harness/artifacts/logs/*` | every execution state, timestamp, elapsed time, exit code and `exit_status`; the feed evidence; the taint and AI-path observations |
+| `harness/artifacts/logs/*` | every execution state, timestamp, elapsed time, exit code and `exit_status`; the feed evidence; the taint and AI-path observations; the datadog ruleset-provenance and rule-count facts in §2.9 |
 | `harness/artifacts/raw/*` | every artifact shape, record count, row count, reject count and reject reason, and Dependency-Check's own `dataSources` block |
-| `harness/ENVIRONMENT.md` | the recorded tool versions, the Opengrep taint setting, the datadog AI-path availability and its credential-source variable names, the feed descriptions and the per-module JAR outcomes |
+| `harness/ENVIRONMENT.md` | the recorded tool versions, the recorded ruleset identity restated in §2.9, the Opengrep taint setting, the datadog AI-path availability and its credential-source variable names, the feed descriptions and the per-module JAR outcomes |
 | `git` reads of `$SPARK_SRC` | the commit date stated beside the counts |
 
 No count, rule id, CVE, CWE, line number or timestamp in this file was invented or carried
 over from a plan, and no credential value appears in it: where diagnostic output is needed
-this file references a stderr log by path rather than quoting it. The invocation lines above
+this file cites the specific log **by path and line range** rather than quoting it, in three
+forms and no others. A reference to a log as a whole is written `<path>:1-<last>`, where `<last>` is
+that log's own line count, so the range is checkable with `wc -l`. A reference to one recorded
+statement inside a log is written `<path>:<line>`, and that line lies inside the same count.
+An empty log is stated as *(empty — 0 lines)* and is given no range at all, because a range
+over an empty file would be a number tracing to nothing. The invocation lines above
 name each runner relative to the directory that holds `harness/`; the byte-preserved
 `<tool>.meta.json` beside each log carries the absolute path as it stood at execution time
 and was not edited. Both artifact trees are excluded from the commit by the pre-existing

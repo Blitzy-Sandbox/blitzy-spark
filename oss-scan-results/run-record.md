@@ -47,6 +47,20 @@ value in the replacement is derived from this pass's own gate, Phase 1 and Phase
 `harness/artifacts/raw/` was empty and `harness/artifacts/logs/` absent when this pass
 began, so the scan itself is a first run in this tree.
 
+**The authority for replacing them rather than stopping, stated rather than left to be
+inferred.** The collision precheck's rule is that a pre-existing target stops the run
+before a byte is written, and that rule is written for a first run whose targets are
+found in place — the case where something else owns them. It does not reach this one. The
+three targets found were the superseded attempt's own outputs and nothing else's, and the
+authority for replacing them is the code review of that attempt, which required this pass
+in place of it: stopping on files that attempt had written would have made the required
+remediation unreachable, so the replacement is the instruction being carried out rather
+than a precondition being repaired. The deviation is bounded by what it touched. No
+immutable path, no third-party state and no tool output was replaced — the three are
+records this run authors — and the bytes and sha256 each carried before replacement are
+in the table above, so a reader can identify exactly what was superseded and, from the
+review that required it, why.
+
 ## 2. Gate — twelve ordered checks
 
 Fail-closed and ordered so that nothing is consumed before it is validated.
@@ -269,6 +283,20 @@ canonicalizer used.
 | `joern` | `findings[].path` | already $SPARK_SRC-relative — harness/lib/joern_collect.py maps the graph's bytecode class path back to source against $SPARK_SRC |
 | `datadog-static-analyzer` | `locations[].physicalLocation.artifactLocation.uri` | relative to the analyzer's -i root, which the runner sets to $HARNESS_SCAN_ROOT |
 
+**Two path shapes dependency-check reports that resolve to no file on disk, and are not
+resolution failures.** The tool reads inside archives and reports what it found there, so
+1625 of its 1697 rows carry a path of the form
+`<module>/target/scala-2.13/<jar>.jar/META-INF/maven/<group>/<artifact>/pom.xml` — a real
+entry inside a real jar, canonicalized against the base above like any other path. A
+further 22 carry a virtual coordinate of the form `<manifest>?<package>`, which is the
+tool's way of naming a package declared by a manifest rather than a file of its own; the
+`?` is part of the value the tool emitted and is preserved verbatim. Together that is 1647
+rows over 58 distinct paths, 16.2% of the dataset, for which a filesystem existence check
+under `$SPARK_SRC` fails by construction. The rows are kept and the values are verbatim: a
+consumer resolving these paths against the filesystem should read a miss as the shape of
+the value rather than as a defect in the canonicalization, which applied the base recorded
+in this section to them exactly as to every other path.
+
 ### 3.5 The four writable trees, resolved
 
 | Tree | Resolved absolute path | Writable |
@@ -277,6 +305,20 @@ canonicalizer used.
 | `harness/artifacts/raw` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/raw` | yes |
 | `oss-scan-results` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/oss-scan-results` | yes |
 | `queries/joern` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/queries/joern` | yes |
+
+**`queries/joern/.workspace/` is scratch inside a writable tree, and it is not ignored by
+git.** Each Phase 3 query script selects that workspace before it loads the graph, and the
+project Joern creates there holds its own copy of the half-gigabyte graph, so the directory
+is unbounded — it stands at roughly 1 GB after this run's query executions. It is **not a
+deliverable**: nothing in `joern-probe.md` or in any per-query report cites a file inside
+it, and the three reports each say so. The only `.gitignore` rule that covers artifact
+scratch is its line 31 (`artifacts/`), which reaches `harness/artifacts/**` and does not
+reach this path, and no nested `.gitignore` exists under `queries/`; that file is
+pre-existing and this run may not modify it, so the rule cannot be added here. The
+consequence is stated for whoever commits: `queries/joern/.workspace/` sits at a
+commit-eligible path, every permitted re-invocation of the Phase 3 driver regenerates it,
+and it must not be committed. It is left in place rather than deleted, because this run
+cleans nothing up.
 
 ### 3.6 Observed runtime versions
 
@@ -417,9 +459,10 @@ Consequences, stated in full:
 Neither credential exists in this environment and no value was read: only the variable
 names appear, here and in the logs.
 
-**Two further observations about the runners, reported and not acted on.** Neither changed
-what was invoked, and neither is a fault this run may repair: `harness/bin/**` is read-only
-to it.
+**Three further observations about the runners, reported and not acted on.** None changed
+what was invoked, and none is a fault this run may repair: `harness/bin/**` is read-only
+to it. They are not additional record-versus-reality checks — the two checks this phase
+makes are the two in the table above.
 
 * `harness/bin/run-dependency-check.sh` and `harness/bin/run-checkov.sh` each give the tool
   a `mktemp -d` output directory and move the report into `harness/artifacts/raw/`
@@ -434,6 +477,22 @@ to it.
   defect is latent, not realised, and it is reported by variable name only. Printing a fixed
   `set`/`absent` token instead of an expansion that can yield the value is a change only the
   owner of that file can make.
+* `harness/bin/run-datadog-static-analyzer.sh` ran the analyzer against a tree carrying no
+  local static-analysis configuration, so the tool fetched its rules over the network while
+  it ran: its own stdout states that no SAST configuration was detected and the default
+  rules were taken from the Datadog API
+  (`harness/artifacts/logs/datadog-static-analyzer.stdout.log:8`), that the config method
+  was `none` — no local file and no remote configuration
+  (`…stdout.log:16`) — and that the set was 1093 static-analysis rules, all 1093 evaluated
+  (`…stdout.log:19`, `…stdout.log:42`). That tool contributed 6832 of the dataset's 10178
+  rows, so two thirds of the dataset rests on a rule set that nothing in the recorded
+  environment pins: `harness/ENVIRONMENT.md` §5 records this tool's rules as bundled and
+  carries no commit or digest for them, unlike its Opengrep and Semgrep CE rows. Both sides
+  are reported and neither is reconciled, here and at greater length in `tool-status.md`
+  §2.9, and `harness/ENVIRONMENT.md` is read and not edited. The consequence for a reader
+  of the counts is that the same runner, with the same baked configuration and no
+  arguments, may at a later date load a different rule set and emit a different row count
+  with no recorded revision to tell the two apart.
 
 ### 4.7 Publication state
 
@@ -447,6 +506,33 @@ files, and only then were they renamed into place, in this order:
 The order is deliberate: the presence of `findings.json` is the single signal that the
 dataset **and** its mapping are both complete. No staging file remains — all three were
 renamed away on success.
+
+**The dataset was published twice, through that same protocol both times.** The code
+review of this milestone established three defects in the normalized values, each a
+deviation from the severity and SARIF derivation rules rather than a loss or duplication of
+rows: `osv-scanner`'s severity was taken from the CVSS **vectors** in `severity[]` instead
+of the label in `database_specific.severity`, so 126 of its 288 rows normalized to `Info`
+where the label maps to Critical, High or Low; the shared SARIF adapter mined
+`properties.tags` for CWE identifiers on `opengrep` and `semgrep` but not on
+`datadog-static-analyzer`, leaving 61 rows without an available `CWE:<n>`; and six
+`message` values were whitespace-stripped rather than verbatim. The three were corrected at
+the adapter level and both files were re-serialized from one validated row list, re-staged,
+counted again by parsing the staged files, and renamed in the same order above. The
+correction changed 423 cells across 296 rows — 230 `severity_native` and 126
+`severity_norm` on `osv-scanner`, 61 `cwe` on `datadog-static-analyzer`, and 6 `message` —
+and changed no row count, no row order and no other field: 10178 rows before and after,
+CSV and JSON equal, and every per-tool reconciliation unchanged. `severity-map.md` was
+regenerated from the same mapping the adapters read, so the published mapping is the one
+the rows receive, and the Phase 3 envelopes cite the second publication's bytes and
+sha256 because the driver observed the dataset it ran against.
+
+**Three cells of `findings.csv` begin with a character a spreadsheet reads as a formula.**
+Two `message` values begin with `@` and one with `-`, all three verbatim from the tool that
+reported them. Nothing is escaped, prefixed or neutralized, and that is deliberate: the row
+contract fixes the dialect, requires `message` to be the tool's own description verbatim,
+and requires the CSV and JSON to agree cell for cell, so altering the value would break two
+of those three at once. The file is a data artifact to be read by a parser, not a
+spreadsheet; a reader who opens it in one should disable formula interpretation on import.
 
 **The row contract both serializations share.** Every row carries these twelve fields in
 this fixed order, and the CSV header is that order verbatim:
@@ -485,14 +571,14 @@ The Phase 3 driver writes exactly one line into this section, and it is the driv
 write to this file. It never writes to `tool-status.md`. A re-invocation for a query
 revision replaces this line rather than adding another.
 
-**Phase 3 completed.** The driver was launched by the outer shell after the controller exited cleanly, took the published `findings.json` (10178 rows, sha256 `ff166c86a89eef497404b24726faeda89901d86a075f6b4be705ca7cc2b79afe`) as its precondition, and invoked 3 committed query scripts — `01-callgraph-unguarded-driver-launch`, `02-dataflow-unguarded-driver-launch`, `03-parameterized-unguarded-handler-sink` — each once per source revision, from the repository root, with `importCpg` and never `importCode`. All 3 compiled and ran to a complete result region; 3 clean positive(s) were produced; aggregate revision count 3. Done-when condition 5 is met, and the per-query outcomes, spurious counts and the three effort measures are in `oss-scan-results/joern-probe.md`.
+**Phase 3 completed.** The driver was launched by the outer shell after the controller exited cleanly, took the published `findings.json` (10178 rows, sha256 `2b3fb2dbb5c2f30c711524a5a0be141aab8445e00814a7fdf6f8ba6c6f664f51`) as its precondition, and invoked 3 committed query scripts — `01-callgraph-unguarded-driver-launch`, `02-dataflow-unguarded-driver-launch`, `03-parameterized-unguarded-handler-sink` — from the repository root, one at a time, on `JAVA_HOME_21` with `JAVA_OPTS=-Xmx48g -Xss64m`, with `importCpg` and never `importCode`. All 3 compiled and ran to a complete result region; 3 clean positive(s) were produced; the aggregate revision measure is 8 distinct source texts over 20 recorded executions (`01-callgraph-unguarded-driver-launch` 2 texts / 6 executions, `02-dataflow-unguarded-driver-launch` 3 / 7, `03-parameterized-unguarded-handler-sink` 3 / 7), the revisions after the first sequence being the graph-provenance hardening the code review of this milestone required and, for two of the three sources, a comment-separator correction to it. Done-when condition 5 is met, and the per-query outcomes, spurious counts and the three effort measures are in `oss-scan-results/joern-probe.md`.
 
 ## 7. Provenance
 
 | Source | What came from it |
 |---|---|
 | `harness/ENVIRONMENT.md` | the nine recorded tool versions the Version check compared against; the environment file name; the Opengrep taint setting; the per-module JAR outcomes; the datadog AI-path availability and its credential-source variable names |
-| `harness/artifacts/logs/*` | every timestamp, elapsed time, exit code and `exit_status`; each failing tool's own stderr; the taint and AI-path observations |
+| `harness/artifacts/logs/*` | every timestamp, elapsed time, exit code and `exit_status`; each failing tool's own stderr; the taint and AI-path observations; the datadog rule-set provenance and rule count in §4.6, cited there by log line |
 | `harness/artifacts/raw/*` | every artifact shape, path form and record count, and the per-tool row and reject counts |
 | `git` reads of `$SPARK_SRC` | the commit, the commit date |
 | the graph itself, loaded with `importCpg` | the method, type-declaration and file counts and every per-module coverage verdict |

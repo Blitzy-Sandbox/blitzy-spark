@@ -16,11 +16,24 @@ statement below is a property of a query, of the graph, or of the driver's own c
 |---|---|
 | Written from | `queries/joern/results/*.json`, each written by the driver from its own capture of one invocation |
 | Graph | `harness/cpg/spark.cpg`, loaded by each script with **`importCpg`**; **built: false** — `importCode` appears in none of the three sources |
-| Driver precondition | the published dataset, observed at `2026-08-22T06:48:45Z`: `findings.json` 10178 rows, `findings.csv` 10178 rows, `severity-map.md` present |
+| Driver precondition | the published dataset, re-observed independently before every invocation below and identical at each; the values are in the table that follows |
+| JVM and heap in force | `openjdk version "21.0.12.1" 2026-08-18 LTS`, `JAVA_OPTS=-Xmx48g -Xss64m` — the same for every invocation below, so a reader running one by hand runs it as the driver did |
 | Queries committed | 3 |
 | Queries that compiled | 3 |
 | Queries that ran to a complete result | 3 |
 | Queries producing a clean positive | 3 |
+
+The published dataset the driver required and observed, latest observation `2026-08-22T10:28:10Z`:
+
+| Published output | Present | Rows | Bytes | sha256 |
+|---|---|---|---|---|
+| `oss-scan-results/findings.json` | True | 10178 | 5806988 | `2b3fb2dbb5c2f30c711524a5a0be141aab8445e00814a7fdf6f8ba6c6f664f51` |
+| `oss-scan-results/findings.csv` | True | 10178 | 3309257 | `68ae2e4ed1b0f9197a4e813c4e73f9d9c2a9864143d9f56c8173af9aa5f25e13` |
+| `oss-scan-results/severity-map.md` | True | — | 6049 | `ebf11a85342c7e62c3a2ad1f403ea13672dd1bd579746f85969ac47798a8207f` |
+
+Every invocation observed those same bytes and hashes, so no result below rests on a
+different dataset than any other. The per-query observation, with its own timestamp, is
+in each query's report at §1.
 
 **A clean positive** is a query that compiled, ran, and returned at least one result that
 is **not** spurious under the on-path test — that is, at least one handler-to-sink route
@@ -36,6 +49,21 @@ every result file here comes from this run's driver invocations, whose hashes ar
 the revision logs. The superseded hashes are therefore absent by decision, and this
 is the statement of that decision. Nothing in this file describes an execution the
 driver did not perform.
+
+**Why the queries carry more than one source revision.** After the driver's first
+sequence of executions the three sources were revised together to close the window
+between the graph-provenance check and the load: each now digests the graph file before
+the load, re-verifies that digest and the size afterwards, fails closed on a difference,
+and records the digest in `diagnostics.graph_identity`. Every query was executed again
+against that revised text. `02-dataflow-unguarded-driver-launch` and `03-parameterized-unguarded-handler-sink` were then revised once more, to restore a
+comment separator line lost where that revision's header section was inserted — a
+correction to documentation that changed no statement either script makes and no value
+either script emits — and both were executed again. `01-callgraph-unguarded-driver-launch` did not carry that defect,
+was not revised a second time and was therefore not executed again, which is why §4.1
+records one fewer distinct text and one fewer execution for it than for the other two.
+Every hash, count and precondition in this file is from the latest execution of the
+committed source, and each query's revision log carries every execution the driver
+performed.
 
 ## 1. The leading result
 
@@ -87,10 +115,10 @@ is why the gate asserted per-module coverage injectively before any of this ran.
 
 | | |
 |---|---|
-| Source | `queries/joern/01-callgraph-unguarded-driver-launch.sc` (sha256 `d387a7f7ba70804f1b0d93136c6997e6dc4e5ec6efaa70c33b55cdd652bff448`) |
+| Source | `queries/joern/01-callgraph-unguarded-driver-launch.sc` (sha256 `535237eeef30e07b7f7a8f8f27c361e9173944094e05685394e67d32d7575ff8`) |
 | Invocation | `/opt/blitzy-harness/tools/joern-cli/joern --script queries/joern/01-callgraph-unguarded-driver-launch.sc` |
 | Exit code | `0` |
-| Elapsed | 14.2 s |
+| Elapsed | 15.7 s |
 | `compiled` / `ran` | True / True |
 | Returns | 10 |
 | Spurious under the on-path test | 0 |
@@ -124,10 +152,10 @@ excluded, each with the rule that excluded it:
 
 | | |
 |---|---|
-| Source | `queries/joern/02-dataflow-unguarded-driver-launch.sc` (sha256 `831b37459372921dabcaca89d19d4435a85814030e12986fd0ed2d6e41416b8e`) |
+| Source | `queries/joern/02-dataflow-unguarded-driver-launch.sc` (sha256 `045b5df31ff41bb03abe92020421e3a432dd711a96880bf0d3f48e3d50363edd`) |
 | Invocation | `/opt/blitzy-harness/tools/joern-cli/joern --script queries/joern/02-dataflow-unguarded-driver-launch.sc` |
 | Exit code | `0` |
-| Elapsed | 212.6 s |
+| Elapsed | 213.4 s |
 | `compiled` / `ran` | True / True |
 | Returns | 1 |
 | Spurious under the on-path test | 0 |
@@ -161,10 +189,10 @@ excluded, each with the rule that excluded it:
 
 | | |
 |---|---|
-| Source | `queries/joern/03-parameterized-unguarded-handler-sink.sc` (sha256 `489074c782c5deb6d3443a05834d09335c3bbda0142b547a273dc87dc37f934c`) |
+| Source | `queries/joern/03-parameterized-unguarded-handler-sink.sc` (sha256 `49ce08f0d7e592827eb6241857fb934dc1290ecbb372109e1f8c711c2fad79b2`) |
 | Invocation | `/opt/blitzy-harness/tools/joern-cli/joern --script queries/joern/03-parameterized-unguarded-handler-sink.sc` |
 | Exit code | `0` |
-| Elapsed | 15.2 s |
+| Elapsed | 16.4 s |
 | `compiled` / `ran` | True / True |
 | Returns | 10 |
 | Spurious under the on-path test | 0 |
@@ -208,12 +236,39 @@ definition does not state and would reclassify returns the stated test marks spu
 | `03-parameterized-unguarded-handler-sink` | 10 | 0 | 10 | True |
 | **total** | **21** | **0** | **21** | — |
 
+**What those counts are bounded by, from the queries' own diagnostics.** A spurious
+count is exact over the returns a query emitted, and each query records where its
+traversal stopped, so the qualification is repeated here rather than left in the
+envelopes:
+
+* `01-callgraph-unguarded-driver-launch` — `traversal.bound_reached: true` at `max_call_depth: 20`, with
+  `entry_points_truncated_at_bound: 4` of `entry_points_traversed: 8`. Routes lying
+  deeper than that bound from those entry points were not enumerated, so its counts are
+  counts under the bound.
+* `02-dataflow-unguarded-driver-launch` — the data-flow engine exposes no signal for having truncated at its
+  call-depth bound, as its own `traversal.bound_reached` states, so truncation cannot be
+  read off a single query; what is recorded instead is that every anchor was answered a
+  second time at the engine default depth and that the two counts agree
+  (`bound_changed_outcome_versus_engine_default: false`, 4 flows at the configured bound
+  of 12 and 4 at the default of 4).
+* `03-parameterized-unguarded-handler-sink` — `traversal.bound_reached: true` at `max_call_depth: 20`, with
+  `entry_points_truncated_at_bound: 4` of `entry_points_traversed: 8`, under the same
+  reading as query 01.
+
+One consequence is stated plainly because a reader would otherwise have to derive it.
+AAP §0.5.3 works through a return it expects the on-path test to mark spurious — the
+route reaching the `DriverRunner` sink by way of `CommandUtils`, where the AAP records
+`securityMgr.isAuthenticationEnabled()` on the path — and no such return is present in
+the emitted set of any of the three queries. So **`0` is the spurious count over the
+returns these queries emitted under the bounds above, and not a statement that no
+guarded route exists in the graph.**
+
 ### 3.3 The predicate set, derived at execution time
 
 | | |
 |---|---|
 | Type-declaration selector | `org\.apache\.spark\.SecurityManager` |
-| Name selector | `^(check.*Permissions|acls.*|isAuthenticationEnabled)$` |
+| Name selector | `^(check.*Permissions\|acls.*\|isAuthenticationEnabled)$` |
 | Match mode | anchored full match |
 | Methods considered on the type | 126 |
 | Resolved predicates | `org.apache.spark.SecurityManager.aclsEnabled:boolean()`, `org.apache.spark.SecurityManager.checkAdminPermissions:boolean(java.lang.String)`, `org.apache.spark.SecurityManager.checkModifyPermissions:boolean(java.lang.String)`, `org.apache.spark.SecurityManager.checkUIViewPermissions:boolean(java.lang.String)`, `org.apache.spark.SecurityManager.isAuthenticationEnabled:boolean()` |
@@ -237,20 +292,22 @@ so the count is the number of distinct hashes and its evidence sits in the query
 
 | Query | Distinct source texts executed by the driver | Executions recorded |
 |---|---|---|
-| `01-callgraph-unguarded-driver-launch` | 1 | 5 |
-| `02-dataflow-unguarded-driver-launch` | 1 | 5 |
-| `03-parameterized-unguarded-handler-sink` | 1 | 5 |
-| **aggregate** | **3** | **15** |
+| `01-callgraph-unguarded-driver-launch` | 2 | 6 |
+| `02-dataflow-unguarded-driver-launch` | 3 | 7 |
+| `03-parameterized-unguarded-handler-sink` | 3 | 7 |
+| **aggregate** | **8** | **20** |
 
 The measure counts what the driver executed. The sources reached their committed state
 through development iterations that preceded the driver's first invocation; those were not
 driver executions and are not counted here, and this sentence is the boundary of the
 measure rather than a claim that there were none.
 
-### 4.2 Distinct Joern API constructs: 45, by name
+### 4.2 Distinct Joern API constructs: 46, by name
 
 Extraction rule, stated so the count is reproducible. Two mechanical parts, unioned over
-all three final committed sources, with comment lines excluded from both:
+all three final committed sources, with comments and string literals excluded from both —
+the prose in these sources lives in both, and a construct is counted where it is invoked
+rather than where it is named:
 
 * **(A)** every member name appearing in a traversal chain rooted at `cpg`, with
   parenthesised arguments removed first, so a name inside an argument is not miscounted
@@ -264,15 +321,31 @@ all three final committed sources, with comment lines excluded from both:
 The count is therefore of constructs the author had to use, and a reader can re-derive it
 by running the same two rules over the same three files.
 
+The table below is produced by applying those two rules to the committed sources at the
+time this file was written, rather than maintained by hand. Applied that way it reaches
+**46** where the hand-maintained list this file previously carried reached 45, and the
+arithmetic between the two is 45 + 2 − 1. Each difference is named with its evidence, so
+a reader can check the change without re-running anything:
+
+* `map` is now included: rule (A) reaches it from a `cpg`-rooted chain in `02-dataflow-unguarded-driver-launch.sc` at lines 1003, 1273.
+* `sortBy` is now included: rule (A) reaches it from a `cpg`-rooted chain in `02-dataflow-unguarded-driver-launch.sc` at line 972.
+* `caller` is dropped. It is in the vocabulary rule (B) scans, but outside comments and
+  string literals it is invoked in none of the three sources, and rule (B) counts a
+  construct where it is invoked rather than where it is named. The previous list
+  carried that row on the strength of prose mentions alone.
+* `argument`, `code`, `parameter` and `typeFullName` are attributed to `02-dataflow-unguarded-driver-launch.sc`
+  alone. The other two sources name them in prose and invoke none of them, so their
+  previous attribution to `01-callgraph-unguarded-driver-launch.sc` and `03-parameterized-unguarded-handler-sink.sc` is not carried
+  forward.
+
 | Construct | Used in |
 |---|---|
-| `argument` | `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `argument` | `02-dataflow-unguarded-driver-launch.sc` |
 | `argumentIndex` | `02-dataflow-unguarded-driver-launch.sc` |
 | `ast` | `02-dataflow-unguarded-driver-launch.sc` |
 | `call` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 | `callee` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
-| `caller` | `03-parameterized-unguarded-handler-sink.sc` |
-| `code` | `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `code` | `02-dataflow-unguarded-driver-launch.sc` |
 | `cpg` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 | `distinct` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 | `distinctBy` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
@@ -289,6 +362,7 @@ by running the same two rules over the same three files.
 | `isExternal` | `03-parameterized-unguarded-handler-sink.sc` |
 | `iterator` | `02-dataflow-unguarded-driver-launch.sc` |
 | `l` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `map` | `02-dataflow-unguarded-driver-launch.sc` |
 | `member` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 | `metaData` | `02-dataflow-unguarded-driver-launch.sc` |
 | `method` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
@@ -299,16 +373,17 @@ by running the same two rules over the same three files.
 | `nameExact` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 | `open` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 | `overlays` | `02-dataflow-unguarded-driver-launch.sc` |
-| `parameter` | `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `parameter` | `02-dataflow-unguarded-driver-launch.sc` |
 | `projects` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 | `reachableByFlows` | `02-dataflow-unguarded-driver-launch.sc` |
 | `run.ossdataflow` | `02-dataflow-unguarded-driver-launch.sc` |
 | `signature` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 | `size` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `sortBy` | `02-dataflow-unguarded-driver-launch.sc` |
 | `sorted` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 | `switchWorkspace` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 | `typeDecl` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
-| `typeFullName` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
+| `typeFullName` | `02-dataflow-unguarded-driver-launch.sc` |
 | `where` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc` |
 | `workspace` | `01-callgraph-unguarded-driver-launch.sc`, `02-dataflow-unguarded-driver-launch.sc`, `03-parameterized-unguarded-handler-sink.sc` |
 

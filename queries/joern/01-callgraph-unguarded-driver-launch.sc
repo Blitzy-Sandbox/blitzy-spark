@@ -55,10 +55,28 @@
 //     path of the graph this script is contracted to read; a mismatch, or a recorded path that
 //     no longer canonicalizes, FAILS THE RUN CLOSED through the failure protocol below rather
 //     than substituting a stale graph for the pinned one. On a match the verified identity —
-//     the canonical graph path, its size in bytes, and the project's own recorded input path —
-//     is recorded in `diagnostics.graph_identity`, so a reader can check what was read rather
-//     than take it on trust. Which of import or open happened is recorded in
-//     `diagnostics.load_mode`. Opening an existing project is still reading.
+//     the canonical graph path, its size in bytes, its content digest, and the project's own
+//     recorded input path — is recorded in `diagnostics.graph_identity`, so a reader can check
+//     what was read rather than take it on trust. Which of import or open happened is recorded
+//     in `diagnostics.load_mode`. Opening an existing project is still reading.
+//
+// THE CHECK AND THE LOAD ARE TIED TOGETHER
+// ----------------------------------------
+// A path and a size are properties of a NAME, not of the bytes behind it, so a provenance check
+// that finishes before the load leaves a window in which a different file could be loaded than
+// the one that passed (CWE-367). This script closes that window rather than narrowing it: the
+// SHA-256 of the file at the canonical path is taken BEFORE the load and taken again AFTER it,
+// and a difference in the digest OR the size fails the run closed through the failure protocol,
+// naming the before and after values. Both digests are computed by streaming the file in
+// bounded chunks, so a half-gigabyte graph is never held in memory.
+//
+// The digest is recorded in `diagnostics.graph_identity` beside the size, together with
+// `content_digest_reverified_after_load` and a `digest_verification_rule` that states what the
+// digest proves on each load branch — the file `importCpg` read, on an import; the pinned source
+// file the project's recorded input path ties the project to, on an open, the project's own copy
+// being a separate artifact that applying an overlay legitimately changes. No expected digest is
+// hardcoded here and none is compared against any record: the digest exists to detect a change
+// across the window and to record what was read.
 //
 // RESULT CONTRACT, AND THE FAILURE PROTOCOL THAT IS ITS OTHER HALF
 // ---------------------------------------------------------------
@@ -97,8 +115,9 @@
 // nothing is a result, whereas one that returns nothing silently is a defect. Its keys:
 //
 //   load_mode           whether the project was imported or opened (see above).
-//   graph_identity      the canonical path of the graph read, its size in bytes, the input path
-//                       the workspace project recorded, and how the two were compared.
+//   graph_identity      the canonical path of the graph read, its size in bytes, its content
+//                       digest taken before the load and re-verified after it, the input path
+//                       the workspace project recorded, and how each was compared.
 //   cpg_method_count    method count read from the loaded graph; evidence it loaded non-empty.
 //   derived_predicates  the authentication/ACL predicate set, derived from the graph at
 //                       execution time and never hardcoded, with every exclusion rule that
@@ -370,6 +389,42 @@ def canonicalPathOf(rawPath: String): Option[String] =
     .toOption
 
 // ===========================================================================================
+// The graph content digest. See THE CHECK AND THE LOAD ARE TIED TOGETHER in the header.
+//
+// A path and a size are properties of a name; a digest is a property of the bytes. This is what
+// closes the window between checking the graph and loading it (CWE-367): the digest is taken at
+// the canonical path BEFORE the load and taken again AFTER it, and a difference fails the run
+// closed rather than reporting a graph that was checked and a graph that was read as one thing.
+//
+// The file is half a gigabyte, so it is read in bounded chunks and never held in memory: the
+// digest is updated per chunk and only the 32-byte result is retained.
+// ===========================================================================================
+
+val GRAPH_DIGEST_ALGORITHM   = "SHA-256"
+val GRAPH_DIGEST_CHUNK_BYTES = 8 * 1024 * 1024
+
+/**
+ * The lowercase hex digest of a file's CONTENT, prefixed with the algorithm that made it, read
+ * in `GRAPH_DIGEST_CHUNK_BYTES` chunks. Any I/O failure propagates to the caller, which reports
+ * it through the failure protocol: a digest that could not be taken is never reported as one
+ * that matched.
+ */
+def graphContentDigestOf(filePath: String): String = {
+  val digest = java.security.MessageDigest.getInstance(GRAPH_DIGEST_ALGORITHM)
+  val source = java.nio.file.Files.newInputStream(java.nio.file.Paths.get(filePath))
+  try {
+    val buffer    = new Array[Byte](GRAPH_DIGEST_CHUNK_BYTES)
+    var bytesRead = source.read(buffer)
+    while (bytesRead > 0) {
+      digest.update(buffer, 0, bytesRead)
+      bytesRead = source.read(buffer)
+    }
+  } finally source.close()
+  GRAPH_DIGEST_ALGORITHM.toLowerCase + ":" +
+    digest.digest().map(byte => "%02x".format(byte & 0xff)).mkString
+}
+
+// ===========================================================================================
 // The query. `exec` takes no parameters: see INVOCATION in the header.
 // ===========================================================================================
 
@@ -413,6 +468,11 @@ def canonicalPathOf(rawPath: String): Option[String] =
           "`harness/`)"))
     val cpgSizeBytes = java.nio.file.Files.size(java.nio.file.Paths.get(cpgCanonicalPath))
 
+    // The content digest is taken BEFORE the load and re-taken after it, so the file that was
+    // checked and the file that was read are established to be the same bytes rather than the
+    // same name. See THE CHECK AND THE LOAD ARE TIED TOGETHER in the header.
+    val cpgDigestBeforeLoad = graphContentDigestOf(cpgCanonicalPath)
+
     val existingProject   = workspace.projects.find(_.name == projectName)
     val recordedInputPath = existingProject.map(_.inputPath)
     val recordedCanonical = recordedInputPath.flatMap(canonicalPathOf)
@@ -446,6 +506,21 @@ def canonicalPathOf(rawPath: String): Option[String] =
         "imported_persisted_cpg"
       }
 
+    // The other half of the provenance test. Re-taking the digest and the size at the same
+    // canonical path after the load is what makes the check apply to the bytes that were read:
+    // a swap in the window between them would otherwise pass a check on one file and load
+    // another. A difference in either fails the run closed, naming both values.
+    val cpgDigestAfterLoad = graphContentDigestOf(cpgCanonicalPath)
+    val cpgSizeAfterLoad = java.nio.file.Files.size(java.nio.file.Paths.get(cpgCanonicalPath))
+    if (cpgDigestAfterLoad != cpgDigestBeforeLoad || cpgSizeAfterLoad != cpgSizeBytes) {
+      throw new RuntimeException(
+        "the graph file changed across the check-then-load window, so the graph checked is not " +
+          "established to be the graph loaded: " + cpgCanonicalPath + " was digest `" +
+          cpgDigestBeforeLoad + "` at " + cpgSizeBytes + " bytes before the load and digest `" +
+          cpgDigestAfterLoad + "` at " + cpgSizeAfterLoad + " bytes after it. The run fails " +
+          "closed rather than reporting a result against a graph whose identity is unverified")
+    }
+
     // Read back the project the run is actually working against, so the recorded identity is
     // the loaded project's own and not the pre-load observation.
     val loadedProject = workspace.projects.find(_.name == projectName)
@@ -461,6 +536,9 @@ def canonicalPathOf(rawPath: String): Option[String] =
           "declared_relative_path" -> jsonString(CPG_PATH),
           "canonical_path"         -> jsonString(cpgCanonicalPath),
           "size_bytes"             -> jsonString(cpgSizeBytes.toString),
+          "content_digest"         -> jsonString(cpgDigestBeforeLoad),
+          "content_digest_reverified_after_load" ->
+            jsonBool(cpgDigestAfterLoad == cpgDigestBeforeLoad && cpgSizeAfterLoad == cpgSizeBytes),
           "project_recorded_input_path" ->
             (recordedInputPath.orElse(loadedProject.map(_.inputPath)) match {
               case Some(path) => jsonString(path)
@@ -486,6 +564,18 @@ def canonicalPathOf(rawPath: String): Option[String] =
               "closed rather than reading a stale graph. Size is recorded as evidence and is " +
               "deliberately not the test: applying an overlay legitimately changes the copy the " +
               "project holds without changing which graph it came from"),
+          "digest_verification_rule" -> jsonString(
+            "the content digest above is taken at the canonical path before the load and taken " +
+              "again after it, and a difference in either the digest or the size fails the run " +
+              "closed: that is what ties the graph checked to the graph read across the " +
+              "check-then-load window. What the digest proves depends on which branch ran, so " +
+              "both are stated. On `imported_persisted_cpg` it is the digest of the file " +
+              "`importCpg` read. On `opened_existing_project` it is the digest of the pinned " +
+              "source file whose identity the project's recorded input path ties the project to " +
+              "— not of the project's own copy, which is a separate artifact that applying an " +
+              "overlay legitimately changes, exactly as the size rule above states. No expected " +
+              "digest is hardcoded here and none is compared against any record: the digest " +
+              "detects a change across the window and records what was read, and nothing else"),
           "outcome" -> jsonString(provenanceOutcome)),
         "    "))
     diagnostics.append("cpg_method_count" -> jsonInt(methodCount))

@@ -17,20 +17,22 @@ A numeric CVSS score, wherever a tool emits one, is banded:
 | 0.1–3.9 | Low |
 | 0.0 | Info |
 
-A **CVSS vector** with no label and no numeric score yields `Info`, and the vector
-is kept verbatim in `severity_native`. No base score is computed from a vector:
-that would mean implementing CVSS arithmetic, and a mis-derived score is an
-invented value. An **unrecognized label** maps to `Info` and the literal is listed
-in that tool's row below, so a reader sees which values appeared unanticipated. A
-row whose native severity is **absent** takes that tool's `Info` fallback.
+Where a tool emits no numeric score the next step applies and a **native label**
+is mapped through that tool's row below. A **CVSS vector** with no label and no
+numeric score yields `Info`, and the vector is kept verbatim in
+`severity_native`. No base score is computed from a vector: that would mean
+implementing CVSS arithmetic, and a mis-derived score is an invented value. An
+**unrecognized label** maps to `Info` and the literal is listed in that tool's
+row below, so a reader sees which values appeared unanticipated. A row whose
+native severity is **absent** takes that tool's `Info` fallback.
 
 ## One row per tool
 
 | Tool | Native values and their normalized targets | Numeric source | Score selection | Fallback when the row's native severity is absent | Unmapped literals seen in this run | Rows contributed |
 |---|---|---|---|---|---|---|
 | `trivy` | `CRITICAL` → Critical, `HIGH` → High, `LOW` → Low, `MEDIUM` → Medium, `UNKNOWN` → Info | CVSS.<vendor>.V3Score on the vulnerability record; where the artifact is SARIF, rules[].properties["security-severity"] | vendor `nvd` first, then the lexicographically first vendor key | `Info` | none | 0 |
-| `osv-scanner` | `CRITICAL` → Critical, `HIGH` → High, `LOW` → Low, `MEDIUM` → Medium | a numeric score in severity[].score, when the entry carries one rather than a vector | highest CVSS version present, then the lexicographically first entry of that version | `Info` | none | 288 |
-| `dependency-check` | `CRITICAL` → Critical, `HIGH` → High, `LOW` → Low, `MEDIUM` → Medium | cvssv3.baseScore, else cvssv2.score | cvssv3 before cvssv2 | `Info` | `moderate` | 1697 |
+| `osv-scanner` | `CRITICAL` → Critical, `HIGH` → High, `LOW` → Low, `MEDIUM` → Medium — read from database_specific.severity; a record carrying no label keeps its selected CVSS vector in `severity_native` and takes Info | none in this run — every severity[] entry carried a CVSS vector rather than a numeric score, so the banding rule never fired | not applicable to banding; the same rule — highest CVSS version present, then the lexicographically first entry of that version — selects the vector recorded in `severity_native` for a record with no label | `Info` | `MODERATE` | 288 |
+| `dependency-check` | `CRITICAL` → Critical, `HIGH` → High, `LOW` → Low, `MEDIUM` → Medium, `high` → High, `low` → Low — the tool emits both casings and the mapping is applied case-insensitively | cvssv3.baseScore, else cvssv2.score | cvssv3 before cvssv2 | `Info` | `moderate` | 1697 |
 | `gitleaks` | none — the tool emits no native severity, so `severity_native` is absent | none | not applicable — the tool emits no native severity | `Info` | none | 50 |
 | `checkov` | `CRITICAL` → Critical, `HIGH` → High, `LOW` → Low, `MEDIUM` → Medium | none | not applicable | `Info` | none | 6 |
 | `opengrep` | `ERROR` → High, `INFO` → Low, `WARNING` → Medium, `error` → High, `none` → Info, `note` → Low, `warning` → Medium | rules[].properties["security-severity"] | the rule's own property value | `Info` | none | 849 |
@@ -47,6 +49,21 @@ row whose native severity is **absent** takes that tool's `Info` fallback.
   over that label and is banded by the table above.
 * **`severity_native` is written verbatim**, as the single value the tool reported —
   label, number or vector — and is `null` where the tool reported none.
+* **osv-scanner emits a label and a CVSS vector, never a score.** Every
+  `severity[]` entry in this run carried a vector, so the numeric rule never fired
+  and the label step above applies. `severity_native` therefore records the
+  `database_specific.severity` label verbatim on the 230 rows that carry one, the
+  selected vector on the 50 rows that carry a vector but no label, and `null` on
+  the 8 that carry neither — which keeps `severity_norm` re-derivable from
+  `severity_native` through this document alone. The labels this run actually
+  saw are CRITICAL 14, HIGH 100, MODERATE 104 and LOW 12; MEDIUM did not appear,
+  and `MODERATE` is outside the mapped vocabulary above and takes the
+  unrecognized-label rule.
+* **dependency-check's numeric rule reaches all but four of its rows.** 1,693 of
+  its 1,697 rows carry a `cvssv3.baseScore` and are banded; the four records that
+  carry neither a CVSS v3 nor a v2 block fall through to the label, where the
+  tool's own lower-case `high` maps to High and `moderate` is unmapped and takes
+  `Info`.
 * **Gitleaks and Joern emit no severity at all**, so every row of theirs carries
   `severity_native: null` and `severity_norm: Info`.
 * **Checkov's open-source build emits `severity: null` per row**, which the
