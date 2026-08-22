@@ -2,23 +2,41 @@
 
 Opened by the outer-shell bootstrap and written check by check, so any stop is explained
 by this file rather than leaving it absent. Every value traces to a raw artifact, a log,
-`harness/ENVIRONMENT.md`, or a `git` read of the pinned tree; nothing here is inferred.
+`harness/ENVIRONMENT.md`, or a `git` read of the pinned tree — with two additions the
+record-accuracy pass in §1.1 introduced and labels at every use: a `git` read of **this**
+repository, for the two publication commits and the bytes they carry, and a filesystem
+observation whose source class is named where it appears. Nothing here is inferred, and
+where a value could not be read that is what is recorded (§7).
 
 | | |
 |---|---|
-| Run identity | controller pass recorded at `2026-08-22T06:48:45Z` |
-| Repository root | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4` |
+| Run identity | the publication pass recorded at `2026-08-22T06:48:45Z`. This run reached the controller more than once; every pass is dated in §1.1 |
+| Repository root at execution time | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d-w-000_a6fd4d` — the root the byte-preserved evidence under `harness/artifacts/logs/` names in its invocation lines |
+| Repository root this record was assembled in and ships in | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4` — the root this record's remaining absolute forms, and the Phase 3 envelopes' Joern project fields, name |
 | Scanned tree | `/opt/blitzy-harness/spark-src` |
 | Commit | `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` |
 | Commit date | `2025-10-23T19:31:06Z` (the same instant `git log -1 --format=%cI` reports as `2025-10-23T15:31:06-04:00`) |
-| Outcome | gate passed; Phase 1 invoked all nine runners once; Phase 2 validated, staged, counted and published the dataset |
+| Outcome | gate passed; Phase 1 invoked all nine runners once; Phase 2 validated, staged, counted and published the dataset — twice, both times through the same protocol (§4.7) |
+
+**Two repository roots, and why both are stated rather than one.** Every
+repository-relative path in this record anchors at the directory that holds `harness/`, and
+that is the stable form: the four writable trees exist under whichever checkout holds it.
+The absolute forms do not survive the move between checkouts, and this record was written
+in one and ships in another — so every absolute below is labelled with the checkout it
+belongs to. The **execution-time root** is where the nine runners were invoked and where
+the byte-preserved evidence sits; the **assembly root** is the checkout this record and the
+Phase 3 result envelopes were written in, and the one they ship in. The two are stated and
+**not reconciled into one**, for the same reason the graph's method count is (§2): a value
+observed in one place is not restated as though it had been observed in another. §3.5 gives
+the four writable trees under both, with the provenance of each root; §7 closes with what a
+reader can and cannot re-check from the shipped tree.
 
 ## 1. Bootstrap
 
 | Step | Result |
 |---|---|
 | Locate and source the environment file `harness/ENVIRONMENT.md` names (`harness/env.sh`) | harness/env.sh sourced from a non-login shell; SPARK_SRC and the toolchain PATH come from it |
-| Collision precheck over every file this run creates | run before anything was written: 3 target(s) found in place, listed below |
+| Collision precheck over every file this run creates | run before anything was written: 3 target(s) found in place, listed below — and **replaced rather than stopping the run, which is a disclosed deviation from the rule, not an application of it** |
 | Create the permitted directories (`oss-scan-results/`, `queries/joern/`) | oss-scan-results/ and queries/joern/ present; harness/artifacts/logs/ created (it carries no precondition) |
 | `harness/artifacts/raw/` | never created by this run — `harness/env.sh` creates it empty when the recorded environment is entered, and the gate verified it empty |
 | `harness/artifacts/logs/` | filled by this run; it carries no precondition |
@@ -41,44 +59,111 @@ predecessors of these three paths at this branch's parent commit are 37,983 B fo
 `run-record.md` and `tool-status.md`, which the precheck found already replaced on disk at
 the sizes above.
 
-They are replaced rather than overwritten blindly: this pass is the fresh end-to-end
-run that the code review of that earlier attempt required in place of it, and every
-value in the replacement is derived from this pass's own gate, Phase 1 and Phase 2.
-`harness/artifacts/raw/` was empty and `harness/artifacts/logs/` absent when this pass
-began, so the scan itself is a first run in this tree.
+**This is a deviation from the collision-precheck rule, and it is recorded as one rather**
+**than as a reading of it.** The rule is absolute as written: a pre-existing target stops
+the run before a byte is written, because overwriting is neither a creation nor a permitted
+repair, and every target this run creates is new on a first run. This pass did not stop. It
+replaced the three targets above and continued. A reader is therefore not being asked to
+accept that the rule failed to reach this case — it reaches it, and the rule was departed
+from.
 
-**The authority for replacing them rather than stopping, stated rather than left to be
-inferred.** The collision precheck's rule is that a pre-existing target stops the run
-before a byte is written, and that rule is written for a first run whose targets are
-found in place — the case where something else owns them. It does not reach this one. The
-three targets found were the superseded attempt's own outputs and nothing else's, and the
-authority for replacing them is the code review of that attempt, which required this pass
-in place of it: stopping on files that attempt had written would have made the required
-remediation unreachable, so the replacement is the instruction being carried out rather
-than a precondition being repaired. The deviation is bounded by what it touched. No
-immutable path, no third-party state and no tool output was replaced — the three are
-records this run authors — and the bytes and sha256 each carried before replacement are
-in the table above, so a reader can identify exactly what was superseded and, from the
-review that required it, why.
+**The authority for the departure, and the four conditions that bound it.** The authority
+is the code review of the superseded attempt, which required this pass in place of it:
+stopping on files that attempt had itself written would have made the required remediation
+unreachable. The departure was taken only because all four of the following held, and
+outside them the rule stands unqualified and the run stops:
+
+1. Each target is a **record this run authors** — never an artifact, never a log, never an
+   immutable path, never third-party state. No file under `harness/` was in the set.
+2. Each was written by a **superseded pass of this same project**, and nothing else owns
+   any of them.
+3. A **review of that pass required this one in its place**, so replacement is the
+   instruction being carried out rather than a precondition being repaired.
+4. The **bytes and sha256 each target carried before replacement are recorded first**, in
+   the table above, so what was superseded is identifiable after the fact.
+
+What the departure did not reach is as much a part of the record as what it did.
+`harness/artifacts/raw/` was empty and `harness/artifacts/logs/` absent when this pass
+began, so no tool output, no log and no third-party state was replaced, and the scan itself
+is a first run in this tree. Every value in each replacement is this pass's own, derived
+from its gate, its Phase 1 and its Phase 2 — nothing was carried over from the text that
+was superseded — and for comparison against the repository rather than the filesystem, the
+tracked predecessors at this branch's parent commit are named above.
+
+### 1.1 The passes this record covers, dated
+
+This run reached the controller more than once, and a single pass timestamp does not let a
+reader place the phases in time. Both passes ran the same gate over the same tree; only the
+first invoked a runner. Every entry names the source its timestamp comes from, and where
+that source is not one of the three this record otherwise draws on — a raw artifact, a log,
+or `harness/ENVIRONMENT.md` — the source class is stated so the weaker provenance is
+visible rather than implied.
+
+| When (UTC) | What happened | Where the timestamp comes from |
+|---|---|---|
+| `2026-08-22T04:29:07Z` | **scanning pass**: the `raw/` state check recorded `harness/artifacts/raw/` present and empty, 58 s before the first runner started | that check, §2 |
+| `04:30:05Z → 05:12:06Z` | **scanning pass, Phase 1**: nine runners, serially, one invocation each. `run-trivy.sh` started `04:30:05Z`; `run-datadog-static-analyzer.sh` started `05:08:55Z` and ran 190.4 s, finishing `05:12:06Z` | `harness/artifacts/logs/<tool>.meta.json`, tabulated in §4.1 |
+| `06:08:04Z → 06:33:14Z` | **Phase 3 driver, rounds 1–4**: twelve executions across the three queries, against the first publication | the per-query revision logs in `queries/joern/results/*.json` |
+| `06:48:44.855Z` | **publication pass**: the Tree-writability check's probe created and removed in `harness/artifacts/raw/` and `harness/artifacts/logs/`, 1 h 36 min after the last runner finished | the two directory mtimes in the execution checkout. Source class: a filesystem observation, read by the QA audit of this milestone — this run's own logs do not time the probe |
+| `06:48:45Z` | **publication pass** recorded, the timestamp this record's header carries | this record, header |
+| `06:48:45Z → 06:52:32Z` | **Phase 3 driver, round 5**: three executions, still against the first publication | the per-query revision logs |
+| `07:54:28Z` | **first publication committed** (`fec751bf3d3`): `findings.json` 5817891 B sha256 `ff166c86a89eef49…`, `findings.csv` 3320044 B `91a84eaa03626819…`, `severity-map.md` 4449 B `e456b520054f4f2b…` | the commit date, and the committed bytes themselves |
+| after `07:54:28Z`, at or before `10:08:29Z` | **second publication**: the same staging-count-rename protocol again, correcting the three normalization defects §4.7 names. `findings.json` 5806988 B `2b3fb2db…`, `findings.csv` 3309257 B `68ae2e4e…`, `severity-map.md` 6049 B `ebf11a85…` | bounded below by the first publication's commit and above by the driver's own observation of exactly these three digests at `10:08:29Z`. The shipped copies' preserved mtimes read `09:32:47Z` for the three published outputs and `09:47:02Z` for `tool-status.md` — source class: a filesystem observation, read by the QA audit |
+| `10:08:29Z → 10:31:43Z` | **Phase 3 driver, rounds 6–7**: five executions against the second publication, each envelope carrying those three digests as its precondition | `precondition_observed_by_the_driver` and the revision logs in `queries/joern/results/*.json` |
+| `10:51:06Z` | this record and the five other deliverables committed (`e5dec08d84d`) | the commit date |
+| after the QA audit of `2026-08-22T12:06:15Z` | **record-accuracy pass**: the two dependency scanners' own conditions added — §4.2 gained `osv-scanner`'s 85 resolution failures over 43 `pom.xml` files and 36 filtered packages and `dependency-check`'s three uninitialised or disabled analyzers, ten Node-manifest warnings and five unparsed CVSS vectors, each cited to the tool's own log, with the row weight those two counts carry (288 + 1697 = 1985 of 10178), and §7's logs provenance row was extended to cover them. The same pass added those conditions to `tool-status.md` §2.2 and §2.3, pointed §3's two count rows at them, and rebuilt its §5 to state each feed's recorded value beside the observed one. No scanner was invoked, no raw artifact or log was touched and no row of the dataset changed | the audit's own generation timestamp |
+| after the QA audit of `2026-08-22T12:07:25Z` | **record-accuracy pass**: the audit trail made addressable — §7 gained *The evidence trees, by digest and by absolute path*, naming both roots and listing the bytes and sha256 of all 8 artifacts and 28 log files, with the pointers to it in §3.5 and §4.1; and §4.7 gained the `package_coordinate` derivation rule the dataset's 1985 populated values follow. The same pass added the sha256 beside each of the eight artifacts in `tool-status.md` §2 and the tree identification in its §9. No scanner was invoked, no raw artifact or log was touched and no row of the dataset changed | the audit's own generation timestamp |
+| after the QA audit of `2026-08-22T12:13:35Z` | **record-accuracy pass**: this record corrected against that audit — the two repository roots separated and labelled, each gate check attributed to the pass that executed it, the collision departure stated as a departure, condition 5 and §6 scoped to the publication they describe, `.ruff_cache/` inventoried in §7, §3.4's path shapes split, and this pass log added. No scanner was invoked, no raw artifact or log was touched, no row of the dataset changed, and that pass edited no deliverable other than this record — `tool-status.md` and `joern-probe.md` restate condition 5 in the unscoped form §5 replaces here, and that wording was left as it stands. The three record-accuracy passes in the rows around it did edit other deliverables, each as its own row states | the audit's own generation timestamp; the commit carrying this correction is the latest `git log` entry for this file |
+| after the QA audit of `2026-08-22T12:46:39Z` | **record-accuracy pass**: §6's single Phase 3 line corrected in place so that the load branch each invocation took is attributed rather than stated as a constant — the first invocation imported the persisted graph and the two after it opened the project that import had created. The same pass set `graph.loaded_with` per envelope in the three `queries/joern/results/*.json`, and documented the envelope's 22-key superset and the populated form of `stderr_ref` in `joern-probe.md` and the three per-query reports. No scanner was invoked, no query source changed and no recorded measurement moved; no raw artifact or log was touched and no row of the dataset changed | the audit's own generation timestamp |
+
+Twenty driver executions over eight distinct source texts is the measure §6 reports, and
+the rounds are dated here because twelve of the twenty precede the publication pass this
+record's header names — which is why condition 5 in §5 is scoped to the publication it
+describes rather than asserted over every recorded execution.
 
 ## 2. Gate — twelve ordered checks
 
-Fail-closed and ordered so that nothing is consumed before it is validated.
+Fail-closed and ordered so that nothing is consumed before it is validated. **The gate ran
+in both passes, and the table below says which pass executed each check**, because the two
+are not interchangeable: the scanning pass ran it before any runner was invoked, and the
+publication pass re-evaluated the same checks 2 h 19 min later, over a tree Phase 1 had by
+then written into. The scanning pass reached Phase 1, and through a fail-closed gate it
+could only have done so with all twelve passed, so all twelve held before `04:30:05Z`. What
+the filesystem still carries is the *last* write to each directory, which is the
+publication pass's probe, so the scanning pass's own probe is no longer separately
+observable.
 
-| # | Check | Verdict | What it established |
-|---|---|---|---|
-| 1 | Interpreter modules | passed | the interpreter imports all ten required standard-library modules: `json`, `csv`, `re`, `os`, `sys`, `time`, `hashlib`, `pathlib`, `subprocess`, `urllib.parse` |
-| 2 | JVM present | passed | `JAVA_HOME` → openjdk version "17.0.20" 2026-07-21; `JAVA_HOME_17` → openjdk version "17.0.20" 2026-07-21; `JAVA_HOME_21` → openjdk version "21.0.12.1" 2026-08-18 LTS |
-| 3 | Record contents | passed | `harness/ENVIRONMENT.md` readable (35570 B, sha256 `976f487ec95e171011e1fd7fd8193581f88d465b32925f08bc8ab06b650e1fd7`) and carrying every field consumed later: nine tool versions, the environment file, the Opengrep taint setting (ENABLED), the per-module JAR outcomes, and the datadog AI-path availability (UNAVAILABLE) with its credential source `DD_API_KEY`/`DD_APP_KEY` |
-| 4 | `$SPARK_SRC` resolution | passed | resolved from the sourced environment to `/opt/blitzy-harness/spark-src`; the record names `/opt/blitzy-harness/spark-src` |
-| 5 | Commit identity | passed | `git -C "$SPARK_SRC" rev-parse HEAD` = `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d`, equal to the pinned commit; commit date `2025-10-23T15:31:06-04:00` from `git log -1 --format=%cI` |
-| 6 | Glob compilation | passed | 12 allowlist patterns, all compiled by the tokenizer; the compiled rules are in §3.3 |
-| 7 | Runner presence | passed | all nine `harness/bin/run-<tool>.sh` present and executable; the only other script in `harness/bin/` is `run-all.sh`, which is not a runner and was never invoked |
-| 8 | Runner contract | passed | each runner's own text confirms the no-argument guard, a scan target taken from the scope helper rooted at the verified `$SPARK_SRC`, and an artifact path directly inside `harness/artifacts/raw/`; the per-runner reported-path bases recorded here are in §3.4 |
-| 9 | Version | passed | each of the nine resolved on `PATH` at the version the record states; observed beside recorded below |
-| 10 | `raw/` state | passed | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/raw` present and empty — established at `2026-08-22T04:29:07Z`, before any runner was invoked, and read back from the run state because the runners have since written into it |
-| 11 | Tree writability | passed | all four writable trees accepted a write and the probe was removed; resolved absolutes are in §3.5 |
-| 12 | Graph coverage | passed | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/cpg/spark.cpg` loaded with `importCpg` and reports 445568 methods, 57863 type declarations and 19500 files; per-module coverage below |
+Two consequences are stated plainly rather than left to be reconstructed from timestamps:
+
+* **In the publication pass the Tree-writability check ran after Phase 1, not before it.**
+  Its probe is dated `06:48:44.855Z` (§1.1), 1 h 36 min after the last runner finished and
+  one second before that pass's own timestamp. The gate precedes Phase 1 by design and the
+  scanning pass satisfied that; the publication pass's re-evaluation did not, and could not
+  have. The departure is bounded — that pass invoked no runner, and no scanner wrote
+  anything after `05:12:06Z` — but it is a departure, and a table presenting all twelve as
+  one ordered pre-Phase-1 gate would misstate it.
+* **The `raw/` state check's verdict is the scanning pass's observation, restated.** By the
+  publication pass the runners had written eight artifacts into that directory, so that pass
+  could not observe it empty and did not: the value it carries is the one timestamped
+  `04:29:07Z`. The scanning pass's own partial record — the 22853-byte `run-record.md` the
+  collision precheck found in place (§1) — was written check by check and was still on disk
+  when this pass began, but this record does not establish which store the value was read
+  back from and does not assert one.
+
+| # | Check | Verdict | Executed in | What it established |
+|---|---|---|---|---|
+| 1 | Interpreter modules | passed | both passes | the interpreter imports all ten required standard-library modules: `json`, `csv`, `re`, `os`, `sys`, `time`, `hashlib`, `pathlib`, `subprocess`, `urllib.parse` |
+| 2 | JVM present | passed | both passes | `JAVA_HOME` → openjdk version "17.0.20" 2026-07-21; `JAVA_HOME_17` → openjdk version "17.0.20" 2026-07-21; `JAVA_HOME_21` → openjdk version "21.0.12.1" 2026-08-18 LTS |
+| 3 | Record contents | passed | both passes | `harness/ENVIRONMENT.md` readable (35570 B, sha256 `976f487ec95e171011e1fd7fd8193581f88d465b32925f08bc8ab06b650e1fd7`) and carrying every field consumed later: nine tool versions, the environment file, the Opengrep taint setting (ENABLED), the per-module JAR outcomes, and the datadog AI-path availability (UNAVAILABLE) with its credential source `DD_API_KEY`/`DD_APP_KEY` |
+| 4 | `$SPARK_SRC` resolution | passed | both passes | resolved from the sourced environment to `/opt/blitzy-harness/spark-src`; the record names `/opt/blitzy-harness/spark-src` |
+| 5 | Commit identity | passed | both passes | `git -C "$SPARK_SRC" rev-parse HEAD` = `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d`, equal to the pinned commit; commit date `2025-10-23T15:31:06-04:00` from `git log -1 --format=%cI` |
+| 6 | Glob compilation | passed | both passes | 12 allowlist patterns, all compiled by the tokenizer; the compiled rules are in §3.3 |
+| 7 | Runner presence | passed | both passes | all nine `harness/bin/run-<tool>.sh` present and executable; the only other script in `harness/bin/` is `run-all.sh`, which is not a runner and was never invoked |
+| 8 | Runner contract | passed | both passes | each runner's own text confirms the no-argument guard, a scan target taken from the scope helper rooted at the verified `$SPARK_SRC`, and an artifact path directly inside `harness/artifacts/raw/`; the per-runner reported-path bases recorded here are in §3.4 |
+| 9 | Version | passed | both passes | each of the nine resolved on `PATH` at the version the record states; observed beside recorded below |
+| 10 | `raw/` state | passed | scanning pass; **carried forward** into the publication pass | `harness/artifacts/raw` under the **execution-time root** — `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d-w-000_a6fd4d/harness/artifacts/raw` — present and empty, established at `2026-08-22T04:29:07Z`, before any runner was invoked. The publication pass restates that value rather than re-observing it, because the runners had written into the directory by then |
+| 11 | Tree writability | passed | both passes; the publication pass's probe ran at `06:48:44.855Z`, **after Phase 1** — the departure stated above | all four writable trees accepted a write and the probe was removed. The trees are the four under the execution-time root; §3.5 resolves them under both roots |
+| 12 | Graph coverage | passed | both passes | `harness/cpg/spark.cpg` — a symlink resolving from every checkout to the same file, `/opt/blitzy-harness/cpg/spark.cpg` — loaded with `importCpg` and reporting 445568 methods, 57863 type declarations and 19500 files; per-module coverage below |
 
 ### Version check, observed beside recorded
 
@@ -111,7 +196,7 @@ evidence was used for every module rather than waiving the requirement for any o
 
 | | |
 |---|---|
-| Graph | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/cpg/spark.cpg` |
+| Graph | `harness/cpg/spark.cpg`, the per-checkout symlink; canonical target `/opt/blitzy-harness/cpg/spark.cpg`, which is the same file from every checkout and is therefore the form quoted here rather than a checkout-local absolute |
 | Methods observed | 445,568 |
 | Type declarations observed | 57,863 |
 | Files observed | 19,500 |
@@ -283,28 +368,61 @@ canonicalizer used.
 | `joern` | `findings[].path` | already $SPARK_SRC-relative — harness/lib/joern_collect.py maps the graph's bytecode class path back to source against $SPARK_SRC |
 | `datadog-static-analyzer` | `locations[].physicalLocation.artifactLocation.uri` | relative to the analyzer's -i root, which the runner sets to $HARNESS_SCAN_ROOT |
 
-**Two path shapes dependency-check reports that resolve to no file on disk, and are not
+**Three path shapes dependency-check reports that resolve to no file on disk, and are not
 resolution failures.** The tool reads inside archives and reports what it found there, so
-1625 of its 1697 rows carry a path of the form
-`<module>/target/scala-2.13/<jar>.jar/META-INF/maven/<group>/<artifact>/pom.xml` — a real
-entry inside a real jar, canonicalized against the base above like any other path. A
-further 22 carry a virtual coordinate of the form `<manifest>?<package>`, which is the
-tool's way of naming a package declared by a manifest rather than a file of its own; the
-`?` is part of the value the tool emitted and is preserved verbatim. Together that is 1647
-rows over 58 distinct paths, 16.2% of the dataset, for which a filesystem existence check
-under `$SPARK_SRC` fails by construction. The rows are kept and the values are verbatim: a
-consumer resolving these paths against the filesystem should read a miss as the shape of
-the value rather than as a defect in the canonicalization, which applied the base recorded
-in this section to them exactly as to every other path.
+of its 1697 rows: **1607** carry an entry inside a jar, of the form
+`<module>/target/scala-2.13/<jar>.jar/META-INF/maven/<group>/<artifact>/pom.xml` for 1562 of
+them and `<module>/target/<jar>.jar/META-INF/maven/<group>/<artifact>/pom.xml` — the same
+shape without the `scala-2.13/` element, for jars written directly to `<module>/target/` —
+for the remaining 45, which are `core`'s eight Jetty coordinates and
+`sql/connect/client/jvm`'s five Arrow ones over 13 distinct paths; a further **18** name a
+jar nested inside another jar, such as
+`sql/core/target/spark-sql_2.13-4.1.0-SNAPSHOT-test-sources.jar/SPARK-33084.jar`, over 2
+distinct paths; and **22** carry a virtual coordinate of the form `<manifest>?<package>`,
+which is the tool's way of naming a package declared by a manifest rather than a file of its
+own, over 10 distinct paths. Each is canonicalized against the base above like any other
+path, and the `?` is part of the value the tool emitted and is preserved verbatim. Together
+that is 1647 rows over 58 distinct paths (46 + 2 + 10), 16.2% of the dataset, for which a
+filesystem existence check under `$SPARK_SRC` fails by construction. The rows are kept and
+the values are verbatim: a consumer resolving these paths against the filesystem should
+read a miss as the shape of the value rather than as a defect in the canonicalization,
+which applied the base recorded in this section to them exactly as to every other path.
 
 ### 3.5 The four writable trees, resolved
 
-| Tree | Resolved absolute path | Writable |
-|---|---|---|
-| `harness/artifacts/logs` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/logs` | yes |
-| `harness/artifacts/raw` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/raw` | yes |
-| `oss-scan-results` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/oss-scan-results` | yes |
-| `queries/joern` | `/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/queries/joern` | yes |
+Resolved under the **execution-time root**, which is the form to use when joining these
+paths to the byte-preserved evidence: `EXEC` below stands for
+`/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d-w-000_a6fd4d`, and
+`SHIP` for the assembly root this record ships in,
+`/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4`.
+
+| Tree | Resolved at execution time | The same tree under the assembly root | Writable |
+|---|---|---|---|
+| `harness/artifacts/logs` | `EXEC/harness/artifacts/logs` | `SHIP/harness/artifacts/logs` | yes |
+| `harness/artifacts/raw` | `EXEC/harness/artifacts/raw` | `SHIP/harness/artifacts/raw` | yes |
+| `oss-scan-results` | `EXEC/oss-scan-results` | `SHIP/oss-scan-results` | yes |
+| `queries/joern` | `EXEC/queries/joern` | `SHIP/queries/joern` | yes |
+
+**Where each root comes from, and what a reader can check.** `EXEC` is the root the run's
+own byte-preserved evidence names: every `harness/artifacts/logs/<tool>.meta.json` carries
+the absolute invocation path of the runner it wrapped, and `joern.query-output.log` opens
+with the same root. Two of them — `trivy.meta.json`'s `invocation` and the first line of
+`joern.query-output.log` — were read in the execution checkout by the QA audit of this
+milestone and name that root. They are **not re-readable from the shipped tree**, because
+`.gitignore` line 31 (`artifacts/`) excludes both artifact trees from the commit, so the
+audit trail lives on disk beside this record rather than inside git (§7). `SHIP` is the root
+this record's own absolute forms were written as, and it is corroborated inside the commit:
+the six Phase 3 result files carry Joern's `project_recorded_input_path` and
+`project_directory` under it, while the same envelopes give
+`project_recorded_input_path_canonical` as `/opt/blitzy-harness/cpg/spark.cpg` — the
+checkout-independent form the graph resolves to from either root. The two roots are stated
+and not reconciled: no value observed under one is restated as though it had been observed
+under the other.
+
+The two roots above are also the two the evidence trees themselves are identified under,
+and resolving a tree is not the same as identifying the files in it: the sha256 manifest
+that identifies each of the 8 artifacts and 28 log files, since a byte size does not, is in
+§7 under *The evidence trees, by digest and by absolute path*.
 
 **`queries/joern/.workspace/` is scratch inside a writable tree, and it is not ignored by
 git.** Each Phase 3 query script selects that workspace before it loads the graph, and the
@@ -353,6 +471,10 @@ non-zero exit was recorded and the sequence continued.
 | 8 | `run-joern.sh` | `2026-08-22T05:08:08Z` | 47.5 s | `0` | `harness/artifacts/raw/joern.json` | 38595 |
 | 9 | `run-datadog-static-analyzer.sh` | `2026-08-22T05:08:55Z` | 190.4 s | `0` | `harness/artifacts/raw/datadog-static-analyzer.sarif` | 5676504 |
 
+The sha256 that goes beside each artifact's bytes above is in the §7 manifest, together
+with the absolute path of the tree those bytes were written into; the byte size alone does
+not identify an artifact.
+
 Every runner has three log files under `harness/artifacts/logs/`: `<tool>.stdout.log`,
 `<tool>.stderr.log` and `<tool>.meta.json` carrying the invocation line, the working
 directory, both timestamps, the elapsed seconds and the exit code. `run-joern.sh`
@@ -397,6 +519,45 @@ Stated rather than repaired: its parse status is `absent`, it contributes zero r
 and the absence is **not** a finding count of zero. It was not re-invoked, its
 configuration was not changed, no scope was narrowed to get it through, and no
 substitute scanner was introduced.
+
+**Two runners that completed reported conditions about their own analysis, in their own**
+**logs and nowhere else.** Neither is a failure of the sequence, neither changed what was
+invoked, and neither is a characterization of anything either tool reported. They are
+recorded here because an exit code and a row count cannot show them, and between them these
+two tools contributed 1985 of the dataset's 10178 rows (288 and 1697), so a reader weighing
+those counts needs to see what the tools said about their own reach:
+
+* **`osv-scanner`** reported **85 resolution failures**, each of them a line beginning
+  `failed resolution for`, over **43 distinct `pom.xml` files** in the scanned tree and
+  naming **16 distinct** `org.apache.spark` coordinates at `4.1.0-SNAPSHOT` as not found —
+  first at `harness/artifacts/logs/osv-scanner.stderr.log:59`, last at
+  `harness/artifacts/logs/osv-scanner.stderr.log:190`. It also reported one extraction error
+  at `harness/artifacts/logs/osv-scanner.stderr.log:148`, and
+  **36 packages filtered from the scan** at
+  `harness/artifacts/logs/osv-scanner.stderr.log:56`.
+* **`dependency-check`** reported **three of its analyzers uninitialized or disabled**:
+  the **Ruby Bundle Audit Analyzer** at
+  `harness/artifacts/logs/dependency-check.stdout.log:26` and again at
+  `harness/artifacts/logs/dependency-check.stdout.log:66`;
+  the **.NET Assembly Analyzer** at
+  `harness/artifacts/logs/dependency-check.stdout.log:31`, with the runtime it wanted named
+  at `harness/artifacts/logs/dependency-check.stdout.log:32`;
+  and the **Sonatype OSS Index Analyzer**, disabled for missing credentials, at
+  `harness/artifacts/logs/dependency-check.stdout.log:59` — a line that carries no
+  credential value and names no variable, so none is recorded. It further reported ten
+  warnings over Node manifests analysed with no `node_modules` directory
+  (`harness/artifacts/logs/dependency-check.stdout.log:34`, `…stdout.log:35`,
+  `…stdout.log:37`, `…stdout.log:39`, `…stdout.log:41`, `…stdout.log:43`) or no lock file
+  (`…stdout.log:36`, `…stdout.log:38`, `…stdout.log:40`, `…stdout.log:42`), and
+  **five CVSS vectors** in NPM Audit results it reported as an unsupported format
+  (`…stdout.log:52`, `…stdout.log:53`, `…stdout.log:54`, `…stdout.log:55`,
+  `…stdout.log:56`).
+
+Each condition is itemized against its tool in `tool-status.md` §2.2 and §2.3, beside that
+tool's counts. Nothing follows from recording them here: no tool was re-invoked, no
+configuration was changed, no count was adjusted, nothing was installed or credentialed to
+lift a limit either tool reported, and `harness/bin/**` and `harness/ENVIRONMENT.md` were
+read and not edited.
 
 ### 4.3 Every module `harness/ENVIRONMENT.md` records as producing no JAR
 
@@ -507,7 +668,16 @@ The order is deliberate: the presence of `findings.json` is the single signal th
 dataset **and** its mapping are both complete. No staging file remains — all three were
 renamed away on success.
 
-**The dataset was published twice, through that same protocol both times.** The code
+**The dataset was published twice, through that same protocol both times, and both
+publications are dated in §1.1.** The first is the one committed at `2026-08-22T07:54:28Z`,
+carrying `findings.json` at 5817891 B, sha256 `ff166c86a89eef49…`, `findings.csv` at
+3320044 B, `91a84eaa03626819…`, and `severity-map.md` at 4449 B, `e456b520054f4f2b…`. The
+second is what the files on disk now are, and it completed at or before
+`2026-08-22T10:08:29Z` — the instant the Phase 3 driver recorded observing `findings.json`
+at 5806988 B, sha256 `2b3fb2db…`, `findings.csv` at 3309257 B, `68ae2e4e…`, and
+`severity-map.md` at 6049 B, `ebf11a85…`.
+
+The code
 review of this milestone established three defects in the normalized values, each a
 deviation from the severity and SARIF derivation rules rather than a loss or duplication of
 rows: `osv-scanner`'s severity was taken from the CVSS **vectors** in `severity[]` instead
@@ -524,7 +694,9 @@ and changed no row count, no row order and no other field: 10178 rows before and
 CSV and JSON equal, and every per-tool reconciliation unchanged. `severity-map.md` was
 regenerated from the same mapping the adapters read, so the published mapping is the one
 the rows receive, and the Phase 3 envelopes cite the second publication's bytes and
-sha256 because the driver observed the dataset it ran against.
+sha256 because the driver observed the dataset it ran against. The driver rounds that ran
+**before** that second publication — twelve of its twenty recorded executions, dated in
+§1.1 — observed the first, and §5's condition 5 is scoped accordingly.
 
 **Three cells of `findings.csv` begin with a character a spreadsheet reads as a formula.**
 Two `message` values begin with `@` and one with `-`, all three verbatim from the tool that
@@ -546,6 +718,49 @@ output: `tool`, `scanner_class`, `severity_norm` and `in_scope`. The JSON key or
 same order as the CSV header, so the two files join field by field, and nothing downstream
 should extend or reorder either.
 
+**How `package_coordinate` was derived, stated because it governs 1985 published cells and**
+**puts the field separator inside one of the parts.** The field has exactly one format,
+`<ecosystem>:<name>@<version>`, with `ecosystem` lower-cased, and it is derived from the two
+tools that report a package rather than only a file.
+
+*From `dependency-check`,* from `dependencies[].packages[].id`, which the tool emits as a
+Package URL of the form `pkg:<type>[/<namespace>]/<name>@<version>`. The `<type>`
+lower-cased becomes the ecosystem; every segment between the type and the last `@` is
+percent-decoded and joined with `:`; the substring after the last `@` is the version. Maven's
+PURL namespace is its groupId, so a maven coordinate reads `maven:<group>:<artifact>@<version>`
+— `pkg:maven/ch.epfl.scala/bsp4j@2.1.1` becomes `maven:ch.epfl.scala:bsp4j@2.1.1`. This
+artifact carries 137 `packages[]` entries, 126 of them maven PURLs and 11 npm; each of the 11
+npm entries carries a single name segment and no namespace, and 2 of those segments are
+percent-encoded scoped-package names, so `pkg:npm/%40babel%2Fcore@7.23.3` becomes
+`npm:@babel/core@7.23.3` with no namespace colon. Of the 131 dependencies that carry a
+vulnerability, 96 carry exactly one `packages[]` entry and 35 carry none, so no selection
+among several entries arose; the 45 vulnerabilities on those 35 dependencies have no formable
+coordinate and are the 45 rejects, never a placeholder version.
+
+*From `osv-scanner`,* from the package object: `ecosystem` lower-cased — the artifact's
+`Maven`, `npm`, `PyPI` and `RubyGems` become `maven`, `npm`, `pypi` and `rubygems` — with
+`name` and `version` taken verbatim. OSV's own maven name is already `<group>:<artifact>`, so
+maven coordinates derived from the two tools are joinable, and that is also why `<name>`
+contains a colon for maven and for no other ecosystem present here.
+
+**The consequence a downstream parser must be told.** `<name>` carries the field separator on
+every maven row, so a coordinate is parsed by splitting on the **first** `:` for the ecosystem
+and taking the **last** `@` as the name/version boundary; splitting on every `:` mis-parses
+the maven rows, and taking the first `@` mis-parses the 4 rows whose npm scoped name contains
+one (2 from each tool). Both rules are exercised by the published data: all 1985 coordinates
+parse under first-colon plus last-`@`, and 0 fail.
+
+| Tool | Rows with a coordinate | maven | npm | pypi | rubygems |
+|---|---|---|---|---|---|
+| `dependency-check` | 1697 | 1675 | 22 | 0 | 0 |
+| `osv-scanner` | 288 | 118 | 33 | 132 | 5 |
+| **Total** | **1985** | **1793** | **55** | **132** | **5** |
+
+The remaining 8193 rows carry `null`, being findings about a file rather than a package. Exactly
+the 1793 maven rows have a `:` inside `<name>`, and no other row does. This rule is stated here
+rather than in `severity-map.md`, which is serialized from the severity mapping the adapters
+read and carries severity policy only.
+
 ## 5. Where the run reached, condition by condition
 
 This record does not claim the run wholly succeeded or wholly failed. Six conditions
@@ -557,7 +772,7 @@ define completion and each is reported on its own.
 | 2 | `findings.json` and `findings.csv` contain every row from every artifact, each carrying `tool`, `scanner_class`, `severity_norm` and `in_scope`, with no row dropped; row validation passes; and the per-tool reconciliation assertions pass | **passed.** `findings.json` and `findings.csv` published from one validated row list; row validation passed over 10178 rows; every evaluable per-tool reconciliation assertion passed; the CSV and JSON row counts are equal (10178 == 10178) |
 | 3 | `severity-map.md` carries a row for all nine tools, including any that produced no finding | **passed.** `severity-map.md` carries one row for 9 of the nine tools, including those that produced no finding |
 | 4 | `tool-status.md` lists all nine, including any that failed or timed out, each with its parse status, its records parsed and rejected, and its row-validation result | **passed.** this file carries one block for each of the nine, each with its execution state, exit status, parse status, records parsed and rejected, both reconciliation assertions and the row-validation result |
-| 5 | Phase 3 delivers three or more committed queries with recorded outcomes, spurious-return counts and the three effort measures, and the graph was read rather than built | **delegated.** delegated to the Phase 3 driver by design. Both records are finalized before the driver is launched, so no record depends on a process that has yet to run; the driver appends its outcome to `run-record.md` §6 and reports it in full in `joern-probe.md` |
+| 5 | Phase 3 delivers three or more committed queries with recorded outcomes, spurious-return counts and the three effort measures, and the graph was read rather than built | **delegated.** delegated to the Phase 3 driver by design, which appends its outcome to `run-record.md` §6 and reports it in full in `joern-probe.md`. **Scoped to the publication it describes:** for the published dataset, the driver ran after both records were finalized — its envelopes record observing `findings.json` (10178 rows, 5806988 B, sha256 `2b3fb2db…`), `findings.csv` (`68ae2e4e…`) and `severity-map.md` (`ebf11a85…`), the bytes now on disk, at `2026-08-22T10:08:29Z` for query 01 and `10:28:10Z` for queries 02 and 03. Twelve of the twenty recorded executions — rounds 1–4, `06:08:04Z` to `06:33:14Z` in the per-query revision logs — precede the publication pass this record's header names and ran against the first publication, which the second superseded. So the ordering rule holds for the dataset that shipped, and not for every recorded execution; §1.1 dates both |
 | 6 | `run-record.md` states the `$SPARK_SRC` path scanned, its commit and date, and every tool failure and missing module | **passed.** `run-record.md` states the `$SPARK_SRC` path scanned with its commit and commit date, every tool failure and termination, and the missing-module answer |
 
 **No check, assertion or publication step ended the run.** The gate's twelve checks
@@ -565,23 +780,36 @@ passed, Phase 1 invoked all nine runners once, and Phase 2 validated, staged, co
 and published in order. Condition 5 belongs to the Phase 3 driver, which the shell
 launches after this controller exits, and the driver's own line follows in §6.
 
+Two qualifications on the six verdicts above, so that none of them reads wider than the
+evidence. They are verdicts **for the dataset that shipped**: the gate passed in both
+passes, but in the publication pass the Tree-writability check ran after Phase 1 and the
+`raw/` state check restated the scanning pass's observation, both as §2 records; and the
+driver rounds that preceded the second publication ran against the first, as condition 5
+now says. `tool-status.md` restates these six conditions and carries condition 5 in the
+earlier, unscoped wording, as does `joern-probe.md`'s own statement of the same ordering;
+the scoping above is this record's, and the record-accuracy pass that made it (§1.1) edited
+no deliverable other than this record.
+
 ## 6. Phase 3 driver
 
 The Phase 3 driver writes exactly one line into this section, and it is the driver's only
 write to this file. It never writes to `tool-status.md`. A re-invocation for a query
 revision replaces this line rather than adding another.
 
-**Phase 3 completed.** The driver was launched by the outer shell after the controller exited cleanly, took the published `findings.json` (10178 rows, sha256 `2b3fb2dbb5c2f30c711524a5a0be141aab8445e00814a7fdf6f8ba6c6f664f51`) as its precondition, and invoked 3 committed query scripts — `01-callgraph-unguarded-driver-launch`, `02-dataflow-unguarded-driver-launch`, `03-parameterized-unguarded-handler-sink` — from the repository root, one at a time, on `JAVA_HOME_21` with `JAVA_OPTS=-Xmx48g -Xss64m`, with `importCpg` and never `importCode`. All 3 compiled and ran to a complete result region; 3 clean positive(s) were produced; the aggregate revision measure is 8 distinct source texts over 20 recorded executions (`01-callgraph-unguarded-driver-launch` 2 texts / 6 executions, `02-dataflow-unguarded-driver-launch` 3 / 7, `03-parameterized-unguarded-handler-sink` 3 / 7), the revisions after the first sequence being the graph-provenance hardening the code review of this milestone required and, for two of the three sources, a comment-separator correction to it. Done-when condition 5 is met, and the per-query outcomes, spurious counts and the three effort measures are in `oss-scan-results/joern-probe.md`.
+**Phase 3 completed.** The driver was launched by the outer shell after the controller exited cleanly, took the published `findings.json` (10178 rows, sha256 `2b3fb2dbb5c2f30c711524a5a0be141aab8445e00814a7fdf6f8ba6c6f664f51`) as its precondition — observed at `2026-08-22T10:08:29Z` for query 01 and `10:28:10Z` for queries 02 and 03, which is the second publication and the bytes on disk — and invoked 3 committed query scripts — `01-callgraph-unguarded-driver-launch`, `02-dataflow-unguarded-driver-launch`, `03-parameterized-unguarded-handler-sink` — from the repository root, one at a time, on `JAVA_HOME_21` with `JAVA_OPTS=-Xmx48g -Xss64m`, reading the pinned graph and never building one: `01-callgraph-unguarded-driver-launch` loaded it with `importCpg`, and the two invocations after it opened the provenance-verified project that import had created in the shared workspace, `importCode` appearing in none of the three sources. All 3 compiled and ran to a complete result region; 3 clean positive(s) were produced; the aggregate revision measure is 8 distinct source texts over 20 recorded executions (`01-callgraph-unguarded-driver-launch` 2 texts / 6 executions, `02-dataflow-unguarded-driver-launch` 3 / 7, `03-parameterized-unguarded-handler-sink` 3 / 7), the revisions after the first sequence being the graph-provenance hardening the code review of this milestone required and, for two of the three sources, a comment-separator correction to it. Done-when condition 5 is met, and the per-query outcomes, spurious counts and the three effort measures are in `oss-scan-results/joern-probe.md`.
 
 ## 7. Provenance
 
 | Source | What came from it |
 |---|---|
 | `harness/ENVIRONMENT.md` | the nine recorded tool versions the Version check compared against; the environment file name; the Opengrep taint setting; the per-module JAR outcomes; the datadog AI-path availability and its credential-source variable names |
-| `harness/artifacts/logs/*` | every timestamp, elapsed time, exit code and `exit_status`; each failing tool's own stderr; the taint and AI-path observations; the datadog rule-set provenance and rule count in §4.6, cited there by log line |
+| `harness/artifacts/logs/*` | every timestamp, elapsed time, exit code and `exit_status`; each failing tool's own stderr; the taint and AI-path observations; the datadog rule-set provenance and rule count in §4.6, cited there by log line; the two runners' own tool conditions in §4.2, cited there the same way |
 | `harness/artifacts/raw/*` | every artifact shape, path form and record count, and the per-tool row and reject counts |
 | `git` reads of `$SPARK_SRC` | the commit, the commit date |
 | the graph itself, loaded with `importCpg` | the method, type-declaration and file counts and every per-module coverage verdict |
+| `queries/joern/results/*.json` | the Phase 3 driver's own captures: the per-query revision logs behind every driver round dated in §1.1, the precondition digests it observed, and Joern's recorded project paths cited in §3.5 |
+| `git` reads of **this** repository | the two publication commit dates in §1.1 and the bytes and digests each commit carries; the three parent-commit sizes in §1 |
+| filesystem observations, named as such at each use | the probe time in §1.1 and §2, and the two publication mtimes in §1.1 — the values this run's own logs do not carry, read by the QA audit of this milestone and labelled with that source class wherever they appear |
 
 Where a value could not be read it is recorded as not read rather than substituted.
 What this run wrote under `harness/`, and what it did not, as four separately checkable
@@ -596,13 +824,153 @@ record rather than inside git, and every count and citation in this file and in
 smoke tree the setup run left under the shared harness root, `harness/artifacts/smoke/`, was
 never read and is never a fallback for a runner that produced nothing. Third-party cache and
 temporary state that the tools themselves wrote outside these trees is expected, is not
-inventoried here and was not cleaned up. Nothing was added to `.github/workflows/`, no test
-framework was introduced, and no scanner was installed, upgraded, substituted, reconfigured
-or re-invoked. Untracked state left in either tree by anything else running on this host was
-left exactly as found.
+inventoried here and was not cleaned up.
 
-**On the absolute paths in this record.** Repository-relative paths anchor at the directory
-that holds `harness/`; the absolute forms are that directory as this record ships in it. The
-byte-preserved evidence under `harness/artifacts/logs/` was not edited, so each
-`<tool>.meta.json` carries the absolute invocation path exactly as it stood at execution
-time.
+**One write outside the four writable trees was made by a tool this run chose to invoke,**
+**and it is inventoried rather than left to that sentence.** `ruff` 0.16.4 — the linter the
+harness's own Python is checked with, from the isolated lint environment — writes a
+`.ruff_cache/` directory into the working directory it runs in, which is the repository
+root. It holds `CACHEDIR.TAG`, a versioned cache file under `0.16.4/`, and a `.gitignore` of
+its own whose `*` makes the directory self-ignoring, so nothing in it is commit-eligible.
+That is a write outside the writable trees by something other than the nine scanners, so
+naming it here is what makes the boundary statement above exhaustive. It was **not** cleaned
+up and must not be: this run cleans nothing up, and the no-cleanup rule applies to its own
+leavings exactly as it does to the tools'. A later run that wants the boundary clean can
+point the linter's `--cache-dir` outside the checkout; deleting the directory afterwards
+would be the cleanup the rule forbids.
+
+Nothing else was added anywhere. Nothing was added to `.github/workflows/`, no test
+framework was introduced, and no scanner was installed, upgraded, substituted,
+reconfigured or re-invoked. Untracked state left in either tree by anything else running
+on this host was left exactly as found.
+
+**On the absolute paths in this record, and what a reader can re-check.**
+Repository-relative paths anchor at the directory that holds `harness/`, and that is the
+form to rely on. Two absolute roots appear, each labelled where it is used and neither
+reconciled into the other: the **execution-time root**, where the nine runners were invoked
+and where the byte-preserved evidence sits, and the **assembly root**, the checkout this
+record and the Phase 3 envelopes were written in and ship in. Both are named in the header
+and resolved tree by tree in §3.5.
+
+What that means for checking this record. The evidence under `harness/artifacts/logs/` was
+not edited, so each `<tool>.meta.json` carries the absolute invocation path exactly as it
+stood at execution time — and that is where the execution-time root is read from. Those
+files are excluded from the commit by `.gitignore` line 31, so a reader who has only the
+shipped tree cannot re-read them and cannot re-derive that root; a reader with the execution
+checkout can, from any one of the nine. Inside the commit, the two independently checkable
+values are the assembly root, carried by Joern's own project fields in the six Phase 3
+result files, and the graph's canonical target `/opt/blitzy-harness/cpg/spark.cpg`, which
+those same files record and which is the same file from either root. Every timestamped gate
+check in §2 names the root its observation was made under, so a value from one root is never
+presented as an observation made under the other.
+
+The two evidence trees are the one place where that convention is not enough to find
+anything, because they are excluded from the commit and are clone-local on disk: the
+subsection below names the root they were written from and the root that holds the
+byte-identical copy, and identifies every file in both by digest.
+
+### The evidence trees, by digest and by absolute path
+
+Every count, shape, path form, timestamp, exit code and citation in this file and in
+`tool-status.md` was taken from two trees, and this subsection is where they are identified —
+by digest, not by location and not by size.
+
+**Where they are.** The trees this run wrote are
+`/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d-w-000_a6fd4d/harness/artifacts/raw`
+and `…-w-000_a6fd4d/harness/artifacts/logs`. That root is not asserted from memory: it is the
+root named by the `invocation` field of each of the nine byte-preserved
+`harness/artifacts/logs/<tool>.meta.json` files — all nine name it, and those files were not
+edited, so they carry the execution root exactly as it stood when the runners ran. A
+**byte-identical copy** stands at
+`/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/raw`
+and `…_343ca4/harness/artifacts/logs` — the **assembly root**, the checkout this record
+ships in and the one its remaining absolute forms are labelled with; §3.5 resolves all four
+writable trees under this root and under the execution-time root alike. The two were compared file by file rather
+than in aggregate: **8 of 8** artifacts and **28 of 28** log files are equal by sha256, with
+no file present in one tree and absent from the other.
+
+**Identity is the digest.** A byte size does not identify an artifact, and the collision is
+not hypothetical: at the time this subsection was written a sibling checkout of this
+repository on this host,
+`/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d-w-002_c982c2`, held a
+`harness/artifacts/raw/` from a **different** execution in which `dependency-check.json` and
+`joern.json` carry exactly the byte sizes in the manifest below under different sha256. The
+manifests are therefore the identifying record, and the sizes in them are the same sizes §4.1
+and `tool-status.md` §2 state beside each artifact.
+
+The 8 raw artifacts:
+
+| File | Bytes | sha256 |
+|---|---|---|
+| `checkov.json` | 8470 | `8d7070aac22e04ebd68443284eabf80f9edb5c4929d9c61c21fb3e961ef188da` |
+| `datadog-static-analyzer.sarif` | 5676504 | `5aed332e699ab89769691cdccb8fc77ae80e5bb7147d64a5d436359da8d2d1ea` |
+| `dependency-check.json` | 7114893 | `b2e15e792182dc6be018f332ee24e088189f3aa2e0732b8f3b67e12d8fefdb0a` |
+| `gitleaks.json` | 31371 | `99ad77de2fcc45add2e3381592751a4b36f92ffcd47d25bbbc4d0d112140cc86` |
+| `joern.json` | 38595 | `78e6f07eec6d0dcce513a362223e0820d97be79f7c06a69612879e460e258893` |
+| `opengrep.sarif` | 1941724 | `9b184bd7f3cb4fe122c785d9ad61ec89cfacd6120ff2d3bcff6631651075a359` |
+| `osv-scanner.json` | 2801633 | `c14273ed140d63b7533362857fd75f8b5e3514920ddac2e910c5820cd9a92e3b` |
+| `semgrep.sarif` | 1578299 | `139325fdfcca123cd31a280b765ecb77fa26060e2818e6fd91cf4e19c630f674` |
+
+The 28 log files:
+
+| File | Bytes | sha256 |
+|---|---|---|
+| `checkov.meta.json` | 657 | `24dde0f288ceec4504f5a134db5c2b5fd8a37852c93a0dfc49f0e6fd5414eded` |
+| `checkov.stderr.log` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `checkov.stdout.log` | 141808 | `d5a897d456b86e6f91eb0ce5eddfabfee465f8f5eed822887af9ba36a0716896` |
+| `datadog-static-analyzer.meta.json` | 743 | `925b2da4e2bc215fa01efbbb3a273fc0956e931e85c5e19e9e2dd41ec6a6887e` |
+| `datadog-static-analyzer.stderr.log` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `datadog-static-analyzer.stdout.log` | 5241 | `1bcf18fdd037a7abc389e645d60f58fce65809731c3f9808f1729e0d7f09fec6` |
+| `dependency-check.meta.json` | 709 | `7be9067016382b6b2d493305b00f92b12d251046877fbd757319e112cdb6670c` |
+| `dependency-check.stderr.log` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `dependency-check.stdout.log` | 6971 | `0aa4415e73e2267b572f6b0e2c29ae0a457f4a4fe178bbe1aaadfbf4ab966a64` |
+| `gitleaks.meta.json` | 664 | `a9869c82beafb379f4402b0f76b0166cc6908c70286584c764dd913a68cda336` |
+| `gitleaks.stderr.log` | 137 | `e18e49a5d7b9f1bf0081c80db0a80d9ffc49c4ad368abee33ef137b0dcbd879c` |
+| `gitleaks.stdout.log` | 2069 | `2fc7dabed4a5f2671a9efc20f7309f818eedf4d9c5308d6bf6d438270e82416b` |
+| `joern.meta.json` | 661 | `eeb8ee23cce4e145f68c55ba4163300ce39b5345e1939586f78c947d4b83e9a7` |
+| `joern.query-output.log` | 28158 | `7f70c24623ba20647210f892771c14df646f77ddf14a9f14001861d99ae1b46a` |
+| `joern.stderr.log` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| `joern.stdout.log` | 1779 | `da7116cbd296fac0b725ff7918c39de52eb02a10b3e49c5b20d9f6313d2dac79` |
+| `opengrep.meta.json` | 668 | `57496916b30878189fbdcbc5609dbb60205e3e8122039c38998a83c9e7a8e07b` |
+| `opengrep.stderr.log` | 1771 | `d06f6c5002adf75a15d62fff3000150c7f3de0113fbc8b5fb9e3eca552d056e6` |
+| `opengrep.stdout.log` | 391508 | `4fd245643c1cff30077279726c8ba78212feca70464a1eb23c0cd2fa148fbf87` |
+| `osv-scanner.meta.json` | 681 | `d9d959b0abb8148202ff291c8b483ff05686b0180aca8e3fe36663849e910ede` |
+| `osv-scanner.stderr.log` | 33555 | `618c3097553c51266ac46668606fa3f55387649f7ffecb4673270df63b8f0da8` |
+| `osv-scanner.stdout.log` | 717 | `213988504ab62b3520b52fe6b66f770f9c407414304fa2b6076f2f08f9160db9` |
+| `semgrep.meta.json` | 663 | `f68282f404b4d24cdaec83ca3db5450f7224f5bfc512aa96e9a618f3def5ab85` |
+| `semgrep.stderr.log` | 1923 | `279e704efb5f8d8767cb67872a7846c01ef7833bf9096b6b8cf03f6a73a590aa` |
+| `semgrep.stdout.log` | 893 | `3410b0354a6000df43524a19aced43295307af20a271d2f0959ef3d8b71a349a` |
+| `trivy.meta.json` | 617 | `38949fb1047a904e578787141decaecfb0958eee2ef9c69e6a0df166455d00ef` |
+| `trivy.stderr.log` | 1239 | `471e6afeb865baa91dda88733cb2ea84a03ee88534e33c603bb5c73667888900` |
+| `trivy.stdout.log` | 907 | `c6e12c1477732b614b4eec2a9870651b8d007f28293fcf4674d4d11a13ed5243` |
+
+Four stderr logs are zero bytes — `checkov`, `datadog-static-analyzer`, `dependency-check`
+and `joern` — so all four carry the digest of empty input, which is what an empty file's
+digest is. Those are exactly the four `tool-status.md` §2 cites as *(empty — 0 lines)* with
+no line range, under the convention its §9 states.
+
+**The warning a consumer must act on, and the recipe.** `harness/artifacts/` is **clone-local
+by construction**. Entering the recorded environment creates both trees empty in *every*
+clone — `harness/env.sh` chains to the shared `/opt/blitzy-harness/env.sh`, whose line 85
+runs `mkdir -p "$HARNESS_RAW_DIR" "$HARNESS_LOG_DIR"`, and `raw/` is left empty for a
+scanning run to fill — and both trees are excluded from the commit by the pre-existing
+`.gitignore` line 31 (`artifacts/`), which this run may not modify. So a
+`harness/artifacts/` tree found in some other checkout may be empty, as this record's own
+sibling checkouts show, or may hold a **different** execution entirely. Before reconciling
+any published row against a raw artifact, verify the file against the manifest above:
+
+    cd /tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d-w-000_a6fd4d \
+      && sha256sum harness/artifacts/raw/* harness/artifacts/logs/*
+
+That prints 36 lines — 8 artifacts and 28 log files — each of which must match the digest
+beside its name above; the same command in the `…_343ca4` tree prints the same 36 digests. A
+tree whose sizes match but whose digests do not is a different execution, and equal size is
+not identity.
+
+**Provenance of this subsection.** It and its digests were added by the remediation of a QA
+finding that the records cited the artifacts by byte size alone and named no tree; the digests
+and byte sizes were computed with `sha256sum` and `stat` over the same two byte-preserved
+trees every other number in this file was taken from. That remediation altered no value
+stated anywhere else in this record or in `tool-status.md`: it added this subsection, the two
+pointers in §3.5 and §4.1, the sha256 beside each of the eight artifacts in `tool-status.md`
+§2, and the tree identification in `tool-status.md` §9, and nothing else.

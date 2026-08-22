@@ -2,6 +2,11 @@
 
 Written by the Phase 3 driver from its own capture of this query's invocation. The query
 did not write this file, and nothing in it is asserted that the driver did not observe.
+The envelope beside it, `queries/joern/results/02-dataflow-unguarded-driver-launch.json`,
+carries 22 top-level keys: the 18 this contract requires, present and in order, plus four
+supplementary keys, each the only record of a fact the AAP requires reported. They are
+named one by one, with the fact each carries, in `oss-scan-results/joern-probe.md` under
+*The envelope these statements are written from*.
 
 | | |
 |---|---|
@@ -21,7 +26,7 @@ did not write this file, and nothing in it is asserted that the driver did not o
 | Returns | 1 |
 | Spurious under the on-path test | 0 |
 | Clean positive | True |
-| Graph | `harness/cpg/spark.cpg`, loaded with `importCpg`; built: False |
+| Graph | `harness/cpg/spark.cpg`, **read and not built**: this invocation opened the project a previous `importCpg` of that same file had created in the shared workspace, after verifying the input path the project recorded canonicalizes to it — `load_mode: opened_existing_project`. The script calls `importCpg` itself where no such project is present; `built: False` on either branch |
 
 ## 1. The precondition, as the driver observed it
 
@@ -1041,7 +1046,7 @@ Exclusion rules applied in order, each with what it removed:
 
 | | |
 |---|---|
-| Captured stderr | `stderr_ref: null` — the invocation succeeded, so no failure diagnostic is owed or cited. The envelope's contract makes this a reference on failure |
+| Captured stderr | `stderr_ref: null` — the invocation succeeded, so no failure diagnostic is owed or cited. The envelope's contract makes this field a *reference* on failure and never a copy: populated, it is an object naming the captured stream and the lines within it that hold the diagnostic — `{"path": "<the captured stderr stream for this invocation>", "line_range": [<first>, <last>]}` — so the stream is cited by path and line range rather than quoted, which is what keeps anything a tool printed to it from being republished here. `null` is that reference's empty form. This run produced no populated instance: each of its three invocations exited `0` with a start marker printed and a result region parsed, so no failure diagnostic was captured for any of them |
 | Failure-marker lines | none — the run emitted no failure marker |
 | What was on that stream | Joern's own load and save lines. Its script runner also prints an `executing <script> with params=Map(...)` line before the script's first statement, so where a query is invoked with parameters that line is the runner's echo of them, not the script's — which is why the redaction the script performs cannot reach it |
 

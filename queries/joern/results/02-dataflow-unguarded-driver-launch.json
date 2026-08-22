@@ -1053,7 +1053,7 @@
   "stderr_ref": null,
   "graph": {
     "source": "harness/cpg/spark.cpg",
-    "loaded_with": "importCpg",
+    "loaded_with": "open — this invocation opened the project a previous importCpg of this same pinned file had created in the shared workspace, after the input path that project recorded was verified to canonicalize to it; the script calls importCpg itself when no such project is present, and the branch this invocation took is diagnostics.load_mode",
     "built": false,
     "loaded_by": "the query script itself, which selects the workspace and then loads the graph; the driver imports no graph of its own"
   },

@@ -78,7 +78,7 @@ exception the request grants, and it does not leave the run incomplete.
 | Elapsed | 29.3 s |
 | Exit status | `1` |
 | stdout / stderr | `harness/artifacts/logs/osv-scanner.stdout.log:1-9` / `harness/artifacts/logs/osv-scanner.stderr.log:1-190` |
-| Artifact | `harness/artifacts/raw/osv-scanner.json` (2801633 B) |
+| Artifact | `harness/artifacts/raw/osv-scanner.json` (2801633 B, sha256 `c14273ed140d63b7533362857fd75f8b5e3514920ddac2e910c5820cd9a92e3b`) |
 | Artifact shape, as detected | native: results[].packages[].vulnerabilities[] |
 | Adapter | the osv-scanner native adapter |
 | Parse status | `clean` |
@@ -90,6 +90,33 @@ exception the request grants, and it does not leave the run incomplete.
 | Per-tool reconciliation assertion | record count 288 == rows 288 + rejects 0 |
 | Overall CSV/JSON row-count assertion | CSV 10178 rows == JSON 10178 rows |
 | Row-validation result | passed over all 10178 rows of the dataset |
+| Tool conditions observed | 85 resolution failures over 43 `pom.xml` files, one extraction error, and 36 packages the tool filtered from the scan — enumerated below and cited to the tool's own stderr |
+
+**Conditions this tool reported about its own analysis, stated because a reader cannot see**
+**them in the exit code or in the count.** They are stated as the tool stated them: no
+finding of this tool's is characterized here, no cause is inferred for its exit code, and no
+count is adjusted.
+
+* **85 resolution failures**, each a line beginning `failed resolution for`, naming **43
+  distinct `pom.xml` files** inside the scanned tree. All 85 name an
+  `org.apache.spark` coordinate at `4.1.0-SNAPSHOT` that the tool reported as not found —
+  **16 distinct coordinates** across the 85 lines. First at
+  `harness/artifacts/logs/osv-scanner.stderr.log:59`, last at
+  `harness/artifacts/logs/osv-scanner.stderr.log:190`.
+* **one extraction error**, reported by the tool as `Error during extraction: (extracting as
+  transitivedependency/pomxml)`, at `harness/artifacts/logs/osv-scanner.stderr.log:148`.
+* **36 packages filtered from the scan**, reported by the tool as `Filtered 36
+  local/unscannable package/s from the scan.` at
+  `harness/artifacts/logs/osv-scanner.stderr.log:56`.
+
+The invocation these arose under is the runner's baked one, echoed at
+`harness/artifacts/logs/osv-scanner.stdout.log:6`; the whole stderr is
+`harness/artifacts/logs/osv-scanner.stderr.log:1-190`. So the 288 above is the count this
+tool emitted with those 16 coordinates unresolved across 43 manifests and those 36 packages
+filtered, rather than a count taken over every package the tree declares. The tool was not
+re-invoked, its configuration was not changed, no scope was narrowed, no substitute was
+introduced, and nothing was installed or populated to let it resolve what it could not: the
+artifact and both logs are preserved exactly as written.
 
 ### 2.3 `dependency-check`
 
@@ -101,7 +128,7 @@ exception the request grants, and it does not leave the run incomplete.
 | Elapsed | 1755.9 s |
 | Exit status | `14` |
 | stdout / stderr | `harness/artifacts/logs/dependency-check.stdout.log:1-69` / `harness/artifacts/logs/dependency-check.stderr.log` (empty — 0 lines) |
-| Artifact | `harness/artifacts/raw/dependency-check.json` (7114893 B) |
+| Artifact | `harness/artifacts/raw/dependency-check.json` (7114893 B, sha256 `b2e15e792182dc6be018f332ee24e088189f3aa2e0732b8f3b67e12d8fefdb0a`) |
 | Artifact shape, as detected | native: dependencies[].vulnerabilities[] |
 | Adapter | the dependency-check native adapter |
 | Parse status | `partial` |
@@ -113,6 +140,7 @@ exception the request grants, and it does not leave the run incomplete.
 | Per-tool reconciliation assertion | record count 1742 == rows 1697 + rejects 45 |
 | Overall CSV/JSON row-count assertion | CSV 10178 rows == JSON 10178 rows |
 | Row-validation result | passed over all 10178 rows of the dataset |
+| Tool conditions observed | three of its analyzers reported uninitialized or disabled; ten warnings over Node manifests analysed with no `node_modules` directory or no lock file; five CVSS vectors it could not parse — enumerated below and cited to the tool's own stdout |
 
 Rejected records, by reason — counted, never dropped silently and never repaired
 by inference:
@@ -120,6 +148,55 @@ by inference:
 | Reason | Count |
 |---|---|
 | dependency vulnerability with no formable coordinate: no packages[] entry | 45 |
+
+**Conditions this tool reported about its own analysis, stated because a reader cannot see**
+**them in the exit code or in the count.** Each is the tool's own statement in its own log,
+restated here and adjudicated in no way. No finding of this tool's is characterized, and the
+exit code's cause is not derived from any of them — the exit status above is
+Dependency-Check's own, as the runner's header documents.
+
+* **Ruby Bundle Audit Analyzer** — an initialization exception at
+  `harness/artifacts/logs/dependency-check.stdout.log:26`, and at
+  `harness/artifacts/logs/dependency-check.stdout.log:66` the tool reports it could not run
+  the `bundle-audit` program and disabled that analyzer.
+* **.NET Assembly Analyzer** — reported at
+  `harness/artifacts/logs/dependency-check.stdout.log:31` as not initialized while at least
+  one `exe` or `dll` had been scanned, the `dotnet` executable not being on the path, with
+  the runtime it requires named at
+  `harness/artifacts/logs/dependency-check.stdout.log:32`.
+* **Sonatype OSS Index Analyzer** — reported disabled for missing credentials at
+  `harness/artifacts/logs/dependency-check.stdout.log:59`. That line carries no credential
+  value and names no environment variable, so none is recorded here.
+* **Node manifests analysed without their dependency tree** — six warnings report the
+  `node_modules` directory absent for the manifest being analysed, at
+  `harness/artifacts/logs/dependency-check.stdout.log:34`,
+  `harness/artifacts/logs/dependency-check.stdout.log:35`,
+  `harness/artifacts/logs/dependency-check.stdout.log:37`,
+  `harness/artifacts/logs/dependency-check.stdout.log:39`,
+  `harness/artifacts/logs/dependency-check.stdout.log:41` and
+  `harness/artifacts/logs/dependency-check.stdout.log:43`; four more report no lock file
+  present, in the tool's own words *"this will result in false negatives"*, at
+  `harness/artifacts/logs/dependency-check.stdout.log:36`,
+  `harness/artifacts/logs/dependency-check.stdout.log:38`,
+  `harness/artifacts/logs/dependency-check.stdout.log:40` and
+  `harness/artifacts/logs/dependency-check.stdout.log:42`.
+* **Five CVSS vectors it could not parse**, each reported as an unsupported CVSS vector
+  format in NPM Audit results, at
+  `harness/artifacts/logs/dependency-check.stdout.log:52`,
+  `harness/artifacts/logs/dependency-check.stdout.log:53`,
+  `harness/artifacts/logs/dependency-check.stdout.log:54`,
+  `harness/artifacts/logs/dependency-check.stdout.log:55` and
+  `harness/artifacts/logs/dependency-check.stdout.log:56`.
+
+The whole log is `harness/artifacts/logs/dependency-check.stdout.log:1-69` and its stderr is
+empty (0 lines). Those lines are its complete `[ERROR]` and `[WARN]` census: 6 `[ERROR]`
+lines of which 2 are separator rules, and 16 `[WARN]` lines — the ten Node-manifest
+warnings, the five CVSS-vector warnings and the Sonatype line. The 1697 rows and 45 rejects
+above are what its artifact
+yielded with those analyzers not running, and this record neither re-invoked the tool nor
+changed its configuration; supplying a credential, or installing the `dotnet` runtime or
+`bundle-audit`, would be provisioning, which this run does not do, and `harness/bin/**` is
+read-only to it.
 
 ### 2.4 `gitleaks`
 
@@ -131,7 +208,7 @@ by inference:
 | Elapsed | 66.0 s |
 | Exit status | `1` |
 | stdout / stderr | `harness/artifacts/logs/gitleaks.stdout.log:1-27` / `harness/artifacts/logs/gitleaks.stderr.log:1-2` |
-| Artifact | `harness/artifacts/raw/gitleaks.json` (31371 B) |
+| Artifact | `harness/artifacts/raw/gitleaks.json` (31371 B, sha256 `99ad77de2fcc45add2e3381592751a4b36f92ffcd47d25bbbc4d0d112140cc86`) |
 | Artifact shape, as detected | native: a top-level array |
 | Adapter | the gitleaks native adapter |
 | Parse status | `clean` |
@@ -154,7 +231,7 @@ by inference:
 | Elapsed | 2.4 s |
 | Exit status | `1` |
 | stdout / stderr | `harness/artifacts/logs/checkov.stdout.log:1-2870` / `harness/artifacts/logs/checkov.stderr.log` (empty — 0 lines) |
-| Artifact | `harness/artifacts/raw/checkov.json` (8470 B) |
+| Artifact | `harness/artifacts/raw/checkov.json` (8470 B, sha256 `8d7070aac22e04ebd68443284eabf80f9edb5c4929d9c61c21fb3e961ef188da`) |
 | Artifact shape, as detected | native: results.failed_checks[] (object or array top level) |
 | Adapter | the checkov native adapter |
 | Parse status | `clean` |
@@ -177,7 +254,7 @@ by inference:
 | Elapsed | 190.2 s |
 | Exit status | `0` |
 | stdout / stderr | `harness/artifacts/logs/opengrep.stdout.log:1-5603` / `harness/artifacts/logs/opengrep.stderr.log:1-25` |
-| Artifact | `harness/artifacts/raw/opengrep.sarif` (1941724 B) |
+| Artifact | `harness/artifacts/raw/opengrep.sarif` (1941724 B, sha256 `9b184bd7f3cb4fe122c785d9ad61ec89cfacd6120ff2d3bcff6631651075a359`) |
 | Artifact shape, as detected | SARIF 2.1.0 (version=2.1.0 with runs[]) |
 | Adapter | the shared SARIF adapter |
 | Parse status | `clean` |
@@ -200,7 +277,7 @@ by inference:
 | Elapsed | 232.1 s |
 | Exit status | `0` |
 | stdout / stderr | `harness/artifacts/logs/semgrep.stdout.log:1-11` / `harness/artifacts/logs/semgrep.stderr.log:1-30` |
-| Artifact | `harness/artifacts/raw/semgrep.sarif` (1578299 B) |
+| Artifact | `harness/artifacts/raw/semgrep.sarif` (1578299 B, sha256 `139325fdfcca123cd31a280b765ecb77fa26060e2818e6fd91cf4e19c630f674`) |
 | Artifact shape, as detected | SARIF 2.1.0 (version=2.1.0 with runs[]) |
 | Adapter | the shared SARIF adapter |
 | Parse status | `clean` |
@@ -223,7 +300,7 @@ by inference:
 | Elapsed | 47.5 s |
 | Exit status | `0` |
 | stdout / stderr | `harness/artifacts/logs/joern.stdout.log:1-17` / `harness/artifacts/logs/joern.stderr.log` (empty — 0 lines) |
-| Artifact | `harness/artifacts/raw/joern.json` (38595 B) |
+| Artifact | `harness/artifacts/raw/joern.json` (38595 B, sha256 `78e6f07eec6d0dcce513a362223e0820d97be79f7c06a69612879e460e258893`) |
 | Artifact shape, as detected | native: findings[] |
 | Adapter | the joern native adapter |
 | Parse status | `clean` |
@@ -246,7 +323,7 @@ by inference:
 | Elapsed | 190.4 s |
 | Exit status | `0` |
 | stdout / stderr | `harness/artifacts/logs/datadog-static-analyzer.stdout.log:1-47` / `harness/artifacts/logs/datadog-static-analyzer.stderr.log` (empty — 0 lines) |
-| Artifact | `harness/artifacts/raw/datadog-static-analyzer.sarif` (5676504 B) |
+| Artifact | `harness/artifacts/raw/datadog-static-analyzer.sarif` (5676504 B, sha256 `5aed332e699ab89769691cdccb8fc77ae80e5bb7147d64a5d436359da8d2d1ea`) |
 | Artifact shape, as detected | SARIF 2.1.0 (version=2.1.0 with runs[]) |
 | Adapter | the shared SARIF adapter |
 | Parse status | `clean` |
@@ -292,8 +369,8 @@ credential source named by variable name only.
 | Tool | Finding count | Exit | Parse status | What the number means here |
 |---|---|---|---|---|
 | `trivy` | not applicable — artifact absent | `1` | `absent` | no count exists: the runner wrote no artifact |
-| `osv-scanner` | 288 | `1` | `clean` | 288 rows, every record in the artifact parsed, exit `1` |
-| `dependency-check` | 1697 | `14` | `partial` | 1697 rows parsed with 45 record(s) rejected; the rejects are itemized in §2 |
+| `osv-scanner` | 288 | `1` | `clean` | 288 rows, every record in the artifact parsed, exit `1`; the tool's own resolution and filtering conditions are recorded in §2.2 and bear on what the 288 covers |
+| `dependency-check` | 1697 | `14` | `partial` | 1697 rows parsed with 45 record(s) rejected; the rejects are itemized in §2; the tool's own analyzer conditions are recorded in §2.3 and bear on what the 1697 covers |
 | `gitleaks` | 50 | `1` | `clean` | 50 rows, every record in the artifact parsed, exit `1` |
 | `checkov` | 6 | `1` | `clean` | 6 rows, every record in the artifact parsed, exit `1` |
 | `opengrep` | 849 | `0` | `clean` | 849 rows, every record in the artifact parsed, exit `0` |
@@ -321,11 +398,44 @@ which would evidence what the network could reach rather than what the tool used
 outcomes are distinguished and none is collapsed into another: `succeeded`, `failed`,
 `not attempted` and `not reported`.
 
-| Tool | Feed | Version or timestamp | Update outcome | Evidence |
-|---|---|---|---|---|
-| `dependency-check` | the H2 database odc.mv.db in $HARNESS_DC_DATA_DIR | engine 13.0.0; NVD API Last Checked: 2026-08-22T01:54:12Z; NVD API Last Modified: 2026-08-21T20:00:05-04; NVD Cache Last Checked: 2026-08-22T01:54:12Z; NVD Cache Last Modified: 2026-08-21T20:00:05-04 | **not attempted** | the report's own dataSources block in harness/artifacts/raw/dependency-check.json, and the runner's echoed invocation in harness/artifacts/logs/dependency-check.stdout.log:1-69 |
-| `osv-scanner` | the live OSV API (api.osv.dev) plus api.deps.dev — no offline database | not reported — the tool queries at scan time and states no feed version | **not attempted** | harness/artifacts/logs/osv-scanner.stdout.log:1-9 and harness/artifacts/logs/osv-scanner.stderr.log:1-190; the runner performs no database update because the tool holds no local database to update |
-| `trivy` | trivy.db and trivy-java-db in the shared cache $TRIVY_CACHE_DIR | 2026-08-22T00:59:13.136195619Z | **not attempted** | harness/artifacts/logs/trivy.stdout.log:1-12 (the runner echoes the cache's own metadata.json and passes --skip-db-update --skip-java-db-update) |
+| Tool | Feed | Version or timestamp — observed, this invocation | Version or timestamp — recorded, `harness/ENVIRONMENT.md` §9 | Update outcome — observed / recorded | Evidence for the observed side |
+|---|---|---|---|---|---|
+| `dependency-check` | the H2 database odc.mv.db in $HARNESS_DC_DATA_DIR | engine 13.0.0; NVD API Last Checked: 2026-08-22T01:54:12Z; NVD API Last Modified: 2026-08-21T20:00:05-04; NVD Cache Last Checked: 2026-08-22T01:54:12Z; NVD Cache Last Modified: 2026-08-21T20:00:05-04 | NVD API Last Checked `2026-08-21T03:07:24Z`; NVD API Last Modified `2026-08-20T20:00:06-04`; NVD Cache Last Checked `2026-08-21T03:07:24Z`; NVD Cache Last Modified `2026-08-20T20:00:06-04`, plus CISA KEV, retireJS jsrepository.json and publishedSuppressions.xml | **not attempted** / **succeeded**, the record adding that the runner then passes `--noupdate` | the report's own dataSources block in harness/artifacts/raw/dependency-check.json, and the runner's echoed invocation in harness/artifacts/logs/dependency-check.stdout.log:13 |
+| `osv-scanner` | the live OSV API (api.osv.dev) plus api.deps.dev — no offline database | not reported — the tool queries at scan time and states no feed version | no offline database — queries at scan time | **not attempted** / **not applicable**, the record adding that both endpoints returned 200 at setup | harness/artifacts/logs/osv-scanner.stdout.log:1-9 and harness/artifacts/logs/osv-scanner.stderr.log:1-190; the runner performs no database update because the tool holds no local database to update |
+| `trivy` — trivy.db | trivy.db in the shared cache $TRIVY_CACHE_DIR | 2026-08-22T00:59:13.136195619Z | `UpdatedAt 2026-08-21T01:31:14Z` (`NextUpdate 2026-08-22T01:31:14Z`, `DownloadedAt 2026-08-21T03:07:51Z`) | **not attempted** / **succeeded** at setup, the record adding that the runner then passes `--skip-db-update` | harness/artifacts/logs/trivy.stdout.log:7 (the runner echoes the cache's own metadata.json), invocation at harness/artifacts/logs/trivy.stdout.log:9 |
+| `trivy` — trivy-java-db | trivy-java-db in the same shared cache | not reported — the runner echoes only trivy.db's metadata, so no Java-DB timestamp was observed | `UpdatedAt 2026-08-21T01:03:49Z` (`NextUpdate 2026-08-24T01:03:49Z`, `DownloadedAt 2026-08-21T03:08:08Z`) | **not attempted** / **succeeded**, the record adding that the runner passes `--skip-java-db-update` | harness/artifacts/logs/trivy.stdout.log:1-12 — the invocation at line 9 carries `--skip-java-db-update` and no Java-DB metadata is echoed anywhere in the log |
+
+**Both sides are stated and neither is reconciled**, which is how this record treats every
+difference between what `harness/ENVIRONMENT.md` records and what was observed: that file is
+read and never edited, here least of all to make a timestamp agree. A difference between
+these two columns is **not** one of the two record-versus-reality checks in §6 — those two
+stop the run, and a feed difference does not, because a stale or unreachable feed is
+recorded rather than acted on. Three things a reader needs in order to compare the columns:
+
+* **The two columns measure different events, so `succeeded` and `not attempted` are not two
+  answers to one question.** The record's outcome describes the setup run that *populated*
+  each feed. The observed outcome describes *this* invocation, in which no update was
+  attempted at all: the trivy runner's echoed invocation carries `--skip-db-update
+  --skip-java-db-update` (`harness/artifacts/logs/trivy.stdout.log:9`) and the
+  dependency-check runner's carries `--noupdate`
+  (`harness/artifacts/logs/dependency-check.stdout.log:13`), while osv-scanner holds no
+  local database to update. `not attempted` is the name this file's four-outcome vocabulary
+  gives that, and calling it `failed` would invent a failure that did not happen.
+* **Two observed timestamps are later than the recorded ones, and both values stand as
+  written.** Trivy's cache reports `UpdatedAt 2026-08-22T00:59:13.136195619Z` where the
+  record has `2026-08-21T01:31:14Z`; Dependency-Check's report has NVD API Last Checked
+  `2026-08-22T01:54:12Z` and Last Modified `2026-08-21T20:00:05-04` where the record has
+  `2026-08-21T03:07:24Z` and `2026-08-20T20:00:06-04`. Both feeds live in shared caches
+  outside this run's four writable trees, this run performed no update — the flags above are
+  the evidence — and nothing here adjudicates which value is correct or attributes the
+  difference to any cause. A stale, refreshed or unreachable feed is recorded rather than
+  acted on, for the same reason a crashed tool is: a count taken against a feed of unknown
+  vintage must not read as a count taken against a current one.
+* **For osv-scanner the two vocabularies differ, not the facts.** The record's *not
+  applicable* and this file's *not attempted* both describe a tool with no local database to
+  update; this file uses the four names `succeeded`, `failed`, `not attempted` and `not
+  reported` throughout, so `not attempted` is the one that fits, and the record's own word is
+  restated above rather than replaced.
 
 **The commit-date caveat, stated beside the counts.** The pinned commit is dated `2025-10-23T19:31:06Z`.
 A dependency tree of that vintage will show CVEs the upstream project has since moved
@@ -385,9 +495,9 @@ native shape, and no result used a valid construct the shared adapter does not r
 
 | Source | What came from it |
 |---|---|
-| `harness/artifacts/logs/*` | every execution state, timestamp, elapsed time, exit code and `exit_status`; the feed evidence; the taint and AI-path observations; the datadog ruleset-provenance and rule-count facts in §2.9 |
+| `harness/artifacts/logs/*` | every execution state, timestamp, elapsed time, exit code and `exit_status`; the feed evidence; the taint and AI-path observations; the datadog ruleset-provenance and rule-count facts in §2.9; the tool conditions in §2.2 and §2.3, each cited there by log line |
 | `harness/artifacts/raw/*` | every artifact shape, record count, row count, reject count and reject reason, and Dependency-Check's own `dataSources` block |
-| `harness/ENVIRONMENT.md` | the recorded tool versions, the recorded ruleset identity restated in §2.9, the Opengrep taint setting, the datadog AI-path availability and its credential-source variable names, the feed descriptions and the per-module JAR outcomes |
+| `harness/ENVIRONMENT.md` | the recorded tool versions, the recorded ruleset identity restated in §2.9, the Opengrep taint setting, the datadog AI-path availability and its credential-source variable names, the feed descriptions, the recorded feed versions, timestamps and update outcomes restated beside the observed ones in §5, and the per-module JAR outcomes |
 | `git` reads of `$SPARK_SRC` | the commit date stated beside the counts |
 
 No count, rule id, CVE, CWE, line number or timestamp in this file was invented or carried
@@ -397,9 +507,35 @@ forms and no others. A reference to a log as a whole is written `<path>:1-<last>
 that log's own line count, so the range is checkable with `wc -l`. A reference to one recorded
 statement inside a log is written `<path>:<line>`, and that line lies inside the same count.
 An empty log is stated as *(empty — 0 lines)* and is given no range at all, because a range
-over an empty file would be a number tracing to nothing. The invocation lines above
+over an empty file would be a number tracing to nothing. Where a count traces to a specific
+phrase a tool printed — the filtered-package line in §2.2, the lock-file warning in §2.3,
+the analyzer banner in §4 — that phrase is reproduced as a short fragment **beside** its
+citation and never as a block of output, and every such fragment was checked to carry no
+credential value. The invocation lines above
 name each runner relative to the directory that holds `harness/`; the byte-preserved
 `<tool>.meta.json` beside each log carries the absolute path as it stood at execution time
 and was not edited. Both artifact trees are excluded from the commit by the pre-existing
 `.gitignore` line 31 (`artifacts/`), so they are preserved on disk beside this record rather
 than inside git.
+
+**Which trees, and how to identify them.** The two trees every fact above was read from are
+`/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d-w-000_a6fd4d/harness/artifacts/raw`
+and `…-w-000_a6fd4d/harness/artifacts/logs` — the execution root named by the `invocation`
+field of all nine byte-preserved `<tool>.meta.json` files — with a byte-identical copy at
+`/tmp/blitzy/blitzy-spark/blitzy-bc24581f-42e0-4f34-85a4-3a2e1121945d_343ca4/harness/artifacts/{raw,logs}`,
+the assembly root `run-record.md` ships in and labels its remaining absolute forms with, and
+under which `run-record.md` §3.5 resolves every writable tree alongside the execution root;
+the two were compared file by file, and 8
+of 8 artifacts and 28 of 28 log files are equal by sha256. Each of those 8 artifacts is
+therefore cited in §2 by its sha256 as well as its byte size, because a byte size does not
+identify an artifact; `trivy` wrote none, so §2.1 states neither.
+
+**`harness/artifacts/` is clone-local by construction, so verify before reconciling.**
+Entering the recorded environment creates both trees **empty** in every clone of this
+repository — `harness/env.sh` chains to the shared `/opt/blitzy-harness/env.sh`, whose line 85
+runs `mkdir -p "$HARNESS_RAW_DIR" "$HARNESS_LOG_DIR"` — and the `.gitignore` line above keeps
+them out of the commit, so a `harness/artifacts/` tree found in some other checkout may be
+empty or may hold a different execution whose file sizes can coincide with the ones in §2.
+Check the sha256 of each file against the manifest before reconciling any row against it: the
+per-artifact and per-log digests, both absolute tree paths and the one-line verification
+command are in `run-record.md` §7, *The evidence trees, by digest and by absolute path*.

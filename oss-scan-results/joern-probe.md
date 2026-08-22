@@ -15,7 +15,7 @@ statement below is a property of a query, of the graph, or of the driver's own c
 | | |
 |---|---|
 | Written from | `queries/joern/results/*.json`, each written by the driver from its own capture of one invocation |
-| Graph | `harness/cpg/spark.cpg`, loaded by each script with **`importCpg`**; **built: false** — `importCode` appears in none of the three sources |
+| Graph | `harness/cpg/spark.cpg`, **read and never built**; **built: false** — `importCode` appears in none of the three sources. The load has two branches and each script implements both: it calls **`importCpg`** when the shared workspace holds no project for that file, and otherwise **opens the project a previous `importCpg` of that same file created there**, after verifying that the input path the project recorded canonicalizes to it. In the committed sequence below, `01-callgraph-unguarded-driver-launch` was the importer (`load_mode: imported_persisted_cpg`) and the two invocations after it opened that project (`load_mode: opened_existing_project`); each envelope's `diagnostics.load_mode` states which branch its invocation took, and reading is what both branches do |
 | Driver precondition | the published dataset, re-observed independently before every invocation below and identical at each; the values are in the table that follows |
 | JVM and heap in force | `openjdk version "21.0.12.1" 2026-08-18 LTS`, `JAVA_OPTS=-Xmx48g -Xss64m` — the same for every invocation below, so a reader running one by hand runs it as the driver did |
 | Queries committed | 3 |
@@ -64,6 +64,55 @@ records one fewer distinct text and one fewer execution for it than for the othe
 Every hash, count and precondition in this file is from the latest execution of the
 committed source, and each query's revision log carries every execution the driver
 performed.
+
+### The envelope these statements are written from
+
+Each invocation's envelope, `queries/joern/results/<nn>-<slug>.json`, is written by the
+driver from its own capture, and it is a **superset by design** of the fields the AAP
+fixes for it — slug, source hash, `compiled`, `ran`, returns, return count, spurious
+count, and a reference to the captured stderr on failure. It carries **22 top-level
+keys**. Eighteen of them are the ones a validator of this contract checks, present in
+this relative order:
+
+`slug`, `query_source`, `source_sha256`, `invocation`, `markers`, `compiled`, `ran`,
+`returns`, `return_count`, `spurious_count`, `spurious_test`, `diagnostics`,
+`not_evaluable`, `failure_reason`, `stderr_ref`, `graph`, `revisions`, `revision_count`.
+
+Four supplementary keys are interleaved among them. Each records a fact this run is
+required to report, none replaces or reinterprets a required one, and their positions are
+the same in all three envelopes:
+
+| Supplementary key | Position | The fact it carries, and why the envelope is where it lives |
+|---|---|---|
+| `precondition_observed_by_the_driver` | 5 | the published dataset as the driver observed it immediately before this invocation — presence, rows, bytes and sha256. AAP §0.5.1 makes the published dataset the driver's precondition, so recording the observation against the invocation it governed is what makes it an observation rather than an assumption stated once elsewhere |
+| `spurious_returns` | 13 | the returns the on-path test marked spurious. AAP §0.5.4 requires the per-query spurious count; carrying the set beside the count is what lets a reader check the one against the other instead of taking it on trust |
+| `clean_positive` | 14 | the determination AAP §0.5.4 defines and this report's ordering turns on, recorded per query at the point it is decided |
+| `execution_count` | 22 | executions recorded for this query, kept separate from `revision_count` because AAP §0.5.4 defines a revision as one recorded execution of a *distinct source text*; the two numbers differ for every query here, and collapsing them would misstate both effort measures |
+
+No key is dropped to reach eighteen: each of the four is the only record of its fact, so
+removing one would delete the fact rather than tidy the schema. A reader counting keys
+should therefore expect 22, and a validator asserting the eighteen should assert their
+presence and relative order — which hold in all three envelopes — rather than the total.
+
+**`stderr_ref`, and what it looks like when it is populated.** The field is a *reference*
+to a captured stderr stream and never a copy of one: a failure diagnostic is cited by path
+and line range rather than quoted, so that whatever a tool or an interpreter printed to
+that stream is not republished by the citation. Populated, it is an object of that shape,
+the placeholders below standing for the values a failing invocation would supply —
+
+```text
+{"path": "<the captured stderr stream for that invocation>",
+ "line_range": [<first line of the diagnostic>, <last line of it>]}
+```
+
+— where the line range names the lines carrying the diagnostic and nothing else. Its empty
+form is `null`, and **`null` is its value in all three envelopes here**: every invocation
+exited `0` with its start marker printed and its result region parsed, so no failure
+diagnostic was captured and none is owed. The populated form consequently has no instance
+in this run and is documented above rather than exhibited. What would produce one is the
+failure protocol each source states in its header and each query's report restates at §5:
+a start marker with no result region, and a `---BLITZY-FAILURE---` line on stderr naming
+the stage that failed — the state the driver records as `compiled: true, ran: false`.
 
 ## 1. The leading result
 
@@ -423,7 +472,7 @@ driver. This is the one place all six appear together, after the fact.
 | 2 | `findings.json` and `findings.csv` contain every row from every artifact, each carrying `tool`, `scanner_class`, `severity_norm` and `in_scope`, with no row dropped; row validation passes; and the per-tool reconciliation assertions pass | **passed.** `findings.json` and `findings.csv` published from one validated row list; row validation passed over 10178 rows; every evaluable per-tool reconciliation assertion passed; the CSV and JSON row counts are equal (10178 == 10178) |
 | 3 | `severity-map.md` carries a row for all nine tools, including any that produced no finding | **passed.** `severity-map.md` carries one row for 9 of the nine tools, including those that produced no finding |
 | 4 | `tool-status.md` lists all nine, including any that failed or timed out, each with its parse status, its records parsed and rejected, and its row-validation result | **passed.** this file carries one block for each of the nine, each with its execution state, exit status, parse status, records parsed and rejected, both reconciliation assertions and the row-validation result |
-| 5 | Phase 3 delivers three or more committed queries with recorded outcomes, spurious-return counts and the three effort measures, and the graph was read rather than built | **passed.** 3 committed queries, each invoked by this driver after publication, each with a recorded outcome, a spurious-return count under the on-path test and its own result pair; the three effort measures are in `joern-probe.md` §4; the graph was read with `importCpg` and not built |
+| 5 | Phase 3 delivers three or more committed queries with recorded outcomes, spurious-return counts and the three effort measures, and the graph was read rather than built | **passed.** 3 committed queries, each invoked by this driver after publication, each with a recorded outcome, a spurious-return count under the on-path test and its own result pair; the three effort measures are in `joern-probe.md` §4; the graph was read and not built — imported with `importCpg` by the first invocation and opened, from the project that import created, by the two after it, as each envelope's `diagnostics.load_mode` records |
 | 6 | `run-record.md` states the `$SPARK_SRC` path scanned, its commit and date, and every tool failure and missing module | **passed.** `run-record.md` states the `$SPARK_SRC` path scanned with its commit and commit date, every tool failure and termination, and the missing-module answer |
 
 **All six conditions hold together: yes.**
@@ -435,6 +484,7 @@ provided to this run, so there is no baseline here and no comparison to draw. It
 finding real, important, severe-in-context, duplicated or false. It draws no conclusion
 about Spark's security. The spurious determination is a property of a query — whether it
 matched what it was asked to match — reached mechanically by on-path predicate presence.
-The graph was **read** with `importCpg` and **not built**; `importCode` appears in none of
-the three committed sources, and no scanner, runner, build or smoke fallback was invoked
-by any of them.
+The graph was **read** and **not built** — with `importCpg` where the script was the
+importer, and by opening the provenance-verified project that import created where it was
+not; `importCode` appears in none of the three committed sources, and no scanner, runner,
+build or smoke fallback was invoked by any of them.
