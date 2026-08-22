@@ -115,6 +115,7 @@ visible rather than implied.
 | after the QA audit of `2026-08-22T12:07:25Z` | **record-accuracy pass**: the audit trail made addressable — §7 gained *The evidence trees, by digest and by absolute path*, naming both roots and listing the bytes and sha256 of all 8 artifacts and 28 log files, with the pointers to it in §3.5 and §4.1; and §4.7 gained the `package_coordinate` derivation rule the dataset's 1985 populated values follow. The same pass added the sha256 beside each of the eight artifacts in `tool-status.md` §2 and the tree identification in its §9. No scanner was invoked, no raw artifact or log was touched and no row of the dataset changed | the audit's own generation timestamp |
 | after the QA audit of `2026-08-22T12:13:35Z` | **record-accuracy pass**: this record corrected against that audit — the two repository roots separated and labelled, each gate check attributed to the pass that executed it, the collision departure stated as a departure, condition 5 and §6 scoped to the publication they describe, `.ruff_cache/` inventoried in §7, §3.4's path shapes split, and this pass log added. No scanner was invoked, no raw artifact or log was touched, no row of the dataset changed, and that pass edited no deliverable other than this record — `tool-status.md` and `joern-probe.md` restate condition 5 in the unscoped form §5 replaces here, and that wording was left as it stands. The three record-accuracy passes in the rows around it did edit other deliverables, each as its own row states | the audit's own generation timestamp; the commit carrying this correction is the latest `git log` entry for this file |
 | after the QA audit of `2026-08-22T12:46:39Z` | **record-accuracy pass**: §6's single Phase 3 line corrected in place so that the load branch each invocation took is attributed rather than stated as a constant — the first invocation imported the persisted graph and the two after it opened the project that import had created. The same pass set `graph.loaded_with` per envelope in the three `queries/joern/results/*.json`, and documented the envelope's 22-key superset and the populated form of `stderr_ref` in `joern-probe.md` and the three per-query reports. No scanner was invoked, no query source changed and no recorded measurement moved; no raw artifact or log was touched and no row of the dataset changed | the audit's own generation timestamp |
+| after the QA audit of `2026-08-22T15:10:02Z` | **record-accuracy pass**: three disclosures completed in place, each extending a statement this record already made. §3.4 gained the consequence its 22 `<manifest>?<package>` values carry for a consumer joining rows on `path`, and the rule that the `?` fragment is the tool's own value and is never stripped. §4.7's formula-character paragraph gained the three cells' identification by tool and rule, the embedded line-break census, and the RFC 4180 reader contract that census obliges. §7 gained `harness/lib/__pycache__/` beside `.ruff_cache/`, so both writes outside the four writable trees are inventoried and the boundary claim is exhaustive. No scanner was invoked, nothing was deleted or cleaned up, no raw artifact or log was touched and no row of the dataset changed; what the pass changed in **this** file is those three items, and the one change it made in another deliverable is the tool condition added to `tool-status.md` §4 — that `harness/bin/run-datadog-static-analyzer.sh` composes its credential-state string from an expansion whose set-arm yields the variable's own value, recorded there by variable name only and latent in this environment because neither variable is set, the mechanism §4.6 of this record already states at length; the header and §9 provenance table of that file name the runner as the source that condition cites | the audit's own generation timestamp. The counts the pass added were measured over the published `findings.csv` and `findings.json`; the `__pycache__/` facts are the filesystem observation §7 labels as one |
 
 Twenty driver executions over eight distinct source texts is the measure §6 reports, and
 the rounds are dated here because twelve of the twenty precede the publication pass this
@@ -387,6 +388,18 @@ filesystem existence check under `$SPARK_SRC` fails by construction. The rows ar
 the values are verbatim: a consumer resolving these paths against the filesystem should
 read a miss as the shape of the value rather than as a defect in the canonicalization,
 which applied the base recorded in this section to them exactly as to every other path.
+The 22 carry one further consequence, for a consumer joining rows on `path`: they are not
+pure filesystem paths, so an exact-string join gives each of their 10 distinct values a key
+of its own, and the two manifests those values reduce to before the `?` —
+`dev/package-lock.json` and `ui-test/package-lock.json` — also appear as bare `path` values
+on 15 and 18 other rows of the published dataset, which such a join keeps separate from the
+22. A consumer that wants the manifest joins on the substring before the first `?`; one that
+wants the package joins on `package_coordinate`, which all 22 carry — the row whose `path`
+is `ui-test/package-lock.json?@babel/core` carries `npm:@babel/core@7.23.3` — while
+`start_line` is null on all 22, as it is on every dependency row. That is a statement about
+the shape of a field's value and nothing more: this record relates no tool's rows to
+another's. The `?` fragment is the value the tool itself emitted, it is preserved verbatim,
+and it must not be stripped — stripping it would discard data the tool reported.
 
 ### 3.5 The four writable trees, resolved
 
@@ -700,11 +713,30 @@ sha256 because the driver observed the dataset it ran against. The driver rounds
 
 **Three cells of `findings.csv` begin with a character a spreadsheet reads as a formula.**
 Two `message` values begin with `@` and one with `-`, all three verbatim from the tool that
-reported them. Nothing is escaped, prefixed or neutralized, and that is deliberate: the row
-contract fixes the dialect, requires `message` to be the tool's own description verbatim,
-and requires the CSV and JSON to agree cell for cell, so altering the value would break two
-of those three at once. The file is a data artifact to be read by a parser, not a
-spreadsheet; a reader who opens it in one should disable formula interpretation on import.
+reported them: the two `osv-scanner` rows whose `rule_id` is `GHSA-4x5r-pxfx-6jf8` and
+`GHSA-vpq2-c234-7xj6`, and the `dependency-check` row whose `rule_id` is
+`GHSA-rf6f-7fwh-wjgh` — named by tool and rule rather than by row number so the statement
+cannot drift, and carrying the same three values in `findings.json`. The verbatim rule also
+leaves line breaks inside cells: `message` is the tool's own text unaltered, so 99 cells of
+the published file carry a line feed — every one of them a `message`, 2581 line feeds in
+all — and one carries two carriage returns with no line feed beside them, the `osv-scanner`
+row whose `rule_id` is `PYSEC-2024-48`. Neither the formula-leading characters nor the line
+breaks are escaped, prefixed or neutralized, and that is deliberate: the row contract fixes
+the dialect, requires `message` to be the tool's own description verbatim, and requires the
+CSV and JSON to agree cell for cell, so altering the value would break two of those three at
+once. The file is a data artifact to be read by a parser, not a spreadsheet; a reader who
+opens it in one should disable formula interpretation on import. A reader that parses it must
+use an RFC 4180-compliant reader rather than split on newlines, because the dialect quotes
+every embedded break and the 10178 rows are consequently spread over 12760 line-feed bytes:
+10179 of those are the CRLF record terminators the dialect writes — the header plus the 10178
+rows — and the other 2581 sit inside quoted cells. Two failure modes follow, both measurable
+on the published bytes: splitting on the line feed yields 12760 lines where there are 10178
+rows, and reading the file in Python's default universal-newline mode still yields 10178 rows
+but silently rewrites 1 of its 122136 cells, turning that one row's two carriage returns into
+line feeds. In Python the compliant form is `open(path, newline='')` with `csv.DictReader`,
+which is how this run counted the staged file before publishing it — `csv.DictReader` after
+the twelve-column header was validated, recorded in `tool-status.md` §7 — and under it all
+122136 cells agree with `findings.json` exactly.
 
 **The row contract both serializations share.** Every row carries these twelve fields in
 this fixed order, and the CSV header is that order verbatim:
@@ -820,24 +852,61 @@ carries 28 files, three per runner from the sequencer plus the query-output log
 `.gitignore` line 31 (`artifacts/`), so the audit trail is preserved on disk beside this
 record rather than inside git, and every count and citation in this file and in
 `tool-status.md` was taken from it. Every other path under `harness/` — `ENVIRONMENT.md`,
-`scope/allowlist.txt`, `bin/**`, `lib/**` and `cpg/**` — was read and not modified, and the
-smoke tree the setup run left under the shared harness root, `harness/artifacts/smoke/`, was
-never read and is never a fallback for a runner that produced nothing. Third-party cache and
-temporary state that the tools themselves wrote outside these trees is expected, is not
-inventoried here and was not cleaned up.
+`scope/allowlist.txt`, `bin/**`, `lib/**` and `cpg/**` — was read and not modified, with the
+one qualification the second inventory entry below states: `lib/` holds a `__pycache__/`
+directory none of this run's own logs accounts for, while every file git tracks beneath
+`lib/` stands as committed. The smoke tree the setup run left under the shared harness root,
+`harness/artifacts/smoke/`, was never read and is never a fallback for a runner that
+produced nothing. Third-party cache and temporary state that the tools themselves wrote
+outside these trees is expected, is not inventoried here and was not cleaned up.
 
-**One write outside the four writable trees was made by a tool this run chose to invoke,**
-**and it is inventoried rather than left to that sentence.** `ruff` 0.16.4 — the linter the
-harness's own Python is checked with, from the isolated lint environment — writes a
-`.ruff_cache/` directory into the working directory it runs in, which is the repository
-root. It holds `CACHEDIR.TAG`, a versioned cache file under `0.16.4/`, and a `.gitignore` of
-its own whose `*` makes the directory self-ignoring, so nothing in it is commit-eligible.
-That is a write outside the writable trees by something other than the nine scanners, so
-naming it here is what makes the boundary statement above exhaustive. It was **not** cleaned
-up and must not be: this run cleans nothing up, and the no-cleanup rule applies to its own
-leavings exactly as it does to the tools'. A later run that wants the boundary clean can
-point the linter's `--cache-dir` outside the checkout; deleting the directory afterwards
-would be the cleanup the rule forbids.
+**Two writes outside the four writable trees stand in this checkout, and each is inventoried**
+**rather than left to that sentence. The first was made by a tool this run chose to invoke.**
+`ruff` 0.16.4 — the linter the harness's own Python is checked with, from the isolated lint
+environment — writes a `.ruff_cache/` directory into the working directory it runs in, which
+is the repository root. It holds `CACHEDIR.TAG`, a versioned cache file under `0.16.4/`, and
+a `.gitignore` of its own whose `*` makes the directory self-ignoring, so nothing in it is
+commit-eligible. That is a write outside the writable trees by something other than the nine
+scanners, so naming it here is half of what makes the boundary statement above exhaustive.
+It was **not** cleaned up and must not be: this run cleans nothing up, and the no-cleanup
+rule applies to its own leavings exactly as it does to the tools'. A later run that wants the
+boundary clean can point the linter's `--cache-dir` outside the checkout; deleting the
+directory afterwards would be the cleanup the rule forbids.
+
+**The second is a `__pycache__/` directory inside `harness/lib`, and this record inventories**
+**it without attributing it to a process it can name.** `harness/lib/__pycache__/` holds
+exactly two files — `joern_collect.cpython-313.pyc`, 10768 B, and
+`smoke_verify.cpython-313.pyc`, 7679 B, both mode `0644` owned `root:root`, with an mtime of
+`2026-08-22T07:54:46Z`. Source class: a filesystem observation, stated as one because this
+run's own logs record no such write; the `cpython-313` tag names the interpreter series that
+produced the bytecode and nothing further about the process. `harness/lib` is one of the
+trees this run reads and never modifies, and the tracked tree is unmodified:
+`git status --porcelain -- harness/` reports nothing, so all four files git tracks there
+stand as committed. Neither `.pyc` is commit-eligible, on the same footing as `.ruff_cache/`
+and for the same kind of reason — both are matched by the pre-existing `.gitignore` line 6
+(`*.pyc`), which `git check-ignore -v` names for each of them by name,
+`git status --porcelain --ignored` reports the directory as `!! harness/lib/__pycache__/`,
+and neither file is tracked.
+
+What can be established about its origin is bounded, and is stated as bounded. It is **not**
+one of the nine runners' writes. All nine reach `harness/lib`, each sourcing `lib/scope.sh`,
+but that is a shell helper and sourcing it compiles nothing; the only Python under
+`harness/lib` any runner runs is `joern_collect.py`, which `run-joern.sh` invokes at its line
+54 as `python3 "$COLLECT" …`, the script named on the command line — the form CPython does
+not byte-compile, since it writes `__pycache__` for the modules it imports and not for the
+script it is given. No runner in `harness/bin/` names `smoke_verify.py` at all. And the
+execution checkout the nine were invoked from, the `…-w-000_a6fd4d` root §3.5 and the
+subsection below both name, holds no `__pycache__` under `harness/lib` whatsoever.
+
+What the two names do line up with exactly is the two `.py` files in `harness/lib`, which
+`harness/ENVIRONMENT.md` records as passing `py_compile` — the operation that writes
+precisely this directory — so the shape of the write is a `py_compile` or an import of those
+two modules, made in this checkout at an mtime §1.1's log places 18 s after the first
+publication commit. Which process made it is not established by anything this run holds,
+and is therefore not asserted here. Like
+`.ruff_cache/` it was **not** cleaned up and must not be: this run cleans nothing up, and
+deleting it would be both the cleanup the rule forbids and a write into a tree this record
+states it does not modify.
 
 Nothing else was added anywhere. Nothing was added to `.github/workflows/`, no test
 framework was introduced, and no scanner was installed, upgraded, substituted,

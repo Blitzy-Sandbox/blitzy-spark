@@ -2,7 +2,9 @@
 
 What ran, what it exited with, what its artifact yielded, and what could not be
 established. Written by the controller from `harness/artifacts/logs/*`,
-`harness/artifacts/raw/*` and `harness/ENVIRONMENT.md`, and from nothing else.
+`harness/artifacts/raw/*` and `harness/ENVIRONMENT.md`, and from nothing else — with the one
+exception §9 names: the tool condition in §4 cites, by line, the runner file it names as
+well as that runner's own log.
 
 ## 0. Why this file exists, and what it can and cannot state
 
@@ -387,9 +389,28 @@ credential source named by variable name only.
 | Credential source | the environment variables `DD_API_KEY` and `DD_APP_KEY` |
 | Credential presence | `DD_API_KEY`: absent · `DD_APP_KEY`: absent |
 | The analyzer's own banner | `secrets enabled         : false` |
+| Tool condition | the runner's credential-state string is composed with a `:-` expansion whose set-arm yields the variable's own value — `harness/bin/run-datadog-static-analyzer.sh:44`. Latent, not realised: both variables are absent, so that branch printed the absent form at `harness/artifacts/logs/datadog-static-analyzer.stdout.log:6` |
 
 The variable **names** are recorded and no value is: neither variable is set in this
 environment, and nothing in this run reads a credential value into any file or log.
+
+**The tool condition above, reported and not repaired.** The string that presence line is
+read from is built at `harness/bin/run-datadog-static-analyzer.sh:44`, once per variable,
+from the expansion pair `${DD_API_KEY:+set}${DD_API_KEY:-absent}`. The `:+` arm yields the
+fixed token `set`, but the `:-` arm yields **the variable's own value** whenever the variable
+is set. That expansion sits in the branch the guard at
+`harness/bin/run-datadog-static-analyzer.sh:40` selects whenever the AI path is not enabled,
+so any run reaching it with either variable carrying a value would write that value into
+this runner's stdout — `harness/artifacts/logs/datadog-static-analyzer.stdout.log`, which
+this run preserves exactly as written and never redacts, so it could not be taken out again
+afterwards. Both variables are absent in this environment, so the branch printed the
+absent form for both, at `harness/artifacts/logs/datadog-static-analyzer.stdout.log:6`: the
+condition is **latent and not realised here**, and no credential value appears in any
+artifact, log or deliverable of this run. Printing a fixed token in place of an expansion
+that can yield the value is a change only the owner of
+`harness/bin/run-datadog-static-analyzer.sh` can make — this run reads that tree and never
+modifies it, so the condition is recorded rather than corrected. The same mechanism is
+recorded at greater length in `run-record.md` §4.6.
 
 ## 5. Dependency-feed state, as found
 
@@ -498,6 +519,7 @@ native shape, and no result used a valid construct the shared adapter does not r
 | `harness/artifacts/logs/*` | every execution state, timestamp, elapsed time, exit code and `exit_status`; the feed evidence; the taint and AI-path observations; the datadog ruleset-provenance and rule-count facts in §2.9; the tool conditions in §2.2 and §2.3, each cited there by log line |
 | `harness/artifacts/raw/*` | every artifact shape, record count, row count, reject count and reject reason, and Dependency-Check's own `dataSources` block |
 | `harness/ENVIRONMENT.md` | the recorded tool versions, the recorded ruleset identity restated in §2.9, the Opengrep taint setting, the datadog AI-path availability and its credential-source variable names, the feed descriptions, the recorded feed versions, timestamps and update outcomes restated beside the observed ones in §5, and the per-module JAR outcomes |
+| `harness/bin/run-datadog-static-analyzer.sh` | the credential-state expansion cited by line in §4 — the runner's own text, read and not modified, as `harness/bin/**` is read-only to this run |
 | `git` reads of `$SPARK_SRC` | the commit date stated beside the counts |
 
 No count, rule id, CVE, CWE, line number or timestamp in this file was invented or carried
