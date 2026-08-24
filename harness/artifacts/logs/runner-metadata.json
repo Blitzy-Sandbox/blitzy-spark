@@ -1,0 +1,1489 @@
+{
+  "schema_version": "runner-metadata/1.0.0",
+  "document": "harness/artifacts/logs/runner-metadata.json",
+  "purpose": "Structured record of what each of the nine provisioned scanner runners is, and the declared run-time input of the normalizer. harness/lib/normalize/paths.py consumes it (load_runner_metadata, ToolPathBase) and cannot resolve a single path without it; harness/lib/normalize/cli.py takes its path as an argument. oss-scan-results/tool-status.md is rendered FROM this file afterwards and is never an input to it.",
+  "provenance": "Every value below was read from a provisioned file, measured by running a provisioned code path, or is null with an accompanying evidence string. No value is inferred from an artifact this pipeline produced, and no value is a guess.",
+  "generated_at_gate": "2026-08-24T16:27:55Z",
+  "finalised_at_stage1": "2026-08-24T16:27:55Z",
+  "spark_src": "/opt/spark-src",
+  "spark_src_commit": "59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d",
+  "spark_src_commit_evidence": "git -C /opt/spark-src rev-parse HEAD printed 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, which equals SPARK_SRC_COMMIT as exported by harness/env.sh line 44 and the pin named in harness/ENVIRONMENT.md section 5.",
+  "smoke_override": {
+    "variable": "HARNESS_SMOKE_TARGET",
+    "state": "unset",
+    "required_state": "unset",
+    "definition_sites": [
+      "harness/env.sh lines 87-89 - documented as setup-time verification only and deliberately NOT exported",
+      "harness/lib/scope.sh line 23 - scope_resolve_target takes the override branch when it is non-empty",
+      "harness/lib/scope.sh lines 25-27 - sets SCAN_ROOT to the override and marks SCAN_ROOT_SOURCE 'SETUP-TIME OVERRIDE - NOT A REAL SCAN'",
+      "harness/lib/scope.sh lines 43-48 - scope_dirs returns a single '.' instead of the allowlist expansion when it is set"
+    ],
+    "affects_all_nine_runners": true,
+    "evidence": "Measured in a fresh non-login shell (env -i BLITZY_CLONE_INDEX=5 bash --noprofile --norc, then . harness/env.sh): ${HARNESS_SMOKE_TARGET:+SET}${HARNESS_SMOKE_TARGET:-unset} printed 'unset'. scope_resolve_target therefore took the SPARK_SRC branch at harness/lib/scope.sh lines 29-32 and scope_dirs returned the 18-directory allowlist expansion rather than '.'.",
+    "consequence_if_set": "Every runner would be redirected at one small directory while still reporting success, so the run would silently scan the wrong thing."
+  },
+  "path_base_kind_vocabulary": {
+    "note": "Closed set. Every tools.<tool>.path_base.kind below is one of these literals. A base that could not be established is the literal 'none' with an evidence string, never an empty string.",
+    "scan_root": "Emitted paths are relative to the SPARK_SRC scan root recorded in this document.",
+    "per_target_directory": "Emitted paths are relative to whichever of the several target paths the record came from, so the record's own root-relative or absolute sibling field named in path_base.anchor_fields is the anchor.",
+    "filesystem_absolute": "Emitted paths are absolute filesystem paths and must be relativized against the scan root.",
+    "process_working_directory": "Emitted paths are relative to the process working directory at invocation, which is distinct from the scan root only where the runner cds elsewhere.",
+    "per_section_target": "Emitted paths are relative to a per-section target inside the artifact rather than to any single root.",
+    "bytecode_class": "No filesystem path in the scanned tree is emitted; a class identifier must be resolved to a source path.",
+    "absolute_targets": "The runner passes absolute target paths, so emitted paths are absolute echoes of those targets.",
+    "none": "No explicit base could be established from the runner. paths.py must reject such a record under unresolvable_path rather than fall back.",
+    "used_in_this_provisioning": [
+      "scan_root",
+      "per_target_directory",
+      "filesystem_absolute",
+      "bytecode_class"
+    ]
+  },
+  "gate_stage": {
+    "half": "static",
+    "timestamp_utc": "2026-08-24T16:27:55Z",
+    "description": "Everything establishable by reading the provisioned harness, without any scan and without depending on the pinned clone: the harness/bin/ enumeration and classification, each runner's argument guard by inspection, each runner's scan-target variable, invocation form, working directory, baked flags, JDK export, interpreter, credential expression and artifact name.",
+    "environment_record_read_first": {
+      "file": "harness/ENVIRONMENT.md",
+      "lines": 923,
+      "environment_file_it_names": "harness/env.sh",
+      "environment_file_sources_cleanly": true,
+      "evidence": "harness/ENVIRONMENT.md lines 6-10 instruct 'Source this file first, in a fresh non-login shell: . harness/env.sh'. That file was sourced under env -i bash --noprofile --norc and exited 0. The name was read from the record rather than assumed."
+    },
+    "checks": [
+      {
+        "check": "harness/bin/ enumerated and every entry classified against the AAP section 0.5.4 scanner-class table",
+        "result": "pass",
+        "detail": "Nine entries, all runners, one per canonical tool identifier. No entry names a scanner the class table does not carry. No helper and no orchestrator exists."
+      },
+      {
+        "check": "each runner's argument guard precedes any environment sourcing, target resolution or tool invocation, established by inspection",
+        "result": "pass",
+        "detail": "The guard is the first executable statement in all nine. Per-runner line numbers are in tools.<tool>.argument_guard. No rejection probe was run and none was permitted, because inspection settled the ordering."
+      },
+      {
+        "check": "bash -n over all nine runners plus harness/env.sh and harness/lib/scope.sh",
+        "result": "pass",
+        "detail": "All parse."
+      },
+      {
+        "check": "both artifact trees exist and are empty",
+        "result": "pass",
+        "detail": "harness/artifacts/raw and harness/artifacts/logs each held 0 entries at the moment of this check. They are created by the provisioned environment file itself - harness/env.sh line 91 runs mkdir -p on HARNESS_RAW_DIR, HARNESS_LOG_DIR and HARNESS_SCRATCH_DIR - and not by this run. They are absent from a fresh clone because .gitignore line 31 is 'artifacts/' and git cannot track an empty directory."
+      },
+      {
+        "check": "the smoke override is unset",
+        "result": "pass",
+        "detail": "See smoke_override above."
+      },
+      {
+        "check": "the allowlist holds the twelve authoritative globs byte-exact",
+        "result": "pass",
+        "detail": "sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1 over harness/scope/allowlist.txt equals the expected value, so the file is REFERENCE state and was left exactly as found."
+      },
+      {
+        "check": "the nine tools resolve on PATH and report their versions",
+        "result": "pass",
+        "detail": "Observed versions are recorded per tool in tools.<tool>.observed_version. All nine equal the expected pins."
+      },
+      {
+        "check": "both JDKs present and their major versions confirmed",
+        "result": "pass",
+        "detail": "JAVA_HOME=/opt/blitzy-tools/jdk/jdk-17.0.20+8 reports 'openjdk version \"17.0.20\" 2026-07-21' (major 17); JAVA_HOME_21=/opt/blitzy-tools/jdk/jdk-21.0.12.1+1 reports 'openjdk version \"21.0.12.1\" 2026-08-18 LTS' (major 21)."
+      },
+      {
+        "check": "no credential is present that an unmodifiable runner would expose",
+        "result": "pass",
+        "detail": "All five variables any runner reads are absent, and every runner that prints one prints a fixed token through scope_cred_state, which uses ${VAR:+set} only. See credentials_observed below."
+      }
+    ],
+    "credentials_observed": {
+      "note": "Presence only, as booleans. No credential value is recorded anywhere in this document, and none is printed by any runner.",
+      "SEMGREP_APP_TOKEN": {
+        "present": false,
+        "read_by_runners": [
+          "opengrep",
+          "semgrep"
+        ],
+        "expected_absent": true
+      },
+      "DD_API_KEY": {
+        "present": false,
+        "read_by_runners": [
+          "datadog-static-analyzer"
+        ],
+        "expected_absent": true
+      },
+      "DD_APP_KEY": {
+        "present": false,
+        "read_by_runners": [
+          "datadog-static-analyzer"
+        ],
+        "expected_absent": true
+      },
+      "NVD_API_KEY": {
+        "present": false,
+        "read_by_runners": [
+          "dependency-check"
+        ],
+        "expected_absent": true,
+        "note": "Leave unset rather than set to an empty string: Dependency-Check aborts on an empty key with 'Invalid API Key, length of 0 too short'."
+      },
+      "BC_API_KEY": {
+        "present": false,
+        "read_by_runners": [
+          "checkov"
+        ],
+        "expected_absent": true,
+        "note": "Checkov severities require a licence, so severity_native is absent from every checkov row in this configuration."
+      },
+      "sonatype_oss_index": {
+        "present": false,
+        "read_by_runners": [
+          "dependency-check"
+        ],
+        "expected_absent": true,
+        "note": "No variable is read; the analyzer is switched off explicitly by --disableOssIndex so that the disabling is this harness's and is recorded."
+      },
+      "GITHUB_TOKEN": {
+        "present": true,
+        "read_by_runners": [],
+        "expected_absent": false,
+        "note": "Present in the ambient environment for downloads only. Read by no runner and printed by none, so no runner can expose it and no halt arises. harness/ENVIRONMENT.md section 13 states the same."
+      },
+      "unsafe_expression_form_present_anywhere": false,
+      "unsafe_expression_form_evidence": "The ${VAR:+set}${VAR:-absent} form - whose :- arm expands to the variable's own value when the variable is set - occurs in no executable expression in any runner or library. grep over harness/bin/run-*.sh and harness/lib/scope.sh finds credential reporting only through scope_cred_state, defined at harness/lib/scope.sh lines 105-109 as eval \"_state=\\${$1:+set}\" followed by printf of exactly 'set' or 'absent'. The fragment ${VAR:-absent} does appear once as prose, in scope.sh's own warning comment at line 102 explaining why it is not used; that is documentation, not code, and it is named here so a reader who greps for it is not left thinking this record is wrong."
+    },
+    "notes": [
+      "harness/ENVIRONMENT.md section 1 lists shellcheck among this image's absent tools, but /usr/bin/shellcheck is present and the clone instantiation instructions record shellcheck 0.10.0. This is a host-tooling observation rather than an inherited scanner or runner fact, both statements are recorded here, and it halts nothing.",
+      "harness/ENVIRONMENT.md section 4 states 58 and 60 '--config directories' for opengrep and semgrep. That figure is the runner's own printed ${#CFG[@]}, which counts argv tokens at two per directory. The rule-bearing directory counts are 29 and 30, reproduced exactly by running each runner's own CFG loop. This is a difference of counting unit, not a contradicted fact, and both numbers are recorded per tool.",
+      "This run installs nothing, edits no runner and edits no baked flag. Every condition that would halt the run is recorded in the halts array rather than repaired."
+    ]
+  },
+  "stage1_finalisation": {
+    "half": "dynamic",
+    "timestamp_utc": "2026-08-24T16:27:55Z",
+    "description": "The half that cannot precede the pinned tree existing: the scan-target value in force, the root each runner actually resolves, and this file's finalisation. Completed before any scanning invocation.",
+    "pinned_tree_origin": "Provisioning had already cloned and built the pinned tree at /opt/spark-src, and the clone instantiation instructions forbid re-cloning it. The precondition of this half was therefore already satisfied, and this run verifies the tree's identity with git rev-parse HEAD instead of cloning it.",
+    "scan_target_variable_exported": "SPARK_SRC",
+    "scan_target_value_in_force": "/opt/spark-src",
+    "scan_target_value_mechanism": "harness/env.sh line 43 exports SPARK_SRC=\"${SPARK_SRC:-/opt/spark-src}\", so sourcing the environment file puts the pinned path in force and any caller may override it without editing the file. Setting a variable a runner is written to consume is not runner reconfiguration; no runner file and no baked flag was touched.",
+    "resolved_scan_root_verification": {
+      "method": "Sourced harness/env.sh and harness/lib/scope.sh in a fresh non-login shell and called scope_resolve_target - the same function every one of the nine runners calls - then read SCAN_ROOT and SCAN_ROOT_SOURCE. No scanner was invoked and nothing was written to harness/artifacts/raw.",
+      "scan_root": "/opt/spark-src",
+      "scan_root_source": "SPARK_SRC",
+      "applies_to_all_nine_runners": true,
+      "why_one_measurement_covers_nine": "All nine runners resolve their target through this single function and none contains its own target logic, so the resolved root is identical for all nine by construction. Each runner's call site line number is recorded in tools.<tool>.argument_guard.first_target_resolution_line.",
+      "allowlist_expansion_observed": {
+        "directory_count": 18,
+        "form": "root-relative",
+        "directories": [
+          "common/network-common/src/main",
+          "common/network-shuffle/src/main",
+          "common/network-yarn/src/main",
+          "core/src/main",
+          "python/pyspark",
+          "resource-managers/kubernetes/core/src/main",
+          "resource-managers/kubernetes/core/volcano/src/main",
+          "resource-managers/kubernetes/docker/src/main",
+          "resource-managers/yarn/src/main",
+          "sql/catalyst/src/main",
+          "sql/connect/client/jdbc/src/main",
+          "sql/connect/client/jvm/src/main",
+          "sql/connect/common/src/main",
+          "sql/connect/server/src/main",
+          "sql/connect/shims/src/main",
+          "sql/core/src/main",
+          "sql/hive-thriftserver/src/main",
+          "sql/hive/src/main"
+        ],
+        "evidence": "scope_dirs (harness/lib/scope.sh lines 40-62) expands the twelve globs under globstar, nullglob and dotglob with the trailing /** stripped, skips any path containing src/test, and sorts unique. Eighteen directories from twelve globs is arithmetic on the allowlist, not an extension of it: the allowlist stays byte-exact."
+      }
+    },
+    "targeting_faults_found": 0,
+    "targeting_fault_rule": "A runner whose configuration, invocation or recorded path base showed it resolved a tree other than SPARK_SRC would halt the run, because every finding it produced would be about the wrong code. None did. This is strictly separate from an individual finding whose coordinate falls outside the tree, which is a legitimate coordinate retained with in_scope false."
+  },
+  "harness_bin_inventory": [
+    {
+      "name": "run-checkov.sh",
+      "classification": "runner",
+      "tool": "checkov",
+      "invoked_by_this_run": true
+    },
+    {
+      "name": "run-datadog-static-analyzer.sh",
+      "classification": "runner",
+      "tool": "datadog-static-analyzer",
+      "invoked_by_this_run": true
+    },
+    {
+      "name": "run-dependency-check.sh",
+      "classification": "runner",
+      "tool": "dependency-check",
+      "invoked_by_this_run": true
+    },
+    {
+      "name": "run-gitleaks.sh",
+      "classification": "runner",
+      "tool": "gitleaks",
+      "invoked_by_this_run": true
+    },
+    {
+      "name": "run-joern.sh",
+      "classification": "runner",
+      "tool": "joern",
+      "invoked_by_this_run": true
+    },
+    {
+      "name": "run-opengrep.sh",
+      "classification": "runner",
+      "tool": "opengrep",
+      "invoked_by_this_run": true
+    },
+    {
+      "name": "run-osv-scanner.sh",
+      "classification": "runner",
+      "tool": "osv-scanner",
+      "invoked_by_this_run": true
+    },
+    {
+      "name": "run-semgrep.sh",
+      "classification": "runner",
+      "tool": "semgrep",
+      "invoked_by_this_run": true
+    },
+    {
+      "name": "run-trivy.sh",
+      "classification": "runner",
+      "tool": "trivy",
+      "invoked_by_this_run": true
+    }
+  ],
+  "harness_bin_inventory_summary": {
+    "entries_total": 9,
+    "runners": 9,
+    "helpers": 0,
+    "orchestrators": 0,
+    "runners_expected": 9,
+    "unlisted_scanner_named": false,
+    "orchestrator_present": false,
+    "orchestrator_note": "There is deliberately no orchestrator and no run-all.sh in this provisioning; harness/ENVIRONMENT.md section 8 states that harness/bin/ contains exactly the nine runners and nothing else, on the ground that an orchestrator would destroy per-tool attribution and its continue-on-error sequencing would carry a run past a condition that must stop it. Had one existed it would have been classified and left alone with invoked_by_this_run false.",
+    "non_runner_helpers_note": "The harness's non-runner helpers live outside harness/bin/, in harness/lib/: scope.sh (the shared scope, logging and credential contract, sourced by all nine) and joern-scan.sc (the bounded Joern query set). Neither is a runner and neither is invoked directly.",
+    "evidence": "ls -la harness/bin/ returned exactly nine regular files, all mode 755, all named run-<tool>.sh, and each maps to one canonical tool identifier in the AAP section 0.5.4 class table."
+  },
+  "halts": [],
+  "halts_note": "Empty because no halting condition was observed. The conditions checked, each of which would have been recorded here rather than repaired: an entry in harness/bin/ naming a scanner absent from the class table; fewer or more than nine runners; an argument guard sitting after any scanning step; a runner resolving a tree other than SPARK_SRC; a credential unexpectedly present that an unmodifiable runner would expose; the smoke override set; either artifact tree missing or non-empty; the allowlist differing from the twelve globs.",
+  "tools": {
+    "opengrep": {
+      "canonical_tool_identifier": "opengrep",
+      "scanner_class": "sast",
+      "scanner_class_varies_per_record": false,
+      "observed_version": "1.27.1",
+      "expected_version": "1.27.1",
+      "version_matches_expected": true,
+      "version_evidence": "opengrep --version printed 1.27.1. Binary at /opt/blitzy-tools/bin/opengrep.",
+      "runner_script": "harness/bin/run-opengrep.sh",
+      "script_classification": "runner",
+      "argument_guard": {
+        "literal_source": "if [ \"$#\" -ne 0 ]; then\n  printf 'run-opengrep.sh: takes no arguments (configuration is baked in); refusing to scan\\n' >&2\n  exit 64\nfi",
+        "first_line": 6,
+        "last_line": 9,
+        "exit_status": 64,
+        "is_first_executable_statement": true,
+        "first_env_sourcing_line": 14,
+        "first_shared_library_sourcing_line": 16,
+        "first_target_resolution_line": 26,
+        "first_tool_invocation_line": 64,
+        "guard_precedes_all_scanning_steps": true,
+        "established_by": "inspection",
+        "rejection_probe_performed": false,
+        "rejection_probe_reason": "Not needed and not permitted: inspection established that the guard is the first executable statement, ahead of sourcing, target resolution and the tool call. A blind probe against a defective runner could perform a real scan and contaminate the artifact tree."
+      },
+      "scan_target_variable": "SPARK_SRC",
+      "scan_target_resolution": "Indirect. The runner never names SPARK_SRC; it sources harness/lib/scope.sh at line 16 and calls scope_resolve_target at line 26, and that function reads SPARK_SRC at harness/lib/scope.sh lines 29-32 (after checking the HARNESS_SMOKE_TARGET override at line 23) and exports SCAN_ROOT and SCAN_ROOT_SOURCE.",
+      "scan_target_value_set": "/opt/spark-src",
+      "resolved_scan_root": "/opt/spark-src",
+      "resolved_scan_root_verified": true,
+      "invocation_form": {
+        "target_passing_style": "many paths, root-relative, in one invocation",
+        "invocations_per_run": 1,
+        "literal": "opengrep scan \"${CFG[@]}\" --sarif --sarif-output \"$ART\" --timeout 120 --timeout-threshold 0 --max-target-bytes 20000000 --x-ignore-semgrepignore-files --disable-version-check \"${DIRS[@]}\" > \"$OUT\" 2> \"$ERR\"",
+        "source_lines": "harness/bin/run-opengrep.sh lines 64-70",
+        "targets": "${DIRS[@]} is the 18-element root-relative allowlist expansion from scope_dirs, read at line 40 and required non-empty at line 41.",
+        "config_arguments": "${CFG[@]} is built at lines 32-37, one --config per rule-bearing top-level directory of $OPENGREP_RULES_DIR, skipping dot-directories, stats, libsonnet and template*. Pointing --config at the ruleset root fails with InvalidRuleSchemaError on non-rule YAML, which is why the loop exists."
+      },
+      "working_directory": {
+        "path": "/opt/spark-src",
+        "expression": "cd \"$SCAN_ROOT\"",
+        "source_line": 50,
+        "equals_scan_root": true,
+        "note": "The runner's own comment at lines 48-49 states the reason: SARIF paths are relative to the working directory, so it runs from the scan root and passes root-relative directories. This provisioning does NOT cd into the ruleset directory, so cwd and the path base coincide."
+      },
+      "path_base": {
+        "kind": "scan_root",
+        "value": "/opt/spark-src",
+        "evidence": "Established from the invocation and the working directory, not from any artifact: the runner cds to $SCAN_ROOT at line 50 and passes root-relative target directories, so every SARIF locations[].physicalLocation.artifactLocation.uri is root-relative. harness/ENVIRONMENT.md section 9 independently records 'uri is root-relative to $SPARK_SRC ... Every uri was verified to exist under $SPARK_SRC; zero absolute URIs'.",
+        "sarif_uri_base_id_emitted": "%SRCROOT%",
+        "sarif_original_uri_base_ids_emitted": false,
+        "sarif_resolution_note": "The engine sets uriBaseId '%SRCROOT%' on every result but emits no run.originalUriBaseIds, so the SARIF 2.1.0 section 3.4.4 resolution procedure cannot complete. This metadata therefore supplies the explicit base above, which is the condition under which the documented degenerate-base fallback applies; without it every SARIF row would have to be rejected under unresolvable_path."
+      },
+      "jdk_major": null,
+      "jdk_major_evidence": "No JVM is involved. file(1) reports /opt/blitzy-tools/bin/opengrep as 'ELF 64-bit LSB executable, x86-64, dynamically linked', the runner exports no JAVA_HOME, and harness/ENVIRONMENT.md section 8 lists this runner as a standalone binary.",
+      "interpreter": null,
+      "interpreter_evidence": "Not a Python-hosted tool. The PATH entry is a native ELF executable rather than a script with an interpreter shebang, and the runner invokes no interpreter.",
+      "baked_flags": {
+        "literal": [
+          "scan",
+          "\"${CFG[@]}\" (one --config per rule-bearing ruleset directory)",
+          "--sarif",
+          "--sarif-output \"$ART\"",
+          "--timeout 120",
+          "--timeout-threshold 0",
+          "--max-target-bytes 20000000",
+          "--x-ignore-semgrepignore-files",
+          "--disable-version-check",
+          "\"${DIRS[@]}\" (the 18 root-relative allowlist directories)"
+        ],
+        "source_lines": "harness/bin/run-opengrep.sh lines 64-70",
+        "update_suppression_flags": [
+          "--disable-version-check"
+        ],
+        "notes": [
+          "--x-ignore-semgrepignore-files is load-bearing for reach, not cosmetic: without it the engine's bundled .semgrepignore patterns skip tests/ directories and drop 846 of the 4,095 in-scope files, 834 of them python/pyspark test modules the allowlist puts squarely in scope (harness/ENVIRONMENT.md section 12). The flag is marked internal by the tool, which is accepted at a pinned version.",
+          "opengrep scan has no --metrics flag; passing one errors with 'unknown option'. Semgrep does. The two runners' flag sets are deliberately not copies of each other.",
+          "No flag in this set appears in the AAP expected-values table, so none is an anchor. It is recorded as read; nothing was added, removed or forced."
+        ],
+        "literal_note": "Token text exactly as it appears in the runner, including the script's own quoting. invocation_form.literal holds the full command line verbatim."
+      },
+      "credential_expression": {
+        "literal": "printf 'credential      : SEMGREP_APP_TOKEN=%s (unused by opengrep)\\n' \"$(scope_cred_state SEMGREP_APP_TOKEN)\"",
+        "source_line": 46,
+        "variables_reported": [
+          "SEMGREP_APP_TOKEN"
+        ],
+        "prints_fixed_token_only": true,
+        "safety_evidence": "scope_cred_state (harness/lib/scope.sh lines 105-109) evaluates ${VAR:+set} and prints exactly 'set' or 'absent'. The unsafe ${VAR:+set}${VAR:-absent} form, whose :- arm would expand to the variable's own value into a log this pipeline preserves verbatim, is not used here or anywhere in this harness.",
+        "observed_presence": {
+          "SEMGREP_APP_TOKEN": false
+        }
+      },
+      "artifact_path": "opengrep.sarif",
+      "artifact_absolute_form": "$HARNESS_RAW_DIR/opengrep.sarif",
+      "artifact_format": "SARIF 2.1.0",
+      "artifact_expected": true,
+      "artifact_assignment_source_line": 19,
+      "side_artifacts": [
+        "$HARNESS_LOG_DIR/opengrep.stdout.log",
+        "$HARNESS_LOG_DIR/opengrep.stderr.log",
+        "$HARNESS_LOG_DIR/opengrep.status"
+      ],
+      "reach": {
+        "reads_allowlist": true,
+        "allowlist_use": "scope_dirs derives the runner's own target set from harness/scope/allowlist.txt (read at line 40), so the allowlist shapes this runner's reach as well as being the in_scope policy.",
+        "walks": "The 18 root-relative allowlist directories, recursively, with the engine's own ignore files switched off.",
+        "in_tool_words": "Ran 1138 rules on 4095 files: 1322 findings. / Scan was limited to files tracked by git. / Partially scanned: 46 files only partially analyzed due to parsing or internal Opengrep errors",
+        "in_tool_words_source": "harness/ENVIRONMENT.md section 9, 'What each tool reported about its own reach, in its own words'",
+        "reach_caveat": "Counts are not comparable with any figure measured under the tool's default configuration: provisioning measured 500 findings over 3,250 files by default against 1,322 over 4,095 with the ignore files disabled.",
+        "in_scope_note": "in_scope is decided by the allowlist alone. A row from a directory this runner reached that the allowlist does not cover takes in_scope false and is kept."
+      },
+      "ruleset_or_feed_identity": {
+        "kind": "ruleset",
+        "location": "/opt/blitzy-harness/rules/opengrep-rules",
+        "observed_identity": "commit f1d2b562b414783763fd02a6ed2736eaed622efa",
+        "expected_identity": "commit f1d2b562b414783763fd02a6ed2736eaed622efa",
+        "identity_matches_expected": true,
+        "observed_rule_count": 2006,
+        "expected_rule_count": 2006,
+        "rule_count_matches_expected": true,
+        "config_directories": 29,
+        "config_argv_tokens": 58,
+        "count_unit_note": "harness/ENVIRONMENT.md section 4 reports 58 '--config directories'. That is the runner's own printed ${#CFG[@]}, which counts argv tokens at two per directory. Reproducing the runner's CFG loop gives 29 rule-bearing directories and ${#CFG[@]} of 58. Both are recorded with their unit named; this is not a contradicted fact.",
+        "fetched_at_scan_time": false,
+        "evidence": "git -C /opt/blitzy-harness/rules/opengrep-rules rev-parse HEAD; the runner prints the same commit at lines 43-44 of every run."
+      },
+      "not_comparable_with_rehearsal": false,
+      "heap_override": {
+        "takes_one": false,
+        "evidence": "No JVM, so no heap lever. The runner exports no JAVA_OPTS and passes no -J flag."
+      },
+      "exit_code_mapping": "The runner exits with the tool's own exit code (lines 71-75); it does not transform it."
+    },
+    "semgrep": {
+      "canonical_tool_identifier": "semgrep",
+      "scanner_class": "sast",
+      "scanner_class_varies_per_record": false,
+      "observed_version": "1.173.0",
+      "expected_version": "1.173.0",
+      "version_matches_expected": true,
+      "version_evidence": "semgrep --version printed 1.173.0. Community Edition, no token attached.",
+      "runner_script": "harness/bin/run-semgrep.sh",
+      "script_classification": "runner",
+      "argument_guard": {
+        "literal_source": "if [ \"$#\" -ne 0 ]; then\n  printf 'run-semgrep.sh: takes no arguments (configuration is baked in); refusing to scan\\n' >&2\n  exit 64\nfi",
+        "first_line": 8,
+        "last_line": 11,
+        "exit_status": 64,
+        "is_first_executable_statement": true,
+        "first_env_sourcing_line": 16,
+        "first_shared_library_sourcing_line": 18,
+        "first_target_resolution_line": 28,
+        "first_tool_invocation_line": 58,
+        "guard_precedes_all_scanning_steps": true,
+        "established_by": "inspection",
+        "rejection_probe_performed": false,
+        "rejection_probe_reason": "Inspection settled the ordering, so no probe was needed or permitted."
+      },
+      "scan_target_variable": "SPARK_SRC",
+      "scan_target_resolution": "Indirect, via harness/lib/scope.sh sourced at line 18 and scope_resolve_target called at line 28, which reads SPARK_SRC at harness/lib/scope.sh lines 29-32.",
+      "scan_target_value_set": "/opt/spark-src",
+      "resolved_scan_root": "/opt/spark-src",
+      "resolved_scan_root_verified": true,
+      "invocation_form": {
+        "target_passing_style": "many paths, root-relative, in one invocation",
+        "invocations_per_run": 1,
+        "literal": "semgrep scan \"${CFG[@]}\" --sarif --sarif-output \"$ART\" --metrics=off --disable-version-check --timeout 120 --timeout-threshold 0 --max-target-bytes 20000000 --x-ignore-semgrepignore-files --oss-only \"${DIRS[@]}\" > \"$OUT\" 2> \"$ERR\"",
+        "source_lines": "harness/bin/run-semgrep.sh lines 58-65",
+        "targets": "${DIRS[@]} is the 18-element root-relative allowlist expansion from scope_dirs, read at line 39 and required non-empty at line 40.",
+        "config_arguments": "${CFG[@]} is built at lines 31-36, one --config per rule-bearing top-level directory of $SEMGREP_RULES_DIR under the same skip list as opengrep."
+      },
+      "working_directory": {
+        "path": "/opt/spark-src",
+        "expression": "cd \"$SCAN_ROOT\"",
+        "source_line": 47,
+        "equals_scan_root": true,
+        "note": "Same reasoning as run-opengrep.sh. This provisioning does not cd into the ruleset directory, so cwd and the path base coincide."
+      },
+      "path_base": {
+        "kind": "scan_root",
+        "value": "/opt/spark-src",
+        "evidence": "From the invocation and working directory: cd to $SCAN_ROOT at line 47 with root-relative targets, so every SARIF uri is root-relative. harness/ENVIRONMENT.md section 9 records the same base and that zero absolute URIs were emitted.",
+        "sarif_uri_base_id_emitted": "%SRCROOT%",
+        "sarif_original_uri_base_ids_emitted": false,
+        "sarif_resolution_note": "uriBaseId '%SRCROOT%' is set on every result with no run.originalUriBaseIds emitted, so SARIF section 3.4.4 resolution cannot complete and this explicit base is the only one available. Supplying it here is what keeps the rows resolvable rather than rejected under unresolvable_path."
+      },
+      "jdk_major": null,
+      "jdk_major_evidence": "No JVM. The runner exports no JAVA_HOME and the tool is Python-hosted.",
+      "interpreter": {
+        "absolute_path": "/opt/blitzy-tools/venvs/semgrep/bin/python",
+        "reported_version": "3.13.7",
+        "expected_version": "3.13.7",
+        "version_matches_expected": true,
+        "shared_with": [],
+        "evidence": "/opt/blitzy-tools/bin/semgrep is a console script whose shebang is #!/opt/blitzy-tools/venvs/semgrep/bin/python. /opt/blitzy-tools/venvs/semgrep/bin/python3 --version reports Python 3.13.7. This venv is semgrep's alone: checkov has a separate one at /opt/blitzy-tools/venvs/checkov, measured independently, so the two Python scanners do NOT share an interpreter in this provisioning."
+      },
+      "baked_flags": {
+        "literal": [
+          "scan",
+          "\"${CFG[@]}\" (one --config per rule-bearing ruleset directory)",
+          "--sarif",
+          "--sarif-output \"$ART\"",
+          "--metrics=off",
+          "--disable-version-check",
+          "--timeout 120",
+          "--timeout-threshold 0",
+          "--max-target-bytes 20000000",
+          "--x-ignore-semgrepignore-files",
+          "--oss-only",
+          "\"${DIRS[@]}\" (the 18 root-relative allowlist directories)"
+        ],
+        "source_lines": "harness/bin/run-semgrep.sh lines 58-65",
+        "update_suppression_flags": [
+          "--disable-version-check",
+          "--metrics=off"
+        ],
+        "notes": [
+          "--oss-only keeps the engine on its Community Edition code path, which is the measurement: no token is attached, so Pro and interfile analysis are unavailable by design.",
+          "--x-ignore-semgrepignore-files raises selection from 3,249 to 4,094 of the 4,095 in-scope files; the single exclusion is a .png the engine drops as binary. The tool states the default skip itself: 'Files matching .semgrepignore patterns: 845'.",
+          "No flag in this set appears in the AAP expected-values table, so none is an anchor."
+        ],
+        "literal_note": "Token text exactly as it appears in the runner, including the script's own quoting. invocation_form.literal holds the full command line verbatim."
+      },
+      "credential_expression": {
+        "literal": "printf 'credential      : SEMGREP_APP_TOKEN=%s\\n' \"$(scope_cred_state SEMGREP_APP_TOKEN)\"",
+        "source_line": 45,
+        "variables_reported": [
+          "SEMGREP_APP_TOKEN"
+        ],
+        "prints_fixed_token_only": true,
+        "safety_evidence": "scope_cred_state uses ${VAR:+set} only (harness/lib/scope.sh lines 105-109) and prints exactly 'set' or 'absent'.",
+        "observed_presence": {
+          "SEMGREP_APP_TOKEN": false
+        }
+      },
+      "artifact_path": "semgrep.sarif",
+      "artifact_absolute_form": "$HARNESS_RAW_DIR/semgrep.sarif",
+      "artifact_format": "SARIF 2.1.0",
+      "artifact_expected": true,
+      "artifact_assignment_source_line": 21,
+      "side_artifacts": [
+        "$HARNESS_LOG_DIR/semgrep.stdout.log",
+        "$HARNESS_LOG_DIR/semgrep.stderr.log",
+        "$HARNESS_LOG_DIR/semgrep.status"
+      ],
+      "reach": {
+        "reads_allowlist": true,
+        "allowlist_use": "scope_dirs derives this runner's target set from the allowlist at line 39.",
+        "walks": "The 18 root-relative allowlist directories, recursively, with the engine's ignore files switched off.",
+        "in_tool_words": "Targets scanned: 4094 / Parsed lines: ~99.9% / Scan was limited to files tracked by git",
+        "in_tool_words_source": "harness/ENVIRONMENT.md section 9",
+        "reach_caveat": "Not comparable with any default-configuration figure: 503 findings over 3,249 files by default against 1,162 over 4,094 with the ignore files disabled.",
+        "in_scope_note": "in_scope is decided by the allowlist alone, independently of what this runner walked."
+      },
+      "ruleset_or_feed_identity": {
+        "kind": "ruleset",
+        "location": "/opt/blitzy-harness/rules/semgrep-rules",
+        "observed_identity": "commit 40b8c63f75dc7c22c8a77482d73bfb864b146f7e",
+        "expected_identity": "commit 40b8c63f75dc7c22c8a77482d73bfb864b146f7e",
+        "identity_matches_expected": true,
+        "observed_rule_count": 2149,
+        "expected_rule_count": 2149,
+        "rule_count_matches_expected": true,
+        "pro_only_rules_skipped": 19,
+        "config_directories": 30,
+        "config_argv_tokens": 60,
+        "count_unit_note": "harness/ENVIRONMENT.md section 4 reports 60 '--config directories', which is the runner's printed ${#CFG[@]} at two argv tokens per directory. The directory count is 30. Both recorded with the unit named.",
+        "fetched_at_scan_time": false,
+        "evidence": "git -C /opt/blitzy-harness/rules/semgrep-rules rev-parse HEAD; the runner prints the same commit at lines 42-43."
+      },
+      "not_comparable_with_rehearsal": false,
+      "heap_override": {
+        "takes_one": false,
+        "evidence": "No JVM, so no heap lever."
+      },
+      "exit_code_mapping": "The runner exits with the tool's own exit code (lines 66-70); it does not transform it."
+    },
+    "datadog-static-analyzer": {
+      "canonical_tool_identifier": "datadog-static-analyzer",
+      "scanner_class": "sast",
+      "scanner_class_varies_per_record": false,
+      "observed_version": "0.9.1, revision f76636e43554f7f9a8e3984a31d03ec8dea5489f",
+      "expected_version": "0.9.1 (rev f76636e4)",
+      "version_matches_expected": true,
+      "version_evidence": "datadog-static-analyzer --version printed 'Version: 0.9.1, revision: f76636e43554f7f9a8e3984a31d03ec8dea5489f'. The release tag carries no leading v; tags/v0.9.1 is a 404.",
+      "runner_script": "harness/bin/run-datadog-static-analyzer.sh",
+      "script_classification": "runner",
+      "argument_guard": {
+        "literal_source": "if [ \"$#\" -ne 0 ]; then\n  printf 'run-datadog-static-analyzer.sh: takes no arguments (configuration is baked in); refusing to scan\\n' >&2\n  exit 64\nfi",
+        "first_line": 8,
+        "last_line": 11,
+        "exit_status": 64,
+        "is_first_executable_statement": true,
+        "first_env_sourcing_line": 16,
+        "first_shared_library_sourcing_line": 18,
+        "first_target_resolution_line": 28,
+        "first_tool_invocation_line": 46,
+        "guard_precedes_all_scanning_steps": true,
+        "established_by": "inspection",
+        "rejection_probe_performed": false,
+        "rejection_probe_reason": "Inspection settled the ordering, so no probe was needed or permitted."
+      },
+      "scan_target_variable": "SPARK_SRC",
+      "scan_target_resolution": "Indirect, via harness/lib/scope.sh sourced at line 18 and scope_resolve_target called at line 28, which reads SPARK_SRC at harness/lib/scope.sh lines 29-32.",
+      "scan_target_value_set": "/opt/spark-src",
+      "resolved_scan_root": "/opt/spark-src",
+      "resolved_scan_root_verified": true,
+      "invocation_form": {
+        "target_passing_style": "one absolute root plus 18 root-relative subdirectory restrictions",
+        "invocations_per_run": 1,
+        "literal": "datadog-static-analyzer -i \"$SCAN_ROOT\" \"${SUBDIRS[@]}\" -r \"$DD_SAST_RULES_FILE\" -f sarif -o \"$ART\" --enable-static-analysis true --enable-secrets false > \"$OUT\" 2> \"$ERR\"",
+        "source_lines": "harness/bin/run-datadog-static-analyzer.sh lines 46-52",
+        "targets": "-i takes the absolute scan root. ${SUBDIRS[@]} is built at lines 34-35 as one -u <root-relative directory> per allowlist directory, restricting the walk to the 18 in-scope subdirectories."
+      },
+      "working_directory": {
+        "path": "/opt/spark-src",
+        "expression": "cd \"$SCAN_ROOT\"",
+        "source_line": 43,
+        "equals_scan_root": true
+      },
+      "path_base": {
+        "kind": "scan_root",
+        "value": "/opt/spark-src",
+        "evidence": "From the invocation: -i names the absolute scan root and the -u restrictions are root-relative, and the tool emits plain relative SARIF uris against that root. harness/ENVIRONMENT.md section 9 records 'plain relative uri, no uriBaseId, no originalUriBaseIds; relative to $SPARK_SRC'.",
+        "sarif_uri_base_id_emitted": null,
+        "sarif_uri_base_id_evidence": "This producer emits no uriBaseId at all and no run.originalUriBaseIds, so there is no base map to walk and the explicit base above is the only anchor.",
+        "sarif_original_uri_base_ids_emitted": false
+      },
+      "jdk_major": null,
+      "jdk_major_evidence": "No JVM. file(1) reports /opt/blitzy-tools/bin/datadog-static-analyzer as 'ELF 64-bit LSB pie executable, x86-64'; the runner exports no JAVA_HOME.",
+      "interpreter": null,
+      "interpreter_evidence": "Not a Python-hosted tool; the PATH entry is a native ELF executable and the runner invokes no interpreter.",
+      "baked_flags": {
+        "literal": [
+          "-i \"$SCAN_ROOT\"",
+          "\"${SUBDIRS[@]}\" (one -u per allowlist directory)",
+          "-r \"$DD_SAST_RULES_FILE\"",
+          "-f sarif",
+          "-o \"$ART\"",
+          "--enable-static-analysis true",
+          "--enable-secrets false"
+        ],
+        "source_lines": "harness/bin/run-datadog-static-analyzer.sh lines 46-52",
+        "update_suppression_flags": [],
+        "notes": [
+          "-r points at the locally captured rule file, so the scan makes no API call and the rule set is pinned rather than fetched mid-scan. Left alone this tool fetches ~1,093 rules from its API with no recorded digest, which was the largest reproducibility gap in the dataset.",
+          "--enable-secrets false is recorded as configuration, not a defect: the secrets path requires Datadog API keys, which are deliberately absent.",
+          "The runner asserts the rule file exists at line 26 and exits 78 naming it if not."
+        ],
+        "literal_note": "Token text exactly as it appears in the runner, including the script's own quoting. invocation_form.literal holds the full command line verbatim."
+      },
+      "credential_expression": {
+        "literal": "printf 'credential      : DD_API_KEY=%s DD_APP_KEY=%s\\n' \\\n  \"$(scope_cred_state DD_API_KEY)\" \"$(scope_cred_state DD_APP_KEY)\"",
+        "source_line": 39,
+        "source_lines": "harness/bin/run-datadog-static-analyzer.sh lines 39-40",
+        "variables_reported": [
+          "DD_API_KEY",
+          "DD_APP_KEY"
+        ],
+        "prints_fixed_token_only": true,
+        "safety_evidence": "Both values come from scope_cred_state, which uses ${VAR:+set} only and prints exactly 'set' or 'absent'. This is the one runner where the precedent form ${DD_API_KEY:+set}${DD_API_KEY:-absent} would have appeared; it does not appear here, and that form - which concatenates the variable's own value in its :- arm when the variable is set - occurs in no executable expression anywhere in this harness. See gate_stage.credentials_observed.unsafe_expression_form_evidence for the single documentation-comment occurrence of the fragment.",
+        "observed_presence": {
+          "DD_API_KEY": false,
+          "DD_APP_KEY": false
+        }
+      },
+      "artifact_path": "datadog-static-analyzer.sarif",
+      "artifact_absolute_form": "$HARNESS_RAW_DIR/datadog-static-analyzer.sarif",
+      "artifact_format": "SARIF 2.1.0",
+      "artifact_expected": true,
+      "artifact_assignment_source_line": 21,
+      "side_artifacts": [
+        "$HARNESS_LOG_DIR/datadog-static-analyzer.stdout.log",
+        "$HARNESS_LOG_DIR/datadog-static-analyzer.stderr.log",
+        "$HARNESS_LOG_DIR/datadog-static-analyzer.status"
+      ],
+      "reach": {
+        "reads_allowlist": true,
+        "allowlist_use": "scope_dirs supplies the -u subdirectory restrictions at lines 31-35, so the allowlist shapes this runner's reach.",
+        "walks": "The absolute scan root restricted to the 18 in-scope subdirectories.",
+        "in_tool_words": "#static analysis rules : 1093",
+        "in_tool_words_source": "harness/ENVIRONMENT.md section 9",
+        "reach_caveat": "Its pinned ruleset carries no Scala rules at all - 1,093 rules across 12 languages (PYTHON, RUBY, JAVA, GO, PHP, BASH, DART, KOTLIN, CSHARP, RUST, JAVASCRIPT, TYPESCRIPT) - so none of the in-scope .scala files can produce a finding. Provisioning measured its results as coming from .py, .java, .js and .sh files only. This is invisible from the finding count and is the most consequential reach fact about this tool.",
+        "in_scope_note": "in_scope is decided by the allowlist alone."
+      },
+      "ruleset_or_feed_identity": {
+        "kind": "ruleset",
+        "location": "/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json",
+        "observed_identity": "sha256 4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1",
+        "expected_identity": "sha256 e70ede308813b6d8c4087b0995609cdafdb9ab48159a313fe58ac343ff6c44f7",
+        "identity_matches_expected": false,
+        "observed_ruleset_count": 48,
+        "expected_ruleset_count": 48,
+        "observed_rule_count": 1093,
+        "expected_rule_count": 1093,
+        "rule_count_matches_expected": true,
+        "fetched_at_scan_time": false,
+        "difference_detail": "The byte digest differs from the AAP expected-values table while every comparable measure matches: the file parses as a top-level JSON list of 48 rulesets carrying 1,093 rules in total, measured directly from the file, and the analyzer revision is f76636e4. harness/ENVIRONMENT.md sections 4 and 15 attribute the difference to a differently-serialized capture of the same content and ask that comparison be made on ruleset and rule counts rather than the digest. Both values are recorded here; the expected-values table governs the field, so the difference stands as a difference.",
+        "evidence": "sha256sum $DD_SAST_RULES_FILE, and python3 json.load over the same file for the 48/1093 counts. The runner prints the same digest at lines 37-38 of every run."
+      },
+      "not_comparable_with_rehearsal": true,
+      "not_comparable_reason": "The ruleset digest differs from the expected identity. A different rule set produces a different count for reasons that have nothing to do with the code, so this tool's finding count must not be compared against the rehearsal's figure even though the ruleset and rule counts match.",
+      "heap_override": {
+        "takes_one": false,
+        "evidence": "No JVM, so no heap lever."
+      },
+      "exit_code_mapping": "The runner exits with the tool's own exit code (lines 53-57); it does not transform it."
+    },
+    "gitleaks": {
+      "canonical_tool_identifier": "gitleaks",
+      "scanner_class": "secret",
+      "scanner_class_varies_per_record": false,
+      "observed_version": "8.30.1",
+      "expected_version": "8.30.1",
+      "version_matches_expected": true,
+      "version_evidence": "gitleaks version printed 8.30.1.",
+      "runner_script": "harness/bin/run-gitleaks.sh",
+      "script_classification": "runner",
+      "argument_guard": {
+        "literal_source": "if [ \"$#\" -ne 0 ]; then\n  printf 'run-gitleaks.sh: takes no arguments (configuration is baked in); refusing to scan\\n' >&2\n  exit 64\nfi",
+        "first_line": 13,
+        "last_line": 16,
+        "exit_status": 64,
+        "is_first_executable_statement": true,
+        "first_env_sourcing_line": 21,
+        "first_shared_library_sourcing_line": 23,
+        "first_target_resolution_line": 33,
+        "first_tool_invocation_line": 53,
+        "guard_precedes_all_scanning_steps": true,
+        "established_by": "inspection",
+        "rejection_probe_performed": false,
+        "rejection_probe_reason": "Inspection settled the ordering, so no probe was needed or permitted."
+      },
+      "scan_target_variable": "SPARK_SRC",
+      "scan_target_resolution": "Indirect, via harness/lib/scope.sh sourced at line 23 and scope_resolve_target called at line 33, which reads SPARK_SRC at harness/lib/scope.sh lines 29-32.",
+      "scan_target_value_set": "/opt/spark-src",
+      "resolved_scan_root": "/opt/spark-src",
+      "resolved_scan_root_verified": true,
+      "invocation_form": {
+        "target_passing_style": "exactly one root-relative path per invocation, one invocation per scope directory",
+        "invocations_per_run": 18,
+        "literal": "gitleaks dir \"$d\" --report-format json --report-path \"$PART_DIR/$slug.json\" --redact=100 --no-banner --no-color --log-level warn --exit-code 2 >> \"$OUT\" 2>> \"$ERR\"",
+        "source_lines": "harness/bin/run-gitleaks.sh lines 50-63 (the loop), 53-56 (the invocation)",
+        "targets": "One iteration per element of the 18-directory allowlist expansion, each passed as a single root-relative path.",
+        "why_one_path_per_invocation": "gitleaks dir takes exactly one path and silently falls back to the working directory when handed more, which would make the path base non-obvious and the reported paths wrong. The runner's header at lines 4-7 states this and the per-directory loop is the consequence. This provisioning therefore does NOT pass all eighteen paths to a single invocation."
+      },
+      "working_directory": {
+        "path": "/opt/spark-src",
+        "expression": "cd \"$SCAN_ROOT\"",
+        "source_line": 47,
+        "equals_scan_root": true,
+        "note": "Load-bearing: because each invocation receives one root-relative path from the scan root, every reported File value is root-relative. The runner states the base itself at line 42."
+      },
+      "path_base": {
+        "kind": "scan_root",
+        "value": "/opt/spark-src",
+        "evidence": "From the invocation and the working directory, not from the artifact: cwd is $SCAN_ROOT (line 47) and each invocation is handed exactly one root-relative directory (line 53), so the File field of every record is root-relative to the scan root. The runner prints 'path base : <root> (root-relative paths; cwd is the scan root)' at line 42, and harness/ENVIRONMENT.md section 9 records 'File root-relative to $SPARK_SRC'.",
+        "record_path_field": "File"
+      },
+      "jdk_major": null,
+      "jdk_major_evidence": "No JVM. file(1) reports /opt/blitzy-tools/bin/gitleaks as 'ELF 64-bit LSB executable, x86-64, statically linked'; the runner exports no JAVA_HOME.",
+      "interpreter": {
+        "absolute_path": "/usr/bin/python3",
+        "reported_version": "3.13.7",
+        "expected_version": "3.13.7",
+        "version_matches_expected": true,
+        "shared_with": [
+          "trivy"
+        ],
+        "role": "post-processing only",
+        "evidence": "The scanner itself is a native binary and uses no interpreter. The runner invokes the system python3 once, at lines 66-78, purely to concatenate the 18 per-directory JSON arrays into the single artifact; command -v python3 resolves to /usr/bin/python3, which reports Python 3.13.7. run-trivy.sh uses the same system interpreter for the same kind of merge."
+      },
+      "baked_flags": {
+        "literal": [
+          "dir \"$d\" (one root-relative path per invocation)",
+          "--report-format json",
+          "--report-path \"$PART_DIR/$slug.json\"",
+          "--redact=100",
+          "--no-banner",
+          "--no-color",
+          "--log-level warn",
+          "--exit-code 2"
+        ],
+        "source_lines": "harness/bin/run-gitleaks.sh lines 53-56",
+        "update_suppression_flags": [],
+        "notes": [
+          "--redact=100 means a matched secret's value never reaches the artifact: Secret and Match come through as REDACTED. No adapter may carry a secret value into any field, and none is recorded in this document either.",
+          "--exit-code 2 fixes the leaks-found exit code, which the runner then maps deliberately - see exit_code_mapping."
+        ],
+        "literal_note": "Token text exactly as it appears in the runner, including the script's own quoting. invocation_form.literal holds the full command line verbatim."
+      },
+      "credential_expression": null,
+      "credential_expression_evidence": "This runner reports no credential state: it calls scope_cred_state nowhere and prints no credential line, because gitleaks reads no credential in this configuration. Recorded as null rather than as an empty string so a consumer cannot mistake absence for an unread field. The runner's own status lines at 39-43 print the ruleset, invocation shape, path base and redaction setting instead.",
+      "artifact_path": "gitleaks.json",
+      "artifact_absolute_form": "$HARNESS_RAW_DIR/gitleaks.json",
+      "artifact_format": "native JSON array",
+      "artifact_expected": true,
+      "artifact_assignment_source_line": 26,
+      "artifact_assembly": "The 18 per-directory reports are written under $HARNESS_LOG_DIR/gitleaks.parts/ and merged into one JSON array by the runner's own python3 step at lines 66-78. The merge concatenates arrays and rewrites no field, so every record's File value is exactly as the tool emitted it.",
+      "side_artifacts": [
+        "$HARNESS_LOG_DIR/gitleaks.stdout.log",
+        "$HARNESS_LOG_DIR/gitleaks.stderr.log",
+        "$HARNESS_LOG_DIR/gitleaks.status",
+        "$HARNESS_LOG_DIR/gitleaks.parts/ (18 per-directory reports, retained)"
+      ],
+      "reach": {
+        "reads_allowlist": true,
+        "allowlist_use": "scope_dirs supplies the loop's directory list at line 36, so the allowlist shapes this runner's reach directly.",
+        "walks": "Each of the 18 allowlist directories in turn, recursively, as a filesystem scan rather than a git-history scan.",
+        "in_tool_words": "WRN leaks found: 1",
+        "in_tool_words_source": "harness/ENVIRONMENT.md section 9",
+        "in_scope_note": "in_scope is decided by the allowlist alone."
+      },
+      "ruleset_or_feed_identity": {
+        "kind": "ruleset",
+        "location": "built into the gitleaks 8.30.1 binary",
+        "observed_identity": "default rule set built into 8.30.1",
+        "expected_identity": "default rule set built into 8.30.1",
+        "identity_matches_expected": true,
+        "observed_rule_count": null,
+        "rule_count_evidence": "Not separately versioned and not reported by the tool, so no rule count could be established. Named rather than omitted; the AAP expected-values table carries no count for it either.",
+        "fetched_at_scan_time": false,
+        "evidence": "The runner states it at line 39: 'ruleset : default rule set built into gitleaks 8.30.1'. No external ruleset path is configured."
+      },
+      "not_comparable_with_rehearsal": false,
+      "heap_override": {
+        "takes_one": false,
+        "evidence": "No JVM, so no heap lever."
+      },
+      "exit_code_mapping": "The runner transforms the exit code deliberately, so a consumer must not read it as a raw tool code. Per invocation, 0 means no leaks and 2 means leaks found, and both are successful scans (lines 60-62); anything else is recorded as the worst code. The runner exits with that worst value (line 83), so an overall exit of 2 means at least one directory had a finding, not a failure."
+    },
+    "checkov": {
+      "canonical_tool_identifier": "checkov",
+      "scanner_class": "misconfig",
+      "scanner_class_varies_per_record": false,
+      "observed_version": "3.3.12",
+      "expected_version": "3.3.12",
+      "version_matches_expected": true,
+      "version_evidence": "checkov --version printed 3.3.12.",
+      "runner_script": "harness/bin/run-checkov.sh",
+      "script_classification": "runner",
+      "argument_guard": {
+        "literal_source": "if [ \"$#\" -ne 0 ]; then\n  printf 'run-checkov.sh: takes no arguments (configuration is baked in); refusing to scan\\n' >&2\n  exit 64\nfi",
+        "first_line": 8,
+        "last_line": 11,
+        "exit_status": 64,
+        "is_first_executable_statement": true,
+        "first_env_sourcing_line": 16,
+        "first_shared_library_sourcing_line": 18,
+        "first_target_resolution_line": 28,
+        "first_tool_invocation_line": 46,
+        "guard_precedes_all_scanning_steps": true,
+        "established_by": "inspection",
+        "rejection_probe_performed": false,
+        "rejection_probe_reason": "Inspection settled the ordering, so no probe was needed or permitted."
+      },
+      "scan_target_variable": "SPARK_SRC",
+      "scan_target_resolution": "Indirect, via harness/lib/scope.sh sourced at line 18 and scope_resolve_target called at line 28, which reads SPARK_SRC at harness/lib/scope.sh lines 29-32.",
+      "scan_target_value_set": "/opt/spark-src",
+      "resolved_scan_root": "/opt/spark-src",
+      "resolved_scan_root_verified": true,
+      "invocation_form": {
+        "target_passing_style": "18 root-relative -d target roots in one invocation",
+        "invocations_per_run": 1,
+        "literal": "checkov \"${TARGETS[@]}\" --skip-download --quiet --compact --output json --output-file-path \"$WORK\" > \"$OUT\" 2> \"$ERR\"",
+        "source_lines": "harness/bin/run-checkov.sh lines 46-49",
+        "targets": "${TARGETS[@]} is built at lines 34-35 as one -d <root-relative directory> per allowlist directory - 18 target roots in a single invocation. This is the fact that makes file_path ambiguous on its own."
+      },
+      "working_directory": {
+        "path": "/opt/spark-src",
+        "expression": "cd \"$SCAN_ROOT\"",
+        "source_line": 44,
+        "equals_scan_root": true,
+        "note": "cwd is the scan root, but for this tool cwd is NOT the base of file_path: with 18 -d roots each file_path is relative to whichever -d root matched."
+      },
+      "path_base": {
+        "kind": "per_target_directory",
+        "value": "/opt/spark-src",
+        "anchor_fields": [
+          "repo_file_path",
+          "file_abs_path"
+        ],
+        "evidence": "Established from the invocation: 18 separate -d target roots are passed in one invocation (lines 34-35, 46), so a record's file_path is relative to the matching -d directory and carries a leading slash - it is NOT relative to the scan root, and reading it as filesystem-absolute would relativize it to a long ../ chain and silently mark the row out of scope. harness/ENVIRONMENT.md section 9 states the same and directs anchoring on repo_file_path (root-relative, leading slash) or file_abs_path (absolute). The resolver must strip the leading slash and resolve against one of the anchor fields, then reconcile against file_abs_path.",
+        "record_path_fields": {
+          "file_path": "relative to the matching -d directory, with a leading slash",
+          "repo_file_path": "root-relative, with a leading slash",
+          "file_abs_path": "filesystem-absolute"
+        }
+      },
+      "jdk_major": null,
+      "jdk_major_evidence": "No JVM. The runner exports no JAVA_HOME and the tool is Python-hosted.",
+      "interpreter": {
+        "absolute_path": "/opt/blitzy-tools/venvs/checkov/bin/python",
+        "reported_version": "3.13.7",
+        "expected_version": "3.13.7",
+        "version_matches_expected": true,
+        "shared_with": [],
+        "evidence": "/opt/blitzy-tools/bin/checkov is a console script whose shebang is #!/opt/blitzy-tools/venvs/checkov/bin/python. /opt/blitzy-tools/venvs/checkov/bin/python3 --version reports Python 3.13.7. This venv is checkov's alone - semgrep has its own at /opt/blitzy-tools/venvs/semgrep - because the two have conflicting dependencies and cannot share one. Measured rather than assumed, since a shared interpreter is the shape a reader might expect."
+      },
+      "baked_flags": {
+        "literal": [
+          "\"${TARGETS[@]}\" (one -d per allowlist directory)",
+          "--skip-download",
+          "--quiet",
+          "--compact",
+          "--output json",
+          "--output-file-path \"$WORK\""
+        ],
+        "source_lines": "harness/bin/run-checkov.sh lines 46-49",
+        "update_suppression_flags": [
+          "--skip-download"
+        ],
+        "notes": [
+          "--skip-download keeps the scan offline and stops it fetching external modules or policy metadata.",
+          "No --framework filter is passed: this runner scans with all bundled frameworks, which the runner states at line 38 as 'frameworks : all bundled frameworks (no --framework filter)'. Recorded as read; nothing was added or removed.",
+          "Severities require a licence, so severity_native is absent from every row this tool produces in this configuration.",
+          "No flag in this set appears in the AAP expected-values table, so none is an anchor."
+        ],
+        "literal_note": "Token text exactly as it appears in the runner, including the script's own quoting. invocation_form.literal holds the full command line verbatim."
+      },
+      "credential_expression": {
+        "literal": "printf 'credential      : BC_API_KEY=%s (severities require a licence and stay absent)\\n' \"$(scope_cred_state BC_API_KEY)\"",
+        "source_line": 40,
+        "variables_reported": [
+          "BC_API_KEY"
+        ],
+        "prints_fixed_token_only": true,
+        "safety_evidence": "scope_cred_state uses ${VAR:+set} only and prints exactly 'set' or 'absent'.",
+        "observed_presence": {
+          "BC_API_KEY": false
+        }
+      },
+      "artifact_path": "checkov.json",
+      "artifact_absolute_form": "$HARNESS_RAW_DIR/checkov.json",
+      "artifact_format": "native JSON - object form, or the multi-framework array form when more than one framework reports",
+      "artifact_expected": true,
+      "artifact_assignment_source_line": 21,
+      "artifact_assembly": "The tool writes results_json.json into $HARNESS_LOG_DIR/checkov.out and the runner copies it to the artifact path unchanged (lines 53-55), so no field is rewritten. Both output shapes must be detected rather than assumed; only failed_checks are findings, while passed_checks and skipped_checks are neither counted nor emitted and parsing_errors are status evidence.",
+      "side_artifacts": [
+        "$HARNESS_LOG_DIR/checkov.stdout.log",
+        "$HARNESS_LOG_DIR/checkov.stderr.log",
+        "$HARNESS_LOG_DIR/checkov.status",
+        "$HARNESS_LOG_DIR/checkov.out/ (the tool's own output directory, retained)"
+      ],
+      "reach": {
+        "reads_allowlist": true,
+        "allowlist_use": "scope_dirs supplies the -d target roots at lines 31-35, so the allowlist shapes this runner's reach.",
+        "walks": "The 18 allowlist directories as 18 independent -d roots.",
+        "in_tool_words": "passed=201 failed=6 skipped=0 parsing_errors=0 resource_count=3",
+        "in_tool_words_source": "harness/ENVIRONMENT.md section 9",
+        "reach_caveat": "Provisioning observed the object form (check_type dockerfile) because a single framework reported; the multi-framework array form appears when more than one does. The only IaC content in the twelve roots is the Kubernetes Dockerfiles.",
+        "in_scope_note": "in_scope is decided by the allowlist alone."
+      },
+      "ruleset_or_feed_identity": {
+        "kind": "policies",
+        "location": "bundled with checkov 3.3.12",
+        "observed_identity": "policies bundled with 3.3.12",
+        "expected_identity": "bundled with 3.3.12",
+        "identity_matches_expected": true,
+        "observed_rule_count": null,
+        "rule_count_evidence": "Not separately versioned and not reported by the tool, so no policy count could be established. Named rather than omitted; the AAP expected-values table carries no count for it either.",
+        "fetched_at_scan_time": false,
+        "evidence": "The runner states it at line 37: 'policies : bundled with checkov 3.3.12 (not separately versioned)', and --skip-download prevents any policy-metadata fetch."
+      },
+      "not_comparable_with_rehearsal": false,
+      "heap_override": {
+        "takes_one": false,
+        "evidence": "No JVM, so no heap lever."
+      },
+      "exit_code_mapping": "The runner exits with the tool's own exit code (lines 50-57); it does not transform it. A non-zero exit here is ordinary: checkov exits 1 because it found something, and the artifact still parses."
+    },
+    "trivy": {
+      "canonical_tool_identifier": "trivy",
+      "scanner_class": "per-record: vuln, secret or misconfig, taken from the section array the record was read from",
+      "scanner_class_varies_per_record": true,
+      "scanner_class_permitted_values": [
+        "vuln",
+        "secret",
+        "misconfig"
+      ],
+      "scanner_class_derivation": "From which of Results[].Vulnerabilities[], Results[].Secrets[] or Results[].Misconfigurations[] the record came from - never from the record's own content. Trivy is the single tool in the class table whose scanner_class is not fixed.",
+      "observed_version": "0.74.0",
+      "expected_version": "0.74.0",
+      "version_matches_expected": true,
+      "version_evidence": "trivy --version printed 'Version: 0.74.0'.",
+      "runner_script": "harness/bin/run-trivy.sh",
+      "script_classification": "runner",
+      "argument_guard": {
+        "literal_source": "if [ \"$#\" -ne 0 ]; then\n  printf 'run-trivy.sh: takes no arguments (configuration is baked in); refusing to scan\\n' >&2\n  exit 64\nfi",
+        "first_line": 22,
+        "last_line": 25,
+        "exit_status": 64,
+        "is_first_executable_statement": true,
+        "first_env_sourcing_line": 30,
+        "first_shared_library_sourcing_line": 32,
+        "first_target_resolution_line": 45,
+        "first_tool_invocation_line": 67,
+        "guard_precedes_all_scanning_steps": true,
+        "established_by": "inspection",
+        "rejection_probe_performed": false,
+        "rejection_probe_reason": "Inspection settled the ordering, so no probe was needed or permitted."
+      },
+      "scan_target_variable": "SPARK_SRC",
+      "scan_target_resolution": "Indirect, via harness/lib/scope.sh sourced at line 32 and scope_resolve_target called at line 45, which reads SPARK_SRC at harness/lib/scope.sh lines 29-32.",
+      "scan_target_value_set": "/opt/spark-src",
+      "resolved_scan_root": "/opt/spark-src",
+      "resolved_scan_root_verified": true,
+      "invocation_form": {
+        "target_passing_style": "exactly one root-relative path per invocation, one invocation per scope directory",
+        "invocations_per_run": 18,
+        "literal": "trivy fs \"$d\" --scanners vuln,secret,misconfig --format json --output \"$PART_DIR/$slug.json\" --skip-db-update --skip-java-db-update --skip-check-update --offline-scan --no-progress --quiet >> \"$OUT\" 2>> \"$ERR\"",
+        "source_lines": "harness/bin/run-trivy.sh lines 64-76 (the loop), 67-71 (the invocation)",
+        "targets": "One iteration per element of the 18-directory allowlist expansion, each passed as a single root-relative path.",
+        "why_one_path_per_invocation": "trivy fs takes exactly one path, so the runner cannot pass the eighteen directories at once. The runner's header at lines 4-8 states this."
+      },
+      "working_directory": {
+        "path": "/opt/spark-src",
+        "expression": "cd \"$SCAN_ROOT\"",
+        "source_line": 61,
+        "equals_scan_root": true
+      },
+      "path_base": {
+        "kind": "scan_root",
+        "value": "/opt/spark-src",
+        "evidence": "Established from the invocation and the runner's own merge step, not from the artifact. Each per-directory report states Results[].Target relative to the single path that invocation was given and names that path in its own top-level ArtifactName; the merge at lines 78-119 prefixes every Target with its own part's ArtifactName and sets the merged ArtifactName to '.', so in the merged artifact every Target is root-relative to the scan root. harness/ENVIRONMENT.md sections 9 and 12 record the same, including that all three merged Targets were verified to be real files.",
+        "record_path_field": "the enclosing Results[].Target",
+        "per_record_refinement": "A section may supply its own per-record path or StartLine; those refine the enclosing Target rather than replacing the base. StartLine is present on secrets and misconfigurations and absent on vulnerabilities.",
+        "unmerged_parts_base": "The 18 retained per-directory reports under $HARNESS_LOG_DIR/trivy.parts/ are NOT root-anchored: each states Target relative to its own single path argument. Read those with per_section_target semantics, not with this scan_root base."
+      },
+      "jdk_major": null,
+      "jdk_major_evidence": "No JVM. file(1) reports /opt/blitzy-tools/bin/trivy as 'ELF 64-bit LSB executable, x86-64, statically linked'; the runner exports no JAVA_HOME. The 'java DB' it consults is a vulnerability database for Java artifacts, not a Java runtime.",
+      "interpreter": {
+        "absolute_path": "/usr/bin/python3",
+        "reported_version": "3.13.7",
+        "expected_version": "3.13.7",
+        "version_matches_expected": true,
+        "shared_with": [
+          "gitleaks"
+        ],
+        "role": "post-processing only",
+        "evidence": "The scanner is a native binary. The runner invokes the system python3 once, at lines 78-119, to merge the per-directory reports and to check the unsupported sections; command -v python3 resolves to /usr/bin/python3, Python 3.13.7. run-gitleaks.sh uses the same interpreter for its own merge. The runner also uses python3 at lines 52-53 to read the two database metadata files for its header."
+      },
+      "baked_flags": {
+        "literal": [
+          "fs \"$d\" (one root-relative path per invocation)",
+          "--scanners vuln,secret,misconfig",
+          "--format json",
+          "--output \"$PART_DIR/$slug.json\"",
+          "--skip-db-update",
+          "--skip-java-db-update",
+          "--skip-check-update",
+          "--offline-scan",
+          "--no-progress",
+          "--quiet"
+        ],
+        "source_lines": "harness/bin/run-trivy.sh lines 67-71",
+        "update_suppression_flags": [
+          "--skip-db-update",
+          "--skip-java-db-update",
+          "--skip-check-update"
+        ],
+        "notes": [
+          "--offline-scan stops Maven Central resolution. An earlier provisioning run without it took '429 Too Many Requests, Retry-After: 1800' and wrote no artifact at all, which is why it is baked in.",
+          "TRIVY_CACHE_DIR is exported at line 43 and the runner asserts both the db and java-db directories exist at lines 41-42, exiting 78 naming the fault otherwise: --skip-db-update fails on a first run with no seeded cache.",
+          "The merge validates that the unsupported finding sections Licenses and ExperimentalModifiedFindings are empty (lines 93-97) and prints 'UNSUPPORTED NON-EMPTY SECTIONS PRESENT' if not - the condition that must halt the run rather than silently drop real tool output.",
+          "No flag in this set appears in the AAP expected-values table, so none is an anchor."
+        ],
+        "literal_note": "Token text exactly as it appears in the runner, including the script's own quoting. invocation_form.literal holds the full command line verbatim."
+      },
+      "credential_expression": null,
+      "credential_expression_evidence": "This runner reports no credential state: it calls scope_cred_state nowhere and prints no credential line, because trivy reads no credential in this configuration. Recorded as null rather than an empty string. Its header lines 51-57 print the cache directory, both database identities, the scanner set, the flag set and the invocation shape instead.",
+      "artifact_path": "trivy.json",
+      "artifact_absolute_form": "$HARNESS_RAW_DIR/trivy.json",
+      "artifact_format": "native JSON, SchemaVersion 2",
+      "artifact_expected": true,
+      "artifact_assignment_source_line": 35,
+      "artifact_assembly": "The 18 per-directory reports are written under $HARNESS_LOG_DIR/trivy.parts/ and merged at lines 78-119 into one report whose Results[] is the concatenation of every part's sections, with each Target root-anchored as described in path_base and the merged ArtifactName set to '.'. The parts are retained verbatim.",
+      "side_artifacts": [
+        "$HARNESS_LOG_DIR/trivy.stdout.log",
+        "$HARNESS_LOG_DIR/trivy.stderr.log",
+        "$HARNESS_LOG_DIR/trivy.status",
+        "$HARNESS_LOG_DIR/trivy.parts/ (18 per-directory reports, retained verbatim)"
+      ],
+      "reach": {
+        "reads_allowlist": true,
+        "allowlist_use": "scope_dirs supplies the loop's directory list at line 48, so the allowlist shapes this runner's reach. Note that this differs from the harness precedent, where trivy was pointed at the whole root.",
+        "walks": "Each of the 18 allowlist directories in turn, with the vulnerability, secret and misconfiguration scanners all enabled.",
+        "in_tool_words": "3 Results sections, all Class=config Type=dockerfile: 3 misconfigurations (DS-0026 No HEALTHCHECK defined, LOW). Zero Vulnerabilities, zero Secrets. Licenses and ExperimentalModifiedFindings verified empty.",
+        "in_tool_words_source": "harness/ENVIRONMENT.md section 9",
+        "reach_caveat": "The twelve roots hold zero resolvable dependency manifests, so the vulnerability scanner has nothing in scope to resolve. That is a property of the scope, not of the installation.",
+        "in_scope_note": "in_scope is decided by the allowlist alone."
+      },
+      "ruleset_or_feed_identity": {
+        "kind": "vulnerability_feeds",
+        "location": "/opt/blitzy-harness/trivy-cache",
+        "observed_identity": "vulnerability DB v2 UpdatedAt 2026-08-24T06:55:32.451220873Z; java DB v1 UpdatedAt 2026-08-24T01:07:04.599776272Z",
+        "expected_identity": "vulnerability DB v2, 2026-08-23T06:56:50Z; java DB v1, 2026-08-23T01:05:59Z",
+        "identity_matches_expected": false,
+        "difference_detail": "Both database timestamps are one day later than the AAP expected-values table states. The major versions match (v2 and v1). Measured directly from $TRIVY_CACHE_DIR/db/metadata.json and $TRIVY_CACHE_DIR/java-db/metadata.json, which is also what the runner prints at lines 52-53.",
+        "feed_state": "not attempted - the runner passes --skip-db-update, --skip-java-db-update and --skip-check-update, so no refresh was attempted and the seeded caches were used as found.",
+        "fetched_at_scan_time": false,
+        "evidence": "python3 json.load over both metadata.json files."
+      },
+      "not_comparable_with_rehearsal": true,
+      "not_comparable_reason": "Both vulnerability database timestamps differ from the expected identity. A different feed produces a different count for reasons that have nothing to do with the code, so this tool's counts must not be compared against the rehearsal's figures.",
+      "heap_override": {
+        "takes_one": false,
+        "evidence": "No JVM, so no heap lever."
+      },
+      "exit_code_mapping": "The runner records the worst non-zero exit code across the 18 invocations (line 75) and exits with it (line 124), so the exit code is a per-run aggregate rather than a single tool code."
+    },
+    "osv-scanner": {
+      "canonical_tool_identifier": "osv-scanner",
+      "scanner_class": "vuln",
+      "scanner_class_varies_per_record": false,
+      "observed_version": "2.5.1 (osv-scalibr 0.5.2)",
+      "expected_version": "2.5.1",
+      "version_matches_expected": true,
+      "version_evidence": "osv-scanner --version printed 'osv-scanner version: 2.5.1'; harness/ENVIRONMENT.md section 3 records the bundled osv-scalibr 0.5.2 alongside it.",
+      "runner_script": "harness/bin/run-osv-scanner.sh",
+      "script_classification": "runner",
+      "argument_guard": {
+        "literal_source": "if [ \"$#\" -ne 0 ]; then\n  printf 'run-osv-scanner.sh: takes no arguments (configuration is baked in); refusing to scan\\n' >&2\n  exit 64\nfi",
+        "first_line": 15,
+        "last_line": 18,
+        "exit_status": 64,
+        "is_first_executable_statement": true,
+        "first_env_sourcing_line": 23,
+        "first_shared_library_sourcing_line": 25,
+        "first_target_resolution_line": 34,
+        "first_tool_invocation_line": 46,
+        "guard_precedes_all_scanning_steps": true,
+        "established_by": "inspection",
+        "rejection_probe_performed": false,
+        "rejection_probe_reason": "Inspection settled the ordering, so no probe was needed or permitted."
+      },
+      "scan_target_variable": "SPARK_SRC",
+      "scan_target_resolution": "Indirect, via harness/lib/scope.sh sourced at line 25 and scope_resolve_target called at line 34, which reads SPARK_SRC at harness/lib/scope.sh lines 29-32.",
+      "scan_target_value_set": "/opt/spark-src",
+      "resolved_scan_root": "/opt/spark-src",
+      "resolved_scan_root_verified": true,
+      "invocation_form": {
+        "target_passing_style": "many paths, root-relative, in one invocation after a -- separator",
+        "invocations_per_run": 1,
+        "literal": "osv-scanner scan source --recursive --format json --output-file \"$ART\" --verbosity info -- \"${DIRS[@]}\" > \"$OUT\" 2> \"$ERR\"",
+        "source_lines": "harness/bin/run-osv-scanner.sh lines 46-49",
+        "targets": "${DIRS[@]} is the 18-element root-relative allowlist expansion from scope_dirs, read at line 37 and required non-empty at line 38, passed after -- so no path can be mistaken for a flag."
+      },
+      "working_directory": {
+        "path": "/opt/spark-src",
+        "expression": "cd \"$SCAN_ROOT\"",
+        "source_line": 44,
+        "equals_scan_root": true
+      },
+      "path_base": {
+        "kind": "scan_root",
+        "value": "/opt/spark-src",
+        "evidence": "Established from the invocation, which is the only evidence available and the only kind permitted: cwd is $SCAN_ROOT (line 44) and the target arguments are root-relative, so any results[].source.path this tool emitted would be root-relative to the scan root. Not inferred from an artifact, because no artifact is expected - see artifact_expected.",
+        "record_path_field": "the enclosing results[].source.path",
+        "applicability": "No row is expected to need this base, since the tool is expected to write no artifact. It is recorded so that a resolver has an explicit base rather than a rejection if an artifact does appear."
+      },
+      "jdk_major": null,
+      "jdk_major_evidence": "No JVM. file(1) reports /opt/blitzy-tools/bin/osv-scanner as 'ELF 64-bit LSB executable, x86-64, statically linked'; the runner exports no JAVA_HOME.",
+      "interpreter": null,
+      "interpreter_evidence": "Not a Python-hosted tool; the PATH entry is a native ELF executable and the runner invokes no interpreter.",
+      "baked_flags": {
+        "literal": [
+          "scan source",
+          "--recursive",
+          "--format json",
+          "--output-file \"$ART\"",
+          "--verbosity info",
+          "-- \"${DIRS[@]}\" (the 18 root-relative allowlist directories)"
+        ],
+        "source_lines": "harness/bin/run-osv-scanner.sh lines 46-49",
+        "update_suppression_flags": [],
+        "notes": [
+          "No --allow-no-lockfiles flag is passed in this provisioning. Recorded as read; nothing was added.",
+          "Lines 53-55 delete a zero-byte artifact if one was created, deliberately: 'An artifact of zero bytes is not an artifact', so the absent-artifact case stays distinguishable from an empty parse. A consumer must therefore treat a missing file as the tool's own outcome, not as a lost write.",
+          "No flag in this set appears in the AAP expected-values table, so none is an anchor."
+        ],
+        "literal_note": "Token text exactly as it appears in the runner, including the script's own quoting. invocation_form.literal holds the full command line verbatim."
+      },
+      "credential_expression": null,
+      "credential_expression_evidence": "This runner reports no credential state: it calls scope_cred_state nowhere and prints no credential line, because osv-scanner reads no credential in this configuration. Recorded as null rather than an empty string. Its header lines 40-41 print the database posture and the invocation shape instead.",
+      "artifact_path": "osv-scanner.json",
+      "artifact_absolute_form": "$HARNESS_RAW_DIR/osv-scanner.json",
+      "artifact_format": "native JSON, only if packages are resolved",
+      "artifact_expected": false,
+      "artifact_expected_evidence": "Expected absent, and that is the tool completing rather than failing. The twelve authoritative roots hold zero resolvable dependency manifests, so the tool resolves no packages, prints 'No package sources found, --help for usage information.' and exits 128 without writing an artifact. harness/ENVIRONMENT.md section 9 records the observed stderr ending 'End status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 295.514705ms elapsed' followed by that message, and the runner's own header lines 7-11 state the same expectation. Zero Extract calls means it resolved no manifest to extract packages from - long-standing documented behaviour for a zero-package input, not a crash.",
+      "artifact_assignment_source_line": 28,
+      "side_artifacts": [
+        "$HARNESS_LOG_DIR/osv-scanner.stdout.log",
+        "$HARNESS_LOG_DIR/osv-scanner.stderr.log",
+        "$HARNESS_LOG_DIR/osv-scanner.status"
+      ],
+      "reach": {
+        "reads_allowlist": true,
+        "allowlist_use": "scope_dirs supplies the target list at line 37, so the allowlist shapes this runner's reach. Note that this differs from the harness precedent, where osv-scanner walked the whole root recursively.",
+        "walks": "The 18 allowlist directories, recursively, looking for manifests and lockfiles to resolve.",
+        "in_tool_words": "End status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 295.514705ms elapsed / No package sources found, --help for usage information.",
+        "in_tool_words_source": "harness/ENVIRONMENT.md section 9",
+        "reach_caveat": "It walked the real scope - 640 directories and 4,735 inodes - and found nothing to resolve. The absence of an artifact is a property of the scope, not of the installation, and the allowlist must not be widened to give it something to find.",
+        "in_scope_note": "in_scope is decided by the allowlist alone."
+      },
+      "ruleset_or_feed_identity": {
+        "kind": "vulnerability_api",
+        "location": "https://api.osv.dev",
+        "observed_identity": "no local database - queries the OSV API live at scan time",
+        "expected_identity": "no local database; queries the live API at scan time",
+        "identity_matches_expected": true,
+        "feed_state": "not attempted - zero packages were resolved, so no query was made this run.",
+        "fetched_at_scan_time": true,
+        "reproducibility_gap": "Named gap: this tool consults a live API with no local database and no recorded digest, so its counts are not reproducible from anything on disk. Recorded rather than repaired.",
+        "evidence": "The runner states it at line 40: 'database : none local - queries the OSV API (https://api.osv.dev) at scan time'. harness/ENVIRONMENT.md section 4 records the same."
+      },
+      "not_comparable_with_rehearsal": false,
+      "not_comparable_note": "No ruleset or feed identity differs, so no marker is set. The live-API dependency above is a reproducibility gap rather than an observed difference.",
+      "heap_override": {
+        "takes_one": false,
+        "evidence": "No JVM, so no heap lever."
+      },
+      "exit_code_mapping": "The runner exits with the tool's own exit code (lines 50-57); it does not transform it. Exit 128 with no artifact is the expected outcome here and is a completion, not a failure."
+    },
+    "dependency-check": {
+      "canonical_tool_identifier": "dependency-check",
+      "scanner_class": "vuln",
+      "scanner_class_varies_per_record": false,
+      "observed_version": "13.0.0",
+      "expected_version": "13.0.0",
+      "version_matches_expected": true,
+      "version_evidence": "$DEPENDENCY_CHECK_HOME/bin/dependency-check.sh --version printed 'dependency-check-cli version 13.0.0'.",
+      "runner_script": "harness/bin/run-dependency-check.sh",
+      "script_classification": "runner",
+      "argument_guard": {
+        "literal_source": "if [ \"$#\" -ne 0 ]; then\n  printf 'run-dependency-check.sh: takes no arguments (configuration is baked in); refusing to scan\\n' >&2\n  exit 64\nfi",
+        "first_line": 12,
+        "last_line": 15,
+        "exit_status": 64,
+        "is_first_executable_statement": true,
+        "first_env_sourcing_line": 20,
+        "first_shared_library_sourcing_line": 22,
+        "first_target_resolution_line": 33,
+        "first_tool_invocation_line": 51,
+        "guard_precedes_all_scanning_steps": true,
+        "established_by": "inspection",
+        "rejection_probe_performed": false,
+        "rejection_probe_reason": "Inspection settled the ordering, so no probe was needed or permitted."
+      },
+      "scan_target_variable": "SPARK_SRC",
+      "scan_target_resolution": "Indirect, via harness/lib/scope.sh sourced at line 22 and scope_resolve_target called at line 33, which reads SPARK_SRC at harness/lib/scope.sh lines 29-32. The runner then builds absolute --scan arguments from SCAN_ROOT at line 40.",
+      "scan_target_value_set": "/opt/spark-src",
+      "resolved_scan_root": "/opt/spark-src",
+      "resolved_scan_root_verified": true,
+      "invocation_form": {
+        "target_passing_style": "18 absolute --scan paths in one invocation",
+        "invocations_per_run": 1,
+        "literal": "JAVA_HOME=\"$JAVA_HOME\" \"$DEPENDENCY_CHECK_HOME/bin/dependency-check.sh\" --project \"spark-pinned-$SPARK_SRC_COMMIT\" --noupdate --disableOssIndex --data \"$HARNESS_DC_DATA_DIR\" \"${SCANARGS[@]}\" --format JSON --prettyPrint --out \"$WORK\" > \"$OUT\" 2> \"$ERR\"",
+        "source_lines": "harness/bin/run-dependency-check.sh lines 51-57",
+        "targets": "${SCANARGS[@]} is built at lines 39-40 as one --scan \"$SCAN_ROOT/$d\" per allowlist directory - absolute paths, unlike the other eight runners' root-relative arguments. This is why its reported paths are filesystem-absolute."
+      },
+      "working_directory": {
+        "path": "/opt/spark-src",
+        "expression": "cd \"$SCAN_ROOT\"",
+        "source_line": 49,
+        "equals_scan_root": true,
+        "note": "cwd is the scan root, but it is not the path base: the tool reports absolute paths because it was handed absolute --scan arguments."
+      },
+      "path_base": {
+        "kind": "filesystem_absolute",
+        "value": "/opt/spark-src",
+        "evidence": "Established from the invocation: --scan receives \"$SCAN_ROOT/$d\" for each of the 18 directories (line 40), so dependencies[].filePath is filesystem-absolute under the scan root and must be relativized against it. harness/ENVIRONMENT.md section 9 records 'dependencies[].filePath filesystem-absolute under $SPARK_SRC'.",
+        "record_path_field": "the enclosing dependencies[].filePath"
+      },
+      "jdk_major": 17,
+      "jdk_major_evidence": "Read from the runner, not assumed: line 51 invokes the tool with JAVA_HOME=\"$JAVA_HOME\", which harness/env.sh line 47 sets to /opt/blitzy-tools/jdk/jdk-17.0.20+8, and that JDK reports 'openjdk version \"17.0.20\" 2026-07-21' - major 17. The runner's own header at line 8 states 'Runs under JAVA_HOME (Temurin 17) - JDK 21 is reserved for Joern', and harness/ENVIRONMENT.md section 8 concludes 'Dependency-Check --version succeeds under both JDKs; 17 is the assignment'. This is the opposite of the harness precedent, where this runner exported JAVA_HOME_21, which is exactly why it was measured rather than inferred.",
+      "jdk_home": "/opt/blitzy-tools/jdk/jdk-17.0.20+8",
+      "interpreter": null,
+      "interpreter_evidence": "Not a Python-hosted tool. It is a JVM application launched through a shell script, and the runner invokes no interpreter.",
+      "baked_flags": {
+        "literal": [
+          "--project \"spark-pinned-$SPARK_SRC_COMMIT\"",
+          "--noupdate",
+          "--disableOssIndex",
+          "--data \"$HARNESS_DC_DATA_DIR\"",
+          "\"${SCANARGS[@]}\" (one --scan \"$SCAN_ROOT/$d\" per allowlist directory)",
+          "--format JSON",
+          "--prettyPrint",
+          "--out \"$WORK\""
+        ],
+        "source_lines": "harness/bin/run-dependency-check.sh lines 51-57",
+        "update_suppression_flags": [
+          "--noupdate"
+        ],
+        "notes": [
+          "--disableOssIndex IS passed here, which differs from the harness precedent where it was absent. The runner's header lines 5-7 give the reason: Sonatype OSS Index no longer answers anonymously and 13.0.0 self-disables the analyzer with 'Authentication with token is now required', so passing the flag makes the disabling this harness's own and recorded rather than incidental.",
+          "--noupdate means no feed refresh at scan time; the runner asserts a seeded database exists at line 31 and exits 78 naming the fault otherwise, because --noupdate needs a seeded feed.",
+          "No flag in this set appears in the AAP expected-values table, so none is an anchor."
+        ],
+        "literal_note": "Token text exactly as it appears in the runner, including the script's own quoting. invocation_form.literal holds the full command line verbatim."
+      },
+      "credential_expression": {
+        "literal": "printf 'credential      : NVD_API_KEY=%s  (OSS Index analyzer disabled explicitly)\\n' \"$(scope_cred_state NVD_API_KEY)\"",
+        "source_line": 45,
+        "variables_reported": [
+          "NVD_API_KEY"
+        ],
+        "prints_fixed_token_only": true,
+        "safety_evidence": "scope_cred_state uses ${VAR:+set} only and prints exactly 'set' or 'absent'.",
+        "observed_presence": {
+          "NVD_API_KEY": false
+        },
+        "note": "NVD_API_KEY must stay unset rather than be set to an empty string: an empty value makes the tool abort with 'Invalid API Key, length of 0 too short'."
+      },
+      "artifact_path": "dependency-check.json",
+      "artifact_absolute_form": "$HARNESS_RAW_DIR/dependency-check.json",
+      "artifact_format": "native JSON report",
+      "artifact_expected": true,
+      "artifact_assignment_source_line": 25,
+      "artifact_assembly": "The tool writes dependency-check-report.json into $HARNESS_LOG_DIR/dependency-check.out and the runner copies it to the artifact path unchanged (lines 61-63), so no field is rewritten.",
+      "side_artifacts": [
+        "$HARNESS_LOG_DIR/dependency-check.stdout.log",
+        "$HARNESS_LOG_DIR/dependency-check.stderr.log",
+        "$HARNESS_LOG_DIR/dependency-check.status",
+        "$HARNESS_LOG_DIR/dependency-check.out/ (the tool's own output directory, retained)"
+      ],
+      "reach": {
+        "reads_allowlist": true,
+        "allowlist_use": "scope_dirs supplies the --scan arguments at lines 36-40, so the allowlist shapes this runner's reach. Note that this differs from the harness precedent, where the whole root was scanned in one --scan.",
+        "walks": "The 18 allowlist directories as absolute --scan roots.",
+        "in_tool_words": "Analyzing .../ui/static/package.json - however, the node_modules directory does not exist. Please run 'npm install' prior to running dependency-check / No lock file exists - this will result in false negatives; please run 'npm install --package-lock'",
+        "in_tool_words_source": "harness/ENVIRONMENT.md section 9",
+        "reach_caveat": "Provisioning measured 32 dependencies analysed, 0 with a vulnerability and 0 with a resolved package coordinate: all 32 are vendored web assets under the UI static resource trees. Its short elapsed time reflects there being nothing in scope to resolve rather than anything failing.",
+        "in_scope_note": "in_scope is decided by the allowlist alone."
+      },
+      "ruleset_or_feed_identity": {
+        "kind": "vulnerability_feed",
+        "location": "/opt/blitzy-harness/dc-data",
+        "observed_identity": "keyless NIST NVD JSON 2.0 datafeed, NVD API Last Modified 2026-08-24T08:00:04-04",
+        "expected_identity": "keyless NVD datafeed, 2026-08-23T08:00:06-04",
+        "identity_matches_expected": false,
+        "difference_detail": "The feed's last-modified timestamp is one day later than the AAP expected-values table states. Both are keyless NIST JSON 2.0 datafeeds.",
+        "observed_identity_provenance": "The 'NVD API Last Modified' string is stated by harness/ENVIRONMENT.md section 4 and is not independently re-readable without opening the H2 database, so it is recorded from the record with that provenance. It is corroborated to the day by two files this run did measure: $HARNESS_DC_DATA_DIR/odc.mv.db, 249,724,928 bytes with mtime 2026-08-24 12:56 UTC, and $HARNESS_DC_DATA_DIR/jsrepository.json.properties, whose header reads '#Mon Aug 24 12:39:25 UTC 2026'.",
+        "feed_state": "not attempted - the runner passes --noupdate, so no refresh was attempted and the seeded datafeed was used as found.",
+        "fetched_at_scan_time": false,
+        "evidence": "ls -la over $HARNESS_DC_DATA_DIR and its odc.mv.db; the runner asserts that database's presence at line 31 and prints the data directory at line 42."
+      },
+      "not_comparable_with_rehearsal": true,
+      "not_comparable_reason": "The NVD feed timestamp differs from the expected identity. A different feed produces a different count for reasons that have nothing to do with the code, so this tool's counts must not be compared against the rehearsal's figures.",
+      "heap_override": {
+        "takes_one": false,
+        "evidence": "The runner sets no JAVA_OPTS and passes no heap flag; it is not one of the four heap-bound JVM invocations, which are the frontend build, the importCpg verification load, the Joern runner and the probe."
+      },
+      "exit_code_mapping": "The runner exits with the tool's own exit code (lines 58-65); it does not transform it."
+    },
+    "joern": {
+      "canonical_tool_identifier": "joern",
+      "scanner_class": "sast",
+      "scanner_class_varies_per_record": false,
+      "observed_version": "4.0.607",
+      "expected_version": "4.0.607",
+      "version_matches_expected": true,
+      "version_evidence": "printf '' | joern | grep -m1 -i version printed 'Version: 4.0.607'. Joern exposes no --version flag and its REPL blocks on an open stdin, so the version is read from the startup banner with stdin closed.",
+      "runner_script": "harness/bin/run-joern.sh",
+      "script_classification": "runner",
+      "argument_guard": {
+        "literal_source": "if [ \"$#\" -ne 0 ]; then\n  printf 'run-joern.sh: takes no arguments (configuration is baked in); refusing to scan\\n' >&2\n  exit 64\nfi",
+        "first_line": 19,
+        "last_line": 22,
+        "exit_status": 64,
+        "is_first_executable_statement": true,
+        "first_env_sourcing_line": 27,
+        "first_shared_library_sourcing_line": 29,
+        "first_target_resolution_line": 50,
+        "first_tool_invocation_line": 69,
+        "guard_precedes_all_scanning_steps": true,
+        "established_by": "inspection",
+        "rejection_probe_performed": false,
+        "rejection_probe_reason": "Inspection settled the ordering, so no probe was needed or permitted.",
+        "note": "Lines 38-48 sit between the sourcing and the target resolution, but they are input validation rather than scanning steps: they assert joern is on PATH, the baked query set exists, JAVA_HOME_21 holds a usable JDK, and the graph exists and resolves to a file. Each failure path calls scope_fail, which exits 78 naming the fault."
+      },
+      "scan_target_variable": "SPARK_SRC",
+      "scan_target_resolution": "Indirect, via harness/lib/scope.sh sourced at line 29 and scope_resolve_target called at line 50, which reads SPARK_SRC at harness/lib/scope.sh lines 29-32. For this runner the resolved root is recorded for provenance rather than used as a scan target: its actual input is the code-property graph at HARNESS_CPG, not a directory tree.",
+      "scan_target_value_set": "/opt/spark-src",
+      "resolved_scan_root": "/opt/spark-src",
+      "resolved_scan_root_verified": true,
+      "input_is_the_graph": {
+        "variable": "HARNESS_CPG",
+        "path": "harness/cpg/spark.cpg",
+        "resolves_to": "/opt/blitzy-harness/cpg/spark.cpg",
+        "relationship": "harness/cpg/spark.cpg is a 33-byte symlink to the shared graph, so both the AAP's named path and the environment's exported name resolve to the same bytes.",
+        "observed_bytes": 541255894,
+        "observed_sha256": "26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc",
+        "identity_source": "Byte size measured with stat over the resolved path; the sha256 is the value recorded in harness/ENVIRONMENT.md's inline-values block for the graph this provisioning built, and the runner recomputes and prints both at lines 57-58 before every load.",
+        "runner_guard": "Lines 44-48 exit 78 naming the missing graph if HARNESS_CPG does not exist or does not resolve to a file - a configuration fault to fix, not a scanning outcome to classify."
+      },
+      "invocation_form": {
+        "target_passing_style": "no filesystem target; a script plus the graph path passed through the environment",
+        "invocations_per_run": 1,
+        "literal": "JAVA_HOME=\"$JAVA_HOME_21\" SL_LOGGING_LEVEL=\"${SL_LOGGING_LEVEL:-WARN}\" HARNESS_SCAN_CPG=\"$CPG_REAL\" HARNESS_SCAN_OUT=\"$ART\" HARNESS_SCAN_BOUND=\"$BOUND\" joern --script \"$SCRIPT\" -J-Xmx\"$HARNESS_JOERN_HEAP\" < /dev/null > \"$OUT\" 2> \"$ERR\"",
+        "source_lines": "harness/bin/run-joern.sh lines 67-71",
+        "targets": "None on the command line. The graph is passed as HARNESS_SCAN_CPG, the artifact path as HARNESS_SCAN_OUT and the per-query traversal bound as HARNESS_SCAN_BOUND, because Joern's launcher does not forward -D system properties to a script - only -J flags reach the JVM. The script honours -D names as a fallback (harness/lib/joern-scan.sc lines 20-27).",
+        "stdin": "closed (< /dev/null), because the REPL blocks on an open stdin."
+      },
+      "working_directory": {
+        "path": "$HARNESS_SCRATCH_DIR/joern-run",
+        "resolved_path_this_clone": "/tmp/blitzy-harness-scratch/5/joern-run",
+        "expression": "cd \"$WORKDIR\"",
+        "source_line": 65,
+        "equals_scan_root": false,
+        "note": "The only runner whose working directory is not the scan root, and deliberately so: Joern has no --workspace flag and writes an ~800 MB ./workspace into whatever directory it runs from, so the runner works inside the per-clone scratch directory and never inside the repository. HARNESS_SCRATCH_DIR is derived per clone as /tmp/blitzy-harness-scratch/${BLITZY_CLONE_INDEX:-0} (harness/env.sh line 38); two Joern processes sharing one workspace corrupt each other, which is why the index must be passed on the command line rather than exported."
+      },
+      "path_base": {
+        "kind": "bytecode_class",
+        "value": null,
+        "value_evidence": "No filesystem base exists for this tool's records, so no value is given rather than a plausible one being invented.",
+        "evidence": "Established from the runner and its baked script rather than from any artifact. harness/lib/joern-scan.sc line 97 sets the emitted file field to m.filename - the CPG method's own filename - and line 96 sets the class field to m.typeDecl.fullName. Because this runner's input is a graph the frontend built over staged JARs rather than over the source tree, m.filename is by construction the frontend's extraction path for a .class member and can never be a path in the Spark tree, so no filesystem base exists for this tool and the class field is the only resolvable coordinate. Corroborated afterwards, not established, by harness/ENVIRONMENT.md section 9, which measured the file field to be an ephemeral /tmp/jimple2cpg-<id>/<pkg>/<Class>.class path for 692 of 692 findings. The path must therefore be resolved from the class field, against src/main and src/test under the pinned root, taking the resolution only where it is unique and rejecting the ambiguous and the unresolvable.",
+        "record_path_field": "class",
+        "record_path_field_to_ignore": "file",
+        "resolution_note": "Provisioning measured the resolvability of its 692 findings: 89 resolve uniquely to a src/main source file, 0 are ambiguous, 0 land in src/test, 18 are org.apache.spark classes whose source filename does not match the class name because Scala permits that, and 585 are third-party classes shaded into Spark's JARs with no source in the tree at all. A finding that resolves into a src/test tree is retained with in_scope false rather than dropped."
+      },
+      "jdk_major": 21,
+      "jdk_major_evidence": "Two independent readings agree. The runner sets JAVA_HOME=\"$JAVA_HOME_21\" at line 67 and asserts that JDK is usable at line 40; and /opt/blitzy-tools/bin/joern is itself a provisioning wrapper whose body exports JAVA_HOME=\"${JAVA_HOME_21:-/opt/blitzy-tools/jdk/jdk-21.0.12.1+1}\" before delegating to /opt/blitzy-tools/joern-cli/joern, because Joern's own launchers would otherwise use whatever java is on PATH - which here is 17. That JDK reports 'openjdk version \"21.0.12.1\" 2026-08-18 LTS' - major 21, the version the pinned release documents as its tested requirement.",
+      "jdk_home": "/opt/blitzy-tools/jdk/jdk-21.0.12.1+1",
+      "interpreter": null,
+      "interpreter_evidence": "Not a Python-hosted tool. It is a JVM application driven by a Scala script, and the runner invokes no interpreter.",
+      "baked_flags": {
+        "literal": [
+          "--script \"$SCRIPT\"",
+          "-J-Xmx\"$HARNESS_JOERN_HEAP\"",
+          "< /dev/null"
+        ],
+        "environment_passed": [
+          "JAVA_HOME=$JAVA_HOME_21",
+          "SL_LOGGING_LEVEL=${SL_LOGGING_LEVEL:-WARN}",
+          "HARNESS_SCAN_CPG=$CPG_REAL",
+          "HARNESS_SCAN_OUT=$ART",
+          "HARNESS_SCAN_BOUND=$BOUND"
+        ],
+        "source_lines": "harness/bin/run-joern.sh lines 67-71",
+        "update_suppression_flags": [],
+        "notes": [
+          "SL_LOGGING_LEVEL=WARN is load-bearing: Joern's default log level floods its own artifact, and one earlier run produced a 379 MB artifact of per-method INFO lines. The raw console stream goes to the log directory and only the counted query output becomes the artifact.",
+          "The traversal bound is HARNESS_JOERN_QUERY_BOUND, read at line 36 with a default of 2000 and passed as HARNESS_SCAN_BOUND. It governs how much work each query is asked to do, never which files or modules are in scope.",
+          "No flag in this set appears in the AAP expected-values table, so none is an anchor."
+        ],
+        "literal_note": "Token text exactly as it appears in the runner, including the script's own quoting. invocation_form.literal holds the full command line verbatim."
+      },
+      "credential_expression": null,
+      "credential_expression_evidence": "This runner reports no credential state: it calls scope_cred_state nowhere and prints no credential line, because joern reads no credential. Recorded as null rather than an empty string. Its header lines 56-62 print the graph path and its resolution, the graph's byte size and sha256, the JDK, the heap, the query set with its bound, and the workspace instead.",
+      "artifact_path": "joern.json",
+      "artifact_absolute_form": "$HARNESS_RAW_DIR/joern.json",
+      "artifact_format": "native JSON with a findings array",
+      "artifact_expected": true,
+      "artifact_assignment_source_line": 32,
+      "artifact_assembly": "The baked script writes the artifact itself (harness/lib/joern-scan.sc lines 106-121). Each finding carries query_id, severity, message, callee, class, method, file and line; the envelope also carries the tool version, the cpg path, the graph's method, type-declaration and file counts, and a per-query record with its bound, returned count and bound_reached flag.",
+      "side_artifacts": [
+        "$HARNESS_LOG_DIR/joern.stdout.log",
+        "$HARNESS_LOG_DIR/joern.stderr.log",
+        "$HARNESS_LOG_DIR/joern.status"
+      ],
+      "reach": {
+        "reads_allowlist": false,
+        "allowlist_use": "This is the one runner whose target set is NOT derived from the allowlist: it never calls scope_dirs for targeting, and the only allowlist read is incidental - scope_begin prints the expansion's directory count in its header (harness/lib/scope.sh line 75). Its input is the graph, which was built over every JAR the build produced.",
+        "walks": "The whole code-property graph, not a directory tree. Six bounded structural queries run over it.",
+        "query_set": {
+          "file": "harness/lib/joern-scan.sc",
+          "query_count": 6,
+          "query_ids": [
+            "joern-process-exec",
+            "joern-unsafe-deserialization",
+            "joern-reflection-forname",
+            "joern-message-digest",
+            "joern-cipher-getinstance",
+            "joern-xml-factory"
+          ],
+          "bound_per_query": 2000,
+          "bound_variable": "HARNESS_JOERN_QUERY_BOUND",
+          "truncation_observable": "Each query takes bound+1 and reports bound_reached, so truncation is observed rather than assumed (harness/lib/joern-scan.sc lines 87-93).",
+          "load_mechanism": "importCpg only, at harness/lib/joern-scan.sc line 41. importCode appears nowhere in the script; it would spawn a second JVM at the same heap.",
+          "why_bounded": "The runner's header and the script's own comment record that a whole-graph sweep of Joern's default 59-query bundle over a graph of this size ran 2 h 26 m wall and 9 h 35 m CPU on this class of host without finishing. Since the scanning run imposes no time limit, an unbounded sweep would not fail - it would hang and produce no dataset. The bound governs which queries run and how much traversal each does, never which files or modules are in scope."
+        },
+        "in_tool_words": "6 bounded structural queries over the whole graph, bound 2,000, bound_reached=false on all six",
+        "in_tool_words_source": "harness/ENVIRONMENT.md section 11, 'The Joern runner's bound, proven'",
+        "in_scope_note": "in_scope is decided by the allowlist alone. Because every -tests artifact the build produced is in the graph input, a finding can legitimately resolve into a src/test tree; such a row is kept with in_scope false rather than dropped."
+      },
+      "ruleset_or_feed_identity": {
+        "kind": "query_set",
+        "location": "harness/lib/joern-scan.sc",
+        "observed_identity": "6 bounded structural queries baked into the provisioned runner",
+        "expected_identity": "the set baked into the provisioned Joern runner; the AAP expects a 58-query bundle bounded to 6 structural queries and directs that the actual baked count be read from the runner",
+        "identity_matches_expected": true,
+        "observed_rule_count": 6,
+        "fetched_at_scan_time": false,
+        "evidence": "Read directly from harness/lib/joern-scan.sc lines 50-78, where the six Q(...) entries are declared, and line 111 where the script labels its own output '6 bounded structural queries'. Counted from the runner rather than assumed from the default bundle size."
+      },
+      "not_comparable_with_rehearsal": false,
+      "heap_override": {
+        "takes_one": true,
+        "variable": "HARNESS_JOERN_HEAP",
+        "mechanism": "The runner applies it as -J-Xmx\"$HARNESS_JOERN_HEAP\" at line 70 and prints it at line 60. harness/env.sh line 85 exports HARNESS_JOERN_HEAP=\"${HARNESS_JOERN_HEAP:-64g}\", so the documented override is an environment value the runner is written to consume rather than a configuration edit.",
+        "default_in_this_provisioning": "64g",
+        "value_exported_by_this_run": "64g",
+        "raise_required": false,
+        "raise_required_evidence": "The provisioned default already meets the mandated minimum of 64 GB, so no raise was necessary and none was made. This differs from the harness precedent, whose run-joern.sh defaulted JAVA_OPTS to -Xmx48g - below the minimum - and would have required one.",
+        "direction_rule": "Raising a heap is permitted and reported; lowering one produces a truncated graph whose silence cannot be told apart from a clean result. The host was proven able to commit this heap: java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version exits 0 on both JDKs.",
+        "commit_proof_source": "harness/ENVIRONMENT.md section 1, heap commit proof row"
+      },
+      "exit_code_mapping": "The runner exits with the tool's own exit code (lines 72-76); it does not transform it. A configuration fault - a missing graph, a missing query set, an unusable JDK 21 - exits 78 through scope_fail with a diagnostic naming the fault, which is a fault to correct rather than a scanning outcome to classify."
+    }
+  }
+}
