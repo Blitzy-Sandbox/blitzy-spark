@@ -1,0 +1,7 @@
+tool=osv-scanner
+exit_code=128
+elapsed_seconds=0
+artifact=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-042_638006/harness/artifacts/raw/osv-scanner.json
+artifact_bytes=MISSING
+scan_root=/opt/spark-src
+scan_root_source=SPARK_SRC
