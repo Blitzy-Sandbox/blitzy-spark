@@ -1,0 +1,33 @@
+Configuration
+=============
+version                 : 0.9.1
+revision                : f76636e43554f7f9a8e3984a31d03ec8dea5489f
+config method           : none (no local file and no remote configuration)
+cores available         : 4
+cores used              : 4
+#static analysis rules  : 1093
+source directory        : /opt/spark-src
+subdirectories          : common/network-common/src/main,common/network-shuffle/src/main,common/network-yarn/src/main,core/src/main,python/pyspark,resource-managers/kubernetes/core/src/main,resource-managers/kubernetes/core/volcano/src/main,resource-managers/kubernetes/docker/src/main,resource-managers/yarn/src/main,sql/catalyst/src/main,sql/connect/client/jdbc/src/main,sql/connect/client/jvm/src/main,sql/connect/common/src/main,sql/connect/server/src/main,sql/connect/shims/src/main,sql/core/src/main,sql/hive-thriftserver/src/main,sql/hive/src/main
+output file             : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-025_42e7a6/harness/artifacts/raw/datadog-static-analyzer.sarif
+static analysis enabled:  true
+secrets enabled         : false
+output format           : sarif
+ignore paths            : *#*#,*.#*,*.iml,*.ipr,*.iws,*.pyc,*.pyo,*.swp,*~,.java-version,.python-version,.DS_Store,.ammonite,.bloop,.bsp/,.cache,.classpath,.ensime,.ensime_cache/,.ensime_lucene,.generated-mima*,.idea/,.idea_modules/,.metals,.project,.pydevproject,.scala_dependencies,.settings,.vscode,artifacts/,/lib/,R-unit-tests.log,R/unit-tests.out,R/cran-check.out,R/pkg/vignettes/sparkr-vignettes.html,R/pkg/tests/fulltests/Rplots.pdf,build/*.jar,build/apache-maven*,build/scala*,cache,checkpoint,conf/*.cmd,conf/*.conf,conf/*.properties,conf/*.sh,conf/*.xml,conf/java-opts,conf/slaves,dependency-reduced-pom.xml,derby.log,dev/create-release/*final,dev/create-release/*txt,dev/pr-deps/,dist/,docs/_generated/,docs/_site/,docs/api,docs/.local_ruby_bundle,sql/docs,sql/site,lib_managed/,lint-r-report.log,lint-js-report.log,log/,logs/,metals.sbt,out/,project/boot/,project/build/target/,project/plugins/lib_managed/,project/plugins/project/build.properties,project/plugins/src_managed/,project/plugins/target/,python/lib/pyspark.zip,python/.eggs/,python/coverage.xml,python/deps,python/docs/_site/,python/docs/source/development/errors.rst,python/docs/source/reference/**/api/,python/docs/source/tutorial/pandas_on_spark/supported_pandas_api.rst,python/test_coverage/coverage_data,python/test_coverage/htmlcov,python/pyspark/python,.mypy_cache/,reports/,scalastyle-on-compile.generated.xml,scalastyle-output.xml,scalastyle.txt,spark-*-bin-*.tgz,spark-tests.log,src_managed/,streaming-tests.log,target/,unit-tests.log,work/,docs/.jekyll-metadata,docs/.jekyll-cache,TempStatsStore/,metastore/,metastore_db/,sql/hive-thriftserver/test_warehouses,warehouse/,spark-warehouse/,.RData,.RHistory,.Rhistory,*.Rproj,*.Rproj.*,.Rproj.user,.jvmopts,node_modules,sql/api/gen/,sql/api/src/main/gen/,sql/api/src/main/antlr4/org/apache/spark/sql/catalyst/parser/SqlBaseLexer.tokens,sql/api/src/main/antlr4/org/apache/spark/sql/catalyst/parser/gen/,tpcds-sf-1/,tpcds-sf-1-text/,tpcds-kit/,**/node_modules/**/*,**/jspm_packages/**/*,**/.next/**/*,**/.vuepress/**/*,**/venv/**/*,**/__pycache__/**/*,**/_vendor/bundle/ruby/**/*,**/.vendor/bundle/ruby/**/*,**/.bundle/**/*,**/.gradle/**/*,**/TemporaryGeneratedFile_.*.cs,**/*.designer.cs,**/*.generated.cs,**/*.g.cs,**/*.g.i.cs
+only paths              : all paths
+ignore gitignore        : false
+use debug               : false
+use staging             : false
+ignore gen files        : true
+rules languages         : javascript,typescript,go,kotlin,bash,java,rust,php,python,ruby,c#,dart
+max file size           : 200 kb
+Analyzing 28 JavaScript files using 138 rules
+Analyzing 2 Bash files using 35 rules
+Analyzing 1149 Python files using 131 rules
+Analyzing 591 Java files using 109 rules
+Static Analysis Summary
+  Files scanned: 4085
+  Files with violations: 568
+  Total violations: 6832
+  Rules evaluated: 1093
+  Rules with matches: 96
+  Duration: 220.936s

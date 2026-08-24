@@ -1,0 +1,7 @@
+tool=joern
+exit_code=0
+elapsed_seconds=1074
+artifact=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/artifacts/raw/joern.json
+artifact_bytes=354343
+scan_root=/opt/spark-src
+scan_root_source=SPARK_SRC

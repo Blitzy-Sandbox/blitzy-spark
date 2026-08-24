@@ -1,0 +1,2876 @@
+tool            : checkov
+scan root       : /opt/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-027_182a66/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-027_182a66/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-027_182a66/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scope dirs      : 18
+start           : 2026-08-24T22:35:18+00:00
+policies        : bundled with checkov 3.3.12 (not separately versioned)
+frameworks      : all bundled frameworks (no --framework filter)
+flags           : --skip-download --quiet --compact -o json
+credential      : BC_API_KEY=absent (severities require a licence and stay absent)
+{
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "parsing_errors": 0,
+    "resource_count": 0,
+    "checkov_version": "3.3.12"
+}
+{
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "parsing_errors": 0,
+    "resource_count": 0,
+    "checkov_version": "3.3.12"
+}
+{
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "parsing_errors": 0,
+    "resource_count": 0,
+    "checkov_version": "3.3.12"
+}
+{
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "parsing_errors": 0,
+    "resource_count": 0,
+    "checkov_version": "3.3.12"
+}
+{
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "parsing_errors": 0,
+    "resource_count": 0,
+    "checkov_version": "3.3.12"
+}
+{
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "parsing_errors": 0,
+    "resource_count": 0,
+    "checkov_version": "3.3.12"
+}
+{
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "parsing_errors": 0,
+    "resource_count": 0,
+    "checkov_version": "3.3.12"
+}
+{
+    "check_type": "dockerfile",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 35,
+                            "endline": 47,
+                            "content": "RUN set -ex && \\\n    apt-get update && \\\n    ln -s /lib /lib64 && \\\n    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \\\n    mkdir -p /opt/spark && \\\n    mkdir -p /opt/spark/examples && \\\n    mkdir -p /opt/spark/work-dir && \\\n    touch /opt/spark/RELEASE && \\\n    rm /bin/sh && \\\n    ln -sv /bin/bash /bin/sh && \\\n    echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su && \\\n    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \\\n    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "set -ex &&     apt-get update &&     ln -s /lib /lib64 &&     apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev &&     mkdir -p /opt/spark &&     mkdir -p /opt/spark/examples &&     mkdir -p /opt/spark/work-dir &&     touch /opt/spark/RELEASE &&     rm /bin/sh &&     ln -sv /bin/bash /bin/sh &&     echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su &&     chgrp root /etc/passwd && chmod ug+rw /etc/passwd &&     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    36,
+                    48
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    1,
+                    71
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 31,
+                            "endline": 35,
+                            "content": "RUN apt-get update && \\\n    apt install -y python3 python3-pip && \\\n    pip3 install --upgrade pip setuptools && \\\n    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&     apt install -y python3 python3-pip &&     pip3 install --upgrade pip setuptools &&     rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    32,
+                    36
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    1,
+                    46
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 33,
+                            "endline": 36,
+                            "content": "RUN \\\n  apt-get update && \\\n  apt install -y r-base r-base-dev && \\\n  rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&   apt install -y r-base r-base-dev &&   rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    34,
+                    37
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    1,
+                    47
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 201,
+        "failed": 6,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 3,
+        "checkov_version": "3.3.12"
+    }
+}
+{
+    "check_type": "dockerfile",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 35,
+                            "endline": 47,
+                            "content": "RUN set -ex && \\\n    apt-get update && \\\n    ln -s /lib /lib64 && \\\n    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \\\n    mkdir -p /opt/spark && \\\n    mkdir -p /opt/spark/examples && \\\n    mkdir -p /opt/spark/work-dir && \\\n    touch /opt/spark/RELEASE && \\\n    rm /bin/sh && \\\n    ln -sv /bin/bash /bin/sh && \\\n    echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su && \\\n    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \\\n    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "set -ex &&     apt-get update &&     ln -s /lib /lib64 &&     apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev &&     mkdir -p /opt/spark &&     mkdir -p /opt/spark/examples &&     mkdir -p /opt/spark/work-dir &&     touch /opt/spark/RELEASE &&     rm /bin/sh &&     ln -sv /bin/bash /bin/sh &&     echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su &&     chgrp root /etc/passwd && chmod ug+rw /etc/passwd &&     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    36,
+                    48
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    1,
+                    71
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 31,
+                            "endline": 35,
+                            "content": "RUN apt-get update && \\\n    apt install -y python3 python3-pip && \\\n    pip3 install --upgrade pip setuptools && \\\n    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&     apt install -y python3 python3-pip &&     pip3 install --upgrade pip setuptools &&     rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    32,
+                    36
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    1,
+                    46
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 33,
+                            "endline": 36,
+                            "content": "RUN \\\n  apt-get update && \\\n  apt install -y r-base r-base-dev && \\\n  rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&   apt install -y r-base r-base-dev &&   rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    34,
+                    37
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    1,
+                    47
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 201,
+        "failed": 6,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 3,
+        "checkov_version": "3.3.12"
+    }
+}
+{
+    "check_type": "dockerfile",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 35,
+                            "endline": 47,
+                            "content": "RUN set -ex && \\\n    apt-get update && \\\n    ln -s /lib /lib64 && \\\n    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \\\n    mkdir -p /opt/spark && \\\n    mkdir -p /opt/spark/examples && \\\n    mkdir -p /opt/spark/work-dir && \\\n    touch /opt/spark/RELEASE && \\\n    rm /bin/sh && \\\n    ln -sv /bin/bash /bin/sh && \\\n    echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su && \\\n    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \\\n    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "set -ex &&     apt-get update &&     ln -s /lib /lib64 &&     apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev &&     mkdir -p /opt/spark &&     mkdir -p /opt/spark/examples &&     mkdir -p /opt/spark/work-dir &&     touch /opt/spark/RELEASE &&     rm /bin/sh &&     ln -sv /bin/bash /bin/sh &&     echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su &&     chgrp root /etc/passwd && chmod ug+rw /etc/passwd &&     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    36,
+                    48
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    1,
+                    71
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 31,
+                            "endline": 35,
+                            "content": "RUN apt-get update && \\\n    apt install -y python3 python3-pip && \\\n    pip3 install --upgrade pip setuptools && \\\n    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&     apt install -y python3 python3-pip &&     pip3 install --upgrade pip setuptools &&     rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    32,
+                    36
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    1,
+                    46
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 33,
+                            "endline": 36,
+                            "content": "RUN \\\n  apt-get update && \\\n  apt install -y r-base r-base-dev && \\\n  rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&   apt install -y r-base r-base-dev &&   rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    34,
+                    37
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    1,
+                    47
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 201,
+        "failed": 6,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 3,
+        "checkov_version": "3.3.12"
+    }
+}
+{
+    "check_type": "dockerfile",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 35,
+                            "endline": 47,
+                            "content": "RUN set -ex && \\\n    apt-get update && \\\n    ln -s /lib /lib64 && \\\n    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \\\n    mkdir -p /opt/spark && \\\n    mkdir -p /opt/spark/examples && \\\n    mkdir -p /opt/spark/work-dir && \\\n    touch /opt/spark/RELEASE && \\\n    rm /bin/sh && \\\n    ln -sv /bin/bash /bin/sh && \\\n    echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su && \\\n    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \\\n    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "set -ex &&     apt-get update &&     ln -s /lib /lib64 &&     apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev &&     mkdir -p /opt/spark &&     mkdir -p /opt/spark/examples &&     mkdir -p /opt/spark/work-dir &&     touch /opt/spark/RELEASE &&     rm /bin/sh &&     ln -sv /bin/bash /bin/sh &&     echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su &&     chgrp root /etc/passwd && chmod ug+rw /etc/passwd &&     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    36,
+                    48
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    1,
+                    71
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 31,
+                            "endline": 35,
+                            "content": "RUN apt-get update && \\\n    apt install -y python3 python3-pip && \\\n    pip3 install --upgrade pip setuptools && \\\n    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&     apt install -y python3 python3-pip &&     pip3 install --upgrade pip setuptools &&     rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    32,
+                    36
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    1,
+                    46
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 33,
+                            "endline": 36,
+                            "content": "RUN \\\n  apt-get update && \\\n  apt install -y r-base r-base-dev && \\\n  rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&   apt install -y r-base r-base-dev &&   rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    34,
+                    37
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    1,
+                    47
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 201,
+        "failed": 6,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 3,
+        "checkov_version": "3.3.12"
+    }
+}
+{
+    "check_type": "dockerfile",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 35,
+                            "endline": 47,
+                            "content": "RUN set -ex && \\\n    apt-get update && \\\n    ln -s /lib /lib64 && \\\n    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \\\n    mkdir -p /opt/spark && \\\n    mkdir -p /opt/spark/examples && \\\n    mkdir -p /opt/spark/work-dir && \\\n    touch /opt/spark/RELEASE && \\\n    rm /bin/sh && \\\n    ln -sv /bin/bash /bin/sh && \\\n    echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su && \\\n    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \\\n    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "set -ex &&     apt-get update &&     ln -s /lib /lib64 &&     apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev &&     mkdir -p /opt/spark &&     mkdir -p /opt/spark/examples &&     mkdir -p /opt/spark/work-dir &&     touch /opt/spark/RELEASE &&     rm /bin/sh &&     ln -sv /bin/bash /bin/sh &&     echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su &&     chgrp root /etc/passwd && chmod ug+rw /etc/passwd &&     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    36,
+                    48
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    1,
+                    71
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 31,
+                            "endline": 35,
+                            "content": "RUN apt-get update && \\\n    apt install -y python3 python3-pip && \\\n    pip3 install --upgrade pip setuptools && \\\n    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&     apt install -y python3 python3-pip &&     pip3 install --upgrade pip setuptools &&     rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    32,
+                    36
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    1,
+                    46
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 33,
+                            "endline": 36,
+                            "content": "RUN \\\n  apt-get update && \\\n  apt install -y r-base r-base-dev && \\\n  rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&   apt install -y r-base r-base-dev &&   rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    34,
+                    37
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    1,
+                    47
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 201,
+        "failed": 6,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 3,
+        "checkov_version": "3.3.12"
+    }
+}
+{
+    "check_type": "dockerfile",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 35,
+                            "endline": 47,
+                            "content": "RUN set -ex && \\\n    apt-get update && \\\n    ln -s /lib /lib64 && \\\n    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \\\n    mkdir -p /opt/spark && \\\n    mkdir -p /opt/spark/examples && \\\n    mkdir -p /opt/spark/work-dir && \\\n    touch /opt/spark/RELEASE && \\\n    rm /bin/sh && \\\n    ln -sv /bin/bash /bin/sh && \\\n    echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su && \\\n    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \\\n    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "set -ex &&     apt-get update &&     ln -s /lib /lib64 &&     apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev &&     mkdir -p /opt/spark &&     mkdir -p /opt/spark/examples &&     mkdir -p /opt/spark/work-dir &&     touch /opt/spark/RELEASE &&     rm /bin/sh &&     ln -sv /bin/bash /bin/sh &&     echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su &&     chgrp root /etc/passwd && chmod ug+rw /etc/passwd &&     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    36,
+                    48
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    1,
+                    71
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 31,
+                            "endline": 35,
+                            "content": "RUN apt-get update && \\\n    apt install -y python3 python3-pip && \\\n    pip3 install --upgrade pip setuptools && \\\n    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&     apt install -y python3 python3-pip &&     pip3 install --upgrade pip setuptools &&     rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    32,
+                    36
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    1,
+                    46
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 33,
+                            "endline": 36,
+                            "content": "RUN \\\n  apt-get update && \\\n  apt install -y r-base r-base-dev && \\\n  rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&   apt install -y r-base r-base-dev &&   rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    34,
+                    37
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    1,
+                    47
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 201,
+        "failed": 6,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 3,
+        "checkov_version": "3.3.12"
+    }
+}
+{
+    "check_type": "dockerfile",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 35,
+                            "endline": 47,
+                            "content": "RUN set -ex && \\\n    apt-get update && \\\n    ln -s /lib /lib64 && \\\n    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \\\n    mkdir -p /opt/spark && \\\n    mkdir -p /opt/spark/examples && \\\n    mkdir -p /opt/spark/work-dir && \\\n    touch /opt/spark/RELEASE && \\\n    rm /bin/sh && \\\n    ln -sv /bin/bash /bin/sh && \\\n    echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su && \\\n    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \\\n    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "set -ex &&     apt-get update &&     ln -s /lib /lib64 &&     apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev &&     mkdir -p /opt/spark &&     mkdir -p /opt/spark/examples &&     mkdir -p /opt/spark/work-dir &&     touch /opt/spark/RELEASE &&     rm /bin/sh &&     ln -sv /bin/bash /bin/sh &&     echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su &&     chgrp root /etc/passwd && chmod ug+rw /etc/passwd &&     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    36,
+                    48
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    1,
+                    71
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 31,
+                            "endline": 35,
+                            "content": "RUN apt-get update && \\\n    apt install -y python3 python3-pip && \\\n    pip3 install --upgrade pip setuptools && \\\n    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&     apt install -y python3 python3-pip &&     pip3 install --upgrade pip setuptools &&     rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    32,
+                    36
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    1,
+                    46
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 33,
+                            "endline": 36,
+                            "content": "RUN \\\n  apt-get update && \\\n  apt install -y r-base r-base-dev && \\\n  rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&   apt install -y r-base r-base-dev &&   rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    34,
+                    37
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    1,
+                    47
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 201,
+        "failed": 6,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 3,
+        "checkov_version": "3.3.12"
+    }
+}
+{
+    "check_type": "dockerfile",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 35,
+                            "endline": 47,
+                            "content": "RUN set -ex && \\\n    apt-get update && \\\n    ln -s /lib /lib64 && \\\n    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \\\n    mkdir -p /opt/spark && \\\n    mkdir -p /opt/spark/examples && \\\n    mkdir -p /opt/spark/work-dir && \\\n    touch /opt/spark/RELEASE && \\\n    rm /bin/sh && \\\n    ln -sv /bin/bash /bin/sh && \\\n    echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su && \\\n    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \\\n    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "set -ex &&     apt-get update &&     ln -s /lib /lib64 &&     apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev &&     mkdir -p /opt/spark &&     mkdir -p /opt/spark/examples &&     mkdir -p /opt/spark/work-dir &&     touch /opt/spark/RELEASE &&     rm /bin/sh &&     ln -sv /bin/bash /bin/sh &&     echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su &&     chgrp root /etc/passwd && chmod ug+rw /etc/passwd &&     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    36,
+                    48
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    1,
+                    71
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 31,
+                            "endline": 35,
+                            "content": "RUN apt-get update && \\\n    apt install -y python3 python3-pip && \\\n    pip3 install --upgrade pip setuptools && \\\n    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&     apt install -y python3 python3-pip &&     pip3 install --upgrade pip setuptools &&     rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    32,
+                    36
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    1,
+                    46
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 33,
+                            "endline": 36,
+                            "content": "RUN \\\n  apt-get update && \\\n  apt install -y r-base r-base-dev && \\\n  rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&   apt install -y r-base r-base-dev &&   rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    34,
+                    37
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    1,
+                    47
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 201,
+        "failed": 6,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 3,
+        "checkov_version": "3.3.12"
+    }
+}
+{
+    "check_type": "dockerfile",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 35,
+                            "endline": 47,
+                            "content": "RUN set -ex && \\\n    apt-get update && \\\n    ln -s /lib /lib64 && \\\n    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \\\n    mkdir -p /opt/spark && \\\n    mkdir -p /opt/spark/examples && \\\n    mkdir -p /opt/spark/work-dir && \\\n    touch /opt/spark/RELEASE && \\\n    rm /bin/sh && \\\n    ln -sv /bin/bash /bin/sh && \\\n    echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su && \\\n    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \\\n    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "set -ex &&     apt-get update &&     ln -s /lib /lib64 &&     apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev &&     mkdir -p /opt/spark &&     mkdir -p /opt/spark/examples &&     mkdir -p /opt/spark/work-dir &&     touch /opt/spark/RELEASE &&     rm /bin/sh &&     ln -sv /bin/bash /bin/sh &&     echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su &&     chgrp root /etc/passwd && chmod ug+rw /etc/passwd &&     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    36,
+                    48
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    1,
+                    71
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 31,
+                            "endline": 35,
+                            "content": "RUN apt-get update && \\\n    apt install -y python3 python3-pip && \\\n    pip3 install --upgrade pip setuptools && \\\n    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&     apt install -y python3 python3-pip &&     pip3 install --upgrade pip setuptools &&     rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    32,
+                    36
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    1,
+                    46
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 33,
+                            "endline": 36,
+                            "content": "RUN \\\n  apt-get update && \\\n  apt install -y r-base r-base-dev && \\\n  rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&   apt install -y r-base r-base-dev &&   rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    34,
+                    37
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    1,
+                    47
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 201,
+        "failed": 6,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 3,
+        "checkov_version": "3.3.12"
+    }
+}
+{
+    "check_type": "dockerfile",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 35,
+                            "endline": 47,
+                            "content": "RUN set -ex && \\\n    apt-get update && \\\n    ln -s /lib /lib64 && \\\n    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \\\n    mkdir -p /opt/spark && \\\n    mkdir -p /opt/spark/examples && \\\n    mkdir -p /opt/spark/work-dir && \\\n    touch /opt/spark/RELEASE && \\\n    rm /bin/sh && \\\n    ln -sv /bin/bash /bin/sh && \\\n    echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su && \\\n    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \\\n    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "set -ex &&     apt-get update &&     ln -s /lib /lib64 &&     apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev &&     mkdir -p /opt/spark &&     mkdir -p /opt/spark/examples &&     mkdir -p /opt/spark/work-dir &&     touch /opt/spark/RELEASE &&     rm /bin/sh &&     ln -sv /bin/bash /bin/sh &&     echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su &&     chgrp root /etc/passwd && chmod ug+rw /etc/passwd &&     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    36,
+                    48
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    1,
+                    71
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 31,
+                            "endline": 35,
+                            "content": "RUN apt-get update && \\\n    apt install -y python3 python3-pip && \\\n    pip3 install --upgrade pip setuptools && \\\n    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&     apt install -y python3 python3-pip &&     pip3 install --upgrade pip setuptools &&     rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    32,
+                    36
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    1,
+                    46
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 33,
+                            "endline": 36,
+                            "content": "RUN \\\n  apt-get update && \\\n  apt install -y r-base r-base-dev && \\\n  rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&   apt install -y r-base r-base-dev &&   rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    34,
+                    37
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    1,
+                    47
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 201,
+        "failed": 6,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 3,
+        "checkov_version": "3.3.12"
+    }
+}
+{
+    "check_type": "dockerfile",
+    "results": {
+        "failed_checks": [
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 35,
+                            "endline": 47,
+                            "content": "RUN set -ex && \\\n    apt-get update && \\\n    ln -s /lib /lib64 && \\\n    apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev && \\\n    mkdir -p /opt/spark && \\\n    mkdir -p /opt/spark/examples && \\\n    mkdir -p /opt/spark/work-dir && \\\n    touch /opt/spark/RELEASE && \\\n    rm /bin/sh && \\\n    ln -sv /bin/bash /bin/sh && \\\n    echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su && \\\n    chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \\\n    rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "set -ex &&     apt-get update &&     ln -s /lib /lib64 &&     apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev &&     mkdir -p /opt/spark &&     mkdir -p /opt/spark/examples &&     mkdir -p /opt/spark/work-dir &&     touch /opt/spark/RELEASE &&     rm /bin/sh &&     ln -sv /bin/bash /bin/sh &&     echo \"auth required pam_wheel.so use_uid\" >> /etc/pam.d/su &&     chgrp root /etc/passwd && chmod ug+rw /etc/passwd &&     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    36,
+                    48
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                "file_line_range": [
+                    1,
+                    71
+                ],
+                "resource": "/dockerfiles/spark/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 31,
+                            "endline": 35,
+                            "content": "RUN apt-get update && \\\n    apt install -y python3 python3-pip && \\\n    pip3 install --upgrade pip setuptools && \\\n    rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&     apt install -y python3 python3-pip &&     pip3 install --upgrade pip setuptools &&     rm -rf /root/.cache && rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    32,
+                    36
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+                "file_line_range": [
+                    1,
+                    46
+                ],
+                "resource": "/dockerfiles/spark/bindings/python/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_9",
+                "bc_check_id": null,
+                "check_name": "Ensure that APT isn't used",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": [
+                        {
+                            "instruction": "RUN",
+                            "startline": 33,
+                            "endline": 36,
+                            "content": "RUN \\\n  apt-get update && \\\n  apt install -y r-base r-base-dev && \\\n  rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*\n",
+                            "value": "apt-get update &&   apt install -y r-base r-base-dev &&   rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/*"
+                        }
+                    ]
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    34,
+                    37
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.RUN",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.RunUsingAPT",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            },
+            {
+                "check_id": "CKV_DOCKER_2",
+                "bc_check_id": null,
+                "check_name": "Ensure that HEALTHCHECK instructions have been added to container images",
+                "check_result": {
+                    "result": "FAILED",
+                    "results_configuration": null
+                },
+                "code_block": null,
+                "file_path": "/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_abs_path": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "repo_file_path": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+                "file_line_range": [
+                    1,
+                    47
+                ],
+                "resource": "/dockerfiles/spark/bindings/R/Dockerfile.",
+                "evaluations": null,
+                "check_class": "checkov.dockerfile.checks.HealthcheckExists",
+                "fixed_definition": null,
+                "entity_tags": null,
+                "caller_file_path": null,
+                "caller_file_line_range": null,
+                "resource_address": null,
+                "severity": null,
+                "bc_category": null,
+                "benchmarks": null,
+                "description": null,
+                "short_description": null,
+                "vulnerability_details": null,
+                "connected_node": null,
+                "guideline": null,
+                "details": [],
+                "check_len": null,
+                "definition_context_file_path": null
+            }
+        ]
+    },
+    "summary": {
+        "passed": 201,
+        "failed": 6,
+        "skipped": 0,
+        "parsing_errors": 0,
+        "resource_count": 3,
+        "checkov_version": "3.3.12"
+    }
+}
+exit code       : 1
+elapsed seconds : 136
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-027_182a66/harness/artifacts/raw/checkov.json (8380 bytes)
+end             : 2026-08-24T22:37:33+00:00

@@ -1,0 +1,938 @@
+================================================================================
+OWASP Dependency-Check 13.0.0 - runner stdout record
+harness/artifacts/logs/dependency-check.stdout.log
+================================================================================
+
+================================================================================
+WHAT THIS FILE ESTABLISHES
+================================================================================
+
+  The stdout of harness/bin/run-dependency-check.sh for this run, verbatim, and
+  the two facts about this tool that a reader who assumes rather than reads gets
+  wrong: the JDK it runs under, and the analyzer flags it passes.
+
+  It carries the invocation as it happened - one direct call, no arguments, no
+  orchestrator - its exit code, its wall time, the seeded NVD feed as found, the
+  baked flag set as read out of the runner, the reach the runner actually had,
+  and what there was in scope for this tool to resolve. Every figure below is
+  spliced from a capture of a command that ran; none is transcribed by hand and
+  none is carried over from any earlier run's record.
+
+  AAP 0.6.1 makes this file the AUTHORITY for the artifact's byte count:
+  harness/artifacts/raw/dependency-check.json conforms to the number stated
+  here, not the other way round.
+
+================================================================================
+WHY THIS FILE CARRIES TWO VERBATIM STREAMS
+================================================================================
+
+  The runner splits its stdout across two destinations, so 'the stdout stream'
+  is two byte sequences rather than one, and this file reproduces both:
+
+    - The runner's OWN stdout - the banner scope_begin prints, the four
+      configuration lines at runner lines 42-45, and the trailer scope_finish
+      prints - goes to the runner process's file descriptor 1. APPENDIX A.
+    - The TOOL's stdout is redirected by the runner itself to
+      $HARNESS_LOG_DIR/dependency-check.stdout.log, which is this file's own
+      path (runner line 26, redirected at line 57). APPENDIX B.
+
+  They cannot be captured into one file by a plain redirect: line 57 opens that
+  path with '>', which TRUNCATES it mid-run, so a banner written to the same
+  path first would be destroyed and the trailer would overwrite tool bytes. The
+  provisioned harness treats them as two streams for exactly that reason, and
+  provisioning's own artefacts show the same split: its
+  verify-run/logs/dependency-check.stdout.log holds the tool's stdout while its
+  provision-log/runner-dependency-check.console.log holds banner through
+  trailer.
+
+  Both are reproduced here unedited and unindented, each with its byte count and
+  sha256, between BEGIN/END markers - so a reader can extract either block and
+  recompute the digest rather than take the word 'verbatim' on trust.
+
+================================================================================
+SUBJECT
+================================================================================
+
+  Canonical tool identifier   : dependency-check
+  scanner_class               : vuln (fixed for this tool; only trivy varies)
+  Version, observed           : dependency-check-cli version 13.0.0
+  Version, expected           : 13.0.0  ->  MATCH
+  Engine version in artifact  : 13.0.0 (scanInfo.engineVersion)
+  Runner                      : harness/bin/run-dependency-check.sh
+  Runner sha256               : f7b3fbd9c1185a64713d6de801e96de4793ae3fdbfa9e369f303c4d08ccbedd1
+                                unchanged by this run - no runner file and no
+                                baked flag was edited (AAP 0.8.1)
+  Pinned clone (SPARK_SRC)    : /opt/spark-src
+  Pinned clone HEAD           : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+  Scan root, resolved         : /opt/spark-src (from SPARK_SRC)
+  Scan target variable        : SPARK_SRC -> /opt/spark-src
+  Allowlist                   : harness/scope/allowlist.txt
+  Allowlist sha256            : 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1
+  Scope directories           : 18 (the twelve globs expanded; never widened)
+  Data directory              : /opt/blitzy-harness/dc-data
+  JDK the runner assigned     : /opt/blitzy-tools/jdk/jdk-17.0.20+8
+  Artifact                    : harness/artifacts/raw/dependency-check.json
+  Work directory retained     : harness/artifacts/logs/dependency-check.out/
+  Working checkout            : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-029_4cc49b
+                                NEITHER BUILT NOR SCANNED (AAP 0.3.2)
+  Declared dependencies       : harness/artifacts/logs/runner-metadata.json
+                                harness/cpg/spark.cpg
+
+================================================================================
+STATUS - READ THIS BEFORE ANY NUMBER BELOW
+================================================================================
+
+  THE INVOCATION HAPPENED. It was performed by this run against the pinned clone
+  named above: once, directly, with no arguments, one tool at a time, never
+  through an orchestrator (there is none in harness/bin/, deliberately).
+
+  exit code            : 0
+  elapsed              : 23 s   (2026-08-24T22:38:54+00:00 -> 2026-08-24T22:39:17+00:00)
+  artifact             : dependency-check.json, 17097 bytes
+  findings             : 0   (count unit dependencies[].vulnerabilities[])
+  dependency records   : 32   (.js 31, .json 1)
+  resolved coordinates : 0   (no dependencies[].packages[] entry anywhere)
+
+  Expected against observed, per AAP 0.9.1 and 0.9.3:
+
+    field            expected      observed      outcome
+    ---------------  ------------  ------------  ---------------------------------
+    exit code        0             0             as expected
+    findings         0             0             as expected
+    artifact bytes   17097         17097         as expected
+    version          13.0.0        13.0.0        as expected
+    elapsed          6 s           23 s          RECORDED, not a failure: AAP 0.8.1
+                                                 imposes no time limit and elapsed
+                                                 time is a fact, not a budget. This
+                                                 host runs up to 45 clones; PHASE 4
+                                                 attributes the difference.
+    NVD feed         2026-08-23    2026-08-24    DIFFERS - see PHASE 2. This tool's
+                     T08:00:06-04  T08:00:04-04  counts are NOT COMPARABLE with the
+                                                 rehearsal (AAP 0.9.3).
+
+  Nothing here is a halt. The one halt-class condition this tool could produce -
+  an absent artifact with no stated reason - did not arise: the artifact is
+  present and parses, so its status is 'clean' and the exit code is recorded as
+  a fact and used for nothing else (AAP 0.5.4).
+
+================================================================================
+HOW TO READ THIS FILE
+================================================================================
+
+  Plain text, in execution order. A command is introduced by '$ ' and followed
+  by what it produced. A verbatim stream sits between
+  '----- BEGIN VERBATIM: ... -----' and '----- END VERBATIM: ... -----' markers,
+  unindented, with its byte count and sha256 stated above it.
+
+  A verbatim block can be checked rather than believed. Extract the lines
+  between a block's 'STREAM BEGINS ON THE NEXT LINE' marker and its END marker,
+  keep them byte for byte including any trailing space, append a final newline,
+  and the sha256 equals the digest stated in the block's own header. Both blocks
+  in this file were verified that way after it was written.
+
+  Where a claim rests on a line of the runner, that line is quoted with its
+  number in APPENDIX F rather than paraphrased. Where a figure comes from the
+  artifact, it was read out of the JSON rather than out of any prose.
+
+  This file's own byte size and sha256 are not stated inside it - a file cannot
+  contain its own digest. They belong to the manifest of both artifact trees
+  that oss-scan-results/run-record.md owns (AAP 0.6.1), computed from the file
+  as committed.
+
+================================================================================
+METHOD - THE FOUR PRINCIPLES THIS FILE IS HELD TO
+================================================================================
+
+  1. VERIFICATION IS INDEPENDENT OF THE THING VERIFIED. The JDK is established
+     three ways in PHASE 1: from the runner's own text, from the JDK binary
+     measured directly, and from the JVM process that actually ran the scan,
+     sampled through /proc while it was in flight. The feed timestamp in PHASE 2
+     is read out of the artifact the tool wrote, not out of a record.
+
+  2. REJECT RATHER THAN INFER. Nothing is added and nothing paraphrased. Where a
+     figure could not be established, it is named as such rather than omitted.
+
+  3. HALT AND REPORT OVER SILENT REPAIR. Two expectations were not met - the feed
+     timestamp and the elapsed time. Neither was repaired, neither was hidden,
+     and neither is a halt condition. No flag was added, removed or forced, no
+     runner was edited, and the allowlist was neither widened nor narrowed.
+
+  4. VERBATIM PRESERVATION. Both stdout streams are reproduced byte for byte with
+     their digests, and the tool's own words about its reach are quoted from its
+     stream rather than summarised.
+
+================================================================================
+PHASE 1 - THE JDK, READ FROM THE RUNNER AND FROM THE RUNNING PROCESS
+================================================================================
+
+  The JDK this tool runs under is the fact most often assumed and most often
+  assumed wrongly, in BOTH directions. AAP 0.4.1 and 0.8.2 warn that a reader who
+  assumes the build's 17 for all eight non-Joern tools would be wrong, because the
+  harness PRECEDENT exported JAVA_HOME_21 for this runner. That warning is about a
+  different provisioning. This one assigns 17, and it says so in its own text.
+
+  Three independent readings, in increasing order of authority:
+
+  (1) THE RUNNER'S OWN TEXT.  It invokes the tool with JAVA_HOME="$JAVA_HOME"
+      (line 51), harness/env.sh line 47 sets JAVA_HOME to the Temurin 17 home,
+      and the runner's header states the assignment outright at line 8. Quoted
+      with line numbers in APPENDIX F.
+
+      $ grep -n 'JAVA_HOME' harness/bin/run-dependency-check.sh   (relevant lines)
+           8  # Runs under JAVA_HOME (Temurin 17) — JDK 21 is reserved for Joern.
+          43  printf 'jdk             : %s\n' "$JAVA_HOME"
+          51  JAVA_HOME="$JAVA_HOME" "$DEPENDENCY_CHECK_HOME/bin/dependency-check.sh" \
+
+      The runner also PRINTS the home it assigned, on its own stdout:
+        jdk             : /opt/blitzy-tools/jdk/jdk-17.0.20+8
+
+  (2) THAT JDK, MEASURED DIRECTLY.
+
+      $ . harness/env.sh && "$JAVA_HOME/bin/java" -version
+        JAVA_HOME=/opt/blitzy-tools/jdk/jdk-17.0.20+8
+        openjdk version "17.0.20" 2026-07-21
+        OpenJDK Runtime Environment Temurin-17.0.20+8 (build 17.0.20+8)
+        OpenJDK 64-Bit Server VM Temurin-17.0.20+8 (build 17.0.20+8, mixed mode, sharing)
+        exit=0
+
+      Reported version string : openjdk version "17.0.20" 2026-07-21
+      Major                   : 17
+
+  (3) THE JVM THAT ACTUALLY RAN THE SCAN. Sampled from /proc while the scan was
+      in flight, matched on the runner's own --out path so it cannot be another
+      clone's process. This is the reading that does not depend on any file
+      saying what it intends to do. Full argv in APPENDIX E.
+
+      sampled at   : 2026-08-24T22:38:56+00:00
+      pid          : 452914
+      /proc/pid/exe: /opt/blitzy-tools/jdk/jdk-17.0.20+8/bin/java
+      major implied: 17
+
+      Only the process's executable and argv were read. /proc/*/environ was NOT
+      read, deliberately: this host carries GITHUB_TOKEN in the environment and a
+      log this pipeline preserves verbatim is the last place it may appear.
+
+  VERDICT.  Observed major 17, from all three readings, agreeing.
+  runner-metadata.json records jdk_major = 17 for this tool -> MATCH.
+  The AAP's halt rule is a rule about MAJOR misassignment (0.9.2): the build on
+  anything but 17, or any Joern invocation on anything but 21. Dependency-Check is
+  neither, so its assignment is a property of the provisioned runner, and the
+  observed value equals the recorded one. Nothing halts. A patch-level difference
+  would have been recorded with both values and the run would continue (0.9.1).
+
+  harness/ENVIRONMENT.md corroborates rather than establishes: its runtime-
+  topology table gives 'run-dependency-check.sh | $JAVA_HOME (17)' and it
+  concludes 'Dependency-Check --version succeeds under both JDKs; 17 is the
+  assignment.' The measurement above stands without it.
+
+  NOT ONE OF THE FOUR HEAP-BOUND JVMS. Those are the jimple2cpg frontend build,
+  the importCpg verification load, the Stage 3 Joern runner and the Stage 5 probe
+  (AAP 0.5.4). This runner sets no JAVA_OPTS and passes no -Xmx: the argv in
+  APPENDIX E carries none, and runner-metadata.json records heap_override.takes_one
+  = false. The >= 64 GB rule therefore does not apply here and no heap is claimed.
+
+================================================================================
+PHASE 2 - THE SEEDED NVD FEED, AS FOUND
+================================================================================
+
+  The runner prints the data directory PATH on its own stdout (line 42) and
+  nothing else about the feed, so the listing below was taken by this run - once
+  before the invocation and once after - and the feed's identity was re-read from
+  the artifact the tool wrote. Both listings are in APPENDIX D.
+
+  Data directory        : /opt/blitzy-harness/dc-data
+  Kind                  : keyless NIST NVD JSON 2.0 datafeed
+  Contents, as found    : odc.mv.db 249724928 B, jsrepository.json 549021 B,
+                          publishedSuppressions.xml 83989 B, two .properties
+                          sidecars, and a cache/ directory (APPENDIX D)
+
+  IDENTITY, EXPECTED AGAINST OBSERVED
+
+    expected (AAP 0.4.2) : keyless NVD datafeed, 2026-08-23T08:00:06-04
+    observed             : keyless NIST JSON 2.0 datafeed,
+                           NVD API Last Modified = 2026-08-24T08:00:04-04
+    outcome              : DIFFERS by one day. Both values are recorded and this
+                           tool's counts are marked NOT COMPARABLE WITH THE
+                           REHEARSAL (AAP 0.9.3), because a different feed
+                           produces a different count for reasons that have
+                           nothing to do with the code. This is a recorded
+                           difference, not a halt.
+
+  HOW THE OBSERVED VALUE WAS ESTABLISHED - independently of any record. The
+  artifact's own scanInfo.dataSource block carries the feed's timestamps, so the
+  tool states the identity of the data it used:
+
+    NVD API Last Checked       : 2026-08-24T12:41:51Z
+    NVD API Last Modified      : 2026-08-24T08:00:04-04
+    NVD Cache Last Checked     : 2026-08-24T12:41:51Z
+    NVD Cache Last Modified    : 2026-08-24T08:00:04-04
+
+    runner-metadata.json notes that this string 'is not independently re-readable
+    without opening the H2 database'. It is: the report re-reads it. Two further
+    corroborations, both measured here - jsrepository.json.properties carries the
+    header '#Mon Aug 24 12:39:25 UTC 2026', and odc.mv.db's mtime is
+    2026-08-24 12:56:45 UTC. Same day, before this run started.
+
+  FEED STATE - one of the four outcomes AAP 0.4.2 requires:
+
+        attempted and succeeded   no
+        attempted and failed      no
+    ->  NOT ATTEMPTED             yes - the runner passes --noupdate, so no
+                                  refresh was attempted and the seeded datafeed
+                                  was used exactly as found
+        not reported              no
+
+  Three pieces of evidence that nothing was fetched at invocation time, which
+  matters because a fetch with no digest is a reproducibility gap the dataset
+  would have to disclose (AAP 0.5.4):
+
+    - No download, update, retrieval or proxy line appears in either stdout
+      stream or either stderr stream. The only URLs anywhere are the two
+      documentation links in the tool's own banner (APPENDIX B lines 6-7).
+    - No file in the data directory changed. Every entry's size and mtime in the
+      after-listing matches the before-listing to the granularity each was taken
+      at - the before-listing to the minute (jsrepository.json and its
+      .properties 12:39, publishedSuppressions.xml and its .properties 12:39,
+      odc.mv.db 12:56) and, for the database, to the nanosecond through a stat
+      taken before the run: odc.mv.db 249724928 bytes, mtime 2026-08-24
+      12:56:45.209822111 +0000, identical in the after-listing. Only the
+      directory's own mtime moved, from the H2 engine's transient lock file.
+    - The artifact's 'NVD API Last Checked' is 2026-08-24T12:41:51Z,
+      which PRECEDES this invocation's start (2026-08-24T22:38:54+00:00).
+
+  REPRODUCIBILITY GAP FOR THIS TOOL, THIS RUN: none. Nothing was fetched at
+  invocation time, and the feed that was used is identified by a timestamp the
+  artifact itself carries. The gap that does exist is the one named above: the
+  feed is one day newer than the anchor, so the count is not comparable with the
+  rehearsal's.
+
+  CREDENTIALS. The runner prints a fixed token only, through scope_cred_state,
+  which uses ${VAR:+set} and can never emit a value:
+
+        NVD_API_KEY=absent  (OSS Index analyzer disabled explicitly)
+
+  NVD_API_KEY is absent and stays absent - and it is left UNSET rather than set
+  empty, because an empty value makes this tool abort with 'Invalid API Key,
+  length of 0 too short'. The Sonatype OSS Index credential is likewise absent,
+  which is why PHASE 3's --disableOssIndex matters. No credential value appears
+  anywhere in this file or in any stream it reproduces.
+
+================================================================================
+PHASE 3 - THE BAKED FLAG SET, AS READ OUT OF THE RUNNER
+================================================================================
+
+  Read from the runner's own invocation (lines 51-57, quoted in APPENDIX F) and
+  confirmed against the argv of the process that ran (APPENDIX E). Nothing in
+  this set was added, removed or forced by this run, and none of it is an AAP
+  expected-values anchor.
+
+  The runner prints its own summary of them:
+
+        flags           : --noupdate --disableOssIndex --prettyPrint --format JSON
+
+  PASSED, in argv order:
+
+    --project spark-pinned-<pin>   ties the report to the pinned commit; the
+                                   artifact's projectInfo.name reads
+                                   spark-pinned-59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+    --noupdate                     no feed refresh at scan time. The runner
+                                   asserts the seeded database exists first
+                                   (line 31) and exits 78 naming the fault if it
+                                   does not, because --noupdate needs a seeded
+                                   feed. This is the update-suppression flag.
+    --disableOssIndex              PASSED HERE. This is the counter-intuitive
+                                   one: the harness precedent did NOT pass it,
+                                   and the AAP records that absence. This runner
+                                   passes it, and gives its reason in its own
+                                   header (lines 5-7): Sonatype OSS Index no
+                                   longer answers anonymously and 13.0.0
+                                   self-disables the analyzer with
+                                   'Authentication with token is now required',
+                                   so passing the flag makes the disabling this
+                                   harness's own and recorded rather than
+                                   incidental. Read the runner; record what it
+                                   says.
+    --data <data dir>              the seeded feed of PHASE 2
+    --scan <path> x 18             one absolute path per allowlist directory
+    --format JSON                  native JSON report, the shape the normalizer's
+                                   dependency-check adapter routes
+    --prettyPrint                  formatting only
+    --out <work dir>               harness/artifacts/logs/dependency-check.out/
+
+  NOT PASSED - stated because an analyzer set is only known once the absences are
+  known:
+
+    --nvdApiKey            absent, deliberately (PHASE 2)
+    --purge, --update-only no database maintenance of any kind is attempted
+    --disableRetireJS      NOT passed, so the RetireJS analyzer RAN, against the
+                           seeded jsrepository.json rather than the network - it
+                           reports 'Finished RetireJS Analyzer' in APPENDIX B and
+                           no fetch appears in any stream
+    --disableNodeJS,       NOT passed, so the Node Package Analyzer ran, which is
+    --disableNodeAudit     what produced the two warnings PHASE 4 quotes
+    --enableExperimental   absent: no experimental analyzer contributed
+    --failOnCVSS           absent: the exit code reflects the run, not a policy
+    --suppression          absent: only the feed's own publishedSuppressions.xml
+                           applies, through the Vulnerability Suppression Analyzer
+
+  The runner's sha256 is f7b3fbd9c1185a64713d6de801e96de4793ae3fdbfa9e369f303c4d08ccbedd1
+  before and after this invocation - no runner file and no baked flag was edited,
+  and git reports no modification under harness/bin/ or harness/lib/.
+
+================================================================================
+PHASE 4 - REACH, AND WHAT THERE WAS IN SCOPE TO RESOLVE
+================================================================================
+
+  REACH AS CONFIGURED. The runner builds one absolute --scan argument per
+  allowlist directory (lines 36-40) and hands all 18 to a single invocation.
+  That is this runner's reach, recorded as reach and not as an error, and it
+  DIFFERS from the harness precedent, which scanned the whole root with a
+  test-path exclusion. The argv in APPENDIX E carries 18 --scan arguments, so
+  the configured reach and the executed reach are the same thing here.
+
+  Because the paths handed in are absolute, the tool reports absolute paths:
+  every one of the 32 dependencies[].filePath values lies under /opt/spark-src.
+  That is why this tool's path base is filesystem-absolute and why the normalizer
+  relativizes it against SPARK_SRC (PHASE 5).
+
+  The allowlist was neither widened nor narrowed to obtain any of this: its
+  sha256 is 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1,
+  unchanged. in_scope is decided by the allowlist alone, so a row from outside
+  the twelve roots would be kept with in_scope: false rather than dropped
+  (AAP 0.6.4). None arose here: all 32 paths match the allowlist.
+
+  WHAT THERE WAS TO FIND.
+
+    dependency records            : 32
+    by extension                  : .js 31, .json 1
+    with a vulnerability          : 0
+    dependencies[].vulnerabilities[] (the count unit) : 0
+    with a resolved coordinate    : 0  (no packages[] entry anywhere)
+    absolute under the scan root  : 32 of 32
+
+  All 32 are vendored web assets under the two UI static resource trees -
+  31 .js bundles plus one package.json. The full relativized list is APPENDIX G.
+
+  THE MECHANICAL REASON THERE IS NOTHING TO RESOLVE. The twelve globs contain
+  exactly one manifest-shaped file, and it declares no dependencies:
+
+    path   : core/src/main/resources/org/apache/spark/ui/static/package.json
+    bytes  : 80
+    sha256 : 43b4dcbf33dc23b3d62576dce22b371b1d0c852b05dfd73442e9c3e97a0b4717
+    content:
+        {
+          "name": "spark-ui",
+          "license": "Apache License 2.0",
+          "type": "module"
+        }
+
+    A name, a license and a type. No dependencies block, no lockfile beside it,
+    no node_modules, and no JAR, pom.xml, requirements*.txt, setup.py or
+    pyproject.toml anywhere in the 18 directories. So nothing in scope resolves
+    to a package, and 0 vulnerabilities is a property of the SCOPE rather than of
+    the installation or of this tool. It is reported with its consequence and NOT
+    fixed by widening the globs (AAP 0.3.2).
+
+  THE TOOL'S OWN WORDS ABOUT ITS REACH - quoted from APPENDIX B, not summarised:
+
+    [WARN] No lock file exists - this will result in false negatives; please run `npm install --package-lock`
+    [WARN] Analyzing `/opt/spark-src/core/src/main/resources/org/apache/spark/ui/static/package.json` - however, the node_modules directory does not exist. Please run `npm install` prior to running dependency-check
+
+    Both are statements about the input, not failures: a package.json with no
+    lockfile and no installed tree is exactly what the scope contains.
+
+  EXPECTED AGAINST OBSERVED, for the reach figures:
+
+    AAP 0.2.1 expects this tool to see 'the 40 vendored .js and .css bundles
+    under core/src/main/resources'. Both figures were measured here rather than
+    reconciled by argument:
+
+      core/src/main/resources holds 30 .js and 10 .css files = 40 - exactly the
+      AAP's 40, so the expectation counts vendored asset FILES in one tree.
+      Across all 18 scanned directories there are 31 .js and 11 .css files.
+      The artifact holds 32 dependency RECORDS: 31 .js (the 30 under core plus
+      one under sql/core) and the package.json. So the whole of the difference
+      is the 11 .css files, which the Node and RetireJS analyzers do not treat
+      as dependencies, plus the one .js the second UI tree contributes.
+
+    The difference is recorded, not reconciled away. Provisioning measured the
+    same 32 records with the same 0/0 outcome, so the observed figure is stable
+    across two independent runs.
+
+    Elapsed 23 s against an expected 6 s. The tool's own phase timings account
+    for it: 'Created CPE Index (7 seconds)' and 'Finished RetireJS Analyzer (5
+    seconds)' here, against 1 second each at provisioning - CPU contention on a
+    host that runs up to 45 clones, not extra work. The record is 'Analysis
+    Complete (13 seconds)' inside a 23 s wall time. No time budget applies
+    (AAP 0.8.1) and nothing was tuned to shorten it.
+
+================================================================================
+PHASE 5 - WHAT OTHER FILES MUST AGREE WITH
+================================================================================
+
+  PATH BASE. filesystem-absolute, value /opt/spark-src. Every filePath in the
+  artifact is absolute under it (32 of 32, PHASE 4), so the normalizer's resolver
+  relativizes against SPARK_SRC and emits no absolute path. runner-metadata.json
+  records path_base.kind = filesystem_absolute, value /opt/spark-src,
+  record_path_field = the enclosing dependencies[].filePath. This file agrees with it.
+
+  COUNT UNIT AND RECONCILIATION. The unit is dependencies[].vulnerabilities[],
+  and this artifact contains 0 of them across 32 dependency records. So for
+  dependency-check the identity in normalize-run.json must read
+
+        raw finding records (0) = dataset rows (0) + rejected records (0)
+
+  and the artifact is present, so the reconciliation is a real zero rather than
+  the 'not applicable - artifact absent' case that osv-scanner takes.
+
+  CONFIRMED AGAINST THE NORMALIZER ITSELF, not merely asserted for it. Run over
+  these bytes with harness/lib on the path:
+
+        shape.is_sarif(doc)                                -> False
+        shape.route_artifact(...).tool / adapter            -> dependency-check / dependency_check
+        reconcile.count_records('dependency-check', doc)    -> 0
+
+  The counting traversal is the one that builds no rows, which is what makes it
+  independent of row construction, and the native artifact routes to the
+  dependency-check adapter rather than to the shared SARIF one - the direction
+  the mandated negative test exists to protect.
+
+  ARTIFACT STATUS. Present, parses completely, no record rejected -> 'clean'
+  (AAP 0.5.4). Artifact status and exit status are independent; here both are
+  benign anyway.
+
+  THE BYTE COUNT THIS FILE OWNS. 17097 bytes, and three measurements agree:
+
+        this run's trailer, printed by scope_finish : 17097
+        dependency-check.status, artifact_bytes     : 17097
+        wc -c harness/artifacts/raw/dependency-check.json : 17097
+
+  sha256 of the artifact : 6b1f18604146bf4e51c8699ab5df9c419a2e915a26681fc2e77f6a6946af7292
+  Report date inside it  : 2026-08-24T22:39:15.634757586Z
+
+  AGREEMENT WITH dependency-check.status (AAP 0.6.4 requires these to match):
+
+        exit_code       0   elapsed_seconds 23
+        scan_root       /opt/spark-src (source SPARK_SRC)
+        artifact        /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-029_4cc49b/harness/artifacts/raw/dependency-check.json
+
+  ARTIFACT ASSEMBLY. The tool wrote its report into the work directory and the
+  runner copied it to the artifact path unchanged (lines 61-63) - a copy, not a
+  move, so the tool's own output survives at
+  harness/artifacts/logs/dependency-check.out/dependency-check-report.json and
+  the two are byte-identical. No field was rewritten by the harness. If no report
+  had been produced the trailer would have printed MISSING and the absence would
+  have been a classification question; it printed a byte count instead.
+
+  raw/ REMAINS RUNNER-ONLY. This invocation put exactly one file there,
+  dependency-check.json, and nothing else. This record and every capture behind
+  it live under logs/ (AAP 0.5.1).
+
+  scanner_class. vuln, fixed for this tool - trivy is the only tool whose class
+  varies per record.
+
+  THE DECLARED GRAPH DEPENDENCY. harness/cpg/spark.cpg is a declared dependency of
+  this file, and dependency-check does not load it - it is a JVM SCA tool over
+  files on disk, and the argv in APPENDIX E names no graph. Its identity is
+  therefore recorded here as an integrity check only, not as a pre-load
+  verification:
+
+        harness/cpg/spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg
+        target bytes  : 541255894
+        sha256        : 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+
+  That digest equals the one harness/ENVIRONMENT.md records for the graph, so the
+  graph the later Joern stages will load is unchanged by anything this invocation
+  did. The AAP's duty to re-verify size and sha256 immediately BEFORE a load falls
+  on the stages that load it.
+
+================================================================================
+PHASE 6 - VALIDATION
+================================================================================
+
+  Each item is the brief's own check, with the evidence that settles it.
+
+  [PASS] Raw stdout, unedited. Both streams are reproduced verbatim between
+         BEGIN/END markers with their byte counts and sha256 digests: the
+         runner's own stdout in APPENDIX A (1126 bytes) and the tool's stdout as
+         the runner wrote it to this path in APPENDIX B (2068 bytes).
+  [PASS] Banner and trailer present - APPENDIX A carries tool, scan root, raw
+         dir, log dir, allowlist with its sha256, scope dirs and start, then exit
+         code, elapsed seconds, artifact with its byte count, and end.
+  [PASS] exit_code and elapsed_seconds agree with dependency-check.status:
+         0 and 23 in both (PHASE 5).
+  [PASS] bytes=17097 equals wc -c of harness/artifacts/raw/dependency-check.json;
+         the trailer did not read MISSING, so no absence needed classifying.
+  [PASS] scan_root equals the pinned clone in runner-metadata.json: /opt/spark-src,
+         resolved from SPARK_SRC, and the clone's HEAD is the pin 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d.
+  [PASS] The JDK's reported version string and major appear (PHASE 1): 'openjdk version "17.0.20" 2026-07-21',
+         major 17, matching runner-metadata.json's jdk_major = 17. Recorded as
+         observed from three readings, not assumed in either direction.
+  [PASS] The data directory listing is present and complete - before and after,
+         in APPENDIX D - with the feed identity given as expected against
+         observed and the difference marked NOT COMPARABLE (PHASE 2).
+  [PASS] The feed state is one of the four required outcomes: NOT ATTEMPTED,
+         derived from the runner's --noupdate and corroborated by unchanged feed
+         mtimes and a 'Last Checked' timestamp predating this run. No
+         invocation-time fetch occurred, so no reproducibility gap arises from
+         one; the gap that does exist is the one-day feed difference, disclosed.
+  [PASS] The baked flag set is recorded as read, with what is passed AND what is
+         not (PHASE 3), including --noupdate present and --disableOssIndex
+         present - the latter contradicting the precedent, on the runner's own
+         stated reason.
+  [PASS] The reach is recorded as reach: 18 absolute --scan roots from the
+         allowlist, differing from the precedent's whole-root scan, with the
+         allowlist sha256 unchanged and nothing widened.
+  [PASS] The count unit dependencies[].vulnerabilities[] = 0 is stated for
+         normalize-run.json's reconciliation, with rejected = 0 and the artifact
+         present (PHASE 5).
+  [PASS] No credential value anywhere. The runner prints a fixed token through
+         scope_cred_state's ${VAR:+set} form; NVD_API_KEY is absent and unset;
+         the Sonatype OSS Index credential is absent and the analyzer is
+         explicitly disabled; /proc/*/environ was never read.
+  [NOTE] This file's own byte size and sha256 are recorded by the manifest in
+         oss-scan-results/run-record.md, computed from the committed file - a
+         file cannot carry its own digest.
+
+  WHAT WAS NOT DONE, DELIBERATELY: nothing was installed, upgraded or
+  substituted; no runner file and no baked flag was edited; no Apache Spark file
+  was modified in either tree (git reports no tracked modification in the pinned
+  clone); the allowlist was left byte-exact; no orchestrator was used; Spark's
+  test suites were not run; and no figure here was carried over from an earlier
+  run's record in place of a measurement.
+
+================================================================================
+APPENDIX A - THE RUNNER'S OWN STDOUT, VERBATIM
+================================================================================
+
+  Captured by redirecting the runner's own stdout while it ran. Command:
+
+  $ cd <working checkout> && env -i PATH=... HOME=/root TERM=dumb \
+      BLITZY_CLONE_INDEX=29 bash --noprofile --norc \
+      -c '. ./harness/env.sh && ./harness/bin/run-dependency-check.sh'
+
+  [exit] 0   2026-08-24T22:38:54+00:00 -> 2026-08-24T22:39:17+00:00
+
+----- BEGIN VERBATIM: runner stdout -----
+        bytes  : 1126
+        sha256 : b2a71750f1adec13a46c424475e42e8b792c7f6a6bf2e4705dcc1c036f502bc1
+----- STREAM BEGINS ON THE NEXT LINE -----
+tool            : dependency-check
+scan root       : /opt/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-029_4cc49b/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-029_4cc49b/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-029_4cc49b/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scope dirs      : 18
+start           : 2026-08-24T22:38:54+00:00
+data dir        : /opt/blitzy-harness/dc-data (keyless NVD JSON 2.0 datafeed)
+jdk             : /opt/blitzy-tools/jdk/jdk-17.0.20+8
+flags           : --noupdate --disableOssIndex --prettyPrint --format JSON
+credential      : NVD_API_KEY=absent  (OSS Index analyzer disabled explicitly)
+exit code       : 0
+elapsed seconds : 23
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-029_4cc49b/harness/artifacts/raw/dependency-check.json (17097 bytes)
+end             : 2026-08-24T22:39:17+00:00
+----- END VERBATIM: runner stdout -----
+
+================================================================================
+APPENDIX B - THE TOOL'S STDOUT AS THE RUNNER WROTE IT TO THIS PATH
+================================================================================
+
+  The runner redirected the tool's stdout to
+  $HARNESS_LOG_DIR/dependency-check.stdout.log (lines 26 and 57) - this file's own
+  path. Those bytes were preserved before this record was composed over the path,
+  and are reproduced here unaltered with the digest of the file as the runner
+  wrote it.
+
+----- BEGIN VERBATIM: tool stdout -----
+        bytes  : 2068
+        sha256 : 657e24e4561999c31359291694c7c9699867b0246b370d49588e4ffa15c9321d
+----- STREAM BEGINS ON THE NEXT LINE -----
+[INFO] 
+
+Dependency-Check is an open source tool performing a best effort analysis of 3rd party dependencies; false positives and false negatives may exist in the analysis performed by the tool. Use of the tool and the reporting provided constitutes acceptance for use in an AS IS condition, and there are NO warranties, implied or otherwise, with regard to the analysis or its use. Any use of the tool and the reporting provided is at the user's risk. In no event shall the copyright holder or OWASP be held liable for any damages whatsoever arising out of or in connection with the use of this tool, the analysis performed, or the resulting report.
+
+
+   About ODC: https://dependency-check.github.io/DependencyCheck/general/internals.html
+   False Positives: https://dependency-check.github.io/DependencyCheck/general/suppression.html
+
+
+[INFO] Analysis Started
+[INFO] Finished File Name Analyzer (0 seconds)
+[WARN] No lock file exists - this will result in false negatives; please run `npm install --package-lock`
+[WARN] Analyzing `/opt/spark-src/core/src/main/resources/org/apache/spark/ui/static/package.json` - however, the node_modules directory does not exist. Please run `npm install` prior to running dependency-check
+[INFO] Finished Node Package Analyzer (0 seconds)
+[INFO] Finished Dependency Merging Analyzer (0 seconds)
+[INFO] Finished Hint Analyzer (0 seconds)
+[INFO] Created CPE Index (7 seconds)
+[INFO] Finished CPE Analyzer (8 seconds)
+[INFO] Finished False Positive Analyzer (0 seconds)
+[INFO] Finished NVD CVE Analyzer (0 seconds)
+[INFO] Finished RetireJS Analyzer (5 seconds)
+[INFO] Finished Vulnerability Suppression Analyzer (0 seconds)
+[INFO] Finished Known Exploited Vulnerability Analyzer (0 seconds)
+[INFO] Finished Dependency Bundling Analyzer (0 seconds)
+[INFO] Finished Unused Suppression Rule Analyzer (0 seconds)
+[INFO] Analysis Complete (13 seconds)
+[INFO] Writing JSON report to: /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-029_4cc49b/harness/artifacts/logs/dependency-check.out/dependency-check-report.json
+----- END VERBATIM: tool stdout -----
+
+================================================================================
+APPENDIX C - THE TWO STDERR STREAMS
+================================================================================
+
+  Neither stream is reproduced as a block because both are empty. Their digests
+  are the sha256 of zero bytes, which is what an empty stream must hash to:
+
+    the tool's stderr, harness/artifacts/logs/dependency-check.stderr.log
+        bytes  : 0
+        sha256 : e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+    the runner's own stderr, captured alongside APPENDIX A
+        bytes  : 0
+        sha256 : e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+  An empty runner stderr also means scope_fail never ran: no configuration fault
+  was raised, so the exit 78 path (a diagnostic naming the fault) was not taken.
+  The tool wrote everything, warnings included, to stdout.
+
+================================================================================
+APPENDIX D - THE DATA DIRECTORY, BEFORE AND AFTER
+================================================================================
+
+  $ (before the invocation)
+
+    $ ls -la /opt/blitzy-harness/dc-data
+    total 244516
+    drwxr-xr-x  3 root root      4096 Aug 24 20:11 .
+    drwxr-xr-x 14 root root      4096 Aug 24 14:42 ..
+    drwxr-xr-x  2 root root      4096 Aug 24 12:26 cache
+    -rw-r--r--  1 root root    549021 Aug 24 12:39 jsrepository.json
+    -rw-r--r--  1 root root        57 Aug 24 12:39 jsrepository.json.properties
+    -rw-r--r--  1 root root 249724928 Aug 24 12:56 odc.mv.db
+    -rw-r--r--  1 root root     83989 Aug 24 12:39 publishedSuppressions.xml
+    -rw-r--r--  1 root root        57 Aug 24 12:39 publishedSuppressions.xml.properties
+
+    $ ls -la /opt/blitzy-harness/dc-data/cache
+    total 8
+    drwxr-xr-x 2 root root 4096 Aug 24 12:26 .
+    drwxr-xr-x 3 root root 4096 Aug 24 20:11 ..
+    -rw-r--r-- 1 root root    0 Aug 24 12:26 CENTRAL.data
+    -rw-r--r-- 1 root root    0 Aug 24 12:26 CENTRAL.key
+    -rw-r--r-- 1 root root    0 Aug 24 12:26 NODEAUDIT.data
+    -rw-r--r-- 1 root root    0 Aug 24 12:26 NODEAUDIT.key
+    -rw-r--r-- 1 root root    0 Aug 24 12:26 POM.data
+    -rw-r--r-- 1 root root    0 Aug 24 12:26 POM.key
+
+    $ stat -c "%n %s bytes mtime=%y" /opt/blitzy-harness/dc-data/odc.mv.db
+    /opt/blitzy-harness/dc-data/odc.mv.db 249724928 bytes mtime=2026-08-24 12:56:45.209822111 +0000
+
+    $ cat /opt/blitzy-harness/dc-data/jsrepository.json.properties
+    #Mon Aug 24 12:39:25 UTC 2026
+    LAST_UPDATED=1787575165955
+
+    $ cat /opt/blitzy-harness/dc-data/publishedSuppressions.xml.properties
+    #Mon Aug 24 12:39:26 UTC 2026
+    LAST_UPDATED=1787575166013
+
+  $ (after the invocation)
+
+    $ ls -la --time-style=full-iso /opt/blitzy-harness/dc-data   (AFTER the invocation)
+    total 244516
+    drwxr-xr-x  3 root root      4096 2026-08-24 22:39:10.166272234 +0000 .
+    drwxr-xr-x 14 root root      4096 2026-08-24 14:42:47.995891816 +0000 ..
+    drwxr-xr-x  2 root root      4096 2026-08-24 12:26:41.243201743 +0000 cache
+    -rw-r--r--  1 root root    549021 2026-08-24 12:39:25.953769077 +0000 jsrepository.json
+    -rw-r--r--  1 root root        57 2026-08-24 12:39:25.958769068 +0000 jsrepository.json.properties
+    -rw-r--r--  1 root root 249724928 2026-08-24 12:56:45.209822111 +0000 odc.mv.db
+    -rw-r--r--  1 root root     83989 2026-08-24 12:39:26.012768967 +0000 publishedSuppressions.xml
+    -rw-r--r--  1 root root        57 2026-08-24 12:39:26.013768965 +0000 publishedSuppressions.xml.properties
+
+  Every entry's size is identical in the two listings and every mtime matches to
+  the granularity each listing was taken at: the before-listing to the minute,
+  the after-listing to the nanosecond, and for odc.mv.db the before-run stat
+  above gives the nanosecond value too - 2026-08-24 12:56:45.209822111 +0000 in
+  both. Only the directory's own mtime moved, from the H2 engine's transient
+  lock file: the seeded feed itself was read and not written, which is what
+  --noupdate means.
+
+================================================================================
+APPENDIX E - THE JVM AS SAMPLED WHILE THE SCAN WAS IN FLIGHT
+================================================================================
+
+  Sampled from /proc every 0.25 s for a process whose argv contained this
+  clone's own --out path, so no sibling clone's scan can be mistaken for it.
+  Only the executable and argv were read; /proc/*/environ was not. The argv is
+  one line: /proc/<pid>/cmdline's NUL separators are rendered as single spaces,
+  which is the only transformation applied to it.
+
+  sample_at   : 2026-08-24T22:38:56+00:00
+  pid         : 452914
+  exe         : /opt/blitzy-tools/jdk/jdk-17.0.20+8/bin/java
+  argv        : /opt/blitzy-tools/jdk/jdk-17.0.20+8/bin/java --enable-native-access=ALL-UNNAMED -XX:+IgnoreUnrecognizedVMOptions -Dapp.name=dependency-check -Dapp.pid=452914 -Dapp.repo=/opt/blitzy-tools/dependency-check/lib -Dapp.home=/opt/blitzy-tools/dependency-check -Dbasedir=/opt/blitzy-tools/dependency-check -javaagent:/opt/blitzy-tools/dependency-check/lib/dependency-check-cli-13.0.0.jar=/opt/blitzy-tools/dependency-check/plugins -jar /opt/blitzy-tools/dependency-check/lib/dependency-check-cli-13.0.0.jar --project spark-pinned-59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d --noupdate --disableOssIndex --data /opt/blitzy-harness/dc-data --scan /opt/spark-src/common/network-common/src/main --scan /opt/spark-src/common/network-shuffle/src/main --scan /opt/spark-src/common/network-yarn/src/main --scan /opt/spark-src/core/src/main --scan /opt/spark-src/python/pyspark --scan /opt/spark-src/resource-managers/kubernetes/core/src/main --scan /opt/spark-src/resource-managers/kubernetes/core/volcano/src/main --scan /opt/spark-src/resource-managers/kubernetes/docker/src/main --scan /opt/spark-src/resource-managers/yarn/src/main --scan /opt/spark-src/sql/catalyst/src/main --scan /opt/spark-src/sql/connect/client/jdbc/src/main --scan /opt/spark-src/sql/connect/client/jvm/src/main --scan /opt/spark-src/sql/connect/common/src/main --scan /opt/spark-src/sql/connect/server/src/main --scan /opt/spark-src/sql/connect/shims/src/main --scan /opt/spark-src/sql/core/src/main --scan /opt/spark-src/sql/hive-thriftserver/src/main --scan /opt/spark-src/sql/hive/src/main --format JSON --prettyPrint --out /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-029_4cc49b/harness/artifacts/logs/dependency-check.out
+
+  Three things this argv settles by itself: the executable is the Temurin 17
+  home's java, so the running major is 17; 18 --scan arguments were handed to
+  one invocation, matching the 18 allowlist directories; and no -Xmx or JAVA_OPTS
+  heap flag appears, which is why this tool is not one of the four heap-bound JVM
+  invocations. --noupdate and --disableOssIndex are both visible in it.
+
+================================================================================
+APPENDIX F - THE RUNNER'S OWN LINES THIS RECORD CITES
+================================================================================
+
+  harness/bin/run-dependency-check.sh, sha256 f7b3fbd9c1185a64713d6de801e96de4793ae3fdbfa9e369f303c4d08ccbedd1
+
+  lines 1-10 - header - the JDK assignment and the artifact it writes
+
+      1  #!/usr/bin/env bash
+      2  # run-dependency-check.sh — OWASP Dependency-Check 13.0.0 SCA over the twelve roots.
+      3  #
+      4  # Feed: the seeded keyless NIST NVD JSON 2.0 datafeed in $HARNESS_DC_DATA_DIR.
+      5  # --noupdate means no feed refresh at scan time. --disableOssIndex is passed
+      6  # explicitly: Sonatype OSS Index no longer answers anonymously (13.0.0 self-disables
+      7  # with "Authentication with token is now required"), so the disabling is ours and recorded.
+      8  # Runs under JAVA_HOME (Temurin 17) — JDK 21 is reserved for Joern.
+      9  # Configuration is baked in; this runner accepts NO arguments.
+     10  # Artifact: $HARNESS_RAW_DIR/dependency-check.json (native JSON report)
+
+  lines 12-15 - the argument guard: exit 64 before any sourcing, target resolution or invocation
+
+     12  if [ "$#" -ne 0 ]; then
+     13    printf 'run-dependency-check.sh: takes no arguments (configuration is baked in); refusing to scan\n' >&2
+     14    exit 64
+     15  fi
+
+  lines 24-31 - paths, and the two configuration assertions that exit 78 naming the fault
+
+     24  TOOL=dependency-check
+     25  ART="$HARNESS_RAW_DIR/$TOOL.json"
+     26  OUT="$HARNESS_LOG_DIR/$TOOL.stdout.log"
+     27  ERR="$HARNESS_LOG_DIR/$TOOL.stderr.log"
+     28  WORK="$HARNESS_LOG_DIR/$TOOL.out"
+     29
+     30  [ -x "$DEPENDENCY_CHECK_HOME/bin/dependency-check.sh" ] || scope_fail "dependency-check.sh not executable under DEPENDENCY_CHECK_HOME=$DEPENDENCY_CHECK_HOME"
+     31  [ -f "$HARNESS_DC_DATA_DIR/odc.mv.db" ] || scope_fail "no seeded NVD database at HARNESS_DC_DATA_DIR=$HARNESS_DC_DATA_DIR (--noupdate needs a seeded feed)"
+
+  lines 33-45 - target resolution, the allowlist-derived --scan set, and the four printed lines
+
+     33  scope_resolve_target
+     34  scope_begin "$TOOL"
+     35
+     36  mapfile -t DIRS < <(scope_dirs)
+     37  [ "${#DIRS[@]}" -gt 0 ] || scope_fail "the allowlist expanded to no existing directory under $SCAN_ROOT"
+     38
+     39  SCANARGS=()
+     40  for d in "${DIRS[@]}"; do SCANARGS+=(--scan "$SCAN_ROOT/$d"); done
+     41
+     42  printf 'data dir        : %s (keyless NVD JSON 2.0 datafeed)\n' "$HARNESS_DC_DATA_DIR"
+     43  printf 'jdk             : %s\n' "$JAVA_HOME"
+     44  printf 'flags           : --noupdate --disableOssIndex --prettyPrint --format JSON\n'
+     45  printf 'credential      : NVD_API_KEY=%s  (OSS Index analyzer disabled explicitly)\n' "$(scope_cred_state NVD_API_KEY)"
+
+  lines 47-59 - the invocation itself, with both stream redirects
+
+     47  rm -rf "$WORK"; mkdir -p "$WORK"
+     48  rm -f "$ART"
+     49  cd "$SCAN_ROOT" || scope_fail "cannot enter $SCAN_ROOT"
+     50  set +e
+     51  JAVA_HOME="$JAVA_HOME" "$DEPENDENCY_CHECK_HOME/bin/dependency-check.sh" \
+     52    --project "spark-pinned-$SPARK_SRC_COMMIT" \
+     53    --noupdate --disableOssIndex \
+     54    --data "$HARNESS_DC_DATA_DIR" \
+     55    "${SCANARGS[@]}" \
+     56    --format JSON --prettyPrint --out "$WORK" \
+     57    > "$OUT" 2> "$ERR"
+     58  code=$?
+     59  set -e
+
+  lines 61-66 - the copy to the artifact path and the trailer
+
+     61  if [ -f "$WORK/dependency-check-report.json" ]; then
+     62    cp "$WORK/dependency-check-report.json" "$ART"
+     63  fi
+     64
+     65  scope_finish "$TOOL" "$ART" "$code"
+     66  exit "$code"
+
+================================================================================
+APPENDIX G - THE 32 DEPENDENCY RECORDS, RELATIVIZED
+================================================================================
+
+  Read out of the artifact and expressed relative to /opt/spark-src, which is what
+  the normalizer will do with dependencies[].filePath. Each carries its
+  vulnerability and package counts, and every one of them is zero.
+
+   1  core/src/main/resources/org/apache/spark/ui/static/bootstrap.bundle.min.js  vulns=0  packages=0
+   2  core/src/main/resources/org/apache/spark/ui/static/d3-flamegraph.min.js  vulns=0  packages=0
+   3  core/src/main/resources/org/apache/spark/ui/static/d3.min.js  vulns=0  packages=0
+   4  core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js  vulns=0  packages=0
+   5  core/src/main/resources/org/apache/spark/ui/static/dataTables.bootstrap4.min.js  vulns=0  packages=0
+   6  core/src/main/resources/org/apache/spark/ui/static/dataTables.rowsGroup.js  vulns=0  packages=0
+   7  core/src/main/resources/org/apache/spark/ui/static/environmentpage.js  vulns=0  packages=0
+   8  core/src/main/resources/org/apache/spark/ui/static/executorspage.js  vulns=0  packages=0
+   9  core/src/main/resources/org/apache/spark/ui/static/flamegraph.js  vulns=0  packages=0
+  10  core/src/main/resources/org/apache/spark/ui/static/graphlib-dot.min.js  vulns=0  packages=0
+  11  core/src/main/resources/org/apache/spark/ui/static/historypage-common.js  vulns=0  packages=0
+  12  core/src/main/resources/org/apache/spark/ui/static/historypage.js  vulns=0  packages=0
+  13  core/src/main/resources/org/apache/spark/ui/static/initialize-tooltips.js  vulns=0  packages=0
+  14  core/src/main/resources/org/apache/spark/ui/static/jquery-3.5.1.min.js  vulns=0  packages=0
+  15  core/src/main/resources/org/apache/spark/ui/static/jquery.blockUI.min.js  vulns=0  packages=0
+  16  core/src/main/resources/org/apache/spark/ui/static/jquery.cookies.2.2.0.min.js  vulns=0  packages=0
+  17  core/src/main/resources/org/apache/spark/ui/static/jquery.dataTables.min.js  vulns=0  packages=0
+  18  core/src/main/resources/org/apache/spark/ui/static/jquery.mustache.js  vulns=0  packages=0
+  19  core/src/main/resources/org/apache/spark/ui/static/log-view.js  vulns=0  packages=0
+  20  core/src/main/resources/org/apache/spark/ui/static/package.json  vulns=0  packages=0
+  21  core/src/main/resources/org/apache/spark/ui/static/scroll-button.js  vulns=0  packages=0
+  22  core/src/main/resources/org/apache/spark/ui/static/sorttable.js  vulns=0  packages=0
+  23  core/src/main/resources/org/apache/spark/ui/static/spark-dag-viz.js  vulns=0  packages=0
+  24  sql/core/src/main/resources/org/apache/spark/sql/execution/ui/static/spark-sql-viz.js  vulns=0  packages=0
+  25  core/src/main/resources/org/apache/spark/ui/static/stagepage.js  vulns=0  packages=0
+  26  core/src/main/resources/org/apache/spark/ui/static/streaming-page.js  vulns=0  packages=0
+  27  core/src/main/resources/org/apache/spark/ui/static/structured-streaming-page.js  vulns=0  packages=0
+  28  core/src/main/resources/org/apache/spark/ui/static/table.js  vulns=0  packages=0
+  29  core/src/main/resources/org/apache/spark/ui/static/timeline-view.js  vulns=0  packages=0
+  30  core/src/main/resources/org/apache/spark/ui/static/utils.js  vulns=0  packages=0
+  31  core/src/main/resources/org/apache/spark/ui/static/vis-timeline-graph2d.min.js  vulns=0  packages=0
+  32  core/src/main/resources/org/apache/spark/ui/static/webui.js  vulns=0  packages=0
+
+  All 32 match the twelve globs, so all 32 would take in_scope: true. None is an
+  archive member, none is outside the tree, and none required the non-filesystem
+  coordinate form.
+
+================================================================================
+APPENDIX H - MEASUREMENT PROVENANCE
+================================================================================
+
+  Every figure in this record came from one of the following, and each is either
+  reproduced above or is a committed file a reader can re-measure:
+
+    the runner's own stdout            APPENDIX A, digest stated there
+    the tool's stdout                  APPENDIX B, digest stated there
+    the two stderr streams             APPENDIX C, digests stated there
+    the data directory listings        APPENDIX D
+    the running JVM                    APPENDIX E
+    the runner's text                  APPENDIX F, and the file itself
+    the artifact                       harness/artifacts/raw/dependency-check.json
+                                       17097 bytes, sha256
+                                       6b1f18604146bf4e51c8699ab5df9c419a2e915a26681fc2e77f6a6946af7292
+    the status file                    harness/artifacts/logs/dependency-check.status
+                                       261 bytes, sha256 86406a7e596b496f48f71cf773a0bd8e6c8bbb425a838b94ba4e62e76df935bc
+    the runner metadata                harness/artifacts/logs/runner-metadata.json
+    the allowlist                      harness/scope/allowlist.txt, sha256
+                                       0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1
+    the graph, not loaded              harness/cpg/spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg
+
+  Measurement tooling: Python 3.13.7 for the JSON reads and the digests,
+  coreutils sha256sum, stat and wc for the file measurements, and git for the
+  pin and the cleanliness checks. The scan itself ran under the JDK of PHASE 1.
+
+  Two facts about what this record is NOT. It is not a judgement: no finding is
+  characterised as real, important, a false positive or a duplicate of another
+  tool's, and there are no findings here to characterise in any case. And it makes
+  no cross-tool comparison: the only relationship this run establishes between
+  tools is the tool field on a dataset row (AAP 0.3.2).
+
+================================================================================
+END OF RECORD - harness/artifacts/logs/dependency-check.stdout.log
+================================================================================

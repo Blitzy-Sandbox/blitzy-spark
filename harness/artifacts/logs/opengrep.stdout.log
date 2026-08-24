@@ -1,0 +1,14 @@
+tool            : opengrep
+scan root       : /opt/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-023_cbf7c8/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-023_cbf7c8/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-023_cbf7c8/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scope dirs      : 18
+start           : 2026-08-24T22:46:17+00:00
+ruleset         : /opt/blitzy-harness/rules/opengrep-rules (commit f1d2b562b414783763fd02a6ed2736eaed622efa)
+configs         : 58
+credential      : SEMGREP_APP_TOKEN=absent (unused by opengrep)
+exit code       : 0
+elapsed seconds : 1065
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-023_cbf7c8/harness/artifacts/raw/opengrep.sarif (63695205 bytes)
+end             : 2026-08-24T23:04:02+00:00

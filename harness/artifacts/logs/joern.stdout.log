@@ -1,0 +1,152 @@
+tool            : joern
+scan root       : /opt/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scope dirs      : 18
+start           : 2026-08-24T22:41:02+00:00
+cpg             : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/cpg/spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg
+cpg bytes       : 541255894
+cpg sha256      : 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+jdk             : /opt/blitzy-tools/jdk/jdk-21.0.12.1+1
+heap            : 64g
+query set       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/lib/joern-scan.sc (bound 2000 per query)
+workspace       : /tmp/blitzy-harness-scratch/31/joern-run (outside the repository; joern writes ./workspace)
+loading CPG with importCpg: /opt/blitzy-harness/cpg/spark.cpg
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=983973; id=141734904741] -> io.shiftleft.codepropertygraph.generated.nodes.Identifier[label=IDENTIFIER; seq=10018821; id=68729495557].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.connect.client.GrpcExceptionConverter.fetchEnrichedError:scala.Option(org.sparkproject.connect.google_protos.rpc.ErrorInfo,java.lang.String,org.apache.spark.connect.proto.UserContext,java.lang.String).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=983973; id=141734904741] -> io.shiftleft.codepropertygraph.generated.nodes.Identifier[label=IDENTIFIER; seq=10018822; id=68729495558].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.connect.client.GrpcExceptionConverter.fetchEnrichedError:scala.Option(org.sparkproject.connect.google_protos.rpc.ErrorInfo,java.lang.String,org.apache.spark.connect.proto.UserContext,java.lang.String).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=983973; id=141734904741] -> io.shiftleft.codepropertygraph.generated.nodes.Identifier[label=IDENTIFIER; seq=10018819; id=68729495555].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.connect.client.GrpcExceptionConverter.fetchEnrichedError:scala.Option(org.sparkproject.connect.google_protos.rpc.ErrorInfo,java.lang.String,org.apache.spark.connect.proto.UserContext,java.lang.String).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=983973; id=141734904741] -> io.shiftleft.codepropertygraph.generated.nodes.Identifier[label=IDENTIFIER; seq=10018820; id=68729495556].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.connect.client.GrpcExceptionConverter.fetchEnrichedError:scala.Option(org.sparkproject.connect.google_protos.rpc.ErrorInfo,java.lang.String,org.apache.spark.connect.proto.UserContext,java.lang.String).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=983973; id=141734904741] -> io.shiftleft.codepropertygraph.generated.nodes.Identifier[label=IDENTIFIER; seq=10018825; id=68729495561].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.connect.client.GrpcExceptionConverter.fetchEnrichedError:scala.Option(org.sparkproject.connect.google_protos.rpc.ErrorInfo,java.lang.String,org.apache.spark.connect.proto.UserContext,java.lang.String).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=983973; id=141734904741] -> io.shiftleft.codepropertygraph.generated.nodes.Identifier[label=IDENTIFIER; seq=10018826; id=68729495562].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.connect.client.GrpcExceptionConverter.fetchEnrichedError:scala.Option(org.sparkproject.connect.google_protos.rpc.ErrorInfo,java.lang.String,org.apache.spark.connect.proto.UserContext,java.lang.String).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=983973; id=141734904741] -> io.shiftleft.codepropertygraph.generated.nodes.Identifier[label=IDENTIFIER; seq=10018823; id=68729495559].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.connect.client.GrpcExceptionConverter.fetchEnrichedError:scala.Option(org.sparkproject.connect.google_protos.rpc.ErrorInfo,java.lang.String,org.apache.spark.connect.proto.UserContext,java.lang.String).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=983973; id=141734904741] -> io.shiftleft.codepropertygraph.generated.nodes.Identifier[label=IDENTIFIER; seq=10018824; id=68729495560].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.connect.client.GrpcExceptionConverter.fetchEnrichedError:scala.Option(org.sparkproject.connect.google_protos.rpc.ErrorInfo,java.lang.String,org.apache.spark.connect.proto.UserContext,java.lang.String).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=983973; id=141734904741] -> io.shiftleft.codepropertygraph.generated.nodes.Identifier[label=IDENTIFIER; seq=10018827; id=68729495563].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.connect.client.GrpcExceptionConverter.fetchEnrichedError:scala.Option(org.sparkproject.connect.google_protos.rpc.ErrorInfo,java.lang.String,org.apache.spark.connect.proto.UserContext,java.lang.String).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] org.apache.spark.sql.catalyst.analysis.ResolveSessionCatalog$$anonfun$apply$1.applyOrElse:java.lang.Object(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan,scala.Function1) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.internal.LogKeys.$values:org.apache.spark.internal.LogKeys[]() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.internal.LogKeys.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.expressions.ScalaUDF.<init>:void(java.lang.Object,org.apache.spark.sql.types.DataType,scala.collection.immutable.Seq,scala.collection.immutable.Seq,scala.Option,scala.Option,boolean,boolean) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.parser.SqlBaseParser.statement:org.apache.spark.sql.catalyst.parser.SqlBaseParser$StatementContext() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.streaming.ui.StreamingPage.generateStatTable:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.optimizer.DecorrelateInnerQuery$.decorrelate$1:scala.Tuple3(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan,org.apache.spark.sql.catalyst.expressions.AttributeSet,boolean,boolean,boolean) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.parser.SqlBaseParser.statement:org.apache.spark.sql.catalyst.parser.SqlBaseParser$StatementContext() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.streaming.ui.StreamingPage.generateStatTable:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.util.HyperLogLogPlusPlusHelper$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.parser.SqlBaseParser.statement:org.apache.spark.sql.catalyst.parser.SqlBaseParser$StatementContext() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.internal.config.package$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.ui.jobs.JobPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.util.HyperLogLogPlusPlusHelper$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.ui.env.EnvironmentPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.internal.SQLConf$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.SparkSubmit.prepareSubmitEnvironment:scala.Tuple4(org.apache.spark.deploy.SparkSubmitArguments,scala.Option) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.internal.LogKeys.$values:org.apache.spark.internal.LogKeys[]() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.master.ui.ApplicationPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.master.ui.EnvironmentPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.master.ui.MasterPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.internal.LogKeys.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.streaming.ui.StreamingQueryStatisticsPage.generateStatTable:scala.collection.immutable.Seq(org.apache.spark.sql.streaming.ui.StreamingQueryUIData,jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.execution.datasources.v2.DataSourceV2Strategy.apply:scala.collection.immutable.Seq(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.analysis.FunctionRegistry$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$2:void(org.apache.spark.sql.catalyst.analysis.CheckAnalysis,org.apache.spark.sql.catalyst.plans.logical.LogicalPlan,org.apache.spark.sql.catalyst.plans.logical.LogicalPlan) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.execution.SparkStrategies$BasicOperators$.apply:scala.collection.immutable.Seq(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.execution.SparkStrategies$BasicOperators$.apply:scala.collection.immutable.Seq(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.analysis.ResolveSessionCatalog$$anonfun$apply$1.applyOrElse:java.lang.Object(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan,scala.Function1) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.expressions.ScalaUDF.<init>:void(java.lang.Object,org.apache.spark.sql.types.DataType,scala.collection.immutable.Seq,scala.collection.immutable.Seq,scala.Option,scala.Option,boolean,boolean) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.sparkproject.io.netty.handler.codec.http2.HpackHuffmanDecoder.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.internal.SQLConf$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.sparkproject.io.netty.handler.codec.http3.QpackHuffmanDecoder.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.optimizer.DecorrelateInnerQuery$.decorrelate$1:scala.Tuple3(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan,org.apache.spark.sql.catalyst.expressions.AttributeSet,boolean,boolean,boolean) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.analysis.FunctionRegistry$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$2:void(org.apache.spark.sql.catalyst.analysis.CheckAnalysis,org.apache.spark.sql.catalyst.plans.logical.LogicalPlan,org.apache.spark.sql.catalyst.plans.logical.LogicalPlan) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.streaming.ui.StreamingQueryStatisticsPage.generateStatTable:scala.collection.immutable.Seq(org.apache.spark.sql.streaming.ui.StreamingQueryUIData,jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.execution.datasources.v2.DataSourceV2Strategy.apply:scala.collection.immutable.Seq(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.internal.LogKeys.$values:org.apache.spark.internal.LogKeys[]() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.ui.jobs.JobPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.internal.LogKeys.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.ui.env.EnvironmentPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.SparkSubmit.prepareSubmitEnvironment:scala.Tuple4(org.apache.spark.deploy.SparkSubmitArguments,scala.Option) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.sparkproject.io.netty.handler.codec.http2.HpackHuffmanDecoder.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.master.ui.ApplicationPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.master.ui.EnvironmentPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.master.ui.MasterPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] com.google.crypto.tink.internal.Ed25519.mulAdd:void(byte[],byte[],byte[],byte[]) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.internal.config.package$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+graph loaded: methods=1397339 typeDecls=119691 files=45037
+query joern-process-exec               returned     55 bound_reached=false elapsed_ms=1271
+query joern-unsafe-deserialization     returned    178 bound_reached=false elapsed_ms=8
+query joern-reflection-forname         returned    412 bound_reached=false elapsed_ms=11
+query joern-message-digest             returned     23 bound_reached=false elapsed_ms=1
+query joern-cipher-getinstance         returned     11 bound_reached=false elapsed_ms=0
+query joern-xml-factory                returned     13 bound_reached=false elapsed_ms=1
+wrote 692 findings to /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/artifacts/raw/joern.json
+exit code       : 0
+elapsed seconds : 1074
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/artifacts/raw/joern.json (354343 bytes)
+end             : 2026-08-24T22:58:56+00:00

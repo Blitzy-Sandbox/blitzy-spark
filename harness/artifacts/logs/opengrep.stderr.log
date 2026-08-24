@@ -1,0 +1,31 @@
+[00.08][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 4095 files tracked by git with 2006 Code rules:
+                                                                                                                        
+  Language      Rules   Files          Origin   Rules                                                                   
+ ─────────────────────────────        ────────────────                                                                  
+  <multilang>     269    4095          Custom    2006                                                                   
+  scala            25    2207                                                                                           
+  python          375    1175                                                                                           
+  java            126     591                                                                                           
+  js              205      31                                                                                           
+  yaml             90      23                                                                                           
+  dockerfile       38       3                                                                                           
+  html              4       3                                                                                           
+  bash              8       2                                                                                           
+  json              7       2                                                                                           
+                                                                                                                        
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+Some files were skipped or only partially analyzed.
+  Scan was limited to files tracked by git.
+  Partially scanned: 46 files only partially analyzed due to parsing or internal Opengrep errors
+
+Ran 1138 rules on 4095 files: 1239 findings.
