@@ -1,0 +1,216 @@
+{
+  "query_id": "01-callgraph-unguarded-driver-launch",
+  "query_source": "queries/joern/01-callgraph-unguarded-driver-launch.sc",
+  "formulation": "bounded call-graph reachability over CALL edges, from the standalone Master's driver-submission handler to the privileged process launch hosted on the DriverRunner surface",
+  "observational_only": true,
+  "contributes_dataset_rows": false,
+  "compile_status": "compiled",
+  "compile_status_convention": "this field is written by the running script, so its presence is itself the evidence: a compile failure produces no envelope at all and the compiler's diagnostic lands in the console stream",
+  "run_status": "completed",
+  "returned_record_count": 4,
+  "returned_record_kinds": {
+    "boundary": 4,
+    "route": 0
+  },
+  "distinct_routes": 0,
+  "distinct_routes_convention": "routes from both walks deduplicated on (entry point, sink host, hop sequence); the walks' returns are never summed",
+  "spurious_count": 0,
+  "spurious_definition": "a route is spurious ONLY where it passes an authorization or ACL predicate before reaching the sink, the predicate set being exactly the five named selectors below; this judges the query, not Spark",
+  "expected_spurious_route_absent": true,
+  "expected_spurious_absence_basis": "structural",
+  "expected_spurious_absence_statement": "no route in the emitted set passed an auth/ACL predicate as defined by these five named selectors, and no call site of any of the five exists on the route surface at all, so the absence is structural rather than a consequence of the query filtering well",
+  "bound_value": 12,
+  "bound_value_meaning": "MAX_CALL_DEPTH, the maximum call-graph hops walked from an entry point; it exceeds the hop count of the documented route, so a route absent within it is not an artefact of a short bound",
+  "bound_reached": true,
+  "bounds": {
+    "MAX_CALL_DEPTH": 12,
+    "MAX_ROUTES": 64,
+    "MAX_EXPANSIONS_PER_ENTRY": 200000,
+    "MAX_TOTAL_RETURNS": 256,
+    "MAX_ENTRY_POINTS": 16,
+    "MAX_CALL_SCAN": 200000,
+    "FANOUT_CALLEE_THRESHOLD": 32
+  },
+  "entry_points_discovered": 2,
+  "entry_points_traversed": 2,
+  "entry_points_truncated": 0,
+  "entry_point_selection": "BOUNDARY 4: the handler body compiles into a synthetic partial-function class, so the synthetic applyOrElse on every type matching ^org\\.apache\\.spark\\.deploy\\.master\\.Master\\$\\$anonfun\\$receiveAndReply\\$\\d+$ is selected together with the source-level org.apache.spark.deploy.master.Master.receiveAndReply",
+  "entry_points": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)", "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)"],
+  "sink_hosts": ["org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()"],
+  "sink_call_sites": ["org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean) -> org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process() #240", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process() -> java.lang.ProcessBuilder.start:java.lang.Process() #276"],
+  "operator_pseudo_calls_excluded": true,
+  "duplicate_class_definitions_unioned": true,
+  "graph": {
+    "path_source": "HARNESS_CPG",
+    "named_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-024_691318/harness/cpg/spark.cpg",
+    "resolved_path": "/opt/blitzy-harness/cpg/spark.cpg",
+    "named_path_is_symlink": true,
+    "byte_size_following_the_link": 541255894,
+    "byte_size_without_following": 33,
+    "sha256": "26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc",
+    "identity_record": "harness/artifacts/logs/cpg-frontend.log",
+    "identity_recorded_byte_size": 541255894,
+    "identity_recorded_sha256": "26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc",
+    "identity_reverified_before_load": true,
+    "aap_named_path_reconciliation": "same file (equal resolved target)",
+    "methods": 1397339,
+    "type_declarations": 119691,
+    "files": 45037
+  },
+  "runtime": {
+    "jdk_major": "21",
+    "jvm_version": "21.0.12.1+1-LTS",
+    "heap_actually_used_bytes": 68719476736,
+    "heap_floor_bytes": 68719476736,
+    "loader": "importCpg into a switched workspace; the frontend-then-importCpg route is mandated because the alternative spawns a second JVM at the same heap",
+    "workspace": "queries/joern/.workspace",
+    "heap_bound_jvm_position": "4 of 4 (frontend build, importCpg verification load, Stage 3 Joern runner, this probe)"
+  },
+  "predicate_selector": {
+    "type": "org.apache.spark.SecurityManager",
+    "name_regex": "^(check.*Permissions|acls.*|isAuthenticationEnabled)$",
+    "setter_suffix_excluded": "_$eq",
+    "named_five": ["aclsEnabled", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "type_method_nodes": 252,
+    "type_distinct_method_names": 107,
+    "step1_broad_matches": ["aclsEnabled", "aclsOn", "aclsOn_$eq", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "step2_setters_excluded": ["aclsOn_$eq"],
+    "step2_remaining": ["aclsEnabled", "aclsOn", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "step3_non_predicate_residue_dropped": ["aclsOn"],
+    "final_names": ["aclsEnabled", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "final_full_names": ["org.apache.spark.SecurityManager.aclsEnabled:boolean()", "org.apache.spark.SecurityManager.checkAdminPermissions:boolean(java.lang.String)", "org.apache.spark.SecurityManager.checkModifyPermissions:boolean(java.lang.String)", "org.apache.spark.SecurityManager.checkUIViewPermissions:boolean(java.lang.String)", "org.apache.spark.SecurityManager.isAuthenticationEnabled:boolean()"],
+    "call_sites_graph_wide": 18,
+    "distinct_callers_graph_wide": 18,
+    "call_sites_on_the_route_surface": 0,
+    "route_surface_type_prefixes": ["org.apache.spark.deploy.master.Master", "org.apache.spark.deploy.rest.StandaloneRestServer", "org.apache.spark.deploy.worker.DriverRunner"]
+  },
+  "walks": [
+      {
+        "walk_id": "A-follows-fan-out",
+        "follows_dynamic_dispatch_fan_out": true,
+        "entry_points_traversed": 2,
+        "method_expansions": 25009,
+        "methods_visited": 27956,
+        "call_sites_considered": 33565,
+        "fan_out_sites_encountered": 86,
+        "fan_out_sites_not_followed": 0,
+        "max_depth_used": 12,
+        "depth_bound_reached": true,
+        "expansion_budget_exhausted": false,
+        "route_cap_reached": false,
+        "routes_returned": 0
+      },
+      {
+        "walk_id": "B-fan-out-recorded",
+        "follows_dynamic_dispatch_fan_out": false,
+        "entry_points_traversed": 2,
+        "method_expansions": 5598,
+        "methods_visited": 7092,
+        "call_sites_considered": 11575,
+        "fan_out_sites_encountered": 55,
+        "fan_out_sites_not_followed": 55,
+        "max_depth_used": 12,
+        "depth_bound_reached": true,
+        "expansion_budget_exhausted": false,
+        "route_cap_reached": false,
+        "routes_returned": 0
+      }
+    ],
+  "boundaries_not_crossed": ["B1-rpc", "B2-thread", "B4-partial-function"],
+  "duplicate_formulation": "not_duplicate",
+  "duplicate_formulation_detail": [
+      {
+        "against": "02-dataflow-unguarded-driver-launch",
+        "status": "not_duplicate",
+        "basis": "the same handler/sink pair addressed by a different formulation: this query traverses CALL edges only and asserts nothing about data flow, so the two are two formulations of one question and their returns are reported side by side, never summed"
+      },
+      {
+        "against": "03-parameterized-handler-sink-pairs",
+        "status": "not_duplicate",
+        "basis": "a different target set and a different formulation: 03-parameterized-handler-sink-pairs is parameterized over handler/sink pairs and covers a second pair this query does not address"
+      }
+    ],
+  "effort_query_revisions_committed": 1,
+  "effort_query_revisions_convention": "commits touching queries/joern/01-callgraph-unguarded-driver-launch.sc from its first appearance to the end of the probe",
+  "effort_joern_api_constructs": ["Call.code", "Call.dispatchType", "Call.lineNumber", "Call.method", "Call.methodFullName", "Call.name", "Call.order", "Method.callIn", "Method.callOut", "Method.fullName", "Method.lineNumber", "Method.name", "Method.typeDecl", "NoResolve.getCalledMethodsAsTraversal", "Steps.fullName", "Steps.fullNameExact", "Steps.l", "Steps.nameExact", "Steps.size", "Steps.take", "TypeDecl.fullName", "TypeDecl.method", "cpg.call", "cpg.file", "cpg.method", "cpg.typeDecl", "importCpg", "switchWorkspace"],
+  "effort_joern_api_construct_count": 28,
+  "effort_parameterizability": "not claimed here; proven by 03-parameterized-handler-sink-pairs invoking its parameterized form on the second named handler/sink pair and capturing that invocation's result",
+  "total_returns_cap_reached": false,
+  "records": [
+    {
+        "kind": "boundary",
+        "boundary_id": "B1-rpc",
+        "hop": "RpcEndpointRef.send of org.apache.spark.deploy.DeployMessages$LaunchDriver, Master to Worker",
+        "from_end": "org.apache.spark.deploy.master.Master.launchDriver:void(org.apache.spark.deploy.master.WorkerInfo,org.apache.spark.deploy.master.DriverInfo)",
+        "to_end": "org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "reason": "a message send is not a call: the sender enqueues a value on an endpoint reference and the receiving handler is dispatched later, so no CALL edge joins the two ends",
+        "modelling": "modelled explicitly by pairing on the MESSAGE TYPE - call sites of org.apache.spark.deploy.DeployMessages$LaunchDriver.<init> are the producer end and call sites of its field accessors (driverDesc, driverId, resources) are the consumer end, with the message type's and companion's own generated machinery excluded by owning type",
+        "crossed_by_a_call_edge": false,
+        "measured": {
+          "producer_call_sites": 1,
+          "consumer_call_sites": 3,
+          "producers": ["org.apache.spark.deploy.master.Master.launchDriver:void(org.apache.spark.deploy.master.WorkerInfo,org.apache.spark.deploy.master.DriverInfo)"],
+          "consumers": ["org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)"],
+          "producer_call_site_graph_lines": ["org.apache.spark.deploy.master.Master.launchDriver:void(org.apache.spark.deploy.master.WorkerInfo,org.apache.spark.deploy.master.DriverInfo)#1367"],
+          "consumer_call_site_graph_lines": ["org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)#687"],
+          "direct_call_edge_producer_to_consumer": false
+        }
+      },
+    {
+        "kind": "boundary",
+        "boundary_id": "B2-thread",
+        "hop": "org.apache.spark.deploy.worker.DriverRunner.start calls Thread.start(); the route continues in run() on the anonymous Thread subclass",
+        "from_end": "org.apache.spark.deploy.worker.DriverRunner.start:void()",
+        "to_end": "org.apache.spark.deploy.worker.DriverRunner$$anon$2.run:void()",
+        "reason": "Thread.start() -> run() is a JVM scheduling relation, not a call: the start frame returns immediately and run() is entered on another thread, so no CALL edge joins them",
+        "modelling": "not modelled - the two ends are reported as measured and the hop is left uncrossed",
+        "crossed_by_a_call_edge": false,
+        "measured": {
+          "thread_start_call_sites": 1,
+          "thread_start_call_site_graph_lines": ["org.apache.spark.deploy.worker.DriverRunner.start:void()#89"],
+          "thread_start_dispatch_types": ["DYNAMIC_DISPATCH"],
+          "callees_of_thread_start": ["org.apache.spark.deploy.worker.DriverRunner$$anon$2.start:void()"],
+          "thread_body_methods": ["org.apache.spark.deploy.worker.DriverRunner$$anon$2.run:void()"],
+          "call_edge_start_to_run": false
+        }
+      },
+    {
+        "kind": "boundary",
+        "boundary_id": "B3-interface",
+        "hop": "the launch call site invokes the ABSTRACT ProcessBuilderLike.start; the JDK launch is reached only through the anonymous implementation",
+        "from_end": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean), org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+        "to_end": "java.lang.ProcessBuilder.start:java.lang.Process(), org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+        "reason": "an interface invocation names the declaring type, so linking it to an implementation needs the type hierarchy rather than the call's own name",
+        "modelling": "not modelled by this query - whether the hop is crossed is a property of the graph's call linker and is reported as measured",
+        "crossed_by_a_call_edge": true,
+        "measured": {
+          "sink_call_sites": 2,
+          "sink_call_dispatch_types": ["DYNAMIC_DISPATCH"],
+          "callees_of_sink_call_sites": ["java.lang.ProcessBuilder.start:java.lang.Process()", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()", "org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()"],
+          "abstract_declarations_reached": ["org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()"],
+          "concrete_implementations_reached": ["java.lang.ProcessBuilder.start:java.lang.Process()", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()"],
+          "jdk_launch_method_nodes_present": 1,
+          "call_edge_interface_to_implementation": true
+        }
+      },
+    {
+        "kind": "boundary",
+        "boundary_id": "B4-partial-function",
+        "hop": "org.apache.spark.deploy.master.Master.receiveAndReply returns a PartialFunction whose body compiles into a synthetic class",
+        "from_end": "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "to_end": "org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "reason": "the method named receiveAndReply only constructs the partial function; the case bodies live in the synthetic class's applyOrElse, so a selector on the source-level name would traverse from a method that contains none of the route",
+        "modelling": "modelled by selecting BOTH: the synthetic applyOrElse on every type matching ^org\\.apache\\.spark\\.deploy\\.master\\.Master\\$\\$anonfun\\$receiveAndReply\\$\\d+$, and the source-level receiveAndReply, so the difference between them is measured rather than assumed",
+        "crossed_by_a_call_edge": false,
+        "measured": {
+          "source_level_handler_methods": ["org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)"],
+          "synthetic_entry_methods": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)"],
+          "source_level_handler_call_site_count": 1,
+          "synthetic_entry_call_site_count": 131,
+          "source_level_handler_callees": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.<init>:void(org.apache.spark.deploy.master.Master,org.apache.spark.rpc.RpcCallContext)"],
+          "route_body_reached_from_source_level_name": false,
+          "route_body_reached_from_synthetic_name": true
+        }
+      }
+  ]
+}
