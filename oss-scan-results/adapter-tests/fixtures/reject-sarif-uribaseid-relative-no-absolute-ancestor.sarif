@@ -1,0 +1,191 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.opengrep-rules.javascript.express.security.injection.raw-html-format on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/resources/org/apache/spark/ui/static/d3.min.js:2:\n `5:` was unexpected"
+              }
+            }
+          ]
+        }
+      ],
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "uri": "spark-src/",
+          "uriBaseId": "%PROJECTROOT%"
+        },
+        "%PROJECTROOT%": {
+          "uri": "file:///opt/"
+        },
+        "SRCROOT": {
+          "uri": "src/",
+          "uriBaseId": "PROJECTROOT"
+        },
+        "PROJECTROOT": {
+          "uri": "project/"
+        }
+      },
+      "results": [
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "e1c14f34ed078dcb924c1319156c33dcb03cf17a9c646332135ae6812fb02124d451c967f715fc99bc4cf244acffa9d7735493d3cd1e67615c1737cdb340d430_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 94,
+                  "endLine": 72,
+                  "snippet": {
+                    "text": "            s\"Block $blockId is already present in the disk store and could not delete it $e\","
+                  },
+                  "startColumn": 13,
+                  "startLine": 72
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string"
+        },
+        {
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 6,
+                  "endLine": 137,
+                  "snippet": {
+                    "text": "    if (PUSH_ERROR_HANDLER.shouldRetryError(e)) {\n      String[] targetBlockId = Arrays.copyOfRange(blockIds, index, index + 1);\n      failRemainingBlocks(targetBlockId, e);\n    } else {\n      String[] targetBlockId = Arrays.copyOfRange(blockIds, index, blockIds.length);\n      failRemainingBlocks(targetBlockId, e);\n    }"
+                  },
+                  "startColumn": 5,
+                  "startLine": 131
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "This if statement will always have the same behavior and is therefore unnecessary."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "422b70bdb60228c23e6303d0170d659efd3822e9aede61593b2904a047a959fb471825df035b74a7da39fed59453df435183c4a1063f2d46c9d26849630cf501_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "common/network-common/src/main/java/org/apache/spark/network/buffer/FileSegmentManagedBuffer.java",
+                  "uriBaseId": "SRCROOT"
+                },
+                "region": {
+                  "endColumn": 8,
+                  "endLine": 114,
+                  "snippet": {
+                    "text": "      if (shouldClose) {\n        JavaUtils.closeQuietly(is);\n      }"
+                  },
+                  "startColumn": 7,
+                  "startLine": 112
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "This if statement will always have the same behavior and is therefore unnecessary."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Opengrep OSS",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "This if statement will always have the same behavior and is therefore unnecessary."
+              },
+              "help": {
+                "markdown": "This if statement will always have the same behavior and is therefore unnecessary.",
+                "text": "This if statement will always have the same behavior and is therefore unnecessary."
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional",
+              "properties": {
+                "precision": "very-high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+              },
+              "help": {
+                "markdown": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library.\n\n<b>References:</b>\n - [https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html](https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html)\n",
+                "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+                  "MEDIUM CONFIDENCE",
+                  "OWASP-A01:2017 - Injection",
+                  "OWASP-A03:2021 - Injection",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string"
+              }
+            }
+          ],
+          "semanticVersion": "1.27.1"
+        }
+      }
+    }
+  ],
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json"
+}

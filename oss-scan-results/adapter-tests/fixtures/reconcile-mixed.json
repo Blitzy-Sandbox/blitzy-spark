@@ -1,0 +1,296 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Opengrep OSS",
+          "semanticVersion": "1.27.1",
+          "rules": [
+            {
+              "id": "fixture.reconcile-mixed.scala.interpolated-string-in-exception-message",
+              "name": "fixture.reconcile-mixed.scala.interpolated-string-in-exception-message",
+              "shortDescription": {
+                "text": "An interpolated string is passed to an exception constructor."
+              },
+              "fullDescription": {
+                "text": "An interpolated string is passed to an exception constructor."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "tags": []
+              }
+            },
+            {
+              "id": "fixture.reconcile-mixed.java.exception-object-passed-to-logger",
+              "name": "fixture.reconcile-mixed.java.exception-object-passed-to-logger",
+              "shortDescription": {
+                "text": "An exception object is passed to a logger call."
+              },
+              "fullDescription": {
+                "text": "An exception object is passed to a logger call."
+              },
+              "messageStrings": {
+                "default": {
+                  "text": "An exception object is passed to a logger call."
+                }
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "tags": []
+              }
+            },
+            {
+              "id": "fixture.reconcile-mixed.python.temporary-directory-context-manager",
+              "name": "fixture.reconcile-mixed.python.temporary-directory-context-manager",
+              "shortDescription": {
+                "text": "A temporary directory is created through a context manager."
+              },
+              "fullDescription": {
+                "text": "A temporary directory is created through a context manager."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "tags": []
+              }
+            },
+            {
+              "id": "fixture.reconcile-mixed.scala.exception-constructed-in-catch-clause",
+              "name": "fixture.reconcile-mixed.scala.exception-constructed-in-catch-clause",
+              "shortDescription": {
+                "text": "An exception is constructed inside a catch clause."
+              },
+              "fullDescription": {
+                "text": "An exception is constructed inside a catch clause."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "tags": []
+              }
+            },
+            {
+              "id": "fixture.reconcile-mixed.generic.remote-resource-reference",
+              "name": "fixture.reconcile-mixed.generic.remote-resource-reference",
+              "shortDescription": {
+                "text": "A finding is reported against a remote resource reference."
+              },
+              "fullDescription": {
+                "text": "A finding is reported against a remote resource reference."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "tags": []
+              }
+            }
+          ]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "fixture.reconcile-mixed.scala.interpolated-string-in-exception-message",
+          "message": {
+            "text": "An interpolated string is passed to an exception constructor."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 72,
+                  "startColumn": 13,
+                  "endLine": 72,
+                  "endColumn": 94,
+                  "snippet": {
+                    "text": "            s\"Block $blockId is already present in the disk store and could not delete it $e\","
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {}
+        },
+        {
+          "ruleId": "fixture.reconcile-mixed.generic.remote-resource-reference",
+          "message": {
+            "text": "A finding is reported against a remote resource reference."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "https://example.invalid/reconcile-mixed/remote-resource-reference"
+                }
+              }
+            }
+          ],
+          "properties": {}
+        },
+        {
+          "ruleId": "fixture.reconcile-mixed.java.exception-object-passed-to-logger",
+          "message": {
+            "text": "An exception object is passed to a logger call."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 145,
+                  "startColumn": 9,
+                  "endLine": 145,
+                  "endColumn": 65,
+                  "snippet": {
+                    "text": "        logger.error(\"Error in block push failure callback\", e2);"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {}
+        },
+        {
+          "message": {
+            "text": "An interpolated string is passed to an exception constructor."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 72,
+                  "startColumn": 13,
+                  "endLine": 72,
+                  "endColumn": 94,
+                  "snippet": {
+                    "text": "            s\"Block $blockId is already present in the disk store and could not delete it $e\","
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {}
+        },
+        {
+          "ruleId": "fixture.reconcile-mixed.python.temporary-directory-context-manager",
+          "message": {
+            "text": "A temporary directory is created through a context manager."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python/pyspark/ml/tests/test_evaluation.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 59,
+                  "startColumn": 14,
+                  "endLine": 59,
+                  "endColumn": 69,
+                  "snippet": {
+                    "text": "        with tempfile.TemporaryDirectory(prefix=\"ranking_evaluator\") as tmp_dir:"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {}
+        },
+        {
+          "ruleId": "fixture.reconcile-mixed.java.exception-object-passed-to-logger",
+          "message": {
+            "id": "default"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 145,
+                  "startColumn": 9,
+                  "endLine": 145,
+                  "endColumn": 65,
+                  "snippet": {
+                    "text": "        logger.error(\"Error in block push failure callback\", e2);"
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {}
+        },
+        {
+          "ruleId": "fixture.reconcile-mixed.scala.exception-constructed-in-catch-clause",
+          "message": {
+            "text": "An exception is constructed inside a catch clause."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 71,
+                  "startColumn": 11,
+                  "endLine": 73,
+                  "endColumn": 34,
+                  "snippet": {
+                    "text": "          throw SparkException.internalError(\n            s\"Block $blockId is already present in the disk store and could not delete it $e\",\n            category = \"STORAGE\")"
+                  }
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 72,
+                  "startColumn": 13,
+                  "endLine": 72,
+                  "endColumn": 94,
+                  "snippet": {
+                    "text": "            s\"Block $blockId is already present in the disk store and could not delete it $e\","
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {}
+        }
+      ]
+    }
+  ]
+}

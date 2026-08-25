@@ -1,0 +1,405 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.74.0"
+  },
+  "ReportID": "01a036c0-def4-774f-a237-5db9066efa17",
+  "CreatedAt": "2026-08-25T02:30:04.788481196Z",
+  "ArtifactName": ".",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+      "Class": "config",
+      "Type": "dockerfile",
+      "MisconfSummary": {
+        "Successes": 24,
+        "Failures": 2
+      },
+      "Misconfigurations": [
+        {
+          "Type": "Dockerfile Security Check",
+          "ID": "DS-0031",
+          "Title": "Secrets passed via `build-args` or envs or copied secret files",
+          "Description": "Passing secrets via `build-args` or envs or copying secret files can leak them out",
+          "Message": "Possible exposure of secret env \"SPARK_HOME\" in ENV",
+          "Namespace": "builtin.dockerfile.DS031",
+          "Query": "data.builtin.dockerfile.DS031.deny",
+          "Resolution": "Use secret mount if secrets are needed during image build. Use volume mount if secret files are needed during container runtime.",
+          "Severity": "CRITICAL",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ds-0031",
+          "References": [
+            "https://docs.docker.com/build/building/secrets/",
+            "https://avd.aquasec.com/misconfig/ds-0031"
+          ],
+          "Status": "FAIL",
+          "CauseMetadata": {
+            "Provider": "Dockerfile",
+            "Service": "general",
+            "StartLine": 62,
+            "EndLine": 62
+          }
+        },
+        {
+          "Type": "Dockerfile Security Check",
+          "ID": "DS-0029",
+          "Title": "'apt-get' missing '--no-install-recommends'",
+          "Description": "'apt-get' install should use '--no-install-recommends' to minimize image size.",
+          "Message": "'--no-install-recommends' flag is missed: 'apt-get update && apt install -y bash tini libc6 libpam-modules krb5-user libnss3 procps net-tools logrotate libssl-dev'",
+          "Namespace": "builtin.dockerfile.DS029",
+          "Query": "data.builtin.dockerfile.DS029.deny",
+          "Resolution": "Add '--no-install-recommends' flag to 'apt-get'",
+          "Severity": "HIGH",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ds-0029",
+          "References": [
+            "https://docs.docker.com/develop/develop-images/dockerfile_best-practices/",
+            "https://avd.aquasec.com/misconfig/ds-0029"
+          ],
+          "Status": "FAIL",
+          "CauseMetadata": {
+            "Provider": "Dockerfile",
+            "Service": "general",
+            "StartLine": 36,
+            "EndLine": 48
+          }
+        }
+      ],
+      "Licenses": [],
+      "ExperimentalModifiedFindings": []
+    },
+    {
+      "Target": "python/pyspark/sql/connect/client/core.py",
+      "Class": "secret",
+      "Type": "",
+      "Secrets": [
+        {
+          "RuleID": "jwt-token",
+          "Category": "JWT",
+          "Severity": "MEDIUM",
+          "Title": "JWT token",
+          "StartLine": 312,
+          "EndLine": 312,
+          "Match": "****************************************************"
+        },
+        {
+          "RuleID": "private-key",
+          "Category": "AsymmetricPrivateKey",
+          "Severity": "HIGH",
+          "Title": "Asymmetric Private Key",
+          "StartLine": 446,
+          "EndLine": 448
+        }
+      ],
+      "Licenses": [],
+      "ExperimentalModifiedFindings": []
+    },
+    {
+      "Target": "dev/package-lock.json",
+      "Class": "lang-pkgs",
+      "Type": "npm",
+      "Packages": [
+        {
+          "ID": "axios@0.21.0",
+          "Name": "axios",
+          "Identifier": {
+            "PURL": "pkg:npm/axios@0.21.0",
+            "UID": "5ccf49c57cc765e2"
+          },
+          "Version": "0.21.0",
+          "Relationship": "direct",
+          "Locations": [
+            {
+              "StartLine": 96,
+              "EndLine": 101
+            }
+          ],
+          "AnalyzedBy": "npm"
+        },
+        {
+          "ID": "handlebars@4.5.3",
+          "Name": "handlebars",
+          "Identifier": {
+            "PURL": "pkg:npm/handlebars@4.5.3",
+            "UID": "32e4984e9fef41cc"
+          },
+          "Version": "4.5.3",
+          "Relationship": "indirect",
+          "Locations": [
+            {
+              "StartLine": 1204,
+              "EndLine": 1210
+            }
+          ],
+          "AnalyzedBy": "npm"
+        }
+      ],
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2021-3749",
+          "VendorIDs": [
+            "GHSA-cph5-m8f7-6c5x"
+          ],
+          "PkgID": "axios@0.21.0",
+          "PkgName": "axios",
+          "PkgIdentifier": {
+            "PURL": "pkg:npm/axios@0.21.0",
+            "UID": "5ccf49c57cc765e2"
+          },
+          "InstalledVersion": "0.21.0",
+          "FixedVersion": "0.21.2",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2021-3749",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory npm",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
+          },
+          "Title": "nodejs-axios: Regular expression denial of service in trim function",
+          "Description": "axios is vulnerable to Inefficient Regular Expression Complexity",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-1333",
+            "CWE-400"
+          ],
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            },
+            "nvd": {
+              "V2Vector": "AV:N/AC:L/Au:N/C:N/I:N/A:C",
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V2Score": 7.8,
+              "V3Score": 7.5
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            }
+          }
+        },
+        {
+          "VulnerabilityID": "NSWG-ECO-519",
+          "PkgID": "handlebars@4.5.3",
+          "PkgName": "handlebars",
+          "InstalledVersion": "4.5.3",
+          "FixedVersion": ">=4.6.0",
+          "Status": "fixed",
+          "PrimaryURL": "https://hackerone.com/reports/726364",
+          "DataSource": {
+            "ID": "nodejs-security-wg",
+            "Name": "Node.js Ecosystem Security Working Group",
+            "URL": "https://github.com/nodejs/security-wg"
+          },
+          "Title": "Denial of Service",
+          "Description": "Crash Node.js process from handlebars using a small and simple source",
+          "Severity": "UNKNOWN"
+        }
+      ],
+      "Licenses": [],
+      "ExperimentalModifiedFindings": []
+    },
+    {
+      "Target": "docs/Gemfile.lock",
+      "Class": "lang-pkgs",
+      "Type": "bundler",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2024-49761",
+          "PkgID": "rexml@3.3.8",
+          "PkgName": "rexml",
+          "PkgIdentifier": {
+            "PURL": "pkg:gem/rexml@3.3.8",
+            "UID": "a4fca714c380ea19"
+          },
+          "InstalledVersion": "3.3.8",
+          "FixedVersion": ">= 3.3.9",
+          "Status": "fixed",
+          "SeveritySource": "ruby-advisory-db",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2024-49761",
+          "DataSource": {
+            "ID": "ruby-advisory-db",
+            "Name": "Ruby Advisory Database",
+            "URL": "https://github.com/rubysec/ruby-advisory-db"
+          },
+          "Title": "rexml: REXML ReDoS vulnerability",
+          "Description": "REXML is an XML toolkit for Ruby. The REXML gem before 3.3.9 has a ReDoS vulnerability when it parses an XML that has many digits between &# and x...; in a hex numeric character reference (&#x...;). This does not happen with Ruby 3.2 or later. Ruby 3.1 is the only affected maintained Ruby. The REXML gem 3.3.9 or later include the patch to fix the vulnerability.",
+          "Severity": "HIGH",
+          "CweIDs": [
+            "CWE-1333"
+          ],
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V40Vector": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:H/SC:N/SI:N/SA:N/E:U",
+              "V3Score": 7.5,
+              "V40Score": 6.6
+            },
+            "nvd": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+              "V3Score": 7.5
+            }
+          }
+        },
+        {
+          "VulnerabilityID": "CVE-2025-58767",
+          "PkgID": "rexml@3.3.8",
+          "PkgName": "rexml",
+          "InstalledVersion": "3.3.8",
+          "FixedVersion": ">= 3.4.2",
+          "Status": "fixed",
+          "SeveritySource": "nvd",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2025-58767",
+          "DataSource": {
+            "ID": "ruby-advisory-db",
+            "Name": "Ruby Advisory Database",
+            "URL": "https://github.com/rubysec/ruby-advisory-db"
+          },
+          "Title": "rexml: REXML denial of service",
+          "Description": "REXML is an XML toolkit for Ruby. The REXML gems from 3.3.3 to 3.4.1 has a DoS vulnerability when parsing XML containing multiple XML declarations. If you need to parse untrusted XMLs, you may be impacted to these vulnerabilities. The REXML gem 3.4.2 or later include the patches to fix these vulnerabilities.",
+          "Severity": "MEDIUM",
+          "CweIDs": [
+            "CWE-400"
+          ],
+          "CVSS": {
+            "ghsa": {
+              "V40Vector": "CVSS:4.0/AV:L/AC:L/AT:N/PR:N/UI:N/VC:N/VI:N/VA:L/SC:N/SI:N/SA:N/E:U",
+              "V40Score": 1.2
+            },
+            "nvd": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+              "V3Score": 5.3
+            }
+          }
+        }
+      ],
+      "Licenses": [],
+      "ExperimentalModifiedFindings": []
+    },
+    {
+      "Target": "Node.js",
+      "Class": "lang-pkgs",
+      "Type": "node-pkg",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2017-16137",
+          "VendorIDs": [
+            "GHSA-gxpj-cx7g-858c"
+          ],
+          "PkgID": "debug@2.6.8",
+          "PkgName": "debug",
+          "PkgIdentifier": {
+            "PURL": "pkg:npm/debug@2.6.8",
+            "UID": "26e99801a903c5bf"
+          },
+          "PkgPath": "core/src/main/resources/org/apache/spark/ui/static/package.json",
+          "InstalledVersion": "2.6.8",
+          "FixedVersion": "2.6.9, 3.1.0, 3.2.7, 4.3.1",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2017-16137",
+          "DataSource": {
+            "ID": "ghsa",
+            "Name": "GitHub Security Advisory npm",
+            "URL": "https://github.com/advisories?query=type%3Areviewed+ecosystem%3Anpm"
+          },
+          "Title": "nodejs-debug: Regular expression Denial of Service",
+          "Description": "The debug module is vulnerable to regular expression denial of service when untrusted user input is passed into the o formatter. It takes around 50k characters to block for 2 seconds making this a low severity issue.",
+          "Severity": "LOW",
+          "CweIDs": [
+            "CWE-400"
+          ],
+          "CVSS": {
+            "ghsa": {
+              "V3Vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L",
+              "V3Score": 3.7
+            },
+            "nvd": {
+              "V2Vector": "AV:N/AC:L/Au:N/C:N/I:N/A:P",
+              "V3Vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+              "V2Score": 5,
+              "V3Score": 5.3
+            },
+            "redhat": {
+              "V3Vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L",
+              "V3Score": 5.3
+            }
+          }
+        }
+      ],
+      "Licenses": [],
+      "ExperimentalModifiedFindings": []
+    },
+    {
+      "Target": "ui-test/package-lock.json",
+      "Class": "lang-pkgs",
+      "Type": "npm",
+      "Vulnerabilities": [],
+      "Licenses": [],
+      "ExperimentalModifiedFindings": []
+    },
+    {
+      "Target": "Loose File License(s)",
+      "Class": "license-file",
+      "Type": "",
+      "Licenses": [
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "",
+          "FilePath": "core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js",
+          "Name": "BSD-3-Clause",
+          "Text": "",
+          "Confidence": 1,
+          "Link": "https://spdx.org/licenses/BSD-3-Clause.html"
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "",
+          "FilePath": "core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js",
+          "Name": "MIT",
+          "Text": "",
+          "Confidence": 1,
+          "Link": "https://spdx.org/licenses/MIT.html"
+        },
+        {
+          "Severity": "LOW",
+          "Category": "notice",
+          "PkgName": "",
+          "FilePath": "core/src/main/resources/org/apache/spark/ui/static/graphlib-dot.min.js",
+          "Name": "MIT",
+          "Text": "",
+          "Confidence": 1,
+          "Link": "https://spdx.org/licenses/MIT.html"
+        }
+      ],
+      "ExperimentalModifiedFindings": []
+    },
+    {
+      "Target": "Loose File License(s)",
+      "Class": "license-file",
+      "Type": "",
+      "Licenses": [],
+      "ExperimentalModifiedFindings": [
+        {
+          "Type": "license",
+          "Status": "ignored",
+          "Statement": "",
+          "Source": "",
+          "Finding": {
+            "Severity": "LOW",
+            "Category": "notice",
+            "PkgName": "",
+            "FilePath": "core/src/main/resources/org/apache/spark/ui/static/webui.js",
+            "Name": "Apache-2.0",
+            "Text": "",
+            "Confidence": 0.9166666666666666,
+            "Link": "https://spdx.org/licenses/Apache-2.0.html"
+          }
+        }
+      ]
+    }
+  ]
+}
