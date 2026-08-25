@@ -1,0 +1,459 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.opengrep-rules.javascript.express.security.injection.raw-html-format on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/resources/org/apache/spark/ui/static/d3.min.js:2:\n `5:` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:776:\n `5:` was unexpected"
+              }
+            }
+          ]
+        }
+      ],
+      "results": [
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "422b70bdb60228c23e6303d0170d659efd3822e9aede61593b2904a047a959fb471825df035b74a7da39fed59453df435183c4a1063f2d46c9d26849630cf501_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "common/network-common/src/main/java/org/apache/spark/network/buffer/FileSegmentManagedBuffer.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 8,
+                  "endLine": 114,
+                  "snippet": {
+                    "text": "      if (shouldClose) {\n        JavaUtils.closeQuietly(is);\n      }"
+                  },
+                  "startColumn": 7,
+                  "startLine": 112
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "This if statement will always have the same behavior and is therefore unnecessary."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "e1c14f34ed078dcb924c1319156c33dcb03cf17a9c646332135ae6812fb02124d451c967f715fc99bc4cf244acffa9d7735493d3cd1e67615c1737cdb340d430_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 94,
+                  "endLine": 72,
+                  "snippet": {
+                    "text": "            s\"Block $blockId is already present in the disk store and could not delete it $e\","
+                  },
+                  "startColumn": 13,
+                  "startLine": 72
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "e8270b00e1f615b34e143e7f0803088287b035ab98a09f24db5a6dfe4889167a969008bec4b07d01437007ad380f949883b90e49c3b1e658f10ea6b4078950d0_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python/pyspark/ml/tests/connect/test_legacy_mode_feature.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 42,
+                  "endLine": 90,
+                  "snippet": {
+                    "text": "                sk_model = pickle.load(f)"
+                  },
+                  "startColumn": 28,
+                  "startLine": 90
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "99031495b8f5e1ec432e3dff101ccc7f574d452cc1ea6a45cb747482f3e8ff007367f4f727bb3fcb7301591fc598293d8b4f2f1ab9611eb49756b8e557f6c182_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 42,
+                  "endLine": 20,
+                  "snippet": {
+                    "text": "FROM ${java_image_name}:${java_image_tag}"
+                  },
+                  "startColumn": 1,
+                  "startLine": 20
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "To ensure reproducible builds, pin Dockerfile `FROM` commands to a specific hash. You can find the hash by running `docker pull ${java_image_name}` and then  specify it with `${java_image_name}:${java_image_tag}@sha256:<hash goes here>`"
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.dockerfile.audit.dockerfile-source-not-pinned"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "4640ff242e5f9e18dc00a61863c3c124f7b14b91f77951034d4f4ab9f819c0a105eef3ef722b20faf587b0c9fcdce909d119dc5191c31e5c01c6358fbfee2eba_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 4,
+                  "endLine": 98,
+                  "snippet": {
+                    "text": "  public static void sendRedirect(HttpServletRequest request,\n      HttpServletResponse response,\n      String target)\n      throws IOException {\n    LOG.debug(\"Redirecting {} {} to {}\",\n          request.getMethod(),\n          request.getRequestURI(),\n          target);\n    String location = response.encodeRedirectURL(target);\n    response.setStatus(HttpServletResponse.SC_FOUND);\n    response.setHeader(LOCATION, location);\n    response.setContentType(MimeType.HTML);\n    PrintWriter writer = response.getWriter();\n    Page p = new Page(writer);\n    p.html()\n      .head().title(\"Moved\").__()\n      .body()\n      .h1(\"Moved\")\n      .div()\n        .__(\"Content has moved \")\n        .a(location, \"here\").__()\n      .__().__();\n    writer.close();\n  }"
+                  },
+                  "startColumn": 3,
+                  "startLine": 75
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "e8b22187ad29a8efed7fe208fc0a3b1564c0922ea12c7ad0aead7f3dd13891d3b4734b520294b7e4439595ce45959c5b77fa9316d639f54c14c893bb74cc3409_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "sql/core/src/main/resources/org/apache/spark/sql/execution/ui/static/spark-sql-viz.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 36,
+                  "endLine": 229,
+                  "snippet": {
+                    "text": "        $(this).append(newTexts[2]);"
+                  },
+                  "startColumn": 9,
+                  "startLine": 229
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "User controlled data in a jQuery's `.append(...)` is an anti-pattern that can lead to XSS vulnerabilities"
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.javascript.jquery.security.audit.jquery-insecure-method"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "05639bf2d2a01c35845e4a18c07675645d76ba19904eba482a7bae05c4ea058bdf9aa3ceb2fbd337207fe98d737b121fc8bc3334bf2b48c15b810769b37c31e2_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "sql/core/src/main/scala/org/apache/spark/sql/execution/SparkSqlParser.scala",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 84,
+                  "endLine": 1059,
+                  "snippet": {
+                    "text": "      invalidStatement(s\"CREATE TABLE LIKE ... USING ... ${serdeInfo.get.describe}\", ctx)"
+                  },
+                  "startColumn": 24,
+                  "startLine": 1059
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "50711e7a45bdf7372a6ecae589fe6e4f7a3168a94bc7a8bdca300521586befb0e2ca1634153b8cab4501fbeee2c3baa9f4308d9de321a4a1b679ae067fd33100_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "sql/hive-thriftserver/src/main/java/org/apache/hive/service/cli/HiveSQLException.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 49,
+                  "endLine": 243,
+                  "snippet": {
+                    "text": "      return (Throwable)Class.forName(className).getConstructor(String.class).newInstance(message);"
+                  },
+                  "startColumn": 25,
+                  "startLine": 243
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "If an attacker can supply values that the application then uses to determine which class to instantiate or which method to invoke, the potential exists for the attacker to create control flow paths through the application that were not intended by the application developers. This attack vector may allow the attacker to bypass authentication or access control checks or otherwise cause the application to behave in an unexpected manner."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.unsafe-reflection"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Opengrep OSS",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "fullDescription": {
+                "text": "To ensure reproducible builds, pin Dockerfile `FROM` commands to a specific hash. You can find the hash by running `docker pull $IMAGE` and then  specify it with `$IMAGE:$VERSION@sha256:<hash goes here>`"
+              },
+              "help": {
+                "markdown": "To ensure reproducible builds, pin Dockerfile `FROM` commands to a specific hash. You can find the hash by running `docker pull $IMAGE` and then  specify it with `$IMAGE:$VERSION@sha256:<hash goes here>`\n\n<b>References:</b>\n - [https://stackoverflow.com/a/33511811/4965](https://stackoverflow.com/a/33511811/4965)\n",
+                "text": "To ensure reproducible builds, pin Dockerfile `FROM` commands to a specific hash. You can find the hash by running `docker pull $IMAGE` and then  specify it with `$IMAGE:$VERSION@sha256:<hash goes here>`"
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.dockerfile.audit.dockerfile-source-not-pinned",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.dockerfile.audit.dockerfile-source-not-pinned",
+              "properties": {
+                "precision": "very-high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.dockerfile.audit.dockerfile-source-not-pinned"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "This if statement will always have the same behavior and is therefore unnecessary."
+              },
+              "help": {
+                "markdown": "This if statement will always have the same behavior and is therefore unnecessary.",
+                "text": "This if statement will always have the same behavior and is therefore unnecessary."
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional",
+              "properties": {
+                "precision": "very-high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "If an attacker can supply values that the application then uses to determine which class to instantiate or which method to invoke, the potential exists for the attacker to create control flow paths through the application that were not intended by the application developers. This attack vector may allow the attacker to bypass authentication or access control checks or otherwise cause the application to behave in an unexpected manner."
+              },
+              "help": {
+                "markdown": "If an attacker can supply values that the application then uses to determine which class to instantiate or which method to invoke, the potential exists for the attacker to create control flow paths through the application that were not intended by the application developers. This attack vector may allow the attacker to bypass authentication or access control checks or otherwise cause the application to behave in an unexpected manner.\n\n<b>References:</b>\n - [https://owasp.org/Top10/A03_2021-Injection](https://owasp.org/Top10/A03_2021-Injection)\n",
+                "text": "If an attacker can supply values that the application then uses to determine which class to instantiate or which method to invoke, the potential exists for the attacker to create control flow paths through the application that were not intended by the application developers. This attack vector may allow the attacker to bypass authentication or access control checks or otherwise cause the application to behave in an unexpected manner."
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.unsafe-reflection",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.unsafe-reflection",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-470: Use of Externally-Controlled Input to Select Classes or Code ('Unsafe Reflection')",
+                  "LOW CONFIDENCE",
+                  "OWASP-A03:2021 - Injection",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.unsafe-reflection"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties."
+              },
+              "help": {
+                "markdown": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties.\n\n<b>References:</b>\n - [https://owasp.org/Top10/A01_2021-Broken_Access_Control](https://owasp.org/Top10/A01_2021-Broken_Access_Control)\n",
+                "text": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties."
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor",
+                  "LOW CONFIDENCE",
+                  "OWASP-A01:2021 - Broken Access Control",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "User controlled data in a jQuery's `.$METHOD(...)` is an anti-pattern that can lead to XSS vulnerabilities"
+              },
+              "help": {
+                "markdown": "User controlled data in a jQuery's `.$METHOD(...)` is an anti-pattern that can lead to XSS vulnerabilities\n\n<b>References:</b>\n - [https://owasp.org/www-community/attacks/xss/](https://owasp.org/www-community/attacks/xss/)\n - [https://bugs.jquery.com/ticket/9521](https://bugs.jquery.com/ticket/9521)\n",
+                "text": "User controlled data in a jQuery's `.$METHOD(...)` is an anti-pattern that can lead to XSS vulnerabilities"
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.javascript.jquery.security.audit.jquery-insecure-method",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.javascript.jquery.security.audit.jquery-insecure-method",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')",
+                  "LOW CONFIDENCE",
+                  "OWASP-A03:2021 - Injection",
+                  "OWASP-A07:2017 - Cross-Site Scripting (XSS)",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.javascript.jquery.security.audit.jquery-insecure-method"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format."
+              },
+              "help": {
+                "markdown": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.\n\n<b>References:</b>\n - [https://docs.python.org/3/library/pickle.html](https://docs.python.org/3/library/pickle.html)\n",
+                "text": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format."
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-502: Deserialization of Untrusted Data",
+                  "LOW CONFIDENCE",
+                  "OWASP-A08:2017 - Insecure Deserialization",
+                  "OWASP-A08:2021 - Software and Data Integrity Failures",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+              },
+              "help": {
+                "markdown": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library.\n\n<b>References:</b>\n - [https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html](https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html)\n",
+                "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+                  "MEDIUM CONFIDENCE",
+                  "OWASP-A01:2017 - Injection",
+                  "OWASP-A03:2021 - Injection",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string"
+              }
+            }
+          ],
+          "semanticVersion": "1.27.1"
+        }
+      }
+    }
+  ],
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json"
+}

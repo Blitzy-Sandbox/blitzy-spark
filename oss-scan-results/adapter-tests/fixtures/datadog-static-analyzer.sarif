@@ -1,0 +1,346 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "artifacts": [
+        {
+          "location": {
+            "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java"
+          }
+        },
+        {
+          "location": {
+            "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala"
+          }
+        },
+        {
+          "location": {
+            "uri": "python/pyspark/ml/tests/test_evaluation.py"
+          }
+        }
+      ],
+      "results": [
+        {
+          "fixes": [],
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java"
+                },
+                "region": {
+                  "endColumn": 29,
+                  "endLine": 68,
+                  "startColumn": 21,
+                  "startLine": 68
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Considering cloning this array versus storing it directly"
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "a5a2c8d7c151b59817c59298a700b7fc63fde5a9853f6884c6fe7ebc90316a80"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:BEST_PRACTICES"
+            ]
+          },
+          "ruleId": "java-best-practices/array-is-stored-directly",
+          "ruleIndex": 0
+        },
+        {
+          "fixes": [],
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java"
+                },
+                "region": {
+                  "endColumn": 21,
+                  "endLine": 145,
+                  "startColumn": 9,
+                  "startLine": 145
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "do not propagate error information"
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "350dfcfb33c5978dab1f71e597a5c5cc2a4ddd355ad72e84ec32bb090335bf1c"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:BEST_PRACTICES"
+            ]
+          },
+          "ruleId": "java-best-practices/avoid-propagate-exception-info",
+          "ruleIndex": 1
+        },
+        {
+          "fixes": [],
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java"
+                },
+                "region": {
+                  "endColumn": 30,
+                  "endLine": 58,
+                  "startColumn": 10,
+                  "startLine": 58
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Consider adding super() or this() to your constructor"
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "5aa9d117896b9355274b1ac46d145da29e6c919fc80acd3354a928121a36133c"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:CODE_STYLE"
+            ]
+          },
+          "ruleId": "java-code-style/call-super-in-constructor",
+          "ruleIndex": 2
+        },
+        {
+          "fixes": [],
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala"
+                },
+                "region": {
+                  "endColumn": 45,
+                  "endLine": 71,
+                  "startColumn": 17,
+                  "startLine": 71
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "do not propagate error information"
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "6bb607304863d60fccfdcbdadabae766235fa4b86cbb939e217a4772657ebc55"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:BEST_PRACTICES"
+            ]
+          },
+          "ruleId": "java-best-practices/avoid-propagate-exception-info",
+          "ruleIndex": 1
+        },
+        {
+          "fixes": [],
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala"
+                },
+                "region": {
+                  "endColumn": 45,
+                  "endLine": 71,
+                  "startColumn": 17,
+                  "startLine": 71
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Thrown exception does not preserve the stack trace of exception \"e\""
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "c01e9eef9d9bf79e044f26570b3b8f1b16925a31d8392df1735742b3e00a0601"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:BEST_PRACTICES"
+            ]
+          },
+          "ruleId": "java-best-practices/preserve-stack-trace",
+          "ruleIndex": 3
+        },
+        {
+          "fixes": [],
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python/pyspark/ml/tests/test_evaluation.py"
+                },
+                "region": {
+                  "endColumn": 26,
+                  "endLine": 35,
+                  "startColumn": 7,
+                  "startLine": 35
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Class EvaluatorTestsMixin should have an init method"
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "a206af43206fa10ac6ef6366eeaecdda8fa1619551d739ecd1e7789a2ee95f6a"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:BEST_PRACTICES"
+            ]
+          },
+          "ruleId": "python-best-practices/init-method-required",
+          "ruleIndex": 4
+        },
+        {
+          "fixes": [],
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python/pyspark/ml/tests/test_evaluation.py"
+                },
+                "region": {
+                  "endColumn": 21,
+                  "endLine": 359,
+                  "startColumn": 7,
+                  "startLine": 359
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Class EvaluatorTests should have an init method"
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "4b0e5aafb5c5fad9b6a5f0a229909cd5b930d6a659d970d4bd534566a68744e8"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:BEST_PRACTICES"
+            ]
+          },
+          "ruleId": "python-best-practices/init-method-required",
+          "ruleIndex": 4
+        }
+      ],
+      "tool": {
+        "driver": {
+          "informationUri": "https://www.datadoghq.com",
+          "name": "datadog-static-analyzer",
+          "properties": {
+            "tags": [
+              "DATADOG_DIFF_AWARE_CONFIG_DIGEST:1f4320b13af8375f605414540ec0b0bc9834b591d91e2d4708f21107043167c9",
+              "DATADOG_EXECUTION_TIME_SECS:220",
+              "DATADOG_DIFF_AWARE_ENABLED:false"
+            ]
+          },
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "In Java, it is recommended that constructors and methods clone any arrays received through parameters. This practice prevents the original array from being affected by any future changes made by the caller.\n\nIt is advisable to clone the array before storing it to ensure that you retain a copy of the array that will remain unaffected by any external changes made to the original array. By following this approach, you can promote code safety and maintain the integrity of the original array."
+              },
+              "helpUri": "https://docs.datadoghq.com/static_analysis/rules/java-best-practices/array-is-stored-directly",
+              "id": "java-best-practices/array-is-stored-directly",
+              "properties": {
+                "tags": [
+                  "DATADOG_RULE_TYPE:STATIC_ANALYSIS"
+                ]
+              },
+              "shortDescription": {
+                "text": "Should clone array"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "This rule aims to discourage the direct propagation or usage of exception messages in the code. Exception messages can often contain sensitive or implementation-specific information that should not be exposed or relied upon for program logic. Relying on exception messages can lead to fragile code that breaks if the message text changes in future library or framework updates.\n\nTo comply with this rule, handle exceptions by using their types, custom error codes, or well-defined error objects instead of their message strings. For example, instead of `e.getMessage()`, consider catching specific exception subclasses or defining your own error classification. This approach leads to cleaner, more reliable error handling and protects sensitive information.\n\nExample of compliant handling: `catch (SpecificException ex) { log(\"Known error occurred\"); }` rather than inspecting `ex.getMessage()` contents."
+              },
+              "helpUri": "https://docs.datadoghq.com/static_analysis/rules/java-best-practices/avoid-propagate-exception-info",
+              "id": "java-best-practices/avoid-propagate-exception-info",
+              "properties": {
+                "severity": "Moderate",
+                "tags": [
+                  "DATADOG_RULE_TYPE:STATIC_ANALYSIS"
+                ]
+              },
+              "shortDescription": {
+                "text": "Avoid propagation exception messages"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "In Java, it is suggested to call `super()` in an extended class. This rule will report a violation if both a call to `super()` and an overloaded constructor are absent."
+              },
+              "helpUri": "https://docs.datadoghq.com/static_analysis/rules/java-code-style/call-super-in-constructor",
+              "id": "java-code-style/call-super-in-constructor",
+              "properties": {
+                "problem": {
+                  "severity": "HIGH"
+                },
+                "tags": [
+                  "DATADOG_RULE_TYPE:STATIC_ANALYSIS"
+                ]
+              },
+              "shortDescription": {
+                "text": "Consider calling super in constructor"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "This rule identifies when exceptions are raised within a `catch` block but are not relevant to the exception parameter specified in the `catch` block. This can result in the original exception's stack trace information being lost, which leads to throwing less detailed exceptions."
+              },
+              "helpUri": "https://docs.datadoghq.com/static_analysis/rules/java-best-practices/preserve-stack-trace",
+              "id": "java-best-practices/preserve-stack-trace",
+              "properties": {
+                "problem": {
+                  "severity": "CRITICAL"
+                },
+                "severity": "LOW",
+                "tags": [
+                  "DATADOG_RULE_TYPE:STATIC_ANALYSIS"
+                ]
+              },
+              "shortDescription": {
+                "text": "Preserve the thrown stack trace"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "Ensure that a class has an `__init__` method. This check is bypassed for dataclass-like decorators (`@dataclass`, `@frozen`, `@bindable_dataclass`)."
+              },
+              "helpUri": "https://docs.datadoghq.com/static_analysis/rules/python-best-practices/init-method-required",
+              "id": "python-best-practices/init-method-required",
+              "properties": {
+                "severity": "NOTICE",
+                "tags": [
+                  "DATADOG_RULE_TYPE:STATIC_ANALYSIS"
+                ]
+              },
+              "shortDescription": {
+                "text": "ensure classes have an __init__ method"
+              }
+            }
+          ],
+          "version": "0.9.1"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}
