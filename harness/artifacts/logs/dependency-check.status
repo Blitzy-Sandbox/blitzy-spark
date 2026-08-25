@@ -1,0 +1,273 @@
+tool=dependency-check
+exit_code=0
+elapsed_seconds=23
+artifact=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-029_4cc49b/harness/artifacts/raw/dependency-check.json
+artifact_bytes=17097
+scan_root=/opt/spark-src
+scan_root_source=SPARK_SRC
+#
+# =============================================================================
+# harness/artifacts/logs/dependency-check.status
+# The structured per-invocation status record for the Dependency-Check runner.
+# =============================================================================
+#
+# THE SEVEN LINES ABOVE ARE THE RUNNER-WRITTEN STREAM, VERBATIM.
+#
+# harness/lib/scope.sh's scope_finish emits exactly those seven key=value lines
+# to $HARNESS_LOG_DIR/<tool>.status. They are reproduced here as the file's
+# FIRST 261 BYTES, unaltered and unindented, because
+# harness/artifacts/logs/dependency-check.stdout.log APPENDIX H cites this file
+# as 261 bytes with sha256
+# 86406a7e596b496f48f71cf773a0bd8e6c8bbb425a838b94ba4e62e76df935bc. That
+# citation stays checkable rather than becoming stale:
+#
+#     head -c 261 harness/artifacts/logs/dependency-check.status | sha256sum
+#     -> 86406a7e596b496f48f71cf773a0bd8e6c8bbb425a838b94ba4e62e76df935bc
+#
+# So the figure the stdout log cites and the figure this file carries are ONE
+# measurement cited twice, never two (AAP 0.6.4). Everything below the seven
+# lines is the enrichment the AAP's status-file contract requires, in the same
+# key=value idiom, so no consumer of a .status file meets a shape it cannot
+# parse. A value may itself contain '=' - split on the FIRST one only. A line
+# beginning '#' is a comment.
+#
+runner_written_block_lines=1-7
+runner_written_block_bytes=261
+runner_written_block_sha256=86406a7e596b496f48f71cf773a0bd8e6c8bbb425a838b94ba4e62e76df935bc
+runner_written_block_source=harness/artifacts/logs/dependency-check.stdout.log APPENDIX A, the runner's own stdout verbatim, 1126 bytes, sha256 b2a71750f1adec13a46c424475e42e8b792c7f6a6bf2e4705dcc1c036f502bc1
+#
+# --- SUBJECT ------------------------------------------------------------------
+#
+# 'dependency-check' is the canonical AAP 0.5.4 identifier, produced from the
+# stem of the runner and its artifact. The product name is not used.
+#
+scanner_class=vuln
+scanner_class_varies_per_record=false
+runner=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-029_4cc49b/harness/bin/run-dependency-check.sh
+runner_repo_relative=harness/bin/run-dependency-check.sh
+runner_sha256=f7b3fbd9c1185a64713d6de801e96de4793ae3fdbfa9e369f303c4d08ccbedd1
+runner_sha256_remeasured_in_this_checkout=f7b3fbd9c1185a64713d6de801e96de4793ae3fdbfa9e369f303c4d08ccbedd1
+runner_edited=false
+runner_baked_flag_edited=false
+invocation_happened=true
+invocation_form=direct
+invocation_arguments=none
+invocation_concurrency=one tool at a time
+invocations_per_run=1
+orchestrator_used=false
+orchestrator_present_in_harness_bin=false
+invocation_working_directory=/opt/spark-src
+invocation_command=. ./harness/env.sh && ./harness/bin/run-dependency-check.sh
+reinvoked_by_this_record=false
+reinvoked_by_this_record_reason=A second invocation would be a second measurement of a quantity already measured, which AAP 0.6.4 forbids, and would put a second artifact into the runner-only raw tree. Every figure here is either lifted from the committed verbatim runner trailer or re-measured from a stable shared read-only fact.
+#
+# --- TERMINATION --------------------------------------------------------------
+#
+# Exactly one of exit_code / exit_status is present. The process produced an
+# exit code, so exit_code carries it and the key exit_status does NOT appear:
+# 'exit_status=timeout' is the single recorded name for a termination WITHOUT an
+# exit code (AAP 0.8.1), and it names the status only - it excuses no missing
+# artifact. Nothing here was terminated.
+#
+termination=exit_code
+exit_status_present=false
+exit_code_source=the tool's own exit status, captured at harness/bin/run-dependency-check.sh line 58 and printed by scope_finish
+started_at=2026-08-24T22:38:54+00:00
+finished_at=2026-08-24T22:39:17+00:00
+elapsed_seconds_derivation=finished_at - started_at = 23 s, printed by scope_finish
+elapsed_seconds_is_a_fact=true
+elapsed_time_limit=none
+#
+# --- ARTIFACT -----------------------------------------------------------------
+#
+# Artifact status and exit status are independent (AAP 0.5.4). The artifact is
+# present and parses completely with no record rejected, so its status is
+# 'clean' and the exit code above is recorded as a fact and used for nothing
+# else. The copy at runner lines 61-63 is CONDITIONAL - the tool's report is
+# copied only if it exists - so an absence was possible: the trailer would then
+# have read MISSING and the absence would have needed classifying against the
+# stderr capture. It printed a byte count instead.
+#
+artifact_repo_relative=harness/artifacts/raw/dependency-check.json
+artifact_observed=present
+artifact_presence_evidence=scope_finish printed a byte count rather than MISSING, which is the runner's own test of presence (harness/lib/scope.sh). The artifact was written into the invoking clone's raw tree, at the absolute path on line 4; this checkout's raw tree does not itself carry that file, so the byte size and sha256 below are cited from the record that measured them rather than re-measured here.
+artifact_format=native JSON report
+artifact_status=clean
+artifact_sha256=6b1f18604146bf4e51c8699ab5df9c419a2e915a26681fc2e77f6a6946af7292
+artifact_report_date=2026-08-24T22:39:15.634757586Z
+artifact_engine_version=13.0.0
+artifact_project_name=spark-pinned-59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+artifact_bytes_owner=harness/artifacts/logs (AAP 0.6.1); the raw tree conforms to this number
+artifact_bytes_agreement=scope_finish trailer 17097 = this file 17097 = harness/ENVIRONMENT.md line 473 17,097
+artifact_assembly=the tool wrote dependency-check-report.json into $HARNESS_LOG_DIR/dependency-check.out/ and the runner copied it to the artifact path unchanged (lines 61-63); no field was rewritten by the harness
+artifact_status_independent_of_exit_status=true
+#
+# --- THE TWO STREAMS THIS RECORD DEPENDS ON -----------------------------------
+#
+stdout_log=harness/artifacts/logs/dependency-check.stdout.log
+stdout_trailer_exit_code=0
+stdout_trailer_elapsed_seconds=23
+stdout_trailer_artifact_bytes=17097
+stdout_trailer_agreement=exact on all three
+stderr_log=harness/artifacts/logs/dependency-check.stderr.log
+stderr_bytes=0
+stderr_sha256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+stderr_tool_stated_reason=not applicable - the artifact is present, so no absence needed a stated reason
+stderr_configuration_fault=none - an empty runner stderr means scope_fail never ran, so the exit 78 path was not taken
+#
+# --- VERSION, AND HOW IT WAS PACKAGED ----------------------------------------
+#
+version_expected=13.0.0
+version_observed=13.0.0
+version_outcome=as expected
+version_evidence=$DEPENDENCY_CHECK_HOME/bin/dependency-check.sh --version printed 'dependency-check-cli version 13.0.0' (exit 0), re-measured in this checkout; the artifact's scanInfo.engineVersion reads 13.0.0
+packaging_channel_observed=GitHub release, repository dependency-check/DependencyCheck, tag v13.0.0, archive sha256 44d920d1ec03e948df862a253f0912782a31b9beee8a7c8895b9cb95760176ed (harness/ENVIRONMENT.md line 82)
+packaging_channel_note=Recorded as observed rather than as expected. AAP 0.4.1 attributes the install to jeremylong/DependencyCheck, and harness/ENVIRONMENT.md lines 84-86 record that that repository returns 404 for tag v13.0.0 because the project MOVED to dependency-check/DependencyCheck. A Maven Central channel was NOT observed for this provisioning and is not recorded as one; the only Maven Central fact in the environment record is Trivy's rate-limiting at line 531. Reject rather than infer (AAP 0.1.3).
+packaging_channel_difference_outcome=recorded with both attributions; the version itself matches, so nothing halts (AAP 0.9.3)
+#
+# --- THE JDK, OBSERVED RATHER THAN INFERRED ----------------------------------
+#
+# The field most often filled in from a reasonable-sounding assumption, and
+# wrong in BOTH directions. AAP 0.4.1 and 0.8.2 use this exact tool as the
+# counter-example because the harness PRECEDENT exported JAVA_HOME_21 for it -
+# but that is a different provisioning. THIS one assigns 17 and says so in its
+# own text, so 21 would be as wrong here as 17 would be there. Three
+# independent readings, all agreeing.
+#
+jdk_major=17
+jdk_major_source=observed
+jdk_home=/opt/blitzy-tools/jdk/jdk-17.0.20+8
+jdk_version_string=openjdk version "17.0.20" 2026-07-21
+jdk_build=Temurin-17.0.20+8
+jdk_reading_1_runner_text=harness/bin/run-dependency-check.sh line 51 invokes the tool with JAVA_HOME="$JAVA_HOME"; harness/env.sh line 47 sets JAVA_HOME to /opt/blitzy-tools/jdk/jdk-17.0.20+8; the runner's header line 8 states 'Runs under JAVA_HOME (Temurin 17) - JDK 21 is reserved for Joern'; the runner prints the home it assigned on its own stdout
+jdk_reading_2_jdk_measured=$JAVA_HOME/bin/java -version, re-run in this checkout, printed 'openjdk version "17.0.20" 2026-07-21' and 'Temurin-17.0.20+8', exit 0
+jdk_reading_3_running_process=the JVM that ran the scan, sampled from /proc at 2026-08-24T22:38:56+00:00, pid 452914, /proc/452914/exe = /opt/blitzy-tools/jdk/jdk-17.0.20+8/bin/java (stdout log APPENDIX E); only exe and argv were read, never /proc/*/environ
+jdk_major_matches_runner_metadata=true
+jdk_major_misassignment_halt_applies=false
+jdk_major_misassignment_halt_note=AAP 0.9.2 halts on a MAJOR misassignment - the build on anything but 17, or any Joern invocation on anything but 21. Dependency-Check is neither, so its assignment is a property of the provisioned runner and the observed value equals the recorded one. A patch-level difference would have been recorded with both values and the run would continue.
+heap_bound_jvm=false
+heap_bound_jvm_note=The four heap-bound JVM invocations are the jimple2cpg frontend build, the importCpg verification load, the Stage 3 Joern runner and the Stage 5 probe (AAP 0.5.4). This runner sets no JAVA_OPTS and its argv carries no -Xmx, so the >= 64 GB rule does not apply and no heap is claimed.
+heap_flag_passed=none
+interpreter=none
+interpreter_note=a JVM application launched through a shell script; the runner invokes no Python interpreter, so no interpreter path or version applies to this tool
+#
+# --- THE SEEDED NVD DATAFEED --------------------------------------------------
+#
+feed_kind=vulnerability_feed
+feed_location=/opt/blitzy-harness/dc-data
+feed_identity_expected=keyless NVD datafeed, 2026-08-23T08:00:06-04
+feed_identity_observed=keyless NIST NVD JSON 2.0 datafeed, NVD API Last Modified 2026-08-24T08:00:04-04
+feed_identity_outcome=DIFFERS by one day
+feed_identity_observed_provenance=read out of the artifact's own scanInfo.dataSource block - the tool stating the identity of the data it used - by the invocation's own record at harness/artifacts/logs/dependency-check.stdout.log PHASE 2, where the four NVD timestamps are quoted; corroborated by harness/ENVIRONMENT.md lines 114 and 823. Not re-read here: this checkout does not carry the artifact, and a figure is cited from the record that measured it rather than re-derived from a different source.
+not_comparable_with_rehearsal=true
+not_comparable_reason=A different feed produces a different count for reasons that have nothing to do with the code, so this tool's counts are marked not comparable with the rehearsal (AAP 0.9.3). Both identities are recorded; the difference is recorded, not repaired, and does not halt.
+feed_state=not attempted
+feed_state_vocabulary=attempted and succeeded | attempted and failed | not attempted | not reported
+feed_state_evidence=the runner passes --noupdate, so no refresh was attempted and the seeded datafeed was used exactly as found
+feed_unchanged_by_the_invocation=true
+feed_unchanged_evidence=Re-measured in this checkout against the before/after listings in the stdout log APPENDIX D: odc.mv.db 249724928 bytes, mtime 2026-08-24 12:56:45.209822111 +0000, identical in all three readings; jsrepository.json.properties still carries the header '#Mon Aug 24 12:39:25 UTC 2026'. Only the directory's own mtime moved, from the H2 engine's transient lock file.
+feed_fetched_at_scan_time=false
+feed_no_fetch_evidence=no download, update, retrieval or proxy line appears in either stdout stream or either stderr stream; the artifact's 'NVD API Last Checked' is 2026-08-24T12:41:51Z, which PRECEDES this invocation's start
+reproducibility_gap_from_an_invocation_time_fetch=none
+reproducibility_gap_disclosed=the seeded feed is one day newer than the AAP 0.4.2 anchor, which is why the counts are marked not comparable above
+#
+# --- THE BAKED FLAG SET, AS READ ---------------------------------------------
+#
+# Read out of harness/bin/run-dependency-check.sh lines 51-57 and corroborated
+# against the argv of the process that ran. Nothing in this set was added,
+# removed or forced, and none of it is an AAP expected-values anchor
+# (AAP 0.4.2). An analyzer set is only known once the absences are known, so
+# both are recorded.
+#
+flags_summary_printed_by_runner=--noupdate --disableOssIndex --prettyPrint --format JSON
+flags_passed=--project spark-pinned-59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d | --noupdate | --disableOssIndex | --data /opt/blitzy-harness/dc-data | --scan <one absolute allowlist directory> x 18 | --format JSON | --prettyPrint | --out $HARNESS_LOG_DIR/dependency-check.out
+flags_update_suppression_present=--noupdate
+flags_analyzer_disable_present=--disableOssIndex
+flags_disable_oss_index_note=PASSED HERE, which contradicts the harness precedent that omitted it. The runner gives its own reason at lines 5-7: Sonatype OSS Index no longer answers anonymously and 13.0.0 self-disables the analyzer with 'Authentication with token is now required', so passing the flag makes the disabling this harness's own and recorded rather than incidental. Recorded as read, not as expected.
+flags_not_passed=--nvdApiKey | --purge | --update-only | --disableRetireJS | --disableNodeJS | --disableNodeAudit | --enableExperimental | --failOnCVSS | --suppression
+flags_not_passed_consequences=--disableRetireJS absent, so the RetireJS analyzer RAN, offline against the seeded jsrepository.json; --disableNodeJS and --disableNodeAudit absent, so the Node Package Analyzer ran and produced the two reach warnings quoted below; --enableExperimental absent, so no experimental analyzer contributed; --failOnCVSS absent, so the exit code reflects the run rather than a policy; --suppression absent, so only the feed's own publishedSuppressions.xml applies
+flags_anchor_status=none of these flags appears in the AAP expected-values table, so none is an anchor
+flags_source=harness/bin/run-dependency-check.sh lines 51-57, corroborated by the /proc argv in the stdout log APPENDIX E
+#
+# --- PATH BASE ----------------------------------------------------------------
+#
+path_base=filesystem-absolute, relativized to SPARK_SRC
+path_base_kind=filesystem_absolute
+path_base_value=/opt/spark-src
+path_base_record_field=the enclosing dependencies[].filePath
+path_base_evidence=--scan receives "$SCAN_ROOT/$d" for each of the 18 directories (runner line 40), so every filePath is absolute under the scan root; 32 of 32 were verified absolute under it
+path_base_matches_runner_metadata=true
+path_base_absolute_paths_emitted_by_the_dataset=none - the normalizer relativizes against SPARK_SRC (AAP 0.8.2)
+#
+# --- REACH, AND WHAT THERE WAS IN SCOPE TO RESOLVE ---------------------------
+#
+scan_target_variable=SPARK_SRC
+scan_target_value_set=/opt/spark-src
+resolved_scan_root_verified=true
+pinned_commit=59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+pinned_commit_evidence=git -C /opt/spark-src rev-parse HEAD, re-verified in this checkout
+allowlist=harness/scope/allowlist.txt
+allowlist_sha256=0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1
+allowlist_widened_or_narrowed=false
+scope_directories=18
+reach=18 absolute --scan roots, one per allowlist directory, handed to a single invocation
+reach_differs_from_precedent=true - the precedent scanned the whole root with a test-path exclusion; recorded as reach, not as an error
+reach_condition_in_tool_words_1=[WARN] No lock file exists - this will result in false negatives; please run `npm install --package-lock`
+reach_condition_in_tool_words_2=[WARN] Analyzing `/opt/spark-src/core/src/main/resources/org/apache/spark/ui/static/package.json` - however, the node_modules directory does not exist. Please run `npm install` prior to running dependency-check
+reach_condition_reading=both are statements about the input, not failures: a package.json with no lockfile and no installed tree is exactly what the scope contains
+#
+# --- COUNT UNIT AND RECONCILIATION -------------------------------------------
+#
+count_unit=dependencies[].vulnerabilities[]
+raw_finding_records=0
+dependency_records=32
+dependency_records_by_extension=.js 31, .json 1
+resolved_package_coordinates=0
+dependency_records_in_scope=32 of 32 match the twelve globs
+reconciliation_identity=raw finding records (0) = dataset rows (0) + rejected records (0)
+reconciliation_case=a real zero with the artifact PRESENT, not the 'not applicable - artifact absent' case osv-scanner takes
+reconciliation_consumer=harness/artifacts/logs/normalize-run.json must carry this identity for dependency-check; harness/lib/normalize/reconcile.py counts exactly this unit in the traversal that builds no rows
+reconciliation_asserted_here=false - normalize-run.json is written by the normalization stage; this is the value that file must carry, not a value read back from it
+zero_findings_cause=the twelve globs contain exactly one manifest-shaped file, core/src/main/resources/org/apache/spark/ui/static/package.json, 80 bytes, sha256 43b4dcbf33dc23b3d62576dce22b371b1d0c852b05dfd73442e9c3e97a0b4717, declaring a name, a license and a type with no dependencies block, no lockfile, no node_modules and no JAR, pom.xml, requirements*.txt, setup.py or pyproject.toml anywhere in the 18 directories
+zero_findings_attribution=a property of the SCOPE, not of the installation or of this tool; reported with its consequence and not fixed by widening the globs (AAP 0.3.2)
+#
+# --- EXPECTED AGAINST OBSERVED ------------------------------------------------
+#
+expected_vs_observed_exit_code=expected 0 | observed 0 | as expected
+expected_vs_observed_findings=expected 0 | observed 0 | as expected
+expected_vs_observed_artifact_bytes=expected 17097 | observed 17097 | as expected
+expected_vs_observed_version=expected 13.0.0 | observed 13.0.0 | as expected
+expected_vs_observed_elapsed_seconds=expected 6 | observed 23 | RECORDED, not a failure - AAP 0.8.1 imposes no time limit and elapsed time is a fact rather than a budget; the tool's own phase timings ('Created CPE Index (7 seconds)', 'Finished RetireJS Analyzer (5 seconds)') account for it as CPU contention on a host that runs up to 45 clones, not extra work
+expected_vs_observed_feed=expected 2026-08-23T08:00:06-04 | observed 2026-08-24T08:00:04-04 | DIFFERS, counts not comparable with the rehearsal
+halt_conditions_triggered=none
+halt_condition_that_could_have_arisen=an absent artifact with no stated reason of its own (AAP 0.9.2); it did not arise, because the artifact is present and parses
+#
+# --- CREDENTIALS --------------------------------------------------------------
+#
+# Names only. No value appears in this file, and none can: the runner reports
+# presence through scope_cred_state, which uses ${VAR:+set} and prints exactly
+# 'set' or 'absent'. The ${VAR:-absent} form would emit the variable's own
+# value in its set-arm, into a log this pipeline preserves verbatim.
+#
+credential_reporting_expression=printf 'credential      : NVD_API_KEY=%s  (OSS Index analyzer disabled explicitly)\n' "$(scope_cred_state NVD_API_KEY)"
+credential_expression_source_line=45
+credential_expression_prints_fixed_token_only=true
+credential_NVD_API_KEY=absent
+credential_NVD_API_KEY_note=must stay UNSET rather than set empty - an empty value makes this tool abort with 'Invalid API Key, length of 0 too short'
+credential_sonatype_oss_index=absent, and its analyzer is explicitly disabled by --disableOssIndex
+credential_DD_API_KEY=absent
+credential_DD_APP_KEY=absent
+credential_SEMGREP_APP_TOKEN=absent
+credential_values_in_this_file=none - all four AAP 0.3.2 credential variables and the Sonatype OSS Index credential were grepped for, and only their names appear
+proc_environ_read=false
+#
+# --- THIS FILE'S OWN IDENTITY -------------------------------------------------
+#
+# A file cannot contain its own digest. Its byte size and sha256 belong to the
+# manifest of both artifact trees that oss-scan-results/run-record.md owns,
+# computed from the file as committed (AAP 0.6.1). The 261-byte figure above is
+# the embedded runner-written block, not this file.
+#
+manifest_owner=oss-scan-results/run-record.md
+tree=harness/artifacts/logs (git-ignored by .gitignore line 31; published by manifest with per-file byte size and sha256)
+raw_tree_contribution=exactly one file, harness/artifacts/raw/dependency-check.json, and nothing else

@@ -1,7 +1,344 @@
+# harness/artifacts/logs/osv-scanner.status
+#
+# Structured per-invocation status record for the OSV-Scanner runner, and with it the
+# completion-versus-failure VERDICT for the one tool of the nine expected to write no
+# artifact at all.
+#
+# Format: flat key/value, one per line, first separator splits key from value. Lines
+# without a separator are comments and are skipped by every reader. This is the shape
+# harness/lib/scope.sh scope_finish writes and harness/lib/normalize/cli.py
+# _runner_status parses, so the seven canonical keys come first and unchanged; every
+# later key is additive and namespaced.
+#
+# THE SHORT VERSION: exit 128, no artifact, and the tool said why in its own words.
+# THE TOOL COMPLETED WITH NOTHING IN SCOPE TO WORK ON. IT DID NOT FAIL. THE RUN
+# CONTINUES. The verdict block below carries the evidence and cites the stderr file
+# that is its only admissible basis.
+#
+# Four principles this file is held to, from the AAP:
+#   1. Verification is independent of the thing verified. The artifact's absence is
+#      established by LISTING harness/artifacts/raw/, not by reading the exit code or
+#      trusting the MISSING marker below.
+#   2. Reject rather than infer. The verdict rests on the tool's own stated words, never
+#      on a plausible reading of exit 128.
+#   3. Halt and report over silent repair. Nothing was fixed - not the runner, not its
+#      flags, not the scope.
+#   4. Verbatim preservation. The exit code is the tool's own, passed through untransformed.
+
+# ----------------------------------------------------------------------------------
+# CANONICAL scope_finish TRAILER - the seven keys, in the order the runner writes them
+# ----------------------------------------------------------------------------------
+# artifact_bytes is the literal MISSING rather than 0: a zero-byte artifact and an
+# absent artifact are different outcomes and must stay distinguishable.
 tool=osv-scanner
 exit_code=128
-elapsed_seconds=0
-artifact=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-042_638006/harness/artifacts/raw/osv-scanner.json
+elapsed_seconds=3
+artifact=harness/artifacts/raw/osv-scanner.json
 artifact_bytes=MISSING
 scan_root=/opt/spark-src
 scan_root_source=SPARK_SRC
+
+# ----------------------------------------------------------------------------------
+# IDENTITY
+# ----------------------------------------------------------------------------------
+scanner_class=vuln
+scanner_class_source=AAP 0.5.4 class table, fixed for this tool; only trivy varies per record
+scanner_class_varies_per_record=false
+canonical_tool_identifier=osv-scanner
+
+# ----------------------------------------------------------------------------------
+# TERMINATION - exactly one of exit_code / exit_status, and it is exit_code
+# ----------------------------------------------------------------------------------
+# The process produced an exit code, so the single recorded name for a termination
+# without one does not apply and no exit_status key is written. Recorded as a fact:
+# artifact status and exit status are independent (AAP 0.5.4), which is why two of the
+# nine tools legitimately exit non-zero precisely because they found something.
+termination_without_exit_code=false
+exit_code_is_the_tools_own=true
+exit_code_transformed_by_runner=false
+exit_code_pass_through_evidence=harness/bin/run-osv-scanner.sh line 58, exit "$code"
+exit_128_classification=stated behaviour for a zero-package input; NOT a crash and NOT a failure
+exit_128_citation=osv-scanner issue 348, and the same message for SBOMs without package URLs in issue 93, both cited in AAP 0.2.2
+
+# ----------------------------------------------------------------------------------
+# TIMING - ISO 8601 UTC, recorded as facts with no budget comparison
+# ----------------------------------------------------------------------------------
+# AAP 0.8.1 imposes no time limit anywhere. These are measurements, not scores.
+started_at=2026-08-24T22:36:00.324Z
+finished_at=2026-08-24T22:36:03.933Z
+started_at_runner_banner=2026-08-24T22:36:00+00:00
+finished_at_runner_banner=2026-08-24T22:36:03+00:00
+elapsed_seconds_basis=whole seconds by construction; scope_finish subtracts two date +%s readings
+tool_internal_elapsed=2.103098503s elapsed, 2.103098903s wall time, in the tool's own end-status line
+
+# ----------------------------------------------------------------------------------
+# INVOCATION
+# ----------------------------------------------------------------------------------
+runner=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-030_f3f236/harness/bin/run-osv-scanner.sh
+runner_repo_relative=harness/bin/run-osv-scanner.sh
+runner_clone_independent_form=$HARNESS_DIR/bin/run-osv-scanner.sh
+invoked_directly=true
+invoked_with_arguments=none
+invoked_one_at_a_time=true
+invoked_via_orchestrator=false
+orchestrator_exists_in_harness_bin=false
+invocation_discipline_source=AAP 0.8.1 - each runner invoked directly, with no arguments, output captured before the next is started
+orchestrator_prohibition_reason=continue-on-error sequencing would carry the run past a condition that must halt it, and it collapses per-tool attribution
+invocations_of_the_tool=1
+target_passing_style=18 root-relative directories in one invocation, after a -- separator so no path can be read as a flag
+baked_flags=scan source --recursive --format json --output-file $ART --verbosity info -- ${DIRS[@]}
+baked_flags_source=harness/bin/run-osv-scanner.sh lines 46-49
+baked_flags_added_by_this_run=none
+allow_no_lockfiles_flag_passed=false
+working_directory=/opt/spark-src
+working_directory_equals_scan_root=true
+scan_target_variable=SPARK_SRC
+scan_target_resolution=indirect, via scope_resolve_target at line 34 reading SPARK_SRC
+resolved_scan_root_verified=true
+path_base_kind=scan_root
+scope_directories=18
+allowlist=harness/scope/allowlist.txt
+allowlist_sha256=0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1
+allowlist_widened_or_narrowed=false
+smoke_override_set=false
+
+# The argument guard was established by INSPECTION, not by probing. A blind probe
+# against a defective runner could perform a real scan and contaminate the raw tree,
+# so AAP 0.8.1 permits a probe only where inspection cannot settle the ordering. Here
+# it could: the guard is the script's first executable statement.
+argument_guard_lines=15-18
+argument_guard_exit_status=64
+argument_guard_is_first_executable_statement=true
+argument_guard_precedes_env_sourcing_line=23
+argument_guard_precedes_shared_library_sourcing_line=25
+argument_guard_precedes_target_resolution_line=34
+argument_guard_precedes_tool_invocation_line=46
+argument_guard_precedes_all_scanning_steps=true
+argument_guard_established_by=inspection
+rejection_probe_performed=false
+
+# ----------------------------------------------------------------------------------
+# ARTIFACT - absence verified independently of the exit code
+# ----------------------------------------------------------------------------------
+artifact_expected=false
+artifact_present_observed=false
+artifact_absence_established_by=direct listing of harness/artifacts/raw/ plus test -e on the artifact path
+artifact_absence_not_inferred_from=the exit code, and not from the MISSING marker above, both of which agree with the listing anyway
+raw_listing_at_invocation=0 entries, recorded in STEP 7 of osv-scanner.stdout.log
+raw_listing_at_record_time=3 entries - datadog-static-analyzer.sarif, joern.json, semgrep.sarif - and no osv-scanner.json
+raw_tree_stays_runner_only=true
+artifact_manufactured=false
+artifact_manufactured_note=no empty or placeholder osv-scanner.json was written; one would corrupt both the reconciliation identity and the adapter-creation decision
+zero_byte_artifact_guard=harness/bin/run-osv-scanner.sh lines 53-55 delete a zero-byte artifact, deliberately, so absence stays distinguishable from an empty parse
+artifact_format=native JSON, only if packages are resolved
+output_format_observed=not applicable - no artifact
+parse_status=not applicable - no artifact
+
+# ----------------------------------------------------------------------------------
+# VERSION - observed against expected; a difference is recorded and the run continues
+# ----------------------------------------------------------------------------------
+observed_version=2.5.1 (osv-scalibr 0.5.2)
+expected_version=2.5.1
+version_matches_expected=true
+version_evidence=osv-scanner --version printed "osv-scanner version: 2.5.1" and "osv-scalibr version: 0.5.2"
+version_binary_path=/opt/blitzy-tools/bin/osv-scanner
+version_difference_disposition=none required; AAP 0.9.3 would record both values and continue
+
+# ----------------------------------------------------------------------------------
+# FEED STATE AND THE NAMED REPRODUCIBILITY GAP
+# ----------------------------------------------------------------------------------
+local_database=none
+local_database_note=this tool ships and seeds no local database
+data_source=https://api.osv.dev
+data_source_queried_at=scan time, live
+data_source_stated_by_runner=harness/bin/run-osv-scanner.sh line 40 - "database : none local - queries the OSV API (https://api.osv.dev) at scan time"
+expected_feed_identity=no local database; queries the live API at scan time
+feed_identity_matches_expected=true
+feed_state=not attempted
+feed_state_vocabulary=attempted and succeeded | attempted and failed | not attempted | not reported
+feed_state_evidence=the tool's own "0 Extract calls" and "No package sources found" - it resolved no package, so it had nothing to ask the API about
+network_fetch_observed=none; no query, no response, no rate-limit notice and no network error appears in either captured stream
+ruleset_or_feed_digest_available=false
+reproducibility_gap=NAMED - osv-scanner has no local database and no recorded digest for the data it would consult, so its counts are not reproducible from anything on disk; an identical re-run against an API whose contents have moved can legitimately produce a different number
+reproducibility_gap_disposition=disclosed rather than repaired; no local mirror was seeded and no digest was invented
+reproducibility_gap_effect_on_this_run=none, because no query was made; disclosed anyway so a reader knows this tool's count has no on-disk provenance behind it
+not_comparable_with_rehearsal=false
+
+# ----------------------------------------------------------------------------------
+# VERDICT - this file's real job. One of exactly two values.
+# ----------------------------------------------------------------------------------
+# Drawn from the tool's own words and nothing else. The alternative value is halt,
+# for an artifact missing with NO stated reason - AAP 0.9.2 stops the run on "a tool
+# writing no artifact with no stated reason of its own", which includes a termination
+# that produced neither an artifact nor a stated reason. That condition is NOT met.
+verdict=absent
+verdict_run_disposition=continues
+verdict_alternative_not_taken=halt
+verdict_basis=the artifact is absent AND the tool stated a no-work reason in its own output
+verdict_evidence_file=harness/artifacts/logs/osv-scanner.stderr.log
+verdict_evidence_sha256=021347c72dcd98e06b26c579164cded04c26b0eacc203aff07d5eb0487f2c401
+verdict_evidence_bytes=969
+verdict_stated_reason_present=true
+verdict_stated_reason_location=the final line of the stderr capture, following its end-status line
+verdict_verbatim_quotation_lives_in=harness/artifacts/logs/osv-scanner.stderr.log and oss-scan-results/tool-status.md
+verdict_not_based_on_exit_code=true
+halt_condition_met=false
+halt_condition_name=a tool writing no artifact with no stated reason of its own (AAP 0.9.2)
+runner_diagnostic_emitted=none - the runner's own stderr was empty, so it took neither the argument guard's 64 nor scope_fail's 78
+configuration_fault=false
+
+# ----------------------------------------------------------------------------------
+# WHY NOTHING RESOLVED - a property of the SCOPE, not of the installation
+# ----------------------------------------------------------------------------------
+# The tool is proven functional: it resolved its own version, walked all eighteen
+# directories and reported its own end status. Zero resolvable dependency manifests in
+# scope is a FINDING TO REPORT WITH ITS PER-TOOL CONSEQUENCE, NOT A CONDITION TO FIX
+# (AAP 0.3.2). The globs were not widened to give this tool something to resolve:
+# widening them would answer a scope question that is not this run's to answer and
+# would silently change what every count in the dataset means.
+dirs_visited=640
+inodes_visited=4735
+extract_calls=0
+extract_calls_meaning=no manifest or lockfile was extracted for package data
+resolvable_packages=0
+in_scope_manifest_shaped_files=1
+in_scope_manifest=core/src/main/resources/org/apache/spark/ui/static/package.json
+in_scope_manifest_bytes=80
+in_scope_manifest_sha256=43b4dcbf33dc23b3d62576dce22b371b1d0c852b05dfd73442e9c3e97a0b4717
+in_scope_manifest_content=a name, a license and a type; NO dependencies block
+in_scope_lockfile_beside_it=none
+in_scope_pom_xml=0
+in_scope_requirements_txt=0
+in_scope_setup_py=0
+in_scope_pyproject_toml=0
+in_scope_jars=0
+tool_is_broken=false
+scope_is_authoritative=true
+filesystem_walk_root_line_note=the tool's own phrasing "Starting filesystem walk for root: /" is NOT evidence it walked the filesystem root; cwd was /opt/spark-src, every target argument is root-relative, and the visited counts match the in-scope surface rather than a whole-host walk
+
+# ----------------------------------------------------------------------------------
+# CONSEQUENCE A - RECONCILIATION. Never zero equals zero.
+# ----------------------------------------------------------------------------------
+# The identity "raw finding records equals dataset rows plus rejected records"
+# presupposes an artifact to traverse. Zero equals zero plus zero would assert that a
+# traversal happened and balanced, when no traversal was possible. The three counts
+# stay unset rather than zero for exactly that reason, matching reconcile.py, which
+# holds them at None and never at zero so that no reader can mistake this for a pass
+# over an artifact nobody looked at. Verified against the module: the published
+# ArtifactReconciliation for an absent artifact carries identity equal to the sentinel
+# below with raw_records, emitted_rows, rejected_records and passed all None.
+reconciliation=not applicable — artifact absent
+reconciliation_status=not_applicable
+reconciliation_sentinel=NOT_APPLICABLE_ABSENT
+reconciliation_sentinel_defined_at=harness/lib/normalize/reconcile.py line 200
+reconciliation_is_zero_equals_zero=false
+reconciliation_raw_records=unset
+reconciliation_emitted_rows=unset
+reconciliation_rejected_records=unset
+reconciliation_passed=unset
+reconciliation_detail=no artifact was written, so there is nothing to traverse and no identity to assert; this is not a zero-equals-zero pass
+dataset_contribution=no row in findings.json and no row in findings.csv
+
+# ----------------------------------------------------------------------------------
+# CONSEQUENCE B - THE FOUR CONDITIONAL FILES. Decided here, not deferred.
+# ----------------------------------------------------------------------------------
+# AAP 0.6.1 makes these four conditional on this tool writing an artifact, and says the
+# decision is made by the observed Stage 3 outcome and not left open. The observed
+# outcome is NO ARTIFACT, so all four are NOT CREATED. There is no artifact to route,
+# so there is no adapter to write, no captured fixture to derive one from and no
+# expected-rows file to hand-verify against. A fixture invented for a file the tool
+# never wrote would be a fabricated measurement.
+conditional_files_decision=not created
+conditional_file_1=harness/lib/normalize/adapters/osv_scanner.py
+conditional_file_2=oss-scan-results/adapter-tests/fixtures/osv-scanner.json
+conditional_file_3=oss-scan-results/adapter-tests/expected/osv-scanner.rows.json
+conditional_file_4=oss-scan-results/adapter-tests/test_osv_scanner_adapter.py
+conditional_files_decision_basis=the observed Stage 3 outcome - no artifact was written
+conditional_files_decision_deferred=false
+conditional_files_verified_absent_on_disk=true
+shape_routing_key_declared=true
+shape_routing_key_note=harness/lib/normalize/shape.py declares an osv-scanner routing key deliberately, so a legitimately written artifact would have routed rather than falling into the halt path; a written artifact would have been handled, not a crisis - it simply was not written
+
+# ----------------------------------------------------------------------------------
+# THE NINE-TOOL INVENTORY STILL CARRIES THIS TOOL
+# ----------------------------------------------------------------------------------
+# findings.json and findings.csv are row-only, so a tool with zero rows is by
+# construction invisible in them. These two documents are the authoritative inventory.
+inventory_document_1=oss-scan-results/tool-status.md
+inventory_document_2=oss-scan-results/severity-map.md
+entry_required_in_tool_status_md=true
+entry_required_in_severity_map_md=true
+severity_map_entry_shape=a tool that contributed no row and therefore no native severity literal
+visible_in_row_only_dataset=false
+
+# ----------------------------------------------------------------------------------
+# CROSS-DOCUMENT AGREEMENT, AND ONE RECORDED DIFFERENCE
+# ----------------------------------------------------------------------------------
+# AAP 0.6.4 requires a figure appearing in two documents to be one measurement cited
+# twice. exit_code and elapsed_seconds above are cited from the trailer in STEP 3 of
+# osv-scanner.stdout.log, which is this record's companion from the same invocation.
+stdout_log_trailer_exit_code=128
+stdout_log_trailer_elapsed_seconds=3
+stdout_log_trailer_agreement=exact
+#
+# TWO CAPTURES EXIST ON THIS BRANCH, and both values are recorded rather than one
+# being silently chosen. The evidence set published here contains material from two
+# invocations of the same runner in two different concurrent clones. They agree on
+# every verdict-relevant fact - exit 128, no artifact, the same 18 scanned directories,
+# 640 dirs and 4735 inodes visited, 0 Extract calls, and the same stated reason - and
+# differ ONLY in wall-clock timing. AAP 0.9.3 records a per-tool elapsed-time
+# difference and continues; no cause is asserted, because none can be established from
+# the captured streams. THE VERDICT IS UNAFFECTED by the difference.
+capture_a_source=osv-scanner.stdout.log, the companion record this file is aligned to
+capture_a_elapsed_seconds=3
+capture_a_tool_internal_elapsed=2.103098503s
+capture_a_stderr_sha256=ad7df520bc9f146fbb1e59e4cce07392b7f5db969bc638ced1d640c02c4cb014
+capture_b_source=the inherited runner-written trailer and the osv-scanner.stderr.log bytes on disk
+capture_b_elapsed_seconds=0
+capture_b_tool_internal_elapsed=296.253311ms
+capture_b_stderr_sha256=021347c72dcd98e06b26c579164cded04c26b0eacc203aff07d5eb0487f2c401
+environment_record_rehearsal_elapsed_seconds=0
+environment_record_rehearsal_tool_internal_elapsed=295.514705ms
+environment_record_location=harness/ENVIRONMENT.md sections 9 and the inlined values block
+elapsed_difference_disposition=recorded, both values; does not halt (AAP 0.9.3)
+verdict_affected_by_difference=false
+inherited_trailer_artifact_literal=$HARNESS_RAW_DIR/osv-scanner.json, written by scope_finish as an absolute path in the invoking clone; recorded here in the clone-independent form so it resolves in any checkout
+
+# ----------------------------------------------------------------------------------
+# CREDENTIALS
+# ----------------------------------------------------------------------------------
+# No credential value appears anywhere in this file, and none was provisioned.
+credential_expression=none
+credential_line_printed_by_runner=false
+scope_cred_state_called_by_runner=false
+credentials_read_by_this_tool=none
+prohibited_credentials_state=absent
+credential_values_in_this_file=none
+
+# ----------------------------------------------------------------------------------
+# THIS FILE'S OWN SIZE AND DIGEST
+# ----------------------------------------------------------------------------------
+# Required for the manifest that oss-scan-results/run-record.md owns, which publishes
+# both git-ignored artifact trees with per-file byte size and sha256 - .gitignore line
+# 31 is "artifacts/", so ordinary git collection excludes them.
+#
+# They are deliberately NOT stated inside this file: a digest of a file cannot be
+# written into that same file without invalidating itself. They are computed after this
+# file is written and recorded in that manifest.
+own_size_and_digest_location=oss-scan-results/run-record.md manifest
+own_size_and_digest_self_stated=false
+own_size_and_digest_reason=a file cannot carry its own sha256 without invalidating it
+
+# ----------------------------------------------------------------------------------
+# WHAT THIS RECORD DELIBERATELY DID NOT DO
+# ----------------------------------------------------------------------------------
+# - It did not manufacture an artifact to make the tool look productive.
+# - It did not widen or narrow the twelve globs; the allowlist digest above is unchanged.
+# - It did not edit the runner, its baked flags, the environment file or scope.sh.
+# - It did not install, upgrade or substitute anything, and provisioned no credential.
+# - It did not use an orchestrator, and did not probe the runner with an argument.
+# - It did not record zero equals zero for the reconciliation, and did not record the
+#   three counts as zero, because no traversal was possible.
+# - It did not treat exit 128 as a failure, and did not treat the tool's outcome as a
+#   reason to halt. The verdict rests on the tool's own words.
+# END OF harness/artifacts/logs/osv-scanner.status

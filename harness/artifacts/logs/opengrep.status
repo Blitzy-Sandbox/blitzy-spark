@@ -1,7 +1,144 @@
+# harness/artifacts/logs/opengrep.status
+#
+# The structured per-invocation status record for the Opengrep runner, and the
+# authoritative source for its exit code and elapsed time (AAP 0.6.1).
+#
+# FORMAT. One field per line, each written as a name, an equals sign, then its value, as
+# harness/lib/scope.sh's scope_finish writes it and harness/ENVIRONMENT.md section 8
+# documents it. Every other line begins with '#' and carries no equals sign at all, so a
+# reader -- or the field reader in harness/lib/normalize/cli.py, which splits each line on
+# its first one -- sees fields and nothing else.
+#
+# PROVENANCE. Seven fields are scope_finish's own and are reproduced here exactly as the
+# runner emitted them: tool, exit_code, elapsed_seconds, artifact, artifact_bytes,
+# scan_root and scan_root_source, in that relative order. Nothing the runner measured is
+# restated in different words. The added fields and the prose are this record's own, and
+# each names the file it was established from. Every measurement below was taken from
+# this invocation; none is estimated and none is supplied from any other run.
+
 tool=opengrep
+
+# THE INVOCATION. Invoked directly and individually: the runner below was run on its own,
+# with no arguments, one tool at a time, never through an orchestrator (AAP 0.8.1).
+# harness/bin/ holds exactly the nine runners and deliberately no orchestrator, and no
+# run-all script exists or was written -- an orchestrator's continue-on-error sequencing
+# would carry a run past a condition that must halt it, and it collapses per-tool
+# attribution. The absolute path is the one the invocation itself fixes: harness/env.sh
+# lines 14 to 26 derive HARNESS_DIR from the environment file's own location, so the log
+# directory printed in the run header (harness/artifacts/logs/opengrep.stdout.log line 4)
+# identifies the harness tree the invoked script belongs to.
+runner=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-023_cbf7c8/harness/bin/run-opengrep.sh
+runner_repo_relative=harness/bin/run-opengrep.sh
+invocation=direct, no arguments, one tool at a time, never through an orchestrator
+invocation_argument_count=0
+
+# ARGUMENT GUARD. run-opengrep.sh lines 6 to 9 are its first executable statement: a
+# runner handed an argument prints its refusal to stderr and exits 64 before the
+# environment file is sourced (line 14), before the shared scope library is sourced
+# (line 16), before the scan target is resolved (line 26) and before opengrep is invoked
+# (lines 64 to 70). Established by inspection and recorded in
+# harness/artifacts/logs/runner-metadata.json under tools.opengrep.argument_guard. No
+# rejection probe was run, because a blind probe against a defective runner could perform
+# a real scan and contaminate the artifact tree.
+
+# HOW THE PROCESS ENDED. The process produced an exit code of its own, so this record
+# carries exit_code and carries no timeout name: exactly one of the two is present, as
+# the contract requires. run-opengrep.sh captures the tool's own status at line 71 and
+# exits with it unchanged at line 75, so the integer below is opengrep's rather than the
+# runner's. Had the process been terminated without producing a code, AAP 0.8.1 gives
+# that outcome one recorded name -- timeout -- and it would appear here under that name
+# and no other; naming how a process ended never excuses a missing artifact (AAP 0.9.2).
 exit_code=0
+
+# THE EXIT CODE IS NOT A VERDICT. Artifact status and exit status are independent
+# (AAP 0.5.4). The code above is recorded as a fact and used for nothing else, and no
+# status verdict is derived from it anywhere in this file. A non-zero code from a tool
+# that wrote a parsable artifact is an ordinary recorded condition (AAP 0.9.3) -- two of
+# the nine tools are expected to exit non-zero precisely because they found something.
+# Whether this tool's artifact parses is settled by the normalizer and reported in
+# oss-scan-results/tool-status.md, not here.
+
+# TIMING, AS A FACT. No time limit applies anywhere in this run (AAP 0.8.1), so the
+# elapsed figure below is a recorded measurement and is held against no budget. Its
+# expected-versus-observed comparison against the provisioning record is a field of
+# oss-scan-results/tool-status.md, which owns it. Both timestamps are ISO 8601 with a
+# +00:00 offset, that is UTC, exactly as the runner printed them.
 elapsed_seconds=1065
+started_at=2026-08-24T22:46:17+00:00
+finished_at=2026-08-24T23:04:02+00:00
+
+# ONE MEASUREMENT, CITED TWICE. A scope_finish trailer exists for this invocation, at
+# harness/artifacts/logs/opengrep.stdout.log lines 11 to 14. Its exit code line reads 0,
+# its elapsed seconds line reads 1065, and its artifact line reports 63695205 bytes:
+# those are the same three measurements recorded here, cited twice rather than measured
+# twice (AAP 0.6.4). The header's start line (line 7) and the trailer's end line
+# (line 14) are the two timestamps above, verbatim. Because that trailer exists, this
+# file is not the only account of how the process ended; a terminated process prints no
+# trailer at all, and this record would then be the only one.
+trailer_present=yes
+trailer_source=harness/artifacts/logs/opengrep.stdout.log lines 11 to 14
+#
+# The elapsed figure was checked independently of the trailer rather than copied from it:
+# the difference between the finished_at and started_at timestamps is 1065 seconds
+# exactly, arrived at by date arithmetic over the header and footer, where the runner
+# arrived at the same number from two date(1) readings in scope_finish
+# (harness/lib/scope.sh lines 79 to 90). Two routes, one value.
+elapsed_seconds_independent_check=finished_at minus started_at is 1065 seconds; agrees
+
+# THE ARTIFACT. The invocation wrote its one artifact, and scope_finish measured that
+# file on disk with stat at completion (harness/lib/scope.sh lines 82 to 86). An artifact
+# that had not been written would have been recorded as the literal MISSING instead, as
+# harness/artifacts/logs/osv-scanner.status shows for the tool that legitimately wrote
+# none. So this is not the artifact-absent case of AAP 0.5.4 and the missing-artifact
+# halt rule of AAP 0.9.2 is not in play. This folder owns the byte count below, and
+# harness/artifacts/raw/ conforms to it.
 artifact=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-023_cbf7c8/harness/artifacts/raw/opengrep.sarif
 artifact_bytes=63695205
+artifact_expected_path=harness/artifacts/raw/opengrep.sarif
+artifact_format=SARIF 2.1.0
+artifact_present_in_this_checkout_at_write_time=no
+
+# PRESENCE, OBSERVED RATHER THAN INFERRED. The artifact field is the absolute path the
+# runner itself recorded; artifact_expected_path is that same file's path in this
+# repository, which is where the deliverable belongs. At the moment this record was
+# written the repository path held no file: harness/artifacts/raw/ carried
+# datadog-static-analyzer.sarif, joern.json and semgrep.sarif and nothing else. That is a
+# statement about this checkout, not about the invocation -- the runner's own stat above
+# is the record of the file it wrote, and harness/artifacts/raw/opengrep.sarif is a
+# deliverable of this same run, written from this same invocation's output and required to
+# carry the byte count above. No presence and no size is claimed beyond what is stated,
+# and no byte count here was taken from a file this record did not find.
+#
+# The tool's own words were read regardless, so the classification can be checked instead
+# of taken on trust: harness/artifacts/logs/opengrep.stderr.log carries the engine's own
+# scan status over 4095 files with 2006 Code rules, its note that the scan was limited to
+# files tracked by git, its "Partially scanned: 46 files only partially analyzed due to
+# parsing or internal Opengrep errors", and its closing summary line, "Ran 1138 rules on
+# 4095 files: 1239 findings." A reason stated by the tool in its own output is therefore
+# on record either way, which is the condition AAP 0.5.4 continues on rather than halts.
+# What that summary count means for the dataset is tool-status.md's field, not this one's.
+artifact_absent_without_stated_reason=no
+
+# THE TREE THAT WAS SCANNED. The runner takes its target from the environment and never
+# from the working directory: harness/lib/scope.sh lines 22 to 35 read SPARK_SRC and
+# export the resolved root, and the runner then works from that root
+# (run-opengrep.sh line 50). The two fields below are the runner's own account of the root
+# it resolved, which is what makes the root in
+# harness/artifacts/logs/runner-metadata.json independently checkable rather than
+# self-asserted. The setup-time smoke override was unset -- had it been set, the source
+# below would name HARNESS_SMOKE_TARGET, and that is never a fallback for a real scan.
 scan_root=/opt/spark-src
 scan_root_source=SPARK_SRC
+
+# CREDENTIALS. No credential value appears in this file, and none can reach it: the
+# runner prints only the fixed token scope_cred_state produces (harness/lib/scope.sh
+# lines 105 to 109, which evaluate the :+ form alone and never the :- form whose set arm
+# would expand to the variable's own value), and the run header records the variable as
+# absent. Opengrep reads no credential in any case.
+credential_semgrep_app_token=absent
+
+# FOR THE MANIFEST. oss-scan-results/run-record.md owns the manifest of both artifact
+# trees, with a byte size and a sha256 for every file in them, this one included. Those
+# two values cannot be stated inside the file they describe, so they are measured on this
+# file as written and carried into that manifest; this record makes no claim about its
+# own size or digest.

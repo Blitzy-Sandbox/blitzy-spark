@@ -1,0 +1,156 @@
+# harness/artifacts/logs/gitleaks.status
+# Per-invocation status record for the Gitleaks runner. AAP 0.6.1 gives this file its job:
+# the runner's exit code -- or the timeout status where a process produced none -- with its
+# elapsed seconds. Gitleaks is one of the two tools in this run whose non-zero exit is the
+# expected, ordinary outcome.
+#
+# FORMAT. One key and value per line, split at the first equals sign, exactly as
+# harness/lib/scope.sh's scope_finish writes it and exactly as harness/lib/normalize/cli.py's
+# _runner_status reads it. A line carrying no separator is skipped by that reader, so every
+# comment block here is inert and no comment contains an equals sign. The seven keys
+# scope_finish writes come first and verbatim; the further fields AAP 0.5.4, 0.6.1 and 0.6.4
+# require of this record follow, each with the provenance of its value. A consumer keyed on
+# the canonical seven therefore sees exactly what the runner wrote.
+#
+# A NON-ZERO EXIT IS NOT A FAILURE HERE. AAP 0.5.4: "Artifact status and exit status are
+# independent. Non-zero exit with findings is ordinary -- Gitleaks and Checkov both exit
+# non-zero when they find something." Gitleaks ended with 2 because it found one leak, and
+# the artifact it wrote is present and parses. The code is therefore recorded as a fact and
+# used for nothing else: this record states no failure verdict and implies none. AAP 0.9.3
+# lists the outcome among the conditions that are recorded and do not stop the run.
+#
+# ELAPSED TIME IS A FACT, NOT A BUDGET. AAP 0.8.1 imposes no time limit anywhere in this run,
+# and nothing below is measured against one.
+#
+# NO MEASUREMENT HERE IS FABRICATED. Every value is either measured in this environment or
+# cited from the runner's own record with the line that carries it named. Where a value could
+# not be established it is named as such rather than omitted, per AAP 0.9.4.
+#
+# NO SECRET VALUE AND NO CREDENTIAL VALUE APPEARS ANYWHERE IN THIS FILE. Gitleaks ran with
+# redaction on, and this runner reads and reports no credential.
+
+# --- the seven keys scope_finish writes, verbatim --------------------------------------------
+tool=gitleaks
+exit_code=2
+elapsed_seconds=69
+artifact=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/raw/gitleaks.json
+artifact_bytes=561
+scan_root=/opt/spark-src
+scan_root_source=SPARK_SRC
+
+# --- identity, from the AAP 0.5.4 class table -----------------------------------------------
+canonical_tool_identifier=gitleaks
+scanner_class=secret
+scanner_class_varies_per_record=no
+
+# --- how the process ended ------------------------------------------------------------------
+# The process returned a code, so exit_code above carries it and no timeout status is
+# recorded: exactly one of the two belongs in this file, and here it is the code. The timeout
+# status AAP 0.8.1 names is reserved for a termination that produced no exit code, which is
+# not what happened.
+termination=exited with a code
+exit_code_evidence=gitleaks.stdout.log line 31, "exit code       : 2", written by scope_finish from the runner's own worst-of-eighteen variable
+exit_code_meaning=at least one scope directory reported a leak; per invocation 0 means no leaks and 2 means leaks found, and both are successful scans (run-gitleaks.sh lines 61-62, exited at line 83)
+exit_code_cross_check_invocations=the eighteen per-invocation lines at gitleaks.stdout.log lines 12-29 carry seventeen exits of 0 and one of 2, so the worst code is 2 independently of the trailer that reports it
+exit_code_cross_check_finding=gitleaks.stderr.log carries the tool's own warning that it found one leak, and gitleaks.stdout.log line 30 records "merged 1 findings from 18 per-directory reports"; a leak found is what makes the code 2
+per_invocation_exit_codes=seventeen invocations exited 0 and one exited 2
+per_invocation_exit_2_directory=python/pyspark
+exit_code_expected=2
+exit_code_observed=2
+exit_code_matches_expected=yes
+
+# --- timing, recorded as facts ---------------------------------------------------------------
+started_at=2026-08-24T22:36:36+00:00
+finished_at=2026-08-24T22:37:44+00:00
+timestamps_timezone=UTC, the plus-zero offset the runner's own date call printed
+timestamps_evidence=gitleaks.stdout.log lines 7 and 34
+elapsed_seconds_evidence=gitleaks.stdout.log line 32, "elapsed seconds : 69"
+elapsed_seconds_arithmetic=the two printed timestamps stand 68 s apart while the runner's own timer reports 69 s, because scope_begin starts that timer before printing the header and the header computes the allowlist digest and expands the allowlist between the two; the runner's 69 is carried unchanged rather than reconciled
+elapsed_seconds_expected=15
+elapsed_seconds_observed=69
+elapsed_seconds_comparison=recorded as expected against observed and nothing further, per AAP 0.9.3; the expected figure is harness/ENVIRONMENT.md line 470 and no budget applies
+
+# --- how it was invoked, per AAP 0.8.1 -------------------------------------------------------
+runner=harness/bin/run-gitleaks.sh
+runner_absolute=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/bin/run-gitleaks.sh
+runner_absolute_provenance=derived rather than printed: gitleaks.stdout.log lines 3, 4 and 5 show the raw directory, log directory and allowlist all at their env.sh defaults beneath one harness root, and env.sh lines 19 to 27 derive all three from HARNESS_DIR, itself env.sh's own directory, which fixes that root and so this path
+runner_sha256=6e90cd099983916f5365a9b6caa12f84bc616b00fbf6092ca78229ed2e84b6df
+runner_unmodified=yes; the tracked runner is clean in git, and neither it nor any baked flag was edited by this run
+shared_scope_library=harness/lib/scope.sh
+shared_scope_library_sha256=17af8d7d4fcc4532b101ea4b6fb16ffa97458119a5d4d4702a3674e7a858611f
+invocation_mode=invoked directly, with no arguments, one tool at a time
+orchestrator=none used and none exists; harness/bin holds exactly the nine runners
+argument_guard=run-gitleaks.sh lines 13-16, exit 64, ahead of the environment sourcing at line 21, the shared library at line 23, target resolution at line 33 and the first tool invocation at line 53
+smoke_override=unset, so this was a real scan rather than the setup-time override; scan_root_source above names SPARK_SRC
+scan_root_verified=yes; SPARK_SRC resolves to /opt/spark-src in this environment and the recorded root is that directory
+spark_src_commit=59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+spark_src_commit_evidence=git rev-parse HEAD in /opt/spark-src returned the pinned SHA
+tool_invocations=18
+tool_invocation_form=one gitleaks dir call per scope directory, each handed exactly one root-relative path, from the scan root
+tool_invocation_reason=gitleaks dir takes exactly one path and silently falls back to the working directory when handed more, which would make every reported path wrong
+working_directory=/opt/spark-src
+working_directory_evidence=run-gitleaks.sh line 47 enters the resolved scan root before the loop
+scope_directories=18
+allowlist=harness/scope/allowlist.txt
+allowlist_sha256=0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1
+jvm=none; the gitleaks binary is a statically linked native executable and this runner exports no JAVA_HOME, so no JDK assignment and no heap lever apply
+interpreter=/usr/bin/python3 reporting 3.13.7, used only by the runner's merge step that concatenates the eighteen per-directory reports
+
+# --- the artifact ----------------------------------------------------------------------------
+artifact_repo_relative=harness/artifacts/raw/gitleaks.json
+artifact_present=yes
+artifact_format=native JSON array
+artifact_records=1
+artifact_records_evidence=gitleaks.stdout.log line 30, the runner's own merge step, "merged 1 findings from 18 per-directory reports"
+artifact_bytes_evidence=gitleaks.stdout.log line 33, scope_finish's stat of the file it had just written
+artifact_bytes_corroboration=harness/ENVIRONMENT.md line 470 records 561 bytes for this runner over this scope, an independent measurement agreeing exactly
+artifact_bytes_local_stat=not taken; the byte count is cited once from the runner's own stat rather than re-measured, because AAP 0.6.4 requires one measurement cited twice and never two measurements. This folder owns the number and raw/ conforms to it
+artifact_parse_ownership=the parsed record count, the emitted rows and the reconciliation identity belong to the normalization record and to oss-scan-results/tool-status.md, not to this file
+findings_expected=1
+findings_observed=1
+findings_matches_expected=yes
+tool_stated_reason_required=no; a stated reason is what settles an absent artifact, and this artifact is present
+
+# --- version and ruleset ---------------------------------------------------------------------
+version_expected=8.30.1
+version_observed=8.30.1
+version_matches_expected=yes
+version_evidence=gitleaks version printed 8.30.1 in this environment
+ruleset=default rule set built into gitleaks 8.30.1
+ruleset_evidence=gitleaks.stdout.log line 8, and harness/ENVIRONMENT.md line 116
+ruleset_separately_versioned=no
+ruleset_digest=none exists to compare, and none is invented, per AAP 0.4.2
+ruleset_rule_count=not reported by the tool and not carried by the expected-values table, so no count could be established
+ruleset_fetched_at_scan_time=no; the rule set is compiled into the binary, so there is no scan-time fetch and no reproducibility gap of that kind
+not_comparable_with_rehearsal=no; the observed ruleset identity is the expected identity
+
+# --- redaction, per AAP 0.5.4 ----------------------------------------------------------------
+redaction=--redact=100
+redaction_evidence=gitleaks.stdout.log line 11, and run-gitleaks.sh line 55
+redaction_effect=the Secret and Match fields come through as REDACTED, so no matched secret value reaches the artifact, this record, or any dataset field
+secret_values_in_this_record=none
+credential_expression=none; this runner calls scope_cred_state nowhere and reads no credential in this configuration
+credential_values_in_this_record=none
+
+# --- path base, as recorded in runner-metadata.json ------------------------------------------
+path_base_kind=scan_root
+path_base=/opt/spark-src
+path_base_record_field=File
+path_base_reason=the runner enters the scan root and hands each invocation one root-relative directory, so every File value is root-relative to the scan root rather than to a per-invocation directory or to the caller's working directory
+path_base_metadata_agreement=yes; runner-metadata.json records kind scan_root, value /opt/spark-src and record field File for this tool
+path_base_runner_statement=gitleaks.stdout.log line 10, "path base       : /opt/spark-src (root-relative paths; cwd is the scan root)"
+path_base_environment_record=harness/ENVIRONMENT.md line 487 records File root-relative to SPARK_SRC
+
+# --- the streams this record was measured against --------------------------------------------
+stdout_log=harness/artifacts/logs/gitleaks.stdout.log
+stdout_log_bytes=2547
+stdout_log_sha256=ce00b09c132d1805f6b8a249de1c0e8f74a614040da9c8ec80d6407bcf59432e
+stderr_log=harness/artifacts/logs/gitleaks.stderr.log
+stderr_log_bytes=27
+stderr_log_sha256=0a726625c9ba4a8f2b0eefe36d323364dfe24ec01fa7227e50d05c6daadce00c
+stderr_verbatim=11:26PM WRN leaks found: 1
+stderr_content=the tool's own single warning that it found one leak; it names no secret value
+stderr_clock_note=the prefix is gitleaks' own local-clock format rather than the ISO timestamps scope_finish prints, and it reads 11:26PM against a run window of 22:36:36 to 22:37:44; recorded as observed, since no value in this record is taken from it and the count it states agrees with the merge line
+
+# This file cannot carry its own digest. Its byte size and sha256 belong to the manifest of
+# both artifact trees, which oss-scan-results/run-record.md owns and publishes per file.
