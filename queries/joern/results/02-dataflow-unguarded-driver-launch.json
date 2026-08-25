@@ -1,0 +1,673 @@
+{
+  "query_id": "02-dataflow-unguarded-driver-launch",
+  "query_source": "queries/joern/02-dataflow-unguarded-driver-launch.sc",
+  "formulation": "bounded DATAFLOW over reaching-definition edges, from the standalone Master's driver-submission handler to the privileged process launch hosted on the DriverRunner surface: the same handler/sink pair query 01 addresses by call-graph reachability, formulated over different edges",
+  "observational_only": true,
+  "contributes_dataset_rows": false,
+  "compile_status": "compiled",
+  "compile_status_convention": "this field is written by the running script, so its presence is itself the evidence: a compile failure produces no envelope at all and the compiler's diagnostic lands in the console stream",
+  "run_status": "completed",
+  "returned_record_count": 8,
+  "returned_record_kinds": {
+    "boundary": 4,
+    "route": 0,
+    "boundary_flow": 2,
+    "liveness_control_flow": 2
+  },
+  "distinct_routes": 0,
+  "distinct_routes_convention": "the route-bearing arms' flows deduplicated on (source group, sink group, element signature); the arms' returns are not summed with each other, and this query's routes are NEVER summed with query 01's - the two address one pair by two formulations and adding them yields a number that means nothing. The engine-liveness control's flows are NOT routes and are reported under their own field",
+  "never_summed_with": ["01-callgraph-unguarded-driver-launch", "03-parameterized-handler-sink-pairs"],
+  "spurious_count": 0,
+  "spurious_definition": "a route is spurious ONLY where it passes an authorization or ACL predicate before reaching the sink, the predicate set being exactly the five named selectors below; this judges the query, not Spark",
+  "expected_spurious_route_absent": true,
+  "expected_spurious_absence_basis": "structural",
+  "expected_spurious_absence_statement": "no route in the emitted set passed an auth/ACL predicate as defined by these five named selectors, and no call site of any of the five exists on the route surface at all, so the absence is structural rather than a consequence of the query filtering well",
+  "bound_value": 6,
+  "bound_value_meaning": "MAX_FLOW_CALL_DEPTH, the engine's EngineConfig.maxCallDepth: the number of call boundaries the backward search may expand while looking for a source. It exceeds the five method boundaries the documented route crosses, so a flow absent within it is not an artefact of a short bound",
+  "bound_reached": false,
+  "bound_reached_basis": "the observable caps are the evaluator's own: the per-source step cap, the per-pair flow cap, the flow-length cap and the source, sink and entry-point truncation counters. The engine's INTERNAL call-depth bound is not observable from its output - it reports no truncation flag - so depth is addressed by running ARM 1 at two depths and comparing, which is reported under depth_sensitivity. This limitation is stated rather than papered over",
+  "bounds": {
+    "MAX_FLOW_CALL_DEPTH": 6,
+    "MAX_FLOW_CALL_DEPTH_SHALLOW": 2,
+    "MAX_BOUNDARY_FLOW_CALL_DEPTH": 2,
+    "MAX_FLOW_LENGTH": 64,
+    "MAX_FLOWS_PER_PAIR": 8,
+    "MAX_STEPS_PER_SOURCE": 8,
+    "MAX_TOTAL_RETURNS": 256,
+    "MAX_SOURCE_NODES": 64,
+    "MAX_SINK_NODES": 64,
+    "MAX_ENTRY_POINTS": 16,
+    "MAX_CALL_SCAN": 200000,
+    "MAX_CODE_CHARS": 160
+  },
+  "depth_sensitivity": {
+    "shallow_depth": 2,
+    "primary_depth": 6,
+    "shallow_flows_retained": 0,
+    "primary_flows_retained": 0,
+    "results_differ_across_the_two_depths": false,
+    "interpretation": "equal results across the two depths is evidence that the result does not depend on the call-depth bound across that range; a difference would be evidence that it does"
+  },
+  "entry_points_discovered": 2,
+  "entry_points_traversed": 2,
+  "entry_points_truncated": 0,
+  "entry_point_selection": "BOUNDARY 4: the handler body compiles into a synthetic partial-function class, so the synthetic applyOrElse on every type matching ^org\\.apache\\.spark\\.deploy\\.master\\.Master\\$\\$anonfun\\$receiveAndReply\\$\\d+$ is selected together with the source-level org.apache.spark.deploy.master.Master.receiveAndReply",
+  "entry_points": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)", "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)"],
+  "source_selection": {
+    "arm1": "every formal parameter of the entry methods, with the implicit receiver excluded",
+    "arm1_receiver_parameters_excluded": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)#0:this", "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)#0:this"],
+    "arm1_any_typed_parameters": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)#1:x1:java.lang.Object"],
+    "arm1_message_parameter_identified_by": "erased bytecode type java.lang.Object, not by parameter position",
+    "arm2_selection": "primary: call sites of org.apache.spark.deploy.DeployMessages$RequestSubmitDriver.driverDescription inside the entry methods",
+    "arm2_nodes": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1) -> org.apache.spark.deploy.DeployMessages$RequestSubmitDriver.driverDescription:org.apache.spark.deploy.DriverDescription()#410"],
+    "unapply_treatment": "the payload arrives at Master.scala:410 through a pattern match, which in bytecode is a type test, a cast and the case class's own driverDescription accessor rather than an assignment. The Any-typed formal parameter (ARM 1) and the accessor's result (ARM 2) are therefore selected as TWO SEPARATE ARMS and reported separately, so neither choice is hidden inside one number and the flow counts stay interpretable"
+  },
+  "sink_hosts": ["org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()"],
+  "sink_call_sites": ["org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean) -> org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process() #240", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process() -> java.lang.ProcessBuilder.start:java.lang.Process() #276"],
+  "sink_node_composition": {
+    "launch_call_nodes": 2,
+    "receiver_nodes": 2,
+    "argument_nodes": 2,
+    "distinct_sink_nodes_used": 4,
+    "sink_nodes_truncated": 0,
+    "rationale": "a flow that reaches the value being launched ends at the launch call, its receiver or one of its arguments; taking only the call node would miss a flow into the receiver"
+  },
+  "operator_pseudo_calls_excluded": true,
+  "duplicate_class_definitions_unioned": true,
+  "graph": {
+    "path_source": "HARNESS_CPG",
+    "named_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-035_9f4adc/harness/cpg/spark.cpg",
+    "resolved_path": "/opt/blitzy-harness/cpg/spark.cpg",
+    "named_path_is_symlink": true,
+    "byte_size_following_the_link": 541255894,
+    "byte_size_without_following": 33,
+    "sha256": "26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc",
+    "identity_record": "harness/artifacts/logs/cpg-frontend.log",
+    "identity_recorded_byte_size": 541255894,
+    "identity_recorded_sha256": "26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc",
+    "identity_reverified_before_load": true,
+    "aap_named_path_reconciliation": "same file (equal resolved target)",
+    "methods": 1397339,
+    "type_declarations": 119691,
+    "files": 45037
+  },
+  "runtime": {
+    "jdk_major": "21",
+    "jvm_version": "21.0.12.1+1-LTS",
+    "heap_actually_used_bytes": 68719476736,
+    "heap_floor_bytes": 68719476736,
+    "loader": "importCpg into a switched workspace; the frontend-then-importCpg route is mandated because the alternative loader spawns a second JVM at the same heap",
+    "dataflow_layer": "applied by importCpg as one of the console's default overlays; its liveness on this sink is not assumed but measured by the engine-liveness control arm",
+    "flow_engine_semantics": "io.joern.dataflowengineoss.semanticsloader.FullNameSemantics",
+    "flow_engine_context_source": "the console's own EngineContext, copied with only the call-depth bound overridden, and passed EXPLICITLY at every call site so no implicit resolution decides which context a traversal ran under",
+    "workspace": "queries/joern/.workspace",
+    "heap_bound_jvm_position": "one of 4 (frontend build, importCpg verification load, Stage 3 Joern runner, this probe)"
+  },
+  "predicate_selector": {
+    "type": "org.apache.spark.SecurityManager",
+    "name_regex": "^(check.*Permissions|acls.*|isAuthenticationEnabled)$",
+    "setter_suffix_excluded": "_$eq",
+    "named_five": ["aclsEnabled", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "selector_block_byte_identical_to": "01-callgraph-unguarded-driver-launch",
+    "type_method_nodes": 252,
+    "type_distinct_method_names": 107,
+    "step1_broad_matches": ["aclsEnabled", "aclsOn", "aclsOn_$eq", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "step2_setters_excluded": ["aclsOn_$eq"],
+    "step2_remaining": ["aclsEnabled", "aclsOn", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "step3_non_predicate_residue_dropped": ["aclsOn"],
+    "final_names": ["aclsEnabled", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "final_full_names": ["org.apache.spark.SecurityManager.aclsEnabled:boolean()", "org.apache.spark.SecurityManager.checkAdminPermissions:boolean(java.lang.String)", "org.apache.spark.SecurityManager.checkModifyPermissions:boolean(java.lang.String)", "org.apache.spark.SecurityManager.checkUIViewPermissions:boolean(java.lang.String)", "org.apache.spark.SecurityManager.isAuthenticationEnabled:boolean()"],
+    "call_sites_graph_wide": 18,
+    "distinct_callers_graph_wide": 18,
+    "call_sites_on_the_route_surface": 0,
+    "route_surface_type_prefixes": ["org.apache.spark.deploy.master.Master", "org.apache.spark.deploy.rest.StandaloneRestServer", "org.apache.spark.deploy.worker.DriverRunner"]
+  },
+  "arms": [
+      {
+        "arm_id": "ARM1-handler-parameters-shallow",
+        "description": "the handler's own formal parameters to the privileged launch, at the shallow call depth; run to measure sensitivity to the depth bound",
+        "call_depth_bound": 2,
+        "source_selection": "every formal parameter of the synthetic applyOrElse and of the source-level receiveAndReply, with `this` excluded",
+        "source_groups_discovered": 2,
+        "source_groups_traversed": 2,
+        "source_groups_truncated": 0,
+        "source_nodes": 3,
+        "source_nodes_truncated": 0,
+        "sink_groups": 2,
+        "sink_nodes": 4,
+        "sink_nodes_truncated": 0,
+        "evaluations": 4,
+        "step_cap_reached": false,
+        "flows_found": 0,
+        "flows_retained": 0,
+        "per_pair_cap_reached": false,
+        "flow_length_cap_reached": false
+      },
+      {
+        "arm_id": "ARM1-handler-parameters",
+        "description": "the handler's own formal parameters to the privileged launch, at the primary call depth",
+        "call_depth_bound": 6,
+        "source_selection": "every formal parameter of the synthetic applyOrElse and of the source-level receiveAndReply, with `this` excluded; the Any-typed parameter is identified by its erased type java.lang.Object rather than by position",
+        "source_groups_discovered": 2,
+        "source_groups_traversed": 2,
+        "source_groups_truncated": 0,
+        "source_nodes": 3,
+        "source_nodes_truncated": 0,
+        "sink_groups": 2,
+        "sink_nodes": 4,
+        "sink_nodes_truncated": 0,
+        "evaluations": 4,
+        "step_cap_reached": false,
+        "flows_found": 0,
+        "flows_retained": 0,
+        "per_pair_cap_reached": false,
+        "flow_length_cap_reached": false
+      },
+      {
+        "arm_id": "ARM2-unapply-recovered-payload",
+        "description": "the payload as the handler body sees it after the pattern match - the result of the message type's own accessor inside the entry methods - to the privileged launch, at the primary call depth",
+        "call_depth_bound": 6,
+        "source_selection": "primary: call sites of org.apache.spark.deploy.DeployMessages$RequestSubmitDriver.driverDescription inside the entry methods",
+        "source_groups_discovered": 1,
+        "source_groups_traversed": 1,
+        "source_groups_truncated": 0,
+        "source_nodes": 1,
+        "source_nodes_truncated": 0,
+        "sink_groups": 2,
+        "sink_nodes": 4,
+        "sink_nodes_truncated": 0,
+        "evaluations": 2,
+        "step_cap_reached": false,
+        "flows_found": 0,
+        "flows_retained": 0,
+        "per_pair_cap_reached": false,
+        "flow_length_cap_reached": false
+      }
+    ],
+  "engine_liveness_control": {
+    "arm": {
+        "arm_id": "CONTROL-intraprocedural-liveness",
+        "description": "the launch's own enclosing method's formal parameters to the launch call in that same method: intraprocedural by construction, and non-empty if and only if the OSS dataflow layer is live on this sink in this graph",
+        "call_depth_bound": 2,
+        "source_selection": "formal parameters of org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry, `this` excluded",
+        "source_groups_discovered": 1,
+        "source_groups_traversed": 1,
+        "source_groups_truncated": 0,
+        "source_nodes": 3,
+        "source_nodes_truncated": 0,
+        "sink_groups": 1,
+        "sink_nodes": 2,
+        "sink_nodes_truncated": 0,
+        "evaluations": 1,
+        "step_cap_reached": false,
+        "flows_found": 2,
+        "flows_retained": 2,
+        "per_pair_cap_reached": false,
+        "flow_length_cap_reached": false
+      },
+    "dataflow_layer_live_on_this_sink": true,
+    "why_it_exists": "a zero from a cross-boundary arm means either that the route is not connected by data or that the engine had no reaching-definition edges to walk, and the zero alone cannot tell those apart. The control asks for a flow that must exist if the layer is live - from the launch's own enclosing method's formal parameter to the launch call it is the receiver of - so the cross-boundary zeros become attributable",
+    "counted_as_routes": false
+  },
+  "boundaries_not_crossed_by_a_data_flow": ["B1-rpc", "B2-thread", "B4-partial-function"],
+  "boundary_b3_verdicts": {
+    "call_edge_verdict_in_01_transcribed": "crossed",
+    "data_edge_verdict_measured_here": "crossed",
+    "data_flows_found_here": 2,
+    "note": "two measurements of one hop under two different questions, reported separately rather than merged into a single verdict"
+  },
+  "duplicate_formulation": "not_duplicate",
+  "duplicate_formulation_detail": [
+      {
+        "against": "01-callgraph-unguarded-driver-launch",
+        "status": "not_duplicate",
+        "basis": "the same handler/sink pair addressed over DIFFERENT EDGES. This query traverses reaching-definition (data) edges through the OSS dataflow layer and selects PARAMETER and EXPRESSION nodes as its ends; query 01 traverses CALL edges and selects whole METHODS. The two therefore ask different questions of different nodes, and neither is expressible as the other: no call-edge traversal establishes that a value reaches the launch, and no reaching-definition traversal establishes that control can arrive there. Measured in this run: the two formulations AGREE on all four boundary verdicts in this run (both report B1-rpc, B2-thread, B4-partial-function uncrossed), and agreement on a verdict is not identity of formulation. The measured difference is in what each can RETURN: this query emitted 4 element-level flow record(s), each a sequence of IDENTIFIER, METHOD_PARAMETER_IN and CALL nodes with their graph lines - including 2 from a formal parameter to the launch call inside a single method - and a method-level call-edge traversal produces no such record for any input, which is why query 01 published none. Auditable corroboration: 18 of this query's 42 API constructs do not appear in query 01's published list at all (AstNode.code, AstNode.label, AstNode.lineNumber, Call.argument, Call.receiver, CfgNode.method, EngineConfig.maxCallDepth, EngineContext.config, EngineContext.copy, EngineContext.semantics, Method.call, Method.parameter, MethodParameterIn.index, MethodParameterIn.method, MethodParameterIn.name, MethodParameterIn.typeFullName, Path.elements, Traversal.reachableByFlows), and 4 of query 01's do not appear here (Call.code, Call.order, Method.callOut, NoResolve.getCalledMethodsAsTraversal). Their results are reported side by side and are NEVER SUMMED.",
+        "same_target_pair": true,
+        "same_edge_kinds": false,
+        "same_entry_point_granularity": false,
+        "can_differ_for_some_input": true,
+        "one_expressible_as_the_other": false,
+        "boundary_verdicts_here_uncrossed": ["B1-rpc", "B2-thread", "B4-partial-function"],
+        "boundary_verdicts_in_01_uncrossed_transcribed": ["B1-rpc", "B2-thread", "B4-partial-function"],
+        "boundary_verdicts_agree": true,
+        "boundary_verdict_disagreements": [],
+        "element_level_flow_records_emitted_here": 4,
+        "divergence_evidence": "the two formulations AGREE on all four boundary verdicts in this run (both report B1-rpc, B2-thread, B4-partial-function uncrossed), and agreement on a verdict is not identity of formulation. The measured difference is in what each can RETURN: this query emitted 4 element-level flow record(s), each a sequence of IDENTIFIER, METHOD_PARAMETER_IN and CALL nodes with their graph lines - including 2 from a formal parameter to the launch call inside a single method - and a method-level call-edge traversal produces no such record for any input, which is why query 01 published none",
+        "api_constructs_only_here": ["AstNode.code", "AstNode.label", "AstNode.lineNumber", "Call.argument", "Call.receiver", "CfgNode.method", "EngineConfig.maxCallDepth", "EngineContext.config", "EngineContext.copy", "EngineContext.semantics", "Method.call", "Method.parameter", "MethodParameterIn.index", "MethodParameterIn.method", "MethodParameterIn.name", "MethodParameterIn.typeFullName", "Path.elements", "Traversal.reachableByFlows"],
+        "api_constructs_only_there": ["Call.code", "Call.order", "Method.callOut", "NoResolve.getCalledMethodsAsTraversal"],
+        "api_constructs_shared": 24,
+        "results_summed": false
+      },
+      {
+        "against": "03-parameterized-handler-sink-pairs",
+        "status": "not_duplicate",
+        "basis": "a different target set and a different formulation: 03-parameterized-handler-sink-pairs is parameterized over handler/sink pairs and covers a second pair this query does not address (the deploy/rest/StandaloneRestServer handler to the deploy/worker/DriverRunner sink). This query is fixed to one pair and to the dataflow formulation of it, so neither subsumes the other and their returns are likewise never summed.",
+        "same_target_pair": false,
+        "same_edge_kinds": false,
+        "same_entry_point_granularity": false,
+        "can_differ_for_some_input": true,
+        "one_expressible_as_the_other": false,
+        "results_summed": false
+      }
+    ],
+  "effort_query_revisions_committed": 1,
+  "effort_query_revisions_convention": "commits touching queries/joern/02-dataflow-unguarded-driver-launch.sc from its first appearance to the end of the probe",
+  "effort_joern_api_constructs": ["AstNode.code", "AstNode.label", "AstNode.lineNumber", "Call.argument", "Call.dispatchType", "Call.lineNumber", "Call.method", "Call.methodFullName", "Call.name", "Call.receiver", "CfgNode.method", "EngineConfig.maxCallDepth", "EngineContext.config", "EngineContext.copy", "EngineContext.semantics", "Method.call", "Method.callIn", "Method.fullName", "Method.lineNumber", "Method.name", "Method.parameter", "Method.typeDecl", "MethodParameterIn.index", "MethodParameterIn.method", "MethodParameterIn.name", "MethodParameterIn.typeFullName", "Path.elements", "Steps.fullName", "Steps.fullNameExact", "Steps.l", "Steps.nameExact", "Steps.size", "Steps.take", "Traversal.reachableByFlows", "TypeDecl.fullName", "TypeDecl.method", "cpg.call", "cpg.file", "cpg.method", "cpg.typeDecl", "importCpg", "switchWorkspace"],
+  "effort_joern_api_construct_count": 42,
+  "effort_joern_api_constructs_not_used_by_01": ["AstNode.code", "AstNode.label", "AstNode.lineNumber", "Call.argument", "Call.receiver", "CfgNode.method", "EngineConfig.maxCallDepth", "EngineContext.config", "EngineContext.copy", "EngineContext.semantics", "Method.call", "Method.parameter", "MethodParameterIn.index", "MethodParameterIn.method", "MethodParameterIn.name", "MethodParameterIn.typeFullName", "Path.elements", "Traversal.reachableByFlows"],
+  "effort_parameterizability": "not claimed here; proven by 03-parameterized-handler-sink-pairs invoking its parameterized form on the second named handler/sink pair and capturing that invocation's result",
+  "total_returns_cap_reached": false,
+  "records": [
+    {
+        "kind": "boundary",
+        "boundary_id": "B1-rpc",
+        "hop": "RpcEndpointRef.send of org.apache.spark.deploy.DeployMessages$LaunchDriver, Master to Worker",
+        "from_end": "org.apache.spark.deploy.master.Master.launchDriver:void(org.apache.spark.deploy.master.WorkerInfo,org.apache.spark.deploy.master.DriverInfo)",
+        "to_end": "org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "reason": "a message send carries no data edge: the value is serialized out of one process and deserialized into another, so the sender's argument and the receiver's accessor result are two unrelated definitions as far as reaching-definition edges are concerned",
+        "modelling": "modelled explicitly by pairing on the MESSAGE TYPE - the ARGUMENTS of call sites of org.apache.spark.deploy.DeployMessages$LaunchDriver.<init> are the producer end and the RESULTS of call sites of its field accessors (driverDesc, driverId, resources) are the consumer end, with the message type's and companion's own generated machinery excluded by owning type",
+        "crossed_by_a_data_flow": false,
+        "flows_found": 0,
+        "measured": {
+          "producer_call_sites": 1,
+          "producer_argument_nodes": 4,
+          "consumer_call_sites": 3,
+          "producers": ["org.apache.spark.deploy.master.Master.launchDriver:void(org.apache.spark.deploy.master.WorkerInfo,org.apache.spark.deploy.master.DriverInfo)"],
+          "consumers": ["org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)"],
+          "producer_call_site_graph_lines": ["org.apache.spark.deploy.master.Master.launchDriver:void(org.apache.spark.deploy.master.WorkerInfo,org.apache.spark.deploy.master.DriverInfo)#1367"],
+          "consumer_call_site_graph_lines": ["org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)#687"],
+          "flows_producer_argument_to_consumer_result": 0
+        }
+      },
+    {
+        "kind": "boundary",
+        "boundary_id": "B2-thread",
+        "hop": "org.apache.spark.deploy.worker.DriverRunner.start calls Thread.start(); the route continues in run() on the anonymous Thread subclass",
+        "from_end": "org.apache.spark.deploy.worker.DriverRunner.start:void()",
+        "to_end": "org.apache.spark.deploy.worker.DriverRunner$$anon$2.run:void()",
+        "reason": "Thread.start() -> run() is a JVM scheduling relation: the start frame returns immediately and run() is entered on another thread, so no data edge joins a definition in the one to a use in the other",
+        "modelling": "not modelled - the two ends are measured as they stand, with every parameter of the start method INCLUDING the receiver taken as the source set because the method takes no explicit argument and the enclosing instance is the only value that could cross",
+        "crossed_by_a_data_flow": false,
+        "flows_found": 0,
+        "measured": {
+          "start_method_nodes": 2,
+          "start_parameter_nodes_including_receiver": 1,
+          "thread_body_methods": ["org.apache.spark.deploy.worker.DriverRunner$$anon$2.run:void()"],
+          "thread_body_continuation_calls": 1,
+          "thread_body_continuation_call_graph_lines": ["org.apache.spark.deploy.worker.DriverRunner$$anon$2.run:void()#99"],
+          "flows_start_scope_to_thread_body": 0
+        }
+      },
+    {
+        "kind": "boundary",
+        "boundary_id": "B3-interface",
+        "hop": "the launch call site invokes the ABSTRACT ProcessBuilderLike.start; the JDK launch is reached only through the anonymous implementation",
+        "from_end": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#240",
+        "to_end": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276",
+        "reason": "an interface invocation names the declaring type, so joining the receiver at the abstract call site to a definition inside the implementation needs the type hierarchy; a reaching-definition edge does not cross that on its own",
+        "modelling": "not modelled by this query - the receiver and arguments at the abstract call site are the source end, the concrete JDK launch call and its receiver are the sink end, and whether a flow joins them is reported as measured. Query 01 measured this same hop as CROSSED by a call edge, which is why the two measurements are reported separately rather than as one verdict",
+        "crossed_by_a_data_flow": true,
+        "flows_found": 2,
+        "measured": {
+          "abstract_launch_call_sites": 1,
+          "concrete_launch_call_sites": 1,
+          "abstract_call_site_receiver_and_argument_nodes": 1,
+          "concrete_call_site_nodes": 2,
+          "abstract_declarations_named": ["org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()"],
+          "concrete_implementations_named": ["java.lang.ProcessBuilder.start:java.lang.Process()"],
+          "flows_abstract_receiver_to_concrete_launch": 2
+        }
+      },
+    {
+        "kind": "boundary",
+        "boundary_id": "B4-partial-function",
+        "hop": "org.apache.spark.deploy.master.Master.receiveAndReply returns a PartialFunction whose body compiles into a synthetic class",
+        "from_end": "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "to_end": "org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "reason": "the method named receiveAndReply only constructs the partial function; the case bodies live in the synthetic class's applyOrElse, so a source selected on the source-level name is a definition in a method that contains none of the route, and the payload the body uses arrives through an unapply rather than through that parameter",
+        "modelling": "modelled by measuring the hop directly: the source-level method's parameters are the source end and the calls the synthetic body makes with the recovered payload (createDriver, with its arguments) are the sink end. ARM 1 and ARM 2 above select BOTH sides as sources in their own right, so the difference between them is measured rather than assumed",
+        "crossed_by_a_data_flow": false,
+        "flows_found": 0,
+        "measured": {
+          "source_level_handler_methods": ["org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)"],
+          "synthetic_entry_methods": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)"],
+          "source_level_parameter_nodes": 1,
+          "synthetic_body_continuation_calls": 0,
+          "synthetic_body_continuation_call_graph_lines": [],
+          "flows_source_level_parameter_to_synthetic_body": 0
+        }
+      },
+    {
+        "kind": "boundary-flow",
+        "arm_id": "B3-interface",
+        "source_group": "boundary-source",
+        "sink_group": "boundary-sink",
+        "element_count": 5,
+        "elements_truncated": false,
+        "signature": "IDENTIFIER@org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#240 -> METHOD_PARAMETER_IN@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#275 -> CALL@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> IDENTIFIER@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> IDENTIFIER@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276",
+        "passed_auth_or_acl_predicate": false,
+        "spurious": false,
+        "elements": [
+            {
+              "index": 0,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+              "callee": "",
+              "graph_line": 240,
+              "code": "command"
+            },
+            {
+              "index": 1,
+              "label": "METHOD_PARAMETER_IN",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 275,
+              "code": "this"
+            },
+            {
+              "index": 2,
+              "label": "CALL",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "<operator>.fieldAccess",
+              "graph_line": 276,
+              "code": "this.processBuilder$1"
+            },
+            {
+              "index": 3,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "$stack1"
+            },
+            {
+              "index": 4,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "$stack1"
+            }
+          ]
+      },
+    {
+        "kind": "boundary-flow",
+        "arm_id": "B3-interface",
+        "source_group": "boundary-source",
+        "sink_group": "boundary-sink",
+        "element_count": 6,
+        "elements_truncated": false,
+        "signature": "IDENTIFIER@org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#240 -> METHOD_PARAMETER_IN@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#275 -> CALL@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> IDENTIFIER@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> IDENTIFIER@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> CALL@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276",
+        "passed_auth_or_acl_predicate": false,
+        "spurious": false,
+        "elements": [
+            {
+              "index": 0,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+              "callee": "",
+              "graph_line": 240,
+              "code": "command"
+            },
+            {
+              "index": 1,
+              "label": "METHOD_PARAMETER_IN",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 275,
+              "code": "this"
+            },
+            {
+              "index": 2,
+              "label": "CALL",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "<operator>.fieldAccess",
+              "graph_line": 276,
+              "code": "this.processBuilder$1"
+            },
+            {
+              "index": 3,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "$stack1"
+            },
+            {
+              "index": 4,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "$stack1"
+            },
+            {
+              "index": 5,
+              "label": "CALL",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "java.lang.ProcessBuilder.start:java.lang.Process()",
+              "graph_line": 276,
+              "code": "$stack1.start()"
+            }
+          ]
+      },
+    {
+        "kind": "liveness-control-flow",
+        "arm_id": "CONTROL-intraprocedural-liveness",
+        "source_group": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+        "sink_group": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+        "element_count": 7,
+        "elements_truncated": false,
+        "signature": "METHOD_PARAMETER_IN@org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#225 -> IDENTIFIER@org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#233 -> METHOD_PARAMETER_IN@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()#276 -> CALL@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()#277 -> METHOD_PARAMETER_OUT@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()#276 -> IDENTIFIER@org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#233 -> IDENTIFIER@org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#240",
+        "passed_auth_or_acl_predicate": false,
+        "spurious": false,
+        "elements": [
+            {
+              "index": 0,
+              "label": "METHOD_PARAMETER_IN",
+              "enclosing_method": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+              "callee": "",
+              "graph_line": 225,
+              "code": "org.apache.spark.deploy.worker.ProcessBuilderLike command"
+            },
+            {
+              "index": 1,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+              "callee": "",
+              "graph_line": 233,
+              "code": "command"
+            },
+            {
+              "index": 2,
+              "label": "METHOD_PARAMETER_IN",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "this"
+            },
+            {
+              "index": 3,
+              "label": "CALL",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()",
+              "callee": "<operator>.fieldAccess",
+              "graph_line": 277,
+              "code": "this.processBuilder$1"
+            },
+            {
+              "index": 4,
+              "label": "METHOD_PARAMETER_OUT",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "this"
+            },
+            {
+              "index": 5,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+              "callee": "",
+              "graph_line": 233,
+              "code": "command"
+            },
+            {
+              "index": 6,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+              "callee": "",
+              "graph_line": 240,
+              "code": "command"
+            }
+          ]
+      },
+    {
+        "kind": "liveness-control-flow",
+        "arm_id": "CONTROL-intraprocedural-liveness",
+        "source_group": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+        "sink_group": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+        "element_count": 17,
+        "elements_truncated": false,
+        "signature": "METHOD_PARAMETER_IN@org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#225 -> IDENTIFIER@org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#233 -> METHOD_PARAMETER_IN@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()#276 -> CALL@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()#277 -> METHOD_PARAMETER_OUT@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()#276 -> IDENTIFIER@org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#233 -> IDENTIFIER@org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#240 -> METHOD_PARAMETER_IN@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#275 -> CALL@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> IDENTIFIER@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> IDENTIFIER@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> CALL@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> IDENTIFIER@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> IDENTIFIER@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> RETURN@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#276 -> METHOD_RETURN@org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()#275 -> CALL@org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)#240",
+        "passed_auth_or_acl_predicate": false,
+        "spurious": false,
+        "elements": [
+            {
+              "index": 0,
+              "label": "METHOD_PARAMETER_IN",
+              "enclosing_method": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+              "callee": "",
+              "graph_line": 225,
+              "code": "org.apache.spark.deploy.worker.ProcessBuilderLike command"
+            },
+            {
+              "index": 1,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+              "callee": "",
+              "graph_line": 233,
+              "code": "command"
+            },
+            {
+              "index": 2,
+              "label": "METHOD_PARAMETER_IN",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "this"
+            },
+            {
+              "index": 3,
+              "label": "CALL",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()",
+              "callee": "<operator>.fieldAccess",
+              "graph_line": 277,
+              "code": "this.processBuilder$1"
+            },
+            {
+              "index": 4,
+              "label": "METHOD_PARAMETER_OUT",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.command:scala.collection.immutable.Seq()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "this"
+            },
+            {
+              "index": 5,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+              "callee": "",
+              "graph_line": 233,
+              "code": "command"
+            },
+            {
+              "index": 6,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+              "callee": "",
+              "graph_line": 240,
+              "code": "command"
+            },
+            {
+              "index": 7,
+              "label": "METHOD_PARAMETER_IN",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 275,
+              "code": "this"
+            },
+            {
+              "index": 8,
+              "label": "CALL",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "<operator>.fieldAccess",
+              "graph_line": 276,
+              "code": "this.processBuilder$1"
+            },
+            {
+              "index": 9,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "$stack1"
+            },
+            {
+              "index": 10,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "$stack1"
+            },
+            {
+              "index": 11,
+              "label": "CALL",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "java.lang.ProcessBuilder.start:java.lang.Process()",
+              "graph_line": 276,
+              "code": "$stack1.start()"
+            },
+            {
+              "index": 12,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "$stack2"
+            },
+            {
+              "index": 13,
+              "label": "IDENTIFIER",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "$stack2"
+            },
+            {
+              "index": 14,
+              "label": "RETURN",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 276,
+              "code": "return $stack2;"
+            },
+            {
+              "index": 15,
+              "label": "METHOD_RETURN",
+              "enclosing_method": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+              "callee": "",
+              "graph_line": 275,
+              "code": "RET"
+            },
+            {
+              "index": 16,
+              "label": "CALL",
+              "enclosing_method": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+              "callee": "org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()",
+              "graph_line": 240,
+              "code": "command.start()"
+            }
+          ]
+      }
+  ]
+}
