@@ -1,0 +1,563 @@
+{
+  "description": "The hand-verified expected result for the negative Trivy native fixture that carries one record whose path cannot be resolved by either part of Trivy's two-part resolution. Every value was derived by reading the fixture and the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/trivy.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. It follows the key names expected/reject-sarif-unresolvable-path.rows.json established for a negative expected file -- rows, rejections, and the counts that reconcile them -- and adds the Trivy-specific blocks expected/trivy.rows.json owns, so one generic loader reads every expected file in this folder.",
+  "tool": "trivy",
+  "scanner_class": "per record -- vuln, secret or misconfig -- taken from the section array the record was read from. Trivy is the one tool in AAP 0.5.4's class table whose scanner_class is not fixed. Every row below is misconfig and the one rejected record is vuln, and in both cases the class comes from the enclosing array alone.",
+  "scanner_class_by_section": {
+    "Vulnerabilities": "vuln",
+    "Secrets": "secret",
+    "Misconfigurations": "misconfig"
+  },
+  "scanner_class_derivation": "The enclosing section array decides the class and nothing else does. adapters/trivy.py fixes the mapping once in SUPPORTED_SECTIONS, resolves it through scanner_class_for_section(section), and hands the section name to adapt_record as a required argument; no branch of that function consults a record's own fields. The class is bound at step 2, before the path is resolved at step 5, which is why the rejected record's own identity still carries its section: a record can be rejected for its path while its class was never in doubt.",
+  "scanner_class_falsifiability": {
+    "row_index": 0,
+    "record_pointer": "/Results/0/Misconfigurations/0",
+    "rule_id": "DS-0031",
+    "expected_scanner_class": "misconfig",
+    "class_the_record_content_implies": "secret",
+    "why_the_content_misleads": "Every piece of prose on this record points at the secret scanner. Its Title is \"Secrets passed via `build-args` or envs or copied secret files\", its Message is \"Possible exposure of secret env \\\"SPARK_HOME\\\" in ENV\", its Resolution talks about secret mounts and its Namespace is builtin.dockerfile.DS031. Any implementation that keyed the class off record content -- a search for the word secret, a guess from the rule identifier, a try-all-three read of VulnerabilityID then RuleID then ID -- would class this row secret.",
+    "why_misconfig_is_correct": "It is an element of Results[0].Misconfigurations[], and the section array is the sole source of the class. SUPPORTED_SECTIONS maps Misconfigurations to misconfig, so this row is misconfig. The record's words are a finding about a Dockerfile that mentions secrets; they are not a statement about which scanner produced it.",
+    "what_this_row_falsifies": "This single row is what makes the section-not-content derivation falsifiable in this fixture too, and it is worth keeping here rather than leaving to the positive sibling: a fixture whose only defective record is a vulnerability could otherwise be satisfied by an implementation that classed everything else by content. If this row ever reads secret, the derivation has been inverted. That is a failure to diagnose, not a value to update.",
+    "no_secret_value_is_involved": "The word is the ruleset's, not a matched value. This fixture carries no Secrets[] array anywhere and no Match, Secret or Code member on any record, so there is no secret value in it to leak into any field."
+  },
+  "adapter": "harness/lib/normalize/adapters/trivy.py",
+  "fixture": {
+    "path": "oss-scan-results/adapter-tests/fixtures/reject-trivy-unresolvable-path.json",
+    "sha256": "26bbfd46c5b2e8f3db200123082a9e9d8e3e2c4b8a2f71945b2d710995a1a32c",
+    "bytes": 5881,
+    "lines": 155,
+    "schema_version": 2,
+    "trivy_version": "0.74.0",
+    "artifact_type": "filesystem",
+    "artifact_name": "resource-managers/kubernetes/docker/src/main",
+    "results": 3,
+    "finding_records": 4,
+    "records_by_section": {
+      "Vulnerabilities": 1,
+      "Secrets": 0,
+      "Misconfigurations": 3
+    },
+    "shape_is_an_unmerged_per_directory_part": "This is the one property that makes the fixture what it is, and it is the first thing to read. Every other Trivy fixture in this folder -- trivy.json, the five other reject-trivy-* files and halt-trivy-unsupported-section.json -- states ArtifactName \".\" with each Target already prefixed by its scope directory: the merged shape run-trivy.sh writes. This fixture states ArtifactName \"resource-managers/kubernetes/docker/src/main\" with Targets relative to it, which is the shape of one of the eighteen retained per-directory reports the runner keeps under logs/trivy.parts/. harness/artifacts/logs/runner-metadata.json says of those parts, in its own words, that they \"are NOT root-anchored: each states Target relative to its own single path argument. Read those with per_section_target semantics, not with this scan_root base.\"",
+    "derived_from": "oss-scan-results/adapter-tests/fixtures/trivy.json",
+    "derivation": "A negative fixture is derived from a captured one rather than being an excerpt of it, so the provenance is stated as a derivation. Three of its four records are unmodified: /Results/0/Misconfigurations/0 and /Results/0/Misconfigurations/1 are value-identical to /Results/0/Misconfigurations/0 and /1 of trivy.json, and /Results/2/Vulnerabilities/0 is that file's /Results/4/Vulnerabilities/0 with the redhat entry removed from its CVSS table -- the only difference between the two records, and one that changes nothing here, since the rejected record's scores are never read. The fourth, /Results/1/Misconfigurations/0, is captured output from this run itself. What the derivation changed is the enclosing shape and nothing inside a record: each Target had its \"resource-managers/kubernetes/docker/src/main/\" prefix removed and that prefix became the report's ArtifactName.",
+    "captured_provenance": "/Results/1/Misconfigurations/0 is value-identical to /Results/1/Misconfigurations/0 of harness/artifacts/raw/trivy.json -- compared field by field, with its enclosing MisconfSummary of 26 successes and 1 failure identical too. That record is one of the three the run's own artifact holds, all of them DS-0026 \"No HEALTHCHECK defined\", and it is the reason row 2 below can be corroborated against oss-scan-results/findings.json while rows 0 and 1 cannot.",
+    "fixture_is_never_edited_to_suit_these_rows": "These rows are re-derived when the fixture changes, which is what the recorded sha256 above makes visible. The fixture is the input and this file is the assertion; the dependency runs one way."
+  },
+  "routing": {
+    "shape": "native",
+    "detected_by": "normalize.shape.is_sarif returns False -- the document carries neither a version of \"2.1.0\" nor a runs array, and those two together are the whole SARIF test -- so the artifact routes to the native adapter keyed by the runner that wrote it",
+    "adapter_module": "normalize.adapters.trivy",
+    "routing_decision": "normalize.shape.route(\"trivy\", doc) returns tool \"trivy\", shape \"native\", adapter \"trivy\" and, for scanner_class, the shape.PER_RECORD sentinel rather than a class",
+    "per_record_sentinel_note": "shape.PER_RECORD is a sentinel object whose __str__ raises, so it cannot be written into a dataset row even by accident. It is named here as the routing outcome and appears in no row: every row's scanner_class below is a literal vuln, secret or misconfig resolved from its own section.",
+    "routes_successfully": true,
+    "rejection_is_record_level": true,
+    "not_a_shape_failure": "No normalize.shape.UnknownArtifactShape is expected here, and a test asserting one against this fixture would be asserting the wrong thing. The enclosing document is a well-formed Trivy 0.74.0 filesystem report and routes cleanly; exactly one record inside it cannot be resolved, and the adapter rejects that record while still emitting the others. The fixtures that own shape-detection failure are near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json.",
+    "negative_routing_test": "The mandated negative routing assertion -- that a native artifact must not route to the SARIF adapter -- belongs to test_shape_routing_negative.py. This document is one of the native artifacts that assertion is about, but the assertion itself is not made here."
+  },
+  "field_order": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_native",
+    "severity_norm",
+    "path",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate",
+    "in_scope"
+  ],
+  "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+  "absence_permitted_fields": [
+    "severity_native",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate"
+  ],
+  "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS, which is FIELDS minus emit.OPTIONAL_FIELDS.",
+  "severity_norm_vocabulary": [
+    "Critical",
+    "High",
+    "Medium",
+    "Low",
+    "Info"
+  ],
+  "allowlist": {
+    "path": "harness/scope/allowlist.txt",
+    "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+    "globs": 12,
+    "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under row_derivations."
+  },
+  "resolution_context": {
+    "path_base_kind": "per_section_target",
+    "section_base": "the scan root joined with this report's own ArtifactName -- the directory the invocation that produced it was given",
+    "path_base_authority": "harness/artifacts/logs/runner-metadata.json records path_base.kind \"scan_root\" with value \"/opt/spark-src\" for the merged artifact, and in the same object records of the retained per-directory parts that they are not root-anchored and must be read with per_section_target semantics. paths.resolve_trivy_path states the same requirement from the resolver's side: a caller reading those \"passes a per_section_target base and a section_base; passing neither is a rejection rather than a silent reading against the root.\" This fixture is one of those parts, so that is the reading, and it is read as input rather than assumed.",
+    "why_the_base_kind_is_load_bearing_here": "per_section_target is the one filesystem base kind whose ToolPathBase.base_for_relative() returns None -- along with bytecode_class and none, neither of which applies to a Trivy filesystem report. The Target half of the resolution has the section base to anchor on; the per-record half has nothing. That asymmetry is not incidental to this fixture, it is the whole of it.",
+    "alternative_readings_measured": [
+      {
+        "reading": "per_section_target with the section base supplied -- the reading this file asserts",
+        "outcome": "3 rows and 1 unresolvable_path rejection",
+        "why_it_is_the_fixture's_own": "It is the reading the runner metadata and paths.resolve_trivy_path both prescribe for an unmerged part, and it is the only one of the three under which this fixture is a negative fixture at all: one record rejected, the rest emitted."
+      },
+      {
+        "reading": "per_section_target with no section base supplied",
+        "outcome": "0 rows and 4 unresolvable_path rejections",
+        "why_it_is_not_asserted": "The Target half then rejects every record and short-circuits before any refinement is tried, so every record fails for the same reason and none survives. That is a real terminal case of the same class reached by a different route, but it asserts nothing about the per-record half and leaves no surviving rows to carry the section-to-class and start_line invariants. It is recorded under behaviours_not_exercised_by_this_fixture rather than asserted here."
+      },
+      {
+        "reading": "scan_root -- the base the metadata records for the merged artifact",
+        "outcome": "4 rows and 0 rejections",
+        "why_it_is_not_asserted": "Applied to an unmerged part it silently drops the ArtifactName prefix: the three Dockerfile rows come out as \"dockerfiles/spark/Dockerfile\" and \"dockerfiles/spark/bindings/R/Dockerfile\", which match no glob and take in_scope false, and the vulnerability's PkgPath resolves against the root into a row. A negative fixture that produced no rejection would assert nothing, and the wrong-base reading is exactly what the metadata's note about the parts exists to prevent."
+      }
+    ],
+    "root_independence": "Every Target in this fixture is relative and every emitted path is produced by joining it onto a base under the root and relativizing back, so the three paths below are the same strings whether the section base is spelled absolutely as /opt/spark-src/resource-managers/kubernetes/docker/src/main or relatively as resource-managers/kubernetes/docker/src/main -- both were measured and agree. These rows therefore hold for whatever absolute scan root the adapter is given, and no absolute path appears in any row field in this file. The rejected record is root-independent for a different reason: no choice of root supplies the base its refinement lacks.",
+    "target_is_the_base": "path comes from the enclosing Results[].Target, refined by a per-record path where the section supplies one. Only Vulnerabilities declares such a field -- PkgPath -- so a secret and a misconfiguration take their Target unrefined; _SECTION_PER_RECORD_PATH_FIELD states the reason for the other two being null, that a misconfiguration's CauseMetadata.Resource names a resource rather than a file and reading it as a path would be inference. paths.resolve_trivy_path owns every base decision; the adapter relativizes, joins and strips nothing itself.",
+    "per_record_refinement_in_this_fixture": "Exactly one, on the rejected record at /Results/2/Vulnerabilities/0, and it is the reason that record is rejected rather than emitted. Neither misconfiguration carries any path member at all -- verified by inspecting every key of all three -- so no other record reaches the refinement branch. The refinement counter is therefore 0 while a refinement is present: per_record_path_refinements is bumped only after a refinement resolves.",
+    "path_kind": "tree_file on all three rows. The fixture text contains no \"!\" and no \"..\" anywhere and no absolute value, so no row is an archive member or a location outside the root, and non_filesystem_paths is 0.",
+    "severity_source": "Each of the three emitted records states a Severity label that is in severity.py's mapped vocabulary, so the label governs on all three and severity_basis is label. severity_native keeps the literal exactly as the artifact wrote it, in upper case, and severity_norm is the band that literal maps to. No CVSS table exists on any emitted record, so on these rows there is not even a score to decline to consult; the one CVSS table in the fixture belongs to the rejected record and is never read.",
+    "severity_mapping_exercised": "CRITICAL to Critical, HIGH to High and LOW to Low -- three of the five bands, from three of the ten mapped label literals. Medium and Info are not reached by this fixture, and no unmapped literal appears, so severity_basis_unmapped_literal stays 0.",
+    "package_coordinate": "null on all three rows. Misconfigurations sits outside _DEPENDENCY_ORIENTED_SECTIONS, so a misconfiguration is a finding about a file rather than about a package and the absence is ordinary rather than a rejection. None of the four precedence levels is exercised: no record carries a PkgIdentifier and no Results[] element carries a Packages inventory."
+  },
+  "rejection_boundary": {
+    "statement": "An unresolvable path is a rejection. A path that merely resolves somewhere unwanted is a kept row with in_scope false. This fixture's defective record resolves to nothing at all -- neither half of the two-part resolution yields it a location -- which is what makes it the unresolvable_path case rather than one of the kept cases below.",
+    "why_it_can_only_be_a_rejection": "path is one of only two never-absent fields in the twelve-field schema, the other being severity_norm: emit.REQUIRED_FIELDS carries path, and emit.OPTIONAL_FIELDS is exactly severity_native, start_line, cwe, cve and package_coordinate. A record with no resolvable path therefore has no valid row representation at all -- emit.py raises on a null path rather than writing one -- so counting it under a named class is the only outcome that neither drops the record nor invents a coordinate for it.",
+    "both_halves_fail": {
+      "requirement": "The record is rejected only because both parts of Trivy's two-part resolution fail. Stated part by part so the rejection is attributable rather than assumed, and stated in the direction the resolver actually runs.",
+      "part_1_the_enclosing_target": {
+        "value": "Node.js",
+        "pointer": "/Results/2/Target",
+        "why_it_names_nothing": "It is an ecosystem label rather than a file: the enclosing element's Class is \"lang-pkgs\" and its Type is \"node-pkg\", which is how Trivy groups language packages that have no single file target. Verified against the pinned tree rather than inferred -- no file named Node.js exists anywhere under it, and the directory this report's own ArtifactName names contains exactly one entry, dockerfiles. So neither \"Node.js\" nor \"resource-managers/kubernetes/docker/src/main/Node.js\" names anything in the scanned tree.",
+        "what_the_resolver_does_with_it": "Under the base kind this shape requires it resolves syntactically against the section base to resource-managers/kubernetes/docker/src/main/Node.js -- a string naming nothing -- and where no section base is supplied resolve_recorded_path rejects it outright with \"path_base.kind 'per_section_target' means 'Node.js' is relative to the section it came from, and no section base was supplied; the scan root is not a substitute for it\". Either way part 1 yields the record no location.",
+        "resolution_is_not_existence_checking": "paths.py resolves paths; it does not stat them. So a Target naming nothing on disk is not by itself a rejection, and this file does not claim part 1 returned one."
+      },
+      "part_2_the_per_record_path": {
+        "value": "core/src/main/resources/org/apache/spark/ui/static/package.json",
+        "pointer": "/Results/2/Vulnerabilities/0/PkgPath",
+        "why_it_cannot_rescue_the_record": "It is present and it names a real file, and it still cannot be resolved: paths.resolve_trivy_path walks its three refinements in order and none applies. It is not absolute, so it cannot be relativized on its own. It is neither the resolved Target restated nor a suffix of it. And the resolved Target is not an archive container -- paths.ARCHIVE_EXTENSIONS is .jar .war .ear .zip .tar .tgz .tar.gz .aar .nupkg .whl .egg and holds no .js -- so no <container>!<member> serialization arises. The resolver therefore asks ToolPathBase.base_for_relative(), which returns None for per_section_target, and returns the rejection.",
+        "this_is_the_branch_that_returns_the_rejection": "The class and the sub-reason both come from this half, which is why the recorded detail names the per-record path and not the Target. A test may assert the class exactly and the detail by its distinguishing substrings."
+      },
+      "counterfactual_measured": "With PkgPath removed from the same record and nothing else changed, the adapter emits four rows and no rejection, the fourth carrying path resource-managers/kubernetes/docker/src/main/Node.js with in_scope true. That is the proof that the rejection is the refinement's, not the Target's: a Target naming nothing is kept, and it is the unresolvable refinement that leaves the record with no path at all.",
+      "consequence_for_the_record": "No location from part 1, none from part 2, and no third source: a Trivy record has no other path-bearing member. The record is counted under its class and given nothing."
+    },
+    "not_a_rejection": [
+      {
+        "case": "a path resolving outside the twelve authoritative globs",
+        "expected": "a kept row with in_scope false, counted under rows_out_of_scope",
+        "evidence": "The real out-of-glob files the Trivy fixtures reach are dev/package-lock.json, docs/Gemfile.lock and ui-test/package-lock.json. In trivy.json two of the three carry records and give four kept rows with in_scope false -- rows 4 and 5 on dev/package-lock.json and rows 6 and 7 on docs/Gemfile.lock, with that file's rows_out_of_scope counter at 4 -- while the ui-test element carries an empty Vulnerabilities array and so holds no record at all. Out of scope means kept and marked, never rejected.",
+        "present_in_this_fixture": false
+      },
+      {
+        "case": "an archive member",
+        "expected": "a kept row with in_scope false, counted in non_filesystem_paths",
+        "evidence": "Serialized as <container-relative-to-root>!<member> with ! the single separator, and with ../ segments preserved rather than normalized where the container lies outside the root -- the SARIF 2.1.0 errata forbid a consumer normalizing .. segments out of a path, and paths.py applies the same rule to every tool so one row's path means what another's does. paths.NON_FILESYSTEM_PATH_KINDS is exactly outside_root and archive_member.",
+        "present_in_this_fixture": false
+      },
+      {
+        "case": "an external absolute path",
+        "expected": "a kept row: relativized to the root, expressed with ../ segments preserved, kind outside_root, in_scope false, counted in non_filesystem_paths",
+        "evidence": "resolve_recorded_path relativizes an absolute reported path before anything else and never rejects it for lying outside the root. No absolute value appears anywhere in this fixture.",
+        "present_in_this_fixture": false
+      },
+      {
+        "case": "a path in a src/test tree",
+        "expected": "a kept row with in_scope false",
+        "evidence": "The exclusion is literal -- a path containing src/test is out of scope -- and it removes the path from scope rather than from the dataset. The string src/test appears nowhere in this fixture.",
+        "present_in_this_fixture": false
+      }
+    ],
+    "defective_record_resolves_to_nothing": "Verified from the fixture rather than assumed, and verified in the direction that could have falsified it. The fixture text carries no \"!\", so the record is no archive member; no \"..\" and no absolute value, so it is no external coordinate; no \"src/test\", so it is not an excluded test path; and its Target names no file in the pinned tree while its only other path-bearing member cannot be resolved under this base kind. All three surviving rows resolve inside the twelve globs, so nothing in this fixture is an out-of-glob row that a reader might mistake for the rejected record. No external-but-resolvable coordinate is recorded as the rejected record here, because recording one would assert the opposite of what this fixture exists to assert.",
+    "no_guessed_path": "The rejected record is rejected and counted, never given a path. Nothing in this file supplies a coordinate for it -- not even core/src/main/resources/org/apache/spark/ui/static/package.json, which its PkgPath names, which is a real five-line file at the pin, and which would have been in scope under core/src/main/**. Writing that string into a row would be precisely the inference the rejection exists to refuse."
+  },
+  "counts": {
+    "raw_finding_records": 4,
+    "raw_count_unit": "Results[] x one element of Vulnerabilities[], Secrets[] or Misconfigurations[] -- the unit normalize.reconcile._count_trivy walks independently of row construction, summing only the three supported sections",
+    "raw_count_authority": "normalize.reconcile.count_records(\"trivy\", doc), whose traversal sums the length of each Results[] element's three supported section arrays and builds no row, resolves no path and maps no severity. It is the independent half of the identity: a count taken from the traversal that builds the rows would satisfy the assertion while testing nothing. Licenses and ExperimentalModifiedFindings contribute zero to it by construction, which is why a non-empty one has to halt rather than be counted -- counting one would mask a dropped finding while reconciliation still passed.",
+    "rows": 3,
+    "rejections": 1,
+    "rejections_by_class": {
+      "unresolvable_path": 1
+    },
+    "reconciliation_identity": "raw_finding_records == rows + rejections",
+    "reconciliation_arithmetic": "4 == 3 + 1",
+    "row_order": "Results[] in document order, the three sections in SUPPORTED_SECTIONS order within each element, and each section's elements in order. The rejected record is fourth in that walk, so it leaves no gap in the row order: the rows below are indices 0, 1 and 2 and each row's index is its row_index under row_derivations.",
+    "unsupported_finding_sections": {
+      "sections": [
+        "Licenses",
+        "ExperimentalModifiedFindings"
+      ],
+      "state_in_this_fixture": "present and empty on every one of the three Results[] elements",
+      "expectation": "validate_finding_sections returns None. An unsupported finding section that is present and empty satisfies \"validated empty\" and does not halt, so this file records that passing case explicitly rather than by the silence of not mentioning it.",
+      "why_it_has_to_be_stated_here": "The halt runs in pass one, over every element, before a single row is built. A non-empty Licenses or ExperimentalModifiedFindings anywhere in this document would raise trivy.UnsupportedTrivySection and the run would stop -- so the rejection this fixture exists to assert could never be observed at all. Confirming the sections are empty is therefore a precondition of this expectation, not a detail.",
+      "not_to_be_blurred_with": "The non-empty twin is oss-scan-results/adapter-tests/fixtures/halt-trivy-unsupported-section.json, which carries Licenses with three elements and ExperimentalModifiedFindings with one and whose expected outcome is the halt. Nothing in this file expects a halt, and nothing in that one expects a row or a rejection."
+    },
+    "other_structural_checks_passed_in_pass_one": {
+      "unknown_finding_sections": "None. Every member of all three Results[] elements is inside trivy.RESULT_KNOWN_KEYS, so no unrecognised array of objects is present to be read as an unknown finding section.",
+      "supported_sections_are_arrays": "Every supported section present is an array, so none is unwalkable.",
+      "misconf_summary": "MisconfSummary declares 2 failures on /Results/0 against a Misconfigurations array of 2, and 1 on /Results/1 against an array of 1; /Results/2 carries none. The fourth halt condition is failures declared while no supported section holds any record, deliberately not a count comparison, and it is not met. misconf_summary_unreadable is 0.",
+      "non_finding_object_lists": "No Packages and no CustomResources array on any element, so known_non_finding_object_lists is 0 -- which also means none of the enclosing-package levels of the coordinate precedence has any object to read."
+    },
+    "results_holding_no_record": {
+      "count": 0,
+      "reading": "All three Results[] elements hold at least one record, so results_without_supported_section is 0. Worth stating because the positive sibling has one such element and a reader comparing the two counters should see that the zero here was observed rather than defaulted."
+    },
+    "four_reported_counters": {
+      "authority": "AAP 0.5.4 -- the four counts reported per tool",
+      "names": [
+        "multi_location_records",
+        "multi_valued_cwe_records",
+        "multi_valued_cve_records",
+        "non_filesystem_paths"
+      ],
+      "values_live_in": "counters, and are restated once under aap_reported_counters with the reason each is what it is",
+      "all_four_are_zero_for_this_fixture": true
+    },
+    "parse_status": "partial",
+    "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = \"partial\", assigned as partial where there are rejections and clean where there are none. Partial is right precisely because the adapter did not abandon the artifact: every parsable record was emitted and the one rejected record is counted under its class with its reason retained. This is deliberately not normalize.reconcile's STATUS_PASS / STATUS_FAIL / STATUS_NOT_APPLICABLE vocabulary, which describes an assertion's outcome rather than an artifact's parse; the reconciliation of this fixture passes, and the artifact's parse is partial."
+  },
+  "counters": {
+    "results": 3,
+    "results_skipped_non_mapping": 0,
+    "results_without_supported_section": 0,
+    "results_absent_or_null": 0,
+    "known_non_finding_object_lists": 0,
+    "misconf_summary_unreadable": 0,
+    "multi_location_records": 0,
+    "multi_valued_cwe_records": 0,
+    "multi_valued_cve_records": 0,
+    "non_filesystem_paths": 0,
+    "rows_in_scope": 3,
+    "rows_out_of_scope": 0,
+    "per_record_path_refinements": 0,
+    "severity_label_present": 3,
+    "severity_cvss_entries_present": 0,
+    "severity_absent": 0,
+    "start_line_absent": 1,
+    "start_line_zero_read_as_absent": 0,
+    "package_coordinate_from_record_purl": 0,
+    "package_coordinate_from_enclosing_package_purl": 0,
+    "package_coordinate_from_record_fields": 0,
+    "package_coordinate_from_enclosing_package_fields": 0,
+    "package_coordinate_absent": 3,
+    "records_vulnerabilities": 1,
+    "records_secrets": 0,
+    "records_misconfigurations": 3,
+    "rows_class_vuln": 0,
+    "rows_class_secret": 0,
+    "rows_class_misconfig": 3,
+    "path_kind_tree_file": 3,
+    "path_kind_outside_root": 0,
+    "path_kind_archive_member": 0,
+    "path_kind_bytecode_source": 0,
+    "severity_basis_sarif_level": 0,
+    "severity_basis_label": 3,
+    "severity_basis_cvss_score": 0,
+    "severity_basis_no_vocabulary": 0,
+    "severity_basis_unmapped_literal": 0
+  },
+  "counters_authority": "harness/lib/normalize/adapters/trivy.py, COUNTER_KEYS as returned by new_counters(): twenty-three authored keys, then one records_* per supported section, one rows_class_* per scanner_class, one path_kind_* per normalize.paths.PATH_KINDS member and one severity_basis_* per normalize.severity.BASIS_VALUES member -- thirty-eight in total. The order above is that order.",
+  "counters_note": "Four asymmetries a reader must not \"correct\", each of them the classification order made visible rather than a miscount. First, records_vulnerabilities is 1 while rows_class_vuln is 0: the vulnerability record was walked and its section counted at the moment the array was chosen, then rejected at step 5, so it contributes to the records_* decomposition and to nothing on the row side. Second, per_record_path_refinements is 0 although the fixture does carry a per-record path: the counter is bumped only after a refinement resolves, and this one is the reason the record was rejected. Third, severity_cvss_entries_present is 0 although the fixture does carry a CVSS table: it belongs to the rejected record, and step 5 precedes severity, so _severity_for is never called on it and it feeds no literal into severity-map.md. Fourth, none of the five package_coordinate_* counters counts the rejected record either -- step 7 is never reached -- so package_coordinate_absent being 3 is the three misconfiguration rows and not four records. start_line_absent is 1, which is row 2 alone: the two Dockerfile rows state a line and the vulnerability that states none produced no row.",
+  "aap_reported_counters": {
+    "multi_location_records": 0,
+    "multi_valued_cwe_records": 0,
+    "multi_valued_cve_records": 0,
+    "non_filesystem_paths": 0,
+    "note": "The four counters AAP 0.5.4 has reported per tool. multi_location_records is 0 because no misconfiguration here carries a CauseMetadata.Occurrences array and a vulnerability names exactly one location -- and because the count is taken from the record before the path is resolved, the rejected record was measured too and named one. multi_valued_cwe_records and multi_valued_cve_records are 0 because the only record carrying a CweIDs array or a CVE-shaped VulnerabilityID is the rejected one, and neither field is ever read for it. non_filesystem_paths is 0 because every emitted path is a tree_file: the fixture carries no \"!\" and no \"..\" and no absolute value."
+  },
+  "corroboration": {
+    "available": "partial -- one row of three",
+    "source": "oss-scan-results/findings.json",
+    "records_compared": 1,
+    "fields_compared_per_record": 12,
+    "agreement": "complete",
+    "note": "Row 2 is field-for-field identical to the dataset's trivy row for resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile, all twelve fields agreeing, because the fixture's record at /Results/1/Misconfigurations/0 is value-identical to the run's own artifact at the same pointer. Recorded after the fact rather than as the source of these values: each was derived from the fixture and the authored contracts, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply.",
+    "why_the_other_two_rows_are_uncorroborated": "The run's artifact holds three records, all of them DS-0026 \"No HEALTHCHECK defined\", so the dataset contains no DS-0031 and no DS-0029 row to compare rows 0 and 1 against. Those two records come from fixtures/trivy.json, which states its own provenance as derived rather than captured. The absence is recorded rather than left for a reader to notice, because a value nothing else confirms should be labelled as such.",
+    "the_rejected_record_has_no_counterpart": "It contributes no dataset row by definition, and the run's own artifact contains no vulnerability record at all -- the twelve authoritative globs hold no dependency manifest for Trivy's vulnerability scanner to resolve. So there is nothing to corroborate it against, and nothing in the dataset that its absence would contradict."
+  },
+  "rows": [
+    {
+      "tool": "trivy",
+      "scanner_class": "misconfig",
+      "rule_id": "DS-0031",
+      "message": "Secrets passed via `build-args` or envs or copied secret files",
+      "severity_native": "CRITICAL",
+      "severity_norm": "Critical",
+      "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+      "start_line": 62,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "trivy",
+      "scanner_class": "misconfig",
+      "rule_id": "DS-0029",
+      "message": "'apt-get' missing '--no-install-recommends'",
+      "severity_native": "HIGH",
+      "severity_norm": "High",
+      "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+      "start_line": 36,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "trivy",
+      "scanner_class": "misconfig",
+      "rule_id": "DS-0026",
+      "message": "No HEALTHCHECK defined",
+      "severity_native": "LOW",
+      "severity_norm": "Low",
+      "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+      "start_line": null,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    }
+  ],
+  "row_derivations": [
+    {
+      "row_index": 0,
+      "record_pointer": "/Results/0/Misconfigurations/0",
+      "section": "Misconfigurations",
+      "scanner_class_source": "the enclosing section array is Misconfigurations, which SUPPORTED_SECTIONS maps to misconfig. See scanner_class_falsifiability above: this is the record whose content says secret.",
+      "rule_id_source": "/Results/0/Misconfigurations/0/ID -- the field _SECTION_RULE_ID_FIELD names for this section",
+      "message_source": "/Results/0/Misconfigurations/0/Title",
+      "message_note": "Title is preferred over Description, and Message is deliberately not consulted for a misconfiguration: this record's Message is \"Possible exposure of secret env \\\"SPARK_HOME\\\" in ENV\", which is the located instance rather than the finding's name, and _SECTION_MESSAGE_FIELDS names only Title and Description for this section.",
+      "severity_native_source": "/Results/0/Misconfigurations/0/Severity",
+      "severity_basis": "label",
+      "severity_scores_present": false,
+      "path_source": "/Results/0/Target, joined onto the section base and relativized to the root",
+      "path_refined_by_record": false,
+      "path_refinement_absent_reason": "Misconfigurations declares no per-record path field, and this record carries no path member of any kind -- every key of all three misconfiguration records was inspected",
+      "path_kind": "tree_file",
+      "path_basis": "trivy-section-target",
+      "start_line_source": "/Results/0/Misconfigurations/0/CauseMetadata/StartLine",
+      "start_line_note": "A misconfiguration states its line inside CauseMetadata; _SECTION_START_LINE_PATHS tries the top-level StartLine first, finds none, then reads CauseMetadata.StartLine. The record's EndLine is 62 as well, and 62 is within the file's real length.",
+      "locations_in_record": 1,
+      "cwe_source": null,
+      "cwe_absent_reason": "CweIDs is declared on DetectedVulnerability only, so a misconfiguration carries none by the artifact's shape",
+      "distinct_cwe_identifiers": 0,
+      "cve_source": null,
+      "cve_absent_reason": "cve is collected from VulnerabilityID, which this section's records do not carry",
+      "distinct_cve_identifiers": 0,
+      "package_coordinate_source": null,
+      "package_coordinate_level": "none formable",
+      "package_coordinate_absence_is_not_a_rejection": "Misconfigurations is outside _DEPENDENCY_ORIENTED_SECTIONS: this is a finding about a file, not about a package, so the field is legitimately absent and the record still becomes a row.",
+      "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+      "in_scope_note": "The glob's mid-path ** matches the docker/ segment, which is what makes this Dockerfile in scope at all; the path carries no src/test. Checked glob by glob: this is the only one of the twelve it matches.",
+      "file_line_count_at_the_pin": 71,
+      "file_bytes_at_the_pin": 2942,
+      "file_anchors_at_the_pin": "line 20 is FROM ${java_image_name}:${java_image_tag}, line 62 is ENV SPARK_HOME=/opt/spark -- exactly the ENV this record names -- and line 71, the last, is USER ${spark_uid}"
+    },
+    {
+      "row_index": 1,
+      "record_pointer": "/Results/0/Misconfigurations/1",
+      "section": "Misconfigurations",
+      "scanner_class_source": "the enclosing section array is Misconfigurations",
+      "rule_id_source": "/Results/0/Misconfigurations/1/ID",
+      "message_source": "/Results/0/Misconfigurations/1/Title",
+      "message_note": "The unread Message on this record is the located apt-get command line itself; Title is the finding's name and is what the row carries.",
+      "severity_native_source": "/Results/0/Misconfigurations/1/Severity",
+      "severity_basis": "label",
+      "severity_scores_present": false,
+      "path_source": "/Results/0/Target -- the same enclosing element as row 0, so the same path",
+      "path_refined_by_record": false,
+      "path_kind": "tree_file",
+      "path_basis": "trivy-section-target",
+      "start_line_source": "/Results/0/Misconfigurations/1/CauseMetadata/StartLine",
+      "start_line_note": "36, with the record's EndLine at 48; both are within the file's 71 lines. Line 36 is RUN set -ex && \\, which opens the apt-get block this rule names.",
+      "locations_in_record": 1,
+      "cwe_source": null,
+      "cwe_absent_reason": "no CweIDs member on a misconfiguration record",
+      "distinct_cwe_identifiers": 0,
+      "cve_source": null,
+      "cve_absent_reason": "no VulnerabilityID member on a misconfiguration record",
+      "distinct_cve_identifiers": 0,
+      "package_coordinate_source": null,
+      "package_coordinate_level": "none formable",
+      "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+      "file_line_count_at_the_pin": 71,
+      "two_rows_on_one_path": "Rows 0 and 1 name the same file and are two rows. Nothing is deduplicated, collapsed or ranked -- two findings in one file are two records and two rows.",
+      "anchor_note": "The second record of the same element, so the fixture shows the adapter emitting both records of a multi-record section rather than the first alone."
+    },
+    {
+      "row_index": 2,
+      "record_pointer": "/Results/1/Misconfigurations/0",
+      "section": "Misconfigurations",
+      "scanner_class_source": "the enclosing section array is Misconfigurations",
+      "rule_id_source": "/Results/1/Misconfigurations/0/ID",
+      "message_source": "/Results/1/Misconfigurations/0/Title",
+      "message_note": "The unread Message is \"Add HEALTHCHECK instruction in your Dockerfile\", which is the remediation instruction rather than the finding's name.",
+      "severity_native_source": "/Results/1/Misconfigurations/0/Severity",
+      "severity_basis": "label",
+      "severity_scores_present": false,
+      "path_source": "/Results/1/Target, joined onto the section base and relativized to the root",
+      "path_refined_by_record": false,
+      "path_kind": "tree_file",
+      "path_basis": "trivy-section-target",
+      "start_line_source": null,
+      "start_line_absent_reason": "This record's CauseMetadata carries only Provider and Service -- no StartLine at either level -- so no line is stated. Absence is permitted for start_line and is never a rejection; it is counted under start_line_absent, which is 1 for this fixture and is this row.",
+      "locations_in_record": 1,
+      "cwe_source": null,
+      "cwe_absent_reason": "no CweIDs member on a misconfiguration record",
+      "distinct_cwe_identifiers": 0,
+      "cve_source": null,
+      "cve_absent_reason": "no VulnerabilityID member on a misconfiguration record",
+      "distinct_cve_identifiers": 0,
+      "package_coordinate_source": null,
+      "package_coordinate_level": "none formable",
+      "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+      "file_line_count_at_the_pin": 47,
+      "file_bytes_at_the_pin": 1632,
+      "captured_record": "This is the captured record: value-identical to /Results/1/Misconfigurations/0 of harness/artifacts/raw/trivy.json, and the row is field-for-field identical to that path's row in oss-scan-results/findings.json.",
+      "anchor_note": "A row from a different enclosing element than rows 0 and 1, and the one after which the rejection occurs, so the fixture shows the adapter carrying on across elements and then rejecting the last record rather than stopping at the first difficulty."
+    }
+  ],
+  "rejections": [
+    {
+      "rejection_index": 0,
+      "record_pointer": "/Results/2/Vulnerabilities/0",
+      "result_index": 2,
+      "section": "Vulnerabilities",
+      "record_index": 0,
+      "locator_note": "The pointer and the result_index / section / record_index triple name the same record. The triple is carried as well because normalize.adapters.trivy passes exactly result_index, section, record_index and Target into the identity it builds, adding rule_id at step 3, so a produced Rejection's record_identity and this expectation can be compared directly without translating one coordinate system into the other.",
+      "reject_class": "unresolvable_path",
+      "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_UNRESOLVABLE_PATH constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten. Written verbatim rather than paraphrased, and to be asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+      "tool": "trivy",
+      "scanner_class_of_the_rejected_record": "vuln",
+      "scanner_class_note": "Recorded because it was never in doubt: the class is bound at step 2 from the section array, three steps before the path is resolved. A rejected record still has a section, and this one's identity carries it -- what it does not have is a row.",
+      "classification_step": "step 5 of the adapter's fixed classification order -- shape, section, rule identifier, message, path, start_line, then the dependency-oriented package coordinate. Steps 1 to 4 all pass on this record: it is a JSON object, its section is one of the three supported, its VulnerabilityID is a non-empty rule identifier and its Title is a non-empty message. That is deliberate, so the only thing left to reject it for is its path.",
+      "steps_never_reached": "Steps 6 and 7 are never reached, and the consequences are visible in the counters. The record's CweIDs of [\"CWE-400\"] and its CVE-shaped VulnerabilityID are never read, so multi_valued_cwe_records and multi_valued_cve_records stay 0 and no cwe or cve is selected. Its CVSS table -- ghsa V3 3.7, nvd V2 5.0 and V3 5.3 -- is never read, so severity_cvss_entries_present stays 0 and no severity is resolved for it. Its PkgIdentifier.PURL pkg:npm/debug@2.6.8 is never read, so no package_coordinate_* counter counts it and the unformable_package_coordinate condition -- which a Vulnerabilities record can otherwise earn, since that section is dependency-oriented -- never arises. Only _location_count ran, before step 5, and reported one location.",
+      "target": "Node.js",
+      "target_source": "/Results/2/Target",
+      "per_record_path": "core/src/main/resources/org/apache/spark/ui/static/package.json",
+      "per_record_path_source": "/Results/2/Vulnerabilities/0/PkgPath -- the field _SECTION_PER_RECORD_PATH_FIELD names for this section",
+      "both_halves_failed": "See rejection_boundary.both_halves_fail for the proof. In short: the Target names an ecosystem rather than a file and names nothing in the pinned tree, and the per-record path that exists to refine it is relative with no base to resolve it against under this base kind. The resolver's rejection comes from the second half, which is why the detail below names the per-record path.",
+      "expected_detail": "the per-record path 'core/src/main/resources/org/apache/spark/ui/static/package.json' is relative and path_base.kind 'per_section_target' supplies no base to resolve it against",
+      "expected_detail_note": "The detail is the sub-reason AAP 0.5.4 requires a rejection to carry, and it is quoted verbatim because every rejection class in this pipeline covers several routes: naming the class alone would not distinguish this record from a Target with no base, from an absent Target, or from a uriBaseId chain that cycled in another tool's artifact. A test may assert the class exactly and the detail by its distinguishing substrings -- the per-record path, the word relative, and the base kind -- rather than by full-string equality.",
+      "expected_record_identity_keys": [
+        "result_index",
+        "section",
+        "record_index",
+        "Target",
+        "rule_id"
+      ],
+      "expected_record_identity": {
+        "result_index": 2,
+        "section": "Vulnerabilities",
+        "record_index": 0,
+        "Target": "Node.js",
+        "rule_id": "CVE-2017-16137"
+      },
+      "record_identity_note": "The adapter supplies result_index, section, record_index and Target -- Target under the artifact's own spelling, which is also the key paths.py sets, so a rejection built in either module identifies the record the same way -- and adds rule_id once step 3 has resolved it. Enough to find the record in the artifact again, and never the record itself and never a secret value. The reported_path key paths.py adds inside resolve_recorded_path does not appear here: that key belongs to a rejection returned by the Target half, and this rejection comes from the refinement branch of resolve_trivy_path.",
+      "why_not_a_row": "There is no path to put in the row. path is never absent from a row, so a record whose coordinate resolves to nothing has no valid row representation, and the alternatives -- dropping it, or giving it the plausible-looking path its PkgPath names -- would each hide it. Counting it under a named class keeps it visible and keeps the arithmetic honest.",
+      "contributes_no_row": true,
+      "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, so its LOW literal reaches no entry in oss-scan-results/severity-map.md. That document reports literals against the rows the dataset contains, and this record contributes none -- which is why severity_label_present is 3 rather than 4.",
+      "not_the_other_unresolvable_route": "The same class is reachable for this tool through the Target half, when a per_section_target reading is attempted with no section base at all. That route rejects every record in the document rather than one and is recorded under behaviours_not_exercised_by_this_fixture; this fixture asserts the refinement route, with three records still emitted around it."
+    }
+  ],
+  "prohibitions_observed": {
+    "no_secret_value_in_any_field": "Structural rather than incidental, and stronger here than in the positive sibling: this fixture carries no Secrets[] array at all and no Match, Secret or Code member on any record, so there is no secret value in the input for any field to carry. The word secret appears in this file only inside row 0's message and in the notes about it, and that string is Trivy's own builtin.dockerfile.DS031 rule Title -- ruleset prose naming a class of problem, not a matched value. A search of this file for any Match or Secret value from the fixture finds nothing, because the fixture holds none. This tree is committed to git, so the guarantee is stated rather than assumed.",
+    "no_cross_tool_interpretation": "No other tool's results are characterised anywhere in this file. Sibling fixtures and expected files are named by path where a reader needs to know which file owns a behaviour this one does not, and that is the whole of the relationship: nothing is ranked, contrasted, or explained in terms of what another tool did or did not find.",
+    "no_judging_and_no_deduplication": "No row is marked real, important, a false positive or a duplicate. Rows 0 and 1 name the same file and are two rows. The rejected record is not judged either -- it is counted under its class with its reason retained, which is a statement about the coordinate the artifact wrote and not about whether the finding matters.",
+    "no_inference": "Every value above names the member it came from. Where a value could not be formed the field is null with the reason recorded, and the record that could not be resolved is a counted rejection rather than a row with a guessed path -- not even the real path its PkgPath names.",
+    "no_finding_is_suppressed_for_an_exit_code": "Not exercised by this fixture and stated for completeness: a tool's exit code is never consulted by the adapter, and this run's trivy exit code is in any case an aggregate over eighteen invocations."
+  },
+  "discrepancies_recorded": [
+    {
+      "subject": "whether core/src/main/resources/org/apache/spark/ui/static/package.json is a surviving row",
+      "expectation_as_written": "this file's own brief lists that manifest, with its five lines and eighty bytes, among the in-scope paths whose records the fixture retains",
+      "what_the_inputs_actually_hold": "The path appears in the fixture once, as the PkgPath of the record that is rejected. Under this fixture's unmerged-part shape and the per_section_target reading the runner metadata prescribes for such a part -- the only one of the three measured readings that yields exactly one rejection -- that refinement is precisely what cannot be resolved, so the path reaches no row. It becomes a row only under the merged artifact's scan_root base, which for this document yields four rows and no rejection at all and would leave a fixture named reject-trivy-unresolvable-path asserting nothing.",
+      "resolution": "The brief's other named path is asserted, twice, with its file facts verified at the pin: resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile at 71 lines with line 20 FROM ${java_image_name}:${java_image_tag} and line 71 USER ${spark_uid}. The manifest's own facts are verified and recorded -- five lines, eighty bytes -- and it is deliberately not given to a row, because giving it one is the inference this rejection exists to refuse. The requirement that this path appear as a kept in-scope row is already met, on the fixture whose shape supports it: oss-scan-results/adapter-tests/expected/trivy.rows.json row 8 carries exactly that path, resolved from the same record's PkgPath under the merged base. Both readings are recorded under resolution_context.alternative_readings_measured so a reader can see the difference is the base kind and nothing else."
+    },
+    {
+      "subject": "how many of the three lockfile Targets in fixtures/trivy.json produce kept out-of-glob rows",
+      "expectation_as_written": "the brief names dev/package-lock.json, ui-test/package-lock.json and docs/Gemfile.lock as real out-of-glob rows that file already carries as kept rows",
+      "what_the_inputs_actually_hold": "Two of the three carry records: dev/package-lock.json with two vulnerabilities and docs/Gemfile.lock with two, giving four kept rows with in_scope false and a rows_out_of_scope counter of 4 in that file. The Results[] element for ui-test/package-lock.json carries an empty Vulnerabilities array, so it holds no record and no row can be built from it; that file records it under results_holding_no_record.",
+      "resolution": "The boundary case is cited as two Targets and four rows rather than three, so no count in this file contradicts the file that owns it. The principle the brief states is untouched: a path outside the twelve globs is kept and marked, never rejected."
+    },
+    {
+      "subject": "whether start_line is present on every misconfiguration row",
+      "expectation_as_written": "the brief states that start_line is absent on every Vulnerabilities row and present on secrets and misconfigurations",
+      "what_the_inputs_actually_hold": "A misconfiguration states its line inside CauseMetadata where it states one, and /Results/1/Misconfigurations/0 states none -- its CauseMetadata carries only Provider and Service. The same record in the run's own artifact is identical, so this is the tool's ordinary output rather than a fixture artefact. Absence is permitted for start_line and is never a rejection.",
+      "resolution": "Row 2 carries start_line null and the absence is recorded with its reason and its counter. The invariant is asserted in the form the contracts support: no Vulnerabilities-derived row ever carries a line, and a misconfiguration or secret row carries the line its record states, which may be none."
+    },
+    {
+      "subject": "the brief's line bound for the manifest",
+      "expectation_as_written": "no start_line above 71 and 5 respectively, for the Dockerfile and the manifest",
+      "what_the_inputs_actually_hold": "The 71 bound binds: rows 0 and 1 state 62 and 36, and row 1's record also declares EndLine 48, all within the file. The 5 bound has nothing to bind -- no row names the manifest, and a vulnerability declares no line information in any case, so even under the reading where that record becomes a row its start_line would be null.",
+      "resolution": "Recorded as vacuously satisfied rather than quietly dropped, so a reader checking the brief against this file finds the bound accounted for."
+    }
+  ],
+  "behaviours_not_exercised_by_this_fixture": [
+    {
+      "behaviour": "the unresolvable_path route through the Target half -- a per_section_target reading attempted with no section base, where every record is rejected before any refinement is tried",
+      "why_absent": "this fixture is read with the section base its ArtifactName supplies, which is what leaves three records emitted and exactly one rejected; the no-base reading rejects all four and leaves no rows to carry the other invariants",
+      "cover_with": "the same fixture invoked with section_base omitted, whose outcome is recorded under resolution_context.alternative_readings_measured -- 0 rows and 4 unresolvable_path rejections. Recorded there rather than asserted here so that one fixture makes one assertion."
+    },
+    {
+      "behaviour": "the eight other rejection conditions this adapter can reach -- absent_path, malformed_record, missing_rule_id, missing_message, non_integer_start_line, unformable_package_coordinate, unattributable_section, and the malformed_record an unserializable archive reference earns",
+      "why_absent": "this fixture isolates one condition, so exactly one record is defective and it is defective in exactly one way",
+      "cover_with": "the sibling negative fixtures in this tree -- reject-trivy-malformed-record.json, reject-trivy-missing-rule-id.json, reject-trivy-missing-message.json, reject-trivy-non-integer-start-line.json, reject-trivy-no-package-coordinate.json and reject-trivy-unattributable-section.json. Which condition each asserts is stated in its own expected file, not here."
+    },
+    {
+      "behaviour": "the UnsupportedTrivySection halt on a non-empty Licenses or ExperimentalModifiedFindings, and the three other halt conditions -- an unknown array of objects, a supported section present as something other than an array, and MisconfSummary declaring failures no section holds",
+      "why_absent": "both unsupported sections are present and empty on all three elements, every member is inside RESULT_KNOWN_KEYS, every supported section present is an array, and each declared failure count sits against a non-empty array. Had any of the four been otherwise, the halt would fire in pass one and this rejection could never be observed.",
+      "cover_with": "fixtures/halt-trivy-unsupported-section.json for the first, and derived fixtures for the other three"
+    },
+    {
+      "behaviour": "the secret and vuln classes as emitted rows, and with them the section-to-class variation across all three sections",
+      "why_absent": "the fixture holds no Secrets[] array at all and its only Vulnerabilities record is the rejected one, so every row here is misconfig",
+      "cover_with": "fixtures/trivy.json, which carries all three sections and whose expected file pins the variation"
+    },
+    {
+      "behaviour": "the four package-coordinate precedence levels, and the unformable-coordinate rejection a dependency-oriented record earns",
+      "why_absent": "no emitted record carries a PkgIdentifier and no element carries a Packages inventory, so package_coordinate is absent on every row for the ordinary reason; the one dependency-oriented record never reaches step 7",
+      "cover_with": "fixtures/trivy.json for three of the four levels and reject-trivy-no-package-coordinate.json for the rejection"
+    },
+    {
+      "behaviour": "a kept row with in_scope false -- an out-of-glob path, a src/test path, an external absolute path, or a non-filesystem coordinate serialized <container-relative-to-root>!<member> with ../ preserved",
+      "why_absent": "all three emitted paths fall inside the twelve globs and name files in the tree, so rows_out_of_scope and non_filesystem_paths are both 0; the boundary those cases mark is stated under rejection_boundary.not_a_rejection rather than demonstrated here",
+      "cover_with": "fixtures/trivy.json for the out-of-glob rows, and derived fixtures naming an archive member and a location above the root -- each kept and marked, never rejected"
+    },
+    {
+      "behaviour": "the per-record path refinement succeeding -- an absolute refinement relativized on its own, a refinement that merely restates its Target, and a refinement inside an archive container serialized as a member",
+      "why_absent": "the only refinement here is the one that cannot be resolved, which is the fixture's whole point; per_record_path_refinements is 0",
+      "cover_with": "fixtures/trivy.json, whose row 8 is the refinement resolving against the recorded base, and derived fixtures for the absolute and archive-container forms"
+    },
+    {
+      "behaviour": "severity from a CVSS score where no mapped label exists, an unmapped literal banded Info and disclosed, and the Medium and Info bands",
+      "why_absent": "all three emitted records state a mapped label, and the only CVSS table belongs to the rejected record",
+      "cover_with": "fixtures/trivy.json for the UNKNOWN-to-Info mapping and the label-over-score precedence with scores present, and a derived fixture stating a score with no label"
+    },
+    {
+      "behaviour": "the first-location rule -- the row takes the first location, the record counts once, multi_location_records counts it",
+      "why_absent": "no misconfiguration here carries a CauseMetadata.Occurrences array, so every record names exactly one location",
+      "cover_with": "a derived fixture carrying an Occurrences array with more than one entry"
+    },
+    {
+      "behaviour": "the ascending-numeric CWE and CVE selection where a producer lists a higher identifier first",
+      "why_absent": "the only record carrying a CweIDs array or a CVE-shaped identifier is the rejected one, and neither field is read for it",
+      "cover_with": "fixtures/trivy.json, whose row 4 record lists CWE-1333 before CWE-400 and emits CWE-400"
+    },
+    {
+      "behaviour": "the results-level shapes that contribute no record -- a non-mapping element, an absent or null Results member, an element holding no supported section",
+      "why_absent": "all three elements here are objects and each holds at least one record",
+      "cover_with": "fixtures/trivy.json for the empty-section element, and derived fixtures for the other two"
+    }
+  ],
+  "how_to_check_this_file": [
+    "It parses as JSON, and every row carries exactly the twelve keys of emit.FIELDS in that order -- compared against the imported constant rather than a copy of it.",
+    "The rejection's reject_class is a literal member of paths.REJECT_CLASSES, asserted against the module: paths.REJECT_UNRESOLVABLE_PATH, not the string spelled by hand in a test.",
+    "Re-walk the fixture and assert each row's scanner_class equals the class its enclosing array dictates, row 0 included. Row 0 is the one that fails if the derivation is ever inverted.",
+    "No row is derived from Vulnerabilities[] here, so the rule that such a row carries start_line null holds vacuously; assert it as a walk over the rows rather than as a lookup, and assert that rows 0 and 1 state 62 and 36 -- within the Dockerfile's real 71 lines -- while row 2 states null because its record states none.",
+    "Every severity_norm is one of Critical, High, Medium, Low, Info; no path is absolute or empty; every cwe and cve is null because no emitted record carries either field.",
+    "The three rows and one rejection satisfy raw_finding_records == rows + rejections against reconcile.count_records(\"trivy\", doc)'s independent traversal, which returns 4.",
+    "No substring of any Match or Secret value appears in this file -- vacuously, since the fixture carries no such member; the only occurrence of the word secret is row 0's message, which is the DS031 rule's own Title.",
+    "The base this file asserts is the one the runner metadata prescribes for an unmerged per-directory part: per_section_target with the section base the report's own ArtifactName supplies. Read with the merged artifact's scan_root base instead, this document yields four rows and no rejection, and the assertion is void rather than merely different."
+  ]
+}
