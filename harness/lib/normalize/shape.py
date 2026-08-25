@@ -131,6 +131,7 @@ __all__ = [
     "SARIF_RUNS_KEY",
     "is_sarif",
     "describe_document",
+    "detection_evidence",
     # shapes
     "SHAPE_SARIF",
     "SHAPE_NATIVE",
@@ -543,6 +544,65 @@ def describe_document(doc: object) -> dict[str, object]:
         "version": version,
         "top_level_keys": keys,
         "top_level_length": length,
+    }
+
+
+def detection_evidence(doc: object) -> dict[str, object]:
+    """Return the *evidence* for the shape decision: the two field checks, separately.
+
+    :func:`is_sarif` returns the conjunction, which is what routing needs and all that
+    routing should need. A reader of ``harness/artifacts/logs/normalize-run.json``
+    needs more than the conjunction: the AAP requires the detection outcome recorded
+    per artifact *"including the evidence (the two field checks)"*, so that a native
+    artifact recorded as native can be seen to have failed the tests rather than merely
+    asserted to have failed them. That distinction is the whole point of the mandated
+    negative direction -- a permissive detector that accepted a native artifact as SARIF
+    would produce an empty result set rather than an error, and an empty result set is
+    indistinguishable from a clean scan.
+
+    The evidence is produced here, in the module that owns the test, and never
+    recomputed by the recorder: the conjunction below is :func:`is_sarif` itself rather
+    than a second spelling of it, so the record cites one measurement rather than a
+    reconstruction that could drift from the decision it describes.
+
+    Only the document's top level is touched -- a 73 MB SARIF artifact is described as
+    cheaply as a two-key stub -- and the top-level keys are carried as a tuple so a
+    reader can see *what was there instead* when a check failed.
+
+    >>> evidence = detection_evidence({"version": "2.1.0", "runs": []})
+    >>> evidence["version_matches"], evidence["runs_is_array"], evidence["is_sarif"]
+    (True, True, True)
+    >>> native = detection_evidence([{"RuleID": "generic-api-key"}])
+    >>> native["version_matches"], native["runs_is_array"], native["is_sarif"]
+    (False, False, False)
+    >>> native["top_level_type"]
+    'array'
+    """
+    description = describe_document(doc)
+    is_mapping = isinstance(doc, Mapping)
+    version_observed = description["version"]
+    runs_observed = doc.get(SARIF_RUNS_KEY) if is_mapping else None
+    return {
+        "test": (
+            f'a document is SARIF when {SARIF_VERSION_KEY} == "{SARIF_VERSION}" '
+            f"AND {SARIF_RUNS_KEY} is an array; those two together are the whole test "
+            "(AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, "
+            "not tool.driver."
+        ),
+        "top_level_type": description["top_level_type"],
+        "top_level_keys": description["top_level_keys"],
+        "top_level_length": description["top_level_length"],
+        "version_key": SARIF_VERSION_KEY,
+        "version_expected": SARIF_VERSION,
+        "version_observed": version_observed,
+        "version_matches": version_observed == SARIF_VERSION,
+        "runs_key": SARIF_RUNS_KEY,
+        "runs_observed_type": _json_type_name(runs_observed) if is_mapping else "absent",
+        "runs_is_array": isinstance(runs_observed, list),
+        "runs_length": len(runs_observed) if isinstance(runs_observed, list) else None,
+        # The conjunction, taken from the detector itself rather than from the two
+        # booleans above, so this field cannot disagree with the routing decision.
+        "is_sarif": is_sarif(doc),
     }
 
 

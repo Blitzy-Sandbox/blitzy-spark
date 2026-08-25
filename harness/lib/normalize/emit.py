@@ -114,6 +114,7 @@ __all__ = [
     "read_findings_csv",
     "read_findings_json",
     "validate_rows",
+    "validation_summary",
     "write_findings",
     "write_findings_csv",
     "write_findings_json",
@@ -198,6 +199,11 @@ _WINDOWS_DRIVE_RE = re.compile(r"\A[A-Za-z]:(?:[\\/]|\Z)")
 # comparison found without matching on prose.
 MISMATCH_FIELD_VALUE = "field_value"
 MISMATCH_ROW_SEQUENCE_LENGTH = "row_sequence_length"
+
+# How many individual violations `validation_summary` carries in full. The count is
+# always exact; the list is bounded so a systematically malformed row set cannot turn
+# the run record into a copy of the dataset.
+_VALIDATION_VIOLATION_LIMIT = 20
 
 
 class EmitError(Exception):
@@ -492,6 +498,138 @@ def validate_rows(rows: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """
     return [_validated_row(row, index) for index, row in enumerate(rows)]
 
+
+def validation_summary(rows: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Measure what :func:`validate_rows` enforced, so the record can state it as a count.
+
+    :func:`validate_rows` *enforces* the schema and raises on the first fault, which
+    means a successful write proves the schema held — but it proves it by the absence of
+    an exception, and an absence is not a number. The run record has to carry the
+    assertion as a measurement: *every emitted row has exactly twelve fields, a resolved
+    non-absent* ``path`` *and a non-absent* ``severity_norm``\\ *, absence appears only in
+    the five optional fields, and no emitted path is absolute*. This function walks the
+    rows that were written and counts each of those, using the same rule definitions
+    :func:`validate_rows` uses — :data:`FIELDS`, :data:`OPTIONAL_FIELDS` and
+    :func:`_path_violation` — so the record cites the module's own rules rather than a
+    second spelling of them.
+
+    It diagnoses and never raises. Called after a successful write, every count below is
+    expected to be its passing value and ``passed`` is expected ``True``; called on rows
+    that never reached a writer, it names what is wrong with them instead. Either way the
+    numbers are real: nothing here is defaulted, and ``violations`` carries the first few
+    faults in full rather than only their count.
+
+    Args:
+        rows: The rows as written, in the order they were written.
+
+    Returns:
+        A JSON-serialisable mapping of the measured assertions.
+
+    >>> row = {f: None for f in FIELDS}
+    >>> row.update(
+    ...     tool="gitleaks", scanner_class="secret", rule_id="generic-api-key",
+    ...     message="a secret", severity_norm="Info", path="core/src/main/x.scala",
+    ...     in_scope=True,
+    ... )
+    >>> summary = validation_summary([row])
+    >>> summary["rows"], summary["passed"], summary["absolute_paths"]
+    (1, True, 0)
+    >>> summary["absence_by_optional_field"]["cwe"]
+    1
+    """
+    field_set = set(FIELDS)
+    absence_by_optional: dict[str, int] = {field: 0 for field in sorted(OPTIONAL_FIELDS)}
+    exact_twelve = 0
+    absent_required: dict[str, int] = {}
+    absolute_paths = 0
+    violations: list[dict[str, Any]] = []
+
+    for index, row in enumerate(rows):
+        if not isinstance(row, Mapping):
+            violations.append(
+                {
+                    "row_index": index,
+                    "condition": "not_a_mapping",
+                    "detail": f"expected a mapping of the twelve fields; observed {type(row).__name__}",
+                }
+            )
+            continue
+        keys = set(row.keys())
+        if keys == field_set:
+            exact_twelve += 1
+        else:
+            violations.append(
+                {
+                    "row_index": index,
+                    "condition": "field_set",
+                    "detail": (
+                        f"missing {sorted(field_set - keys)}; "
+                        f"unexpected {sorted(str(key) for key in keys - field_set)}"
+                    ),
+                }
+            )
+        for field in FIELDS:
+            value = row.get(field)
+            if field in OPTIONAL_FIELDS:
+                if value is None:
+                    absence_by_optional[field] += 1
+                continue
+            if value is None:
+                absent_required[field] = absent_required.get(field, 0) + 1
+                violations.append(
+                    {
+                        "row_index": index,
+                        "condition": "absent_required_field",
+                        "detail": f"{field} is never absent, and this row carries None",
+                    }
+                )
+        path = row.get("path")
+        if isinstance(path, str):
+            violation = _path_violation(path)
+            if violation is not None:
+                absolute_paths += 1
+                violations.append(
+                    {
+                        "row_index": index,
+                        "condition": "absolute_path",
+                        "detail": f"{violation}: {path!r}",
+                    }
+                )
+
+    total = len(rows)
+    passed = (
+        exact_twelve == total
+        and not absent_required
+        and absolute_paths == 0
+        and not violations
+    )
+    return {
+        "rows": total,
+        "field_order": list(FIELDS),
+        "fields_per_row_required": len(FIELDS),
+        "rows_with_exactly_twelve_fields": exact_twelve,
+        "required_fields": list(REQUIRED_FIELDS),
+        "optional_fields": sorted(OPTIONAL_FIELDS),
+        "rows_with_an_absent_required_field": dict(absent_required),
+        "path_absent": absent_required.get("path", 0),
+        "severity_norm_absent": absent_required.get("severity_norm", 0),
+        "absolute_paths": absolute_paths,
+        "absence_by_optional_field": absence_by_optional,
+        "passed": passed,
+        "violations": violations[:_VALIDATION_VIOLATION_LIMIT],
+        "violation_count": len(violations),
+        "method": (
+            "one pass over the rows as written, applying this module's own FIELDS, "
+            "OPTIONAL_FIELDS and _path_violation rules; diagnostic only -- "
+            "validate_rows had already refused any row that failed them"
+        ),
+        "asserts": [
+            "every emitted row carries exactly the twelve fields, in FIELDS order",
+            "path and severity_norm are never absent",
+            "absence appears only in severity_native, start_line, cwe, cve and package_coordinate",
+            "no emitted path is absolute, a URI, or otherwise not relative to the SPARK_SRC root",
+        ],
+    }
 
 
 # --------------------------------------------------------------------------- #

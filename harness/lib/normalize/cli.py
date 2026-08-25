@@ -696,6 +696,73 @@ def _runner_status(log_dir: Path | None, tool: str) -> dict[str, Any]:
     return record
 
 
+#: Status-field name fragments that carry a statement about data a tool consulted or
+#: fetched at invocation time. Matched by *name* against the runner's own status fields,
+#: because the runner is the only witness to what its tool did on the network and the
+#: normalizer must not infer network activity from an artifact's contents.
+_FETCH_FIELD_FRAGMENTS: tuple[str, ...] = (
+    "network",
+    "fetch",
+    "feed_state",
+    "feed_identity",
+    "database",
+    "db_update",
+    "skip_download",
+    "noupdate",
+    "ruleset_source",
+    "ruleset_location",
+    "ruleset_commit",
+    "ruleset_identity",
+    "ruleset_sha256",
+    "data_source",
+    "queried",
+    "offline",
+    "reproducibility_gap",
+    "rate_limit",
+)
+
+
+def _network_fetch_disclosure(runner_status: Mapping[str, Any]) -> dict[str, Any]:
+    """Project the runner's own statements about an invocation-time fetch.
+
+    AAP 0.5.4 requires the record to disclose *"any network fetch a tool performed at
+    invocation time"*, because a rule set or feed fetched with no recorded digest is a
+    reproducibility gap the dataset must carry rather than absorb -- a prior run had one
+    tool fetch 1,093 rules from its API mid-scan and contribute two thirds of the dataset
+    from a rule set with no digest behind it.
+
+    The statements are the runner's, not this module's. ``runner_status['fields']`` is
+    already carried verbatim in the record; this selects the subset that speaks to what
+    was consulted or fetched, so the disclosure is addressable rather than buried among a
+    couple of hundred status lines. It is a projection of one measurement, with its source
+    named, and never a second measurement of it.
+
+    Where a runner said nothing, that is recorded as *no statement found* -- which is a
+    strictly weaker claim than "no fetch occurred", and deliberately so: the normalizer
+    observes artifacts, not sockets, and inventing the stronger claim would be a
+    fabricated measurement.
+    """
+    fields = runner_status.get("fields") or {}
+    statements = {
+        name: value
+        for name, value in fields.items()
+        if any(fragment in name.lower() for fragment in _FETCH_FIELD_FRAGMENTS)
+    }
+    return {
+        "source": runner_status.get("path"),
+        "status_fields_scanned": len(fields),
+        "statements": statements,
+        "statement_count": len(statements),
+        "note": (
+            "Selected by field name from the runner's own status record, which is carried "
+            "verbatim in 'runner_status' above; this is that one measurement projected, "
+            "not a second one. An empty 'statements' means the runner stated nothing "
+            "about an invocation-time fetch -- which is not the same claim as no fetch "
+            "having occurred, and is left as the weaker statement on purpose."
+        ),
+    }
+
+
 def _same_root(left: str, right: str) -> bool:
     """Return whether two recorded roots name the same directory.
 
@@ -1144,6 +1211,7 @@ class ArtifactOutcome:
     counter_summary: dict[str, Any] = field(default_factory=dict)
     path_kinds: dict[str, Any] = field(default_factory=dict)
     runner_status: dict[str, Any] = field(default_factory=dict)
+    network_fetch: dict[str, Any] = field(default_factory=dict)
     tool_words: dict[str, Any] = field(default_factory=dict)
     extras: dict[str, Any] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
@@ -1168,6 +1236,7 @@ class ArtifactOutcome:
             "counter_summary": self.counter_summary,
             "path_kinds": self.path_kinds,
             "runner_status": self.runner_status,
+            "network_fetch": self.network_fetch,
             "tool_words": self.tool_words,
             "extras": self.extras,
             "notes": list(self.notes),
@@ -1337,6 +1406,7 @@ def _process_present_artifact(
         The rows this artifact contributed, and its :class:`normalize.reconcile.ArtifactCounts`.
     """
     outcome.runner_status = _runner_status(log_dir, tool)
+    outcome.network_fetch = _network_fetch_disclosure(outcome.runner_status)
     _check_runner_root_evidence(tool, outcome.runner_status, root)
     # Streams are described but not read for a present artifact: the classification does
     # not depend on their content, and one of them can run to hundreds of megabytes.
@@ -1386,7 +1456,17 @@ def _process_present_artifact(
             f"{tool}: {error}",
             **detection,
         ) from error
-    outcome.routing = decision.as_dict()
+    # The decision, and separately the evidence for it. AAP 0.6.1 wants the detection
+    # outcome per artifact "including the evidence (the two field checks)": a native
+    # artifact recorded as native must be *seen* to have failed both tests rather than
+    # asserted to have failed them, because a permissive detector that accepted one as
+    # SARIF would yield an empty result set rather than an error -- and an empty result
+    # set is indistinguishable from a clean scan. The evidence comes from shape.py, the
+    # module that owns the test, so the record cites the decision's own measurement.
+    outcome.routing = {
+        **decision.as_dict(),
+        "detection": shape.detection_evidence(document),
+    }
 
     # The independent traversal: it walks the count units and builds no row.
     outcome.raw_records = reconcile.count_records(tool, document)
@@ -1517,6 +1597,7 @@ def _process_absent_artifact(
     not excuse the absence.
     """
     outcome.runner_status = _runner_status(log_dir, tool)
+    outcome.network_fetch = _network_fetch_disclosure(outcome.runner_status)
     # A runner that scanned the wrong tree is a targeting fault whether or not it wrote
     # anything, so the evidence is checked here too.
     _check_runner_root_evidence(tool, outcome.runner_status, root)
@@ -2221,6 +2302,13 @@ def _write_outputs(
     record["outputs"] = {
         "findings_json": _file_record(inputs.findings_json),
         "findings_csv": _file_record(inputs.findings_csv),
+        # emit.validate_rows already refused any row that broke the schema, so a write
+        # that got this far proves the schema held -- but it proves it by the absence of
+        # an exception, and an absence is not a number. This is the same assertion as a
+        # measurement: rows carrying exactly twelve fields, path and severity_norm never
+        # absent, absence confined to the five optional fields, and no absolute path
+        # emitted (AAP 0.8.2). It is computed by emit.py from its own rules.
+        "row_validation": emit.validation_summary(rows),
         "row_order": (
             "Artifacts in normalize.shape.CANONICAL_TOOLS order; within an artifact, the "
             "order its adapter returned, which is document order. Both files carry that "
@@ -2388,7 +2476,13 @@ def _new_record(argv: Sequence[str], started_at: str) -> dict[str, Any]:
     and a stage that never ran leaves its value ``null`` rather than absent, so a reader can
     tell "not reached" from "not recorded".
     """
-    command = [sys.executable, *argv] if argv else [sys.executable]
+    # The exact command, and exactly it: the interpreter, the program it was handed, and
+    # the arguments. `sys.argv[0]` is what makes the recorded line reproducible -- drop it
+    # and the record reads as though the bare interpreter had produced this dataset. It is
+    # empty for `python -c` and absent when a test drives `main(argv)` in process, and in
+    # both of those cases there is no program to name, so none is invented.
+    program = sys.argv[0] if sys.argv and sys.argv[0] else None
+    command = [sys.executable, *([program] if program else []), *argv]
     return {
         "schema_version": SCHEMA_VERSION,
         "document": RUN_RECORD_DOCUMENT,
@@ -2410,6 +2504,10 @@ def _new_record(argv: Sequence[str], started_at: str) -> dict[str, Any]:
         "started_at_utc": started_at,
         "finished_at_utc": None,
         "command": {
+            # The program is named separately as well as joined into the line, so a
+            # reader never has to infer from `argv` -- which carries the arguments and
+            # not the program -- what was actually executed.
+            "program": program,
             "argv": list(argv),
             "command_line": shlex.join(command),
             "working_directory": os.getcwd(),

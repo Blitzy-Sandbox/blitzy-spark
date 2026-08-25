@@ -4,11 +4,12 @@
  "produced_by": "harness/lib/normalize/cli.py",
  "purpose": "The normalizer's own run record: its exact command, interpreter path and version, per-artifact routing decisions, per-artifact parsed and rejected counts, every reconciliation assertion and its result, and the exit status (AAP 0.6.1). oss-scan-results/tool-status.md, severity-map.md and run-record.md are rendered from this joined with runner-metadata.json; this file is never rendered from them.",
  "publication": "harness/artifacts/** is git-ignored (.gitignore:31 is artifacts/), so this record is published through the per-file size-and-sha256 manifest (AAP 0.1.3) rather than by git add. It is written self-describing for that reason: every file it names carries that file's byte size and sha256.",
- "started_at_utc": "2026-08-25T02:56:48Z",
- "finished_at_utc": "2026-08-25T02:56:51Z",
+ "started_at_utc": "2026-08-25T04:10:15Z",
+ "finished_at_utc": "2026-08-25T04:10:18Z",
  "command": {
+  "program": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/lib/normalize/cli.py",
   "argv": [],
-  "command_line": "/usr/bin/python3",
+  "command_line": "/usr/bin/python3 /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/lib/normalize/cli.py",
   "working_directory": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0"
  },
  "interpreter": {
@@ -322,7 +323,26 @@
     "adapter_module": "normalize.adapters.sarif",
     "scanner_class": "sast",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/opengrep.sarif"
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/opengrep.sarif",
+    "detection": {
+     "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
+     "top_level_type": "object",
+     "top_level_keys": [
+      "version",
+      "runs",
+      "$schema"
+     ],
+     "top_level_length": 3,
+     "version_key": "version",
+     "version_expected": "2.1.0",
+     "version_observed": "2.1.0",
+     "version_matches": true,
+     "runs_key": "runs",
+     "runs_observed_type": "array",
+     "runs_is_array": true,
+     "runs_length": 1,
+     "is_sarif": true
+    }
    },
    "raw_records": 1322,
    "emitted_rows": 1322,
@@ -452,6 +472,17 @@
     "scan_root": "/opt/spark-src",
     "scan_root_source": "SPARK_SRC"
    },
+   "network_fetch": {
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/opengrep.status",
+    "status_fields_scanned": 59,
+    "statements": {
+     "ruleset_location": "/opt/blitzy-harness/rules/opengrep-rules",
+     "ruleset_commit": "f1d2b562b414783763fd02a6ed2736eaed622efa",
+     "ruleset_commit_matches_expected": "yes"
+    },
+    "statement_count": 3,
+    "note": "Selected by field name from the runner's own status record, which is carried verbatim in 'runner_status' above; this is that one measurement projected, not a second one. An empty 'statements' means the runner stated nothing about an invocation-time fetch -- which is not the same claim as no fetch having occurred, and is left as the weaker statement on purpose."
+   },
    "tool_words": {
     "streams": {
      "stderr": {
@@ -498,7 +529,26 @@
     "adapter_module": "normalize.adapters.sarif",
     "scanner_class": "sast",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/semgrep.sarif"
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/semgrep.sarif",
+    "detection": {
+     "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
+     "top_level_type": "object",
+     "top_level_keys": [
+      "version",
+      "runs",
+      "$schema"
+     ],
+     "top_level_length": 3,
+     "version_key": "version",
+     "version_expected": "2.1.0",
+     "version_observed": "2.1.0",
+     "version_matches": true,
+     "runs_key": "runs",
+     "runs_observed_type": "array",
+     "runs_is_array": true,
+     "runs_length": 1,
+     "is_sarif": true
+    }
    },
    "raw_records": 1162,
    "emitted_rows": 1162,
@@ -703,6 +753,17 @@
     "scan_root": "/opt/spark-src",
     "scan_root_source": "SPARK_SRC"
    },
+   "network_fetch": {
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/semgrep.status",
+    "status_fields_scanned": 134,
+    "statements": {
+     "ruleset_identity_observed": "commit 40b8c63f75dc7c22c8a77482d73bfb864b146f7e at /opt/blitzy-harness/rules/semgrep-rules",
+     "ruleset_identity_expected": "commit 40b8c63f75dc7c22c8a77482d73bfb864b146f7e",
+     "ruleset_identity_matches_expected": "true"
+    },
+    "statement_count": 3,
+    "note": "Selected by field name from the runner's own status record, which is carried verbatim in 'runner_status' above; this is that one measurement projected, not a second one. An empty 'statements' means the runner stated nothing about an invocation-time fetch -- which is not the same claim as no fetch having occurred, and is left as the weaker statement on purpose."
+   },
    "tool_words": {
     "streams": {
      "stderr": {
@@ -749,7 +810,25 @@
     "adapter_module": "normalize.adapters.sarif",
     "scanner_class": "sast",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/datadog-static-analyzer.sarif"
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/datadog-static-analyzer.sarif",
+    "detection": {
+     "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
+     "top_level_type": "object",
+     "top_level_keys": [
+      "runs",
+      "version"
+     ],
+     "top_level_length": 2,
+     "version_key": "version",
+     "version_expected": "2.1.0",
+     "version_observed": "2.1.0",
+     "version_matches": true,
+     "runs_key": "runs",
+     "runs_observed_type": "array",
+     "runs_is_array": true,
+     "runs_length": 1,
+     "is_sarif": true
+    }
    },
    "raw_records": 6832,
    "emitted_rows": 6832,
@@ -931,6 +1010,17 @@
     "scan_root": "/opt/spark-src",
     "scan_root_source": "SPARK_SRC"
    },
+   "network_fetch": {
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/datadog-static-analyzer.status",
+    "status_fields_scanned": 111,
+    "statements": {
+     "ruleset_source": "local captured file /opt/blitzy-harness/rules/datadog/datadog-sast-rules.json, so the scan made no API call for rules",
+     "ruleset_sha256": "4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1",
+     "ruleset_identity_comparison_owner": "oss-scan-results/tool-status.md and oss-scan-results/severity-map.md"
+    },
+    "statement_count": 3,
+    "note": "Selected by field name from the runner's own status record, which is carried verbatim in 'runner_status' above; this is that one measurement projected, not a second one. An empty 'statements' means the runner stated nothing about an invocation-time fetch -- which is not the same claim as no fetch having occurred, and is left as the weaker statement on purpose."
+   },
    "tool_words": {
     "streams": {
      "stderr": {
@@ -977,7 +1067,22 @@
     "adapter_module": "normalize.adapters.gitleaks",
     "scanner_class": "secret",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/gitleaks.json"
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/gitleaks.json",
+    "detection": {
+     "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
+     "top_level_type": "array",
+     "top_level_keys": [],
+     "top_level_length": 1,
+     "version_key": "version",
+     "version_expected": "2.1.0",
+     "version_observed": null,
+     "version_matches": false,
+     "runs_key": "runs",
+     "runs_observed_type": "absent",
+     "runs_is_array": false,
+     "runs_length": null,
+     "is_sarif": false
+    }
    },
    "raw_records": 1,
    "emitted_rows": 1,
@@ -1136,6 +1241,15 @@
     "scan_root": "/opt/spark-src",
     "scan_root_source": "SPARK_SRC"
    },
+   "network_fetch": {
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/gitleaks.status",
+    "status_fields_scanned": 99,
+    "statements": {
+     "ruleset_fetched_at_scan_time": "no; the rule set is compiled into the binary, so there is no scan-time fetch and no reproducibility gap of that kind"
+    },
+    "statement_count": 1,
+    "note": "Selected by field name from the runner's own status record, which is carried verbatim in 'runner_status' above; this is that one measurement projected, not a second one. An empty 'statements' means the runner stated nothing about an invocation-time fetch -- which is not the same claim as no fetch having occurred, and is left as the weaker statement on purpose."
+   },
    "tool_words": {
     "streams": {
      "stderr": {
@@ -1184,7 +1298,26 @@
     "adapter_module": "normalize.adapters.checkov",
     "scanner_class": "misconfig",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/checkov.json"
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/checkov.json",
+    "detection": {
+     "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
+     "top_level_type": "object",
+     "top_level_keys": [
+      "check_type",
+      "results",
+      "summary"
+     ],
+     "top_level_length": 3,
+     "version_key": "version",
+     "version_expected": "2.1.0",
+     "version_observed": null,
+     "version_matches": false,
+     "runs_key": "runs",
+     "runs_observed_type": "null",
+     "runs_is_array": false,
+     "runs_length": null,
+     "is_sarif": false
+    }
    },
    "raw_records": 6,
    "emitted_rows": 6,
@@ -1369,6 +1502,17 @@
     "scan_root": "/opt/spark-src",
     "scan_root_source": "SPARK_SRC"
    },
+   "network_fetch": {
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/checkov.status",
+    "status_fields_scanned": 115,
+    "statements": {
+     "policy_feed_state": "not attempted",
+     "policy_feed_state_basis": "--skip-download is baked into the invocation, so no policy metadata and no external module was fetched. The four permitted outcomes are attempted and succeeded, attempted and failed, not attempted, and not reported",
+     "network_fetch_at_scan_time": "none, so this tool contributes no reproducibility gap of that kind"
+    },
+    "statement_count": 3,
+    "note": "Selected by field name from the runner's own status record, which is carried verbatim in 'runner_status' above; this is that one measurement projected, not a second one. An empty 'statements' means the runner stated nothing about an invocation-time fetch -- which is not the same claim as no fetch having occurred, and is left as the weaker statement on purpose."
+   },
    "tool_words": {
     "streams": {
      "stderr": {
@@ -1437,7 +1581,30 @@
     "adapter_module": "normalize.adapters.trivy",
     "scanner_class": "per-record",
     "scanner_class_per_record": true,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/trivy.json"
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/trivy.json",
+    "detection": {
+     "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
+     "top_level_type": "object",
+     "top_level_keys": [
+      "SchemaVersion",
+      "Trivy",
+      "ReportID",
+      "CreatedAt",
+      "ArtifactName",
+      "ArtifactType",
+      "Results"
+     ],
+     "top_level_length": 7,
+     "version_key": "version",
+     "version_expected": "2.1.0",
+     "version_observed": null,
+     "version_matches": false,
+     "runs_key": "runs",
+     "runs_observed_type": "null",
+     "runs_is_array": false,
+     "runs_length": null,
+     "is_sarif": false
+    }
    },
    "raw_records": 3,
    "emitted_rows": 3,
@@ -1737,6 +1904,21 @@
     "scan_root": "/opt/spark-src",
     "scan_root_source": "SPARK_SRC"
    },
+   "network_fetch": {
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/trivy.status",
+    "status_fields_scanned": 220,
+    "statements": {
+     "feed_identity_matches_expected": "false",
+     "feed_state": "not attempted",
+     "feed_state_vocabulary": "attempted and succeeded | attempted and failed | not attempted | not reported (AAP 0.4.2); this outcome is the third",
+     "feed_state_derivation": "the runner bakes --skip-db-update, --skip-java-db-update and --skip-check-update (run-trivy.sh line 70, summarised at trivy.stdout.log line 12), so no refresh was attempted and the seeded caches were used as found",
+     "feed_fetched_at_scan_time": "false",
+     "feed_offline_scan": "true",
+     "feed_offline_scan_note": "--offline-scan is baked in, so no Maven Central resolution occurs at scan time; harness/ENVIRONMENT.md records an earlier provisioning run without it taking '429 Too Many Requests, Retry-After: 1800' and writing no artifact at all"
+    },
+    "statement_count": 7,
+    "note": "Selected by field name from the runner's own status record, which is carried verbatim in 'runner_status' above; this is that one measurement projected, not a second one. An empty 'statements' means the runner stated nothing about an invocation-time fetch -- which is not the same claim as no fetch having occurred, and is left as the weaker statement on purpose."
+   },
    "tool_words": {
     "streams": {
      "stderr": {
@@ -1990,6 +2172,28 @@
     "scan_root": "/opt/spark-src",
     "scan_root_source": "SPARK_SRC"
    },
+   "network_fetch": {
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/osv-scanner.status",
+    "status_fields_scanned": 182,
+    "statements": {
+     "local_database": "none",
+     "local_database_note": "this tool ships and seeds no local database",
+     "data_source": "https://api.osv.dev",
+     "data_source_queried_at": "scan time, live",
+     "data_source_stated_by_runner": "harness/bin/run-osv-scanner.sh line 40 - \"database : none local - queries the OSV API (https://api.osv.dev) at scan time\"",
+     "expected_feed_identity": "no local database; queries the live API at scan time",
+     "feed_identity_matches_expected": "true",
+     "feed_state": "not attempted",
+     "feed_state_vocabulary": "attempted and succeeded | attempted and failed | not attempted | not reported",
+     "feed_state_evidence": "the tool's own \"0 Extract calls\" and \"No package sources found\" - it resolved no package, so it had nothing to ask the API about",
+     "network_fetch_observed": "none; no query, no response, no rate-limit notice and no network error appears in either captured stream",
+     "reproducibility_gap": "NAMED - osv-scanner has no local database and no recorded digest for the data it would consult, so its counts are not reproducible from anything on disk; an identical re-run against an API whose contents have moved can legitimately produce a different number",
+     "reproducibility_gap_disposition": "disclosed rather than repaired; no local mirror was seeded and no digest was invented",
+     "reproducibility_gap_effect_on_this_run": "none, because no query was made; disclosed anyway so a reader knows this tool's count has no on-disk provenance behind it"
+    },
+    "statement_count": 14,
+    "note": "Selected by field name from the runner's own status record, which is carried verbatim in 'runner_status' above; this is that one measurement projected, not a second one. An empty 'statements' means the runner stated nothing about an invocation-time fetch -- which is not the same claim as no fetch having occurred, and is left as the weaker statement on purpose."
+   },
    "tool_words": {
     "streams": {
      "stderr": {
@@ -2040,7 +2244,27 @@
     "adapter_module": "normalize.adapters.dependency_check",
     "scanner_class": "vuln",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/dependency-check.json"
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/dependency-check.json",
+    "detection": {
+     "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
+     "top_level_type": "object",
+     "top_level_keys": [
+      "reportSchema",
+      "scanInfo",
+      "projectInfo",
+      "dependencies"
+     ],
+     "top_level_length": 4,
+     "version_key": "version",
+     "version_expected": "2.1.0",
+     "version_observed": null,
+     "version_matches": false,
+     "runs_key": "runs",
+     "runs_observed_type": "null",
+     "runs_is_array": false,
+     "runs_length": null,
+     "is_sarif": false
+    }
    },
    "raw_records": 0,
    "emitted_rows": 0,
@@ -2291,6 +2515,25 @@
     "scan_root": "/opt/spark-src",
     "scan_root_source": "SPARK_SRC"
    },
+   "network_fetch": {
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/dependency-check.status",
+    "status_fields_scanned": 176,
+    "statements": {
+     "feed_identity_expected": "keyless NVD datafeed, 2026-08-23T08:00:06-04",
+     "feed_identity_observed": "keyless NIST NVD JSON 2.0 datafeed, NVD API Last Modified 2026-08-24T08:00:04-04",
+     "feed_identity_outcome": "DIFFERS by one day",
+     "feed_identity_observed_provenance": "read out of the artifact's own scanInfo.dataSource block - the tool stating the identity of the data it used - by the invocation's own record at harness/artifacts/logs/dependency-check.stdout.log PHASE 2, where the four NVD timestamps are quoted; corroborated by harness/ENVIRONMENT.md lines 114 and 823. Not re-read here: this checkout does not carry the artifact, and a figure is cited from the record that measured it rather than re-derived from a different source.",
+     "feed_state": "not attempted",
+     "feed_state_vocabulary": "attempted and succeeded | attempted and failed | not attempted | not reported",
+     "feed_state_evidence": "the runner passes --noupdate, so no refresh was attempted and the seeded datafeed was used exactly as found",
+     "feed_fetched_at_scan_time": "false",
+     "feed_no_fetch_evidence": "no download, update, retrieval or proxy line appears in either stdout stream or either stderr stream; the artifact's 'NVD API Last Checked' is 2026-08-24T12:41:51Z, which PRECEDES this invocation's start",
+     "reproducibility_gap_from_an_invocation_time_fetch": "none",
+     "reproducibility_gap_disclosed": "the seeded feed is one day newer than the AAP 0.4.2 anchor, which is why the counts are marked not comparable above"
+    },
+    "statement_count": 11,
+    "note": "Selected by field name from the runner's own status record, which is carried verbatim in 'runner_status' above; this is that one measurement projected, not a second one. An empty 'statements' means the runner stated nothing about an invocation-time fetch -- which is not the same claim as no fetch having occurred, and is left as the weaker statement on purpose."
+   },
    "tool_words": {
     "streams": {
      "stderr": {
@@ -2337,7 +2580,30 @@
     "adapter_module": "normalize.adapters.joern",
     "scanner_class": "sast",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/joern.json"
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/joern.json",
+    "detection": {
+     "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
+     "top_level_type": "object",
+     "top_level_keys": [
+      "tool",
+      "tool_version",
+      "cpg",
+      "graph",
+      "query_set",
+      "queries",
+      "findings"
+     ],
+     "top_level_length": 7,
+     "version_key": "version",
+     "version_expected": "2.1.0",
+     "version_observed": null,
+     "version_matches": false,
+     "runs_key": "runs",
+     "runs_observed_type": "null",
+     "runs_is_array": false,
+     "runs_length": null,
+     "is_sarif": false
+    }
    },
    "raw_records": 692,
    "emitted_rows": 107,
@@ -11399,6 +11665,13 @@
     "scan_root": "/opt/spark-src",
     "scan_root_source": "SPARK_SRC"
    },
+   "network_fetch": {
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/joern.status",
+    "status_fields_scanned": 196,
+    "statements": {},
+    "statement_count": 0,
+    "note": "Selected by field name from the runner's own status record, which is carried verbatim in 'runner_status' above; this is that one measurement projected, not a second one. An empty 'statements' means the runner stated nothing about an invocation-time fetch -- which is not the same claim as no fetch having occurred, and is left as the weaker statement on purpose."
+   },
    "tool_words": {
     "streams": {
      "stderr": {
@@ -12085,6 +12358,62 @@
    "present": true,
    "bytes": 2100816,
    "sha256": "6c7bea599e176b73113a6651f937b9aa109c452bc9fd26cdd046a7f1f7f49fe4"
+  },
+  "row_validation": {
+   "rows": 9433,
+   "field_order": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_native",
+    "severity_norm",
+    "path",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate",
+    "in_scope"
+   ],
+   "fields_per_row_required": 12,
+   "rows_with_exactly_twelve_fields": 9433,
+   "required_fields": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_norm",
+    "path",
+    "in_scope"
+   ],
+   "optional_fields": [
+    "cve",
+    "cwe",
+    "package_coordinate",
+    "severity_native",
+    "start_line"
+   ],
+   "rows_with_an_absent_required_field": {},
+   "path_absent": 0,
+   "severity_norm_absent": 0,
+   "absolute_paths": 0,
+   "absence_by_optional_field": {
+    "cve": 9433,
+    "cwe": 8674,
+    "package_coordinate": 9433,
+    "severity_native": 7,
+    "start_line": 3
+   },
+   "passed": true,
+   "violations": [],
+   "violation_count": 0,
+   "method": "one pass over the rows as written, applying this module's own FIELDS, OPTIONAL_FIELDS and _path_violation rules; diagnostic only -- validate_rows had already refused any row that failed them",
+   "asserts": [
+    "every emitted row carries exactly the twelve fields, in FIELDS order",
+    "path and severity_norm are never absent",
+    "absence appears only in severity_native, start_line, cwe, cve and package_coordinate",
+    "no emitted path is absolute, a URI, or otherwise not relative to the SPARK_SRC root"
+   ]
   },
   "row_order": "Artifacts in normalize.shape.CANONICAL_TOOLS order; within an artifact, the order its adapter returned, which is document order. Both files carry that one sequence, so two runs over identical artifacts produce byte-identical files.",
   "absence_convention": "JSON null and an empty CSV field, permitted for severity_native, start_line, cwe, cve and package_coordinate only; path and severity_norm are never absent."
