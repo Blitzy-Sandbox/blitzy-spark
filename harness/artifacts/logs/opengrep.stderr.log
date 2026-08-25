@@ -28,4 +28,4 @@ Some files were skipped or only partially analyzed.
   Scan was limited to files tracked by git.
   Partially scanned: 46 files only partially analyzed due to parsing or internal Opengrep errors
 
-Ran 1138 rules on 4095 files: 1239 findings.
+Ran 1138 rules on 4095 files: 1322 findings.

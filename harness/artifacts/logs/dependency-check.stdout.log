@@ -507,8 +507,16 @@ PHASE 5 - WHAT OTHER FILES MUST AGREE WITH
         dependency-check.status, artifact_bytes     : 17097
         wc -c harness/artifacts/raw/dependency-check.json : 17097
 
-  sha256 of the artifact : 6b1f18604146bf4e51c8699ab5df9c419a2e915a26681fc2e77f6a6946af7292
-  Report date inside it  : 2026-08-24T22:39:15.634757586Z
+  sha256 of the artifact : ebe98aed11973718591f8c7490eedde86f97bf4fb2047a059e499be50e02c3b9
+  Report date inside it  : 2026-08-25T00:53:00.948138152Z
+  Superseded figures     : sha256 6b1f18604146bf4e51c8699ab5df9c419a2e915a26681fc2e77f6a6946af7292
+                           with reportDate 2026-08-24T22:39:15.634757586Z,
+                           measured over the report copy this invocation wrote in its own clone.
+                           That copy is not the file this repository carries. The committed artifact
+                           differs in projectInfo.reportDate alone - same 17097 bytes, same engine
+                           version 13.0.0, same project name, same four dataSource timestamps, same
+                           32 dependency records and the same 0 vulnerabilities - so the byte count
+                           above is unchanged and the digest is not.
 
   AGREEMENT WITH dependency-check.status (AAP 0.6.4 requires these to match):
 
@@ -915,7 +923,10 @@ APPENDIX H - MEASUREMENT PROVENANCE
     the runner's text                  APPENDIX F, and the file itself
     the artifact                       harness/artifacts/raw/dependency-check.json
                                        17097 bytes, sha256
-                                       6b1f18604146bf4e51c8699ab5df9c419a2e915a26681fc2e77f6a6946af7292
+                                       ebe98aed11973718591f8c7490eedde86f97bf4fb2047a059e499be50e02c3b9
+                                       (superseded: 6b1f18604146bf4e51c8699ab5df9c419a2e915a26681fc2e77f6a6946af7292,
+                                       the copy written in this invocation's own clone, differing in
+                                       projectInfo.reportDate alone)
     the status file                    harness/artifacts/logs/dependency-check.status
                                        261 bytes, sha256 86406a7e596b496f48f71cf773a0bd8e6c8bbb425a838b94ba4e62e76df935bc
     the runner metadata                harness/artifacts/logs/runner-metadata.json
