@@ -198,7 +198,8 @@ documented rather than incidental:
 4. the path -> ``absent_path``, ``unresolvable_path`` or ``malformed_record``, as
    ``paths.py`` classifies it;
 5. a ``file_line_range`` that is present but not usable -> ``malformed_record`` for
-   a non-array, ``non_integer_start_line`` for an unusable first element.
+   a non-array or for an array carrying no first element, ``non_integer_start_line``
+   for a first element that is present and unusable.
 
 Severity, ``cwe``/``cve``, ``package_coordinate`` and ``in_scope`` never reject:
 each has a defined value for every input, so a record reaching step 5 becomes a row.
@@ -858,15 +859,26 @@ def _start_line(check: Mapping[str, Any]) -> tuple[int | None, tuple[str, str] |
     """Return ``file_line_range[0]`` as the line to emit, or the rejection it earns.
 
     AAP 0.5.4: ``start_line`` <- ``file_line_range[0]``.  Absence is permitted for
-    that field (AAP 0.8.2), so an absent range, an empty range and an explicitly null
-    first element all yield ``None`` with no rejection -- JSON ``null`` is this
-    dataset's absence convention, and reading one as a defect would reject a record
-    for using it.
+    that field (AAP 0.8.2), so an absent range and an explicitly null first element
+    both yield ``None`` with no rejection -- JSON ``null`` is this dataset's absence
+    convention, and reading one as a defect would reject a record for using it.
 
-    A ``file_line_range`` that is present but is **not an array** is structurally
-    wrong rather than an absence, so it is ``malformed_record``: silently treating it
-    as "no line information" would drop the line of every record in a malformed
-    artifact without a trace.
+    Two shapes are structurally wrong rather than absent, and both are
+    ``malformed_record``.  A ``file_line_range`` that is present but is **not an
+    array** is the first: silently treating it as "no line information" would drop the
+    line of every record in a malformed artifact without a trace.  An **empty array**
+    is the second, and it is the one shape where the natural reading
+    ``check["file_line_range"][0]`` *raises* rather than returning something wrong.
+    Checkov's contract for the field is a two-element ``[start, end]``, which an empty
+    array does not satisfy, so neither available alternative is acceptable: letting
+    the ``IndexError`` escape would discard every later check in the artifact, and
+    returning ``None`` would make a record whose line information is present but
+    unusable indistinguishable from one that legitimately states no line at all --
+    which is precisely the distinction
+    ``oss-scan-results/adapter-tests/fixtures/reject-checkov-non-integer-start-line.json``
+    exists to assert, since it carries both shapes side by side.  It is therefore
+    counted under a named class, exactly as ``sarif.py`` counts a ``region`` that is
+    present but not an object: a structurally wrong container is not an absence.
 
     A first element that is present and not usable as a line number is the
     ``non_integer_start_line`` rejection condition.  Three shapes reach it, each named
@@ -887,7 +899,11 @@ def _start_line(check: Mapping[str, Any]) -> tuple[int | None, tuple[str, str] |
             f"{_type_name(raw_range)}, not an array",
         )
     if len(raw_range) == 0:
-        return None, None
+        return None, (
+            paths.REJECT_MALFORMED_RECORD,
+            f"the failed check's {FILE_LINE_RANGE_FIELD} is an empty array, so it "
+            "carries no first element to read a line number from",
+        )
     raw = raw_range[0]
     if raw is None:
         return None, None

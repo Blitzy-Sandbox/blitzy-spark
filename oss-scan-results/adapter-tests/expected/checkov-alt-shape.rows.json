@@ -108,7 +108,7 @@
     "path_kind": "tree_file",
     "path_resolution_is_shape_independent": "Resolution reads the record and the recorded path base, and neither depends on which report object the record sat in or on that report's check_type. That is why the paths below are the object form's paths unchanged: the same records, resolved by the same rule.",
     "severity_source": "the record's own severity field, which is null on every failed check because severities require a licence and BC_API_KEY is deliberately absent. severity.resolve then states the absence rather than assuming a level: severity_native null, severity_norm Info, basis no_vocabulary. No CVSS score is consulted -- a misconfiguration carries none, and AAP 0.5.4's checkov row names severity and nothing else.",
-    "start_line_source": "file_line_range[0], as an integer. An absent range, an empty range or an explicitly null first element would yield null with no rejection, since absence is permitted for that field; a present-but-not-an-array range would be malformed_record and an unusable first element non_integer_start_line.",
+    "start_line_source": "file_line_range[0], as an integer. An absent range or an explicitly null first element would yield null with no rejection, since absence is permitted for that field; a range that is present but not an array, and one that is an array carrying no first element, would each be malformed_record, and an unusable first element non_integer_start_line.",
     "cwe_and_cve_source": "the closed field set guideline, description, short_description, bc_category, benchmarks, details, vulnerability_details. Every one of them is null or an empty array on every record here, so no CWE or CVE token exists to collect and both fields are null on every row. check_name is deliberately outside that set: it is the row's message, and harvesting an identifier out of a message would put a weakness reference in the dataset that the record never made as a reference.",
     "package_coordinate": "null on every row. A misconfiguration names a location in a configuration file rather than a package, so no coordinate can be formed -- and that absence is not a rejection: AAP 0.5.4 attaches unformable_package_coordinate to a dependency-oriented record, which this is not."
   },
@@ -593,9 +593,9 @@
       "cover_with": "a derived fixture whose guideline or description carries more than one identifier, listed out of numeric order"
     },
     {
-      "behaviour": "an absent start_line -- an absent range, an empty range or an explicitly null first element, each permitted and none a rejection",
+      "behaviour": "an absent start_line -- an absent range or an explicitly null first element, each permitted and neither a rejection",
       "why_absent": "every record here carries a usable two-element file_line_range, so start_line_absent is 0",
-      "cover_with": "a derived fixture omitting file_line_range, distinct from reject-checkov-non-integer-start-line.json which covers the unusable-value case"
+      "cover_with": "oss-scan-results/adapter-tests/fixtures/reject-checkov-non-integer-start-line.json, whose /results/failed_checks/5 omits file_line_range entirely and is expected as a row with start_line null, beside that fixture's four records whose line information is present but unusable"
     },
     {
       "behaviour": "a kept row with in_scope false, and the non-filesystem coordinate serialization",

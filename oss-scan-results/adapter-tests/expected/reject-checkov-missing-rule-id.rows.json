@@ -1,0 +1,566 @@
+{
+  "description": "The hand-verified expected result for the negative Checkov fixture whose failed checks include one carrying no usable rule identifier. Every value was derived by reading the fixture, the recorded runner metadata and the authored contracts in harness/lib/normalize/, and every anchor fact was checked against the pinned tree at 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d -- never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/checkov.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. Its subject is narrower than the fixture's contents suggest, and deliberately so: the fixture carries the same defect twice, once in results.failed_checks[] and once in results.passed_checks[], and the whole of this file's sharpness is that the first is a counted rejection and the second is nothing at all.",
+  "tool": "checkov",
+  "scanner_class": "misconfig",
+  "scanner_class_note": "Fixed for this tool by AAP 0.5.4's class table and carried unchanged on every row. It does not vary with check_type, with the reporting framework or with record content; trivy is the single tool whose class is decided per record, from the section the record was read from. A rejected record carries no scanner_class at all, because it produces no row.",
+  "adapter": "harness/lib/normalize/adapters/checkov.py",
+  "fixture": {
+    "path": "oss-scan-results/adapter-tests/fixtures/reject-checkov-missing-rule-id.json",
+    "sha256": "1a511c7e7fb1d15e28a31d0915bd9bffe7a2db933558814e4fc3cebe649ab7d5",
+    "bytes": 11021,
+    "top_level_form": "object",
+    "top_level_form_note": "A single report object -- the form a Checkov artifact takes when one framework reports. The multi-framework array form is covered by oss-scan-results/adapter-tests/fixtures/checkov-alt-shape.json and is not re-covered here: this fixture's subject is the rule identifier, and testing one thing at a time is what makes a failure attributable.",
+    "check_type": "dockerfile",
+    "failed_checks": 3,
+    "passed_checks": 2,
+    "skipped_checks": 1,
+    "parsing_errors": 1,
+    "summary_as_reported": {
+      "passed": 2,
+      "failed": 3,
+      "skipped": 1,
+      "parsing_errors": 1,
+      "resource_count": 3,
+      "checkov_version": "3.3.12"
+    },
+    "summary_note": "The report's own summary object, quoted as the fixture carries it. It is never used as the record count: the count unit below is the one normalize.reconcile.count_records walks independently of row construction. It happens to agree with that count here, and agreement is not the same as authority -- note in particular that summary.failed is 3 and the emitted row count is 2, so a reader who took the summary for the row count would be wrong by exactly the rejection.",
+    "derived_from": "oss-scan-results/adapter-tests/fixtures/checkov.json, itself an excerpt of harness/artifacts/raw/checkov.json (sha256 d5e4492ac799875f6cf14c187f9130bc2ad3f8060c320e757c127dfd1fda98fc, 8380 bytes, 6 failed checks)",
+    "derivation": "A negative fixture is derived from the captured one rather than being an excerpt of it, so the provenance is stated as a derivation. Two of the three failed checks are unmodified captured output: /results/failed_checks/0 is byte-identical to the raw artifact's failed_checks[5] and to the positive fixture's failed_checks[4], and /results/failed_checks/2 is byte-identical to the raw artifact's failed_checks[0] and the positive fixture's failed_checks[0]. The third is the synthesized defective record, derived from a captured record by emptying one field and changing nothing else.",
+    "captured_provenance": "Established by canonical-JSON comparison of every field of every record, not by eye. /results/failed_checks/1 agrees with the raw artifact's failed_checks[4] on 27 of its 28 fields, differing only in check_id -- the captured CKV_DOCKER_9 replaced by the empty string. So the sole defect is the record's identifier: check_name, severity, file_path, repo_file_path, file_abs_path, file_line_range, check_result, resource, check_class and every other field are the tool's own output, verbatim. That isolation is the point: a fixture that changed a second field could not attribute the rejection to the identifier.",
+    "authored_sections_note": "The raw artifact was written under --skip-download --quiet --compact, which leaves passed_checks, skipped_checks and parsing_errors null in it, so those three buckets are authored rather than captured -- the positive sibling's fixture block states the same of its own. Here /results/passed_checks/0 and /results/skipped_checks/0 are byte-identical to the positive fixture's authored passed_checks[0] and skipped_checks[0], the parsing_errors entry is identical to its single entry, and /results/passed_checks/1 is the positive fixture's passed_checks[1] -- CKV_DOCKER_8, 'Ensure the last USER is not root' -- with its check_id emptied and nothing else touched. That second-order derivation is the whole reason this fixture is sharper than a one-record negative: see failures_only below.",
+    "sha256_purpose": "The recorded digest is what makes a later edit to the fixture visible. These expectations are re-derived when the fixture changes, never adjusted to keep a test green."
+  },
+  "routing": {
+    "shape": "checkov native",
+    "detected_by": "normalize.shape -- this artifact is not SARIF and routes to the native adapter keyed by the runner that wrote it. It carries no version of \"2.1.0\" and no runs array, which together are the whole of the SARIF test.",
+    "adapter_module": "normalize.adapters.checkov",
+    "routing_decision": "normalize.shape.route(\"checkov\", doc) returns tool \"checkov\", shape \"checkov\", adapter \"checkov\", scanner_class \"misconfig\"",
+    "routes_successfully": true,
+    "rejection_is_record_level": true,
+    "not_a_shape_failure": "No shape failure is expected here, and a test asserting one against this fixture would be asserting the wrong thing. The enclosing document is a well-formed Checkov report in its object form and routes cleanly; one record inside it is defective, and the adapter rejects that one while still emitting the others. The fixtures that own shape-detection failure are near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json.",
+    "negative_routing_test": "The mandated negative routing assertion -- that a native artifact must not route to the SARIF adapter -- belongs to test_shape_routing_negative.py. This fixture is eligible material for it, being native, but the assertion is that file's and is not restated here."
+  },
+  "field_order": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_native",
+    "severity_norm",
+    "path",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate",
+    "in_scope"
+  ],
+  "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant, of which harness/lib/normalize/adapters/checkov.py carries the authored copy AAP 0.6.4's import restriction requires. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+  "absence_permitted_fields": [
+    "severity_native",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate"
+  ],
+  "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS -- so a record with no usable rule identifier is rejected and counted rather than emitted with a null or empty rule_id.",
+  "severity_norm_vocabulary": [
+    "Critical",
+    "High",
+    "Medium",
+    "Low",
+    "Info"
+  ],
+  "allowlist": {
+    "path": "harness/scope/allowlist.txt",
+    "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+    "globs": 12,
+    "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under row_derivations. That the runner also reads the allowlist to build its 18 -d target roots is a fact about its reach, not about this field."
+  },
+  "resolution_context": {
+    "worked_example": "AAP 0.5.3's first user example, carried in unchanged. Checkov's file_path is relative to the scan target and carries a leading slash, alongside file_abs_path holding the filesystem-absolute path and repo_file_path a root-relative path that also carries a leading slash. The expected path is the leading slash stripped and the remainder treated as root-relative, reconciled against the absolute file_abs_path the same record carries. Both surviving rows here are the consistent case, and both are corroborated against the positive sibling: this fixture's subject is the identifier, not the path.",
+    "path_base_kind": "per_target_directory",
+    "path_base_source": "harness/artifacts/logs/runner-metadata.json, the checkov entry's path_base -- read as input, never assumed",
+    "runner_invocation": "one checkov invocation carrying 18 root-relative -d target roots, recorded at runner-metadata.json tools.checkov.invocation_form (harness/bin/run-checkov.sh lines 34-35 and 46-49). This is the fact that makes file_path ambiguous on its own, and therefore the fact that makes an anchor field load-bearing rather than a convenience.",
+    "anchor_fields": [
+      "repo_file_path",
+      "file_abs_path"
+    ],
+    "anchor_used": "repo_file_path on both rows; the rejected record also carries both anchors intact and neither is ever read",
+    "anchor_rule": "repo_file_path is root-relative and carries a leading slash, so exactly one slash is stripped and the remainder is the row's path. file_abs_path is filesystem-absolute and is relativized to the scan root. The branch is chosen by which field it is, never by whether the value looks absolute -- which is the whole of the worked example, since repo_file_path looks filesystem-absolute while not being it.",
+    "file_path_role": "corroboration only. Under per_target_directory the slash-stripped file_path is relative to whichever -d root matched, so it corroborates by being a suffix of the anchored path -- and it is, on both rows. A disagreement is recorded rather than resolved and never suppresses a row.",
+    "why_file_path_alone_is_wrong": "Stripping the slash off file_path and joining the remainder to the tree root names dockerfiles/spark/Dockerfile, a directory that does not exist at the root and which matches no allowlist glob, so every row would silently take in_scope false. Reading the same value as filesystem-absolute is the failure the worked example warns about: it relativizes to a long ../ chain, with nothing crashing. No expected path in this file begins with / or contains a ../ segment.",
+    "scan_root": "/opt/spark-src",
+    "scan_root_source": "harness/artifacts/logs/runner-metadata.json, spark_src and the checkov entry's resolved_scan_root",
+    "root_independence": "Both rows hold for whatever absolute scan root the adapter is given: each path comes from repo_file_path, which is already root-relative and needs no root to resolve. No row carries an absolute path in any field. The absolute values that appear in this file are quoted evidence rather than emitted data -- the recorded scan root, each record's own anchor values under row_derivations, the parsing-error entry Checkov reported verbatim -- and none of them reaches a row. The rejection is root-independent for a stronger reason: it is decided at step 2, before any path is examined, so no choice of root could change it.",
+    "path_basis": "checkov-repo-file-path",
+    "path_kind": "tree_file",
+    "severity_source": "the record's own severity field, which is null on every failed check because severities require a licence and BC_API_KEY is deliberately absent. severity.resolve then states the absence rather than assuming a level: severity_native null, severity_norm Info, basis no_vocabulary. No CVSS score is consulted -- a misconfiguration carries none, and AAP 0.5.4's checkov row names severity and nothing else.",
+    "start_line_source": "file_line_range[0], as an integer. The rejected record also carries a usable file_line_range of [36, 48], and it is never read: start_line is step 5 of the classification order and the identifier is step 2.",
+    "cwe_and_cve_source": "the closed field set guideline, description, short_description, bc_category, benchmarks, details, vulnerability_details. Every one of them is null or an empty array on every record here, so no CWE or CVE token exists to collect and both fields are null on both rows. check_name is deliberately outside that set: it is the row's message, and harvesting an identifier out of a message would put a weakness reference in the dataset that the record never made as a reference.",
+    "package_coordinate": "null on both rows. A misconfiguration names a location in a configuration file rather than a package, so no coordinate can be formed -- and that absence is not a rejection: AAP 0.5.4 attaches unformable_package_coordinate to a dependency-oriented record, which this is not."
+  },
+  "single_identifier_route": {
+    "statement": "Checkov offers exactly one route to a finding's rule identifier -- the record's own check_id -- so removing or emptying that key is both sufficient and complete as an expression of the missing-identifier condition. There is no index, no table and no second lookup to defeat.",
+    "authority": "harness/lib/normalize/adapters/checkov.py: _rule_id reads check.get(CHECK_ID_FIELD) once, where CHECK_ID_FIELD is the literal check_id, and no other read of an identifier exists anywhere in the module.",
+    "bc_check_id_is_not_a_fallback": "The record carries a second identifier field, bc_check_id, and it is deliberately not a route. AAP 0.5.4 names check_id as the source of rule_id, and emitting another field's identifier under the same column would make the dataset's rule_id two things at once. _rule_id reads bc_check_id only to make the rejection's detail more useful -- 'the record has an identifier, just not that one' -- and on this fixture it is null on every record, so the detail does not mention it at all.",
+    "contrast_with_sarif": "The SARIF adapter has two routes and a resolution step between them: a result's own ruleId, and an index into runs[].tool.driver.rules[] by ruleIndex where the ruleId is absent. Its missing-identifier fixture must defeat both routes at once. That is a statement about the shape of two artifacts and the code that reads them, not about what either tool found -- no comparison of tools is made anywhere in this file.",
+    "no_synthesis_permitted": "No identifier may be synthesised from any other key. check_name is the message source and nothing else; resource is a Checkov-internal <file>.<instruction> composite; check_class names the Python class that ran the check; file_path, repo_file_path and file_abs_path are path sources. A rule id assembled from any of them would be a value the tool never stated, which AAP 0.5.4's 'reject rather than infer' forbids -- and the rejection is precisely what keeps the record visible instead.",
+    "no_synthesis_is_checkable": "Mechanically, and with one trap a naive test falls into. Per row, the identifier occurs as a substring of none of that record's own check_name, bc_check_id, resource, file_path, repo_file_path or file_abs_path -- checked for both rows -- so a per-row substring test would catch an adapter that had derived an identifier from any of them. The trap: the string CKV_DOCKER_9 does appear in the rows array, at row 1, and the defective record's captured original identifier was also CKV_DOCKER_9. A test asserting merely that the rejected record's true identifier is absent from the dataset would therefore fail against a correct adapter. What holds instead, and what a test must assert, is that the rows array has exactly two elements, that neither is the record at check_index 1, and that each row's identifier came from its own record's check_id."
+  },
+  "empty_identifier_subtlety": {
+    "statement": "The subtlety this condition carries is whether an identifier that is present but empty counts as present. It does not. That is why the empty-string variant is a real case rather than a redundant restatement of the absent-key variant.",
+    "why_a_loose_check_gets_it_wrong": "A membership test ('check_id' in check) or a not-None test reports the key as present for the empty string and lets the record through as a row whose rule_id is ''. emit.py then refuses it, because rule_id is in emit.REQUIRED_FIELDS and an empty required field would make the CSV round trip lossy -- an empty cell means null. So a loose check turns a record that should have been counted under a named class into either a raised write or, worse, a row asserting a rule that has no name.",
+    "how_the_adapter_gets_it_right": "_rule_id resolves the value through _non_empty_string, which strips and treats an empty or all-whitespace result as the absence it is, and every branch of the failure returns paths.REJECT_MISSING_RULE_ID. The three branches differ only in their sub-reason: an absent key reads 'the failed check carries no check_id', a present-but-empty or whitespace-only string reads 'the failed check's check_id is empty or whitespace only', and a non-string value reads 'the failed check's check_id is a <type>, not a string'.",
+    "a_non_string_check_id_is_this_class_too": "Worth stating because it differs from the sibling adapters and a reader may generalise wrongly. In adapters/gitleaks.py a non-string identifier is malformed_record; here it is missing_rule_id with its type named, and malformed_record is reserved for step 1 -- the failed_checks element itself not being a JSON object. So for this adapter every defect of the identifier field lands in one class, and only the detail distinguishes the three forms.",
+    "variants_present_in_this_fixture": {
+      "empty_string": {
+        "present": true,
+        "pointer": "/results/failed_checks/1",
+        "expected_outcome": "one rejection under missing_rule_id, with the detail naming the value as empty or whitespace only"
+      },
+      "absent_key": {
+        "present": false,
+        "pointer": null,
+        "expected_outcome": "one rejection under the same class, missing_rule_id, with the detail naming the key as absent. No record here exercises it, so this file asserts nothing about it; the statement is here because the condition's name covers both forms and a reader must not infer from its absence that the absent-key form would be classified differently."
+      },
+      "all_whitespace_string": {
+        "present": false,
+        "pointer": null,
+        "expected_outcome": "the same rejection as the empty string, because _non_empty_string strips before testing. Not exercised here either."
+      }
+    },
+    "why_it_is_a_rejection_and_not_a_null_field": "rule_id is not among the five fields AAP 0.8.2 permits absent -- those are exactly severity_native, start_line, cwe, cve and package_coordinate, which emit.OPTIONAL_FIELDS carries verbatim. A record with no usable identifier therefore has no valid row representation at all, so counting it under a named class is the only outcome that neither drops the record nor invents an identifier for it."
+  },
+  "attribution": {
+    "statement": "The rejection is attributable to the identifier alone. /results/failed_checks/1 is otherwise entirely well-formed: it is a JSON object, its check_name is a non-empty rule description, its file_path carries the correct leading slash and its repo_file_path and file_abs_path agree with each other, and its file_line_range is [36, 48], both endpoints inside the 71-line file it names.",
+    "control_record": "/results/failed_checks/1 against the raw artifact's failed_checks[4]",
+    "control_evidence": "The two were compared key by key and differ in exactly one of the 28: check_id, the empty string against CKV_DOCKER_9. Every other key is equal -- check_name, severity, all three path fields, file_line_range, check_result, resource and check_class included. So the fixture contains its own control: the same record with a usable identifier is a row in the committed dataset, at oss-scan-results/findings.json for resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile at start_line 36, and the only difference between the two outcomes is the identifier.",
+    "no_other_condition_is_in_play": "None of the adapter's other rejection classes could claim this record. It is a JSON object, so not malformed_record; its check_name is non-empty, so not missing_message; it carries both anchor fields and they reconcile, so neither absent_path nor unresolvable_path; and its file_line_range[0] is the integer 36, so not non_integer_start_line.",
+    "later_steps_are_never_reached": "The identifier is step 2 of the adapter's fixed five-step classification order -- shape, rule identifier, message, path, start_line. Rejecting at step 2 means this record's check_name is never read as a message, its caller_file_path is never tested for a second location, its path fields are never resolved, its file_line_range is never examined and no severity result is ever built for it. Several counter values below follow from that and are not miscounts: see counters_note.",
+    "the_same_defect_appears_twice_in_this_fixture": "And the second instance is the reason this file exists in the form it does. /results/passed_checks/1 carries an emptied check_id too, and it must produce neither a row nor a rejection. failures_only states both zeros and the reasoning; attribution of the single rejection to the single defective failed check is what makes the rejection total exactly 1."
+  },
+  "rejection_boundary": {
+    "statement": "A missing rule identifier is a rejection. It is not a row with a null rule_id, not a row with a substituted identifier, and not a dropped record. The three alternatives each hide the record or assert something the tool did not state; counting it under a named class keeps it visible and keeps the arithmetic honest.",
+    "why_it_can_only_be_a_rejection": "rule_id is one of emit.REQUIRED_FIELDS, and emit.OPTIONAL_FIELDS is exactly severity_native, start_line, cwe, cve and package_coordinate. emit.validate_rows refuses an empty or null required field rather than writing one, so there is no valid twelve-field row for a record with no usable identifier -- and an empty cell in findings.csv means null, so even writing '' would not round trip.",
+    "the_defect_is_only_visible_in_one_bucket": "This is the reasoning that makes the rejection count correct rather than merely defensible. The same emptied check_id sits on a failed check and on a passed check. Only the failed check is a finding, so only it can be a rejection: a rejection is a record the adapter could not represent in the dataset, and a passed check was never destined for the dataset at all. Counting the passed check would put a second entry on the right-hand side of raw finding records = dataset rows + rejected records while normalize.reconcile.count_records, which walks results.failed_checks[] and nothing else, still returned 3 on the left. The identity would break for a record that was never a finding.",
+    "not_a_rejection": [
+      {
+        "case": "a rule identifier that is present, non-empty and unrecognised -- a check_id no Checkov policy bundled with 3.3.12 defines",
+        "expected": "a kept row carrying that identifier verbatim",
+        "evidence": "The adapter validates the identifier's presence and type, never its membership in any policy list. Judging whether a rule exists or matters is outside this dataset (AAP 0.3.2), and both surviving rows carry their identifiers exactly as the tool wrote them.",
+        "present_in_this_fixture": false
+      },
+      {
+        "case": "a record whose bc_check_id is present while its check_id is missing",
+        "expected": "the same rejection under the same class, with bc_check_id named in the detail and never substituted",
+        "evidence": "_rule_id appends the alternate identifier to the reason precisely so a reader of tool-status.md can see that the record had an identifier of another kind. bc_check_id is null on every record in this fixture, so the detail below carries no such clause.",
+        "present_in_this_fixture": false
+      },
+      {
+        "case": "a record whose path resolves outside the twelve authoritative globs",
+        "expected": "a kept row with in_scope false, counted under rows_out_of_scope",
+        "evidence": "Out of scope means kept and marked, never rejected (AAP 0.9.3). Both paths here fall inside resource-managers/kubernetes/**/src/main/**, so rows_out_of_scope is 0.",
+        "present_in_this_fixture": false
+      },
+      {
+        "case": "a record with no file_line_range at all, an empty one, or one whose first element is null",
+        "expected": "a kept row with start_line null, counted under start_line_absent",
+        "evidence": "start_line is one of the five fields absence is permitted for. Only a first element that is present and unusable is the non_integer_start_line condition, which reject-checkov-non-integer-start-line.json owns.",
+        "present_in_this_fixture": false
+      },
+      {
+        "case": "a passed check, a skipped check or a parsing error",
+        "expected": "no row and no rejection",
+        "evidence": "See failures_only. This fixture is the one place where that expectation has teeth, because one of its passed checks carries the very defect the failed bucket is being rejected for.",
+        "present_in_this_fixture": true
+      }
+    ],
+    "no_guessed_identifier": "The rejected record is rejected and counted, never given an identifier. Nothing in this file supplies one for it, not even the CKV_DOCKER_9 the captured original carried and not the bc_check_id route the adapter deliberately refuses.",
+    "no_guessed_row": "It contributes no row, no field of any kind, no severity literal and no counter. Its perfectly good check_name, path pair and file_line_range appear in this file only as evidence that the attribution is sound -- never as values something might emit."
+  },
+  "failures_only": {
+    "emitted_section": "results.failed_checks[]",
+    "count_unit": "one element of results.failed_checks[], the union across every report object in either top-level shape",
+    "passed_checks_present": 2,
+    "passed_checks_expected_rows": 0,
+    "passed_checks_expected_rejections": 0,
+    "passed_checks_ids": [
+      "CKV_DOCKER_3",
+      ""
+    ],
+    "passed_checks_note": "Neither counted nor emitted, and neither may appear anywhere in the rows array. Both pass on resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile because line 71 of that file is USER ${spark_uid} -- the last instruction, and not root. They are observable only through the passed_checks_observed counter, which is what makes produced-no-row an observation rather than a claim.",
+    "the_defective_passed_check": {
+      "pointer": "/results/passed_checks/1",
+      "check_id": "the empty string",
+      "check_name": "Ensure the last USER is not root",
+      "check_class": "checkov.dockerfile.checks.RootUser",
+      "captured_original": "the positive fixture's passed_checks[1], CKV_DOCKER_8, with its check_id emptied and nothing else changed",
+      "expected_rows": 0,
+      "expected_rejections": 0,
+      "both_zeros_stated_explicitly": "It produces NEITHER a row NOR a rejection. Not a row, because it is not a finding: the adapter reads results.failed_checks[] and no other bucket. Not a rejection either, because a rejection is a finding the adapter could not represent, and this record was never a candidate for representation -- the bucket decides that, before any field of it is read. Its emptied check_id is never examined, which is why the rejection total is 1 rather than 2.",
+      "why_it_is_the_sharpest_record_in_the_fixture": "A passed check with an intact identifier proves nothing about bucket discipline: an adapter that read every bucket and filtered afterwards would still produce the right rows for it. This one is different. Whichever way a bucket-blind adapter is written, it produces a visibly wrong number, and each wrong number names its own defect."
+    },
+    "why_only_a_failures_only_adapter_satisfies_both_assertions": {
+      "structural_identity": "results.passed_checks[] and results.failed_checks[] are structurally identical. The defective passed check and the defective failed check were compared key by key: both carry the same 28 keys, and they differ in only five values -- check_class, check_name, check_result, file_line_range and resource. Nothing in a record's shape says which bucket it came from; only check_result.result carries the words PASSED and FAILED, and it is nested one level down.",
+      "failure_mode_one_wrong_array": "An adapter iterating passed_checks instead of failed_checks would emit a plausible dataset of non-findings -- correctly shaped twelve-field rows, correct paths, correct severities, describing checks that passed. That is the failure this fixture is built to catch, and it is caught by the row count and the identifiers: rows would be 1 and 2 rather than 2, and CKV_DOCKER_3 would appear in the rows array.",
+      "failure_mode_both_arrays_then_filter": "An adapter iterating both buckets and filtering on check_result.result afterwards would reach the passed check's emptied check_id at step 2 -- before it ever read check_result -- and reject it. Rejections would be 2, rejections_by_class would read {missing_rule_id: 2}, and the reconciliation identity would fail as 3 != 2 + 2. That is a visibly wrong rejection count rather than a silently wrong dataset, which is why this fixture asserts the total and not merely the class.",
+      "hence": "The rejection total must be exactly 1, and rejections_by_class exactly {missing_rule_id: 1}. Both failure modes are excluded by that one number together with the row count, and neither could be excluded by a fixture whose passed checks were all well-formed."
+    },
+    "skipped_checks_present": 1,
+    "skipped_checks_expected_rows": 0,
+    "skipped_checks_expected_rejections": 0,
+    "skipped_checks_note": "Neither counted nor emitted, exactly as passed checks are not. The one entry is CKV_DOCKER_9 on bindings/R/Dockerfile at file_line_range [34, 37] carrying a suppress_comment, and it must produce no row even though the same check_id on bindings/python/Dockerfile does produce row 1 -- the bucket decides that, never the check_id. It is also a second reason the rows array must be asserted by content and not only by length.",
+    "parsing_errors_present": 1,
+    "parsing_errors_expected_rows": 0,
+    "parsing_errors_expected_rejections": 0,
+    "parsing_errors_entries": [
+      "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/entrypoint.sh"
+    ],
+    "parsing_errors_note": "Status evidence for oss-scan-results/tool-status.md, carried verbatim, and neither a finding nor a rejection. The distinction matters more in this fixture than in the positive one, because this document does contain a rejection: a reader could reasonably expect the parsing error to join it. It must not. A rejection describes a failed check this adapter could not attribute; a parsing error is the tool's report about a file it never turned into a check, and it is not one of the counted failed checks. Counting it would make rejections 2 while the independent traversal still returned 3, breaking the identity for something that was never a finding. The named file exists at the pin: it is a shell script the dockerfile framework does not parse.",
+    "vacuity_note": "The six zero expectations above are why this fixture carries non-empty passed_checks, skipped_checks and parsing_errors at all, and why one of the passed checks is defective. Against an artifact whose buckets were empty -- which is what the raw artifact's --compact output is -- the failures-only contract would be satisfied by an adapter that read every bucket, and the assertion would prove nothing."
+  },
+  "counts": {
+    "raw_finding_records": 3,
+    "raw_count_unit": "one element of results.failed_checks[] -- the unit normalize.reconcile.count_records walks independently of row construction",
+    "raw_count_authority": "normalize.reconcile.count_records(\"checkov\", doc), whose traversal reduces both top-level shapes to a sequence of report objects and sums the length of each results.failed_checks array, building no row, resolving no path and mapping no severity. It reads reconcile.CHECKOV_COUNTED_SECTION -- the literal failed_checks -- and nothing else, so passed_checks, skipped_checks and parsing_errors contribute zero by construction. It is the independent half of the identity: a count taken from the traversal that builds the rows would satisfy the assertion while testing nothing. Here it is 3 whatever the adapter does with the three elements, the defective one included, because it counts elements rather than findings it can read.",
+    "rows": 2,
+    "rejections": 1,
+    "rejections_by_class": {
+      "missing_rule_id": 1
+    },
+    "rejection_class_count": 1,
+    "reconciliation_identity": "raw_finding_records == rows + rejections",
+    "reconciliation_arithmetic": "3 == 2 + 1",
+    "reconciliation_holds": true,
+    "reconciliation_status_expected": "pass",
+    "reconciliation_status_authority": "normalize.reconcile, STATUS_PASS = \"pass\". Its STATUS_NOT_APPLICABLE and the verdict reconcile.NOT_APPLICABLE_ABSENT are for a tool that wrote no artifact and are not in play here: this artifact exists and carries records.",
+    "row_count_is_the_union_minus_one": "2 is len(results.failed_checks) minus the single rejected record, which is the arithmetic the brief states. Two passed checks, one skipped check and one parsing error sit in the same document, and any one of them leaking in would make this 3, 4, 5 or 6; a rejected record silently coerced into a row would make it 3 with the identity still balancing -- which is why the rejections array below is asserted by class and detail rather than by count alone.",
+    "every_failed_check_yields_exactly_one_outcome": "One row or one rejection per element, never both and never neither. _adapt_failed_check returns a single value of one of the two types, so the property is structural rather than asserted. Two elements carry a non-empty check_id and check_name, a reconcilable anchor pair and a usable file_line_range, and become rows; the third is rejected at step 2.",
+    "row_order": "fixture order, preserved -- elements /results/failed_checks/0 and /results/failed_checks/2 become rows 0 and 1. Both output files use this order and emit.py compares them ordered row by row, so an expected file in any other order would assert something the pipeline does not promise. A rejected element consumes no row index: element /2 is row 1, not row 2.",
+    "four_reported_counters": {
+      "authority": "AAP 0.5.4 -- the four counts reported per tool",
+      "names": [
+        "multi_location_records",
+        "multi_valued_cwe_records",
+        "multi_valued_cve_records",
+        "non_filesystem_paths"
+      ],
+      "values_live_in": "counters",
+      "all_four_are_zero_for_this_fixture": true,
+      "note": "Named here rather than restated with their values. The counters block below is the single measurement, and a number carried twice inside one document is a number that can drift; counters_note gives the reason each of the four is zero."
+    },
+    "parse_status": "partial",
+    "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = \"partial\", assigned as partial where there are rejections and clean where there are none. Partial is right precisely because the adapter did not abandon the artifact: every parsable record was emitted and the one rejected record is counted under its class with its sub-reason retained. This is deliberately not normalize.reconcile's STATUS_PASS / STATUS_FAIL / STATUS_NOT_APPLICABLE vocabulary, which describes an assertion's outcome rather than an artifact's parse -- and the two co-exist here: the parse is partial while the reconciliation assertion passes."
+  },
+  "counters": {
+    "top_level_form_array": 0,
+    "top_level_form_object": 1,
+    "reports": 1,
+    "reports_skipped_non_mapping": 0,
+    "reports_without_results_object": 0,
+    "reports_without_failed_checks_array": 0,
+    "passed_checks_observed": 2,
+    "skipped_checks_observed": 1,
+    "parsing_errors": 1,
+    "multi_location_records": 0,
+    "multi_valued_cwe_records": 0,
+    "multi_valued_cve_records": 0,
+    "non_filesystem_paths": 0,
+    "rows_in_scope": 2,
+    "rows_out_of_scope": 0,
+    "path_corroboration_recorded": 0,
+    "severity_present": 0,
+    "severity_absent": 2,
+    "start_line_absent": 0,
+    "path_kind_tree_file": 2,
+    "path_kind_outside_root": 0,
+    "path_kind_archive_member": 0,
+    "path_kind_bytecode_source": 0,
+    "severity_basis_sarif_level": 0,
+    "severity_basis_label": 0,
+    "severity_basis_cvss_score": 0,
+    "severity_basis_no_vocabulary": 2,
+    "severity_basis_unmapped_literal": 0
+  },
+  "counters_authority": "harness/lib/normalize/adapters/checkov.py, COUNTER_KEYS as returned by new_counters(): nineteen authored keys, one path_kind_* per member of normalize.paths.PATH_KINDS and one severity_basis_* per member of normalize.severity.BASIS_VALUES -- twenty-eight in all, every one an int.",
+  "counters_note": "Four values a reader must not 'correct'. First, the rejected record increments no record-level counter at all: the multi-location test runs after step 3 and every path, severity, start_line and scope counter runs at step 4 or later, so a step-2 rejection touches none of them. That is why every per-record counter reads 2 rather than 3 -- severity_absent, path_kind_tree_file, rows_in_scope and severity_basis_no_vocabulary included -- and none of those is a miscount. Second, the document-level counters are unaffected by any record's outcome: top_level_form_object, reports, passed_checks_observed, skipped_checks_observed and parsing_errors are taken from the document itself, which is why passed_checks_observed is 2 while passed_checks_expected_rows is 0. There is deliberately no adapter-side count of records walked, rows or rejections; those are returned to the caller directly, and the independent left-hand side of the identity is normalize.reconcile.count_records. Third, path_corroboration_recorded is 0 because both surviving records carry a consistent triple -- the relativized file_abs_path equals the anchored repo_file_path exactly, and the stripped file_path is a proper suffix of it -- so there is no disagreement to record. Fourth, the four counters AAP 0.5.4 has reported per tool are all 0: caller_file_path is null on every record so none names a second location, no record carries a CWE or CVE identifier in the closed source field set, and both emitted paths name a file inside the scanned tree.",
+  "counters_root_note": "Given some other absolute scan root, no counter above changes and no row changes. Both rows take their path from repo_file_path, which needs no root; the rejection is decided at step 2, before any root is consulted at all. That makes this file more root-independent than its positive sibling, whose path_corroboration_recorded is root-dependent because its records carry two resolvable anchors that would disagree under a different root -- here the same is true of the two surviving records, and the recorded value is 0 under the recorded root.",
+  "recorded_divergences_from_the_authoring_brief": [
+    {
+      "field": "the emitted path's relationship to file_path",
+      "brief_states": "each row's path is its record's file_path minus the leading slash",
+      "fixture_yields": "each row's path is the anchored path -- repo_file_path minus exactly one leading slash -- of which the stripped file_path is a proper suffix",
+      "resolution": "The authored contract governs, and it is the same contract the already-committed positive sibling and reject-checkov-unresolvable-path.rows.json both record. Under the recorded path_base.kind per_target_directory the stripped file_path is relative to whichever of 18 -d roots matched, so it cannot be the row's path: dockerfiles/spark/Dockerfile names no location at the root. The brief's own next clause requires in_scope true, and the bare stripped file_path matches no glob -- so the two clauses can only both hold under the anchored reading. AAP 0.5.4's generic checkov row -- path from file_path with its leading slash stripped, reconciled against file_abs_path -- describes the single-target shape; runner-metadata.json records the shape this provisioning actually invoked, and the AAP requires that metadata be read as input rather than assumed. Both readings are stated here so the difference is visible.",
+      "assertion_that_holds_instead": "For every row: the path carries no leading slash and no ../ segment, the stripped file_path is a suffix of it, and the relativized file_abs_path equals it exactly. That is strictly stronger than the brief's equality, and it is what row_derivations records per row under path_cross_check and file_path_is_suffix_of_anchored_path."
+    },
+    {
+      "field": "the 71-line anchor and the defective record's file_line_range",
+      "brief_states": "a file_line_range inside the real 71-line k8s Dockerfile",
+      "fixture_yields": "the defective failed check's range is [36, 48] on that 71-line Dockerfile, and it is never read; the two ranges that are read are [1, 71] on the same file and [32, 36] on the 46-line bindings/python/Dockerfile",
+      "resolution": "No conflict, and recorded only because the second row's range belongs to a different file and a reader checking every number against 71 lines would flag it. Both endpoints of every range in this fixture are inside the file that range's record names, verified at the pin: the main Dockerfile is exactly 71 lines and bindings/python/Dockerfile is 46. Every start_line in the rows below is an integer no greater than 71.",
+      "assertion_that_holds_instead": "start_line is 1 on row 0 and 32 on row 1; both are integers, both are at least 1, and both are within the file their row names."
+    }
+  ],
+  "corroboration": {
+    "sources": [
+      "oss-scan-results/adapter-tests/expected/checkov.rows.json",
+      "oss-scan-results/findings.json"
+    ],
+    "records_compared": 2,
+    "fields_compared_per_record": 12,
+    "agreement": "complete",
+    "note": "Both surviving records are captured output that already appears elsewhere, so both rows can be corroborated rather than only asserted. Row 0 here is the positive sibling's row 4 and row 1 is its row 0, all twenty-four field comparisons agreeing; and the committed dataset carries both -- CKV_DOCKER_2 at start_line 1 on resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile, and CKV_DOCKER_9 at start_line 32 on that file's bindings/python sibling. Recorded after the fact rather than as the source of these values: each was derived from the fixture and the authored contracts, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply.",
+    "rejected_record_has_no_counterpart": "The defective record appears in no captured artifact and in no other expected file, and it contributes no dataset row, so nothing corroborates it and nothing needs to: it is checkable by reading the fixture against adapters/checkov.py's classification order. Its captured original does appear in the dataset, with the identifier this record lacks, which is what makes the attribution checkable rather than merely stated.",
+    "dataset_rows_not_expected_here": "The committed dataset carries six checkov rows; four of them come from records this fixture either never included or replaced with a defective variant, so their absence from these rows is the fixture's derivation holding rather than a discrepancy.",
+    "never_derived_by_running_the_adapter": "Every value in this file was read out of the fixture and the authored contracts: the field sources and the five-step classification order from adapters/checkov.py, the class name from paths.py, the band and basis from severity.py, the field set and its absence rules from emit.py, the count unit from reconcile.py, and the path base from runner-metadata.json. Nothing here was produced by invoking the adapter and recording its output, which would make the test a tautology.",
+    "agreement_check_disclosed": "After these values were derived and written, the adapter was invoked over this fixture once and its rows, rejections and counters compared to what is recorded here; agreement was complete, including the rejection class, the detail string and the record_identity mapping. That is disclosed in the same spirit as the corroboration above: it followed derivation, it could only ever have surfaced a disagreement to diagnose, and it contributed no value to this file."
+  },
+  "rows": [
+    {
+      "tool": "checkov",
+      "scanner_class": "misconfig",
+      "rule_id": "CKV_DOCKER_2",
+      "message": "Ensure that HEALTHCHECK instructions have been added to container images",
+      "severity_native": null,
+      "severity_norm": "Info",
+      "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+      "start_line": 1,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "checkov",
+      "scanner_class": "misconfig",
+      "rule_id": "CKV_DOCKER_9",
+      "message": "Ensure that APT isn't used",
+      "severity_native": null,
+      "severity_norm": "Info",
+      "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+      "start_line": 32,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    }
+  ],
+  "row_derivations": [
+    {
+      "row_index": 0,
+      "check_pointer": "/results/failed_checks/0",
+      "report_index": 0,
+      "check_index": 0,
+      "check_type": "dockerfile",
+      "captured_verbatim": true,
+      "captured_origin": "harness/artifacts/raw/checkov.json /results/failed_checks/5, and oss-scan-results/adapter-tests/fixtures/checkov.json /results/failed_checks/4",
+      "rule_id_source": "/results/failed_checks/0/check_id",
+      "rule_id_route": "the record's own check_id, the single route this adapter has",
+      "bc_check_id_in_record": null,
+      "bc_check_id_note": "null here, and never a fallback for check_id in any case: AAP 0.5.4 names check_id as the source of rule_id.",
+      "rule_id_not_synthesised": "CKV_DOCKER_2 occurs as a substring of none of this record's check_name, resource, file_path, repo_file_path or file_abs_path, so a substring test over this row would catch an adapter that had derived it from any of them.",
+      "message_source": "/results/failed_checks/0/check_name",
+      "message_verbatim": true,
+      "severity_native_source": "/results/failed_checks/0/severity",
+      "severity_native_note": "null in the record, because severities require a licence and BC_API_KEY is absent; the absence is stated rather than a level assumed",
+      "severity_basis": "no_vocabulary",
+      "severity_counter": "severity_absent",
+      "path_anchor_field": "repo_file_path",
+      "path_anchor_value": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+      "path_transform": "exactly one leading slash stripped; the remainder is already root-relative",
+      "path_cross_check": {
+        "field": "file_abs_path",
+        "value": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+        "relativized_to_root": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+        "agrees_with_anchor": true
+      },
+      "file_path_corroborator": "dockerfiles/spark/Dockerfile",
+      "file_path_is_suffix_of_anchored_path": true,
+      "corroboration_recorded": null,
+      "path_basis": "checkov-repo-file-path",
+      "path_kind": "tree_file",
+      "start_line_source": "/results/failed_checks/0/file_line_range/0",
+      "file_line_range_in_record": [
+        1,
+        71
+      ],
+      "locations_in_record": 1,
+      "caller_file_path_in_record": null,
+      "cwe_source": null,
+      "cwe_absent_reason": "every field in the closed identifier source set is null or an empty array on this record, so no CWE token exists to collect",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+      "glob_match_note": "the mid-path ** absorbs the single segment docker, and the trailing ** absorbs dockerfiles/spark/Dockerfile -- zero-or-more-directories semantics, which fnmatch and PurePath.match do not provide",
+      "file_line_count_at_the_pin": 71,
+      "pin_evidence": "A whole-file check whose range [1, 71] spans the file exactly. Verified at the pinned commit: the file is exactly 71 lines and contains zero HEALTHCHECK instructions, so CKV_DOCKER_2 genuinely fails and this row is real tool output rather than a fixture artefact. Line 71 is USER ${spark_uid}, which is why CKV_DOCKER_3 and the emptied CKV_DOCKER_8 in passed_checks genuinely pass on the same file and produce no row. start_line 1 is within the file."
+    },
+    {
+      "row_index": 1,
+      "check_pointer": "/results/failed_checks/2",
+      "report_index": 0,
+      "check_index": 2,
+      "check_type": "dockerfile",
+      "captured_verbatim": true,
+      "captured_origin": "harness/artifacts/raw/checkov.json /results/failed_checks/0, and oss-scan-results/adapter-tests/fixtures/checkov.json /results/failed_checks/0",
+      "rule_id_source": "/results/failed_checks/2/check_id",
+      "rule_id_route": "the record's own check_id, the single route this adapter has",
+      "bc_check_id_in_record": null,
+      "bc_check_id_note": "null here too, on every record in this fixture, which is why the rejection's detail below carries no alternate-identifier clause.",
+      "rule_id_not_synthesised": "CKV_DOCKER_9 occurs as a substring of none of this record's check_name, resource, file_path, repo_file_path or file_abs_path. It is also, deliberately, the identifier the rejected record's captured original carried -- so this row is where the naive check described under single_identifier_route goes wrong. This row's identifier came from this row's own record, at the pointer named above.",
+      "message_source": "/results/failed_checks/2/check_name",
+      "message_verbatim": true,
+      "message_shared_with_the_rejected_record": "Both carry check_name 'Ensure that APT isn't used', because both are RunUsingAPT findings. No deduplication follows from that: the two are distinct records and one is a row while the other is a rejection.",
+      "severity_native_source": "/results/failed_checks/2/severity",
+      "severity_native_note": "null in the record, for the same licensing reason",
+      "severity_basis": "no_vocabulary",
+      "severity_counter": "severity_absent",
+      "path_anchor_field": "repo_file_path",
+      "path_anchor_value": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+      "path_transform": "exactly one leading slash stripped; the remainder is already root-relative",
+      "path_cross_check": {
+        "field": "file_abs_path",
+        "value": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+        "relativized_to_root": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+        "agrees_with_anchor": true
+      },
+      "file_path_corroborator": "dockerfiles/spark/bindings/python/Dockerfile",
+      "file_path_is_suffix_of_anchored_path": true,
+      "corroboration_recorded": null,
+      "path_basis": "checkov-repo-file-path",
+      "path_kind": "tree_file",
+      "start_line_source": "/results/failed_checks/2/file_line_range/0",
+      "file_line_range_in_record": [
+        32,
+        36
+      ],
+      "locations_in_record": 1,
+      "caller_file_path_in_record": null,
+      "cwe_source": null,
+      "cwe_absent_reason": "every field in the closed identifier source set is null or an empty array on this record too",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+      "glob_match_note": "the same glob as row 0, with the trailing ** absorbing four segments rather than three",
+      "file_line_count_at_the_pin": 46,
+      "pin_evidence": "Verified at the pinned commit: bindings/python/Dockerfile is 46 lines, and line 32 is RUN apt-get update && \\ -- the apt invocation CKV_DOCKER_9 fires on, so start_line 32 names the instruction the finding is about. Both endpoints of [32, 36] are inside the file. This is a different file from row 0's, which is why its line count is 46 rather than 71."
+    }
+  ],
+  "rejections": [
+    {
+      "rejection_index": 0,
+      "check_pointer": "/results/failed_checks/1",
+      "report_index": 0,
+      "check_index": 1,
+      "check_type": "dockerfile",
+      "locator_note": "The pointer and the report_index / check_index pair name the same record. The pair is carried as well because normalize.adapters.checkov passes exactly report_index, check_index and check_type into the rejection it builds at this step, so a produced Rejection's record_identity and this expectation can be compared directly, without translating one coordinate system into the other.",
+      "reject_class": "missing_rule_id",
+      "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_MISSING_RULE_ID constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten. Written verbatim rather than paraphrased, and asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+      "tool": "checkov",
+      "classification_step": "step 2 of the adapter's fixed classification order -- shape, rule identifier, message, path, start_line. Step 1 passes: the failed_checks element is a JSON object. Steps 3, 4 and 5 are never reached.",
+      "observed_check_id_value": "the empty string",
+      "observed_check_id_form": "present-but-empty",
+      "why_not_malformed_record": "malformed_record is reserved for step 1 in this adapter -- a failed_checks element that is not a JSON object. Every defect of the check_id field itself, absent or empty or not a string, is missing_rule_id, and only the sub-reason distinguishes them. That differs from adapters/gitleaks.py, where a non-string identifier is malformed_record, so the classification must be read from this adapter rather than generalised from a sibling.",
+      "why_not_missing_message": "The record's check_name is the non-empty string 'Ensure that APT isn't used', so step 3 would have passed. It is never reached in any case.",
+      "later_steps_never_examined": "The record's check_name, caller_file_path, file_path, repo_file_path, file_abs_path and file_line_range are all sound and none is read. Worth stating because the fixture gives the defective record a perfectly good value for each of them -- a reconcilable anchor pair and the usable range [36, 48] -- and a reader could otherwise expect one of them to interact with this class.",
+      "expected_detail": "the failed check's check_id is empty or whitespace only",
+      "expected_detail_note": "The detail is the sub-reason AAP 0.5.4 requires a rejection to carry, and it is quoted here because a class name alone would not distinguish an empty identifier from an absent one or from a non-string -- all three are missing_rule_id. A test may assert the class exactly and the detail by its distinguishing substrings -- 'check_id' and 'empty or whitespace only' -- rather than by full-string equality.",
+      "expected_detail_carries_no_alternate_clause": "_rule_id appends '; it carries bc_check_id <value>, which is not substituted because AAP 0.5.4 names check_id as the source of rule_id' only where a non-empty bc_check_id is present. It is null on this record, so the detail is the bare reason above and nothing more.",
+      "expected_detail_carries_no_record_value": "The detail names the key and its emptiness. It renders no value from the record -- not the check_name, not a path and not the empty string itself -- so no artifact content travels into the rejection log through it.",
+      "expected_record_identity_keys": [
+        "report_index",
+        "check_index",
+        "check_type"
+      ],
+      "expected_record_identity": {
+        "report_index": 0,
+        "check_index": 1,
+        "check_type": "dockerfile"
+      },
+      "record_identity_note": "Three keys, and the absence of a fourth is the point rather than an omission. No check_id is carried because there is none to carry -- carrying the CKV_DOCKER_9 the captured original held would be the synthesis this condition exists to forbid. Rejections raised at step 3 do carry check_id, because by then one exists, and a path rejection built inside paths.resolve_checkov_path carries check_id, file_path and repo_file_path instead. The three keys are enough to find the record in the artifact again, and they are never the record itself and never a secret value.",
+      "why_not_a_row": "There is no identifier to put in the row. rule_id is never absent from a row, so a record with no usable identifier has no valid row representation, and the alternatives -- dropping it, or synthesising an identifier from its check_name, its bc_check_id, its resource or its path -- would each either hide it or assert something the tool never stated. Counting it under a named class keeps it visible and keeps the arithmetic honest.",
+      "contributes_no_row": true,
+      "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, so no native literal from it reaches severity-map.md. That document reports literals against the rows the dataset contains, and this record contributes none. Its severity is null in any case, which is exactly what makes the omission easy to miss and worth stating.",
+      "contributes_no_counter": "It increments none of the twenty-eight counters as a record: the multi-location test runs after step 3, and every path, severity, start_line and scope counter runs at step 4 or later. The document-level counters -- reports, top_level_form_object, passed_checks_observed, skipped_checks_observed, parsing_errors -- are taken from the document before any record is walked and are unaffected by this record's outcome.",
+      "not_produced_by_another_fixture": "The other reject-checkov-* fixtures own the other conditions -- malformed-record, missing-message, non-integer-start-line and unresolvable-path. This fixture re-covers none of them, and each of them still has its own work to do.",
+      "its_passed_check_twin_is_not_here": "The identically defective /results/passed_checks/1 appears in no rejection because it is in no counted bucket. That it is absent from this array is as much a part of the expectation as this entry's presence in it, and failures_only is where the reasoning lives."
+    }
+  ],
+  "in_scope_verification": {
+    "method": "Each of the two emitted paths was matched against the twelve globs by hand and then checked twice more, with two implementations that are not the one under test: a glob-to-regex translation written for this check, and CPython 3.13's PurePosixPath.full_match, whose ** spans zero or more directories. Both agree on both paths, and both name the same single matching glob.",
+    "why_not_fnmatch": "Three of the twelve globs depend on ** matching zero or more directories, and neither fnmatch nor PurePath.match provides those semantics. A matcher built on either silently drops whole modules, and a silently dropped module looks exactly like a module with nothing to report (AAP 0.5.4).",
+    "src_test_rule": "The exclusion is the literal substring src/test. Neither path contains it.",
+    "the_rejected_record_has_no_in_scope_value": "in_scope is a field of a row, and the rejected record produces none. Its path fields would have matched the same Kubernetes glob had they been evaluated -- row 0 proves that, naming the same file -- but they were never evaluated, and recording an in_scope value for a record that produced no row would assert a field the dataset does not contain. Not in_scope false: no in_scope at all.",
+    "result": "two in scope, none out of scope"
+  },
+  "prohibitions_observed": {
+    "no_cross_tool_interpretation": "Trivy also reports misconfigurations on the same Dockerfiles, and that produces trivy's own rows in trivy's own expected file. Nothing here compares tools, ranks them, explains why one found something another did not, or folds one into the other (AAP 0.3.2). The comparisons this file does make -- against the SARIF adapter's two identifier routes, and against the gitleaks adapter's different treatment of a non-string identifier -- are about the shape of an artifact and the code that reads it, not about what any tool found or how well it found it.",
+    "no_judging": "No row is characterised as real, important, a false positive or a duplicate. That the anchor Dockerfile has no HEALTHCHECK is recorded as the reason CKV_DOCKER_2 fires, and therefore as evidence the row is real tool output; it is not a claim that the finding matters, and no remediation is suggested anywhere. The rejected record is not called a false positive either: it is a record this pipeline cannot represent, which is a statement about its fields rather than about the container image.",
+    "no_dedup": "The rejected record and row 1 share a check_name and the rejected record's captured original shares row 1's identifier; the skipped check shares row 1's identifier outright. None is folded into another. Two byte-identical failed checks would likewise be two outcomes.",
+    "no_invented_severity": "The record's severity is null in this unlicensed configuration, so none is invented: severity_native stays null on both rows and severity_norm comes from the fixed no-vocabulary policy rather than from a guess at what a finding deserves. The rejected record gets no severity at all, not even Info.",
+    "kept_not_filtered": "No failed check is dropped. Two are emitted and one is counted, which together account for all three -- the arithmetic under counts is what makes the absence of filtering checkable rather than merely stated. The passed and skipped checks are not filtered either; they were never in the counted section.",
+    "no_secret_value": "No emitted field and no rejection detail carries a secret or any content from check_result.results_configuration. message is check_name and nothing else, so the multi-line shell text the fixture's records quote -- the apt invocations, the pam.d redirection, the /etc/passwd chmod -- reaches no row, no rejection detail and no prose in this document. The one instruction quoted anywhere here is the single line USER ${spark_uid}, named as pin evidence for why two passed checks pass, and it is a public line of an Apache Spark Dockerfile rather than a value the pipeline emits. The absolute paths that appear are likewise quoted evidence about the fixture, never emitted data. This tree is committed to git."
+  },
+  "scope_of_this_file": {
+    "records_only_this_tool": "These are checkov's rows and its one rejection and nothing else. No other tool's output is described, compared or counted here.",
+    "one_condition_only": "The subject is the rule identifier. Path resolution, severity mapping, both top-level shapes and the other four rejection conditions have their own fixtures, and this file asserts nothing about them beyond what the two surviving rows incidentally demonstrate.",
+    "no_inference": "A record with no identifier is a counted rejection, never a row with an identifier taken from somewhere else. This file is where that rule is exercised for checkov, and it is why the rejection total is 1 rather than 0 with a third row."
+  },
+  "behaviours_not_exercised_by_this_fixture": [
+    {
+      "behaviour": "the multi-framework array top-level form, and the union of results.failed_checks[] across several report objects",
+      "why_absent": "this fixture is the object form -- one report object -- so top_level_form_object is 1 and reports is 1",
+      "cover_with": "oss-scan-results/adapter-tests/fixtures/checkov-alt-shape.json and its expected file"
+    },
+    {
+      "behaviour": "the absent-key and all-whitespace forms of this same condition",
+      "why_absent": "the defective record carries the key with an empty string; both other forms take the same class by a different sub-reason, and neither is present",
+      "cover_with": "a derived fixture omitting check_id entirely, and one whose check_id is a run of spaces -- each asserted on the detail rather than on the class, since the class is shared"
+    },
+    {
+      "behaviour": "a missing identifier alongside a present bc_check_id, which extends the detail with the alternate-identifier clause",
+      "why_absent": "bc_check_id is null on every record in this fixture",
+      "cover_with": "a derived fixture whose defective record carries a non-empty bc_check_id -- named in the detail, and still never substituted into rule_id"
+    },
+    {
+      "behaviour": "the other four rejection conditions this adapter can produce -- malformed_record, missing_message, non_integer_start_line and the path classes absent_path and unresolvable_path",
+      "why_absent": "every record here is an object; the two surviving records carry a non-empty check_id, a non-empty check_name, a reconcilable anchor pair and a usable file_line_range; and the defective record is rejected before any of those is examined",
+      "cover_with": "the reject-checkov-malformed-record, reject-checkov-missing-message, reject-checkov-non-integer-start-line and reject-checkov-unresolvable-path fixtures already committed under fixtures/, plus a derived fixture whose record carries no path field at all for absent_path"
+    },
+    {
+      "behaviour": "a kept row with a recorded path corroboration -- two expressible anchors disagreeing, or file_path failing to corroborate an expressible anchor",
+      "why_absent": "both surviving records carry a consistent triple, so path_corroboration_recorded is 0",
+      "cover_with": "a derived fixture whose file_abs_path names a different but ordinary absolute path from its repo_file_path -- recorded on the row, never resolved in favour of one field and never suppressing the row"
+    },
+    {
+      "behaviour": "a kept row with in_scope false, and the non-filesystem coordinate serialization",
+      "why_absent": "both emitted paths fall inside resource-managers/kubernetes/**/src/main/** and neither contains the literal src/test, so rows_out_of_scope and non_filesystem_paths are both 0",
+      "cover_with": "a derived fixture whose anchor names a path outside the twelve globs -- kept with in_scope false, never rejected -- and one whose anchor resolves above the root, keeping its ../ segments"
+    },
+    {
+      "behaviour": "a severity literal mapped through the label vocabulary, or disclosed as an unmapped literal",
+      "why_absent": "severities require a licence and BC_API_KEY is deliberately absent, so severity is null on every record and both rows take basis no_vocabulary",
+      "cover_with": "a derived fixture carrying a severity literal, asserted against severity.py's label table rather than against anything observed"
+    },
+    {
+      "behaviour": "the first-location rule and the multi_location_records counter",
+      "why_absent": "caller_file_path is null on every record here, and it is the only second-location shape Checkov emits",
+      "cover_with": "a derived fixture carrying a non-empty caller_file_path with its caller_file_line_range"
+    },
+    {
+      "behaviour": "ascending-numeric CWE and CVE selection, and the multi_valued_* counters",
+      "why_absent": "every field in the closed identifier source set is null or empty on every record, so no token exists to collect and both fields are null on both rows",
+      "cover_with": "a derived fixture whose guideline or description carries more than one identifier, listed out of numeric order"
+    },
+    {
+      "behaviour": "the container shapes that contribute no record -- a non-object report element, a report with no results object, and a report whose failed_checks is absent or not an array",
+      "why_absent": "the single report object here carries a results object and a three-element failed_checks array, so all three of those counters are 0",
+      "cover_with": "the kubernetes report in checkov-alt-shape.json for the empty-bucket case, plus derived fixtures for the other two -- each counted rather than rejected, because the independent traversal contributes zero for them too"
+    },
+    {
+      "behaviour": "an absent start_line -- an absent range, an empty range or an explicitly null first element, each permitted and none a rejection",
+      "why_absent": "both emitted records carry a usable two-element file_line_range, so start_line_absent is 0",
+      "cover_with": "a derived fixture omitting file_line_range, distinct from reject-checkov-non-integer-start-line.json which covers the unusable-value case"
+    }
+  ]
+}

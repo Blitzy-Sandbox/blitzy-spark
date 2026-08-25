@@ -526,9 +526,9 @@
       "cover_with": "the kubernetes report in checkov-alt-shape.json for the empty-bucket case, plus derived fixtures for the other two -- each counted rather than rejected, because the independent traversal contributes zero for them too"
     },
     {
-      "behaviour": "an absent start_line -- an absent range, an empty range or an explicitly null first element, each permitted and none a rejection",
+      "behaviour": "an absent start_line -- an absent range or an explicitly null first element, each permitted and neither a rejection",
       "why_absent": "both emitted records carry a usable two-element file_line_range, so start_line_absent is 0",
-      "cover_with": "a derived fixture omitting file_line_range, distinct from reject-checkov-non-integer-start-line.json which covers the unusable-value case"
+      "cover_with": "oss-scan-results/adapter-tests/fixtures/reject-checkov-non-integer-start-line.json, whose /results/failed_checks/5 omits file_line_range entirely and is expected as a row with start_line null, beside that fixture's four records whose line information is present but unusable"
     }
   ]
 }

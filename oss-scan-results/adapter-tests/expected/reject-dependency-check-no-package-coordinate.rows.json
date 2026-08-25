@@ -1,0 +1,1119 @@
+{
+  "description": "The hand-verified expected result for the negative Dependency-Check fixture whose one defective dependency carries no package coordinate at any of the four precedence levels. Every value was derived by reading the fixture together with the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/dependency_check.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. The structure follows expected/reject-sarif-unresolvable-path.rows.json, this folder's declared template for a negative expected file: three parts, in order -- the documentation and metadata that fix the contract, then rows with row_derivations, then rejections with what the fixture does not reach. Every key that file uses is reused here with the same meaning, as is every key the same-adapter sibling expected/reject-dependency-check-unresolvable-path.rows.json and the same-condition sibling expected/reject-trivy-no-package-coordinate.rows.json add, so one generic loader reads all four. Read package_coordinate_precedence first: this file is the folder's reference case for the four-level precedence, so each level's derivation is written out rather than merely satisfied.",
+  "tool": "dependency-check",
+  "scanner_class": "vuln",
+  "scanner_class_derivation": "A constant, not a value read off a record. AAP 0.5.4's class table fixes vuln for osv-scanner and dependency-check; Trivy is that table's single per-record exception and this tool is not it. adapters/dependency_check.py authors it as SCANNER_CLASS = \"vuln\" and every row takes it unchanged, so no artifact content can move it.",
+  "adapter": "harness/lib/normalize/adapters/dependency_check.py",
+  "rules": "No user-specified rule governs this file. review_rules returns exactly one line, 'No user rules provided.', and that single line is the complete document -- confirmed by paging it three ways, including from line 2 to the end, which returns the same sentinel and nothing further. AAP 0.7 and AAP 0.10.2 say the same, and the adapter module's own docstring records the same finding, so three independent sources agree. No rule is cited here and none is invented. Enterprise best practice applies in their place, held to the AAP's own bar: hand-verify rather than record a run, verify independently of the thing verified, reject rather than infer, fix a policy before any output is observed, and state an absence rather than omit it. This file exists because of AAP 0.6.1, AAP 0.6.2 and AAP 0.9.4, not because of a rule.",
+  "reference_case_for": [
+    "the four-level package-coordinate precedence as a whole -- three of the four levels are reached by a row, the fourth is reached and refused, and the level that produced each coordinate is named per row",
+    "the lexicographically-smallest tiebreak at TWO different levels: level 2 on row 0, and level 4 on row 2. The positive sibling exercises it at level 2 only",
+    "the levels being ORDERED rather than a single pooled candidate set -- row 1 is the row that discriminates the two implementations, because they emit different values there",
+    "the unformable-coordinate rejection following DIRECTLY from a missing coordinate, with no section test to satisfy first -- the contrast with adapters/trivy.py, whose identical condition is gated on the enclosing array",
+    "the count unit at vulnerability granularity -- ONE coordinate-less dependency carrying TWO vulnerabilities yields TWO rejections, because the unit is dependencies[].vulnerabilities[] and not dependencies[]",
+    "the classification order being load-bearing: both rejected records resolve their path successfully to an in-scope tree_file at step 4 and are rejected at step 5, so neither contributes to a single path, scope, severity, cwe or cve counter"
+  ],
+  "fixture": {
+    "path": "oss-scan-results/adapter-tests/fixtures/reject-dependency-check-no-package-coordinate.json",
+    "sha256": "23b6a6eacff8f1bc8062c4af1b8f476f27064ba840e983de07f8b3937264182f",
+    "bytes": 20572,
+    "lines": 556,
+    "line_ending": "LF, with a trailing newline and no CR anywhere",
+    "report_schema": "1.1",
+    "engine_version": "13.0.0",
+    "dependencies": 7,
+    "dependencies_carrying_a_vulnerabilities_key": 6,
+    "vulnerability_records": 8,
+    "derived_from": "oss-scan-results/adapter-tests/fixtures/dependency-check.json (sha256 53fb2fa91725148f1b33df951f95e8ee01ef98ec62bebb10b73bd541bf10de68), the positive sibling this tree already carries",
+    "derivation": [
+      "the bootstrap.bundle.min.js dependency's packages array was REMOVED. It held exactly one entry, {\"id\": \"pkg:javascript/bootstrap@4.4.1\", \"confidence\": \"HIGH\", \"url\": \"…\"}, which is the positive sibling's row 0 coordinate. That single removal is the whole defect: nothing else about the dependency was weakened, and it still carries isVirtual, fileName, filePath, md5, sha1, sha256, evidenceCollected and a vulnerabilityIds entry.",
+      "a SECOND vulnerability, CVE-2024-6484, was appended to that same dependency. Its first, CVE-2024-6531, is byte-identical to the positive fixture's. The second one is why the rejection count is two rather than one, and it is there precisely so the count cannot be got right by assuming one rejection per defective dependency.",
+      "the d3-flamegraph.min.js dependency gained a SECOND package object: {\"id\": \"cpe:2.3:a:d3-flame-graph_project:d3-flame-graph:4.1.3:*:*:*:*:*:*:*\", \"confidence\": \"LOW\", \"url\": \"…\", \"ecosystem\": \"NPM\", \"name\": \"d3-flame-graph\", \"version\": \"4.1.3\"}. Its packages[0] and its vulnerabilities are byte-identical to the positive's. This creates a two-candidate contest at LEVEL 4, which the positive fixture does not have.",
+      "the positive fixture's Gemfile.lock dependency (/opt/spark-src/docs/Gemfile.lock) was DROPPED, so eight dependencies became seven and docs/Gemfile.lock appears in no row here.",
+      "the jquery.cookies.2.2.0.min.js, jquery.dataTables.min.js, glob-parent and ui-test/package-lock.json dependencies, and the package.json dependency that closes the array, are carried BYTE-IDENTICAL from the positive fixture -- verified by equality comparison rather than by eye.",
+      "reportSchema, scanInfo (all four dataSource timestamps) and projectInfo are byte-identical to the positive fixture, and through it to harness/artifacts/raw/dependency-check.json."
+    ],
+    "captured_provenance": "A negative fixture is derived from the captured one rather than being an excerpt of it, so provenance is stated per dependency instead of claimed for the file. Every packages[] and every vulnerabilities[] array in this shape is authored, as the positive sibling's own fixture block records: harness/artifacts/raw/dependency-check.json carries 32 dependencies with zero vulnerabilities and zero packages, so no excerpt of it can exercise a single field of this adapter's row builder. What IS captured verbatim is the envelope -- reportSchema, scanInfo and projectInfo -- and the member names the authored shapes use.",
+    "authored_shapes_follow": "Dependency-Check 13.0.0's own report members, as verified against the raw artifact and against the field names harness/lib/normalize/adapters/dependency_check.py reads: source, name, severity, unscored, purl, cvssv2.score, cvssv3.baseScore, cvssv4.baseScore, cwes[], description, notes, references[], vulnerableSoftware[], packages[].{id,confidence,url,ecosystem,name,version}, vulnerabilityIds[].id and the isVirtual/evidenceCollected pair a virtual dependency carries.",
+    "re_derivation_trigger": "These rows are re-derived when the fixture changes, which is what the recorded sha256 above makes visible."
+  },
+  "routing": {
+    "shape": "dependency-check native",
+    "detected_by": "normalize.shape -- not SARIF, since the document carries neither a version of '2.1.0' nor a runs array, and the native detector keys on the reportSchema/scanInfo/dependencies triple this shape carries",
+    "adapter_module": "normalize.adapters.dependency_check",
+    "routes_successfully": true,
+    "rejection_is_record_level": true,
+    "not_a_shape_failure": "No normalize.shape.UnknownArtifactShape is expected here. This document is a well-formed Dependency-Check report; its defect is one dependency's missing packages array, not its shape, and a test asserting a shape failure against this fixture would be asserting the wrong thing.",
+    "negative_routing_test": "The mandated negative routing assertion -- that a native artifact must not route to the SARIF adapter -- belongs to test_shape_routing_negative.py and is not restated as an expectation of this fixture."
+  },
+  "field_order": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_native",
+    "severity_norm",
+    "path",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate",
+    "in_scope"
+  ],
+  "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+  "absence_permitted_fields": [
+    "severity_native",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate"
+  ],
+  "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS.",
+  "package_coordinate_is_permitted_absent_and_still_a_rejection_here": "The conditional this fixture exists to keep from being flattened, and it is not a contradiction. package_coordinate is a member of emit.OPTIONAL_FIELDS, so the schema would happily write a row with null there -- and every SARIF row in this tree does. What makes these two records rejections is not the schema but the SHAPE: a Dependency-Check record is dependency-oriented by construction, because it is a vulnerability OF a dependency, so a record that names no package cannot be attributed with certainty and AAP 0.5.4 rejects rather than infers. One field, two meanings, and for this adapter the meaning is fixed by the artifact rather than decided per record. Note the asymmetry with the same condition in adapters/trivy.py, set out under adapters_carrying_this_condition: there the meaning IS decided per record, by the enclosing array.",
+  "severity_norm_vocabulary": [
+    "Critical",
+    "High",
+    "Medium",
+    "Low",
+    "Info"
+  ],
+  "allowlist": {
+    "path": "harness/scope/allowlist.txt",
+    "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+    "globs": 12,
+    "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each in-scope row matched is recorded per row under row_derivations, and each out-of-scope row records why it matched none."
+  },
+  "resolution_context": {
+    "root": "/opt/spark-src",
+    "root_dependence": "Every filePath in this artifact is filesystem-absolute and carries the root as a literal prefix, so these rows are stated for the root the fixture's own paths are under -- /opt/spark-src, the value harness/artifacts/logs/runner-metadata.json records as spark_src. They are not root-independent in the way an already-root-relative uri is. No row's path field is absolute and none retains that prefix.",
+    "path_base_kind": "filesystem_absolute",
+    "path_base_value": "/opt/spark-src",
+    "path_base_source": "harness/artifacts/logs/runner-metadata.json, the dependency-check entry's path_base -- read as input, never assumed",
+    "path_base_record_path_field": "the enclosing dependencies[].filePath",
+    "path_base_evidence": "The runner builds one absolute --scan argument per allowlist directory (18 in a single invocation, invocations_per_run 1), so dependencies[].filePath is filesystem-absolute under the scan root and the resolution is a straight relativization.",
+    "working_directory": "/opt/spark-src -- equal to the scan root, and deliberately NOT the path base: the tool reports absolute paths because it was handed absolute --scan arguments, not because of where the process ran.",
+    "path_basis": "absolute-relativized-to-root on all six rows",
+    "path_kinds_present": "tree_file on all six rows; archive_member, outside_root and bytecode_source on none. This fixture carries no container reference at all, so archive_references_split and non_filesystem_paths are both 0 and the two archive shapes belong to the sibling that owns them.",
+    "start_line": "null on every row, and deliberately so rather than by omission. Dependency-Check reports at dependency granularity -- a vulnerable component, not a line of code -- and this artifact carries no line information in any member, at any depth. adapters/dependency_check.py makes it structural with the constant _START_LINE = None, which every row takes, so nothing is ever synthesised. See the_absent_sibling_fixture for what follows from that.",
+    "package_coordinate": "Present on all six rows and absent from none, which is not a coincidence but the definition of a row for this shape: an unformable coordinate is a rejection, so a record reaching the dataset always carries one. The two records that could not form one are the two rejections below.",
+    "count_unit": "dependencies[].vulnerabilities[] -- one vulnerability is one record, whatever the dependency around it does"
+  },
+  "why_this_case_is_realistic": {
+    "claim": "A Dependency-Check vulnerability that resolves to no package is not merely a plausible outcome against this scanned tree -- it is what the tool's ENTIRE in-scope surface would have produced.",
+    "grounding_the_surface": "This tool's only in-scope surface at the pin is the loose vendored web bundles under core/src/main/resources: 30 .js and 10 .css, 40 files, counted on the pinned clone at 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d. Not one of them has a manifest behind it.",
+    "grounding_the_manifest": "The sole manifest-shaped file inside the twelve authoritative roots is core/src/main/resources/org/apache/spark/ui/static/package.json: 5 lines and 80 bytes, carrying a name, a license and \"type\": \"module\", with no dependencies block and no lockfile beside it. Measured in both the working checkout and the pinned clone; they agree. Searching the scope roots for every other manifest shape returns nothing -- no pom.xml, no requirements*.txt, no setup.py, no pyproject.toml, no package-lock.json and no JAR.",
+    "grounding_from_the_production_artifact": "harness/artifacts/raw/dependency-check.json carries 32 dependencies -- 31 .js files and that one package.json -- with ZERO carrying a vulnerabilities array and ZERO carrying a packages array. So every dependency the tool actually resolved resolved no package coordinate at all. Had any one of them carried a vulnerability, it would have been a rejection under this very class.",
+    "why_that_makes_the_case_ordinary": "A file with no package behind it has no PURL to copy, no packages[] entry to pool and no ecosystem, name and version to render a triple from. That is the normal condition of a vendored bundle, and it is the condition of the whole surface this tool was pointed at. The rejection is therefore the expected outcome for this adapter rather than a contrived one, which is exactly why it needs a fixture that a reader will believe.",
+    "two_measurements_not_one": "40 is the in-scope bundle surface on disk; 32 is what the tool resolved from it -- no .css file became a dependency at all. Both are stated and neither is substituted for the other.",
+    "no_scope_judgement": "Recorded as a property of the scope, exactly as AAP 0.3.2 requires: the allowlist is not widened to give this tool something to resolve, and zero manifests in scope is a fact to report rather than a condition to fix.",
+    "not_an_argument_that_the_tool_should_have_behaved_differently": "Nothing here characterises a record as wrong, spurious or a defect in Dependency-Check. The dataset judges no finding (AAP 0.3.2). These two records are unattributable to a package under this dataset's coordinate rules, and that is a statement about attribution, not about the tool."
+  },
+  "adapters_carrying_this_condition": {
+    "condition": "unformable_package_coordinate",
+    "carried_by": [
+      "harness/lib/normalize/adapters/dependency_check.py",
+      "harness/lib/normalize/adapters/trivy.py"
+    ],
+    "evidence": "Those two modules are the only ones referencing paths.REJECT_UNFORMABLE_PACKAGE_COORDINATE; paths.py defines the constant and belongs to neither side of the count.",
+    "not_carried_by": [
+      "harness/lib/normalize/adapters/gitleaks.py",
+      "harness/lib/normalize/adapters/checkov.py",
+      "harness/lib/normalize/adapters/joern.py",
+      "harness/lib/normalize/adapters/sarif.py"
+    ],
+    "why_not_those_four": "Three are native adapters for shapes that are not dependency-oriented -- a secret and a misconfiguration are findings about a file, and a Joern finding is about a method. The fourth is the shared SARIF adapter, which is not dependency-oriented either: a SARIF result names a code location rather than a package, so package_coordinate is null on every SARIF row and its absence is never a rejection.",
+    "seventh_adapter": "adapters/osv_scanner.py would be dependency-oriented and would carry this condition, but AAP 0.6.1 makes it conditional on OSV-Scanner writing an artifact and it wrote none -- exit 128 with a stated no-work reason. The directory holds six modules and no osv_scanner.py, so the condition has exactly two carriers in this run.",
+    "the_difference_between_the_two_carriers": "This is the distinction this file is asked to record, and it is a fact about the two shapes rather than a comparison of the two tools. In adapters/dependency_check.py the test is unconditional -- `if coordinate is None:` -- because EVERY element of dependencies[].vulnerabilities[] is dependency-oriented by construction: the record simply IS a vulnerability of a dependency, and there is no other kind of record in the shape. So this fixture only has to WITHHOLD a coordinate; it has nothing to position. In adapters/trivy.py the test is `if coordinate.value is None and section in _DEPENDENCY_ORIENTED_SECTIONS:` with that set being frozenset({\"Vulnerabilities\"}), so the rejection depends on WHERE the record sits: the Trivy fixture must deliberately place its defective record inside Vulnerabilities[], and moving that same record to Secrets[] or Misconfigurations[] turns it into a kept row with a null coordinate. That is why the Trivy sibling's how-to-check list names the section-dependence as the first thing to verify and this file's cannot: here there is no section to move a record to.",
+    "not_a_cross_tool_interpretation": "The two carriers are named to BOUND where this class may legitimately appear -- a rejection under it from any of the other four adapters would be a defect in that adapter rather than a property of its artifact. Nothing here ranks the two tools, contrasts their coverage, or explains why one reported something the other did not.",
+    "why_the_count_matters": "It makes the boundary checkable. Two carriers, four non-carriers, and a named reason for each non-carrier."
+  },
+  "rejection_class": {
+    "expected_class": "unformable_package_coordinate",
+    "expected_class_authority": "harness/lib/normalize/paths.py, the REJECT_UNFORMABLE_PACKAGE_COORDINATE constant -- spelled 'unformable_package_coordinate' there and quoted verbatim here rather than paraphrased. It is a literal member of paths.REJECT_CLASSES, the closed set of ten, at index 7. Asserted by membership in the imported tuple, not by string similarity: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+    "class_description_from_the_module": "paths.REJECT_CLASS_DESCRIPTIONS gives it as 'a dependency-oriented record from which no package coordinate can be formed at any candidate level' -- which is this fixture's defect stated in the module's own words.",
+    "filename_and_class_agree": "Unlike the same-adapter sibling reject-dependency-check-unresolvable-path.rows.json, whose slug names a class its fixture cannot actually produce, this fixture's slug and its class are the same string. Nothing has to be reconciled and no explanatory note is owed. Recorded because a reader arriving from that sibling will be looking for the discrepancy.",
+    "derivation": [
+      "the defective dependency is /dependencies/0, bootstrap.bundle.min.js, and it carries NO packages key at all -- its keys are exactly evidenceCollected, fileName, filePath, isVirtual, md5, sha1, sha256, vulnerabilities and vulnerabilityIds",
+      "level 1 offers nothing: neither of its two vulnerability records carries a package URL under purl, packageUrl, packageURL or package_url",
+      "level 2 offers nothing: there is no packages[] array to pool candidates from",
+      "level 3 offers nothing: the triple's name would come from the record, and the record's name is refused twice over -- it equals the record's own rule_id, and it is CVE-shaped (CVE-2024-6531 and CVE-2024-6484)",
+      "level 4 offers nothing: again there is no packages[] array to read an ecosystem, name and version from",
+      "package_coordinate() therefore returns None, and adapters/dependency_check.py step 5 converts that into this rejection rather than into a row with a null field, because the record is dependency-oriented"
+    ],
+    "candidate_pool_sizes_per_level": "[0, 0, 0, 0] for BOTH rejected records -- measured by re-implementing the documented rule against the fixture, not by calling the adapter. Every other record in the fixture has a non-empty pool at some level, which is what leaves exactly these two.",
+    "the_guard_that_makes_this_class_reachable_at_all": "Level 3's refusal of a name equal to the rule_id or CVE-shaped is not defensive tidiness -- it is the precondition for this whole fixture. Without it, both records would form a plausible-looking coordinate out of the advisory identifier ('nvd:CVE-2024-6531@…'-shaped nonsense), level 3 would always succeed for a Dependency-Check record, and unformable_package_coordinate would be unreachable for this adapter. So the same guard that empties level 3 is the one that makes the rejection possible, and the two facts have one cause.",
+    "the_error_this_prevents": "Writing a coordinate for these records -- from the fileName 'bootstrap.bundle.min.js', from a hash, from the filePath, or from the CPE sitting in vulnerabilityIds -- would produce a dataset row that looks complete and names a package nothing resolved. See rejection_boundary.no_coordinate_is_fabricated, which shows those five sources are structurally unreachable rather than merely unused."
+  },
+  "rejection_boundary": {
+    "statement": "A dependency-oriented record that can form no package coordinate is a rejection. A record whose coordinate resolves to something the scope does not cover is a KEPT row with in_scope false. This fixture carries both sides on purpose, because collapsing them in the strict direction would reject the two lockfile rows -- which are legitimate output from a correctly targeted runner -- and collapsing them in the permissive direction would emit two rows naming no package at all.",
+    "why_it_can_only_be_a_rejection": "Not because the schema forbids a null package_coordinate -- it permits one, the field being a member of emit.OPTIONAL_FIELDS -- but because AAP 0.5.4 fixes the meaning of that absence per shape: 'Where none can be formed, the field is absent -- and for a dependency-oriented record that absence is a rejection condition with its own fixture.' A Dependency-Check vulnerability is dependency-oriented in every case, so the absence is never ordinary here, and 'reject rather than infer' leaves counting it under a named class as the only outcome that neither drops the record nor invents a package for it.",
+    "not_a_rejection": [
+      {
+        "case": "a filesystem-absolute filePath",
+        "expected": "the tool's normal convention on this provisioning; relativizing it is the adapter's job",
+        "evidence": "All seven dependencies report an absolute path, because the runner passes 18 absolute --scan arguments in one invocation. Reading absoluteness as a defect would reject every row this tool can ever produce.",
+        "present_in_this_fixture": true,
+        "rows": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "case": "a path outside the twelve authoritative globs",
+        "expected": "a kept row with in_scope false, counted under rows_out_of_scope",
+        "evidence": "dev/package-lock.json (row 3) and ui-test/package-lock.json (rows 4 and 5). Both exist in the pinned tree, both are legitimately reachable by a dependency-oriented scanner, and neither matches any glob. AAP 0.9.3 keeps them and AAP 0.8.3 is explicit that an individual out-of-glob coordinate never establishes a wrong scan root -- only evidence about the runner does.",
+        "present_in_this_fixture": true,
+        "rows": [
+          3,
+          4,
+          5
+        ]
+      },
+      {
+        "case": "a coordinate formed at a lower-precedence level",
+        "expected": "an ordinary row; reaching level 4 is not a degraded outcome",
+        "evidence": "Row 2's coordinate comes from level 4, the last level there is, and it is a row like any other. A record is rejected only when ALL four levels are empty, never because the first three were.",
+        "present_in_this_fixture": true,
+        "rows": [
+          2
+        ]
+      },
+      {
+        "case": "a dependency carrying no vulnerabilities at all",
+        "expected": "no record, no row and no rejection -- a dependency is not a record",
+        "evidence": "/dependencies/6, the in-scope package.json, carries no vulnerabilities key. It also carries no packages array, so had it produced a record that record would have been a rejection; it produces none. Counted under dependencies_without_vulnerabilities_array, which is 1, and set out in full under dependencies_contributing_no_record.",
+        "present_in_this_fixture": true,
+        "rows": []
+      }
+    ],
+    "no_coordinate_is_fabricated": "Structural rather than incidental, so the guarantee does not depend on what this fixture happens to contain. The complete set of keys ANY of the four levels can read is the union of the adapter's five key tuples: artifactId, artifact_id, ecosystem, id, name, packageEcosystem, packageName, packageURL, packageUrl, packageVersion, package_ecosystem, package_name, package_url, package_version, purl, type, version. Absent from that union, and therefore unreachable as a coordinate source no matter what they hold: fileName, md5, sha1, sha256, filePath, vulnerabilityIds, description, notes and references. So the defective dependency's fileName 'bootstrap.bundle.min.js', its three hashes and its filePath cannot become a coordinate; filePath is a PATH source only; and vulnerabilityIds -- which on this very dependency holds cpe:2.3:a:getbootstrap:bootstrap:4.4.1:*:*:*:*:*:*:* -- is, in the adapter's own words, 'deliberately not consulted: it carries CPEs, which are not the coordinate form the schema defines, and reading one as a coordinate would be the inference AAP 0.5.4 forbids'. The one key in the union that the record does carry, name, is refused by both guards.",
+    "no_positive_sibling_value_is_carried_across": "The positive sibling emits pkg:javascript/bootstrap@4.4.1 for this dependency, from the packages entry this fixture removes. That value appears in no row here and in no rejection here. It is named in the fixture.derivation block above, because naming what was removed is what makes the removal checkable -- so assert its absence over the rows' field values, not over this document's text.",
+    "hashes_and_a_cpe_without_a_package": "The defective dependency is non-virtual and carries md5, sha1, sha256, evidenceCollected and a vulnerabilityIds CPE alongside its two vulnerabilities. That combination is deliberate: the point is that a record can look thoroughly populated and still name no package, and the adapter must classify on the coordinate levels rather than on how full the envelope looks."
+  },
+  "counts": {
+    "raw_finding_records": 8,
+    "raw_count_unit": "one element of dependencies[].vulnerabilities[] -- the unit normalize.reconcile.count_records walks independently of row construction, summing len(vulnerabilities) over dependencies[]",
+    "raw_count_derivation": "sum(len(d.vulnerabilities)) over the seven dependencies = 2 + 1 + 1 + 1 + 1 + 2 + 0. The FIRST term is the coordinate-less dependency and the reason the rejection count is two rather than one; the last is the seventh dependency, core/src/main/resources/org/apache/spark/ui/static/package.json, which carries no vulnerabilities key at all.",
+    "raw_count_authority": "harness/lib/normalize/reconcile.py, _count_dependency_check, reached through count_records('dependency-check', doc). It builds no row, resolves no path, forms no coordinate and maps no severity, which is the whole point of it: a count taken from the traversal that builds the rows satisfies the identity while testing nothing.",
+    "rows": 6,
+    "rejections": 2,
+    "rejections_by_class": {
+      "unformable_package_coordinate": 2
+    },
+    "rejection_count_unit_note": "TWO, decided from the fixture rather than assumed. Exactly ONE dependency is defective, and a naive reading gives one rejection per defective dependency; the count unit is the vulnerability, so that dependency's two vulnerabilities are two records, each classified on its own and each rejected. The second vulnerability was appended to the fixture precisely so this cannot be got right by accident. An expectation of one rejection would also break the identity, since 8 != 7 + 1.",
+    "reconciliation_identity": "raw_finding_records == rows + rejections",
+    "reconciliation_arithmetic": "8 == 6 + 2",
+    "independent_count_authority": "The left side comes from reconcile.count_records and the right from the adapter's own return value, which is what makes the identity a test rather than a restatement.",
+    "four_reported_counters": {
+      "authority": "AAP 0.5.4 -- the four counts reported per tool",
+      "names": [
+        "multi_location_records",
+        "multi_valued_cwe_records",
+        "multi_valued_cve_records",
+        "non_filesystem_paths"
+      ],
+      "values_live_in": "counters",
+      "all_four_are_zero_for_this_fixture": false,
+      "note": "Named here rather than restated with their values. The counters block below is the single measurement, and a number carried twice inside one document is a number that can drift; counters_note gives the reason for each of the four."
+    },
+    "parse_status": "partial",
+    "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = 'partial', assigned wherever an artifact yielded at least one rejection. Six of the eight records parsed and were emitted; two were rejected and counted under their named class; nothing was dropped and nothing was coerced. Deliberately not normalize.reconcile's STATUS_PASS / STATUS_FAIL / STATUS_NOT_APPLICABLE vocabulary, which describes an assertion's outcome rather than an artifact's parse."
+  },
+  "counters": {
+    "dependencies": 7,
+    "dependencies_skipped_non_mapping": 0,
+    "dependencies_without_vulnerabilities_array": 1,
+    "multi_location_records": 0,
+    "multi_valued_cwe_records": 1,
+    "multi_valued_cve_records": 0,
+    "non_filesystem_paths": 0,
+    "archive_references_split": 0,
+    "rows_in_scope": 3,
+    "rows_out_of_scope": 3,
+    "start_line_absent": 6,
+    "severity_label_present": 5,
+    "severity_label_absent": 1,
+    "severity_score_candidates_present": 3,
+    "severity_selected_score_with_source_and_version": 1,
+    "cwe_absent": 1,
+    "cwe_entries_without_identifier": 0,
+    "cve_absent": 3,
+    "package_coordinate_from_record_package_url": 1,
+    "package_coordinate_from_package_object_package_url": 4,
+    "package_coordinate_from_record_fields": 0,
+    "package_coordinate_from_package_object_fields": 1,
+    "package_coordinate_multiple_candidates_at_level": 2,
+    "package_coordinate_unformable": 2,
+    "path_kind_tree_file": 6,
+    "path_kind_outside_root": 0,
+    "path_kind_archive_member": 0,
+    "path_kind_bytecode_source": 0,
+    "severity_basis_sarif_level": 0,
+    "severity_basis_label": 3,
+    "severity_basis_cvss_score": 3,
+    "severity_basis_no_vocabulary": 0,
+    "severity_basis_unmapped_literal": 0
+  },
+  "counters_authority": "harness/lib/normalize/adapters/dependency_check.py, COUNTER_KEYS as returned by new_counters(): thirty-three keys in that order -- twenty-four authored, plus one path_kind_* per normalize.paths.PATH_KINDS member and one severity_basis_* per normalize.severity.BASIS_VALUES member.",
+  "counters_note": "The four counters AAP 0.5.4 has reported per tool: multi_location_records 0 -- no dependency here carries a relatedDependencies array, which is the only multi-location shape this report has; multi_valued_cwe_records 1 -- row 1 alone, whose cwes array holds CWE-1321 and CWE-915; multi_valued_cve_records 0 -- no record's name yields more than one CVE identifier, since a Dependency-Check name carries at most one; non_filesystem_paths 0 -- every path here names a plain file in the tree, and this fixture carries no container reference at all.",
+  "counters_arithmetic": [
+    "dependencies 7 == the seven elements of dependencies[]",
+    "dependencies_skipped_non_mapping 0 + dependencies_without_vulnerabilities_array 1 == the one dependency contributing no record",
+    "rows_in_scope 3 + rows_out_of_scope 3 == rows 6 -- one measurement split, not a second count of the same thing",
+    "start_line_absent 6 == rows 6, by the policy stated in resolution_context.start_line",
+    "severity_label_present 5 + severity_label_absent 1 == rows 6; the counter asks whether a severity member is present AT ALL, so rows 2 and 3 count as present even though their JSON numbers band as scores, and row 5 is the single absence -- it carries no severity member",
+    "severity_basis_label 3 + severity_basis_cvss_score 3 == rows 6, and the other three bases are 0",
+    "severity_score_candidates_present 3 == rows 1, 4 and 5, the only rows whose record carries a cvss* block; note this is NOT the same set as severity_basis_cvss_score, because rows 1 and 4 have blocks that a mapped label overrode while rows 2 and 3 have no blocks and banded from the severity member itself. Two counters, two questions, deliberately not equal",
+    "severity_selected_score_with_source_and_version 1 == row 5 alone: its selected entry names source 'NVD:cvssv3' and version '3.1'. Rows 2 and 3 also band from a score but their entry names source 'label' with a null version, so they do not qualify",
+    "package_coordinate_from_record_package_url 1 + from_package_object_package_url 4 + from_record_fields 0 + from_package_object_fields 1 == rows 6, and the four level counters therefore partition the rows exactly",
+    "package_coordinate_multiple_candidates_at_level 2 == rows 0 and 2, the two tiebreak rows -- one at level 2 and one at level 4",
+    "package_coordinate_unformable 2 == rejections 2. This is the ONLY counter that moves for a rejected record: the adapter increments it immediately before returning the rejection at step 5",
+    "path_kind_tree_file 6 == rows 6, the other three kinds are 0, and non_filesystem_paths 0 == path_kind_archive_member 0 + path_kind_outside_root 0",
+    "cwe_absent 1 == row 0; cve_absent 3 == rows 0, 2 and 3",
+    "the eight counted records are 6 rows + 2 rejections, and no counter above counts a rejected record except package_coordinate_unformable: a rejection at step 5 never reaches the severity, cwe, cve, path-kind or in_scope tallies"
+  ],
+  "package_coordinate_precedence": {
+    "authority": "AAP 0.5.4's one candidate precedence for every dependency-oriented shape, implemented by harness/lib/normalize/adapters/dependency_check.py's package_coordinate(). This file is the folder's reference case for it, so each level below carries its rule, the rows it produced, and the derivation -- visible rather than merely satisfied.",
+    "the_rule_in_one_sentence": "Evaluate the four levels in order, stop at the FIRST level offering any candidate, and within that level take the lexicographically smallest of its pooled candidates.",
+    "levels": [
+      {
+        "level": 1,
+        "name": "record_package_url",
+        "rule": "a package URL on the record itself, under purl, packageUrl, packageURL or package_url",
+        "rows": [
+          1
+        ],
+        "coordinate": "pkg:npm/datatables.net@1.13.11",
+        "candidates_at_level": 1,
+        "derivation": "/dependencies/2/vulnerabilities/0 carries purl = pkg:npm/datatables.net@1.13.11, which matches the pkg: scheme, so level 1 is non-empty and evaluation stops there.",
+        "note": "This is the row that proves the precedence is ORDERED rather than opportunistic, and it is the sharpest check in the fixture. The enclosing dependency ALSO carries a package URL, pkg:javascript/datatables@1.13.11 at /dependencies/2/packages/0/id. An implementation that scanned packages[] before the record would emit that instead -- and so would an implementation that pooled all four levels together and took the lexicographically smallest, because 'pkg:javascript/...' sorts before 'pkg:npm/...'. Both wrong implementations agree with each other and disagree with this row, and no other row in the fixture distinguishes them."
+      },
+      {
+        "level": 2,
+        "name": "package_object_package_url",
+        "rule": "else a package URL on the enclosing package object -- for this shape the enclosing dependency's packages[] entries, pooled across every entry before the tiebreak is applied",
+        "rows": [
+          0,
+          3,
+          4,
+          5
+        ],
+        "coordinates": {
+          "0": "pkg:javascript/jquery.cookies@2.2.0",
+          "3": "pkg:npm/glob-parent@5.1.2",
+          "4": "pkg:npm/jquery@3.7.1",
+          "5": "pkg:npm/jquery@3.7.1"
+        },
+        "derivation": "Each of these four records carries no package URL of its own, and each enclosing dependency carries at least one packages[] entry whose id matches the pkg: scheme. Row 0's dependency offers two and is the tiebreak case; the other three offer one each. Rows 4 and 5 sit under the SAME dependency and take the same coordinate -- two records, two rows, not one row counted twice.",
+        "candidates_at_level": {
+          "0": 2,
+          "3": 1,
+          "4": 1,
+          "5": 1
+        }
+      },
+      {
+        "level": 3,
+        "name": "record_ecosystem_name_version",
+        "rule": "else <ecosystem>:<name>@<version> from the record's own fields, ecosystem lower-cased",
+        "rows": [],
+        "derivation": "Reached by every record that gets past level 2, and refused for all of them -- so its emptiness is a REFUSAL, not an avoidance by the fixture. A Dependency-Check vulnerability's name IS the advisory identifier, so the adapter refuses a name that equals the record's own rule_id or that is CVE-shaped. Every record here is one or both: CVE-2020-28458, CVE-2020-11023, CVE-2020-11022, CVE-2024-6531 and CVE-2024-6484 are CVE-shaped, and sonatype-2021-0163, sonatype-2022-6438 and the RetireJS prose title each equal their own rule_id. No record carries an ecosystem or a version member either.",
+        "why_the_refusal_is_load_bearing": "Without that guard, level 3 would succeed for every Dependency-Check record by rendering the advisory identifier as a package name -- 'nvd:CVE-2024-6531@…'-shaped nonsense -- and unformable_package_coordinate would be UNREACHABLE for this adapter, which would make this entire fixture impossible. Level 3's emptiness and this fixture's two rejections have exactly one cause."
+      },
+      {
+        "level": 4,
+        "name": "package_object_ecosystem_name_version",
+        "rule": "else the same triple from the enclosing package's fields, ecosystem lower-cased",
+        "rows": [
+          2
+        ],
+        "coordinate": "javascript:d3-flame-graph@4.1.3",
+        "candidates_at_level": 2,
+        "derivation": "/dependencies/3 carries TWO packages[] entries and BOTH of their ids are CPEs -- cpe:2.3:a:d3-flame-graph:d3-flame-graph:4.1.3:*:*:*:*:*:*:* and cpe:2.3:a:d3-flame-graph_project:d3-flame-graph:4.1.3:*:*:*:*:*:*:*. A CPE is not a package URL and is never coerced into one, so level 2 offers nothing. Level 3 is refused as described above. Level 4 then reads those same two objects' ecosystem, name and version members, forming two triples.",
+        "note": "Reaching the last level is an ordinary outcome, not a degraded one: row 2 is a row like any other. A record is rejected only when all four levels are empty."
+      }
+    ],
+    "levels_reached": [
+      1,
+      2,
+      4
+    ],
+    "levels_reached_count": "three of the four, with the fourth reached and refused rather than skipped",
+    "tiebreak": "Where several candidates sit at one level the lexicographically smallest wins, over the POOLED candidates of the whole level rather than within one package object -- taking the first entry's value instead would make the coordinate depend on producer order.",
+    "tiebreak_exercised_at_two_levels": [
+      {
+        "row": 0,
+        "level": 2,
+        "level_name": "package_object_package_url",
+        "candidates": [
+          "pkg:javascript/jquery.cookies@2.2.0",
+          "pkg:npm/jquery.cookies@2.2.0"
+        ],
+        "winner": "pkg:javascript/jquery.cookies@2.2.0",
+        "comparison": "Common prefix 'pkg:', then the first differing character is 'j' (0x6A) against 'n' (0x6E), so the javascript candidate is smaller.",
+        "why_only_this_rule_is_reproducible": "All three plausible rules disagree on this row. Producer order puts the npm entry FIRST (/dependencies/1/packages/0/id) and would emit it; the confidence field marks the npm entry LOW and the javascript entry HIGH and would also emit the javascript one but for the wrong reason; the stated lexicographic rule emits the javascript one. Only the third is reproducible, and the row is here so that an implementation using either of the other two is caught.",
+        "counter": "package_coordinate_multiple_candidates_at_level"
+      },
+      {
+        "row": 2,
+        "level": 4,
+        "level_name": "package_object_ecosystem_name_version",
+        "candidates": [
+          "javascript:d3-flame-graph@4.1.3",
+          "npm:d3-flame-graph@4.1.3"
+        ],
+        "winner": "javascript:d3-flame-graph@4.1.3",
+        "comparison": "'j' (0x6A) against 'n' (0x6E) at the first character, so the javascript candidate is smaller.",
+        "note": "The tiebreak applied at a level OTHER than 2, which the positive sibling does not exercise: its d3-flamegraph dependency carries a single package object, so its level-4 set has one member and sorted() runs over a one-element set. This fixture's added second package object is what turns that into a real contest.",
+        "counter": "package_coordinate_multiple_candidates_at_level"
+      }
+    ],
+    "ecosystem_case": "Lower-cased on the one row that forms a triple, and GENUINELY demonstrated there rather than merely implemented. Row 2's two package objects carry ecosystem 'JavaScript' and 'NPM' as observed; lower-cased they become javascript and npm. Both inputs are mixed- or upper-case, so removing the folding would change BOTH candidates -- to 'JavaScript:d3-flame-graph@4.1.3' and 'NPM:d3-flame-graph@4.1.3' -- and hence the emitted value. That is a stronger position than the same-condition Trivy sibling could take for itself, where the only Type reaching that path was already lower-case and the emitted value would have been byte-identical without the folding.",
+    "name_and_version_are_not_folded": "Carried exactly as observed -- d3-flame-graph and 4.1.3 -- since a package name is case-sensitive in several ecosystems and folding it would name a different package.",
+    "a_cpe_is_never_a_package_url": "Three of this fixture's package objects and one vulnerabilityIds entry carry CPE identifiers. None becomes a coordinate at level 2, because PACKAGE_URL_PATTERN matches the pkg: scheme and nothing else. Row 2 is the proof: its dependency has two package objects and still reaches level 4, which could only happen if both ids were rejected at level 2.",
+    "unformable_is_this_fixture_s_subject": "Where no candidate can be formed at ANY level the field is not emitted null: for this dependency-oriented shape the record is rejected under unformable_package_coordinate. That is the case this fixture owns, and package_coordinate_unformable is 2 rather than 0 as it is in every sibling."
+  },
+  "severity_policy": {
+    "authority": "harness/lib/normalize/severity.py -- the case-insensitive label map, the CVSS v3.1 section 5 band table, and resolve()'s ordered precedence. Nothing is mapped or banded in the adapter.",
+    "label_over_score": "A native label in the mapped vocabulary governs whatever the scores say; a score is consulted only where no mapped label exists. Either way the entry used is recorded -- the label, or the score with its source and version.",
+    "bands": "9.0-10.0 Critical, 7.0-8.9 High, 4.0-6.9 Medium, 0.1-3.9 Low, 0.0 Info. The boundaries and the first four labels are the CVSS v3.1 section 5 standard's; the standard's None band is emitted under this dataset's own label Info, which is a mapping this dataset defines and not a CVSS label. Banding is by ordered numeric comparison, never lexical.",
+    "severity_native_rendering": "A label reaches severity_native as the literal the tool wrote, stripped of surrounding whitespace and neither case-folded nor coerced -- which is why row 0 carries lower-case 'moderate' and rows 1 and 4 carry upper-case 'HIGH' and 'CRITICAL'. A numeric severity reaches it as a one-decimal rendering of the full-precision value.",
+    "label_versus_score_disagreements": [
+      {
+        "row": 4,
+        "label": "CRITICAL",
+        "label_band": "Critical",
+        "disagreeing_entries": [
+          "cvssv3.baseScore 6.1, baseSeverity MEDIUM -- band Medium"
+        ],
+        "agreeing_entries": [
+          "cvssv4.baseScore 9.3, baseSeverity CRITICAL -- band Critical"
+        ],
+        "governed_by": "the label",
+        "expected_severity_norm": "Critical",
+        "selected_entry": {
+          "label": "CRITICAL"
+        },
+        "note": "The label-over-score rule made visible: an implementation reading cvssv3 -- the usual choice -- emits Medium here, a two-band difference. What the rule changes is both the band and which entry is recorded as having governed, and both are checkable."
+      }
+    ],
+    "several_cvss_structures_on_one_record": [
+      {
+        "row": 1,
+        "blocks_present": [
+          "cvssv3"
+        ],
+        "selected": "none -- the mapped label HIGH governed, and it agrees with cvssv3's 7.5"
+      },
+      {
+        "row": 4,
+        "blocks_present": [
+          "cvssv3",
+          "cvssv4"
+        ],
+        "selected": "none -- the mapped label CRITICAL governed; see the disagreement recorded above"
+      },
+      {
+        "row": 5,
+        "blocks_present": [
+          "cvssv2",
+          "cvssv3"
+        ],
+        "selected": "cvssv3 -- the only row in this fixture where a CVSS block actually governs"
+      }
+    ],
+    "the_one_row_governed_by_a_versioned_block": {
+      "row": 5,
+      "why_no_label": "The record carries NO severity member at all -- the only record in the fixture that does not -- so severity_label_absent is 1 and the score candidates are consulted.",
+      "candidate_construction": "score_candidates() contributes one candidate per cvss* key in descending major version, so cvssv3 is supplied before cvssv2. Each block declares its own version ('3.1' and '2.0'), so neither is substituted; neither carries a source, so each is given the record's own source composed with the block key -- 'NVD:cvssv3' and 'NVD:cvssv2'. Nothing is invented: a block named cvssv3 IS a version-3 entry, and the record's source IS the provenance of the scores under it.",
+      "selection": "severity.py's total order takes the highest version first, so cvssv3 (3.1) wins over cvssv2 (2.0) without the scores having to be compared. Its baseScore is 7.5.",
+      "expected_severity_native": "7.5",
+      "expected_severity_norm": "High",
+      "basis": "cvss_score",
+      "selected_entry": {
+        "score": 7.5,
+        "source": "NVD:cvssv3",
+        "version": "3.1"
+      },
+      "counter_consequence": "This is the ONE row incrementing severity_selected_score_with_source_and_version, because it is the only row whose selected entry names both a source and a version. Note that cvssv3 declares no baseSeverity of its own here, so there is no label anywhere on the record to override the score -- which is exactly the shape that makes the score-governed path reachable."
+    },
+    "float_representation_artifacts": [
+      {
+        "row": 2,
+        "observed_severity": 3.200000047683716,
+        "expected_severity_native": "3.2",
+        "expected_severity_norm": "Low",
+        "basis": "cvss_score",
+        "selected_entry": {
+          "score": 3.200000047683716,
+          "source": "label",
+          "version": null
+        }
+      },
+      {
+        "row": 3,
+        "observed_severity": 5.300000190734863,
+        "expected_severity_native": "5.3",
+        "expected_severity_norm": "Medium",
+        "basis": "cvss_score",
+        "selected_entry": {
+          "score": 5.300000190734863,
+          "source": "label",
+          "version": null
+        }
+      }
+    ],
+    "float_representation_explained": {
+      "origin": "An OSS Index-sourced record carries no label and Dependency-Check renders the provider's float CVSS score into the severity field, so the float32-to-float64 representation tail reaches the artifact verbatim. Both values are in the fixture exactly as written above. This provisioning passes --disableOssIndex, so the path is unexercised by the production artifact and still fully implemented and fixture-tested, because a configuration is not a guarantee.",
+      "path_taken": "The severity member is a JSON number rather than a mapped label, and neither record carries any CVSS block, so the number is banded as a score in its own right at resolve()'s step 4. The recorded entry names source 'label' with a null version -- the value came from the severity member, not from a versioned CVSS block -- which is why NEITHER of these rows increments severity_selected_score_with_source_and_version even though both band from a score.",
+      "banding": "Numeric, on the full-precision value rather than on the rendered text: 3.200000047683716 bands Low exactly as 3.2 does, and 5.300000190734863 bands Medium exactly as 5.3 does. Rounding to one decimal place cannot cross a band boundary at either value, and the band is never taken from the rendered text.",
+      "no_spurious_precision": "severity_native carries the one-decimal rendering, so no artifact tail reaches a text field. The full-precision values appear in this file only as JSON numbers under selected_entry.score, which is where severity.py keeps them."
+    },
+    "case_insensitivity": {
+      "row": 0,
+      "observed_literal": "moderate",
+      "expected_severity_native": "moderate",
+      "expected_severity_norm": "Medium",
+      "note": "Absorbed by the case-insensitive map, whose keys are upper-case and whose lookup upper-cases the observed literal. The literal is preserved as written rather than folded, because severity-map.md reports observed literals with per-literal row counts and upper-casing it here would misreport a literal the tool never wrote. The record also carries unscored 'true' and no CVSS block, and neither changes the outcome: a mapped label needs no score.",
+      "same_band_two_literals": "MEDIUM and moderate both band Medium and are two distinct literals in the tally -- rows 3 and 5 reach Medium and High from numbers instead, so this fixture's Medium band is reached by two different routes."
+    },
+    "the_rejected_records_contribute_no_literal": "The first rejected record carries severity 'LOW' beside three CVSS blocks spanning Critical, Medium and Low (cvssv3 9.1, cvssv2 4.3, cvssv4 2.3); the second carries 'MEDIUM' beside a cvssv3 of 6.1. Neither reaches severity.resolve and neither is fed to the LiteralTally, so no literal from them can appear in severity-map.md against rows the dataset does not contain. The first would have been the fixture's widest label-versus-score disagreement had it become a row -- three bands from three blocks against a LOW label -- and step 5 rejects it before step 6 is reached, which is the clearest evidence here that the classification order does real work.",
+    "never_absent": "severity_norm is absent on no row. severity_native is absent on no row either: five records carry a severity member and the sixth (row 5) bands from a CVSS block, and both paths set severity_native -- a label verbatim, or a one-decimal score. severity_basis_no_vocabulary, the only path setting severity_native null, is therefore 0.",
+    "unmapped_literals": "None. Every literal on an emitted row is either a mapped label or a bandable number in 0.0-10.0, so severity_basis_unmapped_literal is 0."
+  },
+  "in_scope_surface": {
+    "statement": "This tool's only in-scope surface at the pin is the vendored web bundles under core/src/main/resources: 30 .js and 10 .css, 40 files, counted on the pinned tree at 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d. Rows 0, 1 and 2 are three of them, and they are the only three in_scope true rows here.",
+    "example": "core/src/main/resources/org/apache/spark/ui/static/jquery.cookies.2.2.0.min.js -- row 0, in_scope true, matched glob core/src/main/**",
+    "the_manifest_in_scope": "core/src/main/resources/org/apache/spark/ui/static/package.json is in scope by the same glob and appears in this fixture as dependency 6. It contributes no row, because it carries no vulnerabilities key -- not because of its scope. It is 5 lines and 80 bytes, holding a name, a license and \"type\": \"module\", with no dependencies block and no lockfile beside it, which is the whole reason the twelve authoritative roots resolve zero dependency manifests and this tool reported zero findings over them.",
+    "what_this_provisioning_actually_resolved": "harness/artifacts/raw/dependency-check.json carries 32 dependencies -- 31 .js files (the 30 under core/src/main/resources plus sql/core/src/main/resources/org/apache/spark/sql/execution/ui/static/spark-sql-viz.js) and that one package.json -- with zero vulnerabilities AND zero packages among them. No .css file became a dependency at all. The 40-file figure above is the in-scope bundle surface on disk; the 32 is what the tool resolved from it. Two different measurements, both stated, neither substituted for the other.",
+    "why_that_matters_for_this_fixture_specifically": "Zero of those 32 resolved a package coordinate. So had any one of them carried a vulnerability, it would have been a rejection under exactly the class this fixture asserts -- which makes this the one negative fixture in the tree whose condition describes the tool's whole real in-scope surface rather than an edge of it.",
+    "the_out_of_glob_rows": "Rows 3, 4 and 5 name dev/package-lock.json and ui-test/package-lock.json, two of the pin's three out-of-glob lockfiles. A dependency-oriented scanner legitimately reaches them, they resolve to real files in the tree, and they are kept with in_scope false. The third, docs/Gemfile.lock, appears in the positive sibling but was dropped when this fixture was derived, so expecting three lockfile paths here would be expecting a dependency the fixture does not have.",
+    "no_scope_judgement": "Recorded as a property of the scope, exactly as AAP 0.3.2 requires: the allowlist is not widened to give this tool something to resolve, and zero manifests in scope is a fact to report rather than a condition to fix."
+  },
+  "the_absent_sibling_fixture": {
+    "fact": "There is no oss-scan-results/adapter-tests/fixtures/reject-dependency-check-non-integer-start-line.json, and there should not be.",
+    "why": "The condition is UNREACHABLE for this adapter. Dependency-Check reports at dependency granularity, and this artifact shape carries no line information in any member at any depth, so there is no start_line for a non-integer to occupy. adapters/dependency_check.py makes it structural rather than incidental: _START_LINE is the constant None and every row takes it, so a start_line is never read from the artifact and never synthesised. A fixture manufacturing the condition would have to contradict the artifact shape itself.",
+    "verified_by_enumeration": "Exactly five reject-*-non-integer-start-line fixtures exist in this tree -- for checkov, gitleaks, joern, sarif and trivy -- and dependency-check is the only adapter without one. Its negative set is exactly five files: reject-dependency-check-{malformed-record, missing-message, missing-rule-id, no-package-coordinate, unresolvable-path}.json.",
+    "why_this_fixture_is_the_one_that_surfaces_it": "Because this is the fixture whose own rows make start_line null six times over, so a reader arriving here is already asking why. The counter start_line_absent equals the row count by design, and that identity is the same fact stated numerically.",
+    "readme_states_it_explicitly": "oss-scan-results/adapter-tests/README.md carries the explicit statement for the folder as a whole. This block asserts the fact on its own measured evidence -- the enumeration above -- rather than by deferring to that file, so the two agree independently rather than one resting on the other.",
+    "the_set_this_closes": "With this fixture the adapter's rejection surface is fully accounted for. Reachable and each owning a fixture: malformed_record, missing_rule_id, missing_message, absent_path and unformable_package_coordinate. Unreachable and each stated as a fact rather than a gap: non_integer_start_line, for the reason above, and unresolvable_path, because the recorded path_base.kind filesystem_absolute always supplies a base -- derived in full by expected/reject-dependency-check-unresolvable-path.rows.json, whose slug names that class while its fixture produces absent_path. Nothing is left unexplained in either direction.",
+    "not_a_coverage_excuse": "AAP 0.9.4 requires a negative fixture for every rejection condition each exercised adapter CAN produce. An unreachable condition is outside that set by construction, and saying so with the mechanism named is the opposite of leaving a rejection path untested."
+  },
+  "corroboration": {
+    "source": "oss-scan-results/adapter-tests/expected/dependency-check.rows.json",
+    "records_compared": 6,
+    "fields_compared_per_record": 12,
+    "agreement": "complete",
+    "note": "All six surviving rows here are records the positive sibling also covers, and every one of the 72 field comparisons agrees: this file's row 0 is that file's row 1, row 1 its row 2, row 2 its row 3, row 3 its row 4, row 4 its row 5 and row 5 its row 6. That the six are unchanged is the substantive result -- removing one dependency's packages array and appending a second vulnerability to it altered nothing about any other record. Recorded after the fact rather than as the source of these values: each was derived from the fixture and the authored contracts, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply.",
+    "what_has_no_counterpart": "The two rejected records have none to corroborate against. Their dependency's coordinate exists in the positive sibling (pkg:javascript/bootstrap@4.4.1, its row 0) precisely because this fixture removed the entry that produced it, and its second vulnerability CVE-2024-6484 appears in no other fixture. They contribute no dataset row, so there is nothing to compare field for field.",
+    "dataset_corroboration_unavailable": "oss-scan-results/findings.json holds no dependency-check row at all: the tool reported zero findings over the twelve authoritative roots, so there is nothing in the committed dataset to compare these six rows against. The absence is stated rather than papered over -- these rows rest on the fixture and the authored contracts alone, which is what AAP 0.6.2 asks of a hand-verified expected file in any case. The scope fact behind the zero is reported in oss-scan-results/tool-status.md, not here.",
+    "independence_of_the_two_hand_derivations": "The agreement above is a consistency check between two independently hand-derived files, not corroboration from a run. Neither was produced by executing the adapter, so agreement means two readings of the same contracts reached the same place."
+  },
+  "rows": [
+    {
+      "tool": "dependency-check",
+      "scanner_class": "vuln",
+      "rule_id": "jquery.cookies 2.2.0 unsafe cookie value deserialization",
+      "message": "The cookie accessor evaluates a stored cookie value as structured data before returning it, so a cookie written by another document on the same registrable domain can influence the object the caller receives.",
+      "severity_native": "moderate",
+      "severity_norm": "Medium",
+      "path": "core/src/main/resources/org/apache/spark/ui/static/jquery.cookies.2.2.0.min.js",
+      "start_line": null,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": "pkg:javascript/jquery.cookies@2.2.0",
+      "in_scope": true
+    },
+    {
+      "tool": "dependency-check",
+      "scanner_class": "vuln",
+      "rule_id": "CVE-2020-28458",
+      "message": "A prototype pollution weakness in the table initialization path: a configuration object read from untrusted input is merged into a shared prototype, so a crafted key can add or replace properties visible to every later object.",
+      "severity_native": "HIGH",
+      "severity_norm": "High",
+      "path": "core/src/main/resources/org/apache/spark/ui/static/jquery.dataTables.min.js",
+      "start_line": null,
+      "cwe": "CWE-915",
+      "cve": "CVE-2020-28458",
+      "package_coordinate": "pkg:npm/datatables.net@1.13.11",
+      "in_scope": true
+    },
+    {
+      "tool": "dependency-check",
+      "scanner_class": "vuln",
+      "rule_id": "sonatype-2021-0163",
+      "message": "The flame graph builder copies keys from a supplied node object onto an internal accumulator without excluding prototype-reaching names, so a crafted node label can reach the object prototype.",
+      "severity_native": "3.2",
+      "severity_norm": "Low",
+      "path": "core/src/main/resources/org/apache/spark/ui/static/d3-flamegraph.min.js",
+      "start_line": null,
+      "cwe": "CWE-1321",
+      "cve": null,
+      "package_coordinate": "javascript:d3-flame-graph@4.1.3",
+      "in_scope": true
+    },
+    {
+      "tool": "dependency-check",
+      "scanner_class": "vuln",
+      "rule_id": "sonatype-2022-6438",
+      "message": "The glob prefix parser backtracks on a pattern containing many nested braces, so a long crafted pattern costs time superlinear in its length.",
+      "severity_native": "5.3",
+      "severity_norm": "Medium",
+      "path": "dev/package-lock.json",
+      "start_line": null,
+      "cwe": "CWE-400",
+      "cve": null,
+      "package_coordinate": "pkg:npm/glob-parent@5.1.2",
+      "in_scope": false
+    },
+    {
+      "tool": "dependency-check",
+      "scanner_class": "vuln",
+      "rule_id": "CVE-2020-11023",
+      "message": "Passing HTML containing option elements from untrusted sources to a DOM manipulation method can execute the script those elements carry, even after the markup has been passed through the library's own sanitizing helper.",
+      "severity_native": "CRITICAL",
+      "severity_norm": "Critical",
+      "path": "ui-test/package-lock.json",
+      "start_line": null,
+      "cwe": "CWE-79",
+      "cve": "CVE-2020-11023",
+      "package_coordinate": "pkg:npm/jquery@3.7.1",
+      "in_scope": false
+    },
+    {
+      "tool": "dependency-check",
+      "scanner_class": "vuln",
+      "rule_id": "CVE-2020-11022",
+      "message": "HTML from an untrusted source, even after being passed through the library's sanitizing helper, may execute script when it is inserted into the document.",
+      "severity_native": "7.5",
+      "severity_norm": "High",
+      "path": "ui-test/package-lock.json",
+      "start_line": null,
+      "cwe": "CWE-79",
+      "cve": "CVE-2020-11022",
+      "package_coordinate": "pkg:npm/jquery@3.7.1",
+      "in_scope": false
+    }
+  ],
+  "row_derivations": [
+    {
+      "row_index": 0,
+      "record_pointer": "/dependencies/1/vulnerabilities/0",
+      "dependency_pointer": "/dependencies/1",
+      "dependency_index": 1,
+      "vulnerability_index": 0,
+      "dependency_file_name": "jquery.cookies.2.2.0.min.js",
+      "dependency_is_virtual": false,
+      "record_source": "RETIREJS",
+      "rule_id_source": "/dependencies/1/vulnerabilities/0/name -- a prose advisory title rather than an identifier, which is what a RetireJS record carries and is taken exactly as written",
+      "message_source": "/dependencies/1/vulnerabilities/0/description",
+      "message_note": "Carried verbatim. Never assembled from notes (an empty string on this record), from cwes[], from a references[] entry or from the enclosing dependency's fileName.",
+      "severity_native_source": "/dependencies/1/vulnerabilities/0/severity",
+      "severity_basis": "label",
+      "severity_counter": "severity_basis_label",
+      "selected_entry": {
+        "label": "moderate"
+      },
+      "cvss_blocks_present": [],
+      "cvss_blocks_consulted": false,
+      "unscored_flag": "/dependencies/1/vulnerabilities/0/unscored is the string 'true'; it is not read as a severity and changes nothing, because a mapped label needs no score",
+      "path_source": "/dependencies/1/filePath",
+      "reported_path_form": "filesystem-absolute: the root followed by the path field of row 0",
+      "path_kind": "tree_file",
+      "path_basis": "absolute-relativized-to-root",
+      "locations_in_record": 1,
+      "start_line_source": null,
+      "start_line_absent_reason": "the artifact carries no line information at any depth; Dependency-Check reports at dependency granularity",
+      "cwe_source": null,
+      "cwe_absent_reason": "the record carries no cwes member at all, so no identifier exists to collect and cwe_absent counts it",
+      "distinct_cwe_identifiers": 0,
+      "cwe_entries_without_identifier": 0,
+      "cve_source": null,
+      "cve_absent_reason": "the name is a prose title and is not CVE-shaped, so select_cve yields nothing; a rule_id that is not an identifier is still a rule_id",
+      "distinct_cve_identifiers": 0,
+      "package_coordinate_source": {
+        "pointer": "/dependencies/1/packages/1/id",
+        "level": "package_object_package_url",
+        "level_number": 2,
+        "candidates_at_level": 2,
+        "note": "The level-2 tiebreak row. Both packages[] entries carry a pkg: URL; the lexicographically smallest of the pooled candidates wins, which is the entry at index 1 rather than index 0. Producer order and the confidence field both point the other way or for the wrong reason."
+      },
+      "matched_allowlist_glob": "core/src/main/**",
+      "out_of_scope_reason": null
+    },
+    {
+      "row_index": 1,
+      "record_pointer": "/dependencies/2/vulnerabilities/0",
+      "dependency_pointer": "/dependencies/2",
+      "dependency_index": 2,
+      "vulnerability_index": 0,
+      "dependency_file_name": "jquery.dataTables.min.js",
+      "dependency_is_virtual": false,
+      "record_source": "OSSINDEX",
+      "rule_id_source": "/dependencies/2/vulnerabilities/0/name",
+      "message_source": "/dependencies/2/vulnerabilities/0/description",
+      "message_note": "Carried verbatim; notes is an empty string and is not appended.",
+      "severity_native_source": "/dependencies/2/vulnerabilities/0/severity",
+      "severity_basis": "label",
+      "severity_counter": "severity_basis_label",
+      "selected_entry": {
+        "label": "HIGH"
+      },
+      "cvss_blocks_present": [
+        "cvssv3"
+      ],
+      "cvss_blocks_consulted": false,
+      "cvss_agreement": "cvssv3.baseScore 7.5, baseSeverity HIGH -- bands High, agreeing with the label that governed. The agreement is why this row is not a disagreement case, and it still increments severity_score_candidates_present because a block was present to consult.",
+      "path_source": "/dependencies/2/filePath",
+      "reported_path_form": "filesystem-absolute: the root followed by the path field of row 1",
+      "path_kind": "tree_file",
+      "path_basis": "absolute-relativized-to-root",
+      "locations_in_record": 1,
+      "start_line_source": null,
+      "start_line_absent_reason": "as row 0",
+      "cwe_source": {
+        "pointers": [
+          "/dependencies/2/vulnerabilities/0/cwes/0",
+          "/dependencies/2/vulnerabilities/0/cwes/1"
+        ],
+        "text": [
+          "CWE-1321",
+          "CWE-915"
+        ],
+        "selected": "CWE-915",
+        "selection_rule": "the LOWEST numeric identifier, canonicalised to CWE-<n>. AAP 0.5.4's ascending-numeric ordering is total, so no tie arises and no producer-order tiebreak is needed."
+      },
+      "cwe_absent_reason": null,
+      "distinct_cwe_identifiers": 2,
+      "cwe_entries_without_identifier": 0,
+      "multi_valued_cwe": "This is the fixture's only multi-valued CWE record, and it is the one that discriminates ascending-numeric selection from first-wins: producer order lists CWE-1321 FIRST, so an implementation taking cwes[0] emits CWE-1321 and this row catches it. Numeric order also disagrees with string order here -- '1321' sorts before '915' lexically -- so a lexical sort emits CWE-1321 too.",
+      "cve_source": "/dependencies/2/vulnerabilities/0/name -- CVE-shaped, so it fills cve as well as rule_id",
+      "distinct_cve_identifiers": 1,
+      "package_coordinate_source": {
+        "pointer": "/dependencies/2/vulnerabilities/0/purl",
+        "level": "record_package_url",
+        "level_number": 1,
+        "candidates_at_level": 1,
+        "note": "The row that proves the levels are ordered. The enclosing dependency also carries a package URL at /dependencies/2/packages/0/id, pkg:javascript/datatables@1.13.11, and it is NOT taken -- level 1 stops first. Both an implementation that scanned packages[] before the record and one that pooled every level and took the smallest would emit that other value, because 'pkg:javascript/...' sorts before 'pkg:npm/...'."
+      },
+      "matched_allowlist_glob": "core/src/main/**",
+      "out_of_scope_reason": null
+    },
+    {
+      "row_index": 2,
+      "record_pointer": "/dependencies/3/vulnerabilities/0",
+      "dependency_pointer": "/dependencies/3",
+      "dependency_index": 3,
+      "vulnerability_index": 0,
+      "dependency_file_name": "d3-flamegraph.min.js",
+      "dependency_is_virtual": false,
+      "record_source": "OSSINDEX",
+      "rule_id_source": "/dependencies/3/vulnerabilities/0/name -- a Sonatype advisory identifier, not a CVE",
+      "message_source": "/dependencies/3/vulnerabilities/0/description",
+      "message_note": "Carried verbatim.",
+      "severity_native_source": "/dependencies/3/vulnerabilities/0/severity -- a JSON number, not a label",
+      "severity_observed_value": 3.200000047683716,
+      "severity_basis": "cvss_score",
+      "severity_counter": "severity_basis_cvss_score",
+      "selected_entry": {
+        "score": 3.200000047683716,
+        "source": "label",
+        "version": null
+      },
+      "severity_derivation": "No mapped label exists, and the record carries no CVSS block at all, so the number is banded on its own at resolve()'s step 4: 3.200000047683716 falls in 0.1-3.9 and bands Low, and severity_native is its one-decimal rendering '3.2'. The entry names source 'label' and no version because the value came from the severity member rather than from a versioned CVSS block, which is why this row does NOT increment severity_selected_score_with_source_and_version.",
+      "cvss_blocks_present": [],
+      "cvss_blocks_consulted": false,
+      "unscored_flag": "/dependencies/3/vulnerabilities/0/unscored is the string 'true'; it is not read as a severity, and the numeric severity member is banded regardless of it",
+      "path_source": "/dependencies/3/filePath",
+      "reported_path_form": "filesystem-absolute: the root followed by the path field of row 2",
+      "path_kind": "tree_file",
+      "path_basis": "absolute-relativized-to-root",
+      "locations_in_record": 1,
+      "start_line_source": null,
+      "start_line_absent_reason": "as row 0",
+      "cwe_source": {
+        "pointer": "/dependencies/3/vulnerabilities/0/cwes/0",
+        "text": "CWE-1321"
+      },
+      "cwe_absent_reason": null,
+      "distinct_cwe_identifiers": 1,
+      "cwe_entries_without_identifier": 0,
+      "cve_source": null,
+      "cve_absent_reason": "the name 'sonatype-2021-0163' is not CVE-shaped -- it carries a four-digit group but no CVE- prefix, and CVE_TOKEN_PATTERN requires the prefix -- so cve is null while rule_id keeps the identifier",
+      "distinct_cve_identifiers": 0,
+      "package_coordinate_source": {
+        "pointers": [
+          "/dependencies/3/packages/0",
+          "/dependencies/3/packages/1"
+        ],
+        "level": "package_object_ecosystem_name_version",
+        "level_number": 4,
+        "candidates_at_level": 2,
+        "candidates": [
+          "javascript:d3-flame-graph@4.1.3",
+          "npm:d3-flame-graph@4.1.3"
+        ],
+        "selected": "javascript:d3-flame-graph@4.1.3",
+        "note": "The level-4 tiebreak row, and the only row in the tree that exercises the tiebreak below level 2. It reaches level 4 for two stated reasons: both package objects' ids are CPEs, which are not package URLs and are never coerced into one, so level 2 offers nothing; and level 3 is refused because the record's name equals its own rule_id. The triples are then formed from those same two objects' ecosystem, name and version, with the ecosystems lower-cased from 'JavaScript' and 'NPM'."
+      },
+      "matched_allowlist_glob": "core/src/main/**",
+      "out_of_scope_reason": null
+    },
+    {
+      "row_index": 3,
+      "record_pointer": "/dependencies/4/vulnerabilities/0",
+      "dependency_pointer": "/dependencies/4",
+      "dependency_index": 4,
+      "vulnerability_index": 0,
+      "dependency_file_name": "package-lock.json: glob-parent:5.1.2",
+      "dependency_is_virtual": true,
+      "record_source": "OSSINDEX",
+      "rule_id_source": "/dependencies/4/vulnerabilities/0/name",
+      "message_source": "/dependencies/4/vulnerabilities/0/description",
+      "message_note": "Carried verbatim.",
+      "severity_native_source": "/dependencies/4/vulnerabilities/0/severity -- a JSON number, not a label",
+      "severity_observed_value": 5.300000190734863,
+      "severity_basis": "cvss_score",
+      "severity_counter": "severity_basis_cvss_score",
+      "selected_entry": {
+        "score": 5.300000190734863,
+        "source": "label",
+        "version": null
+      },
+      "severity_derivation": "As row 2: no mapped label, no CVSS block, so the number bands on its own -- 5.300000190734863 falls in 4.0-6.9 and bands Medium, with severity_native the one-decimal '5.3'. Source 'label', no version, so no contribution to severity_selected_score_with_source_and_version.",
+      "cvss_blocks_present": [],
+      "cvss_blocks_consulted": false,
+      "path_source": "/dependencies/4/filePath",
+      "reported_path_form": "filesystem-absolute: the root followed by the path field of row 3",
+      "path_kind": "tree_file",
+      "path_basis": "absolute-relativized-to-root",
+      "virtual_dependency_note": "isVirtual is true and the fileName is the composite 'package-lock.json: glob-parent:5.1.2', but the path comes from filePath and resolves to the real lockfile on disk. The fileName is never read as a path, and a virtual dependency is a row like any other.",
+      "locations_in_record": 1,
+      "start_line_source": null,
+      "start_line_absent_reason": "as row 0",
+      "cwe_source": {
+        "pointer": "/dependencies/4/vulnerabilities/0/cwes/0",
+        "text": "CWE-400"
+      },
+      "cwe_absent_reason": null,
+      "distinct_cwe_identifiers": 1,
+      "cwe_entries_without_identifier": 0,
+      "cve_source": null,
+      "cve_absent_reason": "the name 'sonatype-2022-6438' is not CVE-shaped, as row 2",
+      "distinct_cve_identifiers": 0,
+      "package_coordinate_source": {
+        "pointer": "/dependencies/4/packages/0/id",
+        "level": "package_object_package_url",
+        "level_number": 2,
+        "candidates_at_level": 1
+      },
+      "matched_allowlist_glob": null,
+      "out_of_scope_reason": "dev/package-lock.json matches none of the twelve authoritative globs. It is one of the pin's three out-of-glob lockfiles, a dependency-oriented scanner legitimately reaches it, and the row is kept and counted -- AAP 0.9.3 keeps it and AAP 0.8.3 is explicit that an individual out-of-glob coordinate is never evidence of a wrong scan root."
+    },
+    {
+      "row_index": 4,
+      "record_pointer": "/dependencies/5/vulnerabilities/0",
+      "dependency_pointer": "/dependencies/5",
+      "dependency_index": 5,
+      "vulnerability_index": 0,
+      "dependency_file_name": "package-lock.json",
+      "dependency_is_virtual": false,
+      "record_source": "NVD",
+      "rule_id_source": "/dependencies/5/vulnerabilities/0/name",
+      "message_source": "/dependencies/5/vulnerabilities/0/description",
+      "message_note": "Carried verbatim.",
+      "severity_native_source": "/dependencies/5/vulnerabilities/0/severity",
+      "severity_basis": "label",
+      "severity_counter": "severity_basis_label",
+      "selected_entry": {
+        "label": "CRITICAL"
+      },
+      "cvss_blocks_present": [
+        "cvssv3",
+        "cvssv4"
+      ],
+      "cvss_blocks_consulted": false,
+      "cvss_disagreement": "cvssv3.baseScore 6.1 with baseSeverity MEDIUM bands Medium and DISAGREES with the label; cvssv4.baseScore 9.3 with baseSeverity CRITICAL bands Critical and agrees. The mapped label governs regardless, so severity_norm is Critical and the recorded entry is the label. An implementation reading cvssv3 -- the usual choice -- emits Medium here, a two-band error this row catches.",
+      "path_source": "/dependencies/5/filePath",
+      "reported_path_form": "filesystem-absolute: the root followed by the path field of row 4",
+      "path_kind": "tree_file",
+      "path_basis": "absolute-relativized-to-root",
+      "locations_in_record": 1,
+      "start_line_source": null,
+      "start_line_absent_reason": "as row 0",
+      "cwe_source": {
+        "pointer": "/dependencies/5/vulnerabilities/0/cwes/0",
+        "text": "CWE-79"
+      },
+      "cwe_absent_reason": null,
+      "distinct_cwe_identifiers": 1,
+      "cwe_entries_without_identifier": 0,
+      "cve_source": "/dependencies/5/vulnerabilities/0/name -- CVE-shaped",
+      "distinct_cve_identifiers": 1,
+      "package_coordinate_source": {
+        "pointer": "/dependencies/5/packages/0/id",
+        "level": "package_object_package_url",
+        "level_number": 2,
+        "candidates_at_level": 1
+      },
+      "matched_allowlist_glob": null,
+      "out_of_scope_reason": "ui-test/package-lock.json matches none of the twelve globs. Kept and counted, as row 3."
+    },
+    {
+      "row_index": 5,
+      "record_pointer": "/dependencies/5/vulnerabilities/1",
+      "dependency_pointer": "/dependencies/5",
+      "dependency_index": 5,
+      "vulnerability_index": 1,
+      "dependency_file_name": "package-lock.json",
+      "dependency_is_virtual": false,
+      "record_source": "NVD",
+      "rule_id_source": "/dependencies/5/vulnerabilities/1/name",
+      "message_source": "/dependencies/5/vulnerabilities/1/description",
+      "message_note": "Carried verbatim.",
+      "severity_native_source": "none -- the record carries NO severity member at all, the only record in the fixture that does not",
+      "severity_basis": "cvss_score",
+      "severity_counter": "severity_basis_cvss_score",
+      "selected_entry": {
+        "score": 7.5,
+        "source": "NVD:cvssv3",
+        "version": "3.1"
+      },
+      "severity_derivation": "With no label to govern, the score candidates are consulted. score_candidates() supplies one per cvss* key in descending major version -- cvssv3 then cvssv2 -- each keeping its own declared version ('3.1', '2.0') and each given a source composed from the record's own source and the block key, 'NVD:cvssv3' and 'NVD:cvssv2'. severity.py's total order takes the highest version first, so cvssv3 wins without the scores being compared, and its baseScore 7.5 bands High (7.0-8.9) with severity_native the one-decimal '7.5'. Note that this cvssv3 block declares no baseSeverity of its own, so there is no label anywhere on the record -- which is what makes the score-governed path reachable at all.",
+      "cvss_blocks_present": [
+        "cvssv2",
+        "cvssv3"
+      ],
+      "cvss_blocks_consulted": true,
+      "counter_consequence": "The ONE row incrementing severity_selected_score_with_source_and_version, because it is the only row whose selected entry names both a source and a version. It also increments severity_label_absent, the fixture's only one.",
+      "path_source": "/dependencies/5/filePath",
+      "reported_path_form": "filesystem-absolute: the root followed by the path field of row 5 -- the same dependency as row 4, so the same path",
+      "path_kind": "tree_file",
+      "path_basis": "absolute-relativized-to-root",
+      "locations_in_record": 1,
+      "start_line_source": null,
+      "start_line_absent_reason": "as row 0",
+      "cwe_source": {
+        "pointer": "/dependencies/5/vulnerabilities/1/cwes/0",
+        "text": "CWE-79"
+      },
+      "cwe_absent_reason": null,
+      "distinct_cwe_identifiers": 1,
+      "cwe_entries_without_identifier": 0,
+      "cve_source": "/dependencies/5/vulnerabilities/1/name -- CVE-shaped",
+      "distinct_cve_identifiers": 1,
+      "package_coordinate_source": {
+        "pointer": "/dependencies/5/packages/0/id",
+        "level": "package_object_package_url",
+        "level_number": 2,
+        "candidates_at_level": 1
+      },
+      "matched_allowlist_glob": null,
+      "out_of_scope_reason": "as row 4",
+      "not_a_duplicate_of_row_4": "Rows 4 and 5 share a dependency, a path and a package coordinate, and they are two rows. They are two records under one dependency, distinguished by vulnerability_index and by naming different advisories (CVE-2020-11023 and CVE-2020-11022). Nothing is collapsed: AAP 0.3.2 forbids deduplication in either direction."
+    }
+  ],
+  "dependencies_contributing_no_record": [
+    {
+      "dependency_pointer": "/dependencies/6",
+      "dependency_index": 6,
+      "dependency_file_name": "package.json",
+      "reported_file_path": "filesystem-absolute: the root followed by core/src/main/resources/org/apache/spark/ui/static/package.json",
+      "reason": "The dependency carries no vulnerabilities key at all, so it contributes zero records to the count unit. Not a rejection and not an error: a dependency is not a record, and most of the scanned surface has no vulnerability. Counted under dependencies_without_vulnerabilities_array, which is 1.",
+      "also_carries_no_packages_array": true,
+      "what_would_have_happened_had_it_carried_one": "It would have been a rejection under this fixture's own class. It has no packages array and any vulnerability under it would carry an advisory identifier for a name, so all four coordinate levels would be empty -- exactly the defective dependency's situation. Worth stating because it shows the condition is the shape's norm rather than something the fixture had to engineer twice.",
+      "in_scope_had_it_produced_a_record": "true -- the path matches core/src/main/**. The scope of a dependency that produces no record is stated here rather than left implied, so a reader does not read its absence from rows as an out-of-scope decision.",
+      "the_file_itself": "5 lines and 80 bytes at the pin, holding a name, a license and \"type\": \"module\", with no dependencies block and no lockfile beside it. It is the only manifest-shaped file inside the twelve authoritative roots, and its emptiness is the reason the dependency-oriented tools resolved nothing in scope.",
+      "path_resolution_never_attempted": "Step 4 is never reached for this dependency because no record under it is ever built, so its filePath is not resolved and no path counter moves for it."
+    }
+  ],
+  "rejections": [
+    {
+      "rejection_index": 0,
+      "record_pointer": "/dependencies/0/vulnerabilities/0",
+      "dependency_pointer": "/dependencies/0",
+      "dependency_index": 0,
+      "vulnerability_index": 0,
+      "locator_note": "The pointer and the dependency_index / vulnerability_index pair name the same record. The pair is carried as well because it is what the adapter puts in record_identity, so a test can match on either without deriving one from the other.",
+      "reject_class": "unformable_package_coordinate",
+      "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_UNFORMABLE_PACKAGE_COORDINATE constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten, at index 7. Written verbatim rather than paraphrased, and asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+      "tool": "dependency-check",
+      "dependency_file_name": "bootstrap.bundle.min.js",
+      "reported_file_path": "filesystem-absolute: the root followed by core/src/main/resources/org/apache/spark/ui/static/bootstrap.bundle.min.js",
+      "rule_id": "CVE-2024-6531",
+      "classification_step": "step 5 of the adapter's fixed classification order -- shape, rule identifier, message, path, package coordinate. Steps 1 to 4 ALL pass: the record is an object, its name is a usable string, its description is a usable string, and its enclosing dependency's filePath resolves cleanly. Step 5 rejects.",
+      "step_4_succeeded_and_that_is_the_point": "This record's path resolves without difficulty to core/src/main/resources/org/apache/spark/ui/static/bootstrap.bundle.min.js -- a tree_file, inside the root, matching the glob core/src/main/** and therefore IN SCOPE. It is still rejected, because the coordinate test comes after. So the record is rejected despite having a perfectly good path, which is the mirror image of the same-adapter sibling where the path is what fails. A reader tallying path_kind_tree_file or rows_in_scope would otherwise expect these two records to appear there.",
+      "counters_that_do_not_move_for_this_record": "path_kind_tree_file, rows_in_scope, start_line_absent, severity_label_present, severity_score_candidates_present, every severity_basis_*, cwe_absent, cve_absent and all four coordinate LEVEL counters. None of them is reached, because step 5 returns before the row builder runs. The single counter that does move is package_coordinate_unformable, incremented immediately before the rejection is returned.",
+      "expected_detail": "no package coordinate can be formed at any of the four candidate levels: the record carries no package URL under purl, packageUrl, packageURL, package_url, the enclosing dependency's packages supplies none under id, purl, packageUrl, packageURL, package_url, and neither the record nor a package object carries an ecosystem, name and version to form <ecosystem>:<name>@<version> from",
+      "expected_detail_note": "Quoted verbatim rather than reworded. adapters/dependency_check.py composes it at step 5 from three literal fragments joined with the adapter's own key tuples -- ', '.join(_RECORD_PACKAGE_URL_KEYS) gives 'purl, packageUrl, packageURL, package_url' and ', '.join(_PACKAGE_OBJECT_URL_KEYS) gives 'id, purl, packageUrl, packageURL, package_url' -- so the detail enumerates every key it looked under and found nothing. A test asserting a reworded detail would be asserting against a string the module does not produce; a test may assert the class exactly and the detail by its distinguishing substrings.",
+      "expected_record_identity_keys": [
+        "dependency_index",
+        "vulnerability_index",
+        "fileName",
+        "filePath",
+        "name"
+      ],
+      "expected_record_identity": {
+        "dependency_index": 0,
+        "vulnerability_index": 0,
+        "fileName": "bootstrap.bundle.min.js",
+        "filePath": "/opt/spark-src/core/src/main/resources/org/apache/spark/ui/static/bootstrap.bundle.min.js",
+        "name": "CVE-2024-6531"
+      },
+      "record_identity_note": "The adapter supplies dependency_index, vulnerability_index, fileName and filePath before step 1 and adds name once step 2 has established it. Enough to find the record in the artifact again, and nothing from the record's body.",
+      "no_reported_path_key": "Deliberately absent, and this is the checkable difference from the same-adapter sibling's rejections. paths.resolve_recorded_path adds reported_path only to the identity of a rejection IT builds, and it does so on a COPY -- 'identity = dict(record_identity or {})' -- so the adapter's own dict is never mutated. This rejection is built by the adapter at step 5 via paths.make_rejection, after the resolver returned successfully, so it carries the five keys above and no sixth. An expectation carrying reported_path here would be asserting a mutation the module does not perform.",
+      "filePath_is_absolute_in_the_identity_only": "The identity quotes filePath exactly as the artifact wrote it, which is absolute. That is a locator for finding the record again, not a dataset field, and the no-absolute-path rule governs emitted rows. This record contributes no row, so it emits no path at all.",
+      "why_not_a_row": "There is no package to name. For this shape the coordinate is not an optional decoration: a Dependency-Check record is a vulnerability OF a dependency, so a record that cannot be attributed to a package cannot be attributed at all, and AAP 0.5.4 rejects rather than infers. The alternatives -- dropping it, or giving it a coordinate built from the fileName, a hash or the CPE in vulnerabilityIds -- would each hide it behind something plausible. Counting it under a named class keeps it visible and keeps the arithmetic honest.",
+      "contributes_no_row": true,
+      "contributes_no_severity_literal": "The record carries severity 'LOW' beside three CVSS blocks (cvssv3 9.1 CRITICAL, cvssv2 4.3, cvssv4 2.3 LOW). None of it reaches severity.resolve or the LiteralTally, so no literal from this record can appear in severity-map.md against a row the dataset does not contain. Had it become a row it would have been this fixture's widest label-versus-score disagreement -- three bands from three blocks against a LOW label -- and step 5 rejects it first."
+    },
+    {
+      "rejection_index": 1,
+      "record_pointer": "/dependencies/0/vulnerabilities/1",
+      "dependency_pointer": "/dependencies/0",
+      "dependency_index": 0,
+      "vulnerability_index": 1,
+      "locator_note": "The SECOND record under the SAME dependency, and the whole reason this fixture's rejection count is two rather than one. Nothing about the dependency is evaluated twice: the coordinate is resolved per record, because the record is the unit.",
+      "reject_class": "unformable_package_coordinate",
+      "reject_class_authority": "as rejection 0",
+      "tool": "dependency-check",
+      "dependency_file_name": "bootstrap.bundle.min.js",
+      "reported_file_path": "as rejection 0 -- the same dependency, so the same filePath",
+      "rule_id": "CVE-2024-6484",
+      "classification_step": "step 5, as rejection 0. Steps 1 to 4 pass on this record too -- it is an object with a usable name and a usable description, under a dependency whose path resolves.",
+      "why_the_second_record_exists_in_the_fixture": "It was appended when the fixture was derived, for exactly this: a fixture with one defective dependency and one vulnerability under it cannot distinguish a correct implementation from one that rejects per DEPENDENCY, since both give 1. With two, the correct answer is 2 and the wrong one is 1. The identity settles it independently -- 8 == 6 + 2 holds and 8 == 7 + 1 does not.",
+      "expected_detail": "no package coordinate can be formed at any of the four candidate levels: the record carries no package URL under purl, packageUrl, packageURL, package_url, the enclosing dependency's packages supplies none under id, purl, packageUrl, packageURL, package_url, and neither the record nor a package object carries an ecosystem, name and version to form <ecosystem>:<name>@<version> from",
+      "expected_detail_note": "Byte-identical to rejection 0's detail, because the sub-reason describes which keys were looked under and that is the same for both records under the same dependency. The two rejections are distinguished by their record_identity, not by their prose.",
+      "expected_record_identity_keys": [
+        "dependency_index",
+        "vulnerability_index",
+        "fileName",
+        "filePath",
+        "name"
+      ],
+      "expected_record_identity": {
+        "dependency_index": 0,
+        "vulnerability_index": 1,
+        "fileName": "bootstrap.bundle.min.js",
+        "filePath": "/opt/spark-src/core/src/main/resources/org/apache/spark/ui/static/bootstrap.bundle.min.js",
+        "name": "CVE-2024-6484"
+      },
+      "no_reported_path_key": "As rejection 0.",
+      "why_not_a_row": "As rejection 0.",
+      "contributes_no_row": true,
+      "contributes_no_severity_literal": "The record carries severity 'MEDIUM' beside a cvssv3 of 6.1 (baseSeverity MEDIUM). Neither reaches the tally.",
+      "not_a_duplicate_of_rejection_0": "Two rejections under one dependency are two records, not one counted twice, and they are not deduplicated -- AAP 0.3.2 forbids deduplication in either direction. They name different advisories (CVE-2024-6531 and CVE-2024-6484) and differ in their vulnerability_index. Their details are identical and their identities are not, which is precisely why the identity rather than the prose is what a test matches on."
+    }
+  ],
+  "prohibitions_observed": {
+    "no_secret_value_in_any_field": "This shape carries no secret material at all -- Dependency-Check reports vulnerable components, not matched values, and the adapter reads no member that could hold one: name, description, severity, the cvss blocks, cwes, packages and filePath. No row field and no rejection identity here contains a credential, a token, a key or a redaction of one. This tree is committed to git and the root .gitignore's only relevant line matches artifacts/, so nothing in this file is excluded from collection and the guarantee has to be structural rather than incidental.",
+    "no_cross_tool_interpretation": "The identical rejection condition exists in adapters/trivy.py and has its own fixture, and this file names that only to BOUND where the condition can appear and to record the one mechanical difference the agent brief asks for -- that this adapter's test is unconditional while Trivy's is gated on the enclosing array. It does not compare the two tools, rank them, contrast their coverage, explain why one reported something the other did not, or characterise what either tool's output demonstrates about that tool. A location reported by two tools is two rows in two files and no remark.",
+    "no_judging_and_no_deduplication": "No row is marked real, important, a false positive or a duplicate, and the two rejected records are not called spurious, wrong or a defect in Dependency-Check -- only unattributable to a package under this dataset's coordinate rules. Rows 4 and 5 share a dependency, a path and a coordinate and are two rows; the two rejections share a dependency and are two rejections. Nothing is collapsed and nothing is ranked.",
+    "no_inference": "Every value above names the member it came from. Where a value could not be formed the field is null with the reason recorded -- cwe on row 0, cve on rows 0, 2 and 3 -- and where no coordinate could be formed at all the record is rejected and counted rather than given a plausible one. The positive sibling's pkg:javascript/bootstrap@4.4.1 is deliberately not carried across, because the packages entry it came from is not in this fixture.",
+    "no_scope_widening": "The allowlist is quoted by path and digest and not copied, stays byte-exact, and the three out-of-glob rows are kept with in_scope false rather than dropped or brought into scope. Zero dependency manifests in scope is reported as a fact about the scope, not treated as a condition to fix."
+  },
+  "behaviours_not_exercised_by_this_fixture": [
+    {
+      "behaviour": "shape-detection failure -- an artifact matching neither SARIF nor a known native shape halting the run",
+      "why_absent": "this document is a well-formed Dependency-Check report and routes cleanly; its defect is one dependency's missing packages array, not its shape",
+      "cover_with": "unknown-shape.json, near-sarif-version-only.json, near-sarif-runs-only.json, and the routing negative test in test_shape_routing_negative.py"
+    },
+    {
+      "behaviour": "the other rejection conditions this adapter can reach -- malformed_record, missing_rule_id, missing_message and absent_path",
+      "why_absent": "this fixture isolates one condition, so exactly one dependency is defective and it is defective in exactly one way: it lacks a packages array. Every other record passes all five steps",
+      "cover_with": "the sibling negative fixtures in this tree -- reject-dependency-check-malformed-record.json, reject-dependency-check-missing-rule-id.json, reject-dependency-check-missing-message.json and reject-dependency-check-unresolvable-path.json, whose slug names unresolvable_path while its fixture produces absent_path. Which condition each asserts is stated in its own expected file, not here."
+    },
+    {
+      "behaviour": "the non_integer_start_line and unresolvable_path rejection classes",
+      "why_absent": "neither is reachable for this adapter, and both absences are facts rather than gaps -- set out in full under the_absent_sibling_fixture and, for unresolvable_path, derived by the sibling that owns it",
+      "cover_with": "nothing, deliberately. A fixture manufacturing either condition would have to contradict the artifact shape or the runner metadata."
+    },
+    {
+      "behaviour": "coordinate level 3 producing a coordinate",
+      "why_absent": "level 3 is reached by every record that passes level 2 and refused for all of them, because a Dependency-Check vulnerability's name is the advisory identifier. It is not clear that any real record of this shape can reach level 3 successfully",
+      "cover_with": "nothing in this tree. A fixture would need a vulnerability record carrying its own ecosystem, packageName and packageVersion members, which this tool does not emit -- so the level exists because AAP 0.5.4 defines it and a producer that starts emitting one must be honoured, not because it is currently reachable."
+    },
+    {
+      "behaviour": "the archive-member and outside_root path kinds, and the concatenated-container split",
+      "why_absent": "every filePath here names a plain file inside the root, so path_kind_tree_file is 6 and archive_references_split, non_filesystem_paths, path_kind_archive_member and path_kind_outside_root are all 0",
+      "cover_with": "expected/reject-dependency-check-unresolvable-path.rows.json, which carries both archive shapes side by side -- a container inside the root and one outside it whose ../ segments are preserved"
+    },
+    {
+      "behaviour": "the multi-location rule -- the row takes the primary filePath, the record still counts once, multi_location_records counts it",
+      "why_absent": "no dependency here carries a relatedDependencies array, which is the only multi-location shape this report has",
+      "cover_with": "a derived fixture carrying a relatedDependencies array on a dependency"
+    },
+    {
+      "behaviour": "ascending-numeric CVE selection ordered by year then sequence",
+      "why_absent": "a Dependency-Check vulnerability's name carries at most one identifier, so no record here yields more than one CVE and multi_valued_cve_records is 0. Ascending-numeric CWE selection IS exercised, on row 1",
+      "cover_with": "semgrep.sarif, which carries a record with more than one CVE identifier"
+    },
+    {
+      "behaviour": "a cwes entry from which no identifier can be read -- the NVD-CWE-noinfo case",
+      "why_absent": "every cwes entry here is a clean CWE-<n> token, so cwe_entries_without_identifier is 0",
+      "cover_with": "expected/reject-dependency-check-unresolvable-path.rows.json, whose fixture carries such an entry"
+    },
+    {
+      "behaviour": "severity absent altogether with severity_norm Info on the no_vocabulary basis, and an unmapped literal disclosed and banded Info",
+      "why_absent": "row 5 carries no severity member but does carry CVSS blocks, so it bands from a score rather than reaching the no-vocabulary path; and every literal here is either a mapped label or a bandable number, so severity_basis_no_vocabulary and severity_basis_unmapped_literal are both 0",
+      "cover_with": "gitleaks.json, whose tool defines no severity vocabulary at all, and a derived fixture whose severity is a CVSS vector string"
+    },
+    {
+      "behaviour": "a non-zero exit code changing the outcome",
+      "why_absent": "artifact status and exit status are independent (AAP 0.5.4), and this adapter never consults an exit code. There is nothing here for a fixture to exercise",
+      "cover_with": "nothing -- the independence is a property of the adapter, recorded in tool-status.md per tool"
+    }
+  ],
+  "discrepancies_recorded": [
+    {
+      "subject": "how many precedence levels the fixture's valid records cover",
+      "expectation_as_written": "the brief for this file asks that the fixture carry valid records covering at least three of the four levels",
+      "what_the_inputs_actually_hold": "Exactly three: level 1 on row 1, level 2 on rows 0, 3, 4 and 5, and level 4 on row 2. Level 3 is covered in the sense that every record reaches it, but no record forms a coordinate there, so it contributes no row.",
+      "resolution": "Stated as three levels REACHED with the fourth reached and refused, rather than as a bare 'three of four' that a reader might take for an omission. The distinction matters because level 3's refusal is the same mechanism that makes this fixture's rejection possible, so its emptiness is load-bearing rather than incidental. The brief's condition is met on its own terms."
+    },
+    {
+      "subject": "whether the lexicographic tiebreak is exercised once or twice",
+      "expectation_as_written": "the brief asks for the fixture's two-PURL dependency and its lexicographic winner",
+      "what_the_inputs_actually_hold": "There is one two-PURL dependency -- jquery.cookies at /dependencies/1 -- and its winner is pkg:javascript/jquery.cookies@2.2.0. But the fixture also carries a SECOND multiple-candidate contest, at level 4 on row 2, where two CPE-bearing package objects yield two triples. So package_coordinate_multiple_candidates_at_level is 2, not 1.",
+      "resolution": "Both are recorded, under package_coordinate_precedence.tiebreak_exercised_at_two_levels, with the two-PURL case first as the brief names it. The second is worth having because a tiebreak exercised only at level 2 leaves open whether the rule is applied per level or only at the level the artifact happens to use most."
+    },
+    {
+      "subject": "the ecosystem lower-casing",
+      "expectation_as_written": "ecosystem lower-cased, within a level the lexicographically smallest wins",
+      "what_the_inputs_actually_hold": "Both are genuinely exercised and, unusually for this tree, the lower-casing is demonstrated rather than merely implemented: row 2's two package objects carry 'JavaScript' and 'NPM', so removing the folding would change both emitted candidates. The same-condition Trivy sibling had to record the opposite -- its only Type was already lower-case, so its value would have been byte-identical without it.",
+      "resolution": "Claimed as demonstrated, with the two observed literals quoted and the counterfactual stated. Nothing is overclaimed for the name and version, which are carried as observed and are not folded."
+    },
+    {
+      "subject": "which counters a rejected record touches",
+      "expectation_as_written": "a reader would reasonably expect a record rejected at step 5 to have contributed to the path and scope counters, since its path resolved successfully at step 4",
+      "what_the_inputs_actually_hold": "It contributes to none of them. adapters/dependency_check.py increments path_kind_*, non_filesystem_paths, start_line_absent, rows_in_scope / rows_out_of_scope, every severity counter and the cwe/cve counters only AFTER step 5 has passed. The sole exception in either direction is multi_location_records, which is evaluated before step 4 -- it is 0 here, so nothing shows it.",
+      "resolution": "Recorded twice, under the rejections' counters_that_do_not_move_for_this_record and in counters_arithmetic's closing line, because a reader reconciling path_kind_tree_file 6 against 8 records will otherwise look for the missing two. package_coordinate_unformable 2 is the one counter that does move, and it equals the rejection count."
+    },
+    {
+      "subject": "README.md as the stated authority for the absent non-integer-start-line fixture",
+      "expectation_as_written": "the brief notes that oss-scan-results/adapter-tests/README.md states that absence explicitly",
+      "what_the_inputs_actually_hold": "README.md is a separate deliverable and was not present in this working tree when these rows were derived, so its text could not be read here. The absence of reject-dependency-check-non-integer-start-line.json was instead verified directly by enumerating the fixtures directory: five such fixtures exist, for checkov, gitleaks, joern, sarif and trivy, and none for dependency-check.",
+      "resolution": "the_absent_sibling_fixture asserts the fact on that enumeration -- its own measured evidence -- and names README.md as also stating it rather than as the source it rests on. The two therefore agree independently, which is the stronger arrangement in any case, and no claim is made about a file that was not read."
+    }
+  ],
+  "how_to_check_this_file": [
+    "It parses as JSON, and every row carries exactly the twelve keys of emit.FIELDS in that order -- compared against the imported constant rather than a copy of it.",
+    "counts.rejections_by_class equals {\"unformable_package_coordinate\": 2}, and that key is a literal member of paths.REJECT_CLASSES -- asserted by membership in the imported tuple, not by string similarity.",
+    "The rejection count is TWO and both rejections sit under the SAME dependency, /dependencies/0, differing only in vulnerability_index. Expect one and the identity fails: 8 == 6 + 2 holds and 8 == 7 + 1 does not. This is the first thing to check, because one-per-dependency is the natural wrong answer.",
+    "Give /dependencies/0 back a packages entry carrying a pkg: URL and both rejections must become rows. That is the whole defect, and it is a single edit.",
+    "No row's package_coordinate is pkg:javascript/bootstrap@4.4.1 -- the positive sibling's value for that dependency -- and no row of any kind is emitted for /dependencies/0/vulnerabilities/0 or /1. Assert this over the rows' field values, not over this document's text: the string is named twice in the prose above, in fixture.derivation and rejection_boundary, because naming what was removed is what makes the removal checkable. A grep over the whole file would fail on those mentions and prove nothing.",
+    "Every stated coordinate has a lower-cased ecosystem where it is a triple, and every one names the level that produced it: levels 1, 2 and 4 appear on rows, level 3 on none. Row 1 is the discriminator -- it must be pkg:npm/datatables.net@1.13.11 from level 1, not pkg:javascript/datatables@1.13.11 from level 2, which is what both a packages-first implementation and a global-pool implementation would emit.",
+    "The two multiple-candidate rows resolve to the lexicographically smaller: row 0 to pkg:javascript/jquery.cookies@2.2.0 over pkg:npm/jquery.cookies@2.2.0, and row 2 to javascript:d3-flame-graph@4.1.3 over npm:d3-flame-graph@4.1.3. Neither producer order nor the confidence field decides either.",
+    "Row 1's cwe is CWE-915, not CWE-1321. Producer order lists CWE-1321 first and it also sorts first lexically, so both a first-wins and a string-sorting implementation fail this row.",
+    "Every row's start_line is null -- all six -- and start_line_absent equals the row count. No path is absolute, none is empty, and every severity_norm is one of Critical, High, Medium, Low, Info.",
+    "Both lockfile paths are present rather than dropped, with in_scope false: dev/package-lock.json on row 3 and ui-test/package-lock.json on rows 4 and 5. rows_in_scope 3 + rows_out_of_scope 3 == rows 6. docs/Gemfile.lock is NOT expected -- that dependency was dropped when the fixture was derived.",
+    "Row 4's severity_norm is Critical from its CRITICAL label, not Medium from its cvssv3 6.1. Row 5's is High from cvssv3 7.5 with the selected entry naming source NVD:cvssv3 and version 3.1, and it is the only row incrementing severity_selected_score_with_source_and_version.",
+    "Rows 2 and 3 carry severity_native '3.2' and '5.3' -- one decimal, from the full-precision 3.200000047683716 and 5.300000190734863 -- and band Low and Medium. No artifact tail reaches a text field, and the full-precision values appear only as JSON numbers under selected_entry.score.",
+    "Neither rejection's record_identity carries a reported_path key. Five keys, not six: paths.py adds that key only to rejections it builds itself, and on a copy of the identity, so an expectation carrying it here would assert a mutation the module does not perform.",
+    "The eight raw records satisfy raw_finding_records == rows + rejections against reconcile.count_records' independent traversal, and all six rows agree field for field with rows 1 to 6 of expected/dependency-check.rows.json."
+  ]
+}
