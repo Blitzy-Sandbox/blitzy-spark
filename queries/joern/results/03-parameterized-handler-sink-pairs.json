@@ -281,7 +281,7 @@
   ],
   "graph": {
     "path_source": "HARNESS_CPG",
-    "named_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-002_1060ea/harness/cpg/spark.cpg",
+    "named_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-004_b0ccee/harness/cpg/spark.cpg",
     "resolved_path": "/opt/blitzy-harness/cpg/spark.cpg",
     "named_path_is_symlink": true,
     "byte_size_following_the_link": 548118435,

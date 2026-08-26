@@ -484,7 +484,7 @@ A different formulation over different edges and different nodes. Query 02 trave
 
 ## The graph this query loaded, and its identity
 
-- named path `/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-002_1060ea/harness/cpg/spark.cpg`, a symlink to `/opt/blitzy-harness/cpg/spark.cpg`
+- named path `/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-004_b0ccee/harness/cpg/spark.cpg`, a symlink to `/opt/blitzy-harness/cpg/spark.cpg`
 - resolved target `/opt/blitzy-harness/cpg/spark.cpg`, **548118435** bytes, sha256 `f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53`
 - the link itself measures 33 bytes; that figure is recorded only to be
   discarded, because measuring the link rather than its target is the mistake this
