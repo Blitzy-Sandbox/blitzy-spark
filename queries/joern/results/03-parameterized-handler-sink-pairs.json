@@ -7,6 +7,16 @@
   "compile_status": "compiled",
   "compile_status_convention": "this field is written by the running script, so its presence is itself the evidence: a compile failure produces no envelope at all and the compiler's diagnostic lands in the console stream",
   "run_status": "completed",
+  "run_status_convention": "completed means every stage passed and the result region was emitted; failed is the only other value and is what the marker protocol reports instead, with no result region at all",
+  "failure_representation": {
+    "compile_status_values": ["compiled", "failed"],
+    "run_status_values": ["completed", "failed"],
+    "marker_protocol": "the query prints ---BLITZY-START--- before any work and brackets its result region with ---BLITZY-RESULT-BEGIN--- and ---BLITZY-RESULT-END--- only once every stage has passed, closing with ---BLITZY-OK---",
+    "on_failure_result_region": "NO result region is emitted on failure: ---BLITZY-FAILURE--- is printed instead, the failing stage and the exception go to the console stream, and the exception is re-raised. A partial result region is never emitted, because one would read like a completed run",
+    "on_failure_measurement_fields": "when compile_status or run_status carries its failure value, every measurement field - returned_record_count, returned_record_kinds, distinct_routes, spurious_count, bound_reached, bounds_reached_by_pair, entry_points_discovered, entry_points_traversed, entry_points_truncated, pairs, walks, records and the graph counts - is null. Null is used consistently and no zero is ever written in its place, because a zero would read as a successful empty result",
+    "query_level_failure_versus_a_per_pair_outcome": "the two are represented differently and must not be conflated. A QUERY-LEVEL failure - a compile failure, a heap below the floor, a graph identity mismatch, a malformed pair - produces no envelope at all and therefore no per-pair object for either pair: pairs_invoked would be absent rather than 0. A SUCCESSFUL run may legitimately return zero records for one or both pairs, and that state is this envelope's compile_status compiled with run_status completed, pairs_invoked equal to pairs_declared, a per-pair object present for each pair with invoked true, and distinct_routes 0 for the pair concerned. A zero there is a measured capability finding about what this formulation reaches over this graph, not a failure",
+    "value_not_established_convention": "a value that could not be established is named as such in the field that would have carried it, never omitted and never guessed: a value missing from the record is a value nothing downstream can check"
+  },
   "pairs_declared": 2,
   "pairs_invoked": 2,
   "pair_iteration_order": ["pair-one", "pair-two"],
@@ -24,12 +34,14 @@
     "pair-two": 0
   },
   "distinct_routes_convention": "per pair, deduplicated within that pair on (entry point, sink host, hop sequence) across its own two walks. The two pairs' figures are reported side by side and are NEVER SUMMED, and neither is added to query 01's or query 02's published returns",
+  "distinct_routes_identity_function": "a route identity is the triple (entry point method full name, sink host method full name, the ordered sequence of method full names from the entry point to the sink), evaluated WITHIN one pair. Two returns with equal triples are ONE route however many traversal orders produced them, and this pair's two walks are deduplicated against each other on that triple rather than added together. The function is never applied across pairs: two pairs are two results, so no identity ever merges a pair-one route with a pair-two route",
   "never_summed_with": ["the other pair in this query", "01-callgraph-unguarded-driver-launch", "02-dataflow-unguarded-driver-launch"],
   "spurious_count": {
     "pair-one": 0,
     "pair-two": 0
   },
   "spurious_definition": "a route is spurious ONLY where it passes an authorization or ACL predicate before reaching the sink, the predicate set being exactly the five named selectors below; this judges the query, not Spark. The selector block is byte-identical to queries 01 and 02, which is what makes the three counts comparable",
+  "spurious_definition_limit": "the definition evaluates ONLY those five predicates, and it applies unchanged to BOTH pairs. Any other conditional on either route is outside it and is NOT assessed by it. Concretely, for pair one core/src/main/scala/org/apache/spark/deploy/master/Master.scala:411 if (state != RecoveryState.ALIVE) guards the branch that reaches createDriver at core/src/main/scala/org/apache/spark/deploy/master/Master.scala:417, and it is a recovery-state check rather than one of the five, so it is neither counted as a predicate nor reported as one; and for pair two whatever request validation handleSubmit's own requestMessage match performs at core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:268 is likewise outside the definition and unassessed. A spurious count of 0 therefore means exactly and only what the definition says, and does not mean that either route carries no conditional",
   "expected_spurious_route_absent": {
     "pair-one": true,
     "pair-two": true
@@ -61,6 +73,61 @@
     "MAX_CALL_SCAN": 200000,
     "FANOUT_CALLEE_THRESHOLD": 32
   },
+  "bounds_meaning": {
+    "MAX_CALL_DEPTH": "maximum call-graph hops walked from an entry point, applied per pair",
+    "MAX_ROUTES_PER_PAIR": "maximum distinct routes retained PER PAIR; never a shared budget, because one pair filling a shared budget would silently truncate the other",
+    "MAX_EXPANSIONS_PER_ENTRY": "the per-entry-point step cap, counted in method expansions rather than in edges",
+    "MAX_STEPS_PER_PAIR": "the per-pair step cap across all of that pair's walks, counted in call sites considered",
+    "MAX_TOTAL_RETURNS": "the total-returns cap across every record kind this query emits; a QUERY-level cap rather than a per-pair one",
+    "MAX_ENTRY_POINTS_PER_PAIR": "maximum entry points traversed per pair; the remainder are counted as truncated rather than dropped silently",
+    "MAX_CALL_SCAN": "cap on the indexed call-name sweeps used to find the sink and message call sites",
+    "FANOUT_CALLEE_THRESHOLD": "a THRESHOLD rather than a cap: a call site whose resolved callee set is wider than this is recorded as a dynamic-dispatch fan-out site, and walk B-fan-out-recorded records it without expanding it"
+  },
+  "bounds_reached_by_pair": {
+    "pair-one": {
+      "MAX_CALL_DEPTH": true,
+      "MAX_ROUTES_PER_PAIR": false,
+      "MAX_EXPANSIONS_PER_ENTRY": false,
+      "MAX_STEPS_PER_PAIR": false,
+      "MAX_TOTAL_RETURNS": false,
+      "MAX_ENTRY_POINTS_PER_PAIR": false,
+      "MAX_CALL_SCAN": false,
+      "FANOUT_CALLEE_THRESHOLD": true
+    },
+    "pair-two": {
+      "MAX_CALL_DEPTH": true,
+      "MAX_ROUTES_PER_PAIR": false,
+      "MAX_EXPANSIONS_PER_ENTRY": false,
+      "MAX_STEPS_PER_PAIR": false,
+      "MAX_TOTAL_RETURNS": false,
+      "MAX_ENTRY_POINTS_PER_PAIR": false,
+      "MAX_CALL_SCAN": false,
+      "FANOUT_CALLEE_THRESHOLD": true
+    }
+  },
+  "bounds_reached_basis_by_pair": {
+    "pair-one": {
+      "MAX_CALL_DEPTH": "reached: depth_bound_reached is true across this pair's walks and the deepest walk used 12 of 12 hops",
+      "MAX_ROUTES_PER_PAIR": "not reached: route_cap_reached is false in every walk, with routes returned per walk A-follows-fan-out=0, B-fan-out-recorded=0 against a per-pair cap of 64 - a cap that is never shared between pairs, because one pair filling a shared budget would silently truncate the other",
+      "MAX_EXPANSIONS_PER_ENTRY": "not reached: expansion_budget_exhausted is false in every walk, the highest method-expansion count being 19551 of 200000",
+      "MAX_STEPS_PER_PAIR": "not reached: step_cap_reached is false in every walk, the highest call-site count being 21476 of 400000",
+      "MAX_TOTAL_RETURNS": "not reached: 6 record(s) emitted by the query against a cap of 256. This is a query-level cap, so this entry is the same measurement in both pairs' objects rather than a second one",
+      "MAX_ENTRY_POINTS_PER_PAIR": "not reached: 2 entry point(s) discovered, 2 traversed and 0 truncated, against a per-pair cap of 16",
+      "MAX_CALL_SCAN": "not reached: 1234 call(s) named start scanned of 200000, and the sweep reported truncated=false",
+      "FANOUT_CALLEE_THRESHOLD": "exceeded, which is what \"reached\" means for a threshold rather than a cap: fan-out sites encountered per walk A-follows-fan-out=48, B-fan-out-recorded=31, a site counting as fan-out when its resolved callee set exceeds 32 distinct methods"
+    },
+    "pair-two": {
+      "MAX_CALL_DEPTH": "reached: depth_bound_reached is true across this pair's walks and the deepest walk used 12 of 12 hops",
+      "MAX_ROUTES_PER_PAIR": "not reached: route_cap_reached is false in every walk, with routes returned per walk A-follows-fan-out=0, B-fan-out-recorded=0 against a per-pair cap of 64 - a cap that is never shared between pairs, because one pair filling a shared budget would silently truncate the other",
+      "MAX_EXPANSIONS_PER_ENTRY": "not reached: expansion_budget_exhausted is false in every walk, the highest method-expansion count being 10029 of 200000",
+      "MAX_STEPS_PER_PAIR": "not reached: step_cap_reached is false in every walk, the highest call-site count being 8949 of 400000",
+      "MAX_TOTAL_RETURNS": "not reached: 6 record(s) emitted by the query against a cap of 256. This is a query-level cap, so this entry is the same measurement in both pairs' objects rather than a second one",
+      "MAX_ENTRY_POINTS_PER_PAIR": "not reached: 1 entry point(s) discovered, 1 traversed and 0 truncated, against a per-pair cap of 16",
+      "MAX_CALL_SCAN": "not reached: 1234 call(s) named start scanned of 200000, and the sweep reported truncated=false",
+      "FANOUT_CALLEE_THRESHOLD": "exceeded, which is what \"reached\" means for a threshold rather than a cap: fan-out sites encountered per walk A-follows-fan-out=25, B-fan-out-recorded=12, a site counting as fan-out when its resolved callee set exceeds 32 distinct methods"
+    }
+  },
+  "bounds_reached_convention": "every named bound above carries a value and, here, a reached flag with the measurement it was read from - per pair, in the declared pair order, and never aggregated across pairs. MAX_TOTAL_RETURNS is a query-level cap, so its entry is the same measurement in both pairs' objects: one measurement cited twice rather than two measurements. FANOUT_CALLEE_THRESHOLD is a threshold rather than a cap, so \"reached\" there means exceeded and is not a truncation of either traversal",
   "entry_points_discovered": {
     "pair-one": 2,
     "pair-two": 1
@@ -73,6 +140,9 @@
     "pair-one": 0,
     "pair-two": 0
   },
+  "entry_points_truncated_meaning": "the two counters are reported separately, per pair, so that a sweep cannot run unbounded and a trimmed traversal cannot pass for a complete one. A truncated count above zero is a measured property of that pair's traversal, to be reported rather than hidden; it is zero for both pairs here, each pair's discovered count sitting well inside the per-pair cap of 16",
+  "operator_pseudo_calls_excluded": "a CPG <operator>.* call is an artefact of the representation rather than a method call, so it is not expanded and not counted as a hop: expanding them would inflate every counter of both pairs without adding a call-graph edge",
+  "duplicate_class_definitions_unioned": "the graph carries more than one node per class where two staged archives carried the same class, so method nodes are grouped by full name and their call sites unioned rather than one node being picked. Reachability is keyed on the method full name, identically for both pairs",
   "entry_point_selection": "per pair, the UNION of two arms: the synthetic method named by the pair on every type matching the pair's synthetic type regex, and the source-level method named by the pair on the pair's exact handler type. Which arm carries the route is then MEASURED against the pair's declared body witness rather than assumed, because the two pairs answer it differently: a partial-function handler's body lives in a synthetic class, an ordinary method's is its own",
   "pairs": [
     {
@@ -281,22 +351,29 @@
   ],
   "graph": {
     "path_source": "HARNESS_CPG",
-    "named_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-004_b0ccee/harness/cpg/spark.cpg",
-    "resolved_path": "/opt/blitzy-harness/cpg/spark.cpg",
+    "named_path": "$HARNESS_CPG",
+    "named_path_repo_relative": "harness/cpg/spark.cpg",
+    "resolved_target": "a host-shared read-only file outside the repository root, reached by following the symlink",
+    "absolute_host_paths_emitted": false,
+    "resolved_target_identification": "no absolute host path is emitted anywhere in this envelope, so the resolved target is identified by the symlink-FOLLOWING byte size and sha256 below rather than by a host path. That pair is the identity of record and is what every load re-verifies; a host path would additionally vary between two checkouts of one branch and so could not be part of a deterministic envelope",
+    "resolved_target_path_literal_lives_in": "harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log, the console stream this invocation wrote, and the frontend record named by $HARNESS_CPG_RECORD. Console records are not held to byte-identity and may carry a host path; this envelope is, and does not. Where a field-by-field table in that log compares a path literal, it is comparing an earlier revision of this envelope that carried one, and the identity comparison turns on the size and digest pair below rather than on any literal",
+    "measurement_semantics": "symlink-FOLLOWING. The named path is a small symlink, so measuring the link itself records a few dozen bytes rather than the graph: byte_size_without_following is recorded only to be discarded",
     "named_path_is_symlink": true,
     "byte_size_following_the_link": 548118435,
     "byte_size_without_following": 33,
     "sha256": "f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53",
-    "identity_record_of_account": "/opt/blitzy-harness/provision-log/cpg-frontend.log",
+    "identity_record_of_account": "a provisioning record outside the repository root, named by $HARNESS_CPG_RECORD",
     "identity_record_source": "HARNESS_CPG_RECORD",
+    "identity_record_of_account_role": "the frontend's own write-time record FOR THE GRAPH ACTUALLY LOADED, which computed its pair with the same symlink-following semantics; this envelope cites that measurement rather than establishing a second one. The comparison is made immediately before the load and a mismatch halts the run rather than being weakened or skipped",
     "identity_recorded_byte_size": 548118435,
     "identity_recorded_sha256": "f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53",
+    "identity_comparison_result": "match - the observed byte size and sha256 equal the pair the record of account owns, on both values",
     "identity_reverified_before_load": true,
     "identity_record_repo_relative": "harness/artifacts/logs/cpg-frontend.log",
     "identity_record_repo_relative_byte_size": 541255894,
     "identity_record_repo_relative_sha256": "26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc",
     "identity_record_repo_relative_agrees": false,
-    "identity_divergence": "the repo-relative record harness/artifacts/logs/cpg-frontend.log states bytes=541255894 sha256=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc, which is NOT the graph on this host (bytes=548118435 sha256=f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53). That record is a committed deliverable describing the graph of the provisioning that wrote it; the record of account for THIS load is /opt/blitzy-harness/provision-log/cpg-frontend.log, the frontend's own write-time record for the graph actually loaded, and the load was verified against it. Both pairs are recorded with their provenance and neither is discarded",
+    "identity_divergence": "the repo-relative record harness/artifacts/logs/cpg-frontend.log states bytes=541255894 sha256=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc, which is NOT the graph on this host (bytes=548118435 sha256=f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53). That record is a committed deliverable describing the graph of the provisioning that wrote it; the record of account for THIS load is a provisioning record outside the repository root, named by $HARNESS_CPG_RECORD, the frontend's own write-time record for the graph actually loaded, and the load was verified against it. Both pairs are recorded with their provenance and neither is discarded",
     "aap_named_path_reconciliation": "same file (equal resolved target)",
     "methods": 1399866,
     "type_declarations": 119920,
@@ -304,10 +381,22 @@
   },
   "runtime": {
     "jdk_major": "21",
+    "jdk_major_numeric": 21,
+    "jdk_major_required": "21",
     "jvm_version": "21.0.12.1+1-LTS",
+    "jvm_input_args_observed": "-Xmx64g",
     "heap_actually_used_bytes": 68719476736,
+    "heap_actually_used_gib": 64,
     "heap_floor_bytes": 68719476736,
+    "heap_floor_gib": 64,
+    "heap_at_or_above_floor": true,
+    "heap_above_floor": false,
+    "heap_pre_touch_proof": "the floor value's own commit proof is the gate's java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version, which exited 0. A heap above the floor is permitted and reported, and is proven committable by that same pre-touch test before use; a heap below it is not, which is why this query measures Runtime.maxMemory() and halts rather than trusting the flag it was given",
+    "heap_direction_rule": "the floor is a minimum and a default, never a ceiling: a larger heap is permitted and reported, and a smaller one is not, because a truncated result's silence cannot be told apart from a clean one - and this query traverses two pairs, so a truncation would be silent twice",
+    "heap_override_mechanism": "MEASURED, NOT ASSUMED: joern's --script path forks a child JVM with no JVM options forwarded, so -J-Xmx reaches the launcher only and the child would otherwise run at an ergonomic default. JAVA_TOOL_OPTIONS is inherited by the child and is what actually raises the heap the query runs at, which is why the heap above is Runtime.maxMemory() rather than a transcription of a flag",
     "loader": "importCpg into a switched workspace; the frontend-then-importCpg route is mandated because the alternative spawns a second JVM at the same heap",
+    "loader_is_importcpg_only": true,
+    "loader_import_code_absent_from_the_source": true,
     "workspace": "queries/joern/.workspace",
     "heap_bound_jvm_position": "the Stage 5 probe, one of the four heap-bound JVM invocations this run records separately (frontend build, importCpg verification load, Stage 3 Joern runner, this probe)",
     "command": "cd <scratch outside the repository> && HARNESS_REPO_ROOT=<repo> JAVA_HOME=\"$JAVA_HOME_21\" JAVA_TOOL_OPTIONS=\"-Xmx64g\" SL_LOGGING_LEVEL=WARN joern --script <repo>/queries/joern/03-parameterized-handler-sink-pairs.sc -J-Xmx64g < /dev/null",
@@ -318,6 +407,18 @@
     "name_regex": "^(check.*Permissions|acls.*|isAuthenticationEnabled)$",
     "setter_suffix_excluded": "_$eq",
     "named_five": ["aclsEnabled", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "source_file": "core/src/main/scala/org/apache/spark/SecurityManager.scala",
+    "source_file_lines_at_the_pin": 457,
+    "named_five_with_source_lines": ["aclsEnabled() at core/src/main/scala/org/apache/spark/SecurityManager.scala:227", "checkAdminPermissions at core/src/main/scala/org/apache/spark/SecurityManager.scala:234", "checkUIViewPermissions at core/src/main/scala/org/apache/spark/SecurityManager.scala:248", "checkModifyPermissions at core/src/main/scala/org/apache/spark/SecurityManager.scala:264", "isAuthenticationEnabled() at core/src/main/scala/org/apache/spark/SecurityManager.scala:274"],
+    "bytecode_constraint": "a type anchor on org.apache.spark.SecurityManager together with an explicit _$eq exclusion. On bytecode the anchored name pattern alone is not enough, so the narrowing is three steps and all three sets are reported below rather than asserted",
+    "bytecode_collision_source": "core/src/main/scala/org/apache/spark/SecurityManager.scala:59 declares private var aclsOn, and Scala compiles a private var into accessors, so the graph carries both aclsOn() and aclsOn_$eq(boolean) and both satisfy the acls.* alternative of the anchored pattern",
+    "over_match_hazards_excluded": ["setViewAcls at core/src/main/scala/org/apache/spark/SecurityManager.scala:123", "setViewAcls at core/src/main/scala/org/apache/spark/SecurityManager.scala:128", "setViewAclsGroups at core/src/main/scala/org/apache/spark/SecurityManager.scala:136", "getViewAcls at core/src/main/scala/org/apache/spark/SecurityManager.scala:144", "getViewAclsGroups at core/src/main/scala/org/apache/spark/SecurityManager.scala:152", "setModifyAcls at core/src/main/scala/org/apache/spark/SecurityManager.scala:164", "setModifyAclsGroups at core/src/main/scala/org/apache/spark/SecurityManager.scala:173", "getModifyAcls at core/src/main/scala/org/apache/spark/SecurityManager.scala:182", "getModifyAclsGroups at core/src/main/scala/org/apache/spark/SecurityManager.scala:190", "setAdminAcls at core/src/main/scala/org/apache/spark/SecurityManager.scala:202", "setAdminAclsGroups at core/src/main/scala/org/apache/spark/SecurityManager.scala:211", "setAcls at core/src/main/scala/org/apache/spark/SecurityManager.scala:216"],
+    "over_match_hazards_note": "these are further methods on the same anchored type whose names a naive acls.* pattern would match; they are not predicates and the three-step narrowing leaves none of them in the final set",
+    "deliberate_non_selectors": ["isEncryptionEnabled() at core/src/main/scala/org/apache/spark/SecurityManager.scala:280", "isSslRpcEnabled() at core/src/main/scala/org/apache/spark/SecurityManager.scala:295"],
+    "selector_set_was_widened": false,
+    "selector_set_widening_statement": "the set is exactly the five named selectors and was not widened: the two Boolean methods listed as deliberate non-selectors are on the same anchored type and are excluded on purpose, because widening the set would change what a spurious count means and would break comparability with queries 01 and 02",
+    "identical_across_both_pairs": true,
+    "identical_across_both_pairs_statement": "the parameterization varies the handler and the sink, never the predicate set: the same five selectors, the same anchor and the same exclusion apply to both pairs. Varying them per pair would make the two pairs' spurious counts mean different things, which is the one way a parameterization could silently change the measurement",
     "block_is_byte_identical_to": ["queries/joern/01-callgraph-unguarded-driver-launch.sc", "queries/joern/02-dataflow-unguarded-driver-launch.sc"],
     "type_method_nodes": 252,
     "type_distinct_method_names": 107,
@@ -335,7 +436,14 @@
       "pair-one": 0,
       "pair-two": 0
     },
-    "handler_types_not_covered_by_the_shared_prefixes": ["org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet"]
+    "handler_types_not_covered_by_the_shared_prefixes": ["org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet"],
+    "invocation_scope": "the zero counts are scoped to the two pairs' routes, not to the program: the five predicates ARE invoked elsewhere, including inside the anchored type itself, and those call sites are listed next so the scope of the claim is visible rather than implied",
+    "call_sites_inside_the_anchored_type_itself": ["aclsEnabled() invoked at core/src/main/scala/org/apache/spark/SecurityManager.scala:249", "aclsEnabled() invoked at core/src/main/scala/org/apache/spark/SecurityManager.scala:265", "aclsEnabled() invoked at core/src/main/scala/org/apache/spark/SecurityManager.scala:407, inside the private isUserInACL declared at :402"],
+    "route_files_searched_for_the_five": ["core/src/main/scala/org/apache/spark/deploy/master/Master.scala", "core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala", "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala"],
+    "route_files_occurrences_of_the_five": "none: searching all five names across the three route files at the pin returns nothing in any of them, which is the source-level counterpart of the graph measurement above",
+    "reference_is_not_invocation": "a held reference is not an invocation. Every mention of the anchored type on the route surface is a reference of one of the kinds listed next, and none of them invokes any of the five, which is why the wording throughout this envelope is invoked rather than referenced",
+    "references_that_are_not_invocations": ["core/src/main/scala/org/apache/spark/deploy/master/Master.scala:28 imports SecurityManager", "core/src/main/scala/org/apache/spark/deploy/master/Master.scala:53 declares val securityMgr: SecurityManager", "core/src/main/scala/org/apache/spark/deploy/master/Master.scala:139 reads the companion constant SecurityManager.SPARK_AUTH_SECRET_CONF", "core/src/main/scala/org/apache/spark/deploy/master/Master.scala:1429 constructs a SecurityManager", "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:27 imports SecurityManager", "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:56 declares val securityManager: SecurityManager", "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:194 passes securityManager on as an argument"],
+    "pair_two_handler_file_references_to_the_anchored_type": "none: core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala carries no reference to org.apache.spark.SecurityManager at all at the pin - not an import, not a field, not a constant read - which is the additional detail that makes pair two's expected-spurious basis structural rather than a property of this query's filtering"
   },
   "boundaries": [
     {
@@ -395,7 +503,7 @@
         "against": "01-callgraph-unguarded-driver-launch",
         "status": "duplicate_formulation_on_pair_one",
         "scope_of_the_duplication": "pair-one only",
-        "basis": "SAID PLAINLY: instantiated on pair one this query IS query 01's formulation restated in parameterized form, and the evidence is measured rather than asserted - the same edge kind (CALL edges only, no data edge and no flow engine), the same entry-point resolution (the synthetic partial-function method together with the source-level method), the same sink constraint, the same bound value 12, the same two walk modes, and an API construct list whose set difference against query 01's published list is empty in BOTH directions. On this run the two also agree on pair one's entry-point set, on its distinct-route count and on the four boundary verdicts after the declared id translation. WHAT IS NOT A DUPLICATE: the query as a whole. It takes the handler/sink pair as a parameter and is invoked on a SECOND pair (pair-two, org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit) that query 01 does not address at all, it measures 5 boundaries on that pair against 4 on pair one, and it models one hop query 01 never reaches - the servlet's own message send, whose producer and consumer ends are measured in stage I. RECONCILED WITH WHAT QUERY 01 PUBLISHED: its envelope records 'not_duplicate' against this query, on the ground that this query covers a second pair and a different target set. This report AGREES at that scope - as wholes the two are not duplicates - and adds the pair-one scope, which query 01 could not have measured because the parameterized form did not exist when it ran. The two verdicts are the same finding at two scopes rather than a disagreement, and the scope is named in both directions so neither reads as a contradiction of the other. Neither query's returns are added to the other's anywhere: they are reported side by side, per pair, and NEVER SUMMED.",
+        "basis": "SAID PLAINLY: instantiated on pair one this query IS query 01's formulation restated in parameterized form, and the evidence is measured rather than asserted - the same edge kind (CALL edges only, no data edge and no flow engine), the same entry-point resolution (the synthetic partial-function method together with the source-level method), the same sink constraint, the same bound value 12, the same two walk modes, and an API construct list whose set difference against query 01's published list is empty in BOTH directions. On this run the two also agree on pair one's entry-point set, on its distinct-route count and on the four boundary verdicts after the declared id translation. WHAT IS NOT A DUPLICATE: the query as a whole. It takes the handler/sink pair as a parameter and is invoked on a SECOND pair (pair-two, org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit) that query 01 does not address at all, it measures 5 boundaries on that pair against 4 on pair one, and it models one hop query 01 never reaches - the servlet's own message send, whose producer and consumer ends are measured in stage I. RECONCILED WITH WHAT QUERY 01 PUBLISHED: its envelope records 'duplicate_formulation_on_pair_one' against this query, aggregating to 'partial_duplicate' at its top level, and it states both scopes there too - that as wholes the two are not duplicates, because this query takes the pair as a parameter and covers a second pair it does not address, and that on pair one the two formulations coincide. The verdict published from each side is therefore the SAME verdict at the same scope, which is what the symmetry of this pairwise relation requires: one measurement cited twice rather than two measurements, and a disagreement between the two directions would be a defect rather than a finding. Neither query's returns are added to the other's anywhere: they are reported side by side, per pair, and NEVER SUMMED.",
         "evidence": {
           "api_construct_sets_identical": true,
           "api_constructs_only_here": [],
@@ -414,8 +522,10 @@
           "boundaries_not_crossed_published_by_the_sibling_transcribed": ["B1-rpc", "B2-thread", "B4-partial-function"],
           "boundary_verdicts_agree": true,
           "boundary_id_translation": ["B-interface -> B3-interface", "B-partial-function-pair-one -> B4-partial-function", "B-rpc-LaunchDriver -> B1-rpc", "B-thread -> B2-thread"],
-          "sibling_published_verdict_against_this_query_transcribed": "not_duplicate",
-          "verdicts_are_the_same_finding_at_two_scopes": true,
+          "sibling_published_verdict_against_this_query_transcribed": "duplicate_formulation_on_pair_one",
+          "sibling_aggregate_verdict_transcribed": "partial_duplicate",
+          "verdicts_agree_in_both_directions": true,
+          "verdict_symmetry_note": "the relation is pairwise and symmetric, so the verdict stated here against 01-callgraph-unguarded-driver-launch and the verdict that query states against this one are one measurement cited twice. Both scopes - the pair-one duplication and the whole-query difference - are named in both envelopes, so neither reads as a contradiction of the other",
           "sibling_figures_are_transcribed_not_measured_here": true,
           "sibling_figures_were_measured_against_the_graph_of_its_own_run": true
         }
@@ -456,6 +566,8 @@
     "pairs_invoked": 2,
     "pair_iteration_order": ["pair-one", "pair-two"],
     "first_pair_id": "pair-one",
+    "first_pair_handler": "org.apache.spark.deploy.master.Master.receiveAndReply (core/src/main/scala/org/apache/spark/deploy/master/Master.scala:409 at the pin)",
+    "first_pair_sink": "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240 at the pin",
     "first_pair_outcome": "invoked; entry points traversed 2 of 2; distinct routes 0; spurious 0; boundaries measured or cited 4",
     "second_pair_id": "pair-two",
     "second_pair_handler": "org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit (core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:268 at the pin)",
@@ -463,9 +575,73 @@
     "second_pair_invoked": true,
     "second_pair_outcome": "invoked; entry points traversed 1 of 1; walks run A-follows-fan-out and B-fan-out-recorded; call sites considered A-follows-fan-out=8949, B-fan-out-recorded=1230; distinct routes 0; spurious 0; boundaries measured or cited 5 (B-rpc-RequestSubmitDriver, B-rpc-LaunchDriver, B-thread, B-interface, B-partial-function-pair-two)",
     "second_pair_result_captured_in": ["queries/joern/results/03-parameterized-handler-sink-pairs.json", "queries/joern/results/03-parameterized-handler-sink-pairs.md", "harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log"],
+    "parameter_values_supplied": {
+      "pair-one": {
+        "handler_type": "org.apache.spark.deploy.master.Master",
+        "handler_method": "receiveAndReply",
+        "handler_synthetic_type_regex": "^org\\.apache\\.spark\\.deploy\\.master\\.Master\\$\\$anonfun\\$receiveAndReply\\$\\d+$",
+        "handler_synthetic_method": "applyOrElse",
+        "handler_body_witness": "createDriver",
+        "handler_base_type": "none declared for this pair",
+        "handler_source_file_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/master/Master.scala",
+        "handler_source_line_at_the_pin": 409,
+        "sink_callee_regex": "^(java\\.lang\\.ProcessBuilder\\.start|org\\.apache\\.spark\\.deploy\\.worker\\.ProcessBuilderLike\\.start).*",
+        "sink_call_name": "start",
+        "sink_host_type_regex": "^org\\.apache\\.spark\\.deploy\\.worker\\.(DriverRunner|ProcessBuilderLike).*",
+        "sink_source_file_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala",
+        "sink_source_line_at_the_pin": 240,
+        "message_hop_ids": ["LaunchDriver"],
+        "route_surface_type_prefixes": ["org.apache.spark.deploy.master.Master", "org.apache.spark.deploy.worker.DriverRunner", "org.apache.spark.deploy.worker.ProcessBuilderLike"],
+        "pair_label": "the standalone Master's driver-submission handler to the privileged process launch on the DriverRunner surface"
+      },
+      "pair-two": {
+        "handler_type": "org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet",
+        "handler_method": "handleSubmit",
+        "handler_synthetic_type_regex": "^org\\.apache\\.spark\\.deploy\\.rest\\.StandaloneSubmitRequestServlet\\$\\$anonfun\\$handleSubmit\\$\\d+$",
+        "handler_synthetic_method": "applyOrElse",
+        "handler_body_witness": "DeployMessages$RequestSubmitDriver.<init>",
+        "handler_base_type": "org.apache.spark.deploy.rest.SubmitRequestServlet",
+        "handler_source_file_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala",
+        "handler_source_line_at_the_pin": 268,
+        "sink_callee_regex": "^(java\\.lang\\.ProcessBuilder\\.start|org\\.apache\\.spark\\.deploy\\.worker\\.ProcessBuilderLike\\.start).*",
+        "sink_call_name": "start",
+        "sink_host_type_regex": "^org\\.apache\\.spark\\.deploy\\.worker\\.(DriverRunner|ProcessBuilderLike).*",
+        "sink_source_file_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala",
+        "sink_source_line_at_the_pin": 240,
+        "message_hop_ids": ["RequestSubmitDriver", "LaunchDriver"],
+        "route_surface_type_prefixes": ["org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet", "org.apache.spark.deploy.master.Master", "org.apache.spark.deploy.worker.DriverRunner", "org.apache.spark.deploy.worker.ProcessBuilderLike"],
+        "pair_label": "the REST submit servlet's handleSubmit to the SAME privileged process launch on the DriverRunner surface"
+      }
+    },
+    "parameter_values_note": "these are the literals the ONE query body was driven by, listed per pair so a reader can see two invocations of one traversal rather than two queries: no traversal in this source names a handler or a sink itself, every selector it applies comes out of the pair it was handed, and the predicate set is not among the parameters",
+    "zero_record_outcome_and_the_verdict": "a zero-record outcome on the second pair does not affect this measure and did not affect this verdict. The measure asks whether the query is parameterizable - whether the second named pair was really supplied to the same body and its result captured - and not whether that pair is connected over this graph by this formulation. The two are reported separately for that reason: the verdict here, and the pair's own distinct-route count and boundary measurements in its per-pair object, where a zero is a capability finding about the traversal rather than a failure of either",
     "statement": "the measure is settled by an invocation, not by a parameter list: both pairs were invoked in this single run, in the declared order, and the second pair's selection, walk counters, boundary measurements, distinct-route count and spurious count are all published above and in both result files. An empty result from a real invocation satisfies the measure; a skipped invocation would not, and a malformed pair aborts the run rather than being passed over"
   },
   "total_returns_cap_reached": false,
+  "records_order": "an explicit TOTAL sort key. Boundary records come first, in the fixed boundary-identifier order this query declares - B-rpc-LaunchDriver, B-thread, B-interface, B-partial-function-pair-one, B-rpc-RequestSubmitDriver, B-partial-function-pair-two - and each names the pair or pairs citing it; route records follow, grouped by pair IN THE DECLARED PAIR ORDER (pair-one, pair-two) and ordered WITHIN a pair by (walk_id, entry point, sink host, hop sequence). No two records share the key, so the order is total rather than merely stable, and the whole sequence is then truncated to MAX_TOTAL_RETURNS. Grouping by pair is an ordering, never an aggregation: no record and no count is shared between the two pairs' groups",
+  "collection_order": "every other collection carries an explicit order too. Per-pair objects and every by-pair map follow the declared pair order, which is fixed in the source as a List and never taken from a map or set iteration. Lists of SOURCE constructs ascend by pinned-tree source line - named_five_with_source_lines, deliberate_non_selectors, over_match_hazards_excluded, call_sites_inside_the_anchored_type_itself and references_that_are_not_invocations, the last grouped by file in route order. Lists of graph or query identifiers ascend lexicographically: named_five, final_names, final_full_names, entry_points, sink_hosts, route_files_searched_for_the_five, never_summed_with, effort_joern_api_constructs and the api-construct difference lists. Boundary lists follow the declared boundary-identifier order, the bounds objects follow the declaration order of the named constants in the source, and each pair's walk list follows the declared walk-mode order. Every one of these is a fixed function of the inputs, so no collection depends on an iteration order",
+  "determinism": {
+    "byte_identity_contract": "an unchanged query source over an unchanged graph emits byte-identical bytes, from any checkout. Every collection carries an explicit total order, the serialization uses a fixed key order and a fixed layout, and the file ends in a single trailing newline",
+    "pair_iteration_order_is_fixed": true,
+    "pair_iteration_order_basis": "the pairs are declared as a List in the source and are selected, walked, classified, recorded and reported by index in that order (pair-one, pair-two). No stage iterates a map or a set of pairs, which is the determinism requirement specific to a parameterized query: a pair order taken from an unspecified iteration would reorder the per-pair objects and the record groups between two runs",
+    "non_deterministic_quantities_excluded": ["absolute host paths", "elapsed times", "host names", "process identifiers", "scratch and temporary directory names", "wall-clock timestamps", "workspace instance names"],
+    "elapsed_times_live_in": "harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log, a console stream that is deliberately not held to byte-identity",
+    "absolute_host_paths_emitted": false,
+    "trailing_newline": true,
+    "reproduction_check_method": "invoke this source again over the same graph from an isolated repository root and compare the two envelopes byte for byte, including the pair order and the record grouping. The isolation matters: the console log is written to a fixed repository-relative path, so a re-run inside a checkout would overwrite the record of the invocation it is being compared against. Two roots also test the property the path fields exist to have - that no field varies with the checkout"
+  },
+  "provenance": {
+    "measured_values_cited_from": "harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log",
+    "measured_values_note": "every count, status, flag, walk figure, selector figure and graph figure in this envelope is this invocation's own measurement, and the console stream is the same measurement written a second time. One measurement cited twice, never two measurements, so a disagreement between this envelope and that stream would be a defect in this envelope",
+    "graph_identity_owner": "harness/artifacts/logs/cpg-frontend.log for the repository-relative record, and the record of account named above for the graph actually loaded; both pairs are published and neither is discarded",
+    "query_source": "queries/joern/03-parameterized-handler-sink-pairs.sc",
+    "bound_constants_defined_by": "the query source, as named vals; no inline literal governs behaviour and no bound value is chosen in this envelope",
+    "sibling_figures": "every figure attributed to 01-callgraph-unguarded-driver-launch or 02-dataflow-unguarded-driver-launch is TRANSCRIBED from that query's published envelope and is never re-measured here; each was measured against the graph of its own run",
+    "line_numbers_verified_against": "the pinned tree at 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, exported as SPARK_SRC. Every source line cited here is that tree's, not this checkout's, which differ on core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala",
+    "graph_path_expression": "the graph path fields are expressed by environment-variable name and by repository-relative form, so this envelope carries no value that varies between two checkouts of one branch",
+    "contributes_dataset_rows": false,
+    "dataset_separation": "nothing here is written into harness/artifacts/raw/ and nothing is folded into oss-scan-results/findings.json. This tree is the deliberate second appearance of this tool, as the subject of the capability probe rather than as one of the scanned runners, and folding it in would corrupt both that tool's row count and the dataset total"
+  },
   "records": [
     {
         "kind": "boundary",

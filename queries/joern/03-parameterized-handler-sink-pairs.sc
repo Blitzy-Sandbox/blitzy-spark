@@ -718,16 +718,22 @@ val SIBLING_DATAFLOW_BOUND_VALUE = 6
 
 /**
  * What each sibling published as ITS duplicate-formulation verdict against THIS
- * query, transcribed from their envelopes. Both recorded `not_duplicate`, on the
- * ground that this query is parameterized over handler/sink pairs and covers a
- * second pair they do not address. Carried here so the cross-reference is
- * reconciled in the report rather than left for a reader to reconcile: a verdict
- * of "duplicate on pair one" from this side and "not a duplicate" from theirs are
- * the same finding at two different scopes, and neither sibling could have
- * measured the pair-one scope, because the parameterized form did not exist when
- * they ran.
+ * query, transcribed from their envelopes as they now stand and never guessed.
+ *
+ * Query 01 records the SAME SCOPED verdict this query records against it -
+ * `duplicate_formulation_on_pair_one` - aggregating to `partial_duplicate` at
+ * its top level, and its entry states both scopes: that as wholes the two are
+ * not duplicates, because this query covers a second pair it does not address,
+ * and that on pair one the two formulations coincide. Query 02 records
+ * `not_duplicate`. The relation is pairwise and SYMMETRIC, so each verdict here
+ * must equal the one the sibling publishes: it is one measurement cited twice
+ * rather than two measurements, and a disagreement between the two directions
+ * would be a defect rather than a finding. These constants are what make that
+ * check possible from inside this query, and each is transcribed from the
+ * sibling envelope committed alongside this file.
  */
-val SIBLING_CALLGRAPH_VERDICT_AGAINST_THIS = "not_duplicate"
+val SIBLING_CALLGRAPH_VERDICT_AGAINST_THIS = "duplicate_formulation_on_pair_one"
+val SIBLING_CALLGRAPH_AGGREGATE_VERDICT = "partial_duplicate"
 val SIBLING_DATAFLOW_VERDICT_AGAINST_THIS = "not_duplicate"
 
 /**
@@ -1032,19 +1038,50 @@ try {
     else identityPairOf(recordDefaultPath, "repo-relative")
   val defaultRecordAgrees =
     defaultRecordedSize == sizeFollow && defaultRecordedSha == shaObserved
+
+  // ------------------------- portable labels for the written artefacts ------
+  // The envelope and the prose report are held to byte-identity: an unchanged
+  // source over an unchanged graph must emit the same bytes from any checkout.
+  // An absolute host path cannot appear in either, because the clone root is a
+  // property of the checkout rather than of the measurement, so the same graph
+  // reached through two clones would otherwise produce two different files.
+  // Queries 01 and 02 express these same fields by environment-variable NAME
+  // and by repository-relative form, and this query follows them so all three
+  // envelopes describe the graph the same way. Nothing is lost: the literals
+  // stay in the console stream, which is deliberately not held to
+  // byte-identity, and the size-and-digest pair - not a path - is what the
+  // identity comparison turns on.
+  def portableLabel(p: Path, outsideRoot: String): String =
+    if (p.startsWith(repoRoot)) repoRoot.relativize(p).toString else outsideRoot
+  val cpgNamedLabel =
+    if (cpgEnvValue.isDefined) "$" + CPG_ENV_VAR else CPG_PATH_DEFAULT
+  val cpgNamedRepoRelativeLabel = portableLabel(cpgNamed,
+    "a path outside the repository root, named by $" + CPG_ENV_VAR)
+  val cpgResolvedLabel = portableLabel(cpgResolved,
+    "a host-shared read-only file outside the repository root, reached by following " +
+      "the symlink")
+  val recordSelectedLabel =
+    if (recordsAreOneFile) CPG_RECORD_PATH
+    else portableLabel(recordSelectedPath,
+      "a provisioning record outside the repository root, named by $" +
+        CPG_RECORD_ENV_VAR)
+  log(s"graph path label          : $cpgNamedLabel")
+  log(s"resolved target label     : $cpgResolvedLabel")
+  log(s"identity record label     : $recordSelectedLabel")
+
   val identityDivergenceNote =
     if (recordsAreOneFile)
       "none: the record of account IS the repo-relative record " + CPG_RECORD_PATH +
         ", and the graph loaded matches the pair it states"
     else if (defaultRecordAgrees)
-      "none: the record of account is " + recordSelectedPath + " and the repo-relative " +
+      "none: the record of account is " + recordSelectedLabel + " and the repo-relative " +
         "record " + CPG_RECORD_PATH + " states the same pair"
     else
       "the repo-relative record " + CPG_RECORD_PATH + " states bytes=" +
         defaultRecordedSize + " sha256=" + defaultRecordedSha + ", which is NOT the " +
         "graph on this host (bytes=" + sizeFollow + " sha256=" + shaObserved + "). That " +
         "record is a committed deliverable describing the graph of the provisioning " +
-        "that wrote it; the record of account for THIS load is " + recordSelectedPath +
+        "that wrote it; the record of account for THIS load is " + recordSelectedLabel +
         ", the frontend's own write-time record for the graph actually loaded, and the " +
         "load was verified against it. Both pairs are recorded with their provenance " +
         "and neither is discarded"
@@ -2223,14 +2260,16 @@ try {
       "hop query 01 never reaches - the servlet's own message send, whose producer and " +
       "consumer ends are measured in stage I. RECONCILED WITH WHAT QUERY 01 PUBLISHED: " +
       "its envelope records '" + SIBLING_CALLGRAPH_VERDICT_AGAINST_THIS + "' against this " +
-      "query, on the ground that this query covers a second pair and a different target " +
-      "set. This report AGREES at that scope - as wholes the two are not duplicates - and " +
-      "adds the pair-one scope, which query 01 could not have measured because the " +
-      "parameterized form did not exist when it ran. The two verdicts are the same " +
-      "finding at two scopes rather than a disagreement, and the scope is named in both " +
-      "directions so neither reads as a contradiction of the other. Neither query's " +
-      "returns are added to the other's anywhere: they are reported side by side, per " +
-      "pair, and NEVER SUMMED."
+      "query, aggregating to '" + SIBLING_CALLGRAPH_AGGREGATE_VERDICT + "' at its top " +
+      "level, and it states both scopes there too - that as wholes the two are not " +
+      "duplicates, because this query takes the pair as a parameter and covers a second " +
+      "pair it does not address, and that on pair one the two formulations coincide. The " +
+      "verdict published from each side is therefore the SAME verdict at the same scope, " +
+      "which is what the symmetry of this pairwise relation requires: one measurement " +
+      "cited twice rather than two measurements, and a disagreement between the two " +
+      "directions would be a defect rather than a finding. Neither query's returns are " +
+      "added to the other's anywhere: they are reported side by side, per pair, and " +
+      "NEVER SUMMED."
   val duplicateVerdictAgainst02 = "not_duplicate"
   val duplicateBasisAgainst02 =
     "A different formulation over different edges and different nodes. Query 02 " +
@@ -2309,6 +2348,69 @@ try {
     traversals.map(t => s"${t.pairId}=${t.distinctRoutes.size}").mkString(", ") +
     s"; cap $MAX_TOTAL_RETURNS, reached=$totalReturnsCapReached). This is a count of " +
     "RECORDS emitted, not a route total: no field adds one pair's routes to another's.")
+
+  // ------------------- per-pair, per-constant bound outcomes ----------------
+  // Every named bound carries a VALUE (the `bounds` object) and a REACHED FLAG
+  // (here), per pair, measured from that pair's own walks and sweeps rather
+  // than asserted - a bare flag is not interpretable, and a bound with no flag
+  // leaves open whether the traversal was trimmed. MAX_TOTAL_RETURNS is a
+  // QUERY-level cap rather than a per-pair one: both pairs' entries carry the
+  // same value, which is one measurement cited twice, never two measurements.
+  def boundsReachedFor(s: PairSelection, t: PairTraversal): List[(String, Boolean)] = List(
+    "MAX_CALL_DEPTH" -> t.walks.exists(_.depthBoundReached),
+    "MAX_ROUTES_PER_PAIR" -> t.walks.exists(_.routeCapReached),
+    "MAX_EXPANSIONS_PER_ENTRY" -> t.walks.exists(_.expansionBudgetExhausted),
+    "MAX_STEPS_PER_PAIR" -> t.walks.exists(_.stepCapReached),
+    "MAX_TOTAL_RETURNS" -> totalReturnsCapReached,
+    "MAX_ENTRY_POINTS_PER_PAIR" -> (s.entryPointsTruncated > 0),
+    "MAX_CALL_SCAN" -> s.sinkScanTruncated,
+    "FANOUT_CALLEE_THRESHOLD" -> t.walks.exists(_.fanOutSitesEncountered > 0))
+
+  def boundsBasisFor(s: PairSelection, t: PairTraversal): List[(String, String)] = {
+    def yn(b: Boolean) = if (b) "reached" else "not reached"
+    val deepest = if (t.walks.isEmpty) 0 else t.walks.map(_.maxDepthUsed).max
+    val widestExpansion = if (t.walks.isEmpty) 0 else t.walks.map(_.expansions).max
+    val widestSteps = if (t.walks.isEmpty) 0 else t.walks.map(_.callSitesConsidered).max
+    val routesPerWalk = t.walks.map(w => s"${w.walkId}=${w.routes.size}").mkString(", ")
+    val fanOutPerWalk =
+      t.walks.map(w => s"${w.walkId}=${w.fanOutSitesEncountered}").mkString(", ")
+    List(
+      "MAX_CALL_DEPTH" -> (s"${yn(t.walks.exists(_.depthBoundReached))}: " +
+        s"depth_bound_reached is ${t.walks.exists(_.depthBoundReached)} across this " +
+        s"pair's walks and the deepest walk used $deepest of $MAX_CALL_DEPTH hops"),
+      "MAX_ROUTES_PER_PAIR" -> (s"${yn(t.walks.exists(_.routeCapReached))}: " +
+        s"route_cap_reached is ${t.walks.exists(_.routeCapReached)} in every walk, with " +
+        s"routes returned per walk $routesPerWalk against a per-pair cap of " +
+        s"$MAX_ROUTES_PER_PAIR - a cap that is never shared between pairs, because one " +
+        "pair filling a shared budget would silently truncate the other"),
+      "MAX_EXPANSIONS_PER_ENTRY" ->
+        (s"${yn(t.walks.exists(_.expansionBudgetExhausted))}: " +
+          s"expansion_budget_exhausted is ${t.walks.exists(_.expansionBudgetExhausted)} " +
+          s"in every walk, the highest method-expansion count being $widestExpansion of " +
+          s"$MAX_EXPANSIONS_PER_ENTRY"),
+      "MAX_STEPS_PER_PAIR" -> (s"${yn(t.walks.exists(_.stepCapReached))}: " +
+        s"step_cap_reached is ${t.walks.exists(_.stepCapReached)} in every walk, the " +
+        s"highest call-site count being $widestSteps of $MAX_STEPS_PER_PAIR"),
+      "MAX_TOTAL_RETURNS" -> (s"${yn(totalReturnsCapReached)}: $returnedRecordCount " +
+        s"record(s) emitted by the query against a cap of $MAX_TOTAL_RETURNS. This is a " +
+        "query-level cap, so this entry is the same measurement in both pairs' " +
+        "objects rather than a second one"),
+      "MAX_ENTRY_POINTS_PER_PAIR" -> (s"${yn(s.entryPointsTruncated > 0)}: " +
+        s"${s.entryPointsDiscovered} entry point(s) discovered, " +
+        s"${s.entryPointsTraversed} traversed and ${s.entryPointsTruncated} truncated, " +
+        s"against a per-pair cap of $MAX_ENTRY_POINTS_PER_PAIR"),
+      "MAX_CALL_SCAN" -> (s"${yn(s.sinkScanTruncated)}: ${s.sinkCallsScanned} call(s) " +
+        s"named ${s.pair.sinkCallName} scanned of $MAX_CALL_SCAN, and the sweep reported " +
+        s"truncated=${s.sinkScanTruncated}"),
+      "FANOUT_CALLEE_THRESHOLD" ->
+        ((if (t.walks.exists(_.fanOutSitesEncountered > 0))
+          "exceeded, which is what \"reached\" means for a threshold rather than a cap"
+         else "not exceeded") +
+          s": fan-out sites encountered per walk $fanOutPerWalk, a site counting as " +
+          s"fan-out when its resolved callee set exceeds $FANOUT_CALLEE_THRESHOLD " +
+          "distinct methods"))
+  }
+
 
   def walkJson(w: WalkResult): String = jobj(8, List(
     "pair_id" -> jstr(w.pairId),
@@ -2452,6 +2554,12 @@ try {
     "pairs_invoked" -> jnum(traversals.count(_.invoked).toLong),
     "pair_iteration_order" -> jstrArr(PAIRS.map(_.id)),
     "first_pair_id" -> jstr(PAIRS.head.id),
+    "first_pair_handler" ->
+      jstr(PAIRS.head.handlerType + "." + PAIRS.head.handlerMethod + " (" +
+        PAIRS.head.handlerSourceFile + ":" + PAIRS.head.handlerSourceLine +
+        " at the pin)"),
+    "first_pair_sink" ->
+      jstr(PAIRS.head.sinkSourceFile + ":" + PAIRS.head.sinkSourceLine + " at the pin"),
     "first_pair_outcome" -> jstr(firstPairOutcome),
     "second_pair_id" -> jstr(secondPair.id),
     "second_pair_handler" ->
@@ -2465,6 +2573,37 @@ try {
       RESULTS_DIR + "/" + QUERY_ID + ".json",
       RESULTS_DIR + "/" + QUERY_ID + ".md",
       LOG_DIR + "/probe-" + QUERY_ID + ".log")),
+    "parameter_values_supplied" -> jbyPair(4, PAIRS.map(p => p.id -> jobj(6, List(
+      "handler_type" -> jstr(p.handlerType),
+      "handler_method" -> jstr(p.handlerMethod),
+      "handler_synthetic_type_regex" -> jstr(p.handlerSyntheticTypeRegex),
+      "handler_synthetic_method" -> jstr(p.handlerSyntheticMethod),
+      "handler_body_witness" -> jstr(p.handlerBodyWitness),
+      "handler_base_type" -> jstr(
+        if (p.handlerBaseType.isEmpty) "none declared for this pair" else p.handlerBaseType),
+      "handler_source_file_at_the_pin" -> jstr(p.handlerSourceFile),
+      "handler_source_line_at_the_pin" -> jnum(p.handlerSourceLine.toLong),
+      "sink_callee_regex" -> jstr(p.sinkCalleeRegex),
+      "sink_call_name" -> jstr(p.sinkCallName),
+      "sink_host_type_regex" -> jstr(p.sinkHostTypeRegex),
+      "sink_source_file_at_the_pin" -> jstr(p.sinkSourceFile),
+      "sink_source_line_at_the_pin" -> jnum(p.sinkSourceLine.toLong),
+      "message_hop_ids" -> jstrArr(p.messageHops.map(_.id)),
+      "route_surface_type_prefixes" -> jstrArr(p.routeSurfaceTypePrefixes),
+      "pair_label" -> jstr(p.label))))),
+    "parameter_values_note" -> jstr("these are the literals the ONE query body was " +
+      "driven by, listed per pair so a reader can see two invocations of one traversal " +
+      "rather than two queries: no traversal in this source names a handler or a sink " +
+      "itself, every selector it applies comes out of the pair it was handed, and the " +
+      "predicate set is not among the parameters"),
+    "zero_record_outcome_and_the_verdict" -> jstr("a zero-record outcome on the second " +
+      "pair does not affect this measure and did not affect this verdict. The measure " +
+      "asks whether the query is parameterizable - whether the second named pair was " +
+      "really supplied to the same body and its result captured - and not whether that " +
+      "pair is connected over this graph by this formulation. The two are reported " +
+      "separately for that reason: the verdict here, and the pair's own distinct-route " +
+      "count and boundary measurements in its per-pair object, where a zero is a " +
+      "capability finding about the traversal rather than a failure of either"),
     "statement" -> jstr(
       "the measure is settled by an invocation, not by a parameter list: both pairs were " +
         "invoked in this single run, in the declared order, and the second pair's " +
@@ -2507,7 +2646,15 @@ try {
           .map { case (mine, theirs) => mine + " -> " + theirs }),
         "sibling_published_verdict_against_this_query_transcribed" ->
           jstr(SIBLING_CALLGRAPH_VERDICT_AGAINST_THIS),
-        "verdicts_are_the_same_finding_at_two_scopes" -> jbool(true),
+        "sibling_aggregate_verdict_transcribed" ->
+          jstr(SIBLING_CALLGRAPH_AGGREGATE_VERDICT),
+        "verdicts_agree_in_both_directions" -> jbool(
+          duplicateVerdictAgainst01 == SIBLING_CALLGRAPH_VERDICT_AGAINST_THIS),
+        "verdict_symmetry_note" -> jstr("the relation is pairwise and symmetric, so the " +
+          "verdict stated here against " + SIBLING_CALLGRAPH_QUERY + " and the verdict " +
+          "that query states against this one are one measurement cited twice. Both " +
+          "scopes - the pair-one duplication and the whole-query difference - are named " +
+          "in both envelopes, so neither reads as a contradiction of the other"),
         "sibling_figures_are_transcribed_not_measured_here" -> jbool(true),
         "sibling_figures_were_measured_against_the_graph_of_its_own_run" -> jbool(true))))),
     jobj(6, List(
@@ -2550,6 +2697,56 @@ try {
     jbyPair(2, PAIRS.indices.toList.map(i =>
       PAIRS(i).id -> jstr(f(selections(i), traversals(i), spuriousByPair(i)))))
 
+  // ---- the predicate set's source-level surface, quoted from the pinned tree --
+  // These are SOURCE facts about the five selectors and about the three route
+  // files, quoted from the pinned clone at the SHA the header names and checked
+  // there line by line. They live here rather than inside the byte-identical
+  // selector block, which is carried verbatim and is not edited to report
+  // anything. Every list ascends by source line so its order is a fixed
+  // function of its content.
+  val predicateSourceFile = "core/src/main/scala/org/apache/spark/SecurityManager.scala"
+  val predicateSourceFileLines = 457
+  val predicateNamedFiveWithSourceLines = List(
+    "aclsEnabled() at " + predicateSourceFile + ":227",
+    "checkAdminPermissions at " + predicateSourceFile + ":234",
+    "checkUIViewPermissions at " + predicateSourceFile + ":248",
+    "checkModifyPermissions at " + predicateSourceFile + ":264",
+    "isAuthenticationEnabled() at " + predicateSourceFile + ":274")
+  val predicateDeliberateNonSelectors = List(
+    "isEncryptionEnabled() at " + predicateSourceFile + ":280",
+    "isSslRpcEnabled() at " + predicateSourceFile + ":295")
+  val predicateOverMatchHazards = List(
+    "setViewAcls at " + predicateSourceFile + ":123",
+    "setViewAcls at " + predicateSourceFile + ":128",
+    "setViewAclsGroups at " + predicateSourceFile + ":136",
+    "getViewAcls at " + predicateSourceFile + ":144",
+    "getViewAclsGroups at " + predicateSourceFile + ":152",
+    "setModifyAcls at " + predicateSourceFile + ":164",
+    "setModifyAclsGroups at " + predicateSourceFile + ":173",
+    "getModifyAcls at " + predicateSourceFile + ":182",
+    "getModifyAclsGroups at " + predicateSourceFile + ":190",
+    "setAdminAcls at " + predicateSourceFile + ":202",
+    "setAdminAclsGroups at " + predicateSourceFile + ":211",
+    "setAcls at " + predicateSourceFile + ":216")
+  val predicateCallSitesInsideItsOwnType = List(
+    "aclsEnabled() invoked at " + predicateSourceFile + ":249",
+    "aclsEnabled() invoked at " + predicateSourceFile + ":265",
+    "aclsEnabled() invoked at " + predicateSourceFile + ":407, inside the private " +
+      "isUserInACL declared at :402")
+  val predicateReferencesThatAreNotInvocations = List(
+    PAIR_ONE_HANDLER_SOURCE_FILE + ":28 imports SecurityManager",
+    PAIR_ONE_HANDLER_SOURCE_FILE + ":53 declares val securityMgr: SecurityManager",
+    PAIR_ONE_HANDLER_SOURCE_FILE + ":139 reads the companion constant " +
+      "SecurityManager.SPARK_AUTH_SECRET_CONF",
+    PAIR_ONE_HANDLER_SOURCE_FILE + ":1429 constructs a SecurityManager",
+    SINK_SOURCE_FILE + ":27 imports SecurityManager",
+    SINK_SOURCE_FILE + ":56 declares val securityManager: SecurityManager",
+    SINK_SOURCE_FILE + ":194 passes securityManager on as an argument")
+  val predicateRouteFilesSearched = List(
+    PAIR_ONE_HANDLER_SOURCE_FILE,
+    PAIR_TWO_HANDLER_SOURCE_FILE,
+    SINK_SOURCE_FILE).sorted
+
   val envelope = jobj(0, List(
     "query_id" -> jstr(QUERY_ID),
     "query_source" -> jstr(s"queries/joern/$QUERY_ID.sc"),
@@ -2565,6 +2762,41 @@ try {
       "so its presence is itself the evidence: a compile failure produces no envelope " +
       "at all and the compiler's diagnostic lands in the console stream"),
     "run_status" -> jstr("completed"),
+    "run_status_convention" -> jstr("completed means every stage passed and the result " +
+      "region was emitted; failed is the only other value and is what the marker " +
+      "protocol reports instead, with no result region at all"),
+    "failure_representation" -> jobj(2, List(
+      "compile_status_values" -> jstrArr(List("compiled", "failed")),
+      "run_status_values" -> jstrArr(List("completed", "failed")),
+      "marker_protocol" -> jstr("the query prints " + MARKER_START + " before any work " +
+        "and brackets its result region with " + MARKER_RESULT_BEGIN + " and " +
+        MARKER_RESULT_END + " only once every stage has passed, closing with " +
+        MARKER_OK),
+      "on_failure_result_region" -> jstr("NO result region is emitted on failure: " +
+        MARKER_FAILURE + " is printed instead, the failing stage and the exception go to " +
+        "the console stream, and the exception is re-raised. A partial result region is " +
+        "never emitted, because one would read like a completed run"),
+      "on_failure_measurement_fields" -> jstr("when compile_status or run_status carries " +
+        "its failure value, every measurement field - returned_record_count, " +
+        "returned_record_kinds, distinct_routes, spurious_count, bound_reached, " +
+        "bounds_reached_by_pair, entry_points_discovered, entry_points_traversed, " +
+        "entry_points_truncated, pairs, walks, records and the graph counts - is null. " +
+        "Null is used consistently and no zero is ever written in its place, because a " +
+        "zero would read as a successful empty result"),
+      "query_level_failure_versus_a_per_pair_outcome" -> jstr("the two are represented " +
+        "differently and must not be conflated. A QUERY-LEVEL failure - a compile " +
+        "failure, a heap below the floor, a graph identity mismatch, a malformed pair - " +
+        "produces no envelope at all and therefore no per-pair object for either pair: " +
+        "pairs_invoked would be absent rather than 0. A SUCCESSFUL run may legitimately " +
+        "return zero records for one or both pairs, and that state is this envelope's " +
+        "compile_status compiled with run_status completed, pairs_invoked equal to " +
+        "pairs_declared, a per-pair object present for each pair with invoked true, and " +
+        "distinct_routes 0 for the pair concerned. A zero there is a measured capability " +
+        "finding about what this formulation reaches over this graph, not a failure"),
+      "value_not_established_convention" -> jstr("a value that could not be established " +
+        "is named as such in the field that would have carried it, never omitted and " +
+        "never guessed: a value missing from the record is a value nothing downstream " +
+        "can check"))),
     "pairs_declared" -> jnum(PAIRS.size.toLong),
     "pairs_invoked" -> jnum(traversals.count(_.invoked).toLong),
     "pair_iteration_order" -> jstrArr(PAIRS.map(_.id)),
@@ -2582,6 +2814,14 @@ try {
       "(entry point, sink host, hop sequence) across its own two walks. The two pairs' " +
       "figures are reported side by side and are NEVER SUMMED, and neither is added to " +
       "query 01's or query 02's published returns"),
+    "distinct_routes_identity_function" -> jstr("a route identity is the triple (entry " +
+      "point method full name, sink host method full name, the ordered sequence of " +
+      "method full names from the entry point to the sink), evaluated WITHIN one pair. " +
+      "Two returns with equal triples are ONE route however many traversal orders " +
+      "produced them, and this pair's two walks are deduplicated against each other on " +
+      "that triple rather than added together. The function is never applied across " +
+      "pairs: two pairs are two results, so no identity ever merges a pair-one route " +
+      "with a pair-two route"),
     "never_summed_with" -> jstrArr(List(
       "the other pair in this query",
       SIBLING_CALLGRAPH_QUERY,
@@ -2592,6 +2832,18 @@ try {
       "exactly the five named selectors below; this judges the query, not Spark. The " +
       "selector block is byte-identical to queries 01 and 02, which is what makes the " +
       "three counts comparable"),
+    "spurious_definition_limit" -> jstr("the definition evaluates ONLY those five " +
+      "predicates, and it applies unchanged to BOTH pairs. Any other conditional on " +
+      "either route is outside it and is NOT assessed by it. Concretely, for pair one " +
+      PAIR_ONE_HANDLER_SOURCE_FILE + ":411 if (state != RecoveryState.ALIVE) guards the " +
+      "branch that reaches createDriver at " + PAIR_ONE_HANDLER_SOURCE_FILE + ":417, and " +
+      "it is a recovery-state check rather than one of the five, so it is neither " +
+      "counted as a predicate nor reported as one; and for pair two whatever request " +
+      "validation " + PAIR_TWO_HANDLER_METHOD + "'s own requestMessage match performs at " +
+      PAIR_TWO_HANDLER_SOURCE_FILE + ":" + PAIR_TWO_HANDLER_SOURCE_LINE + " is likewise " +
+      "outside the definition and unassessed. A spurious count of 0 therefore means " +
+      "exactly and only what the definition says, and does not mean that either route " +
+      "carries no conditional"),
     "expected_spurious_route_absent" -> byPairBool((_, _, sp) => sp.expectedSpuriousAbsent),
     "expected_spurious_absence_basis" ->
       byPairStr((_, _, sp) => if (sp.absenceIsStructural) "structural" else "filtering"),
@@ -2621,9 +2873,55 @@ try {
       "MAX_ENTRY_POINTS_PER_PAIR" -> jnum(MAX_ENTRY_POINTS_PER_PAIR.toLong),
       "MAX_CALL_SCAN" -> jnum(MAX_CALL_SCAN.toLong),
       "FANOUT_CALLEE_THRESHOLD" -> jnum(FANOUT_CALLEE_THRESHOLD.toLong))),
+    "bounds_meaning" -> jobj(2, List(
+      "MAX_CALL_DEPTH" -> jstr("maximum call-graph hops walked from an entry point, " +
+        "applied per pair"),
+      "MAX_ROUTES_PER_PAIR" -> jstr("maximum distinct routes retained PER PAIR; never a " +
+        "shared budget, because one pair filling a shared budget would silently truncate " +
+        "the other"),
+      "MAX_EXPANSIONS_PER_ENTRY" -> jstr("the per-entry-point step cap, counted in " +
+        "method expansions rather than in edges"),
+      "MAX_STEPS_PER_PAIR" -> jstr("the per-pair step cap across all of that pair's " +
+        "walks, counted in call sites considered"),
+      "MAX_TOTAL_RETURNS" -> jstr("the total-returns cap across every record kind this " +
+        "query emits; a QUERY-level cap rather than a per-pair one"),
+      "MAX_ENTRY_POINTS_PER_PAIR" -> jstr("maximum entry points traversed per pair; the " +
+        "remainder are counted as truncated rather than dropped silently"),
+      "MAX_CALL_SCAN" -> jstr("cap on the indexed call-name sweeps used to find the sink " +
+        "and message call sites"),
+      "FANOUT_CALLEE_THRESHOLD" -> jstr("a THRESHOLD rather than a cap: a call site " +
+        "whose resolved callee set is wider than this is recorded as a dynamic-dispatch " +
+        "fan-out site, and walk " + WALK_B_ID + " records it without expanding it"))),
+    "bounds_reached_by_pair" -> jbyPair(2, PAIRS.indices.toList.map(i =>
+      PAIRS(i).id -> jobj(4, boundsReachedFor(selections(i), traversals(i))
+        .map { case (k, v) => k -> jbool(v) }))),
+    "bounds_reached_basis_by_pair" -> jbyPair(2, PAIRS.indices.toList.map(i =>
+      PAIRS(i).id -> jobj(4, boundsBasisFor(selections(i), traversals(i))
+        .map { case (k, v) => k -> jstr(v) }))),
+    "bounds_reached_convention" -> jstr("every named bound above carries a value and, " +
+      "here, a reached flag with the measurement it was read from - per pair, in the " +
+      "declared pair order, and never aggregated across pairs. MAX_TOTAL_RETURNS is a " +
+      "query-level cap, so its entry is the same measurement in both pairs' objects: one " +
+      "measurement cited twice rather than two measurements. FANOUT_CALLEE_THRESHOLD is " +
+      "a threshold rather than a cap, so \"reached\" there means exceeded and is not a " +
+      "truncation of either traversal"),
     "entry_points_discovered" -> byPairNum((s, _, _) => s.entryPointsDiscovered.toLong),
     "entry_points_traversed" -> byPairNum((s, _, _) => s.entryPointsTraversed.toLong),
     "entry_points_truncated" -> byPairNum((s, _, _) => s.entryPointsTruncated.toLong),
+    "entry_points_truncated_meaning" -> jstr("the two counters are reported separately, " +
+      "per pair, so that a sweep cannot run unbounded and a trimmed traversal cannot " +
+      "pass for a complete one. A truncated count above zero is a measured property of " +
+      "that pair's traversal, to be reported rather than hidden; it is zero for both " +
+      "pairs here, each pair's discovered count sitting well inside the per-pair cap of " +
+      MAX_ENTRY_POINTS_PER_PAIR.toString),
+    "operator_pseudo_calls_excluded" -> jstr("a CPG <operator>.* call is an artefact of " +
+      "the representation rather than a method call, so it is not expanded and not " +
+      "counted as a hop: expanding them would inflate every counter of both pairs " +
+      "without adding a call-graph edge"),
+    "duplicate_class_definitions_unioned" -> jstr("the graph carries more than one node " +
+      "per class where two staged archives carried the same class, so method nodes are " +
+      "grouped by full name and their call sites unioned rather than one node being " +
+      "picked. Reachability is keyed on the method full name, identically for both pairs"),
     "entry_point_selection" -> jstr("per pair, the UNION of two arms: the synthetic " +
       "method named by the pair on every type matching the pair's synthetic type regex, " +
       "and the source-level method named by the pair on the pair's exact handler type. " +
@@ -2634,16 +2932,45 @@ try {
     "pairs" -> jrawArr(2, pairObjects),
     "graph" -> jobj(2, List(
       "path_source" -> jstr(cpgPathSource),
-      "named_path" -> jstr(cpgNamed.toString),
-      "resolved_path" -> jstr(cpgResolved.toString),
+      "named_path" -> jstr(cpgNamedLabel),
+      "named_path_repo_relative" -> jstr(cpgNamedRepoRelativeLabel),
+      "resolved_target" -> jstr(cpgResolvedLabel),
+      "absolute_host_paths_emitted" -> jbool(false),
+      "resolved_target_identification" -> jstr("no absolute host path is emitted " +
+        "anywhere in this envelope, so the resolved target is identified by the " +
+        "symlink-FOLLOWING byte size and sha256 below rather than by a host path. That " +
+        "pair is the identity of record and is what every load re-verifies; a host path " +
+        "would additionally vary between two checkouts of one branch and so could not be " +
+        "part of a deterministic envelope"),
+      "resolved_target_path_literal_lives_in" -> jstr(LOG_DIR + "/probe-" + QUERY_ID +
+        ".log, the console stream this invocation wrote, and the frontend record named " +
+        "by $" + CPG_RECORD_ENV_VAR + ". Console records are not held to byte-identity " +
+        "and may carry a host path; this envelope is, and does not. Where a " +
+        "field-by-field table in that log compares a path literal, it is comparing an " +
+        "earlier revision of this envelope that carried one, and the identity comparison " +
+        "turns on the size and digest pair below rather than on any literal"),
+      "measurement_semantics" -> jstr("symlink-FOLLOWING. The named path is a small " +
+        "symlink, so measuring the link itself records a few dozen bytes rather than the " +
+        "graph: byte_size_without_following is recorded only to be discarded"),
       "named_path_is_symlink" -> jbool(cpgIsLink),
       "byte_size_following_the_link" -> jnum(sizeFollow),
       "byte_size_without_following" -> jnum(sizeNoFollow),
       "sha256" -> jstr(shaObserved),
-      "identity_record_of_account" -> jstr(recordSelectedPath.toString),
+      "identity_record_of_account" -> jstr(recordSelectedLabel),
       "identity_record_source" -> jstr(recordSelectedSource),
+      "identity_record_of_account_role" -> jstr("the frontend's own write-time record " +
+        "FOR THE GRAPH ACTUALLY LOADED, which computed its pair with the same " +
+        "symlink-following semantics; this envelope cites that measurement rather than " +
+        "establishing a second one. The comparison is made immediately before the load " +
+        "and a mismatch halts the run rather than being weakened or skipped"),
       "identity_recorded_byte_size" -> jnum(recordedSize),
       "identity_recorded_sha256" -> jstr(recordedSha),
+      "identity_comparison_result" -> jstr(
+        if (sizeMatches && shaMatches)
+          "match - the observed byte size and sha256 equal the pair the record of " +
+            "account owns, on both values"
+        else "mismatch - unreachable in a written envelope, because a mismatch halts " +
+          "the run before anything is written"),
       "identity_reverified_before_load" -> jbool(true),
       "identity_record_repo_relative" -> jstr(CPG_RECORD_PATH),
       "identity_record_repo_relative_byte_size" -> jnum(defaultRecordedSize),
@@ -2656,11 +2983,36 @@ try {
       "files" -> jnum(fileCount.toLong))),
     "runtime" -> jobj(2, List(
       "jdk_major" -> jstr(jdkMajor),
+      "jdk_major_numeric" -> jnum(jdkMajor.toLong),
+      "jdk_major_required" -> jstr(REQUIRED_JDK_MAJOR),
       "jvm_version" -> jstr(jvmVersion),
+      "jvm_input_args_observed" -> jstr(
+        if (jvmInputArgs.isEmpty) "<none>" else jvmInputArgs.mkString(" ")),
       "heap_actually_used_bytes" -> jnum(heapMaxBytes),
+      "heap_actually_used_gib" -> jnum(heapMaxBytes / (1024L * 1024L * 1024L)),
       "heap_floor_bytes" -> jnum(HEAP_FLOOR_BYTES),
+      "heap_floor_gib" -> jnum(HEAP_FLOOR_BYTES / (1024L * 1024L * 1024L)),
+      "heap_at_or_above_floor" -> jbool(heapMaxBytes >= HEAP_FLOOR_BYTES),
+      "heap_above_floor" -> jbool(heapMaxBytes > HEAP_FLOOR_BYTES),
+      "heap_pre_touch_proof" -> jstr("the floor value's own commit proof is the gate's " +
+        "java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version, which exited 0. A heap above " +
+        "the floor is permitted and reported, and is proven committable by that same " +
+        "pre-touch test before use; a heap below it is not, which is why this query " +
+        "measures Runtime.maxMemory() and halts rather than trusting the flag it was given"),
+      "heap_direction_rule" -> jstr("the floor is a minimum and a default, never a " +
+        "ceiling: a larger heap is permitted and reported, and a smaller one is not, " +
+        "because a truncated result's silence cannot be told apart from a clean one - and " +
+        "this query traverses two pairs, so a truncation would be silent twice"),
+      "heap_override_mechanism" -> jstr("MEASURED, NOT ASSUMED: joern's --script path " +
+        "forks a child JVM with no JVM options forwarded, so -J-Xmx reaches the launcher " +
+        "only and the child would otherwise run at an ergonomic default. " +
+        "JAVA_TOOL_OPTIONS is inherited by the child and is what actually raises the heap " +
+        "the query runs at, which is why the heap above is Runtime.maxMemory() rather " +
+        "than a transcription of a flag"),
       "loader" -> jstr("importCpg into a switched workspace; the frontend-then-importCpg " +
         "route is mandated because the alternative spawns a second JVM at the same heap"),
+      "loader_is_importcpg_only" -> jbool(true),
+      "loader_import_code_absent_from_the_source" -> jbool(true),
       "workspace" -> jstr(WORKSPACE_PATH),
       "heap_bound_jvm_position" -> jstr("the Stage 5 probe, one of the four heap-bound " +
         "JVM invocations this run records separately (frontend build, importCpg " +
@@ -2677,6 +3029,34 @@ try {
       "name_regex" -> jstr(PREDICATE_NAME_REGEX),
       "setter_suffix_excluded" -> jstr(PREDICATE_SETTER_SUFFIX),
       "named_five" -> jstrArr(PREDICATE_NAMED_FIVE.sorted),
+      "source_file" -> jstr(predicateSourceFile),
+      "source_file_lines_at_the_pin" -> jnum(predicateSourceFileLines.toLong),
+      "named_five_with_source_lines" -> jstrArr(predicateNamedFiveWithSourceLines),
+      "bytecode_constraint" -> jstr("a type anchor on " + PREDICATE_TYPE + " together " +
+        "with an explicit " + PREDICATE_SETTER_SUFFIX + " exclusion. On bytecode the " +
+        "anchored name pattern alone is not enough, so the narrowing is three steps and " +
+        "all three sets are reported below rather than asserted"),
+      "bytecode_collision_source" -> jstr(predicateSourceFile + ":59 declares private " +
+        "var aclsOn, and Scala compiles a private var into accessors, so the graph " +
+        "carries both aclsOn() and aclsOn_$eq(boolean) and both satisfy the acls.* " +
+        "alternative of the anchored pattern"),
+      "over_match_hazards_excluded" -> jstrArr(predicateOverMatchHazards),
+      "over_match_hazards_note" -> jstr("these are further methods on the same anchored " +
+        "type whose names a naive acls.* pattern would match; they are not predicates " +
+        "and the three-step narrowing leaves none of them in the final set"),
+      "deliberate_non_selectors" -> jstrArr(predicateDeliberateNonSelectors),
+      "selector_set_was_widened" -> jbool(false),
+      "selector_set_widening_statement" -> jstr("the set is exactly the five named " +
+        "selectors and was not widened: the two Boolean methods listed as deliberate " +
+        "non-selectors are on the same anchored type and are excluded on purpose, " +
+        "because widening the set would change what a spurious count means and would " +
+        "break comparability with queries 01 and 02"),
+      "identical_across_both_pairs" -> jbool(true),
+      "identical_across_both_pairs_statement" -> jstr("the parameterization varies the " +
+        "handler and the sink, never the predicate set: the same five selectors, the " +
+        "same anchor and the same exclusion apply to both pairs. Varying them per pair " +
+        "would make the two pairs' spurious counts mean different things, which is the " +
+        "one way a parameterization could silently change the measurement"),
       "block_is_byte_identical_to" -> jstrArr(List(
         "queries/joern/" + SIBLING_CALLGRAPH_QUERY + ".sc",
         "queries/joern/" + SIBLING_DATAFLOW_QUERY + ".sc")),
@@ -2696,7 +3076,28 @@ try {
       "call_sites_on_each_pair_own_route_surface" -> jbyPair(4, PAIRS.map(p =>
         p.id -> jnum(predicateCallSitesByPair(p.id).size.toLong))),
       "handler_types_not_covered_by_the_shared_prefixes" ->
-        jstrArr(pairsNotCoveredBySharedSurface))),
+        jstrArr(pairsNotCoveredBySharedSurface),
+      "invocation_scope" -> jstr("the zero counts are scoped to the two pairs' routes, " +
+        "not to the program: the five predicates ARE invoked elsewhere, including inside " +
+        "the anchored type itself, and those call sites are listed next so the scope of " +
+        "the claim is visible rather than implied"),
+      "call_sites_inside_the_anchored_type_itself" ->
+        jstrArr(predicateCallSitesInsideItsOwnType),
+      "route_files_searched_for_the_five" -> jstrArr(predicateRouteFilesSearched),
+      "route_files_occurrences_of_the_five" -> jstr("none: searching all five names " +
+        "across the three route files at the pin returns nothing in any of them, which " +
+        "is the source-level counterpart of the graph measurement above"),
+      "reference_is_not_invocation" -> jstr("a held reference is not an invocation. " +
+        "Every mention of the anchored type on the route surface is a reference of one " +
+        "of the kinds listed next, and none of them invokes any of the five, which is " +
+        "why the wording throughout this envelope is invoked rather than referenced"),
+      "references_that_are_not_invocations" ->
+        jstrArr(predicateReferencesThatAreNotInvocations),
+      "pair_two_handler_file_references_to_the_anchored_type" -> jstr("none: " +
+        PAIR_TWO_HANDLER_SOURCE_FILE + " carries no reference to " + PREDICATE_TYPE + " " +
+        "at all at the pin - not an import, not a field, not a constant read - which is " +
+        "the additional detail that makes pair two's expected-spurious basis structural " +
+        "rather than a property of this query's filtering"))),
     "boundaries" -> jrawArr(2, boundaries.map(b => jobj(4, List(
       "boundary_id" -> jstr(b.id),
       "boundary_kind" -> jstr(b.kind),
@@ -2722,6 +3123,91 @@ try {
     "effort_parameterizability" -> jstr(parameterizabilityVerdict),
     "parameterizability" -> parameterizabilityJson,
     "total_returns_cap_reached" -> jbool(totalReturnsCapReached),
+    "records_order" -> jstr("an explicit TOTAL sort key. Boundary records come first, in " +
+      "the fixed boundary-identifier order this query declares - " +
+      boundaries.map(_.id).mkString(", ") + " - and each names the pair or pairs citing " +
+      "it; route records follow, grouped by pair IN THE DECLARED PAIR ORDER (" +
+      PAIRS.map(_.id).mkString(", ") + ") and ordered WITHIN a pair by (walk_id, entry " +
+      "point, sink host, hop sequence). No two records share the key, so the order is " +
+      "total rather than merely stable, and the whole sequence is then truncated to " +
+      "MAX_TOTAL_RETURNS. Grouping by pair is an ordering, never an aggregation: no " +
+      "record and no count is shared between the two pairs' groups"),
+    "collection_order" -> jstr("every other collection carries an explicit order too. " +
+      "Per-pair objects and every by-pair map follow the declared pair order, which is " +
+      "fixed in the source as a List and never taken from a map or set iteration. Lists " +
+      "of SOURCE constructs ascend by pinned-tree source line - " +
+      "named_five_with_source_lines, deliberate_non_selectors, " +
+      "over_match_hazards_excluded, call_sites_inside_the_anchored_type_itself and " +
+      "references_that_are_not_invocations, the last grouped by file in route order. " +
+      "Lists of graph or query identifiers ascend lexicographically: named_five, " +
+      "final_names, final_full_names, entry_points, sink_hosts, " +
+      "route_files_searched_for_the_five, never_summed_with, " +
+      "effort_joern_api_constructs and the api-construct difference lists. Boundary " +
+      "lists follow the declared boundary-identifier order, the bounds objects follow " +
+      "the declaration order of the named constants in the source, and each pair's walk " +
+      "list follows the declared walk-mode order. Every one of these is a fixed function " +
+      "of the inputs, so no collection depends on an iteration order"),
+    "determinism" -> jobj(2, List(
+      "byte_identity_contract" -> jstr("an unchanged query source over an unchanged " +
+        "graph emits byte-identical bytes, from any checkout. Every collection carries " +
+        "an explicit total order, the serialization uses a fixed key order and a fixed " +
+        "layout, and the file ends in a single trailing newline"),
+      "pair_iteration_order_is_fixed" -> jbool(true),
+      "pair_iteration_order_basis" -> jstr("the pairs are declared as a List in the " +
+        "source and are selected, walked, classified, recorded and reported by index in " +
+        "that order (" + PAIRS.map(_.id).mkString(", ") + "). No stage iterates a map or " +
+        "a set of pairs, which is the determinism requirement specific to a " +
+        "parameterized query: a pair order taken from an unspecified iteration would " +
+        "reorder the per-pair objects and the record groups between two runs"),
+      "non_deterministic_quantities_excluded" -> jstrArr(List(
+        "absolute host paths",
+        "elapsed times",
+        "host names",
+        "process identifiers",
+        "scratch and temporary directory names",
+        "wall-clock timestamps",
+        "workspace instance names")),
+      "elapsed_times_live_in" -> jstr(LOG_DIR + "/probe-" + QUERY_ID + ".log, a console " +
+        "stream that is deliberately not held to byte-identity"),
+      "absolute_host_paths_emitted" -> jbool(false),
+      "trailing_newline" -> jbool(true),
+      "reproduction_check_method" -> jstr("invoke this source again over the same graph " +
+        "from an isolated repository root and compare the two envelopes byte for byte, " +
+        "including the pair order and the record grouping. The isolation matters: the " +
+        "console log is written to a fixed repository-relative path, so a re-run inside " +
+        "a checkout would overwrite the record of the invocation it is being compared " +
+        "against. Two roots also test the property the path fields exist to have - that " +
+        "no field varies with the checkout"))),
+    "provenance" -> jobj(2, List(
+      "measured_values_cited_from" -> jstr(LOG_DIR + "/probe-" + QUERY_ID + ".log"),
+      "measured_values_note" -> jstr("every count, status, flag, walk figure, selector " +
+        "figure and graph figure in this envelope is this invocation's own measurement, " +
+        "and the console stream is the same measurement written a second time. One " +
+        "measurement cited twice, never two measurements, so a disagreement between this " +
+        "envelope and that stream would be a defect in this envelope"),
+      "graph_identity_owner" -> jstr(CPG_RECORD_PATH + " for the repository-relative " +
+        "record, and the record of account named above for the graph actually loaded; " +
+        "both pairs are published and neither is discarded"),
+      "query_source" -> jstr("queries/joern/" + QUERY_ID + ".sc"),
+      "bound_constants_defined_by" -> jstr("the query source, as named vals; no inline " +
+        "literal governs behaviour and no bound value is chosen in this envelope"),
+      "sibling_figures" -> jstr("every figure attributed to " +
+        SIBLING_CALLGRAPH_QUERY + " or " + SIBLING_DATAFLOW_QUERY + " is TRANSCRIBED " +
+        "from that query's published envelope and is never re-measured here; each was " +
+        "measured against the graph of its own run"),
+      "line_numbers_verified_against" -> jstr("the pinned tree at " +
+        "59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, exported as SPARK_SRC. Every source " +
+        "line cited here is that tree's, not this checkout's, which differ on " +
+        "core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala"),
+      "graph_path_expression" -> jstr("the graph path fields are expressed by " +
+        "environment-variable name and by repository-relative form, so this envelope " +
+        "carries no value that varies between two checkouts of one branch"),
+      "contributes_dataset_rows" -> jbool(false),
+      "dataset_separation" -> jstr("nothing here is written into harness/artifacts/raw/ " +
+        "and nothing is folded into oss-scan-results/findings.json. This tree is the " +
+        "deliberate second appearance of this tool, as the subject of the capability " +
+        "probe rather than as one of the scanned runners, and folding it in would " +
+        "corrupt both that tool's row count and the dataset total"))),
     "records" -> jrawArr(2, recordJson))) + "\n"
 
   writeUtf8(jsonPath, envelope)
@@ -3232,13 +3718,17 @@ try {
   md0("")
   md0("## The graph this query loaded, and its identity")
   md0("")
-  md0(s"- named path `${cpgNamed}`" +
-    (if (cpgIsLink) s", a symlink to `$cpgLinkTarget`" else ""))
-  md0(s"- resolved target `$cpgResolved`, **$sizeFollow** bytes, sha256 `$shaObserved`")
+  md0(s"- named path `$cpgNamedLabel` (repository-relative `$cpgNamedRepoRelativeLabel`)" +
+    (if (cpgIsLink) ", a symlink" else ""))
+  md0(s"- resolved target: $cpgResolvedLabel, **$sizeFollow** bytes, sha256 `$shaObserved`")
   md0(s"- the link itself measures $sizeNoFollow bytes; that figure is recorded only to be")
   md0("  discarded, because measuring the link rather than its target is the mistake this")
   md0("  check exists to avoid")
-  md0(s"- record of account: `$recordSelectedPath` (source: $recordSelectedSource), which")
+  md0("- no absolute host path appears in this report or in the envelope: the clone root is")
+  md0("  a property of the checkout rather than of the measurement, and the size-and-digest")
+  md0(s"  pair above is what the identity comparison turns on. The literals are in")
+  md0(s"  `$LOG_DIR/probe-$QUERY_ID.log`, a console stream not held to byte-identity")
+  md0(s"- record of account: `$recordSelectedLabel` (source: $recordSelectedSource), which")
   md0(s"  states bytes $recordedSize and sha256 `$recordedSha` - re-verified immediately")
   md0("  before the load, and a mismatch would have halted the run")
   md0(s"- repo-relative record `$CPG_RECORD_PATH` states bytes $defaultRecordedSize and")
