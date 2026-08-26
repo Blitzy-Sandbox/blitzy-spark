@@ -470,6 +470,10 @@ source is `core/src/main/scala/org/apache/spark/SecurityManager.scala` at the pi
 | `checkModifyPermissions` | 264 |
 | `isAuthenticationEnabled()` | 274 |
 
+`Master.scala:411`'s `if (state != RecoveryState.ALIVE)` is a **recovery-state**
+check and is deliberately not in this set; what that exclusion does and does not
+mean is stated under "What the definition does not evaluate" below.
+
 Each predicate reaches the graph as **a composition of selectors**, and it is
 worth naming which source-level construct produced which, because that is how a
 Scala declaration becomes a bytecode-level predicate this query can test a flow
