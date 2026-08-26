@@ -191,15 +191,30 @@ or of any configuration, and nothing here should be read as one.
 
 ## Whether this formulation duplicates another query's
 
-`duplicate_formulation` = **not_duplicate**.
+`duplicate_formulation` = **partial_duplicate**. The label aggregates the two
+pairwise entries below and names the strongest relation either carries; the scope
+of the partial duplication is stated in the entry rather than hidden in the label.
 
 - Against `02-dataflow-unguarded-driver-launch`: the **same** handler/sink pair by
   a **different** formulation. This query traverses CALL edges only and asserts
   nothing about data flow. The two are two formulations of one question, so their
   returns are reported side by side and **never summed**.
-- Against `03-parameterized-handler-sink-pairs`: a different target set and a different
-  formulation - that query is parameterized over handler/sink pairs and covers a
-  second pair this query does not address.
+- Against `03-parameterized-handler-sink-pairs`: **duplicate on that query's pair
+  one, not a duplicate as a whole**, and the verdict is given at both scopes so
+  neither reads as a contradiction of the other. Instantiated on its pair one -
+  which is this query's only pair - the parameterized form **is** this query's
+  formulation restated: the same edge kinds (CALL edges only, no data edge and no
+  flow engine on either side), the same entry-point resolution under a
+  byte-identical synthetic-partial-function selector, the same sink constraint,
+  the same bound value 12, and Joern API construct lists whose set difference is
+  empty in **both** directions. That comparison is a property of the two committed
+  query sources and needed no graph load. As **wholes** the two are not
+  duplicates: that query takes the handler/sink pair as a parameter and is
+  additionally invoked on a second pair - the
+  `core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala`
+  handler to the same `DriverRunner` sink - which this query does not address at
+  all. Neither query's returns are added to the other's anywhere: they are
+  reported side by side, per pair, and **never summed**.
 
 ## The three effort measures
 

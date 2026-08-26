@@ -1,0 +1,1814 @@
+================================================================================
+Joern capability probe, query 02 - dataflow - console evidence
+harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log
+================================================================================
+
+WHAT THIS FILE ESTABLISHES
+
+  The console evidence for probe query two: a DATAFLOW route over the SAME
+  handler/sink pair that query one reaches by call graph. It is one of the four
+  heap-bound JVM invocations this run records separately - the jimple2cpg
+  frontend build, the importCpg verification load, the Stage 3 Joern runner, and
+  this probe - and, with query one, one of the two whose subject is a question
+  about Joern rather than a question about Spark.
+
+  It carries, in execution order: the preconditions that had to hold before the
+  query was allowed to load the graph, the target surface the query addresses
+  measured in the pinned tree rather than assumed, the exact command with its
+  JDK major version and the heap it actually received recorded as three separate
+  fields, what the invocation reported, the duplicate-formulation verdict against
+  query one reasoned on substance, the spurious-route definition with its
+  selectors quoted verbatim, the cross-checks against the two result files, and
+  the terminal transcript verbatim.
+
+  The <nn>-<slug> in this file's name matches the query source exactly:
+  queries/joern/02-dataflow-unguarded-driver-launch.sc.
+
+  WHAT THIS FILE IS NOT. It is OBSERVATIONAL. It is not a finding, and nothing in
+  it is an assessment of Spark, of any Spark component or of any Spark
+  configuration. It judges no finding - not real, not important, not a false
+  positive, not a duplicate of another tool's - and it makes no comparison
+  between tools, which is why no other scanner is named anywhere in it. It
+  contributes NO row to oss-scan-results/findings.json and writes nothing into
+  harness/artifacts/raw/. Joern appears twice in this run by design: once as one
+  of the nine scanned runners, and once as the subject of this probe. Nothing
+  here is added to, merged with or compared against that runner's output, and no
+  figure in this file is arithmetic over the two.
+
+  AND IT IS NEVER SUMMED WITH QUERY ONE. Two queries over one pair invite the
+  reader to add their returns together, which would double-count the same route
+  and inflate the capability claim. Their results are reported side by side, as
+  distinct, and no arithmetic anywhere in this file combines them.
+
+SUBJECT
+
+  Query source             : queries/joern/02-dataflow-unguarded-driver-launch.sc
+  Query id (the slug)      : 02-dataflow-unguarded-driver-launch
+  Formulation              : bounded DATAFLOW over reaching-definition edges,
+                             from the standalone Master's driver-submission
+                             handler to the privileged process launch hosted on
+                             the DriverRunner surface
+  Same pair as             : 01-callgraph-unguarded-driver-launch, by a
+                             different formulation over different edges
+  Graph, as the AAP names it: harness/cpg/spark.cpg   (a provisioned symlink)
+  Graph, resolved          : /opt/blitzy-harness/cpg/spark.cpg
+  Graph identity record    : harness/artifacts/logs/cpg-frontend.log
+  Loader                   : importCpg only, into a switched workspace
+  Workspace                : queries/joern/.workspace
+  Pinned commit            : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+  Pinned clone (SPARK_SRC) : /opt/spark-src   (read only; never edited, never built by this file)
+  Joern                    : 4.0.607, read from the startup banner
+  Working checkout         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6
+                             branch blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001
+                             NEITHER BUILT NOR SCANNED
+  Declared dependencies    : harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log
+                             harness/cpg/spark.cpg
+                             queries/joern/02-dataflow-unguarded-driver-launch.sc
+  Consumers of this record : queries/joern/results/02-dataflow-unguarded-driver-launch.json
+                             queries/joern/results/02-dataflow-unguarded-driver-launch.md
+                             oss-scan-results/joern-probe.md
+                             oss-scan-results/run-record.md   (owns this file's manifest entry)
+
+================================================================================
+STATUS - READ THIS BEFORE ANY NUMBER BELOW
+================================================================================
+
+  THIS INVOCATION HALTED, AND THE HALT IS THE HEADLINE MEASUREMENT.
+
+  The query was invoked once, by this run, in this clone. It COMPILED and it
+  RAN. It measured its own runtime, measured the graph's identity, found that
+  identity did not match the pair its record states, and stopped in stage
+  C-identity without loading the graph - which is exactly what AAP 0.9.2
+  requires of a graph-identity mismatch and what the query source implements at
+  its line 847. It printed ---BLITZY-FAILURE---, emitted NO result region, and
+  joern exited 1.
+
+    started            : 2026-08-25T21:53:18.314Z
+    ended              : 2026-08-25T21:53:25.365Z
+    elapsed, wall      : 7.046 s
+    exit status        : 1
+    failing stage      : C-identity: the graph's byte size and sha256,
+                         symlink-FOLLOWING
+    reason, verbatim   : "graph identity mismatch: observed bytes=548118435
+                         sha256=f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af
+                         57415651f5d22c53 against recorded bytes=541255894
+                         sha256=26d327ccee096aa4c8d67018b32669f2a318331cf8739222
+                         86774734177fcffc. A load against different bytes than
+                         the record describes produces conclusions about a graph
+                         nobody has"
+
+  WHAT CHANGED, established from evidence independent of this query. The shared
+  provisioned graph was REBUILT between the earlier lanes' probe invocations and
+  this clone's creation. The bytes on disk were written on 2026-08-25 at
+  20:19:06 (birth) / 20:19:28 (mtime), and the provisioning invocation that
+  wrote them records their identity itself, at
+  /opt/blitzy-harness/provision-log/cpg-frontend.log lines 31929-31930, as
+  548118435 bytes / sha256 f8c71562...d22c53 - exactly what PHASE 1 measured off
+  the disk. The in-repo record, harness/artifacts/logs/cpg-frontend.log,
+  describes a DIFFERENT graph: 541255894 bytes / sha256 26d327cc...fcffc,
+  written 2026-08-24 at 13:52:22Z, which is the graph probe query one and this
+  query's committed result files were measured against. Both identities are
+  recorded here with their provenance, in PHASE 1 STEP 3 and STEP 4. Neither is
+  repaired: correcting the in-repo record would overwrite another lane's
+  evidence, authoring a substitute record would mean verifying against a record
+  written for the purpose, and rebuilding the graph is prohibited outright.
+
+  WHAT THIS INVOCATION THEREFORE DID AND DID NOT MEASURE. It measured every
+  precondition, including its own JDK major and the heap it actually received,
+  in its own process, before the halt - those figures are real and they are in
+  PHASE 3. It did NOT measure this query's traversal: no records, no routes, no
+  bound-reached flag, no entry-point counters and no predicate resolution were
+  produced, because stage D never ran. Those figures exist in this run's record
+  from the EARLIER invocation, and PHASE 4 reproduces them under an explicit
+  provenance header, labelled as that invocation's measurement against the
+  541255894-byte graph and never presented as re-verified here. A figure this
+  invocation could not take is named as unavailable rather than filled in.
+
+  WHAT IS NEVERTHELESS SETTLED HERE, on this invocation's own evidence. The
+  duplicate-formulation verdict against query one is answered by ANALYSIS of the
+  two committed query sources, in PHASE 5, and needs no graph load: edge kinds,
+  node granularity, engine and bound semantics, API-construct set difference and
+  record kinds are all properties of the sources. The spurious-route selectors
+  are quoted verbatim from the source and each of the five is verified to exist
+  in the pinned tree, in PHASE 2 and PHASE 6. Both are this invocation's own
+  measurements.
+
+================================================================================
+HOW TO READ THIS FILE
+================================================================================
+
+  Plain text, append-only, in execution order. Every step is a command line
+  introduced by '$ ', followed by its captured streams and its exit status:
+
+      [stdout]  ... verbatim; nothing follows the marker when the stream was empty
+      [stderr]  ... verbatim; java and the pre-touch proof write here, not to stdout
+      [exit]    ... the command's exit status, then the UTC time it started and
+                    the seconds it took
+
+  Every table below is the verbatim stdout of the command shown immediately
+  above it, so no figure in this file is transcribed from a table into prose.
+  Commands that read a file print the fields they read; commands that count
+  print the count. Nothing is reflowed or elided.
+
+  The precondition and target-surface commands were run with harness/env.sh
+  sourced in a fresh shell from the repository root, which is how every runner in
+  this harness is invoked. The invocation itself was run from this clone's own
+  scratch directory rather than from the repository, because joern eagerly
+  creates an ~800 MB ./workspace in whatever directory it starts from; PHASE 3
+  names that directory.
+
+  Elapsed times are facts, not budgets. No time limit applies anywhere in this
+  run, and none was imposed on this invocation.
+
+  Where a figure did not come from a command in this file, it carries a
+  provenance line naming the file it was read out of. PHASE 4 is entirely of
+  that kind and says so at its head.
+
+================================================================================
+METHOD - THE FOUR PRINCIPLES THIS FILE IS HELD TO
+================================================================================
+
+  review_rules returned exactly 'No user rules provided.' for the whole
+  document. That is a complete read, corroborated by AAP 0.7 and 0.10.2. NO
+  USER-SPECIFIED RULE GOVERNS THIS FILE, and that absence is not read as licence
+  to lower the bar; enterprise best practice is substituted, held to the AAP's
+  own four principles.
+
+  P1 Verification is independent of the thing verified. The graph's identity is
+  recomputed from the bytes on disk before this query loads it - PHASE 1 STEP 2
+  measures it with the shell, STEP 3 measures it again with an independent
+  reader, and the query measured it a third time inside its own process - rather
+  than being inherited from the frontend log or from the earlier stages that
+  also loaded a graph at this path. The provenance of the difference in STEP 4
+  comes from files this query does not write and did not read. And the
+  duplicate-formulation question in PHASE 5 is ANSWERED BY ANALYSIS of both
+  query sources, computed here, rather than taken from either query's own claim
+  about itself.
+
+  P2 Reject rather than infer. Whether the traversal bound was reached is
+  reported AS MEASURED. This invocation did not reach the traversal at all, so
+  it reports no bound-reached flag of its own and says so; the flag the earlier
+  invocation measured is reproduced under its own provenance header, with the
+  basis on which that invocation established it. Nothing is inferred from a
+  result that came back, because none did.
+
+  P3 Halt-and-report over silent repair. A graph-identity mismatch halts. It
+  mismatched, the query halted, and this file reports it in the STATUS block
+  above rather than working around it. A wrong JVM major halts; the major was
+  measured twice and it is 21. A heap below the floor halts; the heap the query
+  ACTUALLY received was measured inside the query's own process and it is exactly
+  the floor. Nothing was retried, re-pointed at another record, or re-run with a
+  loosened check to obtain a completed run.
+
+  P4 Verbatim preservation. The console output is retained as emitted, complete,
+  in APPENDIX A, and the file the query itself wrote at this path before it
+  re-raised is retained complete in APPENDIX B, each with its byte size and
+  sha256 so the copy can be checked against the source.
+
+  NEVER FABRICATE A MEASUREMENT. Every number in this file either sits under a
+  command that produced it or carries a provenance line naming the file it was
+  read from. There is no third category.
+
+================================================================================
+VERDICT VOCABULARY
+================================================================================
+
+  PASS                : the condition was measured here and it holds.
+  RECORDED DIFFERENCE : observed differs from expected; both values are recorded
+                        and the run continues.
+  OUTSTANDING         : a cross-check that cannot be performed yet because the
+                        file that owns the other side does not exist on this
+                        branch. Named, never assumed to agree.
+  HALT-CLASS FINDING  : a condition AAP 0.9.2 treats as halting. ONE arose in
+                        this invocation - the graph-identity mismatch - and the
+                        query stopped on it. It is stated in the STATUS block,
+                        measured in PHASE 1 STEP 3 and given its provenance in
+                        STEP 4.
+  NOT MEASURED HERE   : a figure this invocation could not take. Named, and
+                        where the run's record carries the earlier invocation's
+                        value it is reproduced with its provenance rather than
+                        presented as this invocation's.
+
+================================================================================
+PHASE 1 - THE PRECONDITIONS THAT HAD TO HOLD BEFORE THE QUERY LOADED THE GRAPH
+================================================================================
+
+  Six preconditions, each a halt if it fails. The graph must be the graph the
+  record describes. The load mechanism must be importCpg, and the alternative
+  must not appear even textually in the committed query source. The JVM must
+  report major 21. The heap the query actually receives must be at or above the
+  64 GiB floor, and the host must be shown to COMMIT that heap rather than
+  merely reserve it. Nothing else may hold a 64 GB Joern process at the same
+  time. And the setup-time smoke override must be unset.
+
+  FIVE OF THE SIX PASS. The first one - the graph is the graph the record
+  describes - FAILS, and it is the halt this file is mostly about. The other
+  five are still measured and reported, because a halt on one condition is not a
+  licence to leave the rest unchecked: a reader has to be able to tell that the
+  heap, the JDK, the loader and the sequencing were all in order and that the
+  identity was the single thing wrong.
+
+STEP 1 - The environment the precondition and target-surface commands ran under
+  harness/env.sh sourced in a fresh shell from the repository root.
+  HARNESS_SMOKE_TARGET must be unset: it redirects every runner at one small
+  directory, exists for setup-time verification only, and is never a fallback.
+
+  Two fields in the block below read differently from PHASE 3 and the difference
+  is deliberate rather than an inconsistency. BLITZY_CLONE_INDEX is unset here
+  and HARNESS_SCRATCH_DIR therefore carries the index-0 default, because none of
+  the commands in PHASE 1 or PHASE 2 uses the scratch directory - they read the
+  repository, the graph and the pinned clone. The invocation in PHASE 3 does use
+  it, and passes the index on its own command line, as the per-clone layout
+  requires; PHASE 3 shows that environment separately with the index set to 1.
+
+$ printf "HARNESS_CPG          = %s\nHARNESS_REPO_ROOT    = %s\nHARNESS_LOG_DIR      = %s\nHARNESS_SCRATCH_DIR  = %s\nBLITZY_CLONE_INDEX   = %s\nJAVA_HOME_21         = %s\nJAVA_HOME            = %s\nHARNESS_JOERN_HEAP   = %s\nSL_LOGGING_LEVEL     = %s\nSPARK_SRC            = %s\nHARNESS_SMOKE_TARGET = [%s]\nJAVA_OPTS            = [%s]\nJAVA_TOOL_OPTIONS    = [%s]\n" "$HARNESS_CPG" "$HARNESS_REPO_ROOT" "$HARNESS_LOG_DIR" "$HARNESS_SCRATCH_DIR" "${BLITZY_CLONE_INDEX:-unset}" "$JAVA_HOME_21" "$JAVA_HOME" "$HARNESS_JOERN_HEAP" "$SL_LOGGING_LEVEL" "$SPARK_SRC" "${HARNESS_SMOKE_TARGET-unset}" "${JAVA_OPTS-unset}" "${JAVA_TOOL_OPTIONS-unset}"
+[stdout]
+HARNESS_CPG          = /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/cpg/spark.cpg
+HARNESS_REPO_ROOT    = /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6
+HARNESS_LOG_DIR      = /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs
+HARNESS_SCRATCH_DIR  = /tmp/blitzy-harness-scratch/0
+BLITZY_CLONE_INDEX   = unset
+JAVA_HOME_21         = /opt/blitzy-tools/jdk/jdk-21.0.12.1+1
+JAVA_HOME            = /opt/blitzy-tools/jdk/jdk-17.0.20+8
+HARNESS_JOERN_HEAP   = 64g
+SL_LOGGING_LEVEL     = WARN
+SPARK_SRC            = /opt/spark-src
+HARNESS_SMOKE_TARGET = [unset]
+JAVA_OPTS            = [unset]
+JAVA_TOOL_OPTIONS    = [unset]
+[stderr]
+[exit] 0   [at] 2026-08-25T21:43:55.173Z   [elapsed] 0.004s
+
+STEP 2 - The graph's identity, measured with the shell, symlink-FOLLOWING
+  harness/cpg/spark.cpg is git-tracked while harness/artifacts/** is ignored,
+  which is why the provisioned path is a 33-byte SYMLINK to a host-global graph
+  rather than a committed half-gigabyte binary. Measuring the link instead of
+  its target records the length of the link's target string and the comparison
+  against the write-time record then fails for the wrong reason, so both
+  measurements are taken and the wrong one is recorded explicitly to be
+  discarded. Both names for the graph are then shown to be ONE FILE by device
+  and inode, which is stronger than two digests agreeing - and it matters here,
+  because it rules out the reading that this clone's symlink points somewhere
+  else: it does not, and the mismatch below is a property of the bytes, not of
+  the path.
+
+$ ls -la harness/cpg/spark.cpg
+[stdout]
+lrwxrwxrwx 1 root root 33 Aug 25 21:31 harness/cpg/spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg
+[stderr]
+[exit] 0   [at] 2026-08-25T21:43:55.194Z   [elapsed] 0.007s
+
+$ readlink harness/cpg/spark.cpg; readlink -f harness/cpg/spark.cpg
+[stdout]
+/opt/blitzy-harness/cpg/spark.cpg
+/opt/blitzy-harness/cpg/spark.cpg
+[stderr]
+[exit] 0   [at] 2026-08-25T21:43:55.216Z   [elapsed] 0.008s
+
+$ stat -c "%s bytes  WITHOUT following the link  %n" harness/cpg/spark.cpg
+[stdout]
+33 bytes  WITHOUT following the link  harness/cpg/spark.cpg
+[stderr]
+[exit] 0   [at] 2026-08-25T21:43:55.240Z   [elapsed] 0.006s
+
+$ stat -Lc "%s bytes  WITH following the link     %n" harness/cpg/spark.cpg
+[stdout]
+548118435 bytes  WITH following the link     harness/cpg/spark.cpg
+[stderr]
+[exit] 0   [at] 2026-08-25T21:43:55.262Z   [elapsed] 0.006s
+
+$ sha256sum "$(readlink -f harness/cpg/spark.cpg)"
+[stdout]
+f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53  /opt/blitzy-harness/cpg/spark.cpg
+[stderr]
+[exit] 0   [at] 2026-08-25T21:43:55.284Z   [elapsed] 1.117s
+
+$ stat -Lc "%d:%i  %n" harness/cpg/spark.cpg /opt/blitzy-harness/cpg/spark.cpg "$HARNESS_CPG"
+[stdout]
+2097153:6005829  harness/cpg/spark.cpg
+2097153:6005829  /opt/blitzy-harness/cpg/spark.cpg
+2097153:6005829  /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/cpg/spark.cpg
+[stderr]
+[exit] 0   [at] 2026-08-25T21:43:56.417Z   [elapsed] 0.006s
+
+$ grep -nEi "^[[:space:]]*(bytes|byte size)[[:space:]]*:[[:space:]]*[0-9]+[[:space:]]*$|^[[:space:]]*sha256[[:space:]]*:[[:space:]]*[0-9a-f]{64}[[:space:]]*$" harness/artifacts/logs/cpg-frontend.log
+[stdout]
+496:bytes: 541255894
+497:sha256: 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+814:  byte size                       : 541255894
+815:  sha256                          : 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+[stderr]
+[exit] 0   [at] 2026-08-25T21:43:56.438Z   [elapsed] 0.031s
+
+STEP 3 - The same identity, measured again by an independent reader, and compared
+  The comparison the run turns on, made once more by a different tool than the
+  one used in STEP 2 and against the pair parsed out of the frontend's own
+  record rather than typed in here. The record states its pair twice, in two
+  spellings; the reader collects BOTH spellings and requires the distinct set to
+  hold exactly one byte size and one sha256, because a record that states two
+  identities cannot adjudicate a load. It holds exactly one of each. A mismatch
+  halts - and this is the mismatch.
+
+$ python3 - <<PY
+import hashlib, os, re, pathlib
+named = pathlib.Path(os.environ["HARNESS_CPG"])
+resolved = named.resolve()
+size_follow = named.stat().st_size
+size_nofollow = named.lstat().st_size
+h = hashlib.sha256()
+with open(resolved, "rb") as f:
+    for chunk in iter(lambda: f.read(1 << 20), b""):
+        h.update(chunk)
+obs = h.hexdigest()
+text = pathlib.Path("harness/artifacts/logs/cpg-frontend.log").read_text()
+sizes = sorted({m.group(1) for m in re.finditer(r"(?im)^\s*(?:bytes|byte size)\s*:\s*(\d+)\s*$", text)})
+shas  = sorted({m.group(1).lower() for m in re.finditer(r"(?im)^\s*sha256\s*:\s*([0-9a-fA-F]{64})\s*$", text)})
+print("named path                :", named)
+print("resolved path             :", resolved)
+print("named path is a symlink   :", named.is_symlink())
+print("size WITHOUT following    :", size_nofollow, "(recorded to be discarded)")
+print("size WITH following       :", size_follow, "(the measurement of record)")
+print("sha256 of the target      :", obs)
+print("record byte sizes found   :", ",".join(sizes), "-> distinct", len(sizes))
+print("record sha256 values found:", ",".join(shas), "-> distinct", len(shas))
+rec_size = int(sizes[0]); rec_sha = shas[0]
+print("recorded at write time    : bytes=%d sha256=%s" % (rec_size, rec_sha))
+print("byte size matches         :", "YES" if size_follow == rec_size else "NO")
+print("sha256 matches            :", "YES" if obs == rec_sha else "NO")
+print("verdict                   :", "PASS - identity re-verified" if (size_follow == rec_size and obs == rec_sha) else "HALT - identity mismatch")
+print("delta, bytes              :", size_follow - rec_size)
+PY
+[stdout]
+named path                : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/cpg/spark.cpg
+resolved path             : /opt/blitzy-harness/cpg/spark.cpg
+named path is a symlink   : True
+size WITHOUT following    : 33 (recorded to be discarded)
+size WITH following       : 548118435 (the measurement of record)
+sha256 of the target      : f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53
+record byte sizes found   : 541255894 -> distinct 1
+record sha256 values found: 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc -> distinct 1
+recorded at write time    : bytes=541255894 sha256=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+byte size matches         : NO
+sha256 matches            : NO
+verdict                   : HALT - identity mismatch
+delta, bytes              : 6862541
+[stderr]
+[exit] 0   [at] 2026-08-25T21:44:15.604Z   [elapsed] 0.630s
+
+  THE HALT-CLASS FINDING, stated plainly. The bytes on disk are 548118435 with
+  sha256 f8c71562...d22c53. The pair harness/artifacts/logs/cpg-frontend.log
+  records at write time is 541255894 with sha256 26d327cc...fcffc. The
+  difference is +6862541 bytes and a different digest: not a truncation, not a
+  partial write, and not a link pointing at the wrong place - STEP 2 showed all
+  three names resolve to one inode. These are simply different bytes, and AAP
+  0.9.2 makes that a halt at any later load. The query itself reached the same
+  verdict independently, inside its own process, and stopped: APPENDIX B lines
+  21-29, where its own two "matches" lines both read NO, and APPENDIX A.2, where
+  the exception it raised on them is printed in full.
+
+STEP 4 - WHERE THE DIFFERENCE CAME FROM, established without this query's help
+  A halt says the load must not happen. It does not say why the bytes changed,
+  and leaving that unexplained would invite the two worst readings: that the
+  graph was corrupted, or that some stage of this run quietly rewrote it. The
+  four measurements below rule out both, and they come from files this query
+  neither writes nor reads.
+
+  The first shows the live file's own timestamps. The second is the write-time
+  identity recorded by the provisioning invocation that produced THESE bytes -
+  a record independent of the in-repo one, and it agrees with STEP 2 and STEP 3
+  exactly. The third is that same invocation's verification of the graph it
+  built, which is where the method, type-declaration and file counts for the
+  bytes now on disk come from. The fourth confirms the in-repo record never
+  mentions the live byte size anywhere in its 37846 lines, so the two records
+  describe two graphs rather than one graph inconsistently.
+
+$ stat -c "size=%s  mtime=%y  birth=%w  dev:inode=%d:%i  %n" /opt/blitzy-harness/cpg/spark.cpg
+[stdout]
+size=548118435  mtime=2026-08-25 20:19:28.882228834 +0000  birth=2026-08-25 20:19:06.461228844 +0000  dev:inode=2097153:6005829  /opt/blitzy-harness/cpg/spark.cpg
+[stderr]
+[exit] 0   [at] 2026-08-25T21:44:16.251Z   [elapsed] 0.007s
+
+$ grep -nE "^graph (bytes|sha256)" /opt/blitzy-harness/provision-log/cpg-frontend.log
+[stdout]
+31929:graph bytes     : 548118435
+31930:graph sha256    : f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53
+[stderr]
+[exit] 0   [at] 2026-08-25T21:44:16.291Z   [elapsed] 0.014s
+
+$ python3 -c "import json;d=json.load(open(\"/opt/blitzy-harness/provision-log/cpg-verify.json\"));print(\"cpg           :\",d[\"cpg\"]);print(\"methods       :\",d[\"methods\"]);print(\"typeDecls     :\",d[\"type_declarations\"]);print(\"files         :\",d[\"files\"])"
+[stdout]
+cpg           : /opt/blitzy-harness/cpg/spark.cpg
+methods       : 1399866
+typeDecls     : 119920
+files         : 45037
+[stderr]
+[exit] 0   [at] 2026-08-25T21:44:16.320Z   [elapsed] 0.024s
+
+$ grep -c . harness/artifacts/logs/cpg-frontend.log; grep -c "548118435" harness/artifacts/logs/cpg-frontend.log; echo "grep exit=$?  (1 = the in-repo record never mentions the live byte size)"
+[stdout]
+37846
+0
+grep exit=1  (1 = the in-repo record never mentions the live byte size)
+[stderr]
+[exit] 0   [at] 2026-08-25T21:44:16.360Z   [elapsed] 0.032s
+
+  WHAT THAT ESTABLISHES, and what it does not. The shared graph at
+  /opt/blitzy-harness/cpg/spark.cpg was rebuilt by a provisioning invocation on
+  2026-08-25 - the frontend ran at 19:49 and the file was written at 20:19 - and
+  that invocation recorded the identity of exactly the bytes now on disk, along
+  with 1399866 methods, 119920 type declarations and 45037 files. The earlier
+  lanes of this run measured the graph provisioning had written on 2026-08-24:
+  541255894 bytes, sha256 26d327cc...fcffc, 1397339 methods, 119691 type
+  declarations, 45037 files. Two provisionings, two graphs, both fully
+  identified; this clone was created at 21:31, after the replacement.
+
+  It does NOT make the load safe, and this file does not treat it as though it
+  did. The record a later stage is required to check against is the in-repo one,
+  and the in-repo one describes bytes that are no longer there. The halt stands
+  exactly as the query raised it. What the provenance buys is a reader who can
+  tell an environment replacement from a corruption without having to guess -
+  and a reader who can see that no figure in this file was taken from a graph
+  whose identity is unknown.
+
+STEP 5 - importCpg only, checked textually as well as behaviourally
+  The probe loads with importCpg. The alternative spawns a second JVM at the
+  same maximum heap, and the appearance of its name in a committed query source
+  IS the violation - which makes this a textual check and not only a
+  behavioural one. The grep below covers the whole committed query tree, not
+  just this query, and its exit status of 1 is the measurement: no occurrence
+  anywhere. The second and third commands then show where this query's load
+  would have happened, at line 894, into the workspace switched at line 890 -
+  neither of which ran, because the halt in stage C precedes stage D.
+
+$ grep -rn "importCode" queries/joern/ ; echo "grep exit=$?  (1 = no occurrence anywhere)"
+[stdout]
+grep exit=1  (1 = no occurrence anywhere)
+[stderr]
+[exit] 0   [at] 2026-08-25T21:44:27.911Z   [elapsed] 0.006s
+
+$ grep -c "importCpg" queries/joern/02-dataflow-unguarded-driver-launch.sc
+[stdout]
+13
+[stderr]
+[exit] 0   [at] 2026-08-25T21:44:27.932Z   [elapsed] 0.006s
+
+$ grep -n "importCpg\|switchWorkspace" queries/joern/02-dataflow-unguarded-driver-launch.sc
+[stdout]
+49://   The graph is loaded with importCpg ONLY. The frontend-then-importCpg route
+55://   importCpg applies the console's default overlays, and on this engine those
+66://   separately (frontend build, importCpg verification load, Stage 3 Joern
+534:  "importCpg",
+535:  "switchWorkspace")
+584:  "importCpg",
+585:  "switchWorkspace")
+873:  stage("D-load: switchWorkspace then importCpg")
+890:  switchWorkspace(workspaceResolved.toString)
+893:  log(s"loading the graph with importCpg: $cpgResolved")
+894:  val loaded = importCpg(cpgResolved.toString)
+896:    abortRun(s"importCpg returned no graph for $cpgResolved")
+2144:      "loader" -> jstr("importCpg into a switched workspace; the frontend-then-importCpg " +
+2147:      "dataflow_layer" -> jstr("applied by importCpg as one of the console's default " +
+2155:      "heap_bound_jvm_position" -> jstr("one of 4 (frontend build, importCpg " +
+2243:  md0(s"| Loader | `importCpg` into a switched workspace (`$WORKSPACE_PATH`) |")
+[stderr]
+[exit] 0   [at] 2026-08-25T21:44:27.955Z   [elapsed] 0.006s
+
+STEP 6 - The JDK major, and proof that the host COMMITS the heap
+  Every Joern invocation runs under major 21, the version the pinned Joern
+  release documents as its tested requirement; a wrong major is a wrong
+  assignment and halts. The major is read from the JVM's own property rather
+  than eyeballed off a banner.
+
+  The heap is then proved committable rather than merely reservable: -Xms64g
+  with -Xmx64g and -XX:+AlwaysPreTouch touches every page at startup, so an exit
+  status of 0 is proof the host can commit 64 GiB, which is strictly stronger
+  than reserving it. The rule is one-way: raising a heap is permitted and
+  reported, lowering one is not, because a truncated result's silence cannot be
+  told apart from a clean one - and that risk is highest for a dataflow query.
+  No value above 64 GiB was used by this invocation, so no further commit proof
+  is owed; PHASE 3 FIELD 3 records the value the query actually received.
+
+$ "$JAVA_HOME_21/bin/java" -XshowSettings:properties -version 2>&1 | grep -E "java.specification.version|java.vm.version|java.version ="
+[stdout]
+    java.specification.version = 21
+    java.version = 21.0.12.1
+    java.vm.version = 21.0.12.1+1-LTS
+[stderr]
+[exit] 0   [at] 2026-08-25T21:44:27.990Z   [elapsed] 0.042s
+
+$ JAVA_HOME="$JAVA_HOME_21" PATH="$JAVA_HOME_21/bin:$PATH" java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version
+[stdout]
+[stderr]
+openjdk version "21.0.12.1" 2026-08-18 LTS
+OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)
+[exit] 0   [at] 2026-08-25T21:44:28.049Z   [elapsed] 18.890s
+
+STEP 7 - The Joern version, read from the banner
+  Joern exposes no --version flag and its REPL blocks on an open stdin, so the
+  version is read from the startup banner with stdin closed. Note for anyone
+  checking APPENDIX A for the same string: the --script path prints no banner at
+  all, which is precisely why the version has to be read by this separate
+  invocation rather than recovered from the probe's own transcript.
+
+$ printf "" | joern 2>/dev/null | grep -m1 -i version
+[stdout]
+Version: 4.0.607
+[stderr]
+[exit] 0   [at] 2026-08-25T21:44:46.991Z   [elapsed] 9.926s
+
+STEP 8 - Sequencing: nothing else was holding a 64 GB Joern process
+  The probe follows normalization rather than branching off the graph, so that
+  only ONE 64 GB Joern process is ever live: the Stage 3 Joern runner and this
+  probe would otherwise contend for the host's entire memory.
+
+  This host is shared with sibling clones, and at 21:44 - nine minutes before
+  the invocation - it was NOT clear. The listing below is a listing rather than a
+  command block, because no exit status was captured for it and inventing one
+  would be a fabricated measurement:
+
+      21:44:56Z  pid 196282  /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java
+                             ... -Xmx64g ... ReplBridge --script explore01.sc
+                 pid 196347  the child JVM that launcher forked, RSS 67141040 kB
+                 both belong to ANOTHER clone's work, not to this run's stages,
+                 and neither was interfered with in any way
+
+  Rather than overlap two 64 GB Joern processes on purpose, this invocation
+  waited for that one to exit - polling every five seconds from 21:45:17Z until
+  21:52:58Z, when the count reached zero. The two command blocks below were then
+  taken immediately before the invocation and they are the measurement of
+  record: no JVM live, and the host's largest process a 612 MB python. The
+  compact form is used deliberately - a pgrep that prints full command lines
+  emits the joern-cli classpath as one ~15 kB line, which would bury the fact it
+  is meant to establish.
+
+$ pgrep -x java | wc -l | sed "s/^/live JVM count: /"; ps -eo pid,rss,etime,comm --sort=-rss | head -4
+[stdout]
+live JVM count: 0
+    PID   RSS     ELAPSED COMMAND
+      6 612764   02:54:51 python
+      9 88324    02:54:51 dockerd
+     65 46140    02:54:51 containerd
+[stderr]
+[exit] 0   [at] 2026-08-25T21:53:10.665Z   [elapsed] 0.016s
+
+$ free -g | head -2
+[stdout]
+               total        used        free      shared  buff/cache   available
+Mem:            2929          51        2782           1         111        2877
+[stderr]
+[exit] 0   [at] 2026-08-25T21:53:10.696Z   [elapsed] 0.006s
+
+  And the records the earlier stages own all exist and predate this invocation,
+  which is the sequencing fact this step needs; their CONTENTS are not restated
+  here and no figure of theirs enters this file.
+
+$ ls -la harness/artifacts/logs/joern.status harness/artifacts/logs/normalize-run.json harness/artifacts/logs/adapter-tests-run.json harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log
+[stdout]
+-rw-r--r-- 1 root root 108278 Aug 25 21:31 harness/artifacts/logs/adapter-tests-run.json
+-rw-r--r-- 1 root root  29999 Aug 25 21:31 harness/artifacts/logs/joern.status
+-rw-r--r-- 1 root root 813452 Aug 25 21:31 harness/artifacts/logs/normalize-run.json
+-rw-r--r-- 1 root root 114024 Aug 25 21:31 harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log
+[stderr]
+[exit] 0   [at] 2026-08-25T21:44:57.011Z   [elapsed] 0.007s
+
+  PHASE 1 VERDICT - five of six PASS, one HALT-CLASS FINDING.
+
+    graph identity        HALT-CLASS FINDING. 548118435 bytes and sha256
+                          f8c71562...d22c53 measured with symlink-following
+                          semantics from /opt/blitzy-harness/cpg/spark.cpg,
+                          against the pair 541255894 / 26d327cc...fcffc that
+                          harness/artifacts/logs/cpg-frontend.log records at
+                          write time. Not equal, in both fields. The 33-byte
+                          link-only measurement is recorded and discarded. All
+                          three names are one file, device:inode
+                          2097153:6005829, so the mismatch is in the bytes and
+                          not in the path. STEP 4 gives the provenance: the
+                          shared graph was rebuilt by the 2026-08-25
+                          provisioning invocation, which recorded these exact
+                          bytes itself.
+    load mechanism        PASS  importCpg at line 894 of the query source; the
+                                alternative has 0 textual occurrences anywhere
+                                under queries/joern/. Never exercised: stage D
+                                is after the halt.
+    JDK major             PASS  java.specification.version = 21, required 21.
+                                Build 21.0.12.1+1-LTS, the expected Temurin
+                                build, so there is no patch difference to record.
+    heap committable      PASS  java -Xms64g -Xmx64g -XX:+AlwaysPreTouch
+                                -version exited 0 under the 21 JDK.
+    single Joern process  PASS  measured zero live JVMs immediately before the
+                                invocation, after waiting out a sibling clone's
+                                64 GB process rather than overlapping it.
+    smoke override        PASS  HARNESS_SMOKE_TARGET unset; JAVA_OPTS unset.
+
+================================================================================
+PHASE 2 - THE VERIFIED TARGET SURFACE
+================================================================================
+
+  The pair this query addresses, measured in the pinned clone at the pinned SHA
+  with git show rather than read out of the working checkout, which is a
+  different commit and is neither built nor scanned. Every line number the query
+  documents is checked here, because a query whose anchors have moved is asking
+  about code that is not there - and because these anchors are the SAME ones
+  query one addresses, which is what makes the duplicate-formulation question in
+  PHASE 5 a real question rather than a formality.
+
+  The handler is Master.receiveAndReply at :409, whose first case at :410
+  recovers a DriverDescription from an Any-typed formal parameter by pattern
+  match. The check at :411 is a RECOVERY-STATE check and NOT an authorization or
+  ACL predicate - the query says so at its lines 111-114 and PHASE 6 measures
+  it. The route continues through createDriver, called at :417 and :1130 and
+  defined at :1356, and launchDriver at :1363.
+
+  The sink is the privileged launch in DriverRunner: command.start() at :240,
+  inside runCommandWithRetry declared at :224, dispatched through the abstract
+  ProcessBuilderLike.start at :270 declared in the trait at :269, whose only
+  implementation - the anonymous one at :276 - is what reaches
+  java.lang.ProcessBuilder.start(). The thread hop the query names as B2 is at
+  :89.
+
+  The five predicates the spurious definition rests on are all declared in
+  SecurityManager.scala, and the bytecode setter the selector has to exclude is
+  explained by :59, where a private var generates accessors. The last command
+  measures the fact PHASE 6 turns on: none of the five names appears anywhere in
+  any of the three route-surface source files at the pin.
+
+$ git -C "$SPARK_SRC" rev-parse HEAD
+[stdout]
+59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+[stderr]
+[exit] 0   [at] 2026-08-25T22:00:33.729Z   [elapsed] 0.007s
+
+$ SHA=$(git -C "$SPARK_SRC" rev-parse HEAD); M=core/src/main/scala/org/apache/spark/deploy/master/Master.scala; git -C "$SPARK_SRC" show "$SHA:$M" | wc -l | sed "s/^/Master.scala lines at the pin: /"; git -C "$SPARK_SRC" show "$SHA:$M" | grep -nE "override def receive|case RequestSubmitDriver|state != RecoveryState.ALIVE|createDriver|def launchDriver" | head -12
+[stdout]
+Master.scala lines at the pin: 1436
+239:  override def receive: PartialFunction[Any, Unit] = {
+409:  override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
+410:    case RequestSubmitDriver(description) =>
+411:      if (state != RecoveryState.ALIVE) {
+417:        val driver = createDriver(description)
+431:      if (state != RecoveryState.ALIVE) {
+464:      if (state != RecoveryState.ALIVE) {
+498:      if (state != RecoveryState.ALIVE) {
+945:    if (state != RecoveryState.ALIVE) {
+1130:    val newDriver = createDriver(driver.desc)
+1356:  private def createDriver(desc: DriverDescription): DriverInfo = {
+1363:  private def launchDriver(worker: WorkerInfo, driver: DriverInfo): Unit = {
+[stderr]
+[exit] 0   [at] 2026-08-25T22:00:33.754Z   [elapsed] 0.012s
+
+$ SHA=$(git -C "$SPARK_SRC" rev-parse HEAD); D=core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala; git -C "$SPARK_SRC" show "$SHA:$D" | wc -l | sed "s/^/DriverRunner.scala lines at the pin: /"; git -C "$SPARK_SRC" show "$SHA:$D" | grep -nE "command.start\(\)|trait ProcessBuilderLike|def start\(\): Process|processBuilder.start\(\)|private\[worker\] def runCommandWithRetry|Thread" | head -14
+[stdout]
+DriverRunner.scala lines at the pin: 279
+82:      Thread.sleep(1000)
+89:    new Thread("DriverRunner for " + driverId) {
+224:  private[worker] def runCommandWithRetry(
+240:        process = Some(command.start())
+269:private[deploy] trait ProcessBuilderLike {
+270:  def start(): Process
+276:    override def start(): Process = processBuilder.start()
+[stderr]
+[exit] 0   [at] 2026-08-25T22:00:33.782Z   [elapsed] 0.012s
+
+$ SHA=$(git -C "$SPARK_SRC" rev-parse HEAD); S=core/src/main/scala/org/apache/spark/SecurityManager.scala; git -C "$SPARK_SRC" show "$SHA:$S" | wc -l | sed "s/^/SecurityManager.scala lines at the pin: /"; git -C "$SPARK_SRC" show "$SHA:$S" | grep -nE "private var aclsOn|def aclsEnabled|def checkAdminPermissions|def checkUIViewPermissions|def checkModifyPermissions|def isAuthenticationEnabled"
+[stdout]
+SecurityManager.scala lines at the pin: 457
+59:  private var aclsOn = sparkConf.get(ACLS_ENABLE)
+227:  def aclsEnabled(): Boolean = aclsOn
+234:  def checkAdminPermissions(user: String): Boolean = {
+248:  def checkUIViewPermissions(user: String): Boolean = {
+264:  def checkModifyPermissions(user: String): Boolean = {
+274:  def isAuthenticationEnabled(): Boolean = authOn
+[stderr]
+[exit] 0   [at] 2026-08-25T22:00:33.809Z   [elapsed] 0.011s
+
+$ SHA=$(git -C "$SPARK_SRC" rev-parse HEAD); FIVE="aclsEnabled|checkAdminPermissions|checkModifyPermissions|checkUIViewPermissions|isAuthenticationEnabled"; for f in core/src/main/scala/org/apache/spark/deploy/master/Master.scala core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala; do n=$(git -C "$SPARK_SRC" show "$SHA:$f" | grep -cE "$FIVE"); printf "%-74s occurrences of the five predicates: %s\n" "${f#core/src/main/scala/org/apache/spark/}" "$n"; done
+[stdout]
+deploy/master/Master.scala                                                 occurrences of the five predicates: 0
+deploy/worker/DriverRunner.scala                                           occurrences of the five predicates: 0
+deploy/rest/StandaloneRestServer.scala                                     occurrences of the five predicates: 0
+[stderr]
+[exit] 0   [at] 2026-08-25T22:00:33.835Z   [elapsed] 0.016s
+
+
+================================================================================
+PHASE 3 - THE INVOCATION: COMMAND, JDK MAJOR AND HEAP, AS THREE SEPARATE FIELDS
+================================================================================
+
+  One of the four heap-bound JVM invocations, and the AAP requires the command,
+  the JDK major version and the heap ACTUALLY USED to be recorded separately for
+  each of them rather than summarised in one line. They are three fields below,
+  in that order. All three were measured, and they are unaffected by the halt:
+  stage A ran to completion before stage C stopped the run.
+
+  FIELD 1 OF 3 - THE COMMAND, exactly as issued
+
+$ BLITZY_CLONE_INDEX=1 JAVA_HOME="$JAVA_HOME_21" JAVA_TOOL_OPTIONS="-Xmx64g" SL_LOGGING_LEVEL=WARN HARNESS_REPO_ROOT="/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6" joern --script "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/queries/joern/02-dataflow-unguarded-driver-launch.sc" -J-Xmx64g < /dev/null
+[stdout] 31 lines, 2288 bytes - reproduced complete in APPENDIX A.1 rather than twice
+[stderr] 72 lines, 6049 bytes - reproduced complete in APPENDIX A.2 rather than twice
+[exit] 1   [at] 2026-08-25T21:53:18.314Z   [elapsed] 7.046s
+
+    working directory   : /tmp/blitzy-harness-scratch/1/probe-02/run
+    why not the repo    : joern eagerly creates an ~800 MB ./workspace in
+                          whatever directory it starts from, so it is started
+                          from this clone's private scratch directory. The
+                          query's OWN workspace is a different thing and is
+                          named in the environment block below - and it was
+                          never created, because switchWorkspace is in stage D.
+    launcher            : /opt/blitzy-tools/bin/joern, the provisioning wrapper,
+                          which exports JAVA_HOME=$JAVA_HOME_21 before exec. The
+                          joern-cli launcher would take whatever java is first on
+                          PATH, which on this host is 17.
+    stdin               : closed, from /dev/null, because the REPL blocks on an
+                          open stdin.
+    logging level       : WARN. The default level floods the stream.
+    arguments to the .sc: none. Everything the query needs is read from the
+                          environment.
+    invocations         : one. The query was not run twice; nothing was retried
+                          after the halt, and no check was loosened to get past
+                          it.
+    started             : 2026-08-25T21:53:18.314Z
+    ended               : 2026-08-25T21:53:25.365Z
+    exit status         : 1, from the re-raised IllegalStateException
+    elapsed, wall       : 7.046 s - of which the streaming sha256 over 548 MB is
+                          the largest identifiable part; the graph was never
+                          loaded, which is why this is seconds rather than the
+                          twelve minutes query one's completed run took
+
+  WHY -J-Xmx64g IS NOT THE WHOLE STORY, and it is measured rather than assumed.
+  joern --script forks a child JVM, and -J-Xmx reaches the LAUNCHER JVM only:
+  the child would otherwise run at this host's ergonomic default. JAVA_TOOL_OPTIONS
+  is inherited by the child and is the environment override that actually raises
+  the heap the query runs at. Both are set above, and the query measures what it
+  actually received - FIELD 3 records that measurement rather than the request.
+  The two "Picked up JAVA_TOOL_OPTIONS: -Xmx64g" lines in APPENDIX A.2 are the
+  two JVMs saying so, one each.
+
+  The environment that invocation ran under, with the clone index passed on its
+  own command line as the per-clone layout requires. A listing rather than a
+  command block: no exit status was captured for it, and inventing one would be
+  a fabricated measurement.
+
+      HARNESS_CPG          = /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/cpg/spark.cpg
+      HARNESS_REPO_ROOT    = /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6
+      HARNESS_LOG_DIR      = /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs
+      HARNESS_SCRATCH_DIR  = /tmp/blitzy-harness-scratch/1
+      BLITZY_CLONE_INDEX   = 1
+      JAVA_HOME_21         = /opt/blitzy-tools/jdk/jdk-21.0.12.1+1
+      HARNESS_JOERN_HEAP   = 64g
+      SL_LOGGING_LEVEL     = WARN
+      SPARK_SRC            = /opt/spark-src
+      HARNESS_SMOKE_TARGET = [unset]
+      JAVA_OPTS            = [unset]
+      working directory    = /tmp/blitzy-harness-scratch/1/probe-02/run
+      query's own workspace= queries/joern/.workspace   (not created; stage D never ran)
+
+  FIELD 2 OF 3 - THE JDK MAJOR VERSION
+
+    jdk major, required             : 21
+    jdk major, measured in-process  : 21   (java.specification.version, read by
+                                      the query itself and printed to its own
+                                      console stream - APPENDIX B line 6)
+    jvm version, measured in-process: 21.0.12.1+1-LTS   (APPENDIX B line 7)
+    JAVA_HOME the wrapper pinned    : /opt/blitzy-tools/jdk/jdk-21.0.12.1+1
+    expected build                  : Temurin 21.0.12.1+1
+    patch comparison                : matches the expected build, so there is no
+                                      patch difference to record
+    verdict                         : PASS. A wrong major is a wrong assignment
+                                      and halts; this is major 21, measured
+                                      here in PHASE 1 STEP 6 and again inside
+                                      the query's own process.
+
+  FIELD 3 OF 3 - THE HEAP ACTUALLY USED
+
+    heap floor (minimum and default): 68719476736 bytes = 64 GiB
+    heap ACTUALLY received          : 68719476736 bytes = 64.000 GiB
+    how that was established        : Runtime.maxMemory() inside the query's own
+                                      process, printed to its console stream -
+                                      APPENDIX B lines 8 to 10. Measured, not
+                                      requested.
+    the JVM's own input arguments   : -Xmx64g   (APPENDIX B line 11)
+    mechanism                       : JAVA_TOOL_OPTIONS, inherited by the forked
+                                      child; -J-Xmx64g was also passed and
+                                      reaches the launcher
+    at or above the floor           : yes, exactly at it
+    above the floor                 : no, so no additional pre-touch commit
+                                      proof is owed. The floor value's own
+                                      commit proof is PHASE 1 STEP 6.
+    heap lowered                    : no. Lowering is prohibited outright: it
+                                      produces a truncated result whose silence
+                                      cannot be told apart from a clean one.
+    verdict                         : PASS, and the query said so itself -
+                                      "heap floor : PASS (measured, not
+                                      requested)", APPENDIX B line 14.
+
+  WHERE THE 7.046 SECONDS WENT. The query's own clock reports no stage total for
+  this run: the elapsed-time lines it prints belong to stages the halt
+  prevented, and the identity stage's own elapsed_ms line is printed only after
+  the comparison passes, which it did not. So the wall time is reported as one
+  figure and not decomposed - a decomposition here would be an estimate dressed
+  as a measurement. What the wall time contains is JVM startup, the child-JVM
+  fork, script compilation, stages A and B, and the streaming sha256 over
+  548118435 bytes; PHASE 1 STEP 3's independent reader took 0.630 s for the same
+  digest.
+
+================================================================================
+PHASE 4 - WHAT THE QUERY REPORTED
+================================================================================
+
+  4.1 THIS INVOCATION, measured here
+
+    compile status              : compiled. The evidence is that it ran at all -
+                                  the console lines in APPENDIX A.1 are printed
+                                  by the compiled script, and a compile failure
+                                  would have produced a compiler diagnostic and
+                                  no ---BLITZY-START--- at all.
+    run status                  : HALTED in stage C-identity. Not "failed" in
+                                  the sense of a defect, and not "completed":
+                                  the query executed its own guard and stopped
+                                  itself.
+    result region emitted       : none. The query prints ---BLITZY-RESULT-BEGIN---
+                                  only after every stage has succeeded, on the
+                                  stated ground that a partial result region is
+                                  worse than none because it looks like a
+                                  completed run. In APPENDIX A.1 the failure
+                                  marker stands where that region would have
+                                  been, and the only two lines after it are the
+                                  console-log write and the runner's own "error
+                                  while invoking" line.
+    stages that ran             : A-paths-and-runtime, B-graph-path, C-identity.
+    stages that did not         : D-load onward, which includes switchWorkspace,
+                                  importCpg, entry-point discovery, the three
+                                  route-bearing arms, the engine-liveness
+                                  control, the predicate resolution, the four
+                                  boundary measurements, the record capping and
+                                  both result-file writes.
+    returned record count       : NOT MEASURED HERE. No records were returned,
+                                  and that is NOT the same statement as "zero
+                                  records were found": nothing was traversed.
+    distinct routes             : NOT MEASURED HERE, for the same reason.
+    bound value                 : 6, read from the source rather than from a run
+                                  - val MAX_FLOW_CALL_DEPTH = 6 at line 326 of
+                                  the query source, printed in the BOUNDS block
+                                  in PHASE 5.
+    bound reached               : NOT MEASURED HERE. The traversal did not begin,
+                                  so no counter of this invocation's can answer
+                                  it. It is not assumed unreached.
+    entry points traversed      : NOT MEASURED HERE.
+    entry points truncated      : NOT MEASURED HERE.
+    predicate set resolved      : NOT MEASURED HERE against the graph. The
+                                  selectors themselves are quoted verbatim from
+                                  the source in PHASE 6, and each of the five is
+                                  verified to exist in the pinned tree in PHASE
+                                  2 - both of which are this invocation's own
+                                  measurements and neither of which needs a
+                                  loaded graph.
+    files this invocation wrote : this console log, and nothing else. The two
+                                  result files under queries/joern/results/ were
+                                  NOT rewritten, because the query writes them
+                                  at its stage K; PHASE 7 shows them unchanged.
+
+  4.2 THE RUN'S RECORDED QUERY-02 MEASUREMENT, cited with its provenance
+
+    Everything in the block below was READ OUT OF the committed envelope by the
+    command shown, which prints the provenance itself as its first five lines.
+    It is the EARLIER invocation's measurement of this same query source, taken
+    in a sibling clone against the 541255894-byte graph. It is reproduced here
+    because a probe record that omitted the run's only measurement of query 02
+    would send a reader looking for it elsewhere, and because the cross-check in
+    PHASE 7 needs the two side by side. It is NOT this invocation's measurement,
+    nothing here was re-verified by this invocation, and the graph identity those
+    figures were taken against is printed with them so the distinction cannot be
+    lost.
+
+$ python3 - <<PY
+import json
+d = json.load(open("queries/joern/results/02-dataflow-unguarded-driver-launch.json"))
+print("PROVENANCE: every figure below is READ OUT OF the committed envelope")
+print("            queries/joern/results/02-dataflow-unguarded-driver-launch.json,")
+print("            written by an EARLIER invocation of this same query source in a")
+print("            sibling clone against the 541255894-byte graph. It is NOT this")
+print("            invocation measurement: this invocation halted before the load.")
+print()
+k = d["returned_record_kinds"]
+print("compile_status                    :", d["compile_status"])
+print("run_status                        :", d["run_status"])
+print("returned_record_count             :", d["returned_record_count"])
+print("  boundary                        :", k["boundary"])
+print("  route                           :", k["route"])
+print("  boundary_flow                   :", k["boundary_flow"])
+print("  liveness_control_flow           :", k["liveness_control_flow"])
+print("distinct_routes                   :", d["distinct_routes"])
+print("never_summed_with                 :", ", ".join(d["never_summed_with"]))
+print("spurious_count                    :", d["spurious_count"])
+print("expected_spurious_route_absent    :", d["expected_spurious_route_absent"], "(%s)" % d["expected_spurious_absence_basis"])
+print("bound_value                       :", d["bound_value"], "(MAX_FLOW_CALL_DEPTH)")
+print("bound_reached                     :", d["bound_reached"])
+print("entry_points_discovered           :", d["entry_points_discovered"])
+print("entry_points_traversed            :", d["entry_points_traversed"])
+print("entry_points_truncated            :", d["entry_points_truncated"])
+print("total_returns_cap_reached         :", d["total_returns_cap_reached"])
+print("boundaries_not_crossed_by_a_data_flow:", ", ".join(d["boundaries_not_crossed_by_a_data_flow"]))
+print("duplicate_formulation             :", d["duplicate_formulation"])
+print("graph identity these figures were measured against:")
+print("  bytes                           :", d["graph"]["byte_size_following_the_link"])
+print("  sha256                          :", d["graph"]["sha256"])
+print("  methods / typeDecls / files     :", d["graph"]["methods"], "/", d["graph"]["type_declarations"], "/", d["graph"]["files"])
+print()
+print("per arm (source groups / nodes / sink nodes / evaluations / flows found -> retained / caps):")
+for a in d["arms"]:
+    print("  %-32s depth %d  src %d/%d  sink %d  evals %d  flows %d -> %d  stepCap %s perPairCap %s lenCap %s" % (
+        a["arm_id"], a["call_depth_bound"], a["source_groups_traversed"], a["source_nodes"], a["sink_nodes"],
+        a["evaluations"], a["flows_found"], a["flows_retained"], a["step_cap_reached"], a["per_pair_cap_reached"], a["flow_length_cap_reached"]))
+c = d["engine_liveness_control"]["arm"]
+print("  %-32s depth %d  src %d/%d  sink %d  evals %d  flows %d -> %d" % (
+    c["arm_id"], c["call_depth_bound"], c["source_groups_traversed"], c["source_nodes"], c["sink_nodes"],
+    c["evaluations"], c["flows_found"], c["flows_retained"]))
+print()
+print("depth sensitivity: shallow", d["depth_sensitivity"]["shallow_depth"], "retained", d["depth_sensitivity"]["shallow_flows_retained"],
+      "| primary", d["depth_sensitivity"]["primary_depth"], "retained", d["depth_sensitivity"]["primary_flows_retained"],
+      "| differ:", d["depth_sensitivity"]["results_differ_across_the_two_depths"])
+p = d["predicate_selector"]
+print()
+print("predicate selector as resolved on the graph by that invocation:")
+print("  type                            :", p["type"])
+print("  name regex                      :", p["name_regex"])
+print("  methods on that type            :", p["type_method_nodes"], "nodes,", p["type_distinct_method_names"], "distinct names")
+print("  step 1 broad matches            :", ", ".join(p["step1_broad_matches"]))
+print("  step 2 setters excluded         :", ", ".join(p["step2_setters_excluded"]))
+print("  step 3 residue dropped          :", ", ".join(p["step3_non_predicate_residue_dropped"]))
+print("  final five                      :", ", ".join(p["final_names"]))
+print("  call sites graph-wide           :", p["call_sites_graph_wide"], "across", p["distinct_callers_graph_wide"], "distinct callers")
+print("  call sites on the route surface  :", p["call_sites_on_the_route_surface"])
+print("effort: revisions", d["effort_query_revisions_committed"], "| api constructs", d["effort_joern_api_construct_count"],
+      "| not used by 01:", len(d["effort_joern_api_constructs_not_used_by_01"]))
+PY
+[stdout]
+PROVENANCE: every figure below is READ OUT OF the committed envelope
+            queries/joern/results/02-dataflow-unguarded-driver-launch.json,
+            written by an EARLIER invocation of this same query source in a
+            sibling clone against the 541255894-byte graph. It is NOT this
+            invocation measurement: this invocation halted before the load.
+
+compile_status                    : compiled
+run_status                        : completed
+returned_record_count             : 8
+  boundary                        : 4
+  route                           : 0
+  boundary_flow                   : 2
+  liveness_control_flow           : 2
+distinct_routes                   : 0
+never_summed_with                 : 01-callgraph-unguarded-driver-launch, 03-parameterized-handler-sink-pairs
+spurious_count                    : 0
+expected_spurious_route_absent    : True (structural)
+bound_value                       : 6 (MAX_FLOW_CALL_DEPTH)
+bound_reached                     : False
+entry_points_discovered           : 2
+entry_points_traversed            : 2
+entry_points_truncated            : 0
+total_returns_cap_reached         : False
+boundaries_not_crossed_by_a_data_flow: B1-rpc, B2-thread, B4-partial-function
+duplicate_formulation             : not_duplicate
+graph identity these figures were measured against:
+  bytes                           : 541255894
+  sha256                          : 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+  methods / typeDecls / files     : 1397339 / 119691 / 45037
+
+per arm (source groups / nodes / sink nodes / evaluations / flows found -> retained / caps):
+  ARM1-handler-parameters-shallow  depth 2  src 2/3  sink 4  evals 4  flows 0 -> 0  stepCap False perPairCap False lenCap False
+  ARM1-handler-parameters          depth 6  src 2/3  sink 4  evals 4  flows 0 -> 0  stepCap False perPairCap False lenCap False
+  ARM2-unapply-recovered-payload   depth 6  src 1/1  sink 4  evals 2  flows 0 -> 0  stepCap False perPairCap False lenCap False
+  CONTROL-intraprocedural-liveness depth 2  src 1/3  sink 2  evals 1  flows 2 -> 2
+
+depth sensitivity: shallow 2 retained 0 | primary 6 retained 0 | differ: False
+
+predicate selector as resolved on the graph by that invocation:
+  type                            : org.apache.spark.SecurityManager
+  name regex                      : ^(check.*Permissions|acls.*|isAuthenticationEnabled)$
+  methods on that type            : 252 nodes, 107 distinct names
+  step 1 broad matches            : aclsEnabled, aclsOn, aclsOn_$eq, checkAdminPermissions, checkModifyPermissions, checkUIViewPermissions, isAuthenticationEnabled
+  step 2 setters excluded         : aclsOn_$eq
+  step 3 residue dropped          : aclsOn
+  final five                      : aclsEnabled, checkAdminPermissions, checkModifyPermissions, checkUIViewPermissions, isAuthenticationEnabled
+  call sites graph-wide           : 18 across 18 distinct callers
+  call sites on the route surface  : 0
+effort: revisions 1 | api constructs 42 | not used by 01: 18
+[stderr]
+[exit] 0   [at] 2026-08-25T22:00:59.366Z   [elapsed] 0.024s
+
+    HOW TO READ THOSE FIGURES ALONGSIDE QUERY ONE'S. Query one reported 4
+    records, 0 distinct routes, bound 12, bound REACHED. Query two reported 8
+    records, 0 distinct routes, bound 6, bound NOT reached. Those are two
+    measurements of two different questions and they are listed here side by
+    side for exactly that reason. THEY ARE NOT SUMMED: 4 + 8 is not a count of
+    anything, and 0 + 0 is not "zero routes established twice" - it is one
+    formulation returning no route over call edges and a different formulation
+    returning no route over data edges. The queries' own sources say the same
+    thing in seven places between them, and the never-summed contract is quoted
+    in PHASE 5.
+
+    One nuance worth keeping straight, because it is the kind of thing that gets
+    collapsed: query two's 8 records contain 0 of kind "route". The 8 are 4
+    boundary records, 2 boundary-flow records and 2 liveness-control flows.
+    Reading 8 as eight routes would overstate what the formulation returned by a
+    factor of infinity, since it returned none.
+
+  4.3 WHAT THE RUN THEREFORE DOES AND DOES NOT KNOW ABOUT QUERY 02
+
+    Known, from the earlier invocation and recorded as such: the formulation
+    compiled and completed, returned 8 records of which 0 were routes, hit no
+    cap, was insensitive to its call-depth bound across depths 2 and 6, and ran
+    with a live dataflow layer proven by an intraprocedural control arm that
+    returned 2 flows on the very sink the route arms found nothing for.
+
+    Not known for the graph now on disk: any of it. The graph the earlier
+    invocation measured no longer exists at that path, and this invocation
+    stopped rather than substituting the new bytes silently. Re-establishing
+    those figures against the 548118435-byte graph would require a load this
+    file is not permitted to perform, and the honest statement is that the
+    figures are anchored to the graph named beside them.
+
+================================================================================
+PHASE 5 - THE DUPLICATE-FORMULATION VERDICT, ANSWERED ON SUBSTANCE
+================================================================================
+
+  This is the question query 02 exists to make answerable, and it is a
+  first-class finding rather than a formality: query 01 and query 02 address ONE
+  handler/sink pair, so whether they are two formulations or one restated has to
+  be settled on evidence. It is settled below on the SUBSTANCE - the predicate
+  set, the traversal semantics, the source types and the node kinds - and not on
+  the file names differing. Every measurement in this phase was taken HERE, from
+  the two committed sources, and none of it needed the graph, which is why the
+  halt does not touch it.
+
+  VERDICT: not_duplicate, against query 01. Five independent bases.
+
+  BASIS 1 - THE EDGE KINDS TRAVERSED. Query 02's only traversal primitive is
+  reachableByFlows, which walks reaching-definition (data) edges through the OSS
+  dataflow layer. Query 01's is NoResolve.getCalledMethodsAsTraversal, which
+  walks CALL edges. Neither is expressible as the other: no call-edge traversal
+  establishes that a value reaches the launch, and no reaching-definition
+  traversal establishes that control can arrive there. The counts below are
+  measured over both sources; the single occurrence of the call-edge primitive
+  inside query 02 is its transcription of query 01's construct list at line 571,
+  not a use of it.
+
+$ grep -n "reachableByFlows" queries/joern/02-dataflow-unguarded-driver-launch.sc
+[stdout]
+214://   reachableByFlows-style query from the handler's parameter to the launch
+527:  "Traversal.reachableByFlows",
+1260:    else sinks.iterator.reachableByFlows(sources.iterator)(ctx).l
+[stderr]
+[exit] 0   [at] 2026-08-25T21:56:19.278Z   [elapsed] 0.004s
+
+$ grep -n "getCalledMethodsAsTraversal" queries/joern/01-callgraph-unguarded-driver-launch.sc queries/joern/02-dataflow-unguarded-driver-launch.sc
+[stdout]
+queries/joern/01-callgraph-unguarded-driver-launch.sc:345:  "NoResolve.getCalledMethodsAsTraversal",
+queries/joern/01-callgraph-unguarded-driver-launch.sc:692:    NoResolve.getCalledMethodsAsTraversal(c).l.sortBy(_.fullName)
+queries/joern/01-callgraph-unguarded-driver-launch.sc:1632:  md0("  `NoResolve.getCalledMethodsAsTraversal`, which is exactly the statically")
+queries/joern/02-dataflow-unguarded-driver-launch.sc:571:  "NoResolve.getCalledMethodsAsTraversal",
+[stderr]
+[exit] 0   [at] 2026-08-25T21:56:19.295Z   [elapsed] 0.005s
+
+  BASIS 2 - THE NODE GRANULARITY. Query 02 selects PARAMETER and EXPRESSION
+  nodes as the ends of its traversal - MethodParameterIn appears 7 times in its
+  source and not once in query 01's, and Method.parameter, Call.argument,
+  Call.receiver and Path.elements are likewise 02-only. Query 01 selects whole
+  METHOD nodes. The two do not even ask about the same nodes, which is a
+  stronger form of difference than asking the same question differently.
+
+  BASIS 3 - THE ENGINE AND THE BOUND SEMANTICS. Query 02 configures the flow
+  engine explicitly and carries eleven named bounds of its own; query 01 carries
+  six, and mentions the engine nowhere. The two headline bounds are not one
+  bound restated: MAX_FLOW_CALL_DEPTH = 6 is the number of call boundaries the
+  engine's BACKWARD search may expand while looking for a source, and
+  MAX_CALL_DEPTH = 12 is how far a FORWARD call-graph expansion may go. Different
+  constant, different name, different direction, different engine.
+
+$ grep -nE "^val (MAX_[A-Z_]+|BOUND[A-Z_]*)[[:space:]]*=" queries/joern/02-dataflow-unguarded-driver-launch.sc
+[stdout]
+326:val MAX_FLOW_CALL_DEPTH = 6
+334:val MAX_FLOW_CALL_DEPTH_SHALLOW = 2
+338:val MAX_BOUNDARY_FLOW_CALL_DEPTH = 2
+342:val MAX_FLOW_LENGTH = 64
+345:val MAX_FLOWS_PER_PAIR = 8
+348:val MAX_STEPS_PER_SOURCE = 8
+351:val MAX_TOTAL_RETURNS = 256
+354:val MAX_SOURCE_NODES = 64
+357:val MAX_SINK_NODES = 64
+361:val MAX_ENTRY_POINTS = 16
+364:val MAX_CALL_SCAN = 200000
+[stderr]
+[exit] 0   [at] 2026-08-25T21:56:19.237Z   [elapsed] 0.006s
+
+$ grep -nE "^val MAX_[A-Z_]+[[:space:]]*=" queries/joern/01-callgraph-unguarded-driver-launch.sc
+[stdout]
+237:val MAX_CALL_DEPTH = 12
+239:val MAX_ROUTES = 64
+241:val MAX_EXPANSIONS_PER_ENTRY = 200000
+243:val MAX_TOTAL_RETURNS = 256
+245:val MAX_ENTRY_POINTS = 16
+247:val MAX_CALL_SCAN = 200000
+[stderr]
+[exit] 0   [at] 2026-08-25T21:56:19.259Z   [elapsed] 0.005s
+
+  BASIS 4 - THE API CONSTRUCT SETS, computed here as a set difference over the
+  two sources rather than taken from either query's claim about itself. 18 of
+  query 02's 42 constructs do not appear in query 01's list at all, and 4 of
+  query 01's do not appear in query 02's. A restatement of one query in another
+  syntax would not need eighteen constructs the original never touches.
+
+$ python3 - <<PY
+import re, pathlib
+def constructs(path, var):
+    t = pathlib.Path(path).read_text()
+    m = re.search(r"val %s = List\((.*?)\)\n" % var, t, re.S)
+    return sorted({s for s in re.findall(r"\"([^\"]+)\"", m.group(1))})
+here  = constructs("queries/joern/02-dataflow-unguarded-driver-launch.sc", "JOERN_API_CONSTRUCTS")
+there = constructs("queries/joern/01-callgraph-unguarded-driver-launch.sc", "JOERN_API_CONSTRUCTS")
+only_here  = [c for c in here  if c not in there]
+only_there = [c for c in there if c not in here]
+shared     = [c for c in here  if c in there]
+print("api constructs, query 02 source :", len(here))
+print("api constructs, query 01 source :", len(there))
+print("shared                          :", len(shared))
+print("only in 02                      :", len(only_here))
+for c in only_here:  print("   +", c)
+print("only in 01                      :", len(only_there))
+for c in only_there: print("   -", c)
+PY
+[stdout]
+api constructs, query 02 source : 42
+api constructs, query 01 source : 28
+shared                          : 24
+only in 02                      : 18
+   + AstNode.code
+   + AstNode.label
+   + AstNode.lineNumber
+   + Call.argument
+   + Call.receiver
+   + CfgNode.method
+   + EngineConfig.maxCallDepth
+   + EngineContext.config
+   + EngineContext.copy
+   + EngineContext.semantics
+   + Method.call
+   + Method.parameter
+   + MethodParameterIn.index
+   + MethodParameterIn.method
+   + MethodParameterIn.name
+   + MethodParameterIn.typeFullName
+   + Path.elements
+   + Traversal.reachableByFlows
+only in 01                      : 4
+   - Call.code
+   - Call.order
+   - Method.callOut
+   - NoResolve.getCalledMethodsAsTraversal
+[stderr]
+[exit] 0   [at] 2026-08-25T21:54:25.480Z   [elapsed] 0.023s
+
+$ python3 - <<PY
+import re, pathlib
+t2 = pathlib.Path("queries/joern/02-dataflow-unguarded-driver-launch.sc").read_text()
+t1 = pathlib.Path("queries/joern/01-callgraph-unguarded-driver-launch.sc").read_text()
+for name, t in (("02", t2), ("01", t1)):
+    print("query %s: reachableByFlows occurrences        : %d" % (name, len(re.findall(r"reachableByFlows", t))))
+    print("query %s: getCalledMethodsAsTraversal occurrences: %d" % (name, len(re.findall(r"getCalledMethodsAsTraversal", t))))
+    print("query %s: EngineContext/EngineConfig mentions  : %d" % (name, len(re.findall(r"Engine(?:Context|Config)", t))))
+    print("query %s: MethodParameterIn mentions           : %d" % (name, len(re.findall(r"MethodParameterIn", t))))
+PY
+[stdout]
+query 02: reachableByFlows occurrences        : 3
+query 02: getCalledMethodsAsTraversal occurrences: 1
+query 02: EngineContext/EngineConfig mentions  : 26
+query 02: MethodParameterIn mentions           : 7
+query 01: reachableByFlows occurrences        : 0
+query 01: getCalledMethodsAsTraversal occurrences: 3
+query 01: EngineContext/EngineConfig mentions  : 0
+query 01: MethodParameterIn mentions           : 0
+[stderr]
+[exit] 0   [at] 2026-08-25T21:54:25.518Z   [elapsed] 0.026s
+
+  BASIS 5 - THE RECORD KINDS EACH CAN RETURN. Query 02 can return element-level
+  flow records: sequences of IDENTIFIER, METHOD_PARAMETER_IN and CALL nodes with
+  their graph lines. A method-level call-edge traversal produces no such record
+  for ANY input, which is why query 01 published none and why the earlier
+  invocation of query 02 published 4 - 2 boundary flows and 2 control flows.
+  This is a difference in expressible answers, not in phrasing.
+
+  WHAT AGREEMENT DOES NOT PROVE, stated because it is the trap in this question.
+  Both queries report the same three boundaries uncrossed - B1-rpc, B2-thread,
+  B4-partial-function - and both report B3-interface crossed, query 01 by a call
+  edge and query 02 by a data edge. Two formulations that happen to agree on a
+  verdict are still two formulations: the envelope keeps those as two
+  measurements of one hop under two different questions, reported separately
+  rather than merged, and this file does the same.
+
+  AND THE COMPARABILITY THAT MAKES THE COMPARISON MEAN ANYTHING. Two spurious
+  counts are only comparable if "spurious" is the same text in both queries. It
+  is - byte for byte - and that is measured here rather than asserted: the
+  predicate-surface block is 1281 bytes with sha256 6621ecb6...c9e46 in both
+  sources, at lines 435-459 of query 02 and 285-309 of query 01. Had it drifted,
+  the verdict above would have been unsupportable and the drift itself would
+  have been the finding.
+
+$ python3 - <<PY
+import hashlib, pathlib
+END = "  \"org.apache.spark.deploy.worker.DriverRunner\")"
+def block(path):
+    lines = pathlib.Path(path).read_text().splitlines(keepends=True)
+    i = next(n for n, l in enumerate(lines) if l.rstrip().endswith("the predicate surface"))
+    j = next(n for n, l in enumerate(lines) if l.rstrip() == END and n > i)
+    return "".join(lines[i:j+1]), i+1, j+1
+b2, s2, e2 = block("queries/joern/02-dataflow-unguarded-driver-launch.sc")
+b1, s1, e1 = block("queries/joern/01-callgraph-unguarded-driver-launch.sc")
+h2 = hashlib.sha256(b2.encode()).hexdigest(); h1 = hashlib.sha256(b1.encode()).hexdigest()
+print("predicate-surface block, query 02 : lines %d-%d, %d bytes, sha256 %s" % (s2, e2, len(b2.encode()), h2))
+print("predicate-surface block, query 01 : lines %d-%d, %d bytes, sha256 %s" % (s1, e1, len(b1.encode()), h1))
+print("byte-identical                    :", "YES" if h2 == h1 else "NO")
+print("--- that block, verbatim, as BOTH queries carry it ---")
+print(b2, end="")
+PY
+[stdout]
+predicate-surface block, query 02 : lines 435-459, 1281 bytes, sha256 6621ecb6ac5a41d34cb2dc9cdc299c5bd20333327a1852a19ce2e4fb814c9e46
+predicate-surface block, query 01 : lines 285-309, 1281 bytes, sha256 6621ecb6ac5a41d34cb2dc9cdc299c5bd20333327a1852a19ce2e4fb814c9e46
+byte-identical                    : YES
+--- that block, verbatim, as BOTH queries carry it ---
+// ---------------------------------------------------------- the predicate surface
+/**
+ * The mechanical definition of "spurious": a route is spurious ONLY where the
+ * handler does pass an authorization or ACL predicate before reaching the sink.
+ * The selectors that constitute those predicates are named here and repeated in
+ * the report. This judges THE QUERY, not Spark.
+ */
+val PREDICATE_TYPE = "org.apache.spark.SecurityManager"
+val PREDICATE_NAME_REGEX = """^(check.*Permissions|acls.*|isAuthenticationEnabled)$"""
+/** Scala compiles `private var aclsOn` into accessors, so the broad selector also
+ *  matches the bytecode setter. Excluded by suffix, then constrained to the five. */
+val PREDICATE_SETTER_SUFFIX = "_$eq"
+val PREDICATE_NAMED_FIVE = List(
+  "aclsEnabled",
+  "checkAdminPermissions",
+  "checkModifyPermissions",
+  "checkUIViewPermissions",
+  "isAuthenticationEnabled")
+/** The types whose methods carry this route, used to establish the structural
+ *  basis for the expected-spurious absence. Synthetic `$$anonfun$` classes of
+ *  these types are included by prefix. */
+val ROUTE_SURFACE_TYPE_PREFIXES = List(
+  "org.apache.spark.deploy.master.Master",
+  "org.apache.spark.deploy.rest.StandaloneRestServer",
+  "org.apache.spark.deploy.worker.DriverRunner")
+[stderr]
+[exit] 0   [at] 2026-08-25T21:54:56.770Z   [elapsed] 0.028s
+
+  VERDICT AGAINST QUERY 03: not_duplicate, on a different basis. Query 03 is
+  parameterized over handler/sink pairs and covers a second pair this query does
+  not address - the deploy/rest/StandaloneRestServer handler to the
+  deploy/worker/DriverRunner sink. Query 02 is fixed to one pair and to the
+  dataflow formulation of it, so neither subsumes the other. Query 02 makes no
+  parameterizability claim of its own: its envelope field says so in terms -
+  "not claimed here; proven by 03-parameterized-handler-sink-pairs invoking its
+  parameterized form on the second named handler/sink pair and capturing that
+  invocation's result".
+
+  THE NEVER-SUMMED CONTRACT, in the query's own source. Nine places, and the
+  console line the query prints at its stage O names both siblings explicitly.
+  This file honours it: no addition, average or total anywhere combines query
+  01's returns with query 02's, and PHASE 4.2 sets them side by side under
+  labels instead.
+
+$ grep -nE "NEVER SUMMED|never_summed|never summed|not summed" queries/joern/02-dataflow-unguarded-driver-launch.sc | head -12
+[stdout]
+35://   Their results are reported as DISTINCT and are NEVER SUMMED (AAP 0.6.1,
+1492:   * group, sink group, element signature), never summed - not across the arms
+1879:      "NEVER SUMMED."
+1887:      "likewise never summed."
+2028:      "(source group, sink group, element signature); the arms' returns are not summed " +
+2033:    "never_summed_with" -> jstrArr(List(SIBLING_CALLGRAPH_QUERY, SIBLING_PARAMETERIZED_QUERY)),
+2263:  md0("below. They are **never summed** - not across the arms, and not with")
+2540:  md0("Their results are reported side by side and are **never summed**.")
+2618:  log(s"distinct_routes_never_summed_with: $SIBLING_CALLGRAPH_QUERY, " +
+[stderr]
+[exit] 0   [at] 2026-08-25T21:56:19.314Z   [elapsed] 0.006s
+
+
+================================================================================
+PHASE 6 - THE SPURIOUS-ROUTE DEFINITION, AND ITS SELECTORS VERBATIM
+================================================================================
+
+  The definition is narrow and mechanical, and it is quoted here exactly as the
+  query states it at its lines 436-441:
+
+      "The mechanical definition of "spurious": a route is spurious ONLY where
+       the handler does pass an authorization or ACL predicate before reaching
+       the sink. The selectors that constitute those predicates are named here
+       and repeated in the report. This judges THE QUERY, not Spark."
+
+  THE SELECTORS, verbatim from queries/joern/02-dataflow-unguarded-driver-launch.sc
+  with their source lines. The whole block is reproduced by the byte-identity
+  command in PHASE 5; the five lines that carry the definition are:
+
+      442  val PREDICATE_TYPE = "org.apache.spark.SecurityManager"
+      443  val PREDICATE_NAME_REGEX = """^(check.*Permissions|acls.*|isAuthenticationEnabled)$"""
+      446  val PREDICATE_SETTER_SUFFIX = "_$eq"
+      447  val PREDICATE_NAMED_FIVE = List(
+      448    "aclsEnabled",
+      449    "checkAdminPermissions",
+      450    "checkModifyPermissions",
+      451    "checkUIViewPermissions",
+      452    "isAuthenticationEnabled")
+      456  val ROUTE_SURFACE_TYPE_PREFIXES = List(
+      457    "org.apache.spark.deploy.master.Master",
+      458    "org.apache.spark.deploy.rest.StandaloneRestServer",
+      459    "org.apache.spark.deploy.worker.DriverRunner")
+
+  THE SOURCE TYPES THE PREDICATE SET CAME FROM. One type -
+  org.apache.spark.SecurityManager - and the five Boolean methods declared on it
+  at SecurityManager.scala:227, :234, :248, :264 and :274, all measured at the
+  pin in PHASE 2. The regex is deliberately broader than the five and is then
+  narrowed twice: the bytecode setter aclsOn_$eq is excluded by suffix, because
+  :59 declares a private var whose accessors Scala generates, and the remaining
+  set is intersected with the five named source-level predicates so that a name
+  which merely matches the pattern cannot silently join the definition.
+
+  WHAT IS NOT A PREDICATE, and this is the line most likely to be misread.
+  Master.scala:411 - if (state != RecoveryState.ALIVE) - is a RECOVERY-STATE
+  check. It gates driver submission on the Master being the live master, not on
+  who is asking. The query's header says so at its lines 111-114 and excludes it
+  by construction; PHASE 2's last command measures the same thing from the other
+  side, and none of the five predicate names appears anywhere in Master.scala,
+  DriverRunner.scala or StandaloneRestServer.scala at the pin.
+
+  WHETHER AN EXPECTED-SPURIOUS ROUTE WAS ABSENT.
+
+    This invocation      : NOT MEASURED HERE. Spuriousness is a property of a
+                           route, the halt in stage C-identity prevented any
+                           route from being computed, and an absence over an
+                           empty set that was never computed is not a
+                           measurement. It is not reported as "absent" on this
+                           invocation's authority.
+    The run's record     : expected_spurious_route_absent = true, basis
+                           STRUCTURAL, spurious_count = 0 - the earlier
+                           invocation's measurement, printed with its provenance
+                           in PHASE 4.2, where the selector's own resolution
+                           against that graph is also shown: 252 method nodes on
+                           the type carrying 107 distinct names, narrowed to the
+                           five, with 18 call sites graph-wide across 18 distinct
+                           callers and 0 on the route surface.
+    Why STRUCTURAL is a  : because the absence does not depend on the route set
+    stronger statement     being empty. No call site of any of the five exists on
+    than "no routes"       the route surface at all, so no route through that
+                           surface could have passed one - and PHASE 2's
+                           source-level measurement at the pin agrees with the
+                           graph-level one from the other direction.
+
+  AND WHAT THAT JUDGES. The query, not Spark. A spurious-route count of zero
+  under this definition says the formulation returned nothing it would itself
+  have had to discard; it says nothing whatever about whether Spark's standalone
+  submission path is or is not authorization-checked, and nothing in this file
+  should be read as an assessment of it. Whether the absence of a call to one of
+  the five on this surface is appropriate is a question about Spark that this
+  run does not ask and does not answer.
+
+================================================================================
+PHASE 7 - CROSS-CHECKS: ONE MEASUREMENT CITED SEVERAL TIMES
+================================================================================
+
+  7.1 THIS INVOCATION'S CONSOLE AGAINST THE COMMITTED ENVELOPE, field by field
+
+    The table below is the verbatim stdout of a command that parses BOTH sides
+    separately - the console file the query wrote at this path, and the committed
+    envelope - and compares them field by field. It reads one and then the other;
+    it does not read one and assume the other.
+
+$ python3 - <<PY
+import json, pathlib
+env = json.load(open("queries/joern/results/02-dataflow-unguarded-driver-launch.json"))
+console = pathlib.Path("/tmp/blitzy-harness-scratch/1/probe-02/query-written-console.log").read_text().splitlines()
+def cval(prefix):
+    for l in console:
+        if l.startswith(prefix):
+            v = l.split(":", 1)[1].strip()
+            return v.split("  ")[0].strip()
+    return None
+g, r = env["graph"], env["runtime"]
+rows = [
+  ("query_id",              cval("query_id"),                        env["query_id"]),
+  ("jdk major",             cval("jdk.specification.version").split()[0], str(r["jdk_major"])),
+  ("jvm version",           cval("java.vm.version"),                 r["jvm_version"]),
+  ("heap actually used",    cval("heap actually used (bytes)"),       str(r["heap_actually_used_bytes"])),
+  ("heap floor",            cval("heap floor (bytes)"),               str(r["heap_floor_bytes"])),
+  ("graph path source",     cval("graph path source"),                g["path_source"]),
+  ("graph resolved path",   cval("resolved target"),                  g["resolved_path"]),
+  ("graph size, no follow", cval("size WITHOUT following"),           str(g["byte_size_without_following"])),
+  ("graph size, following", cval("size WITH following"),              str(g["byte_size_following_the_link"])),
+  ("graph sha256",          cval("sha256 of the target"),             g["sha256"]),
+  ("identity record path",  cval("recorded in"),                      g["identity_record"]),
+  ("recorded byte size",    cval("recorded at write time").split()[0].split("=")[1], str(g["identity_recorded_byte_size"])),
+  ("recorded sha256",       cval("recorded at write time").split()[1].split("=")[1], g["identity_recorded_sha256"]),
+]
+w = 46
+print("%-22s %-*s %-*s %s" % ("field", w, "this invocation, measured", w, "committed envelope (earlier invocation)", "agree"))
+print("-" * (22 + 2*w + 8))
+for name, a, b in rows:
+    print("%-22s %-*s %-*s %s" % (name, w, (a or "")[:w], w, (b or "")[:w], "yes" if a == b else "NO"))
+print()
+print("13 fields compared, 11 agree.")
+print("The two that differ are the SAME fact: the bytes on disk are not the bytes either")
+print("the in-repo record or the earlier invocation describes. Every runtime field agrees.")
+PY
+[stdout]
+field                  this invocation, measured                      committed envelope (earlier invocation)        agree
+--------------------------------------------------------------------------------------------------------------------------
+query_id               02-dataflow-unguarded-driver-launch            02-dataflow-unguarded-driver-launch            yes
+jdk major              21                                             21                                             yes
+jvm version            21.0.12.1+1-LTS                                21.0.12.1+1-LTS                                yes
+heap actually used     68719476736                                    68719476736                                    yes
+heap floor             68719476736                                    68719476736                                    yes
+graph path source      HARNESS_CPG                                    HARNESS_CPG                                    yes
+graph resolved path    /opt/blitzy-harness/cpg/spark.cpg              /opt/blitzy-harness/cpg/spark.cpg              yes
+graph size, no follow  33                                             33                                             yes
+graph size, following  548118435                                      541255894                                      NO
+graph sha256           f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908 26d327ccee096aa4c8d67018b32669f2a318331cf87392 NO
+identity record path   harness/artifacts/logs/cpg-frontend.log        harness/artifacts/logs/cpg-frontend.log        yes
+recorded byte size     541255894                                      541255894                                      yes
+recorded sha256        26d327ccee096aa4c8d67018b32669f2a318331cf87392 26d327ccee096aa4c8d67018b32669f2a318331cf87392 yes
+
+13 fields compared, 11 agree.
+The two that differ are the SAME fact: the bytes on disk are not the bytes either
+the in-repo record or the earlier invocation describes. Every runtime field agrees.
+[stderr]
+[exit] 0   [at] 2026-08-25T21:59:27.663Z   [elapsed] 0.027s
+
+    HOW TO READ THE TWO DISAGREEMENTS. They are one fact, not two: the bytes on
+    disk are not the bytes the earlier invocation measured, which is the same
+    halt-class finding PHASE 1 STEP 3 established. Every OTHER field agrees,
+    including all four runtime fields, both path fields, the link-only size and -
+    tellingly - the RECORDED pair, which both sides read out of the same in-repo
+    record and both report as 541255894 / 26d327cc...fcffc. That is the
+    signature of an environment replacement rather than of two runs disagreeing
+    about what they did: the two invocations agree about every fact except which
+    bytes were on the disk when each ran.
+
+  7.2 THE FILES INVOLVED, WITH THEIR IDENTITIES
+
+    The query source, and the two result files it would have rewritten at its
+    stage K had it reached it. Their digests are recorded so a later reader can
+    confirm they are the committed ones and not this invocation's - it wrote
+    neither.
+
+$ for f in queries/joern/results/02-dataflow-unguarded-driver-launch.json queries/joern/results/02-dataflow-unguarded-driver-launch.md queries/joern/02-dataflow-unguarded-driver-launch.sc; do printf "%-62s %9s bytes  sha256 %s\n" "$f" "$(stat -c %s "$f")" "$(sha256sum "$f" | cut -d" " -f1)"; done
+[stdout]
+queries/joern/results/02-dataflow-unguarded-driver-launch.json     47115 bytes  sha256 873d32421e770107c1471c8345e4817915a451aa670b0c121e5eb6667d6bc07e
+queries/joern/results/02-dataflow-unguarded-driver-launch.md       24658 bytes  sha256 784f77624f06feb222b896bb7d6de822ef13f17fe20fbba3ce0c3df608f27407
+queries/joern/02-dataflow-unguarded-driver-launch.sc              143886 bytes  sha256 249b7cb96345594e3ebe643ad5f657217aacf70a3126fba440c3a3b81ea9be59
+[stderr]
+[exit] 0   [at] 2026-08-25T21:59:09.468Z   [elapsed] 0.018s
+
+    Both result files are UNCHANGED by this invocation, and that is measured
+    rather than assumed: git reported no modification to queries/joern/results/
+    after the run, and the query's writes are at stage K, seven stages after the
+    halt. queries/joern/.workspace still holds nothing but its own .gitignore,
+    for the same reason.
+
+  7.3 THE STREAMS THIS FILE EMBEDS, WITH THEIR IDENTITIES
+
+    So that each appendix can be checked against its source in this clone's
+    scratch directory.
+
+$ S=/tmp/blitzy-harness-scratch/1/probe-02; for f in "$S/invocation.stdout" "$S/invocation.stderr" "$S/query-written-console.log"; do printf "%-28s %6s lines %9s bytes  sha256 %s\n" "$(basename "$f")" "$(wc -l < "$f")" "$(stat -c %s "$f")" "$(sha256sum "$f" | cut -d" " -f1)"; done
+[stdout]
+invocation.stdout                31 lines      2288 bytes  sha256 ca6acd69dc73dcf97473b48760bb582bd8ecc41e87b7204127b3c41dab24d3c0
+invocation.stderr                72 lines      6049 bytes  sha256 0332706b0c220ff3f0435bcd4d7e938909b7c4ea80929acb2ecdcea30acaed86
+query-written-console.log        31 lines      2545 bytes  sha256 cb68245956f03ecee11876e87a9334ec6dc8fd8b1982edd1a6d08e5e8b09dfe4
+[stderr]
+[exit] 0   [at] 2026-08-25T21:59:09.418Z   [elapsed] 0.036s
+
+  7.4 THE CONSUMERS THAT DO NOT EXIST YET - OUTSTANDING, not assumed to agree
+
+    oss-scan-results/joern-probe.md and oss-scan-results/run-record.md are the
+    two consumers this record feeds beyond the result files. Neither exists on
+    this branch at the time of writing, so the cross-check against them cannot
+    be performed and is named OUTSTANDING rather than filled with a plausible
+    value.
+
+$ ls oss-scan-results/joern-probe.md oss-scan-results/run-record.md 2>&1; echo "ls exit=$? (2 = neither consumer exists on this branch yet)"
+[stdout]
+ls: cannot access 'oss-scan-results/joern-probe.md': No such file or directory
+ls: cannot access 'oss-scan-results/run-record.md': No such file or directory
+ls exit=2 (2 = neither consumer exists on this branch yet)
+[stderr]
+[exit] 0   [at] 2026-08-25T21:59:09.499Z   [elapsed] 0.005s
+
+    WHAT THOSE TWO WILL HAVE TO CARRY, so nothing is lost by the check being
+    outstanding. joern-probe.md owns query 02's per-query result contract, and
+    the halt in this file changes what it can honestly say: the figures it
+    reports for query 02 are the earlier invocation's, against the
+    541255894-byte graph, and this file is where that provenance is recorded.
+    run-record.md owns this file's manifest entry - byte size and sha256 - and
+    owns the four graph-touching JVMs' command, JDK major and actual heap, of
+    which this invocation is one and PHASE 3 is its record.
+
+  7.5 NOTHING HERE IS COMBINED WITH THE STAGE 3 JOERN RUNNER
+
+    Joern's Stage 3 runner is that tool's first appearance in this run and wrote
+    harness/artifacts/raw/joern.json; this probe is the deliberate second and
+    writes outside harness/artifacts/raw/ entirely. No figure in this file is
+    arithmetic over the two, no finding of the runner's is restated here, and
+    this probe contributes NO row to oss-scan-results/findings.json. Folding
+    either into the other would corrupt both Joern's row count and the dataset
+    total.
+
+================================================================================
+PHASE 8 - THIS FILE, AND WHERE ITS OWN IDENTITY IS RECORDED
+================================================================================
+
+  8.1 THE TWO WRITES TO THIS PATH, both preserved
+
+    The query resolves this path itself, in stage A, before any check that can
+    stop the run - which is precisely why a halt leaves its console record on
+    disk rather than only on a terminal. It wrote its accumulated console lines
+    here from its catch block, after printing ---BLITZY-FAILURE--- and before
+    re-raising. That file - 31 lines, 2545 bytes, sha256 cb682459...9dfe4 - was
+    captured before this record was assembled and is reproduced COMPLETE and
+    VERBATIM in APPENDIX B. This record then supersedes it at the same path,
+    carrying it inside itself along with the full terminal transcript, of which
+    it is a subset.
+
+    Nothing is lost by that: APPENDIX A is the terminal transcript, which is a
+    superset of APPENDIX B, and each appendix states its own byte size and sha256
+    so either copy can be checked against the source.
+
+  8.2 THIS FILE'S BYTE SIZE AND SHA256
+
+    Owned by oss-scan-results/run-record.md, which holds the manifest of both
+    artifact trees with a byte size and a sha256 per file, this one included.
+    They are deliberately NOT written here: a digest of a file cannot appear
+    inside that file, since writing it changes the bytes it describes. The
+    manifest owner measures this file after it is closed, which is why the
+    measurement lives there and is referenced from here.
+
+    Both artifact trees are excluded from git's ordinary collection by
+    .gitignore:31 (artifacts/), which is why publication is by that manifest and
+    why this file is added explicitly rather than picked up by a plain add.
+
+  8.3 WHAT THIS INVOCATION LEFT BEHIND, and why it stays
+
+    Almost nothing, because the halt preceded every stage that writes. The
+    query's own workspace at queries/joern/.workspace was never created beyond
+    the .gitignore that was already there - joern's own ./workspace went to
+    /tmp/blitzy-harness-scratch/1/probe-02/run, outside the repository, which is
+    why the invocation was started from there. The captured streams and the
+    capture harness stay in that same private scratch directory. Nothing is torn
+    down, purged or reset: no cleanup, no temp purging, and what the run built
+    stays where it is.
+
+  8.4 THE ONE THING A READER SHOULD TAKE FROM THIS FILE
+
+    The guard worked. A shared, provisioned input was replaced between lanes of
+    one run, and the stage that would have consumed it detected the replacement
+    from the bytes themselves and stopped instead of quietly producing figures
+    about a graph nobody has. Everything else here - the runtime measurements,
+    the target surface at the pin, the duplicate-formulation verdict, the
+    selectors - is evidence taken around that halt rather than in spite of it,
+    and every figure this invocation could not take is named as such.
+
+================================================================================
+APPENDIX A - THE TERMINAL TRANSCRIPT OF THE INVOCATION, VERBATIM
+================================================================================
+
+  The complete captured streams of the single command in PHASE 3 FIELD 1,
+  unedited: stdout first, then stderr. Nothing is reflowed, sorted or elided.
+
+  stdout : 31 lines, 2 288 bytes,
+           sha256 ca6acd69dc73dcf97473b48760bb582bd8ecc41e87b7204127b3c41dab24d3c0
+           - and A.1 below is byte-identical to that captured file.
+  stderr : 72 lines, 6 049 bytes,
+           sha256 0332706b0c220ff3f0435bcd4d7e938909b7c4ea80929acb2ecdcea30acaed86
+           - and A.2 below is that captured file WITHOUT its single trailing
+           blank line, which a concatenated document cannot carry
+           unambiguously: 71 lines, 6 048 bytes,
+           sha256 4d8a9784c7d4a0e2f96442796f56559a4a4a1f9a979903771bd7c28f184ee0dc.
+           Both digests are given so either the captured file or the embedded
+           copy can be checked, and no other byte differs.
+
+  Three features of these streams are worth naming so they are not read as
+  faults. The --script path prints NO startup banner, which is why PHASE 1 STEP 7
+  reads the Joern version by a separate invocation. "Picked up JAVA_TOOL_OPTIONS:
+  -Xmx64g" appears TWICE because two JVMs report it, the launcher and the child
+  the launcher forks - the same fact PHASE 3 FIELD 3 records as the reason that
+  variable, rather than -J-Xmx, sets the heap the query runs at. And the
+  IllegalStateException stack trace appears TWICE in stderr because the query's
+  catch block prints it before re-raising and the runner prints the re-raised
+  exception again; both copies are kept exactly where they fell.
+
+--------------------------------------------------------------------------------
+A.1 - stdout, verbatim
+--------------------------------------------------------------------------------
+---BLITZY-START---
+[stage] A-paths-and-runtime: repository root, console log target, JDK major and the heap ACTUALLY used
+query_id                  : 02-dataflow-unguarded-driver-launch
+repository root           : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6 (from HARNESS_REPO_ROOT)
+console log target        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log
+jdk.specification.version : 21 (required major 21)
+java.vm.version           : 21.0.12.1+1-LTS
+heap actually used (bytes): 68719476736
+heap actually used (GiB)  : 64.000
+heap floor (bytes)        : 68719476736
+script JVM input args     : -Xmx64g
+Joern exposes no --version flag and its REPL blocks on an open stdin, so its
+version is read from the startup banner on the console stream, not from a flag.
+heap floor                : PASS (measured, not requested)
+[stage] B-graph-path: the two names for the graph
+graph path source         : HARNESS_CPG
+graph path (as used)      : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/cpg/spark.cpg
+graph path (AAP name)     : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/cpg/spark.cpg
+[stage] C-identity: the graph's byte size and sha256, symlink-FOLLOWING
+named path is a symlink   : true -> /opt/blitzy-harness/cpg/spark.cpg
+resolved target           : /opt/blitzy-harness/cpg/spark.cpg
+size WITHOUT following    : 33  (recorded to be discarded)
+size WITH following       : 548118435  (the measurement of record)
+sha256 of the target      : f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53
+recorded at write time    : bytes=541255894 sha256=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+recorded in               : harness/artifacts/logs/cpg-frontend.log
+byte size matches         : NO
+sha256 matches            : NO
+---BLITZY-FAILURE---
+console log written: /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log
+replpp.scripting.ScriptRunner$: error while invoking replpp.scripting.NonForkingScriptRunner: exit code was 1
+--------------------------------------------------------------------------------
+A.2 - stderr, verbatim
+--------------------------------------------------------------------------------
+Picked up JAVA_TOOL_OPTIONS: -Xmx64g
+Picked up JAVA_TOOL_OPTIONS: -Xmx64g
+executing /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/queries/joern/02-dataflow-unguarded-driver-launch.sc
+---BLITZY-FAILURE--- stage=C-identity: the graph's byte size and sha256, symlink-FOLLOWING
+exception: java.lang.IllegalStateException: HALT in stage C-identity: the graph's byte size and sha256, symlink-FOLLOWING: graph identity mismatch: observed bytes=548118435 sha256=f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53 against recorded bytes=541255894 sha256=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc. A load against different bytes than the record describes produces conclusions about a graph nobody has
+java.lang.IllegalStateException: HALT in stage C-identity: the graph's byte size and sha256, symlink-FOLLOWING: graph identity mismatch: observed bytes=548118435 sha256=f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53 against recorded bytes=541255894 sha256=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc. A load against different bytes than the record describes produces conclusions about a graph nobody has
+	at ScalaReplPP$.abortRun$1(wrapped-script16080369547860092950.sc:847)
+	at ScalaReplPP$._execMain(wrapped-script16080369547860092950.sc:1070)
+	at ScalaReplPP$.$anonfun$150(wrapped-script16080369547860092950.sc:2881)
+	at replpp.shaded.mainargs.Invoker$.$anonfun$2(Invoker.scala:68)
+	at replpp.shaded.mainargs.Result.flatMap(Result.scala:13)
+	at replpp.shaded.mainargs.Result.flatMap$(Result.scala:7)
+	at replpp.shaded.mainargs.Result$Success.flatMap(Result.scala:23)
+	at replpp.shaded.mainargs.Invoker$.invoke0(Invoker.scala:67)
+	at replpp.shaded.mainargs.Invoker$.invoke(Invoker.scala:77)
+	at replpp.shaded.mainargs.Invoker$.invokeLocal$1(Invoker.scala:89)
+	at replpp.shaded.mainargs.Invoker$.groupArgs$1$$anonfun$2(Invoker.scala:103)
+	at replpp.shaded.mainargs.Result.flatMap(Result.scala:13)
+	at replpp.shaded.mainargs.Result.flatMap$(Result.scala:7)
+	at replpp.shaded.mainargs.Result$Success.flatMap(Result.scala:23)
+	at replpp.shaded.mainargs.Invoker$.groupArgs$1(Invoker.scala:103)
+	at replpp.shaded.mainargs.Invoker$.runMains(Invoker.scala:108)
+	at replpp.shaded.mainargs.ParserForMethods.runRaw0(Parser.scala:170)
+	at replpp.shaded.mainargs.ParserForMethods.runEither(Parser.scala:108)
+	at replpp.shaded.mainargs.ParserForMethods.runEither(Parser.scala:151)
+	at replpp.shaded.mainargs.ParserForMethods.runOrExit(Parser.scala:56)
+	at ScalaReplPP$.main(wrapped-script16080369547860092950.sc:2881)
+	at ScalaReplPP.main(wrapped-script16080369547860092950.sc)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at replpp.scripting.ScriptingDriver.$anonfun$2(ScriptingDriver.scala:60)
+	at replpp.util.SimpleDriver.compile$$anonfun$1(SimpleDriver.scala:81)
+	at scala.util.Try$.apply(Try.scala:195)
+	at replpp.util.SimpleDriver.compile(SimpleDriver.scala:83)
+	at replpp.scripting.ScriptingDriver.compileAndRun(ScriptingDriver.scala:53)
+	at replpp.scripting.NonForkingScriptRunner$.exec(NonForkingScriptRunner.scala:48)
+	at replpp.scripting.NonForkingScriptRunner$.main(NonForkingScriptRunner.scala:21)
+	at replpp.scripting.NonForkingScriptRunner.main(NonForkingScriptRunner.scala)
+java.lang.IllegalStateException: HALT in stage C-identity: the graph's byte size and sha256, symlink-FOLLOWING: graph identity mismatch: observed bytes=548118435 sha256=f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53 against recorded bytes=541255894 sha256=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc. A load against different bytes than the record describes produces conclusions about a graph nobody has
+	at ScalaReplPP$.abortRun$1(wrapped-script16080369547860092950.sc:847)
+	at ScalaReplPP$._execMain(wrapped-script16080369547860092950.sc:1070)
+	at ScalaReplPP$.$anonfun$150(wrapped-script16080369547860092950.sc:2881)
+	at replpp.shaded.mainargs.Invoker$.$anonfun$2(Invoker.scala:68)
+	at replpp.shaded.mainargs.Result.flatMap(Result.scala:13)
+	at replpp.shaded.mainargs.Result.flatMap$(Result.scala:7)
+	at replpp.shaded.mainargs.Result$Success.flatMap(Result.scala:23)
+	at replpp.shaded.mainargs.Invoker$.invoke0(Invoker.scala:67)
+	at replpp.shaded.mainargs.Invoker$.invoke(Invoker.scala:77)
+	at replpp.shaded.mainargs.Invoker$.invokeLocal$1(Invoker.scala:89)
+	at replpp.shaded.mainargs.Invoker$.groupArgs$1$$anonfun$2(Invoker.scala:103)
+	at replpp.shaded.mainargs.Result.flatMap(Result.scala:13)
+	at replpp.shaded.mainargs.Result.flatMap$(Result.scala:7)
+	at replpp.shaded.mainargs.Result$Success.flatMap(Result.scala:23)
+	at replpp.shaded.mainargs.Invoker$.groupArgs$1(Invoker.scala:103)
+	at replpp.shaded.mainargs.Invoker$.runMains(Invoker.scala:108)
+	at replpp.shaded.mainargs.ParserForMethods.runRaw0(Parser.scala:170)
+	at replpp.shaded.mainargs.ParserForMethods.runEither(Parser.scala:108)
+	at replpp.shaded.mainargs.ParserForMethods.runEither(Parser.scala:151)
+	at replpp.shaded.mainargs.ParserForMethods.runOrExit(Parser.scala:56)
+	at ScalaReplPP$.main(wrapped-script16080369547860092950.sc:2881)
+	at ScalaReplPP.main(wrapped-script16080369547860092950.sc)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:580)
+	at replpp.scripting.ScriptingDriver.$anonfun$2(ScriptingDriver.scala:60)
+	at replpp.util.SimpleDriver.compile$$anonfun$1(SimpleDriver.scala:81)
+	at scala.util.Try$.apply(Try.scala:195)
+	at replpp.util.SimpleDriver.compile(SimpleDriver.scala:83)
+	at replpp.scripting.ScriptingDriver.compileAndRun(ScriptingDriver.scala:53)
+	at replpp.scripting.NonForkingScriptRunner$.exec(NonForkingScriptRunner.scala:48)
+	at replpp.scripting.NonForkingScriptRunner$.main(NonForkingScriptRunner.scala:21)
+	at replpp.scripting.NonForkingScriptRunner.main(NonForkingScriptRunner.scala)
+
+================================================================================
+APPENDIX B - THE CONSOLE FILE THE QUERY ITSELF WROTE AT THIS PATH, VERBATIM
+================================================================================
+
+  The query writes its accumulated console lines to this record's own path from
+  its catch block when a stage halts, and at the end of its run when none does.
+  This run halted, so what it wrote is the stage A, B and C stream followed by
+  the failure marker, the failing stage and the exception. That file is
+  reproduced here COMPLETE and unedited, and it is what every [APPENDIX B:<n>]
+  citation in PHASE 3 refers to: line 1 below is line 1 of that file.
+
+  31 lines, 2 545 bytes,
+  sha256 cb68245956f03ecee11876e87a9334ec6dc8fd8b1982edd1a6d08e5e8b09dfe4
+
+  It is a near-subset of APPENDIX A.1 - the query's own printed lines - and it
+  differs from A.1 in exactly one way, which is deliberate on the query's part:
+  the stdout stream carries "console log written: <path>" and the runner's own
+  "error while invoking ..." line, which the console file cannot contain because
+  it is closed before they are printed, while the console file carries the two
+  attribution lines the query appends to it after the failure marker - the
+  failing stage and the exception. Both copies are kept because the citations
+  index this one while A.1 is what a terminal actually showed.
+
+--------------------------------------------------------------------------------
+---BLITZY-START---
+[stage] A-paths-and-runtime: repository root, console log target, JDK major and the heap ACTUALLY used
+query_id                  : 02-dataflow-unguarded-driver-launch
+repository root           : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6 (from HARNESS_REPO_ROOT)
+console log target        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log
+jdk.specification.version : 21 (required major 21)
+java.vm.version           : 21.0.12.1+1-LTS
+heap actually used (bytes): 68719476736
+heap actually used (GiB)  : 64.000
+heap floor (bytes)        : 68719476736
+script JVM input args     : -Xmx64g
+Joern exposes no --version flag and its REPL blocks on an open stdin, so its
+version is read from the startup banner on the console stream, not from a flag.
+heap floor                : PASS (measured, not requested)
+[stage] B-graph-path: the two names for the graph
+graph path source         : HARNESS_CPG
+graph path (as used)      : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/cpg/spark.cpg
+graph path (AAP name)     : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/cpg/spark.cpg
+[stage] C-identity: the graph's byte size and sha256, symlink-FOLLOWING
+named path is a symlink   : true -> /opt/blitzy-harness/cpg/spark.cpg
+resolved target           : /opt/blitzy-harness/cpg/spark.cpg
+size WITHOUT following    : 33  (recorded to be discarded)
+size WITH following       : 548118435  (the measurement of record)
+sha256 of the target      : f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53
+recorded at write time    : bytes=541255894 sha256=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+recorded in               : harness/artifacts/logs/cpg-frontend.log
+byte size matches         : NO
+sha256 matches            : NO
+---BLITZY-FAILURE---
+failing stage : C-identity: the graph's byte size and sha256, symlink-FOLLOWING
+exception     : java.lang.IllegalStateException: HALT in stage C-identity: the graph's byte size and sha256, symlink-FOLLOWING: graph identity mismatch: observed bytes=548118435 sha256=f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53 against recorded bytes=541255894 sha256=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc. A load against different bytes than the record describes produces conclusions about a graph nobody has
+
+================================================================================
+END OF harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log
+================================================================================

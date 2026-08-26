@@ -1,0 +1,624 @@
+{
+  "query_id": "03-parameterized-handler-sink-pairs",
+  "query_source": "queries/joern/03-parameterized-handler-sink-pairs.sc",
+  "formulation": "bounded call-graph reachability over CALL edges, PARAMETERIZED over handler/sink pairs and instantiated on two named pairs in one run: the standalone Master's driver-submission handler, and the REST submit servlet's handleSubmit, each to the privileged process launch hosted on the DriverRunner surface",
+  "observational_only": true,
+  "contributes_dataset_rows": false,
+  "compile_status": "compiled",
+  "compile_status_convention": "this field is written by the running script, so its presence is itself the evidence: a compile failure produces no envelope at all and the compiler's diagnostic lands in the console stream",
+  "run_status": "completed",
+  "pairs_declared": 2,
+  "pairs_invoked": 2,
+  "pair_iteration_order": ["pair-one", "pair-two"],
+  "returned_record_count": 6,
+  "returned_record_count_convention": "a count of RECORDS emitted - boundary measurements plus per-pair route records - and never a route total: no field in this envelope adds one pair's routes to another's, or this query's returns to query 01's or 02's",
+  "returned_record_kinds": {
+    "boundary": 6,
+    "route_by_pair": {
+      "pair-one": 0,
+      "pair-two": 0
+    }
+  },
+  "distinct_routes": {
+    "pair-one": 0,
+    "pair-two": 0
+  },
+  "distinct_routes_convention": "per pair, deduplicated within that pair on (entry point, sink host, hop sequence) across its own two walks. The two pairs' figures are reported side by side and are NEVER SUMMED, and neither is added to query 01's or query 02's published returns",
+  "never_summed_with": ["the other pair in this query", "01-callgraph-unguarded-driver-launch", "02-dataflow-unguarded-driver-launch"],
+  "spurious_count": {
+    "pair-one": 0,
+    "pair-two": 0
+  },
+  "spurious_definition": "a route is spurious ONLY where it passes an authorization or ACL predicate before reaching the sink, the predicate set being exactly the five named selectors below; this judges the query, not Spark. The selector block is byte-identical to queries 01 and 02, which is what makes the three counts comparable",
+  "expected_spurious_route_absent": {
+    "pair-one": true,
+    "pair-two": true
+  },
+  "expected_spurious_absence_basis": {
+    "pair-one": "structural",
+    "pair-two": "structural"
+  },
+  "expected_spurious_absence_detail": {
+    "pair-one": "structural - no call site of any of the five named predicates exists on this pair's own route surface (org.apache.spark.deploy.master.Master, org.apache.spark.deploy.worker.DriverRunner, org.apache.spark.deploy.worker.ProcessBuilderLike), so no route of this pair could have passed one. The predicate set exists and is invoked elsewhere in the program: 18 call sites graph-wide in 18 distinct callers",
+    "pair-two": "structural - no call site of any of the five named predicates exists on this pair's own route surface (org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet, org.apache.spark.deploy.master.Master, org.apache.spark.deploy.worker.DriverRunner, org.apache.spark.deploy.worker.ProcessBuilderLike), so no route of this pair could have passed one. The predicate set exists and is invoked elsewhere in the program: 18 call sites graph-wide in 18 distinct callers"
+  },
+  "expected_spurious_absence_statement": "per pair: no route in the emitted set passed an auth/ACL predicate as defined by these five named selectors, and where the basis is structural no call site of any of the five exists on that pair's own route surface at all, so no route could have passed one. The absence is therefore a property of where those five methods are invoked in the program, not evidence that the query filtered well - and it is a statement about this query's own output under this query's own definition of the term, about nothing else",
+  "bound_value": 12,
+  "bound_value_meaning": "MAX_CALL_DEPTH, the maximum call-graph hops walked from an entry point, applied per pair; it exceeds the hop count of either documented route, so a route absent within it is not an artefact of a short bound",
+  "bound_reached": {
+    "pair-one": true,
+    "pair-two": true
+  },
+  "bound_reached_any": true,
+  "bound_reached_any_convention": "a disjunction over the per-pair flags, never an arithmetic total",
+  "bounds": {
+    "MAX_CALL_DEPTH": 12,
+    "MAX_ROUTES_PER_PAIR": 64,
+    "MAX_EXPANSIONS_PER_ENTRY": 200000,
+    "MAX_STEPS_PER_PAIR": 400000,
+    "MAX_TOTAL_RETURNS": 256,
+    "MAX_ENTRY_POINTS_PER_PAIR": 16,
+    "MAX_CALL_SCAN": 200000,
+    "FANOUT_CALLEE_THRESHOLD": 32
+  },
+  "entry_points_discovered": {
+    "pair-one": 2,
+    "pair-two": 1
+  },
+  "entry_points_traversed": {
+    "pair-one": 2,
+    "pair-two": 1
+  },
+  "entry_points_truncated": {
+    "pair-one": 0,
+    "pair-two": 0
+  },
+  "entry_point_selection": "per pair, the UNION of two arms: the synthetic method named by the pair on every type matching the pair's synthetic type regex, and the source-level method named by the pair on the pair's exact handler type. Which arm carries the route is then MEASURED against the pair's declared body witness rather than assumed, because the two pairs answer it differently: a partial-function handler's body lives in a synthetic class, an ordinary method's is its own",
+  "pairs": [
+    {
+      "pair_id": "pair-one",
+      "label": "the standalone Master's driver-submission handler to the privileged process launch on the DriverRunner surface",
+      "invoked": true,
+      "handler": {
+        "type": "org.apache.spark.deploy.master.Master",
+        "method": "receiveAndReply",
+        "name_used_by_the_plan": "org.apache.spark.deploy.master.Master.receiveAndReply",
+        "source_file_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/master/Master.scala",
+        "source_line_at_the_pin": 409,
+        "synthetic_type_regex": "^org\\.apache\\.spark\\.deploy\\.master\\.Master\\$\\$anonfun\\$receiveAndReply\\$\\d+$",
+        "synthetic_method": "applyOrElse",
+        "synthetic_types_matched": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1"],
+        "body_witness": "createDriver",
+        "body_witness_in_the_synthetic_arm": true,
+        "body_witness_in_the_source_level_arm": false,
+        "base_type_declaring_the_method": "",
+        "base_declarations_excluded_by_the_type_selector": []
+      },
+      "sink": {
+        "callee_regex": "^(java\\.lang\\.ProcessBuilder\\.start|org\\.apache\\.spark\\.deploy\\.worker\\.ProcessBuilderLike\\.start).*",
+        "call_name": "start",
+        "host_type_regex": "^org\\.apache\\.spark\\.deploy\\.worker\\.(DriverRunner|ProcessBuilderLike).*",
+        "source_file_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala",
+        "source_line_at_the_pin": 240,
+        "calls_named_scanned": 1234,
+        "scan_truncated": false,
+        "call_sites_on_any_host": 52,
+        "call_sites_on_the_sink_host": 2,
+        "call_sites": ["org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean) -> org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process() #240", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process() -> java.lang.ProcessBuilder.start:java.lang.Process() #276"],
+        "sink_hosts": ["org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()"],
+        "shared_with_the_other_pair": true
+      },
+      "message_hops": [
+        {
+          "id": "LaunchDriver",
+          "message_type": "org.apache.spark.deploy.DeployMessages$LaunchDriver",
+          "constructor": "<init>",
+          "accessors": ["driverDesc", "driverId", "resources"],
+          "direction": "Master to Worker",
+          "source_anchor_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/master/Master.scala:1367",
+          "boundary_id": "B-rpc-LaunchDriver"
+        }
+      ],
+      "entry_points_discovered": 2,
+      "entry_points_traversed": 2,
+      "entry_points_truncated": 0,
+      "entry_points": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)", "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)"],
+      "distinct_routes": 0,
+      "spurious_count": 0,
+      "expected_spurious_route_absent": true,
+      "expected_spurious_absence_basis": "structural",
+      "expected_spurious_absence_detail": "structural - no call site of any of the five named predicates exists on this pair's own route surface (org.apache.spark.deploy.master.Master, org.apache.spark.deploy.worker.DriverRunner, org.apache.spark.deploy.worker.ProcessBuilderLike), so no route of this pair could have passed one. The predicate set exists and is invoked elsewhere in the program: 18 call sites graph-wide in 18 distinct callers",
+      "predicate_call_sites_on_its_own_route_surface": 0,
+      "route_surface_type_prefixes": ["org.apache.spark.deploy.master.Master", "org.apache.spark.deploy.worker.DriverRunner", "org.apache.spark.deploy.worker.ProcessBuilderLike"],
+      "covered_by_the_shared_route_surface_prefixes": true,
+      "bound_reached": true,
+      "boundary_count": 4,
+      "boundary_ids": ["B-rpc-LaunchDriver", "B-thread", "B-interface", "B-partial-function-pair-one"],
+      "boundaries_not_crossed_by_a_call_edge": ["B-rpc-LaunchDriver", "B-thread", "B-partial-function-pair-one"],
+      "walks": [
+        {
+          "pair_id": "pair-one",
+          "walk_id": "A-follows-fan-out",
+          "follows_dynamic_dispatch_fan_out": true,
+          "entry_points_traversed": 2,
+          "method_expansions": 19551,
+          "methods_visited": 20125,
+          "call_sites_considered": 21476,
+          "fan_out_sites_encountered": 48,
+          "fan_out_sites_not_followed": 0,
+          "max_depth_used": 12,
+          "depth_bound_reached": true,
+          "expansion_budget_exhausted": false,
+          "step_cap_reached": false,
+          "route_cap_reached": false,
+          "routes_returned": 0
+        },
+        {
+          "pair_id": "pair-one",
+          "walk_id": "B-fan-out-recorded",
+          "follows_dynamic_dispatch_fan_out": false,
+          "entry_points_traversed": 2,
+          "method_expansions": 2350,
+          "methods_visited": 2511,
+          "call_sites_considered": 4383,
+          "fan_out_sites_encountered": 31,
+          "fan_out_sites_not_followed": 31,
+          "max_depth_used": 12,
+          "depth_bound_reached": true,
+          "expansion_budget_exhausted": false,
+          "step_cap_reached": false,
+          "route_cap_reached": false,
+          "routes_returned": 0
+        }
+      ]
+    },
+    {
+      "pair_id": "pair-two",
+      "label": "the REST submit servlet's handleSubmit to the SAME privileged process launch on the DriverRunner surface",
+      "invoked": true,
+      "handler": {
+        "type": "org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet",
+        "method": "handleSubmit",
+        "name_used_by_the_plan": "StandaloneRestServer handleSubmit",
+        "source_file_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala",
+        "source_line_at_the_pin": 268,
+        "synthetic_type_regex": "^org\\.apache\\.spark\\.deploy\\.rest\\.StandaloneSubmitRequestServlet\\$\\$anonfun\\$handleSubmit\\$\\d+$",
+        "synthetic_method": "applyOrElse",
+        "synthetic_types_matched": [],
+        "body_witness": "DeployMessages$RequestSubmitDriver.<init>",
+        "body_witness_in_the_synthetic_arm": false,
+        "body_witness_in_the_source_level_arm": true,
+        "base_type_declaring_the_method": "org.apache.spark.deploy.rest.SubmitRequestServlet",
+        "base_declarations_excluded_by_the_type_selector": ["org.apache.spark.deploy.rest.SubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)"]
+      },
+      "sink": {
+        "callee_regex": "^(java\\.lang\\.ProcessBuilder\\.start|org\\.apache\\.spark\\.deploy\\.worker\\.ProcessBuilderLike\\.start).*",
+        "call_name": "start",
+        "host_type_regex": "^org\\.apache\\.spark\\.deploy\\.worker\\.(DriverRunner|ProcessBuilderLike).*",
+        "source_file_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala",
+        "source_line_at_the_pin": 240,
+        "calls_named_scanned": 1234,
+        "scan_truncated": false,
+        "call_sites_on_any_host": 52,
+        "call_sites_on_the_sink_host": 2,
+        "call_sites": ["org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean) -> org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process() #240", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process() -> java.lang.ProcessBuilder.start:java.lang.Process() #276"],
+        "sink_hosts": ["org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()"],
+        "shared_with_the_other_pair": true
+      },
+      "message_hops": [
+        {
+          "id": "RequestSubmitDriver",
+          "message_type": "org.apache.spark.deploy.DeployMessages$RequestSubmitDriver",
+          "constructor": "<init>",
+          "accessors": ["driverDescription"],
+          "direction": "the REST submit servlet to Master",
+          "source_anchor_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:276-277",
+          "boundary_id": "B-rpc-RequestSubmitDriver"
+        },
+        {
+          "id": "LaunchDriver",
+          "message_type": "org.apache.spark.deploy.DeployMessages$LaunchDriver",
+          "constructor": "<init>",
+          "accessors": ["driverDesc", "driverId", "resources"],
+          "direction": "Master to Worker",
+          "source_anchor_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/master/Master.scala:1367",
+          "boundary_id": "B-rpc-LaunchDriver"
+        }
+      ],
+      "entry_points_discovered": 1,
+      "entry_points_traversed": 1,
+      "entry_points_truncated": 0,
+      "entry_points": ["org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)"],
+      "distinct_routes": 0,
+      "spurious_count": 0,
+      "expected_spurious_route_absent": true,
+      "expected_spurious_absence_basis": "structural",
+      "expected_spurious_absence_detail": "structural - no call site of any of the five named predicates exists on this pair's own route surface (org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet, org.apache.spark.deploy.master.Master, org.apache.spark.deploy.worker.DriverRunner, org.apache.spark.deploy.worker.ProcessBuilderLike), so no route of this pair could have passed one. The predicate set exists and is invoked elsewhere in the program: 18 call sites graph-wide in 18 distinct callers",
+      "predicate_call_sites_on_its_own_route_surface": 0,
+      "route_surface_type_prefixes": ["org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet", "org.apache.spark.deploy.master.Master", "org.apache.spark.deploy.worker.DriverRunner", "org.apache.spark.deploy.worker.ProcessBuilderLike"],
+      "covered_by_the_shared_route_surface_prefixes": false,
+      "bound_reached": true,
+      "boundary_count": 5,
+      "boundary_ids": ["B-rpc-RequestSubmitDriver", "B-rpc-LaunchDriver", "B-thread", "B-interface", "B-partial-function-pair-two"],
+      "boundaries_not_crossed_by_a_call_edge": ["B-rpc-RequestSubmitDriver", "B-rpc-LaunchDriver", "B-thread"],
+      "walks": [
+        {
+          "pair_id": "pair-two",
+          "walk_id": "A-follows-fan-out",
+          "follows_dynamic_dispatch_fan_out": true,
+          "entry_points_traversed": 1,
+          "method_expansions": 10029,
+          "methods_visited": 10106,
+          "call_sites_considered": 8949,
+          "fan_out_sites_encountered": 25,
+          "fan_out_sites_not_followed": 0,
+          "max_depth_used": 12,
+          "depth_bound_reached": true,
+          "expansion_budget_exhausted": false,
+          "step_cap_reached": false,
+          "route_cap_reached": false,
+          "routes_returned": 0
+        },
+        {
+          "pair_id": "pair-two",
+          "walk_id": "B-fan-out-recorded",
+          "follows_dynamic_dispatch_fan_out": false,
+          "entry_points_traversed": 1,
+          "method_expansions": 732,
+          "methods_visited": 766,
+          "call_sites_considered": 1230,
+          "fan_out_sites_encountered": 12,
+          "fan_out_sites_not_followed": 12,
+          "max_depth_used": 12,
+          "depth_bound_reached": true,
+          "expansion_budget_exhausted": false,
+          "step_cap_reached": false,
+          "route_cap_reached": false,
+          "routes_returned": 0
+        }
+      ]
+    }
+  ],
+  "graph": {
+    "path_source": "HARNESS_CPG",
+    "named_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-002_1060ea/harness/cpg/spark.cpg",
+    "resolved_path": "/opt/blitzy-harness/cpg/spark.cpg",
+    "named_path_is_symlink": true,
+    "byte_size_following_the_link": 548118435,
+    "byte_size_without_following": 33,
+    "sha256": "f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53",
+    "identity_record_of_account": "/opt/blitzy-harness/provision-log/cpg-frontend.log",
+    "identity_record_source": "HARNESS_CPG_RECORD",
+    "identity_recorded_byte_size": 548118435,
+    "identity_recorded_sha256": "f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53",
+    "identity_reverified_before_load": true,
+    "identity_record_repo_relative": "harness/artifacts/logs/cpg-frontend.log",
+    "identity_record_repo_relative_byte_size": 541255894,
+    "identity_record_repo_relative_sha256": "26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc",
+    "identity_record_repo_relative_agrees": false,
+    "identity_divergence": "the repo-relative record harness/artifacts/logs/cpg-frontend.log states bytes=541255894 sha256=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc, which is NOT the graph on this host (bytes=548118435 sha256=f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53). That record is a committed deliverable describing the graph of the provisioning that wrote it; the record of account for THIS load is /opt/blitzy-harness/provision-log/cpg-frontend.log, the frontend's own write-time record for the graph actually loaded, and the load was verified against it. Both pairs are recorded with their provenance and neither is discarded",
+    "aap_named_path_reconciliation": "same file (equal resolved target)",
+    "methods": 1399866,
+    "type_declarations": 119920,
+    "files": 45037
+  },
+  "runtime": {
+    "jdk_major": "21",
+    "jvm_version": "21.0.12.1+1-LTS",
+    "heap_actually_used_bytes": 68719476736,
+    "heap_floor_bytes": 68719476736,
+    "loader": "importCpg into a switched workspace; the frontend-then-importCpg route is mandated because the alternative spawns a second JVM at the same heap",
+    "workspace": "queries/joern/.workspace",
+    "heap_bound_jvm_position": "the Stage 5 probe, one of the four heap-bound JVM invocations this run records separately (frontend build, importCpg verification load, Stage 3 Joern runner, this probe)",
+    "command": "cd <scratch outside the repository> && HARNESS_REPO_ROOT=<repo> JAVA_HOME=\"$JAVA_HOME_21\" JAVA_TOOL_OPTIONS=\"-Xmx64g\" SL_LOGGING_LEVEL=WARN joern --script <repo>/queries/joern/03-parameterized-handler-sink-pairs.sc -J-Xmx64g < /dev/null",
+    "parameters_passed_on_the_command_line": "none: the pairs are declared as named constants in the query source and both are invoked in a single run, so the invocation is reproducible from this command alone"
+  },
+  "predicate_selector": {
+    "type": "org.apache.spark.SecurityManager",
+    "name_regex": "^(check.*Permissions|acls.*|isAuthenticationEnabled)$",
+    "setter_suffix_excluded": "_$eq",
+    "named_five": ["aclsEnabled", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "block_is_byte_identical_to": ["queries/joern/01-callgraph-unguarded-driver-launch.sc", "queries/joern/02-dataflow-unguarded-driver-launch.sc"],
+    "type_method_nodes": 252,
+    "type_distinct_method_names": 107,
+    "step1_broad_matches": ["aclsEnabled", "aclsOn", "aclsOn_$eq", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "step2_setters_excluded": ["aclsOn_$eq"],
+    "step2_remaining": ["aclsEnabled", "aclsOn", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "step3_non_predicate_residue_dropped": ["aclsOn"],
+    "final_names": ["aclsEnabled", "checkAdminPermissions", "checkModifyPermissions", "checkUIViewPermissions", "isAuthenticationEnabled"],
+    "final_full_names": ["org.apache.spark.SecurityManager.aclsEnabled:boolean()", "org.apache.spark.SecurityManager.checkAdminPermissions:boolean(java.lang.String)", "org.apache.spark.SecurityManager.checkModifyPermissions:boolean(java.lang.String)", "org.apache.spark.SecurityManager.checkUIViewPermissions:boolean(java.lang.String)", "org.apache.spark.SecurityManager.isAuthenticationEnabled:boolean()"],
+    "call_sites_graph_wide": 18,
+    "distinct_callers_graph_wide": 18,
+    "shared_route_surface_type_prefixes": ["org.apache.spark.deploy.master.Master", "org.apache.spark.deploy.rest.StandaloneRestServer", "org.apache.spark.deploy.worker.DriverRunner"],
+    "call_sites_on_the_shared_route_surface": 0,
+    "call_sites_on_each_pair_own_route_surface": {
+      "pair-one": 0,
+      "pair-two": 0
+    },
+    "handler_types_not_covered_by_the_shared_prefixes": ["org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet"]
+  },
+  "boundaries": [
+    {
+      "boundary_id": "B-rpc-LaunchDriver",
+      "boundary_kind": "rpc",
+      "cited_by_pairs": ["pair-one", "pair-two"],
+      "crossed_by_a_call_edge": false
+    },
+    {
+      "boundary_id": "B-thread",
+      "boundary_kind": "thread",
+      "cited_by_pairs": ["pair-one", "pair-two"],
+      "crossed_by_a_call_edge": false
+    },
+    {
+      "boundary_id": "B-interface",
+      "boundary_kind": "interface",
+      "cited_by_pairs": ["pair-one", "pair-two"],
+      "crossed_by_a_call_edge": true
+    },
+    {
+      "boundary_id": "B-partial-function-pair-one",
+      "boundary_kind": "partial-function",
+      "cited_by_pairs": ["pair-one"],
+      "crossed_by_a_call_edge": false
+    },
+    {
+      "boundary_id": "B-rpc-RequestSubmitDriver",
+      "boundary_kind": "rpc",
+      "cited_by_pairs": ["pair-two"],
+      "crossed_by_a_call_edge": false
+    },
+    {
+      "boundary_id": "B-partial-function-pair-two",
+      "boundary_kind": "partial-function",
+      "cited_by_pairs": ["pair-two"],
+      "crossed_by_a_call_edge": true
+    }
+  ],
+  "boundary_ids_by_pair": {
+    "pair-one": ["B-rpc-LaunchDriver", "B-thread", "B-interface", "B-partial-function-pair-one"],
+    "pair-two": ["B-rpc-RequestSubmitDriver", "B-rpc-LaunchDriver", "B-thread", "B-interface", "B-partial-function-pair-two"]
+  },
+  "boundary_count_by_pair": {
+    "pair-one": 4,
+    "pair-two": 5
+  },
+  "boundaries_not_crossed_by_pair": {
+    "pair-one": ["B-rpc-LaunchDriver", "B-thread", "B-partial-function-pair-one"],
+    "pair-two": ["B-rpc-RequestSubmitDriver", "B-rpc-LaunchDriver", "B-thread"]
+  },
+  "shared_hops_are_one_measurement_cited_by_both_pairs": true,
+  "duplicate_formulation": "partial_duplicate",
+  "duplicate_formulation_summary": "A duplicate of query 01's formulation ON PAIR ONE, not a duplicate as a whole, and not a duplicate of query 02 in any instantiation. The scope of the duplication is stated rather than hidden: it is exactly the pair-one instantiation, and it is what makes the parameterized form's second instantiation the part that is new.",
+  "duplicate_formulation_detail": [
+      {
+        "against": "01-callgraph-unguarded-driver-launch",
+        "status": "duplicate_formulation_on_pair_one",
+        "scope_of_the_duplication": "pair-one only",
+        "basis": "SAID PLAINLY: instantiated on pair one this query IS query 01's formulation restated in parameterized form, and the evidence is measured rather than asserted - the same edge kind (CALL edges only, no data edge and no flow engine), the same entry-point resolution (the synthetic partial-function method together with the source-level method), the same sink constraint, the same bound value 12, the same two walk modes, and an API construct list whose set difference against query 01's published list is empty in BOTH directions. On this run the two also agree on pair one's entry-point set, on its distinct-route count and on the four boundary verdicts after the declared id translation. WHAT IS NOT A DUPLICATE: the query as a whole. It takes the handler/sink pair as a parameter and is invoked on a SECOND pair (pair-two, org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit) that query 01 does not address at all, it measures 5 boundaries on that pair against 4 on pair one, and it models one hop query 01 never reaches - the servlet's own message send, whose producer and consumer ends are measured in stage I. RECONCILED WITH WHAT QUERY 01 PUBLISHED: its envelope records 'not_duplicate' against this query, on the ground that this query covers a second pair and a different target set. This report AGREES at that scope - as wholes the two are not duplicates - and adds the pair-one scope, which query 01 could not have measured because the parameterized form did not exist when it ran. The two verdicts are the same finding at two scopes rather than a disagreement, and the scope is named in both directions so neither reads as a contradiction of the other. Neither query's returns are added to the other's anywhere: they are reported side by side, per pair, and NEVER SUMMED.",
+        "evidence": {
+          "api_construct_sets_identical": true,
+          "api_constructs_only_here": [],
+          "api_constructs_only_in_the_sibling": [],
+          "api_constructs_shared": 28,
+          "bound_value_here": 12,
+          "bound_value_published_by_the_sibling": 12,
+          "bound_values_agree": true,
+          "pair_one_entry_points_here": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)", "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)"],
+          "entry_points_published_by_the_sibling_transcribed": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)", "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)"],
+          "entry_point_sets_agree": true,
+          "pair_one_distinct_routes_here": 0,
+          "distinct_routes_published_by_the_sibling_transcribed": 0,
+          "distinct_route_counts_agree": true,
+          "pair_one_boundaries_not_crossed_translated_to_the_sibling_ids": ["B1-rpc", "B2-thread", "B4-partial-function"],
+          "boundaries_not_crossed_published_by_the_sibling_transcribed": ["B1-rpc", "B2-thread", "B4-partial-function"],
+          "boundary_verdicts_agree": true,
+          "boundary_id_translation": ["B-interface -> B3-interface", "B-partial-function-pair-one -> B4-partial-function", "B-rpc-LaunchDriver -> B1-rpc", "B-thread -> B2-thread"],
+          "sibling_published_verdict_against_this_query_transcribed": "not_duplicate",
+          "verdicts_are_the_same_finding_at_two_scopes": true,
+          "sibling_figures_are_transcribed_not_measured_here": true,
+          "sibling_figures_were_measured_against_the_graph_of_its_own_run": true
+        }
+      },
+      {
+        "against": "02-dataflow-unguarded-driver-launch",
+        "status": "not_duplicate",
+        "scope_of_the_duplication": "none",
+        "basis": "A different formulation over different edges and different nodes. Query 02 traverses reaching-definition (data) edges through the OSS dataflow layer and selects PARAMETER and EXPRESSION nodes as its ends; this query traverses CALL edges and selects whole METHODS, and it loads no flow engine at all. Auditable corroboration, computed here as a set difference against query 02's published list rather than eyeballed: 18 of query 02's 42 API constructs do not appear in this query's list (AstNode.code, AstNode.label, AstNode.lineNumber, Call.argument, Call.receiver, CfgNode.method, EngineConfig.maxCallDepth, EngineContext.config, EngineContext.copy, EngineContext.semantics, Method.call, Method.parameter, MethodParameterIn.index, MethodParameterIn.method, MethodParameterIn.name, MethodParameterIn.typeFullName, Path.elements, Traversal.reachableByFlows), and 4 of this query's do not appear in query 02's (Call.code, Call.order, Method.callOut, NoResolve.getCalledMethodsAsTraversal). The two also carry different bounds - this query's bound value is 12 call-graph hops, query 02 published 6 for its own flow-call depth - so the two numbers are not even the same kind of quantity. Their returns are likewise never summed.",
+        "evidence": {
+          "api_constructs_only_here": ["Call.code", "Call.order", "Method.callOut", "NoResolve.getCalledMethodsAsTraversal"],
+          "api_constructs_only_in_the_sibling": ["AstNode.code", "AstNode.label", "AstNode.lineNumber", "Call.argument", "Call.receiver", "CfgNode.method", "EngineConfig.maxCallDepth", "EngineContext.config", "EngineContext.copy", "EngineContext.semantics", "Method.call", "Method.parameter", "MethodParameterIn.index", "MethodParameterIn.method", "MethodParameterIn.name", "MethodParameterIn.typeFullName", "Path.elements", "Traversal.reachableByFlows"],
+          "api_constructs_shared": 24,
+          "bound_value_here": 12,
+          "bound_value_published_by_the_sibling": 6,
+          "bound_values_are_the_same_kind_of_quantity": false,
+          "distinct_routes_published_by_the_sibling_transcribed": 0,
+          "flow_engine_loaded_here": false,
+          "sibling_published_verdict_against_this_query_transcribed": "not_duplicate",
+          "verdicts_agree_in_both_directions": true,
+          "sibling_figures_are_transcribed_not_measured_here": true
+        }
+      }
+    ],
+  "effort_query_revisions_committed": 1,
+  "effort_query_revisions_convention": "commits touching queries/joern/03-parameterized-handler-sink-pairs.sc from its first appearance to the end of the probe",
+  "effort_joern_api_constructs": ["Call.code", "Call.dispatchType", "Call.lineNumber", "Call.method", "Call.methodFullName", "Call.name", "Call.order", "Method.callIn", "Method.callOut", "Method.fullName", "Method.lineNumber", "Method.name", "Method.typeDecl", "NoResolve.getCalledMethodsAsTraversal", "Steps.fullName", "Steps.fullNameExact", "Steps.l", "Steps.nameExact", "Steps.size", "Steps.take", "TypeDecl.fullName", "TypeDecl.method", "cpg.call", "cpg.file", "cpg.method", "cpg.typeDecl", "importCpg", "switchWorkspace"],
+  "effort_joern_api_construct_count": 28,
+  "effort_joern_api_constructs_not_used_by_01": [],
+  "effort_joern_api_constructs_not_used_by_02": ["Call.code", "Call.order", "Method.callOut", "NoResolve.getCalledMethodsAsTraversal"],
+  "effort_parameterizability": "passed",
+  "parameterizability": {
+    "measure": "parameterizability",
+    "owner": "03-parameterized-handler-sink-pairs",
+    "pass_condition": "passes ONLY where the parameterized query is actually invoked on the second named pair and that invocation's result is captured in this query's result files and console log; an empty result from a real invocation satisfies it, a skipped invocation does not, and a parameter list that merely exists does not",
+    "verdict": "passed",
+    "pairs_declared": 2,
+    "pairs_invoked": 2,
+    "pair_iteration_order": ["pair-one", "pair-two"],
+    "first_pair_id": "pair-one",
+    "first_pair_outcome": "invoked; entry points traversed 2 of 2; distinct routes 0; spurious 0; boundaries measured or cited 4",
+    "second_pair_id": "pair-two",
+    "second_pair_handler": "org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit (core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:268 at the pin)",
+    "second_pair_sink": "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240 at the pin",
+    "second_pair_invoked": true,
+    "second_pair_outcome": "invoked; entry points traversed 1 of 1; walks run A-follows-fan-out and B-fan-out-recorded; call sites considered A-follows-fan-out=8949, B-fan-out-recorded=1230; distinct routes 0; spurious 0; boundaries measured or cited 5 (B-rpc-RequestSubmitDriver, B-rpc-LaunchDriver, B-thread, B-interface, B-partial-function-pair-two)",
+    "second_pair_result_captured_in": ["queries/joern/results/03-parameterized-handler-sink-pairs.json", "queries/joern/results/03-parameterized-handler-sink-pairs.md", "harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log"],
+    "statement": "the measure is settled by an invocation, not by a parameter list: both pairs were invoked in this single run, in the declared order, and the second pair's selection, walk counters, boundary measurements, distinct-route count and spurious count are all published above and in both result files. An empty result from a real invocation satisfies the measure; a skipped invocation would not, and a malformed pair aborts the run rather than being passed over"
+  },
+  "total_returns_cap_reached": false,
+  "records": [
+    {
+        "kind": "boundary",
+        "boundary_id": "B-rpc-LaunchDriver",
+        "boundary_kind": "rpc",
+        "cited_by_pairs": ["pair-one", "pair-two"],
+        "one_measurement_cited_once_per_citing_pair": true,
+        "hop": "RpcEndpointRef send of org.apache.spark.deploy.DeployMessages$LaunchDriver, Master to Worker, at core/src/main/scala/org/apache/spark/deploy/master/Master.scala:1367",
+        "from_end": "org.apache.spark.deploy.master.Master.launchDriver:void(org.apache.spark.deploy.master.WorkerInfo,org.apache.spark.deploy.master.DriverInfo)",
+        "to_end": "org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "reason": "a message send is not a call: the sender enqueues a value on an endpoint reference and the receiving handler is dispatched later, so no CALL edge joins the two ends",
+        "modelling": "modelled explicitly by pairing on the MESSAGE TYPE - call sites of org.apache.spark.deploy.DeployMessages$LaunchDriver.<init> are the producer end and call sites of its field accessors (driverDesc, driverId, resources) are the consumer end, with the message type's and companion's own generated machinery excluded by owning type",
+        "crossed_by_a_call_edge": false,
+        "measured": {
+          "message_type": "org.apache.spark.deploy.DeployMessages$LaunchDriver",
+          "direction": "Master to Worker",
+          "source_anchor_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/master/Master.scala:1367",
+          "producer_call_sites": 1,
+          "consumer_call_sites": 3,
+          "producers": ["org.apache.spark.deploy.master.Master.launchDriver:void(org.apache.spark.deploy.master.WorkerInfo,org.apache.spark.deploy.master.DriverInfo)"],
+          "consumers": ["org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)"],
+          "producer_call_site_graph_lines": ["org.apache.spark.deploy.master.Master.launchDriver:void(org.apache.spark.deploy.master.WorkerInfo,org.apache.spark.deploy.master.DriverInfo)#1367"],
+          "consumer_call_site_graph_lines": ["org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)#687"],
+          "direct_call_edge_producer_to_consumer": false,
+          "producer_end_is_the_declared_entry_point_of": [],
+          "consumer_end_is_the_declared_entry_point_of": []
+        }
+      },
+    {
+        "kind": "boundary",
+        "boundary_id": "B-thread",
+        "boundary_kind": "thread",
+        "cited_by_pairs": ["pair-one", "pair-two"],
+        "one_measurement_cited_once_per_citing_pair": true,
+        "hop": "org.apache.spark.deploy.worker.DriverRunner.start calls Thread.start(); the route continues in run() on the anonymous Thread subclass (DriverRunner.scala:123 and :90 at the pin)",
+        "from_end": "org.apache.spark.deploy.worker.DriverRunner.start:void()",
+        "to_end": "org.apache.spark.deploy.worker.DriverRunner$$anon$2.run:void()",
+        "reason": "Thread.start() -> run() is a JVM scheduling relation, not a call: the start frame returns immediately and run() is entered on another thread, so no CALL edge joins them",
+        "modelling": "not modelled - the two ends are reported as measured and the hop is left uncrossed",
+        "crossed_by_a_call_edge": false,
+        "measured": {
+          "thread_start_call_sites": 1,
+          "thread_start_call_site_graph_lines": ["org.apache.spark.deploy.worker.DriverRunner.start:void()#89"],
+          "thread_start_dispatch_types": ["DYNAMIC_DISPATCH"],
+          "callees_of_thread_start": ["org.apache.spark.deploy.worker.DriverRunner$$anon$2.start:void()"],
+          "thread_body_methods": ["org.apache.spark.deploy.worker.DriverRunner$$anon$2.run:void()"],
+          "call_edge_start_to_run": false
+        }
+      },
+    {
+        "kind": "boundary",
+        "boundary_id": "B-interface",
+        "boundary_kind": "interface",
+        "cited_by_pairs": ["pair-one", "pair-two"],
+        "one_measurement_cited_once_per_citing_pair": true,
+        "hop": "the launch call site invokes the ABSTRACT ProcessBuilderLike.start (DriverRunner.scala:270 at the pin); the JDK launch is reached only through the anonymous implementation at :276",
+        "from_end": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean), org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+        "to_end": "java.lang.ProcessBuilder.start:java.lang.Process(), org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+        "reason": "an interface invocation names the declaring type, so linking it to an implementation needs the type hierarchy rather than the call's own name",
+        "modelling": "not modelled by this query - whether the hop is crossed is a property of the graph's call linker and is reported as measured",
+        "crossed_by_a_call_edge": true,
+        "measured": {
+          "sink_call_sites": 2,
+          "sink_call_dispatch_types": ["DYNAMIC_DISPATCH"],
+          "callees_of_sink_call_sites": ["java.lang.ProcessBuilder.start:java.lang.Process()", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()", "org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()"],
+          "abstract_declarations_reached": ["org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()"],
+          "concrete_implementations_reached": ["java.lang.ProcessBuilder.start:java.lang.Process()", "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()"],
+          "jdk_launch_method_nodes_present": 1,
+          "call_edge_interface_to_implementation": true
+        }
+      },
+    {
+        "kind": "boundary",
+        "boundary_id": "B-partial-function-pair-one",
+        "boundary_kind": "partial-function",
+        "cited_by_pairs": ["pair-one"],
+        "one_measurement_cited_once_per_citing_pair": true,
+        "hop": "org.apache.spark.deploy.master.Master.receiveAndReply (core/src/main/scala/org/apache/spark/deploy/master/Master.scala:409 at the pin): where the graph carries this handler's body",
+        "from_end": "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+        "to_end": "org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "reason": "a Scala handler that returns PartialFunction[Any, Unit] compiles its case bodies into a synthetic class, so for that shape the graph's entry point is the synthetic applyOrElse and NOT a method of the handler's own name; an ordinary method has no such class at all",
+        "modelling": "modelled by selecting BOTH arms - the synthetic applyOrElse on every type matching ^org\\.apache\\.spark\\.deploy\\.master\\.Master\\$\\$anonfun\\$receiveAndReply\\$\\d+$, and the source-level receiveAndReply on org.apache.spark.deploy.master.Master - and then MEASURING which of them carries the declared body witness 'createDriver'. Resolved here as: the SYNTHETIC arm carries the route: the handler returns a partial function, its body compiles into org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1), and the source-level method of the same name only constructs the partial function. The crossed flag is read strictly: it is true only where a CALL edge joins the source-level method to the body, which is the hop this boundary names. Where no synthetic class exists the hop does not arise at all, and the flag then simply records that the source-level method - which IS the body - reaches it; hop_arises_for_this_handler distinguishes the two cases",
+        "crossed_by_a_call_edge": false,
+        "measured": {
+          "hop_arises_for_this_handler": true,
+          "synthetic_class_exists_for_this_handler": true,
+          "synthetic_type_matches": 1,
+          "synthetic_types": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1"],
+          "synthetic_entry_methods": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)"],
+          "source_level_methods": ["org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)"],
+          "base_declarations_excluded_by_the_type_selector": [],
+          "synthetic_arm_call_site_count": 131,
+          "source_level_arm_call_site_count": 1,
+          "body_witness": "createDriver",
+          "body_witness_found_in_the_synthetic_arm": true,
+          "body_witness_found_in_the_source_level_arm": false,
+          "selector_resolution": "the SYNTHETIC arm carries the route: the handler returns a partial function, its body compiles into org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1), and the source-level method of the same name only constructs the partial function"
+        }
+      },
+    {
+        "kind": "boundary",
+        "boundary_id": "B-rpc-RequestSubmitDriver",
+        "boundary_kind": "rpc",
+        "cited_by_pairs": ["pair-two"],
+        "one_measurement_cited_once_per_citing_pair": true,
+        "hop": "RpcEndpointRef send of org.apache.spark.deploy.DeployMessages$RequestSubmitDriver, the REST submit servlet to Master, at core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:276-277",
+        "from_end": "org.apache.spark.deploy.ClientEndpoint.onStart:void(), org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)",
+        "to_end": "org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)",
+        "reason": "a message send is not a call: the sender enqueues a value on an endpoint reference and the receiving handler is dispatched later, so no CALL edge joins the two ends",
+        "modelling": "modelled explicitly by pairing on the MESSAGE TYPE - call sites of org.apache.spark.deploy.DeployMessages$RequestSubmitDriver.<init> are the producer end and call sites of its field accessors (driverDescription) are the consumer end, with the message type's and companion's own generated machinery excluded by owning type",
+        "crossed_by_a_call_edge": false,
+        "measured": {
+          "message_type": "org.apache.spark.deploy.DeployMessages$RequestSubmitDriver",
+          "direction": "the REST submit servlet to Master",
+          "source_anchor_at_the_pin": "core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:276-277",
+          "producer_call_sites": 2,
+          "consumer_call_sites": 1,
+          "producers": ["org.apache.spark.deploy.ClientEndpoint.onStart:void()", "org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)"],
+          "consumers": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)"],
+          "producer_call_site_graph_lines": ["org.apache.spark.deploy.ClientEndpoint.onStart:void()#117", "org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)#277"],
+          "consumer_call_site_graph_lines": ["org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)#410"],
+          "direct_call_edge_producer_to_consumer": false,
+          "producer_end_is_the_declared_entry_point_of": ["pair-two"],
+          "consumer_end_is_the_declared_entry_point_of": ["pair-one"]
+        }
+      },
+    {
+        "kind": "boundary",
+        "boundary_id": "B-partial-function-pair-two",
+        "boundary_kind": "partial-function",
+        "cited_by_pairs": ["pair-two"],
+        "one_measurement_cited_once_per_citing_pair": true,
+        "hop": "org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit (core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:268 at the pin): where the graph carries this handler's body",
+        "from_end": "org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)",
+        "to_end": "",
+        "reason": "a Scala handler that returns PartialFunction[Any, Unit] compiles its case bodies into a synthetic class, so for that shape the graph's entry point is the synthetic applyOrElse and NOT a method of the handler's own name; an ordinary method has no such class at all",
+        "modelling": "modelled by selecting BOTH arms - the synthetic applyOrElse on every type matching ^org\\.apache\\.spark\\.deploy\\.rest\\.StandaloneSubmitRequestServlet\\$\\$anonfun\\$handleSubmit\\$\\d+$, and the source-level handleSubmit on org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet - and then MEASURING which of them carries the declared body witness 'DeployMessages$RequestSubmitDriver.<init>'. Resolved here as: the SOURCE-LEVEL arm carries the route: no type matching ^org\\.apache\\.spark\\.deploy\\.rest\\.StandaloneSubmitRequestServlet\\$\\$anonfun\\$handleSubmit\\$\\d+$ exists, because this handler is an ordinary method rather than a partial function, so its body is its own and the synthetic arm is legitimately empty. The crossed flag is read strictly: it is true only where a CALL edge joins the source-level method to the body, which is the hop this boundary names. Where no synthetic class exists the hop does not arise at all, and the flag then simply records that the source-level method - which IS the body - reaches it; hop_arises_for_this_handler distinguishes the two cases",
+        "crossed_by_a_call_edge": true,
+        "measured": {
+          "hop_arises_for_this_handler": false,
+          "synthetic_class_exists_for_this_handler": false,
+          "synthetic_type_matches": 0,
+          "synthetic_types": [],
+          "synthetic_entry_methods": [],
+          "source_level_methods": ["org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)"],
+          "base_declarations_excluded_by_the_type_selector": ["org.apache.spark.deploy.rest.SubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)"],
+          "synthetic_arm_call_site_count": 0,
+          "source_level_arm_call_site_count": 27,
+          "body_witness": "DeployMessages$RequestSubmitDriver.<init>",
+          "body_witness_found_in_the_synthetic_arm": false,
+          "body_witness_found_in_the_source_level_arm": true,
+          "selector_resolution": "the SOURCE-LEVEL arm carries the route: no type matching ^org\\.apache\\.spark\\.deploy\\.rest\\.StandaloneSubmitRequestServlet\\$\\$anonfun\\$handleSubmit\\$\\d+$ exists, because this handler is an ordinary method rather than a partial function, so its body is its own and the synthetic arm is legitimately empty"
+        }
+      }
+  ]
+}
