@@ -454,12 +454,12 @@
     {
       "behaviour": "the chained uriBaseId walk through run.originalUriBaseIds, with its cycle and depth guards",
       "why_absent": "this fixture emits no originalUriBaseIds at all, so the walk reports outcome 'absent' and the metadata fallback is the live path for every relative reference",
-      "cover_with": "oss-scan-results/adapter-tests/fixtures/semgrep.sarif, which does carry a run.originalUriBaseIds, plus the reject-sarif-uribaseid-{cycle,overdepth,invalid-uri,missing-base,relative-no-absolute-ancestor} fixtures"
+      "cover_with": "oss-scan-results/adapter-tests/fixtures/derived-semgrep-features.sarif, which does carry a run.originalUriBaseIds -- the captured semgrep.sarif emits none, as this fixture's own source artifact does not, plus the reject-sarif-uribaseid-{cycle,overdepth,invalid-uri,missing-base,relative-no-absolute-ancestor} fixtures"
     },
     {
       "behaviour": "ascending-numeric CWE and CVE selection where producer order disagrees with numeric order",
       "why_absent": "every rule here carries an empty properties.tags array and no properties.cwe, so no identifier of either kind exists to select between",
-      "cover_with": "oss-scan-results/adapter-tests/fixtures/opengrep.sarif and semgrep.sarif, whose rules carry CWE and CVE tokens"
+      "cover_with": "oss-scan-results/adapter-tests/fixtures/opengrep.sarif and semgrep.sarif, whose rules carry CWE tokens, and oss-scan-results/adapter-tests/fixtures/derived-semgrep-features.sarif, whose rule fixture.adapter-tests.semgrep.multi-cve-tag-ordering carries three CVE tokens in a producer order that disagrees with the numeric order -- neither capture carries a CVE identifier at all"
     },
     {
       "behaviour": "the non-filesystem coordinate serialization <container-relative-to-root>!<member>, and a path outside the root keeping its ../ segments",
@@ -469,7 +469,7 @@
     {
       "behaviour": "a kept row with in_scope false",
       "why_absent": "all four surviving paths fall inside the twelve authoritative globs and none contains the literal src/test, so rows_out_of_scope is 0",
-      "cover_with": "a derived fixture naming a path outside the globs -- kept with in_scope false and counted, never rejected -- and oss-scan-results/adapter-tests/fixtures/joern.json for the test-JAR case"
+      "cover_with": "a derived fixture naming a path outside the globs -- kept with in_scope false and counted, never rejected -- and oss-scan-results/adapter-tests/fixtures/derived-joern-features.json for the test-JAR case, whose authored MasterSuite record resolves into core/src/test and is kept with in_scope false"
     },
     {
       "behaviour": "the seven rejection classes this adapter can produce that are not exercised here",

@@ -22,7 +22,10 @@
 tool=opengrep
 
 # THE INVOCATION. Invoked directly and individually: the runner below was run on its own,
-# with no arguments, one tool at a time, never through an orchestrator (AAP 0.8.1).
+# with no arguments, never through an orchestrator (AAP 0.8.1), and one tool at a time
+# within this clone. Global sequencing across the run FAILED and is corrected in the
+# invocation_correction field below; this invocation's own window overlapped no other
+# tool's, so the failure is a property of the run rather than of this invocation.
 # harness/bin/ holds exactly the nine runners and deliberately no orchestrator, and no
 # run-all script exists or was written -- an orchestrator's continue-on-error sequencing
 # would carry a run past a condition that must halt it, and it collapses per-tool
@@ -32,7 +35,9 @@ tool=opengrep
 # identifies the harness tree the invoked script belongs to.
 runner=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-008_c55d9d/harness/bin/run-opengrep.sh
 runner_repo_relative=harness/bin/run-opengrep.sh
-invocation=direct, no arguments, one tool at a time, never through an orchestrator
+invocation=direct, no arguments, never through an orchestrator, and one tool at a time WITHIN THIS CLONE; global sequencing across the run FAILED - see invocation_correction
+invocation_superseded_value=direct, no arguments, one tool at a time, never through an orchestrator
+invocation_correction=Direct invocation, no arguments and no orchestrator are unchanged: both were established by inspection of the runner and by this lane's own record. What the superseded value additionally asserted - one tool at a time - holds only inside the clone this runner ran in (w-008_c55d9d). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-25T01:23:16Z-01:39:00Z) overlapped NO other tool's window - it stands alone, later than every other invocation. The global failure is therefore a property of the run rather than of this invocation, and it is recorded here because the superseded value asserted a global property this invocation cannot establish. AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under "Facts common to all nine", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing here was repaired: no invocation was re-run to obtain a disjoint window.
 invocation_argument_count=0
 
 # WHAT THE INVOCATION WAS GIVEN, AND WHAT IT WAS NOT. No runner file and no baked flag was

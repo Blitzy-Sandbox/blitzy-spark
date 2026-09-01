@@ -17,10 +17,38 @@ independently. No rule therefore forces anything into this file's scope, and inv
 one would be fabrication. Enterprise-standard best practice applies in their place, and
 their absence is expressly **not** licence to lower the bar. Concretely, held to here:
 both top-level shapes are covered by real committed fixtures rather than by one shape
-plus an argument; the passes-and-skips exclusion is asserted from a fixture that actually
-contains three passed checks and one skipped check; every rejection class is asserted **by
-name** against a member of ``paths.REJECT_CLASSES``; and every row is compared field by
-field over the twelve fields iterated from ``emit.FIELDS`` rather than spot-checked.
+plus an argument; the positive fixture is the runner's own artifact and is asserted to be,
+against ``harness/artifacts/raw/checkov.json`` rather than against a digest this tree
+records about itself; the passes-and-skips exclusion is asserted from a fixture that
+actually contains three passed checks and one skipped check, and it is named as derived
+because the artifact carries neither bucket; every rejection class is asserted **by name**
+against a member of ``paths.REJECT_CLASSES``; and every row is compared field by field over
+the twelve fields iterated from ``emit.FIELDS`` rather than spot-checked.
+
+The three positive fixtures, and which claim each one makes
+----------------------------------------------------------
+``fixtures/checkov.json`` is the **capture**: the whole of
+``harness/artifacts/raw/checkov.json``, byte for byte, so its sha256 equals the artifact's.
+That is the strongest provenance available -- not a selection asserted to be faithful, but
+the same bytes -- and :class:`RawArtifactProvenanceTests` measures it, along with the
+envelope AAP 0.6.2 requires preserved: ``check_type``, the exact set of buckets present in
+``results`` and the tool's own ``summary``.
+
+``fixtures/checkov-alt-shape.json`` is **derived by shape transformation only**: the
+capture's six failed checks as whole unedited objects, in order, inside the
+multi-framework array form. :class:`SourceDocumentEqualityTests` compares the two
+documents' ``failed_checks`` directly, as whole objects and in order, before any adapter
+runs -- so an edit to a field the adapter never reads cannot hide behind a passing row
+comparison.
+
+``fixtures/derived-checkov-features.json`` is **derived** and says so. The runner invokes
+checkov with ``--compact``, so the artifact's ``results`` object carries ``failed_checks``
+alone: no ``passed_checks`` key, no ``skipped_checks`` key, no ``parsing_errors`` key. The
+failures-only contract and the parsing-errors-as-status-evidence contract cannot be
+asserted non-vacuously against a document with nothing to exclude, so those cases live in
+this fixture -- five of the artifact's failed checks unedited, its sixth relocated into
+``skipped_checks``, three passed checks and one parsing error. The capture keeps the other
+half of the same contract: an absent bucket must read as zero.
 
 The contract under test
 -----------------------
@@ -148,7 +176,9 @@ No secret value appears in any assertion, literal, message or docstring here, an
 committed to git, since ``.gitignore:31`` ignores only ``artifacts/``. The fixtures are
 read and never written: their sha256 digests are asserted against the digests the expected
 files record, so an edit to one becomes visible rather than silently changing what these
-tests mean. Where a shape this tree has no committed fixture for is needed -- a report
+tests mean. ``harness/artifacts/raw/checkov.json`` is likewise opened read-only and only
+for the provenance comparison -- that tree is runner-only (AAP 0.8.1), and nothing here
+writes to it, creates it or clears it. Where a shape this tree has no committed fixture for is needed -- a report
 object wrapped into the array form for a negative condition, a licensed ``severity``
 literal, a hostile path -- the document is built **in memory** from named minimal records;
 no fixture file is transformed, and the alt-shape fixture used for the equivalence
@@ -325,31 +355,99 @@ MATERIALISED_TREE_FILES = (
 # The committed fixtures. Every one is read; none is written.
 # --------------------------------------------------------------------------------------
 
-#: The unmodified captured artifact excerpt, in the object form this run's artifact wrote.
+#: The capture: the whole raw artifact this run's checkov runner wrote, in the object form,
+#: byte for byte. Not an excerpt of it and not a selection from it -- the artifact is 8,380
+#: bytes, so no excerpting was needed. :class:`RawArtifactProvenanceTests` asserts that
+#: against ``harness/artifacts/raw/checkov.json`` rather than against a digest this tree
+#: owns, which is the only comparison that establishes provenance rather than
+#: self-consistency.
 CAPTURED_FIXTURE = "checkov"
 
-#: The same records in the multi-framework array form. A **derived** file created by the
-#: fixtures agent by shape transformation only, with no field value edited -- which is why
-#: the equivalence assertion uses it rather than an in-test transformation of the captured
-#: fixture.
+#: The capture's records in the multi-framework array form. A **derived** file created by
+#: shape transformation only, with no field value edited -- which is why the equivalence
+#: assertion uses it rather than an in-test transformation of the captured fixture. That
+#: the transformation really is shape-only is asserted directly by
+#: :class:`SourceDocumentEqualityTests`, on the two committed documents and before any
+#: adapter runs.
 ALT_SHAPE_FIXTURE = "checkov-alt-shape"
 
-POSITIVE_FIXTURES = (CAPTURED_FIXTURE, ALT_SHAPE_FIXTURE)
+#: The derived feature fixture. The captured artifact was written under ``--compact`` and
+#: its ``results`` object carries ``failed_checks`` alone, so the failures-only contract and
+#: the parsing-errors-as-status-evidence contract cannot be asserted non-vacuously against
+#: it: there is nothing to exclude. Those cases are not deleted -- they live here, in a file
+#: whose expected result declares it derived, names what it was derived from and names the
+#: cases it exists for. Five of the artifact's six failed checks are carried across
+#: unedited; the sixth is relocated into ``skipped_checks``; three passed checks and one
+#: parsing error follow Checkov 3.3.12's own documented report shape.
+FEATURE_FIXTURE = "derived-checkov-features"
+
+#: The two documents whose ``failed_checks`` must be the same records in the same order.
+#: Named as a pair because several assertions are about the pair rather than about either
+#: file, and because a third positive fixture joining ``POSITIVE_FIXTURES`` must not be
+#: silently drawn into a shape-equivalence claim that is not made of it.
+SHAPE_PAIR = (CAPTURED_FIXTURE, ALT_SHAPE_FIXTURE)
+
+#: Every fixture that is declared derived rather than captured. Both are held to the
+#: declaration: each must say so in its expected file and each must be demonstrably not the
+#: raw artifact (:meth:`RawArtifactProvenanceTests.test_each_derived_fixture_is_declared_derived_and_is_not_the_artifact`).
+DERIVED_FIXTURES = (ALT_SHAPE_FIXTURE, FEATURE_FIXTURE)
+
+#: Every fixture that maps to rows rather than to rejections. All three are compared field
+#: for field against their own hand-verified expectations.
+POSITIVE_FIXTURES = (CAPTURED_FIXTURE, *DERIVED_FIXTURES)
 
 #: One negative fixture per rejection condition this adapter can produce (AAP 0.5.4,
-#: AAP 0.6.2), each present whether or not this run's artifact contained the case. The
+#: AAP 0.6.2), each present whether or not this run's artifact contained the case, followed
+#: by the committed fixtures that reach an already-covered class by a DIFFERENT route. The
 #: unresolvable-path fixture carries both sub-reasons of its class, and the
 #: non-integer-start-line fixture carries the malformed-container shapes beside the
 #: element-type one, so the class boundary between them is exercised rather than assumed.
+#:
+#: The route variants are not redundancy. ``file_line_range`` can be defective as a wrong
+#: container (absent, empty, a number, a string, an object) or as a wrong first element
+#: (``true``, ``0``, a negative integer), and those two defects take DIFFERENT classes --
+#: ``malformed_record`` for the container and ``non_integer_start_line`` for the element --
+#: so a corpus carrying one of each cannot show where the boundary lies. Every fixture here
+#: is driven through the same field-by-field comparison, and the class each yields is read
+#: from its own expectation rather than from its slug.
 REJECT_FIXTURES = (
     "reject-checkov-unresolvable-path",
     "reject-checkov-missing-rule-id",
     "reject-checkov-missing-message",
     "reject-checkov-non-integer-start-line",
     "reject-checkov-malformed-record",
+    "reject-checkov-absent-path",
+    "reject-checkov-boolean-start-line",
+    "reject-checkov-empty-line-range",
+    "reject-checkov-empty-message",
+    "reject-checkov-line-range-number",
+    "reject-checkov-line-range-object",
+    "reject-checkov-line-range-string",
+    "reject-checkov-negative-start-line",
+    "reject-checkov-unresolvable-path-uri-anchor",
+    "reject-checkov-zero-start-line",
 )
 
 ALL_FIXTURES = (*POSITIVE_FIXTURES, *REJECT_FIXTURES)
+
+#: Every committed fixture whose defect is a ``file_line_range``, mapped to the branch of
+#: ``checkov._start_line`` it exercises and the class that branch earns. Eight fixtures over
+#: four branches: the two ``non_integer_start_line`` element branches have two sub-forms
+#: each, and the container branch has two scalar forms and an object form beside the
+#: empty-array one.
+#:
+#: All eight are single-value derivations of ``reject-checkov-non-integer-start-line.json``
+#: at ``/results/failed_checks/1/file_line_range``, so their rows, their three bucket counts
+#: and all 28 of their counters are identical by construction and the rejection is the only
+#: difference between any two of them. :class:`StartLineRouteTests` asserts that.
+
+#: The runner's own artifact, opened read-only by :class:`RawArtifactProvenanceTests`.
+#:
+#: ``harness/artifacts/raw/`` is runner-only (AAP 0.8.1): nothing in this module writes to
+#: it, creates it or clears it. It is read for one purpose -- so that the captured fixture's
+#: provenance is a measurement against the tool's own output rather than a claim checkable
+#: only against a digest this tree records about itself.
+RAW_ARTIFACT_PATH = REPO_ROOT / "harness" / "artifacts" / "raw" / "checkov.json"
 
 #: The six rejection classes this adapter can produce, spelled through ``paths.py``'s own
 #: constants so a typo cannot invent a class. The other four members of the closed ten are
@@ -525,7 +623,6 @@ def bucket_records(doc, bucket: str) -> list:
         if isinstance(value, list):
             found.extend(value)
     return found
-
 
 
 # --------------------------------------------------------------------------------------
@@ -845,7 +942,6 @@ def array_form(*reports) -> list:
     return list(reports)
 
 
-
 # --------------------------------------------------------------------------------------
 # The shared base: one way to call the adapter, and one way to assert about a result.
 # --------------------------------------------------------------------------------------
@@ -1125,22 +1221,26 @@ class CheckovAdapterTestCase(unittest.TestCase):
         )
 
 
-
 # ======================================================================================
 # 0. The inputs, before anything is asserted about behaviour
 # ======================================================================================
 
 
 class FixtureInventoryTests(CheckovAdapterTestCase):
-    """The seven fixtures and their expectations are present, well formed and unchanged.
+    """The eight fixtures and their expectations are present, well formed and unchanged.
 
     This class precedes every behavioural one for a specific reason: a fixture silently
     absent, or one whose bytes have drifted from the document its expected rows were
     derived from, would let every assertion below pass over an input nobody verified.
+
+    Eight, and every one claimed by this inventory: the capture, the two declared derived
+    files -- the array-form counterpart and the feature fixture -- and the five negative
+    fixtures. A fixture this module reads but its inventory does not claim would be a
+    fixture whose bytes nothing pins.
     """
 
     def test_every_fixture_and_expected_file_is_present(self) -> None:
-        """All seven fixtures and all seven expected files exist where they are named."""
+        """All eight fixtures and all eight expected files exist where they are named."""
         for stem in ALL_FIXTURES:
             with self.subTest(fixture=stem):
                 self.assertTrue(
@@ -1159,6 +1259,13 @@ class FixtureInventoryTests(CheckovAdapterTestCase):
         edit to a fixture is then a visible failure here rather than a silent change in what
         every other assertion means -- which is exactly why the positive fixture is required
         to be *unmodified captured output* in the first place.
+
+        What this test does **not** establish is provenance. Both sides of the comparison are
+        files this tree owns, so a fixture and its expectation can agree perfectly about a
+        document the tool never emitted. Provenance is
+        :class:`RawArtifactProvenanceTests`, which opens ``harness/artifacts/raw/checkov.json``
+        and compares the captured fixture with the runner's own artifact. The two assertions
+        are complementary and neither substitutes for the other.
         """
         for stem in ALL_FIXTURES:
             with self.subTest(fixture=stem):
@@ -1189,20 +1296,32 @@ class FixtureInventoryTests(CheckovAdapterTestCase):
                     self.assertIsInstance(document, dict, msg=f"{stem}: object form")
 
     def test_both_top_level_shapes_are_covered_by_a_committed_fixture(self) -> None:
-        """One fixture per shape, so neither shape is asserted from an argument alone.
+        """Both shapes are covered, and the shape-equivalence pair is one of each.
 
         AAP 0.5.4 requires both shapes detected and handled. The captured artifact is the
         object form -- a single framework reported over the three Kubernetes Dockerfiles --
-        and the array form is the committed derived file, so the multi-framework path is
-        exercised against a real document rather than one this test invented.
+        and the array form is the committed derived counterpart, so the multi-framework path
+        is exercised against a real document rather than one this test invented. The feature
+        fixture is the object form too and makes no shape claim: its job is the buckets the
+        artifact does not carry, which is why the pair is asserted separately from the
+        inventory of positive fixtures.
         """
         shapes = {
             stem: load_expected(stem)["fixture"]["top_level_form"] for stem in POSITIVE_FIXTURES
         }
         self.assertEqual(
             shapes,
-            {CAPTURED_FIXTURE: "object", ALT_SHAPE_FIXTURE: "array"},
-            msg="the positive fixtures must cover one shape each",
+            {
+                CAPTURED_FIXTURE: "object",
+                ALT_SHAPE_FIXTURE: "array",
+                FEATURE_FIXTURE: "object",
+            },
+            msg="every positive fixture records the shape it is",
+        )
+        self.assertEqual(
+            {shapes[stem] for stem in SHAPE_PAIR},
+            {"object", "array"},
+            msg="the shape-equivalence pair must be one document of each shape",
         )
 
     def test_expected_files_agree_with_this_adapter_on_tool_class_and_schema(self) -> None:
@@ -1268,14 +1387,21 @@ class FixtureInventoryTests(CheckovAdapterTestCase):
                         msg=f"{stem}: every class carries a description for tool-status.md",
                     )
 
-    def test_the_five_reject_conditions_each_have_their_own_fixture(self) -> None:
-        """One negative fixture per rejection condition, and each is exercised below.
+    def test_every_reject_condition_has_a_committed_fixture(self) -> None:
+        """A committed negative fixture for every rejection condition this adapter produces.
 
         AAP 0.9.4: a negative fixture and assertion for **every** rejection condition this
         adapter can produce, present whether or not this run's own artifact contained the
-        case. Two of the six classes share the unresolvable-path fixture, which carries both
-        of its sub-reasons; ``absent_path`` is reached by a record naming no location at all
-        and is asserted in :class:`AnchorReconciliationTests`.
+        case. All six of :data:`PRODUCIBLE_REJECT_CLASSES` are covered by a fixture here,
+        ``absent_path`` included -- it is *also* asserted from a constructed record in
+        :class:`AnchorReconciliationTests`, and the two are complementary rather than
+        alternatives: the fixture proves the class survives a whole committed document,
+        the constructed record proves which branch reaches it.
+
+        The assertion is equality against the producible set rather than a subset check.
+        A class that becomes producible without a fixture must fail here, and a fixture
+        asserting a class this adapter cannot produce is caught by
+        :meth:`test_every_expected_rejection_class_is_a_canonical_member`.
         """
         observed = set()
         for stem in REJECT_FIXTURES:
@@ -1283,15 +1409,355 @@ class FixtureInventoryTests(CheckovAdapterTestCase):
                 observed.add(expectation["reject_class"])
         self.assertEqual(
             observed,
-            {
-                paths.REJECT_UNRESOLVABLE_PATH,
-                paths.REJECT_MISSING_RULE_ID,
-                paths.REJECT_MISSING_MESSAGE,
-                paths.REJECT_NON_INTEGER_START_LINE,
-                paths.REJECT_MALFORMED_RECORD,
-            },
-            msg="the committed negative fixtures must cover five of the six classes",
+            set(PRODUCIBLE_REJECT_CLASSES),
+            msg="the committed negative fixtures must cover every producible class",
         )
+
+
+class RawArtifactProvenanceTests(unittest.TestCase):
+    """The captured fixture *is* the runner's artifact, asserted against the artifact.
+
+    Every other provenance claim in this tree is checkable only against a digest the tree
+    itself owns -- the expected file records the fixture's sha256, and
+    :meth:`FixtureInventoryTests.test_every_fixture_is_unchanged_by_sha256` compares the
+    two. That proves self-consistency and nothing about provenance: a fixture and its
+    expected file can agree perfectly about a document the tool never emitted. So this class
+    opens ``harness/artifacts/raw/checkov.json`` and compares the fixture with it.
+
+    What "byte for byte" means for a JSON record
+    --------------------------------------------
+    Two levels are asserted, and the distinction matters. At **file** level the comparison
+    is literal: this artifact is 8,380 bytes and needed no excerpting, so the fixture's byte
+    size and sha256 must equal the artifact's -- the same bytes, not a faithful selection.
+    At **record** level the operative meaning is canonical equality: two JSON objects are
+    the same record when ``json.dumps(obj, sort_keys=True)`` agrees, which compares every
+    key and every value and is insensitive only to key order and to insignificant
+    whitespace. That is the right granularity for a fixture that legitimately reformats an
+    excerpt, and it is asserted here alongside the stronger file-level equality so a future
+    fixture that *did* excerpt would still be held to the record-level claim.
+
+    The envelope is asserted too, because AAP 0.6.2 requires the enclosing structure
+    preserved and Checkov's enclosing structure carries meaning: ``check_type`` names the
+    framework, the *set of buckets present in* ``results`` is what makes an absent bucket an
+    absence rather than an emptiness, and ``summary`` is the tool's own statement about
+    itself. A fixture that filled in a bucket the artifact omits would still map to the same
+    rows while misrepresenting what this provisioning's runner emitted -- which is precisely
+    the defect this class closes.
+
+    Nothing here writes. ``harness/artifacts/raw/`` is runner-only (AAP 0.8.1), so the
+    artifact is opened read-only and the fixtures are compared to it.
+    """
+
+    #: The artifact's top-level members, in the artifact's own order.
+    ARTIFACT_ENVELOPE_MEMBERS = ("check_type", "results", "summary")
+
+    #: The exact set of buckets the artifact's ``results`` object carries. One bucket: the
+    #: runner invokes checkov with ``--compact``, so ``passed_checks``, ``skipped_checks``
+    #: and ``parsing_errors`` are absent keys rather than empty arrays. Restated here so the
+    #: check is against a named set rather than against whatever the fixture happens to
+    #: hold.
+    ARTIFACT_RESULTS_BUCKETS = frozenset({"failed_checks"})
+
+    #: The keys one failed-check record carries. The fixture may not introduce a key outside
+    #: this set: an adapter that read one would be reading something no artifact carries.
+    ARTIFACT_RECORD_KEYS = frozenset(
+        {
+            "check_id",
+            "bc_check_id",
+            "check_name",
+            "check_result",
+            "code_block",
+            "file_path",
+            "file_abs_path",
+            "repo_file_path",
+            "file_line_range",
+            "resource",
+            "evaluations",
+            "check_class",
+            "fixed_definition",
+            "entity_tags",
+            "caller_file_path",
+            "caller_file_line_range",
+            "resource_address",
+            "severity",
+            "bc_category",
+            "benchmarks",
+            "description",
+            "short_description",
+            "vulnerability_details",
+            "connected_node",
+            "guideline",
+            "details",
+            "check_len",
+            "definition_context_file_path",
+        }
+    )
+
+    @staticmethod
+    def canonical(record: object) -> str:
+        """Return one record's canonical form -- the operative meaning of identical."""
+        return json.dumps(record, sort_keys=True)
+
+    def raw_document(self) -> dict:
+        """Return the runner's artifact, failing by name if it is not there.
+
+        An explicit failure rather than a skip. ``adapter-tests-run.json`` reports the
+        suite's skipped count as a property of the run, so a provenance assertion that
+        skipped itself when the evidence was missing would be indistinguishable from one
+        that passed -- which is the exact failure mode this class exists to close.
+        """
+        self.assertTrue(
+            RAW_ARTIFACT_PATH.is_file(),
+            f"{RAW_ARTIFACT_PATH} is missing. The captured fixture's provenance is "
+            "asserted against the runner's own artifact, so its absence is a failure "
+            "rather than a reason to skip: without it, nothing here establishes that "
+            f"fixtures/{CAPTURED_FIXTURE}.json is output this tool produced.",
+        )
+        document = json.loads(RAW_ARTIFACT_PATH.read_text(encoding="utf-8"))
+        self.assertIsInstance(
+            document, dict, "this artifact's top level is the single-report object form"
+        )
+        results = document.get("results")
+        self.assertIsInstance(results, dict, "the artifact carries a results object")
+        self.assertIsInstance(
+            results.get(EMITTED_SECTION), list, "the artifact carries a failed_checks array"
+        )
+        self.assertGreater(
+            len(results[EMITTED_SECTION]),
+            0,
+            "an artifact with no failed check could not source a positive fixture",
+        )
+        return document
+
+    def artifact_failed_checks(self) -> list:
+        """Return the artifact's ``results.failed_checks`` in the artifact's own order."""
+        return self.raw_document()["results"][EMITTED_SECTION]
+
+    def test_the_captured_fixture_is_the_artifact_byte_for_byte(self) -> None:
+        """Byte size and sha256, both equal to the artifact's.
+
+        The whole artifact was captured, so this is the strongest form the claim can take.
+        Byte size is asserted beside the digest because a size mismatch names the problem
+        immediately, while two digests differ opaquely.
+        """
+        self.raw_document()
+        fixture = fixture_path(CAPTURED_FIXTURE)
+        self.assertEqual(
+            fixture.stat().st_size,
+            RAW_ARTIFACT_PATH.stat().st_size,
+            f"fixtures/{CAPTURED_FIXTURE}.json must be {RAW_ARTIFACT_PATH} byte for byte",
+        )
+        self.assertEqual(
+            sha256_of(fixture),
+            sha256_of(RAW_ARTIFACT_PATH),
+            f"fixtures/{CAPTURED_FIXTURE}.json must have the artifact's sha256",
+        )
+
+    def test_the_expected_file_records_the_artifacts_digest_and_says_so(self) -> None:
+        """The expectation's fixture block states the equality it is entitled to state.
+
+        The digest recorded there has to be the artifact's, and the claim has to be made
+        explicitly -- otherwise a reader cannot tell a captured fixture from a derived one
+        by reading the expected file, which is the confusion this finding was about. The two
+        authored counts are asserted at zero for the same reason: they are the fields that
+        would have to move if anything were ever added to this fixture.
+        """
+        artifact = self.raw_document()
+        recorded = load_expected(CAPTURED_FIXTURE)["fixture"]
+        self.assertEqual(recorded["excerpt_of"], "harness/artifacts/raw/checkov.json")
+        self.assertEqual(recorded["sha256"], sha256_of(RAW_ARTIFACT_PATH))
+        self.assertEqual(recorded["raw_artifact_sha256"], sha256_of(RAW_ARTIFACT_PATH))
+        self.assertEqual(recorded["bytes"], RAW_ARTIFACT_PATH.stat().st_size)
+        self.assertEqual(recorded["raw_artifact_bytes"], RAW_ARTIFACT_PATH.stat().st_size)
+        self.assertIs(recorded["sha256_equals_the_raw_artifact"], True)
+        self.assertEqual(recorded["authored_failed_checks"], 0)
+        self.assertEqual(recorded["authored_envelope_members"], 0)
+        self.assertEqual(
+            recorded["captured_verbatim_failed_checks"],
+            len(artifact["results"][EMITTED_SECTION]),
+        )
+        self.assertEqual(recorded["check_type"], artifact["check_type"])
+        self.assertEqual(recorded["envelope_members"], list(self.ARTIFACT_ENVELOPE_MEMBERS))
+        self.assertEqual(
+            sorted(recorded["results_buckets"]), sorted(self.ARTIFACT_RESULTS_BUCKETS)
+        )
+        self.assertEqual(recorded["summary_as_reported"], artifact["summary"])
+
+    def test_every_captured_failed_check_is_identical_to_the_artifacts(self) -> None:
+        """Record for record, in order, under canonical comparison.
+
+        Asserted per element rather than as two lists so a failure names the index, and
+        asserted in order because the row order both output files use is the artifact's
+        order: a fixture carrying the same records shuffled would map correctly and still
+        misrepresent what the tool emitted.
+        """
+        artifact = self.artifact_failed_checks()
+        fixture = load_fixture(CAPTURED_FIXTURE)["results"][EMITTED_SECTION]
+        self.assertEqual(
+            len(fixture),
+            len(artifact),
+            "the fixture is the whole artifact, so record for record",
+        )
+        for index, (captured, original) in enumerate(zip(fixture, artifact)):
+            with self.subTest(failed_check=index):
+                self.assertEqual(
+                    self.canonical(captured),
+                    self.canonical(original),
+                    f"failed check {index} differs from the artifact's",
+                )
+                self.assertEqual(
+                    list(captured),
+                    list(original),
+                    f"failed check {index}: key order is preserved too, which is stronger "
+                    "than canonical equality and true of this fixture",
+                )
+
+    def test_the_envelope_members_and_bucket_set_match_the_artifacts(self) -> None:
+        """``check_type``, the exact bucket set in ``results``, and ``summary``.
+
+        The bucket *set* rather than the bucket contents: the artifact omits
+        ``passed_checks``, ``skipped_checks`` and ``parsing_errors`` entirely, and a fixture
+        that added them as empty arrays -- or filled them -- would be a different document
+        about the same findings. ``summary`` is compared canonically because it is the
+        tool's own statement about itself and is quoted verbatim into the expected file.
+        """
+        artifact = self.raw_document()
+        fixture = load_fixture(CAPTURED_FIXTURE)
+        self.assertIsInstance(fixture, dict)
+        self.assertEqual(list(fixture), list(artifact), "top-level members, in order")
+        self.assertEqual(list(fixture), list(self.ARTIFACT_ENVELOPE_MEMBERS))
+        self.assertEqual(fixture["check_type"], artifact["check_type"])
+        self.assertEqual(
+            set(fixture["results"]),
+            set(artifact["results"]),
+            "the set of buckets present in results must be the artifact's",
+        )
+        self.assertEqual(set(fixture["results"]), set(self.ARTIFACT_RESULTS_BUCKETS))
+        self.assertEqual(self.canonical(fixture["summary"]), self.canonical(artifact["summary"]))
+
+    def test_the_fixture_introduces_no_member_the_artifact_lacks(self) -> None:
+        """Across every record, the fixture's key union is the artifact's.
+
+        Stated as a set relation over the whole document as well as per record, because a
+        fixture with several records could keep each record's key set legal while the union
+        grew -- and the union is what an adapter can reach.
+        """
+        artifact = self.artifact_failed_checks()
+        fixture = load_fixture(CAPTURED_FIXTURE)["results"][EMITTED_SECTION]
+        artifact_keys: set = set()
+        for record in artifact:
+            artifact_keys |= set(record)
+        fixture_keys: set = set()
+        for index, record in enumerate(fixture):
+            with self.subTest(failed_check=index):
+                self.assertIsInstance(record, dict)
+                self.assertEqual(set(record), self.ARTIFACT_RECORD_KEYS)
+            fixture_keys |= set(record)
+        self.assertEqual(artifact_keys, set(self.ARTIFACT_RECORD_KEYS))
+        self.assertEqual(fixture_keys - artifact_keys, set())
+        self.assertEqual(fixture_keys, artifact_keys)
+
+    def test_each_derived_fixture_is_declared_derived_and_is_not_the_artifact(self) -> None:
+        """A derived fixture says so, and is demonstrably not the capture.
+
+        Both halves are needed. The declaration is what a reader relies on; the inequality
+        is what stops the declaration from being decoration. A derived fixture that had
+        silently become identical to the artifact would leave the cases it exists for with
+        no home while every other assertion in this module still passed.
+        """
+        artifact_digest = sha256_of(RAW_ARTIFACT_PATH)
+        artifact_size = RAW_ARTIFACT_PATH.stat().st_size
+        artifact_records = len(self.artifact_failed_checks())
+        for stem in DERIVED_FIXTURES:
+            with self.subTest(fixture=stem):
+                recorded = load_expected(stem)["fixture"]
+                self.assertTrue(
+                    recorded["provenance"].startswith("derived"),
+                    f"{stem}: the expectation must declare the fixture derived, not "
+                    f"{recorded['provenance']!r}",
+                )
+                self.assertTrue(
+                    recorded["derived_from"], f"{stem}: what it was derived from is named"
+                )
+                self.assertNotIn(
+                    "excerpt_of",
+                    recorded,
+                    f"{stem}: a derived fixture makes no captured-excerpt claim",
+                )
+                self.assertNotIn(
+                    "sha256_equals_the_raw_artifact",
+                    recorded,
+                    f"{stem}: only the capture may claim the artifact's digest",
+                )
+
+                path = fixture_path(stem)
+                self.assertNotEqual(sha256_of(path), artifact_digest)
+                self.assertNotEqual(path.stat().st_size, artifact_size)
+
+        # The two derived fixtures are derived in different ways and each states its own
+        # difference from the artifact, so each is held to its own declaration rather than
+        # to a shared one.
+        alternate = load_expected(ALT_SHAPE_FIXTURE)["fixture"]
+        self.assertEqual(
+            alternate["derived_from"],
+            f"oss-scan-results/adapter-tests/fixtures/{CAPTURED_FIXTURE}.json",
+        )
+        self.assertEqual(alternate["derived_from_sha256"], artifact_digest)
+        self.assertTrue(alternate["transformation"])
+        self.assertTrue(alternate["shape_only_assertion"])
+        self.assertTrue(alternate["not_a_capture"])
+        self.assertIsInstance(load_fixture(ALT_SHAPE_FIXTURE), list)
+
+        features = load_expected(FEATURE_FIXTURE)["fixture"]
+        self.assertEqual(features["provenance"], "derived")
+        self.assertTrue(features["provenance_statement"])
+        self.assertTrue(features["feature_cases_this_fixture_exists_to_exercise"])
+        against = features["not_identical_to_the_raw_artifact"]
+        self.assertEqual(against["raw_artifact"], "harness/artifacts/raw/checkov.json")
+        self.assertEqual(against["raw_artifact_sha256"], artifact_digest)
+        self.assertEqual(against["raw_artifact_bytes"], artifact_size)
+        self.assertEqual(against["raw_artifact_failed_checks"], artifact_records)
+        self.assertEqual(
+            sorted(against["raw_artifact_results_buckets"]),
+            sorted(self.ARTIFACT_RESULTS_BUCKETS),
+        )
+        self.assertNotEqual(
+            set(load_fixture(FEATURE_FIXTURE)["results"]),
+            set(self.ARTIFACT_RESULTS_BUCKETS),
+            "the feature fixture exists because it carries buckets the artifact does not",
+        )
+
+    def test_the_retained_records_of_the_feature_fixture_are_the_artifacts(self) -> None:
+        """Its five failed checks are five of the artifact's six, unedited and in order.
+
+        The feature fixture is derived, so its file-level bytes differ by design -- but the
+        records it retained are not authored either, and that is worth asserting rather than
+        describing: it is why the rows it produces are rows about real locations in the
+        pinned tree. The comparison is canonical and whole-object, so an edited field fails
+        here.
+        """
+        artifact_records = self.artifact_failed_checks()
+        artifact = {self.canonical(record) for record in artifact_records}
+        retained = load_fixture(FEATURE_FIXTURE)["results"][EMITTED_SECTION]
+        self.assertEqual(
+            len(retained),
+            load_expected(FEATURE_FIXTURE)["fixture"][EMITTED_SECTION],
+            "the count its own expectation records",
+        )
+        self.assertLess(
+            len(retained),
+            len(artifact_records),
+            "one of the artifact's failures was relocated into skipped_checks, which is "
+            "what gives the skipped-check case a real record at a real location",
+        )
+        for index, record in enumerate(retained):
+            with self.subTest(failed_check=index):
+                self.assertIn(
+                    self.canonical(record),
+                    artifact,
+                    f"failed check {index} of the feature fixture is not one of the "
+                    "artifact's records unedited",
+                )
 
 
 class AdapterContractTests(CheckovAdapterTestCase):
@@ -1488,7 +1954,6 @@ class RecordedMetadataAgreementTests(CheckovAdapterTestCase):
         self.assertEqual(base.working_directory_path, RECORDED_SCAN_ROOT)
 
 
-
 # ======================================================================================
 # 1. Both top-level shapes (AAP 0.5.4; brief assertions 1-5)
 # ======================================================================================
@@ -1624,6 +2089,257 @@ class BothShapesTests(CheckovAdapterTestCase):
                 )
 
 
+class SourceDocumentEqualityTests(unittest.TestCase):
+    """The two committed documents carry the same ``failed_checks``, compared as documents.
+
+    :class:`ShapeEquivalenceTests` compares what the adapter *made* of the two fixtures --
+    rows, counters and the digests the two expectations record about each other. All of that
+    can stay green while the promise the alt-shape fixture makes about itself is broken,
+    because every field the adapter does not read is invisible to a row comparison:
+    ``check_result``, ``code_block``, ``resource``, ``evaluations``, ``guideline``,
+    ``severity``, ``benchmarks`` and twenty others. An edit to any of them would leave the
+    file claiming to be a shape-only transformation of the capture while no longer being one.
+
+    So this class compares the two source documents directly, and does three things
+    deliberately:
+
+    * **No adapter is invoked.** Nothing here imports a row, a counter or a rejection. The
+      extraction is this module's own :func:`failed_check_union`, which walks
+      ``results.failed_checks[]`` -- ``results.failed_checks`` for the object form, and the
+      union across every element in document order for the array form -- and builds nothing.
+    * **Whole objects, unprojected and unnormalised.** The records are compared as they are
+      committed, not reduced to the fields a row uses. Projecting first would reintroduce
+      exactly the blind spot this class exists to remove.
+    * **An ordered sequence, never a set.** A set comparison would pass on a document whose
+      records had been reordered, and the row *order* both output files use is that order.
+      The ordered comparison is asserted first element by element, so a failure names the
+      index, and then as whole sequences, so a length or ordering difference cannot hide
+      behind a ``zip`` that stopped early.
+    """
+
+    @staticmethod
+    def canonical(record: object) -> str:
+        """Return one record's canonical form -- the operative meaning of identical."""
+        return json.dumps(record, sort_keys=True)
+
+    def documents(self) -> tuple:
+        """Return the object form's records and the array form's, both in document order."""
+        object_form_records = failed_check_union(load_fixture(CAPTURED_FIXTURE))
+        array_form_records = failed_check_union(load_fixture(ALT_SHAPE_FIXTURE))
+        return object_form_records, array_form_records
+
+    def test_the_extraction_really_reaches_both_documents_records(self) -> None:
+        """State what is being compared before comparing it.
+
+        Two empty lists are equal, so the comparison below would pass over a pair of
+        documents carrying nothing at all. The counts are additionally required to equal the
+        hand-verified ``counts.raw_finding_records`` in each expectation, so the traversal
+        used here is pinned to the number the expected files were derived against rather
+        than to itself.
+        """
+        object_form_records, array_form_records = self.documents()
+        self.assertGreater(
+            len(object_form_records), 0, "the object form must carry failed checks to compare"
+        )
+        self.assertGreater(
+            len(array_form_records), 0, "the array form must carry failed checks to compare"
+        )
+        self.assertEqual(
+            len(object_form_records),
+            load_expected(CAPTURED_FIXTURE)["counts"]["raw_finding_records"],
+        )
+        self.assertEqual(
+            len(array_form_records),
+            load_expected(ALT_SHAPE_FIXTURE)["counts"]["raw_finding_records"],
+        )
+        self.assertGreater(
+            len(load_fixture(ALT_SHAPE_FIXTURE)),
+            1,
+            "the array form must carry more than one report, or the union across report "
+            "objects is not exercised by this pair at all",
+        )
+
+    def test_the_two_documents_failed_checks_are_the_same_records_in_the_same_order(
+        self,
+    ) -> None:
+        """Element for element, as whole objects, before any adapter runs.
+
+        This is the assertion that makes "a shape transformation and nothing else" a
+        measurement. Canonical equality is asserted per index so a failure names the record,
+        and the two ordered sequences are then compared outright: that catches a length
+        difference, a reordering and an extra record, none of which the per-index loop alone
+        would catch.
+        """
+        object_form_records, array_form_records = self.documents()
+        self.assertEqual(
+            len(object_form_records),
+            len(array_form_records),
+            "the array form must carry exactly the object form's failed checks",
+        )
+        for index, (left, right) in enumerate(zip(object_form_records, array_form_records)):
+            with self.subTest(failed_check=index):
+                self.assertEqual(
+                    self.canonical(left),
+                    self.canonical(right),
+                    f"failed check {index} differs between the two committed documents; a "
+                    "field the adapter ignores was edited, so the alt-shape fixture is no "
+                    "longer a shape-only transformation of the capture",
+                )
+                self.assertEqual(
+                    list(left), list(right), f"failed check {index}: key order too"
+                )
+        self.assertEqual(
+            object_form_records,
+            array_form_records,
+            "the ordered sequences must be equal outright, not merely pairwise up to the "
+            "shorter of the two",
+        )
+        self.assertEqual(
+            [self.canonical(record) for record in object_form_records],
+            [self.canonical(record) for record in array_form_records],
+            "asserted as an ordered sequence and never as a set: a reordering must fail",
+        )
+
+    def test_the_comparison_would_catch_a_reordering(self) -> None:
+        """The ordered comparison is order-sensitive, demonstrated rather than asserted.
+
+        A reader has to be able to tell an ordered comparison from one that happens to be
+        written over ordered inputs. This reverses a copy of the extracted records -- the
+        committed files are untouched -- and requires the sequence comparison to fail while
+        the multiset of records is unchanged. Without this, "ordered multiset, not a set"
+        would be a comment rather than a property.
+        """
+        object_form_records, _ = self.documents()
+        self.assertGreater(
+            len(object_form_records), 1, "an order claim needs at least two records"
+        )
+        shuffled = list(reversed(object_form_records))
+        self.assertNotEqual(
+            [self.canonical(record) for record in object_form_records],
+            [self.canonical(record) for record in shuffled],
+            "the ordered comparison must distinguish these two sequences",
+        )
+        self.assertEqual(
+            sorted(self.canonical(record) for record in object_form_records),
+            sorted(self.canonical(record) for record in shuffled),
+            "while the multiset of records is the same, which is exactly what a set "
+            "comparison would have accepted",
+        )
+
+    def test_the_comparison_would_catch_an_edit_to_a_field_no_row_reads(self) -> None:
+        """The blind spot this class closes, demonstrated on a copy rather than described.
+
+        A row carries twelve fields; a failed-check record carries twenty-eight. The
+        difference -- ``check_result``, ``code_block``, ``resource``, ``evaluations``,
+        ``guideline``, ``benchmarks`` and the rest -- is invisible to any comparison of rows,
+        counters or digests, which is exactly why an edit there could break the shape-only
+        promise with every other assertion in this module still green.
+
+        This edits one such field on an in-memory deep copy of the extracted records -- the
+        committed files are opened read-only and never written -- and requires the whole-object
+        comparison to reject it while a comparison projected onto the row's own field sources
+        would not have. The projection is spelled out here rather than taken from the adapter:
+        the point is what a row-level comparison *can* see, not what this adapter happens to
+        read.
+        """
+        object_form_records, _ = self.documents()
+        edited = json.loads(json.dumps(object_form_records))
+        target = edited[0]
+        self.assertIn(
+            "guideline",
+            target,
+            "the record must carry a field outside the row's twelve for this to mean anything",
+        )
+        target["guideline"] = "https://example.invalid/edited-by-this-assertion"
+
+        self.assertNotEqual(
+            [self.canonical(record) for record in object_form_records],
+            [self.canonical(record) for record in edited],
+            "the whole-object comparison must reject an edit to a field no row reads",
+        )
+
+        def projected(records: list) -> list:
+            """Reduce each record to the fields a row is built from."""
+            return [
+                (
+                    record.get("check_id"),
+                    record.get("check_name"),
+                    record.get("severity"),
+                    record.get("file_path"),
+                    record.get("file_abs_path"),
+                    record.get("repo_file_path"),
+                    tuple(record.get("file_line_range") or ()),
+                )
+                for record in records
+            ]
+
+        self.assertEqual(
+            projected(object_form_records),
+            projected(edited),
+            "while a row-level comparison sees no difference at all -- which is the gap this "
+            "class exists to close",
+        )
+
+    def test_the_added_report_contributes_no_record(self) -> None:
+        """The only material the transformation added is one report that carries nothing.
+
+        The array form has to be multi-report or the union across report objects is not
+        exercised, so the transformation added one empty framework report. That addition is
+        legitimate only while it contributes no record: the report inventory in the
+        expectation says so, and this measures it from the document.
+        """
+        reports = load_fixture(ALT_SHAPE_FIXTURE)
+        self.assertIsInstance(reports, list)
+        contributed = [len(failed_check_union(element)) for element in reports]
+        self.assertEqual(
+            sum(contributed),
+            len(failed_check_union(load_fixture(CAPTURED_FIXTURE))),
+            "the union across reports is the capture's failed checks and nothing more",
+        )
+        self.assertIn(
+            0,
+            contributed,
+            "one report contributes nothing -- the empty-member element the union is "
+            "asserted to be insensitive to",
+        )
+        recorded = load_expected(ALT_SHAPE_FIXTURE)["fixture"]["report_inventory"]
+        self.assertEqual(len(recorded), len(reports))
+        for index, entry in enumerate(recorded):
+            with self.subTest(report=index):
+                self.assertEqual(entry["report_index"], index)
+                self.assertEqual(entry["check_type"], reports[index]["check_type"])
+                self.assertEqual(entry["contributes_records"], contributed[index])
+
+    def test_the_two_expectations_name_each_other_and_the_documents_they_describe(
+        self,
+    ) -> None:
+        """Each invariant block names the counterpart fixture and its current digest.
+
+        The digests are the tie between this document-level comparison and the row-level one:
+        a pair that agreed about records while one expectation described a file that had
+        since changed would be agreeing about the wrong thing.
+        """
+        captured = load_expected(CAPTURED_FIXTURE)["alt_shape_invariant"]
+        alternate = load_expected(ALT_SHAPE_FIXTURE)["object_shape_invariant"]
+        self.assertEqual(
+            captured["counterpart_fixture"],
+            f"oss-scan-results/adapter-tests/fixtures/{ALT_SHAPE_FIXTURE}.json",
+        )
+        self.assertEqual(
+            captured["counterpart_fixture_sha256"], sha256_of(fixture_path(ALT_SHAPE_FIXTURE))
+        )
+        self.assertTrue(captured["shape_only_transformation"])
+        self.assertEqual(
+            alternate["counterpart_fixture"],
+            f"oss-scan-results/adapter-tests/fixtures/{CAPTURED_FIXTURE}.json",
+        )
+        self.assertEqual(
+            alternate["counterpart_fixture_sha256"], sha256_of(fixture_path(CAPTURED_FIXTURE))
+        )
+        self.assertIs(alternate["counterpart_is_the_raw_artifact"], True)
+        self.assertTrue(alternate["source_documents_compared_directly"])
+
+
 class ShapeEquivalenceTests(CheckovAdapterTestCase):
     """The same records in either shape produce identical rows -- brief assertion 3.
 
@@ -1633,6 +2349,14 @@ class ShapeEquivalenceTests(CheckovAdapterTestCase):
     fixtures agent created by shape transformation alone, never an in-test transformation of
     the captured one -- a transformation performed here would be testing this file's
     arithmetic rather than the adapter's.
+
+    What this class does **not** establish is that the two documents carry the same records:
+    everything here is downstream of the adapter, so a field the adapter never reads could
+    drift between the two fixtures with every assertion below still passing. That is
+    :class:`SourceDocumentEqualityTests`, which compares the two committed ``failed_checks``
+    documents directly, as whole objects and in order, before any adapter is invoked. The
+    two are complementary -- same records mapped identically -- and neither substitutes for
+    the other.
     """
 
     def test_the_two_shapes_emit_identical_rows_in_identical_order(self) -> None:
@@ -1759,10 +2483,12 @@ class RootDependenceTests(CheckovAdapterTestCase):
     def test_only_the_corroboration_counter_moves_with_the_root(self) -> None:
         """Against another root the anchors disagree, and the disagreement is *counted*.
 
-        Five records, five recorded disagreements, five rows -- the row is never suppressed
-        (AAP 0.5.3). Every other counter is unchanged, which is what makes the recorded
-        counters in the expected files interpretable: they were measured under the recorded
-        scan root, and this is the single value that would differ elsewhere.
+        One recorded disagreement per record and a row kept for every one of them -- the row
+        is never suppressed (AAP 0.5.3), which is why the counter is compared against the row
+        count rather than against a literal. Every other counter is unchanged, which is what
+        makes the recorded counters in the expected files interpretable: they were measured
+        under the recorded scan root, and this is the single value that would differ
+        elsewhere.
         """
         recorded = self.adapt_fixture(CAPTURED_FIXTURE, env=recorded_env())
         against_tree = self.adapt_fixture(CAPTURED_FIXTURE, env=tree_env())
@@ -1793,7 +2519,6 @@ class RootDependenceTests(CheckovAdapterTestCase):
         self.assertEqual(len(adapted.rows), 1)
         self.assertEqual(adapted.rows[0]["path"], SPARK_DOCKERFILE)
         self.assertTrue(adapted.rows[0]["in_scope"])
-
 
 
 # ======================================================================================
@@ -2134,7 +2859,6 @@ class AnchorReconciliationTests(CheckovAdapterTestCase):
         )
 
 
-
 # ======================================================================================
 # 3. The in_scope field -- brief assertion 10
 # ======================================================================================
@@ -2288,44 +3012,105 @@ class ScopeFieldTests(CheckovAdapterTestCase):
 class FailuresOnlyTests(CheckovAdapterTestCase):
     """``passed_checks`` and ``skipped_checks`` produce no rows -- brief assertion 11.
 
-    Asserted from fixtures that actually contain both: the captured artifact carries three
-    passed checks and one skipped check beside its five failures, so the row count being
-    exactly five is a real exclusion rather than a vacuous one. AAP 0.5.4 states the rule --
-    only failures are findings -- and AAP 0.2.2 records why: the ``results`` object carries
-    all three buckets, so the adapter counts and emits failed checks only.
+    Asserted from a fixture that actually contains both. That fixture is the **derived
+    feature fixture**, not the capture, and the reason is a property of this run's artifact:
+    the runner invokes checkov with ``--compact``, so ``harness/artifacts/raw/checkov.json``
+    carries ``results.failed_checks`` alone -- no ``passed_checks`` key, no
+    ``skipped_checks`` key, no ``parsing_errors`` key. An exclusion asserted over that
+    document would be vacuous: there is nothing in it to exclude. The capture is still
+    asserted here, for the other half of the contract -- an absent bucket must be read as
+    zero rather than raising -- while the exclusion itself is asserted against
+    ``derived-checkov-features.json``, which carries three passed checks, one skipped check
+    and one parsing error beside its five failures.
+
+    AAP 0.5.4 states the rule -- only failures are findings -- and AAP 0.2.2 records why:
+    Checkov's ``results`` object carries all three buckets when it is not run compact, so
+    the adapter counts and emits failed checks only.
     """
 
-    def test_the_fixtures_really_carry_passed_and_skipped_checks(self) -> None:
+    def test_the_feature_fixture_really_carries_passed_and_skipped_checks(self) -> None:
         """State what the input contains before asserting what was done with it.
 
-        An exclusion asserted over a fixture with nothing to exclude would establish nothing,
-        so this is checked first and in both shapes.
+        An exclusion asserted over a fixture with nothing to exclude would establish nothing.
+        The numbers come from the fixture's own hand-verified expectation, so this test and
+        the expectation cannot drift apart while both still pass.
         """
-        for stem in POSITIVE_FIXTURES:
+        recorded = load_expected(FEATURE_FIXTURE)["fixture"]
+        buckets = bucket_counts(load_fixture(FEATURE_FIXTURE))
+        self.assertEqual(buckets[EMITTED_SECTION], recorded[EMITTED_SECTION])
+        self.assertEqual(buckets["passed_checks"], recorded["passed_checks"])
+        self.assertEqual(buckets["skipped_checks"], recorded["skipped_checks"])
+        self.assertEqual(buckets[PARSING_ERRORS_SECTION], recorded[PARSING_ERRORS_SECTION])
+        self.assertGreater(buckets["passed_checks"], 0, msg="passes must be present")
+        self.assertGreater(buckets["skipped_checks"], 0, msg="skips must be present")
+        self.assertGreater(buckets[PARSING_ERRORS_SECTION], 0, msg="a parse error too")
+
+    def test_the_captured_artifact_omits_the_buckets_and_they_read_as_zero(self) -> None:
+        """The artifact's own shape: one bucket present, three keys absent entirely.
+
+        This is the case the capture is the only honest source for, and it is a real branch
+        rather than a formality -- ``results.get(bucket)`` returning ``None`` has to be read
+        as zero observed records, not as a malformed report. Asserted on the capture and on
+        its array-form counterpart, both of which carry ``failed_checks`` alone.
+        """
+        for stem in SHAPE_PAIR:
             with self.subTest(fixture=stem):
-                buckets = bucket_counts(load_fixture(stem))
-                self.assertEqual(buckets[EMITTED_SECTION], 5)
-                self.assertEqual(buckets["passed_checks"], 3, msg="passes must be present")
-                self.assertEqual(buckets["skipped_checks"], 1, msg="skips must be present")
-                self.assertEqual(buckets[PARSING_ERRORS_SECTION], 1)
+                document = load_fixture(stem)
+                reports = document if isinstance(document, list) else [document]
+                for index, report_object in enumerate(reports):
+                    with self.subTest(report=index):
+                        self.assertEqual(
+                            set(report_object["results"]),
+                            {EMITTED_SECTION},
+                            msg=f"{stem}: report {index} carries one bucket",
+                        )
+                buckets = bucket_counts(document)
+                self.assertGreater(buckets[EMITTED_SECTION], 0)
+                for bucket in (*NEVER_EMITTED_SECTIONS, PARSING_ERRORS_SECTION):
+                    self.assertEqual(
+                        buckets[bucket],
+                        0,
+                        msg=f"{stem}: an absent {bucket} key reads as zero",
+                    )
+                adapted = self.adapt(document)
+                self.assertEqual(adapted.counters["passed_checks_observed"], 0)
+                self.assertEqual(adapted.counters["skipped_checks_observed"], 0)
+                self.assertEqual(adapted.counters[PARSING_ERRORS_SECTION], 0)
+                self.assertEqual(adapted.rejections, [], msg=f"{stem}: and nothing is rejected")
 
-    def test_the_row_count_is_exactly_the_failed_check_count_in_both_shapes(self) -> None:
-        """Five failures, five rows -- and the passes, skips and parse error leak into none.
+    def test_the_row_count_is_exactly_the_failed_check_count_of_every_positive_fixture(
+        self,
+    ) -> None:
+        """One row per failed check -- and no pass, skip or parse error leaks into any.
 
-        The exactness is the assertion: any one of the three passed checks, the skipped check
-        or the parsing error leaking in would make this six, seven, eight or nine.
+        The exactness is the assertion. On the feature fixture any one of the three passed
+        checks, the skipped check or the parsing error leaking in would make the count six,
+        seven, eight or nine instead of five; on the capture and its array counterpart the
+        count is the artifact's six failed checks. Both numbers come from the independent
+        traversal and from each fixture's own hand-verified expectation rather than from a
+        literal restated here.
         """
         for stem in POSITIVE_FIXTURES:
             with self.subTest(fixture=stem):
                 document = load_fixture(stem)
                 adapted = self.adapt(document)
                 failed = failed_check_union(document)
+                expected = load_expected(stem)
                 self.assertEqual(
                     len(adapted.rows),
                     len(failed),
                     msg=f"{stem}: one row per failed check and nothing else",
                 )
-                self.assertEqual(len(adapted.rows), 5)
+                self.assertEqual(
+                    len(adapted.rows),
+                    len(expected["rows"]),
+                    msg=f"{stem}: and exactly the rows its expectation hand-derived",
+                )
+                self.assertEqual(
+                    len(failed),
+                    expected["counts"]["raw_finding_records"],
+                    msg=f"{stem}: the count unit its expectation was derived against",
+                )
 
     def test_no_row_corresponds_to_a_passed_or_skipped_check(self) -> None:
         """Checked by locator triple, not by check identifier.
@@ -2334,7 +3119,13 @@ class FailuresOnlyTests(CheckovAdapterTestCase):
         on two Dockerfiles and as the skipped check on a third. The bucket decides the
         outcome, never the identifier -- so the comparison is on the
         ``(check_id, path, start_line)`` triple each record names.
+
+        Run over every positive fixture, and guarded: the capture and its array counterpart
+        carry no never-emitted record at all, so the loop over them is empty by construction
+        and the count of records actually examined is asserted afterwards. Without that
+        guard this test would keep passing if the feature fixture ever lost its buckets.
         """
+        examined = 0
         for stem in POSITIVE_FIXTURES:
             with self.subTest(fixture=stem):
                 document = load_fixture(stem)
@@ -2344,6 +3135,7 @@ class FailuresOnlyTests(CheckovAdapterTestCase):
                 }
                 for bucket in NEVER_EMITTED_SECTIONS:
                     for record in bucket_records(document, bucket):
+                        examined += 1
                         locator = (
                             record["check_id"],
                             paths.strip_single_leading_slash(record["repo_file_path"]),
@@ -2354,6 +3146,16 @@ class FailuresOnlyTests(CheckovAdapterTestCase):
                             emitted,
                             msg=f"{stem}: a {bucket} record reached the rows as {locator}",
                         )
+        recorded = load_expected(FEATURE_FIXTURE)["fixture"]
+        self.assertEqual(
+            examined,
+            recorded["passed_checks"] + recorded["skipped_checks"],
+            msg=(
+                "the exclusion must be measured against real never-emitted records; "
+                f"{examined} were examined across the positive fixtures"
+            ),
+        )
+        self.assertGreater(examined, 0, msg="an exclusion with nothing to exclude proves nothing")
 
     def test_the_skipped_check_shares_its_identifier_with_two_emitted_failures(self) -> None:
         """The bucket decides, never the identifier -- stated as its own assertion.
@@ -2361,8 +3163,14 @@ class FailuresOnlyTests(CheckovAdapterTestCase):
         ``CKV_DOCKER_9`` is skipped on ``bindings/R/Dockerfile`` and fails on two other
         Dockerfiles. Both facts must hold at once: the identifier appears in the rows, and the
         skipped record's own location does not.
+
+        Asserted against the feature fixture, which is where the skipped bucket lives. The
+        record is not an invention: it is the artifact's own sixth failed check --
+        ``CKV_DOCKER_9`` on ``bindings/R/Dockerfile``, ``file_line_range`` ``[34, 37]`` --
+        relocated into ``skipped_checks``, which is exactly why the identifier collision it
+        creates is a real one.
         """
-        document = load_fixture(CAPTURED_FIXTURE)
+        document = load_fixture(FEATURE_FIXTURE)
         adapted = self.adapt(document)
         skipped = bucket_records(document, "skipped_checks")[0]
         self.assertEqual(skipped["check_id"], "CKV_DOCKER_9")
@@ -2383,13 +3191,35 @@ class FailuresOnlyTests(CheckovAdapterTestCase):
 
         Neither counter feeds reconciliation, and neither can produce a row. Their value is
         that a reader of ``tool-status.md`` can see the passes were present and produced
-        nothing.
+        nothing -- which requires the counter to be non-zero somewhere, or the channel is
+        only asserted at rest. The feature fixture is where it is non-zero, and the numbers
+        are the ones its own expectation hand-derived.
         """
-        for stem in POSITIVE_FIXTURES:
-            with self.subTest(fixture=stem):
-                adapted = self.adapt_fixture(stem)
-                self.assertEqual(adapted.counters["passed_checks_observed"], 3)
-                self.assertEqual(adapted.counters["skipped_checks_observed"], 1)
+        recorded = load_expected(FEATURE_FIXTURE)
+        adapted = self.adapt_fixture(FEATURE_FIXTURE)
+        self.assertEqual(
+            adapted.counters["passed_checks_observed"],
+            recorded["fixture"]["passed_checks"],
+        )
+        self.assertEqual(
+            adapted.counters["skipped_checks_observed"],
+            recorded["fixture"]["skipped_checks"],
+        )
+        self.assertEqual(
+            adapted.counters["passed_checks_observed"],
+            recorded["counters"]["passed_checks_observed"],
+        )
+        self.assertEqual(
+            adapted.counters["skipped_checks_observed"],
+            recorded["counters"]["skipped_checks_observed"],
+        )
+        self.assertGreater(adapted.counters["passed_checks_observed"], 0)
+        self.assertGreater(adapted.counters["skipped_checks_observed"], 0)
+        self.assertEqual(
+            len(adapted.rows),
+            len(recorded["rows"]),
+            msg="and the rows are unaffected by either bucket",
+        )
 
     def test_a_document_of_only_passes_and_skips_yields_nothing(self) -> None:
         """The degenerate case, in both shapes: no failures, no rows, no rejections.
@@ -2426,28 +3256,58 @@ class ParsingErrorsTests(CheckovAdapterTestCase):
     """
 
     def test_a_parsing_error_produces_neither_a_row_nor_a_rejection(self) -> None:
-        """One parse error present in both shapes; zero rows and zero rejections from it.
+        """A real parse error present; zero rows and zero rejections from it.
 
-        The row and rejection counts are exactly the failed-check split, so the parse error
-        contributed to neither -- and the independent traversal never counted it either.
+        Asserted on the feature fixture, because the captured artifact was written compact
+        and carries no ``parsing_errors`` key at all -- a document with no parse error cannot
+        establish that a parse error is excluded. The row and rejection counts are exactly
+        the failed-check split, so the parse error contributed to neither, and the
+        independent traversal never counted it either.
         """
-        for stem in POSITIVE_FIXTURES:
+        document = load_fixture(FEATURE_FIXTURE)
+        adapted = self.adapt(document)
+        expected = load_expected(FEATURE_FIXTURE)
+        parse_errors = bucket_counts(document)[PARSING_ERRORS_SECTION]
+        self.assertGreater(parse_errors, 0, msg="the fixture must carry a parse error")
+        self.assertEqual(parse_errors, expected["fixture"][PARSING_ERRORS_SECTION])
+        self.assertEqual(len(adapted.rows), len(expected["rows"]))
+        self.assertEqual(adapted.rejections, [])
+        self.assertEqual(adapted.raw_records, expected["counts"]["raw_finding_records"])
+        self.assertEqual(adapted.counters[PARSING_ERRORS_SECTION], parse_errors)
+
+    def test_the_captured_artifact_carries_no_parsing_errors_and_counts_none(self) -> None:
+        """The other half: an absent ``parsing_errors`` key is zero, not an error.
+
+        The runner's ``--compact`` invocation omits the key, so this is the shape the real
+        artifact has and the branch a reader most needs pinned -- ``results.get`` returning
+        ``None`` must read as zero entries rather than raising or being skipped past.
+        """
+        for stem in SHAPE_PAIR:
             with self.subTest(fixture=stem):
                 document = load_fixture(stem)
                 adapted = self.adapt(document)
-                self.assertEqual(bucket_counts(document)[PARSING_ERRORS_SECTION], 1)
-                self.assertEqual(len(adapted.rows), 5)
-                self.assertEqual(adapted.rejections, [])
-                self.assertEqual(adapted.raw_records, 5)
+                self.assertEqual(bucket_counts(document)[PARSING_ERRORS_SECTION], 0)
+                self.assertEqual(list(checkov.collect_parsing_errors(document)), [])
+                self.assertEqual(adapted.counters[PARSING_ERRORS_SECTION], 0)
+                self.assertEqual(
+                    load_expected(stem)["failures_only"]["parsing_errors_entries"],
+                    [],
+                    msg=f"{stem}: and its expectation records the absence",
+                )
 
     def test_the_entries_are_surfaced_verbatim_for_tool_status(self) -> None:
-        """``collect_parsing_errors`` returns the artifact's own entries, unrendered.
+        """``collect_parsing_errors`` returns the document's own entries, unrendered.
 
         ``tool-status.md``'s per-tool contract requires *any parser error verbatim*, so the
-        entry is returned exactly as the artifact carries it -- with the report index and
+        entry is returned exactly as the document carries it -- with the report index and
         ``check_type`` beside it so a reader can find it again. Rendering or truncating it
         would make it evidence a reader cannot see in the producer's own words.
+
+        Run over every positive fixture and then guarded on the total surfaced, because two
+        of the three legitimately carry none: without the guard this assertion would go
+        vacuous the moment the fixture that does carry one stopped doing so.
         """
+        surfaced_total = 0
         for stem in POSITIVE_FIXTURES:
             with self.subTest(fixture=stem):
                 document = load_fixture(stem)
@@ -2455,9 +3315,16 @@ class ParsingErrorsTests(CheckovAdapterTestCase):
                 recorded = load_expected(stem)["failures_only"]["parsing_errors_entries"]
                 self.assertEqual([entry["entry"] for entry in surfaced], recorded)
                 for entry in surfaced:
+                    surfaced_total += 1
                     self.assertIn("report_index", entry)
                     self.assertIn("check_type", entry)
                     self.assertEqual(entry["check_type"], "dockerfile")
+        self.assertEqual(
+            surfaced_total,
+            load_expected(FEATURE_FIXTURE)["fixture"][PARSING_ERRORS_SECTION],
+            msg="at least one entry must really have been surfaced and inspected",
+        )
+        self.assertGreater(surfaced_total, 0)
 
     def test_the_parsing_error_count_and_the_verbatim_list_cannot_disagree(self) -> None:
         """The counter is taken through the same public traversal the entries come from.
@@ -2528,11 +3395,11 @@ class CountUnitUnionTests(CheckovAdapterTestCase):
     """
 
     def test_the_identity_holds_on_every_committed_fixture(self) -> None:
-        """``raw finding records = dataset rows + rejected records``, seven times over.
+        """``raw finding records = dataset rows + rejected records``, eight times over.
 
-        Non-degenerate on five of the seven: over an all-valid document the identity collapses
-        to ``raw = rows``, and it is the reject fixtures that make the right-hand side carry
-        both terms.
+        Non-degenerate on five of the eight: over an all-valid document the identity collapses
+        to ``raw = rows``, and it is the five reject fixtures that make the right-hand side
+        carry both terms.
         """
         for stem in ALL_FIXTURES:
             with self.subTest(fixture=stem):
@@ -2610,7 +3477,6 @@ class CountUnitUnionTests(CheckovAdapterTestCase):
                     object_form(anchored_check(SPARK_DOCKERFILE, root), check_type=check_type)
                 )
                 self.assertEqual(adapted.rows[0]["scanner_class"], "misconfig")
-
 
 
 # ======================================================================================
@@ -2967,7 +3833,6 @@ class SeverityTests(CheckovAdapterTestCase):
                 self.assertEqual(len(adapted.rows), 1)
                 self.assertIn(adapted.rows[0]["severity_norm"], severity.SEVERITY_NORM)
                 self.assertIsNotNone(adapted.rows[0]["severity_norm"])
-
 
 
 # ======================================================================================
@@ -3371,5 +4236,417 @@ class CallerFaultTests(CheckovAdapterTestCase):
             paths.tool_path_base(document, checkov.TOOL)
 
 
-if __name__ == "__main__":  # pragma: no cover - exercised through unittest discovery
-    unittest.main(verbosity=2)
+class RootContainmentTests(CheckovAdapterTestCase):
+    """A ``..`` anywhere in a coordinate takes it out of the tree, not only at the front.
+
+    These assertions are about ``normalize.paths``' containment rule rather than about
+    Checkov's fields, and they live in this module because this is the module that owns the
+    path-trap material: the user's worked example in AAP 0.5.3 is *"reading that slash as
+    filesystem-absolute produces a long ``../`` path and a false ``in_scope: false``"*, and
+    the rule tested here is the same failure in the other direction -- a coordinate that
+    leaves the tree read as a file inside it, with a true ``in_scope: true`` on a glob it
+    matches only on its leading segments. This module already drives ``path_kind_for``,
+    ``in_scope`` and ``scope_decision`` directly and already builds records carrying hostile
+    paths, so the assertions have one home rather than two.
+
+    The emitted spelling is asserted **unchanged** throughout. The SARIF 2.1.0 errata (the
+    section 3.10.2 amendment) forbid a consumer normalizing ``..`` out of a path and AAP
+    0.5.4 requires ``../`` segments preserved, so the fix moves the *classification* and
+    nothing about the string that reaches the dataset.
+    """
+
+    #: The finding's own example: three concrete segments and four ``..``, so the running
+    #: depth is spent by the third and the fourth takes it below the root. Its leading
+    #: segments are exactly ``core/src/main``, which is why a first-segment reading both
+    #: called it a tree file and let it match ``core/src/main/**``.
+    INTERIOR_ESCAPE = "core/src/main/../../../../etc/passwd"
+
+    #: An interior ``..`` that stays inside the tree: a real sibling-directory reference.
+    #: It must remain in scope, which is the half of the rule a blunt "any ``..`` is an
+    #: escape" implementation would get wrong.
+    INTERIOR_PARENT_INSIDE = "core/src/main/scala/../java/A.java"
+
+    #: An interior ``..`` whose shadow lands in a test tree. The reported spelling carries
+    #: ``src/main``; only the shadow carries the literal ``src/test``.
+    INTERIOR_PARENT_INTO_TEST = "sql/core/src/main/../test/A.scala"
+
+    #: A shadow that lands *inside* an allowlist root from a first segment that is not one.
+    #: The reported spelling matches no glob; the coordinate lexically names a file under
+    #: ``core/src/main``.
+    SHADOW_INTO_SCOPE = "unrelated/../core/src/main/scala/A.scala"
+
+    #: An archive member whose container leaves the tree, in the shape AAP 0.5.4 defines.
+    ESCAPING_ARCHIVE = "a/../../guava-18.0.jar!META-INF/maven/com.google.guava/pom.xml"
+
+    #: The same shape as it actually occurs, taken from the dependency-check artifact's
+    #: Maven-repository coordinate: a leading chain rather than an interior one.
+    LEADING_ARCHIVE = (
+        "../../root/.m2/repository/com/google/guava/guava/18.0/guava-18.0.jar"
+        "!META-INF/maven/com.google.guava/guava/pom.xml"
+    )
+
+    def test_an_interior_parent_chain_escapes_the_root_and_is_out_of_scope(self) -> None:
+        """The finding's example: classified ``outside_root``, and ``in_scope`` is false.
+
+        Both halves of the defect are asserted, not just the fix. The glob match is
+        demonstrated first -- ``core/src/main/**`` really does match this path's segments --
+        so the record shows that the containment rule is what excludes the coordinate, and
+        that a matcher change would not have been the fix. AAP 0.5.4: every non-filesystem
+        coordinate takes ``in_scope: false``, is kept, and is counted.
+        """
+        globs = recorded_env().globs
+        self.assertTrue(
+            paths.match_glob("core/src/main/**", self.INTERIOR_ESCAPE),
+            msg=(
+                "the premise of the finding: this coordinate matches the glob on its "
+                "segments, so nothing but a containment test can exclude it"
+            ),
+        )
+        analysis = paths.analyse_containment(self.INTERIOR_ESCAPE)
+        self.assertTrue(analysis.escapes_root, msg="the running depth goes below the root")
+        self.assertEqual(
+            analysis.escaping_segment_index,
+            6,
+            msg="the escape is at the fourth '..', which is segment index 6",
+        )
+        self.assertEqual(analysis.minimum_depth, -1)
+        self.assertEqual(analysis.final_depth, 1, msg="and it ends one segment deep, outside")
+        self.assertEqual(analysis.canonical_path, "../etc/passwd")
+        self.assertEqual(
+            paths.path_kind_for(self.INTERIOR_ESCAPE),
+            paths.PATH_KIND_OUTSIDE_ROOT,
+            msg="a coordinate that leaves the tree is an outside-root coordinate",
+        )
+        self.assertFalse(
+            paths.in_scope(self.INTERIOR_ESCAPE, globs),
+            msg=(
+                "and in_scope is false even with the default tree_file kind, so a caller "
+                "that did not pass the resolved kind still cannot get a true verdict"
+            ),
+        )
+        decision = paths.scope_decision(
+            self.INTERIOR_ESCAPE, globs, kind=paths.PATH_KIND_OUTSIDE_ROOT
+        )
+        self.assertFalse(decision.in_scope)
+        self.assertTrue(decision.excluded_as_escaping_root, msg=decision.reason())
+        self.assertIsNone(
+            decision.matched_glob,
+            msg="an escaping coordinate is attributed to no allowlist root",
+        )
+
+    def test_an_interior_parent_that_stays_inside_the_root_remains_in_scope(self) -> None:
+        """A sibling-directory reference is not an escape, and must keep its scope.
+
+        The other half of the rule. ``..`` is not evidence of anything on its own: the
+        verdict is the running depth, and this coordinate's depth never reaches zero. A
+        implementation that excluded every path carrying ``..`` would drop real in-scope
+        rows, which is the same silent-loss failure in the opposite direction.
+        """
+        globs = recorded_env().globs
+        analysis = paths.analyse_containment(self.INTERIOR_PARENT_INSIDE)
+        self.assertFalse(analysis.escapes_root)
+        self.assertIsNone(analysis.escaping_segment_index)
+        self.assertEqual(analysis.minimum_depth, 0, msg="the depth never goes negative")
+        self.assertEqual(analysis.canonical_path, "core/src/main/java/A.java")
+        self.assertEqual(
+            paths.path_kind_for(self.INTERIOR_PARENT_INSIDE), paths.PATH_KIND_TREE_FILE
+        )
+        self.assertTrue(paths.in_scope(self.INTERIOR_PARENT_INSIDE, globs))
+        decision = paths.scope_decision(self.INTERIOR_PARENT_INSIDE, globs)
+        self.assertTrue(decision.in_scope, msg=decision.reason())
+        self.assertFalse(decision.excluded_as_escaping_root)
+        self.assertEqual(decision.matched_glob, "core/src/main/**")
+        self.assertEqual(
+            decision.matched_spelling,
+            "reported",
+            msg="it matches as reported, so the shadow is not consulted at all",
+        )
+
+    def test_an_archive_member_whose_container_escapes_is_seen_to_escape(self) -> None:
+        """The container's depth decides, and the member's own ``..`` is not consulted.
+
+        A member path moves within the archive; only the container can move relative to the
+        scan root. The kind stays ``archive_member`` -- the more specific of two
+        non-filesystem kinds, and the one the dependency-check expectation records for the
+        Maven-repository coordinate -- while the analysis still reports the container's
+        escape for any caller that needs it.
+        """
+        globs = recorded_env().globs
+        for coordinate, expected_minimum in (
+            (self.ESCAPING_ARCHIVE, -1),
+            (self.LEADING_ARCHIVE, -2),
+        ):
+            with self.subTest(coordinate=coordinate):
+                analysis = paths.analyse_containment(coordinate)
+                self.assertTrue(analysis.is_archive_reference)
+                self.assertTrue(
+                    analysis.escapes_root, msg="the container leaves the scanned tree"
+                )
+                self.assertEqual(analysis.minimum_depth, expected_minimum)
+                self.assertNotIn(
+                    paths.ARCHIVE_SEPARATOR,
+                    "".join(analysis.segments),
+                    msg="only the container's segments are walked",
+                )
+                self.assertEqual(
+                    paths.path_kind_for(coordinate),
+                    paths.PATH_KIND_ARCHIVE_MEMBER,
+                    msg="the archive test stays first; both kinds are non-filesystem",
+                )
+                self.assertFalse(
+                    paths.in_scope(coordinate, globs, kind=paths.PATH_KIND_ARCHIVE_MEMBER)
+                )
+                self.assertFalse(
+                    paths.in_scope(coordinate, globs),
+                    msg=(
+                        "and the escape alone excludes it, so a caller that lost the kind "
+                        "cannot recover a true verdict"
+                    ),
+                )
+
+    def test_an_archive_member_whose_container_is_inside_the_root_does_not_escape(self) -> None:
+        """The control for the case above: a container in the tree is not an escape.
+
+        Without it, "the escaping container is excluded" would be consistent with every
+        archive member being reported as escaping, which would make the measurement
+        ``run-record.md`` publishes meaningless.
+        """
+        coordinate = "core/src/main/x.jar!org/apache/spark/Foo.class"
+        analysis = paths.analyse_containment(coordinate)
+        self.assertTrue(analysis.is_archive_reference)
+        self.assertFalse(analysis.escapes_root)
+        self.assertEqual(analysis.container, "core/src/main/x.jar")
+        self.assertEqual(analysis.member, "org/apache/spark/Foo.class")
+        self.assertEqual(
+            paths.path_kind_for(coordinate), paths.PATH_KIND_ARCHIVE_MEMBER
+        )
+        self.assertFalse(
+            paths.in_scope(coordinate, recorded_env().globs, kind=paths.PATH_KIND_ARCHIVE_MEMBER),
+            msg="still out of scope, but on the non-filesystem rule rather than an escape",
+        )
+
+    def test_a_leading_parent_chain_is_classified_exactly_as_it_was(self) -> None:
+        """The pre-existing case must not move: a leading ``..`` is still ``outside_root``.
+
+        The running-depth walk subsumes the first-segment test rather than replacing its
+        answers -- a leading ``..`` takes the depth negative at index 0 -- and this asserts
+        the subsumption over the value the Checkov mis-reading actually produces.
+        """
+        root = recorded_env().root
+        mis_read = paths.relativize_to_root(f"/{SPARK_DOCKERFILE}", root)
+        analysis = paths.analyse_containment(mis_read)
+        self.assertEqual(
+            analysis.escaping_segment_index, 0, msg="a leading '..' escapes at index 0"
+        )
+        self.assertEqual(
+            paths.path_kind_for(mis_read),
+            paths.PATH_KIND_OUTSIDE_ROOT,
+            msg="the classification the first-segment test already gave",
+        )
+        self.assertFalse(paths.in_scope(mis_read, recorded_env().globs))
+
+    def test_a_shadow_that_lands_inside_a_glob_is_in_scope_on_the_shadow(self) -> None:
+        """``unrelated/../core/src/main/...`` is a file under ``core/src/main``, and says so.
+
+        The mirror image of the finding: the reported spelling matches no glob, so a matcher
+        reading it alone answers ``in_scope: false`` for a coordinate that lexically names an
+        in-scope file. The shadow is consulted only after the reported spelling fails, so the
+        rule can add a match and never remove one, and which spelling matched is recorded
+        rather than left for a reader to guess.
+        """
+        globs = recorded_env().globs
+        analysis = paths.analyse_containment(self.SHADOW_INTO_SCOPE)
+        self.assertFalse(analysis.escapes_root)
+        self.assertTrue(analysis.canonical_differs)
+        self.assertIsNone(
+            paths.matches_any_glob(analysis.reported_path, globs),
+            msg="the reported spelling matches nothing, which is the premise",
+        )
+        self.assertEqual(
+            paths.matches_any_glob(analysis.canonical_path, globs), "core/src/main/**"
+        )
+        self.assertTrue(paths.in_scope(self.SHADOW_INTO_SCOPE, globs))
+        decision = paths.scope_decision(self.SHADOW_INTO_SCOPE, globs)
+        self.assertEqual(decision.matched_spelling, "canonical", msg=decision.reason())
+        self.assertEqual(decision.canonical_path, "core/src/main/scala/A.scala")
+        self.assertEqual(
+            decision.path,
+            self.SHADOW_INTO_SCOPE,
+            msg="and the decision reports the reported spelling, never the shadow",
+        )
+
+    def test_a_shadow_that_lands_in_a_test_tree_is_excluded_on_the_literal_marker(self) -> None:
+        """The ``src/test`` exclusion is tested on both spellings, or it is evadable.
+
+        ``sql/core/src/main/../test/A.scala`` carries ``src/main`` as reported and
+        ``src/test`` as shadowed. Testing the reported spelling alone would put a Scala test
+        source in scope through a coordinate that names it by a different route, and AAP
+        0.3.1's exclusion is a property of the location rather than of its spelling.
+        """
+        globs = recorded_env().globs
+        analysis = paths.analyse_containment(self.INTERIOR_PARENT_INTO_TEST)
+        self.assertNotIn(paths.SRC_TEST_MARKER, analysis.reported_path)
+        self.assertIn(paths.SRC_TEST_MARKER, analysis.canonical_path)
+        self.assertFalse(paths.in_scope(self.INTERIOR_PARENT_INTO_TEST, globs))
+        decision = paths.scope_decision(self.INTERIOR_PARENT_INTO_TEST, globs)
+        self.assertTrue(decision.excluded_by_src_test, msg=decision.reason())
+        self.assertFalse(decision.in_scope)
+
+    def test_the_analysis_rewrites_no_spelling_and_the_row_keeps_the_reported_path(self) -> None:
+        """End to end: an escaping record is kept, byte-identical, and out of scope.
+
+        The row is emitted rather than rejected -- AAP 0.5.4 keeps a non-filesystem
+        coordinate and counts it -- its ``path`` is the reported spelling character for
+        character with every ``..`` intact, and the adapter's own non-filesystem counter
+        moves. Asserted through ``checkov.adapt`` rather than through ``paths`` alone,
+        because the requirement is about what reaches the dataset.
+        """
+        root = recorded_env().root
+        record = failed_check(
+            check_id=SYNTHETIC_CHECK_ID,
+            check_name=SYNTHETIC_CHECK_NAME,
+            file_path=f"/{self.INTERIOR_ESCAPE}",
+            repo_file_path=f"/{self.INTERIOR_ESCAPE}",
+            file_abs_path=f"{root}/{self.INTERIOR_ESCAPE}",
+            file_line_range=[1, 1],
+        )
+        adapted = self.adapt(object_form(record))
+        self.assertEqual(adapted.rejections, [], msg="kept, not rejected")
+        self.assertEqual(len(adapted.rows), 1)
+        row = adapted.rows[0]
+        self.assertEqual(
+            row["path"],
+            self.INTERIOR_ESCAPE,
+            msg="the emitted spelling is the reported one, with every '..' preserved",
+        )
+        self.assertFalse(row["in_scope"])
+        self.assertEqual(adapted.counters["rows_out_of_scope"], 1)
+        self.assertEqual(adapted.counters["rows_in_scope"], 0)
+        self.assertEqual(
+            adapted.counters["non_filesystem_paths"],
+            1,
+            msg="an escaping coordinate is counted in the proportion run-record.md reports",
+        )
+        self.assertEqual(
+            adapted.tally is not None,
+            True,
+            msg="the severity tally is still the caller's, unchanged by the path verdict",
+        )
+
+    def test_every_committed_fixture_row_is_unaffected_by_the_containment_rule(self) -> None:
+        """The regression control: no captured row's spelling or verdict moves.
+
+        Every row of every fixture carries no ``..`` at all, so its shadow is its reported
+        spelling and its verdict is decided by exactly the rule that decided it before. This
+        is what makes the change safe to state as "only an escaping coordinate moves".
+        """
+        globs = recorded_env().globs
+        for stem in ALL_FIXTURES:
+            with self.subTest(fixture=stem):
+                adapted = self.adapt_fixture(stem)
+                for index, row in enumerate(adapted.rows):
+                    analysis = paths.analyse_containment(row["path"])
+                    self.assertFalse(
+                        analysis.canonical_differs,
+                        msg=f"{stem} row {index}: {row['path']!r} has one spelling",
+                    )
+                    self.assertFalse(analysis.escapes_root, msg=f"{stem} row {index}")
+                    self.assertEqual(
+                        row["in_scope"],
+                        paths.in_scope(row["path"], globs, kind=paths.PATH_KIND_TREE_FILE),
+                        msg=f"{stem} row {index}: the verdict is the unchanged one",
+                    )
+
+    def test_the_walk_is_bounded_by_the_segment_count_and_consults_no_filesystem(self) -> None:
+        """Cost is exactly the segment count, and the answer does not depend on the disk.
+
+        ``Path.resolve`` and ``os.path.realpath`` would answer containment by following
+        symlink chains whose length is no property of the input, and ``os.path.normpath``
+        would collapse the ``..`` the errata protect. This walk is one pass, so the bound is
+        a number the analysis itself reports -- asserted here on a 4,000-segment coordinate,
+        which returns rather than recursing -- and the verdict for a path that exists on disk
+        is identical to the verdict for one that does not.
+        """
+        for coordinate, expected in (
+            ("a/b/c.txt", 3),
+            (self.INTERIOR_ESCAPE, 9),
+            (self.LEADING_ARCHIVE, 11),
+            ("./a/./b", 3),
+        ):
+            with self.subTest(coordinate=coordinate):
+                self.assertEqual(
+                    paths.analyse_containment(coordinate).segments_walked, expected
+                )
+        deep = "/".join(["a"] * 2000 + [".."] * 2000)
+        analysis = paths.analyse_containment(deep)
+        self.assertEqual(analysis.segments_walked, 4000)
+        self.assertFalse(analysis.escapes_root, msg="2,000 up from 2,000 down stays at the root")
+        self.assertEqual(analysis.canonical_path, ".", msg="and its shadow is the root itself")
+        materialised = tree_env()
+        existing = f"{SPARK_DOCKERFILE}/../../x/../../../../../../../../../../../../etc/passwd"
+        self.assertTrue(
+            (Path(materialised.root) / SPARK_DOCKERFILE).exists(),
+            msg="the first segment chain really is a file on disk in this environment",
+        )
+        self.assertTrue(
+            paths.analyse_containment(existing).escapes_root,
+            msg="an escape through a path that exists is still an escape",
+        )
+        self.assertTrue(
+            paths.analyse_containment(
+                "does/not/exist/../../../../../../etc/passwd"
+            ).escapes_root,
+            msg="and the verdict for a path that does not exist is the same",
+        )
+
+    def test_a_non_string_coordinate_is_a_policy_error_rather_than_a_classification(self) -> None:
+        """Reject rather than infer: a non-string coordinate has no kind to report.
+
+        The analysis raises, so the caller turns it into a counted ``malformed_record``
+        rejection instead of receiving a plausible ``tree_file``. Asserted on all three
+        entry points, because a guard on one of them is not a guard.
+        """
+        for value in (None, 5, ["a"], {"path": "a"}):
+            with self.subTest(value=value):
+                with self.assertRaises(paths.PathPolicyError):
+                    paths.analyse_containment(value)
+                with self.assertRaises(paths.PathPolicyError):
+                    paths.path_kind_for(value)
+                with self.assertRaises(paths.PathPolicyError):
+                    paths.in_scope(value, recorded_env().globs)
+
+    def test_the_containment_record_is_deterministic_and_json_serialisable(self) -> None:
+        """``as_dict`` is a fixed key order and plain types, so it can enter a record.
+
+        A rejection detail or a ``run-record.md`` note may need to say *where* a coordinate
+        left the tree; that is only worth having if the serialisation is stable, so the key
+        order is asserted as a list rather than a set and the whole dict is round-tripped
+        through JSON.
+        """
+        analysis = paths.analyse_containment(self.INTERIOR_ESCAPE)
+        record = analysis.as_dict()
+        self.assertEqual(
+            list(record),
+            [
+                "reported_path",
+                "canonical_path",
+                "escapes_root",
+                "escaping_segment_index",
+                "minimum_depth",
+                "final_depth",
+                "segments_walked",
+                "container",
+                "member",
+            ],
+        )
+        self.assertEqual(json.loads(json.dumps(record)), record)
+        self.assertEqual(
+            paths.analyse_containment(self.INTERIOR_ESCAPE).as_dict(),
+            record,
+            msg="the same coordinate analysed twice gives the same record",
+        )
+
+
+# ======================================================================================
+# 4. Failures only, and parsing errors as status evidence (brief assertions 11-13)
+# ======================================================================================

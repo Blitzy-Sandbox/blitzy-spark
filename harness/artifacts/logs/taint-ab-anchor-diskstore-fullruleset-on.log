@@ -1,0 +1,32 @@
+arm               : on (--taint-intrafile present)
+the one variable  : --taint-intrafile, the ONLY taint discriminator opengrep 1.27.1 exposes
+engine            : 1.27.1 (/opt/blitzy-tools/bin/opengrep)
+ruleset           : /opt/blitzy-harness/rules/opengrep-rules (commit f1d2b562b414783763fd02a6ed2736eaed622efa)
+configs passed    : 29 rule-bearing directories, the Stage 3 runner's own selection
+argv elements     : 58 (one --config plus one path per directory; 29 x 2)
+config directories: ai/ apex/ bash/ c/ clojure/ csharp/ dockerfile/ elixir/ generic/ go/ html/ java/ javascript/ json/ kotlin/ ocaml/ php/ problem-based-packs/ python/ ruby/ rust/ scala/ scripts/ solidity/ swift/ terraform/ trusted_python/ typescript/ yaml/ 
+exact argv        : opengrep scan --config /opt/blitzy-harness/rules/opengrep-rules/ai/ --config /opt/blitzy-harness/rules/opengrep-rules/apex/ --config /opt/blitzy-harness/rules/opengrep-rules/bash/ --config /opt/blitzy-harness/rules/opengrep-rules/c/ --config /opt/blitzy-harness/rules/opengrep-rules/clojure/ --config /opt/blitzy-harness/rules/opengrep-rules/csharp/ --config /opt/blitzy-harness/rules/opengrep-rules/dockerfile/ --config /opt/blitzy-harness/rules/opengrep-rules/elixir/ --config /opt/blitzy-harness/rules/opengrep-rules/generic/ --config /opt/blitzy-harness/rules/opengrep-rules/go/ --config /opt/blitzy-harness/rules/opengrep-rules/html/ --config /opt/blitzy-harness/rules/opengrep-rules/java/ --config /opt/blitzy-harness/rules/opengrep-rules/javascript/ --config /opt/blitzy-harness/rules/opengrep-rules/json/ --config /opt/blitzy-harness/rules/opengrep-rules/kotlin/ --config /opt/blitzy-harness/rules/opengrep-rules/ocaml/ --config /opt/blitzy-harness/rules/opengrep-rules/php/ --config /opt/blitzy-harness/rules/opengrep-rules/problem-based-packs/ --config /opt/blitzy-harness/rules/opengrep-rules/python/ --config /opt/blitzy-harness/rules/opengrep-rules/ruby/ --config /opt/blitzy-harness/rules/opengrep-rules/rust/ --config /opt/blitzy-harness/rules/opengrep-rules/scala/ --config /opt/blitzy-harness/rules/opengrep-rules/scripts/ --config /opt/blitzy-harness/rules/opengrep-rules/solidity/ --config /opt/blitzy-harness/rules/opengrep-rules/swift/ --config /opt/blitzy-harness/rules/opengrep-rules/terraform/ --config /opt/blitzy-harness/rules/opengrep-rules/trusted_python/ --config /opt/blitzy-harness/rules/opengrep-rules/typescript/ --config /opt/blitzy-harness/rules/opengrep-rules/yaml/ --taint-intrafile --sarif --sarif-output <path> --dataflow-traces --timeout 300 --timeout-threshold 0 --max-target-bytes 20000000 --x-ignore-semgrepignore-files --disable-version-check core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+subject file      : core/src/main/scala/org/apache/spark/storage/DiskStore.scala (the AAP 0.5.1 anchor)
+scan root         : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src
+exit code         : 0
+elapsed seconds   : 72
+sarif             : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-on.sarif (2939276 bytes)
+sarif sha256      : fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51
+
+--- every finding this arm produced, from its own SARIF ---
+  line=   72 level=None codeFlows=1 dataflow_steps=2 ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string
+  findings: 1
+
+--- rules scanned / files, from the arm's own stderr ---
+  Language      Rules   Files          Origin   Rules                                                                   
+ ─────────────────────────────        ────────────────                                                                  
+  <multilang>     241       1          Custom    2006                                                                   
+  scala            25       1                                                                                           
+                                                                                                                        
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+
+Ran 266 rules on 1 file: 1 finding.

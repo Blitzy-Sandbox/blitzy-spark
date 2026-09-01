@@ -17,7 +17,7 @@
       "Secrets": "row 1 is secret; rejection 1 is its section-mate at /Results/1/Secrets/1",
       "Misconfigurations": "row 0 is misconfig; rejection 0 is its section-mate at /Results/0/Misconfigurations/1"
     },
-    "inherited_falsifiability": "Row 0 carries the same content-versus-section trap the positive sibling records under scanner_class_falsifiability: its Title is \"Secrets passed via `build-args` or envs or copied secret files\", its Namespace is builtin.dockerfile.DS031, and every word of its prose points at the secret scanner. It is misconfig because it is an element of Results[0].Misconfigurations[]. If this row ever reads secret, the derivation has been inverted; that is not a value to update."
+    "inherited_falsifiability": "Row 0 carries the same content-versus-section trap expected/derived-trivy-features.rows.json records under scanner_class_falsifiability: its Title is \"Secrets passed via `build-args` or envs or copied secret files\", its Namespace is builtin.dockerfile.DS031, and every word of its prose points at the secret scanner. It is misconfig because it is an element of Results[0].Misconfigurations[]. If this row ever reads secret, the derivation has been inverted; that is not a value to update."
   },
   "adapter": "harness/lib/normalize/adapters/trivy.py",
   "fixture": {
@@ -37,8 +37,8 @@
       "Misconfigurations": 2
     },
     "results_holding_no_record": 1,
-    "derived_from": "oss-scan-results/adapter-tests/fixtures/trivy.json",
-    "derivation": "A negative fixture is derived from the captured one rather than being an excerpt of it, so the provenance is stated as a derivation. Exactly four edits were made to the positive fixture, each removing or emptying one record's section-specific rule-identifier key and touching nothing else. Verified by structural comparison of the two documents record by record: those four are the only differences, and the six Results[] elements, their Target, Class and Type scalars, the Packages inventory, the MisconfSummary object and both unsupported sections are unchanged.",
+    "derived_from": "oss-scan-results/adapter-tests/fixtures/derived-trivy-features.json",
+    "derivation": "A negative fixture is derived from a sibling fixture rather than being an excerpt of one, so the provenance is stated as a derivation. Exactly four edits were made to the positive fixture, each removing or emptying one record's section-specific rule-identifier key and touching nothing else. Verified by structural comparison of the two documents record by record: those four are the only differences, and the six Results[] elements, their Target, Class and Type scalars, the Packages inventory, the MisconfSummary object and both unsupported sections are unchanged. Throughout this file, \"the positive fixture\" and \"the positive sibling\" name the declared-derived document this fixture is derived from -- oss-scan-results/adapter-tests/fixtures/derived-trivy-features.json and its expected file oss-scan-results/adapter-tests/expected/derived-trivy-features.rows.json, whose nine finding records and nine rows are the ones cited by index below. Neither term names oss-scan-results/adapter-tests/fixtures/trivy.json, which is a byte-for-byte copy of harness/artifacts/raw/trivy.json carrying only its three DS-0026 misconfiguration records, nor that file's expected file expected/trivy.rows.json.",
     "the_four_edits": [
       {
         "record_pointer": "/Results/0/Misconfigurations/1",
@@ -67,7 +67,7 @@
         "note": "The absent-key and empty-string routes are different lines of _rule_id and are both missing_rule_id rather than one of them being malformed_record. Carrying both is what makes that distinction asserted rather than assumed."
       }
     ],
-    "every_surviving_record_is_byte_identical_to_its_positive_counterpart": "Which is why the five rows below can be corroborated field for field against expected/trivy.rows.json rather than resting on this file alone. The five are that file's rows 0, 2, 5, 6 and 8.",
+    "every_surviving_record_is_byte_identical_to_its_positive_counterpart": "Which is why the five rows below can be corroborated field for field against expected/derived-trivy-features.rows.json rather than resting on this file alone. The five are that file's rows 0, 2, 5, 6 and 8.",
     "shape_fidelity": "A Trivy 0.74.0 filesystem report carrying all three supported finding sections. Every member this adapter reads appears in report.go's own spelling: Results[] with Target, Class and Type; the three finding arrays; Packages with Identifier.PURL; MisconfSummary; CauseMetadata.StartLine; PkgIdentifier.PURL; PkgPath; CweIDs; and a CVSS table keyed by source.",
     "provenance": "The positive fixture this one derives from is itself not an excerpt of this run's own artifact, and that is recorded in its expected file rather than repeated here: harness/artifacts/raw/trivy.json holds three DS-0026 misconfigurations over three Dockerfiles, because the twelve authoritative globs contain no dependency manifest for the vulnerability scanner to resolve and no matched secret for the secret scanner to report. None of the nine records below appears in harness/artifacts/raw/ or under harness/artifacts/logs/. The four identifier defects appear in no tool output anywhere -- a real Trivy report always states the identifier its section names -- and are synthesized precisely because a rejection path with no test is a rejection path nobody has exercised (AAP 0.9.4).",
     "fixture_is_never_edited_to_suit_these_rows": "These rows and rejections are re-derived when the fixture changes, which is what the recorded sha256 above makes visible. The fixture is the input and this file is the assertion; the dependency runs one way."
@@ -255,16 +255,16 @@
   },
   "corroboration": {
     "available": true,
-    "source": "oss-scan-results/adapter-tests/expected/trivy.rows.json",
+    "source": "oss-scan-results/adapter-tests/expected/derived-trivy-features.rows.json",
     "records_compared": 5,
     "fields_compared_per_record": 12,
     "agreement": "complete",
     "mapping": {
-      "this_file_row_0": "trivy.rows.json row 0 -- /Results/0/Misconfigurations/0, DS-0031",
-      "this_file_row_1": "trivy.rows.json row 2 -- /Results/1/Secrets/0, jwt-token",
-      "this_file_row_2": "trivy.rows.json row 5 -- /Results/2/Vulnerabilities/1, NSWG-ECO-519",
-      "this_file_row_3": "trivy.rows.json row 6 -- /Results/3/Vulnerabilities/0, CVE-2024-49761",
-      "this_file_row_4": "trivy.rows.json row 8 -- /Results/4/Vulnerabilities/0, CVE-2017-16137"
+      "this_file_row_0": "derived-trivy-features.rows.json row 0 -- /Results/0/Misconfigurations/0, DS-0031",
+      "this_file_row_1": "derived-trivy-features.rows.json row 2 -- /Results/1/Secrets/0, jwt-token",
+      "this_file_row_2": "derived-trivy-features.rows.json row 5 -- /Results/2/Vulnerabilities/1, NSWG-ECO-519",
+      "this_file_row_3": "derived-trivy-features.rows.json row 6 -- /Results/3/Vulnerabilities/0, CVE-2024-49761",
+      "this_file_row_4": "derived-trivy-features.rows.json row 8 -- /Results/4/Vulnerabilities/0, CVE-2017-16137"
     },
     "why_the_corroboration_is_real": "The five surviving records are byte-identical to their counterparts in the positive fixture -- established by structural comparison, not assumed from the edit list -- so the positive file's independently hand-verified rows are a genuine second derivation of these twelve-field values rather than a restatement of them. The four rows that file carries and this one does not are exactly the four rejected records, and each of those is a row there because its identifier is present there.",
     "what_is_not_corroborated": "The four rejections. No other file in this tree derives them, so their classes, sub-reasons and identities rest on the fixture and on adapters/trivy.py's authored contract alone -- which is where AAP 0.6.1 puts them in any case: hand-verified from the fixture."
@@ -686,12 +686,12 @@
     {
       "behaviour": "the level-3 ecosystem package coordinate, <lower-cased Results[].Type>:<PkgName>@<InstalledVersion>, and the level-4 enclosing-package-fields route",
       "why_absent": "the one record in the fixture that reaches level 3 is rejection 3, and no record here reaches level 4",
-      "cover_with": "expected/trivy.rows.json, whose row 7 is that record with its identifier present"
+      "cover_with": "expected/derived-trivy-features.rows.json, whose row 7 is that record with its identifier present"
     },
     {
       "behaviour": "the ascending-numeric tie-break over a multi-valued CweIDs array",
       "why_absent": "the only record whose CweIDs disagree with producer order is rejection 2",
-      "cover_with": "expected/trivy.rows.json, row 4"
+      "cover_with": "expected/derived-trivy-features.rows.json, row 4"
     },
     {
       "behaviour": "the per_section_target path base and its required section_base, and any non-filesystem coordinate -- an archive member, a path outside the root, a bytecode class",

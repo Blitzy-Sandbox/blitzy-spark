@@ -1,0 +1,415 @@
+{
+  "reportSchema" : "1.1",
+  "scanInfo" : {
+    "engineVersion" : "13.0.0",
+    "dataSource" : [ {
+      "name" : "NVD API Last Checked",
+      "timestamp" : "2026-08-30T17:47:21Z"
+    }, {
+      "name" : "NVD API Last Modified",
+      "timestamp" : "2026-08-30T12:00:19-04"
+    }, {
+      "name" : "NVD Cache Last Checked",
+      "timestamp" : "2026-08-30T17:47:21Z"
+    }, {
+      "name" : "NVD Cache Last Modified",
+      "timestamp" : "2026-08-30T12:00:19-04"
+    } ]
+  },
+  "projectInfo" : {
+    "name" : "spark-pinned-59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d",
+    "reportDate" : "2026-08-31T10:09:19.528395491Z",
+    "credits" : {
+      "NVD" : "This product uses the NVD API but is not endorsed or certified by the NVD. This report contains data retrieved from the National Vulnerability Database: https://nvd.nist.gov",
+      "CISA" : "This report may contain data retrieved from the CISA Known Exploited Vulnerability Catalog: https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "NPM" : "This report may contain data retrieved from the Github Advisory Database (via NPM Audit API): https://github.com/advisories/",
+      "RETIREJS" : "This report may contain data retrieved from the RetireJS community: https://retirejs.github.io/retire.js/",
+      "OSSINDEX" : "This report may contain data retrieved from the Sonatype Guide OSS Index API: https://www.sonatype.com/products/sonatype-guide/oss-index-users"
+    }
+  },
+  "dependencies" : [ {
+    "isVirtual" : false,
+    "fileName" : "bootstrap.bundle.min.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/bootstrap.bundle.min.js",
+    "md5" : "50703ebfc29f534ad6e432826f1c25e3",
+    "sha1" : "f19941f9fd95e8a9bdf9db599bb3d8714d41465a",
+    "sha256" : "4d371899aba195b1f0cba3a70de300fb5b327a322cfbe3a30d77af8456d8494e",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "d3-flamegraph.min.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/d3-flamegraph.min.js",
+    "md5" : "8bcf28223e120caadc1d06ea490097bf",
+    "sha1" : "b8aff8a414bbc4b9df32f0ace4fecd747051f603",
+    "sha256" : "10c2ac45bb9ad73e12fdebf434fbb29aa05b85b7bab660c2751e885c51bd5356",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "d3.min.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/d3.min.js",
+    "md5" : "187f632d1293a2cfc41dddd594cf6c25",
+    "sha1" : "a029baa96335dd635a763dc867e4406f371e7fb6",
+    "sha256" : "d6b03aefc9f6c44c7bc78713679c78c295028fa914319119e5cc4b4954855b1c",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "dagre-d3.min.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js",
+    "md5" : "5d79b3535adabd94ee716c5bdae278a4",
+    "sha1" : "e2049d51f22277ef72115e2be1bac63e0cd4d884",
+    "sha256" : "b1e946243fc2aa7ba500f7b8fd68c6c8a6fcbbb0329e00389b6a05e20e39130e",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "dataTables.bootstrap4.min.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/dataTables.bootstrap4.min.js",
+    "md5" : "83b7d81aaffdbed3d073fb9cf319c686",
+    "sha1" : "bdb952acb4a8693af0dd2cf90cb24a962c33b885",
+    "sha256" : "e8dd8ff4b7568aa33170d6750c480e8cac29999da8a3a3e78dea13a4dfd8c8ef",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "dataTables.rowsGroup.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/dataTables.rowsGroup.js",
+    "md5" : "9473e0a904f35fdf0110d912d16d5fb7",
+    "sha1" : "195a59175be1992aab636c5c641b405ba0283581",
+    "sha256" : "5856c937e4fe8a921364a14de58f406788db336ed9066b3aed897c0ced755c42",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "environmentpage.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/environmentpage.js",
+    "md5" : "c25068468a9bde7c1f58a709af474267",
+    "sha1" : "8df851ed59ad45fb735a3a431c9e440d6f8bd7cd",
+    "sha256" : "55541ca32e9c7b3744bb5b28483e3f383089a5d6c229a4b9729d4956bc1482d0",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "executorspage.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/executorspage.js",
+    "md5" : "37d3d9cdb0b6096e8e265b4e4e54bf45",
+    "sha1" : "0ee72149383c62e7435c73f4366887bf11587358",
+    "sha256" : "8422059a44c29eee0667b4007e8ab930675285ed54cc3ec8cdbd7ea3bc2b0c38",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "flamegraph.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/flamegraph.js",
+    "md5" : "733853a4d66e8843b59cfa2fb10ade9d",
+    "sha1" : "2b10455237d4ebc023bef7249d61bbd974e19749",
+    "sha256" : "7213342da69cc2b1191493569f8e78085d763380e03a44208ef23dd6b288c21d",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "graphlib-dot.min.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/graphlib-dot.min.js",
+    "md5" : "d4b78aaf0e8f27009ac6401ac03a3d62",
+    "sha1" : "f26f4fac03c0efa869e87197a84479e7da27ad26",
+    "sha256" : "ae68701d5a547f47eb65ea79a4e2f3179d23c1b8280b2856e16e68555231a409",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "historypage-common.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/historypage-common.js",
+    "md5" : "582428b2f22946f5c18e61acfb6132f2",
+    "sha1" : "546c199077662823bbb0ae8546b172727f41c555",
+    "sha256" : "7ddc45531c9d247c9d4b0a59e18c20a87571055ab7227f95d3993c304f1164f8",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "historypage.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/historypage.js",
+    "md5" : "ff78b28f0668fea79eca89be0088d2aa",
+    "sha1" : "11de5b9027942eb1c4dfda8e1bd63bcc769bb6ec",
+    "sha256" : "d1d24cc90ed84ceb821ea77af6ff35f4095c3e3772cb0479953ed6a169e83d8e",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "initialize-tooltips.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/initialize-tooltips.js",
+    "md5" : "4bbbe3972ca4aca9bb6f1195ab949b7d",
+    "sha1" : "68c4470ab3e44a88136bf826f6d2bc82ce76a3fc",
+    "sha256" : "cbfddcaa32fbffc96a3311f358c7bf726e98c13b646dfc03e044a327e17cfc67",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "jquery-3.5.1.min.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/jquery-3.5.1.min.js",
+    "md5" : "dc5e7f18c8d36ac1d3d4753a87c98d0a",
+    "sha1" : "c8e1c8b386dc5b7a9184c763c88d19a346eb3342",
+    "sha256" : "f7f6a5894f1d19ddad6fa392b2ece2c5e578cbf7da4ea805b6885eb6985b6e3d",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "jquery.blockUI.min.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/jquery.blockUI.min.js",
+    "md5" : "879f6c970e4ae4ae559ce9e40668bfd3",
+    "sha1" : "94549079c4adcfed8a7527616c1323ada3a287f4",
+    "sha256" : "806aedff52ac822f2adc5797073e1e5c5cec32eb9f15f2319cb32a347dcd232b",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "jquery.cookies.2.2.0.min.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/jquery.cookies.2.2.0.min.js",
+    "md5" : "03b9574487d06f8f8513f95758c7cab3",
+    "sha1" : "90a61ac9835905ebec2bb1499dd0b0de894f8045",
+    "sha256" : "10fdbfbb18a947e7024457f52fd2dfe94ebddd612156c886731474b02aa45d23",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "jquery.dataTables.min.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/jquery.dataTables.min.js",
+    "md5" : "5f452263f5a4f5fcea90bee599ecc551",
+    "sha1" : "de583c31d793622cbaa415b7ebd33e54dfa67be5",
+    "sha256" : "a33146fad8c7228dc4dc90043e3e50d51cead8b2267aeac32b0a8f3be8a52b86",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "jquery.mustache.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/jquery.mustache.js",
+    "md5" : "edd6196bafbc99da4b069d0aef2714a5",
+    "sha1" : "a8e3b156340b754fb94ca493e1683263b77b096c",
+    "sha256" : "520f7bf7d54c8dde783aaf6f0dac66c9edc55da01716ccabca6888686822e7d6",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "log-view.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/log-view.js",
+    "md5" : "7053a853d3133d634f5a43a7a1988d1e",
+    "sha1" : "4ee90c6a9b37ef5063c510486b4df9245a1879ca",
+    "sha256" : "608c0049dc2a1dbec4a313f085e81542cfa62eebc4ccd10d3ca6c157d64b7b0d",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "package.json",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/package.json",
+    "md5" : "fde16b71d23a54f2511a5d0b0cad8299",
+    "sha1" : "afda3427f8566169a56150018d606d08157c6bf2",
+    "sha256" : "43b4dcbf33dc23b3d62576dce22b371b1d0c852b05dfd73442e9c3e97a0b4717",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "scroll-button.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/scroll-button.js",
+    "md5" : "ec08274664f9b972a1f8ab2a3aee1ab5",
+    "sha1" : "815de8b6e59f179c45d1df7fc0b7088187395420",
+    "sha256" : "e636980ee48f95c119fd0c6d79065bb167e0ccd49f32ec5f8148e5a0affb2f27",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "sorttable.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/sorttable.js",
+    "md5" : "5708e889aac098e2cc4051c4d4e16356",
+    "sha1" : "8311e7061a4b16f796660cf0bfe24e3964d4e998",
+    "sha256" : "718fc917df5cc75d545ddcc1465c2af7f4b70332abb2a3a592b1a36fda3f309a",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "spark-dag-viz.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/spark-dag-viz.js",
+    "md5" : "d8926b4b93c720ecfe2544467a1534ec",
+    "sha1" : "9ade91eca641dcb9cffc9174b701cc99fe8b4b95",
+    "sha256" : "e588bfb4df775611268d9bd7458a05e62215d2b7f9a55f0ef5f3d5a5742bcbce",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "spark-sql-viz.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/sql/core/src/main/resources/org/apache/spark/sql/execution/ui/static/spark-sql-viz.js",
+    "md5" : "789d406a8359b8f762e9be86ab780be4",
+    "sha1" : "c612469c803181c75303f0a936637224955b393f",
+    "sha256" : "6cbcb8e1234c1c1a4db9257189b414e9c3bae5ea73e2e91bd0470e6d4482479a",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "stagepage.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/stagepage.js",
+    "md5" : "0f7e5575ad919da44ec889c8e56170a5",
+    "sha1" : "4ed476e60740300345ccaf80784935222c8ddd8e",
+    "sha256" : "eb855fa7c69bb14f588214ef0d6d68943801ed0fb5f62133a0a6dd82a121ece3",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "streaming-page.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/streaming-page.js",
+    "md5" : "de5acf8e30c02d0ccf53b3ae12965c15",
+    "sha1" : "78d6e3b866be5bbfec451898315d4cd654693132",
+    "sha256" : "a92a9541300f506fb27dadf47ce2e30ef3ae9cf9e3879759aff5d39429a2ae25",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "structured-streaming-page.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/structured-streaming-page.js",
+    "md5" : "6a994b391a62ed1982a1718f727139ac",
+    "sha1" : "b44fe389fac9a0cbc2104ee95a87a70cf83144da",
+    "sha256" : "921bc7f6a1136f7d532595f8e4b1ca6e63ba4139593d543534c8925a9eb1244e",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "table.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/table.js",
+    "md5" : "d5d3f5d9c2af14ff700e9c6ce7c20a64",
+    "sha1" : "b144174bf3a48386dbd95f97c1ddbf2f1c6fb955",
+    "sha256" : "1cf9ace92e6e55acfef0a98b9c21f64aed0193708cc1ef3af3d6137c70bc944c",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "timeline-view.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/timeline-view.js",
+    "md5" : "cd9d79923d441800c023da46ea60756b",
+    "sha1" : "032627c811a57f20b7e54fd431c57c1dfcf8d3c3",
+    "sha256" : "33c1878ceb3eb69bc6b85a4348f0d1c7cd3f87065706a30505e24492464fdfeb",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "utils.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/utils.js",
+    "md5" : "b9952a1443767bc9fc8bab72bf1edd77",
+    "sha1" : "9f0b193fd03f4216171cd9f43351304d89ef7914",
+    "sha256" : "e7486009b45dd5b46763ff71e54bb1dabb57617d8f8d71efd48ccccc113a4324",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "vis-timeline-graph2d.min.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/vis-timeline-graph2d.min.js",
+    "md5" : "d5cc8d7322c1106091a8becb32dcf236",
+    "sha1" : "930d72612d1dfd94d047aeed72e20be3d3f01790",
+    "sha256" : "dedba3ff9bc4b36da23310a8aef217a036cc530e94e9331b507cda93ba04ad0f",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  }, {
+    "isVirtual" : false,
+    "fileName" : "webui.js",
+    "filePath" : "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src/core/src/main/resources/org/apache/spark/ui/static/webui.js",
+    "md5" : "490debb2f2fbc275a359e7c4c837f60f",
+    "sha1" : "ed6c1b0790448ea83e346784903cdfa87c6b222b",
+    "sha256" : "2b892ba8111999711a66007a3f2011e63965af5253d0a3e0fb6f3b7450ab6e42",
+    "evidenceCollected" : {
+      "vendorEvidence" : [ ],
+      "productEvidence" : [ ],
+      "versionEvidence" : [ ]
+    }
+  } ]
+}

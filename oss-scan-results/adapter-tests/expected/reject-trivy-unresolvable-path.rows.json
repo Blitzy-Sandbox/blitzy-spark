@@ -36,9 +36,9 @@
       "Secrets": 0,
       "Misconfigurations": 3
     },
-    "shape_is_an_unmerged_per_directory_part": "This is the one property that makes the fixture what it is, and it is the first thing to read. Every other Trivy fixture in this folder -- trivy.json, the five other reject-trivy-* files and halt-trivy-unsupported-section.json -- states ArtifactName \".\" with each Target already prefixed by its scope directory: the merged shape run-trivy.sh writes. This fixture states ArtifactName \"resource-managers/kubernetes/docker/src/main\" with Targets relative to it, which is the shape of one of the eighteen retained per-directory reports the runner keeps under logs/trivy.parts/. harness/artifacts/logs/runner-metadata.json says of those parts, in its own words, that they \"are NOT root-anchored: each states Target relative to its own single path argument. Read those with per_section_target semantics, not with this scan_root base.\"",
-    "derived_from": "oss-scan-results/adapter-tests/fixtures/trivy.json",
-    "derivation": "A negative fixture is derived from a captured one rather than being an excerpt of it, so the provenance is stated as a derivation. Three of its four records are unmodified: /Results/0/Misconfigurations/0 and /Results/0/Misconfigurations/1 are value-identical to /Results/0/Misconfigurations/0 and /1 of trivy.json, and /Results/2/Vulnerabilities/0 is that file's /Results/4/Vulnerabilities/0 with the redhat entry removed from its CVSS table -- the only difference between the two records, and one that changes nothing here, since the rejected record's scores are never read. The fourth, /Results/1/Misconfigurations/0, is captured output from this run itself. What the derivation changed is the enclosing shape and nothing inside a record: each Target had its \"resource-managers/kubernetes/docker/src/main/\" prefix removed and that prefix became the report's ArtifactName.",
+    "shape_is_an_unmerged_per_directory_part": "This is the one property that makes the fixture what it is, and it is the first thing to read. Every other Trivy fixture in this folder -- trivy.json, derived-trivy-features.json, the seven other reject-trivy-* files and the four halt-trivy-* files, thirteen in all -- states ArtifactName \".\" with each Target already prefixed by its scope directory: the merged shape run-trivy.sh writes. This fixture states ArtifactName \"resource-managers/kubernetes/docker/src/main\" with Targets relative to it, which is the shape of one of the eighteen retained per-directory reports the runner keeps under logs/trivy.parts/. harness/artifacts/logs/runner-metadata.json says of those parts, in its own words, that they \"are NOT root-anchored: each states Target relative to its own single path argument. Read those with per_section_target semantics, not with this scan_root base.\"",
+    "derived_from": "oss-scan-results/adapter-tests/fixtures/derived-trivy-features.json",
+    "derivation": "A negative fixture is derived from a sibling fixture rather than being an excerpt of one, so the provenance is stated as a derivation. Three of its four records are unmodified: /Results/0/Misconfigurations/0 and /Results/0/Misconfigurations/1 are value-identical to /Results/0/Misconfigurations/0 and /1 of fixtures/derived-trivy-features.json, and /Results/2/Vulnerabilities/0 is that file's /Results/4/Vulnerabilities/0 with the redhat entry removed from its CVSS table -- the only difference between the two records, and one that changes nothing here, since the rejected record's scores are never read. The fourth, /Results/1/Misconfigurations/0, is captured output from this run itself. What the derivation changed is the enclosing shape and nothing inside a record: each Target had its \"resource-managers/kubernetes/docker/src/main/\" prefix removed and that prefix became the report's ArtifactName. Throughout this file, \"the positive fixture\" and \"the positive sibling\" name the declared-derived document this fixture is derived from -- oss-scan-results/adapter-tests/fixtures/derived-trivy-features.json and its expected file oss-scan-results/adapter-tests/expected/derived-trivy-features.rows.json, whose nine finding records and nine rows are the ones cited by index below. Neither term names oss-scan-results/adapter-tests/fixtures/trivy.json, which is a byte-for-byte copy of harness/artifacts/raw/trivy.json carrying only its three DS-0026 misconfiguration records, nor that file's expected file expected/trivy.rows.json.",
     "captured_provenance": "/Results/1/Misconfigurations/0 is value-identical to /Results/1/Misconfigurations/0 of harness/artifacts/raw/trivy.json -- compared field by field, with its enclosing MisconfSummary of 26 successes and 1 failure identical too. That record is one of the three the run's own artifact holds, all of them DS-0026 \"No HEALTHCHECK defined\", and it is the reason row 2 below can be corroborated against oss-scan-results/findings.json while rows 0 and 1 cannot.",
     "fixture_is_never_edited_to_suit_these_rows": "These rows are re-derived when the fixture changes, which is what the recorded sha256 above makes visible. The fixture is the input and this file is the assertion; the dependency runs one way."
   },
@@ -271,7 +271,7 @@
     "fields_compared_per_record": 12,
     "agreement": "complete",
     "note": "Row 2 is field-for-field identical to the dataset's trivy row for resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile, all twelve fields agreeing, because the fixture's record at /Results/1/Misconfigurations/0 is value-identical to the run's own artifact at the same pointer. Recorded after the fact rather than as the source of these values: each was derived from the fixture and the authored contracts, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply.",
-    "why_the_other_two_rows_are_uncorroborated": "The run's artifact holds three records, all of them DS-0026 \"No HEALTHCHECK defined\", so the dataset contains no DS-0031 and no DS-0029 row to compare rows 0 and 1 against. Those two records come from fixtures/trivy.json, which states its own provenance as derived rather than captured. The absence is recorded rather than left for a reader to notice, because a value nothing else confirms should be labelled as such.",
+    "why_the_other_two_rows_are_uncorroborated": "The run's artifact holds three records, all of them DS-0026 \"No HEALTHCHECK defined\", so the dataset contains no DS-0031 and no DS-0029 row to compare rows 0 and 1 against. Those two records come from fixtures/derived-trivy-features.json, which states its own provenance as derived rather than captured. The absence is recorded rather than left for a reader to notice, because a value nothing else confirms should be labelled as such.",
     "the_rejected_record_has_no_counterpart": "It contributes no dataset row by definition, and the run's own artifact contains no vulnerability record at all -- the twelve authoritative globs hold no dependency manifest for Trivy's vulnerability scanner to resolve. So there is nothing to corroborate it against, and nothing in the dataset that its absence would contradict."
   },
   "rows": [
@@ -472,10 +472,10 @@
       "subject": "whether core/src/main/resources/org/apache/spark/ui/static/package.json is a surviving row",
       "expectation_as_written": "this file's own brief lists that manifest, with its five lines and eighty bytes, among the in-scope paths whose records the fixture retains",
       "what_the_inputs_actually_hold": "The path appears in the fixture once, as the PkgPath of the record that is rejected. Under this fixture's unmerged-part shape and the per_section_target reading the runner metadata prescribes for such a part -- the only one of the three measured readings that yields exactly one rejection -- that refinement is precisely what cannot be resolved, so the path reaches no row. It becomes a row only under the merged artifact's scan_root base, which for this document yields four rows and no rejection at all and would leave a fixture named reject-trivy-unresolvable-path asserting nothing.",
-      "resolution": "The brief's other named path is asserted, twice, with its file facts verified at the pin: resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile at 71 lines with line 20 FROM ${java_image_name}:${java_image_tag} and line 71 USER ${spark_uid}. The manifest's own facts are verified and recorded -- five lines, eighty bytes -- and it is deliberately not given to a row, because giving it one is the inference this rejection exists to refuse. The requirement that this path appear as a kept in-scope row is already met, on the fixture whose shape supports it: oss-scan-results/adapter-tests/expected/trivy.rows.json row 8 carries exactly that path, resolved from the same record's PkgPath under the merged base. Both readings are recorded under resolution_context.alternative_readings_measured so a reader can see the difference is the base kind and nothing else."
+      "resolution": "The brief's other named path is asserted, twice, with its file facts verified at the pin: resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile at 71 lines with line 20 FROM ${java_image_name}:${java_image_tag} and line 71 USER ${spark_uid}. The manifest's own facts are verified and recorded -- five lines, eighty bytes -- and it is deliberately not given to a row, because giving it one is the inference this rejection exists to refuse. The requirement that this path appear as a kept in-scope row is already met, on the fixture whose shape supports it: oss-scan-results/adapter-tests/expected/derived-trivy-features.rows.json row 8 carries exactly that path, resolved from the same record's PkgPath under the merged base. Both readings are recorded under resolution_context.alternative_readings_measured so a reader can see the difference is the base kind and nothing else."
     },
     {
-      "subject": "how many of the three lockfile Targets in fixtures/trivy.json produce kept out-of-glob rows",
+      "subject": "how many of the three lockfile Targets in fixtures/derived-trivy-features.json produce kept out-of-glob rows",
       "expectation_as_written": "the brief names dev/package-lock.json, ui-test/package-lock.json and docs/Gemfile.lock as real out-of-glob rows that file already carries as kept rows",
       "what_the_inputs_actually_hold": "Two of the three carry records: dev/package-lock.json with two vulnerabilities and docs/Gemfile.lock with two, giving four kept rows with in_scope false and a rows_out_of_scope counter of 4 in that file. The Results[] element for ui-test/package-lock.json carries an empty Vulnerabilities array, so it holds no record and no row can be built from it; that file records it under results_holding_no_record.",
       "resolution": "The boundary case is cited as two Targets and four rows rather than three, so no count in this file contradicts the file that owns it. The principle the brief states is untouched: a path outside the twelve globs is kept and marked, never rejected."
@@ -512,27 +512,27 @@
     {
       "behaviour": "the secret and vuln classes as emitted rows, and with them the section-to-class variation across all three sections",
       "why_absent": "the fixture holds no Secrets[] array at all and its only Vulnerabilities record is the rejected one, so every row here is misconfig",
-      "cover_with": "fixtures/trivy.json, which carries all three sections and whose expected file pins the variation"
+      "cover_with": "fixtures/derived-trivy-features.json, which carries all three sections and whose expected file pins the variation"
     },
     {
       "behaviour": "the four package-coordinate precedence levels, and the unformable-coordinate rejection a dependency-oriented record earns",
       "why_absent": "no emitted record carries a PkgIdentifier and no element carries a Packages inventory, so package_coordinate is absent on every row for the ordinary reason; the one dependency-oriented record never reaches step 7",
-      "cover_with": "fixtures/trivy.json for three of the four levels and reject-trivy-no-package-coordinate.json for the rejection"
+      "cover_with": "fixtures/derived-trivy-features.json for three of the four levels and reject-trivy-no-package-coordinate.json for the rejection"
     },
     {
       "behaviour": "a kept row with in_scope false -- an out-of-glob path, a src/test path, an external absolute path, or a non-filesystem coordinate serialized <container-relative-to-root>!<member> with ../ preserved",
       "why_absent": "all three emitted paths fall inside the twelve globs and name files in the tree, so rows_out_of_scope and non_filesystem_paths are both 0; the boundary those cases mark is stated under rejection_boundary.not_a_rejection rather than demonstrated here",
-      "cover_with": "fixtures/trivy.json for the out-of-glob rows, and derived fixtures naming an archive member and a location above the root -- each kept and marked, never rejected"
+      "cover_with": "fixtures/derived-trivy-features.json for the out-of-glob rows, and derived fixtures naming an archive member and a location above the root -- each kept and marked, never rejected"
     },
     {
       "behaviour": "the per-record path refinement succeeding -- an absolute refinement relativized on its own, a refinement that merely restates its Target, and a refinement inside an archive container serialized as a member",
       "why_absent": "the only refinement here is the one that cannot be resolved, which is the fixture's whole point; per_record_path_refinements is 0",
-      "cover_with": "fixtures/trivy.json, whose row 8 is the refinement resolving against the recorded base, and derived fixtures for the absolute and archive-container forms"
+      "cover_with": "fixtures/derived-trivy-features.json, whose expected row 8 is the refinement resolving against the recorded base, and derived fixtures for the absolute and archive-container forms"
     },
     {
       "behaviour": "severity from a CVSS score where no mapped label exists, an unmapped literal banded Info and disclosed, and the Medium and Info bands",
       "why_absent": "all three emitted records state a mapped label, and the only CVSS table belongs to the rejected record",
-      "cover_with": "fixtures/trivy.json for the UNKNOWN-to-Info mapping and the label-over-score precedence with scores present, and a derived fixture stating a score with no label"
+      "cover_with": "fixtures/derived-trivy-features.json for the UNKNOWN-to-Info mapping and the label-over-score precedence with scores present, and a derived fixture stating a score with no label"
     },
     {
       "behaviour": "the first-location rule -- the row takes the first location, the record counts once, multi_location_records counts it",
@@ -542,12 +542,12 @@
     {
       "behaviour": "the ascending-numeric CWE and CVE selection where a producer lists a higher identifier first",
       "why_absent": "the only record carrying a CweIDs array or a CVE-shaped identifier is the rejected one, and neither field is read for it",
-      "cover_with": "fixtures/trivy.json, whose row 4 record lists CWE-1333 before CWE-400 and emits CWE-400"
+      "cover_with": "fixtures/derived-trivy-features.json, whose row 4 record lists CWE-1333 before CWE-400 and emits CWE-400"
     },
     {
       "behaviour": "the results-level shapes that contribute no record -- a non-mapping element, an absent or null Results member, an element holding no supported section",
       "why_absent": "all three elements here are objects and each holds at least one record",
-      "cover_with": "fixtures/trivy.json for the empty-section element, and derived fixtures for the other two"
+      "cover_with": "fixtures/derived-trivy-features.json for the empty-section element, and derived fixtures for the other two"
     }
   ],
   "how_to_check_this_file": [

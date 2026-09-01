@@ -44,8 +44,8 @@ four counts AAP 0.5.4 has reported per tool -- ``multi_location_records``,
 -- alongside the adapter's own breakdown. ``scanner_class`` is ``"sast"`` for all three
 producers, fixed by AAP 0.5.4's class table and never derived from a record.
 
-The twenty-two required assertions, and the class that owns each
-----------------------------------------------------------------
+The twenty-two required assertions, the two provenance assertions, and their owners
+-----------------------------------------------------------------------------------
 1. row count equals the expected file's ......... :class:`PositiveRowTests`
 2. every row, every one of the twelve
    ``emit.FIELDS``, in order .................... :class:`PositiveRowTests`
@@ -72,6 +72,25 @@ The twenty-two required assertions, and the class that owns each
 20. ``ROOTPATH`` as ``file:///``: both branches   :class:`DegenerateBaseTwoBranchTests`
 21. the first-location rule and its counter ..... :class:`FirstLocationTests`
 22. ascending numeric CWE/CVE, and its counters   :class:`IdentifierSelectionTests`
+23. every captured positive fixture *is* that
+    tool's raw artifact -- record for record,
+    rule for rule, envelope member for
+    envelope member ............................. :class:`RawArtifactProvenanceTests`
+24. every derived fixture declares itself
+    derived and is measurably not a raw
+    excerpt ..................................... :class:`RawArtifactProvenanceTests`
+
+Assertions 23 and 24 are not in AAP 0.6.1's list of what this file covers; they are what
+makes the rest of it mean anything. AAP 0.6.2 defines a positive fixture as *"an
+unmodified captured excerpt"* of the tool's own output and gives the reason -- a
+hand-written fixture tests the adapter against the shape someone believed the tool emits
+-- and until these two existed nothing here opened ``harness/artifacts/raw/`` at all. A
+fixture's sha256, recorded in the expected file that fixture owns, can only show the file
+has not changed since that digest was taken; it cannot show where the bytes came from.
+The captures and the derived fixtures are measured by one shared check
+(:meth:`RawArtifactProvenanceTests.provenance_defects`), which the captures must pass with
+no defect and the derived fixtures must fail with at least one, so neither category can be
+quietly judged by the other's standard.
 
 :class:`FixtureInventoryTests` runs before all of them: a fixture silently absent, or
 an expected file that failed to parse, would let every assertion above pass over an
@@ -200,9 +219,13 @@ important, a false positive or a duplicate; nothing is deduplicated across tools
 result is compared against Apex, Cantina or any other scanner. No secret value appears
 anywhere in this file -- this tree is committed to git, since ``.gitignore:31`` ignores
 only ``artifacts/`` -- and no adapter field is populated from one. Fixtures are read
-and never written: :class:`FixtureInventoryTests` records each one's sha256 and
-:meth:`SarifAdapterTestCase.tearDown` re-checks it, so a test that mutated one would
-fail rather than pass quietly. Nothing under ``harness/lib/normalize/`` is edited from
+and never written: :meth:`SarifAdapterTestCase.setUpClass` digests every committed
+fixture and :meth:`SarifAdapterTestCase.tearDown` re-checks it, so a test that mutated one
+would fail rather than pass quietly, and
+:meth:`FixtureInventoryTests.test_every_expectation_records_its_fixtures_byte_size_and_digest`
+requires each expected file's recorded size and sha256 to be those of the file on disk, so
+an expectation cannot describe one file while the assertions run against another. Both are
+mutation tripwires and neither is provenance evidence; assertions 23 and 24 are. Nothing under ``harness/lib/normalize/`` is edited from
 here; a defect this file reveals there is reported, not repaired.
 
 No user-specified rules govern this file. ``review_rules`` reports "No user rules
@@ -291,6 +314,15 @@ RUNNER_METADATA_PATH = REPO_ROOT / "harness" / "artifacts" / "logs" / "runner-me
 #: The scope definition, and the sole authority for the ``in_scope`` field.
 ALLOWLIST_PATH = REPO_ROOT / "harness" / "scope" / "allowlist.txt"
 
+#: The runners' own verbatim artifacts -- the provenance authority for every captured
+#: fixture (AAP 0.6.2: a positive fixture is *"an unmodified captured excerpt"* of the
+#: tool's own output). :class:`RawArtifactProvenanceTests` opens the artifact for each
+#: captured fixture and compares record for record, because a digest a fixture owns can
+#: only prove the fixture is self-consistent -- it cannot prove where the bytes came
+#: from. These files are read and never written; nothing under ``harness/artifacts/``
+#: is created, cleared or edited from a test.
+RAW_DIR = REPO_ROOT / "harness" / "artifacts" / "raw"
+
 # --------------------------------------------------------------------------------------
 # The three canonical identifiers this one adapter serves, and their fixtures.
 # --------------------------------------------------------------------------------------
@@ -307,10 +339,44 @@ POSITIVE_FIXTURES: dict[str, str] = {
     "datadog-static-analyzer": "datadog-static-analyzer",
 }
 
-#: The ten negative fixtures, one per rejection condition this adapter can produce.
-#: Every one is an ``opengrep`` artifact: the condition under test is a property of the
-#: shared adapter, and one producer's shape is enough to exercise it. No comparison
-#: between producers is implied or made.
+#: Derived fixture stem -> the canonical tool identifier whose shape it carries.
+#:
+#: These are **not** captures and never claim to be. Each is the content a positive
+#: fixture path used to hold before it was rebuilt as a true capture, carried over
+#: verbatim under a ``derived-`` name so that the authored feature cases it holds keep a
+#: fixture and an assertion. Two AAP requirements pull against each other on one file
+#: and cannot both be met by it: AAP 0.6.2 requires the positive fixture to be an
+#: unmodified captured excerpt, and AAP 0.9.4 requires every behaviour to keep its
+#: coverage. Splitting the file satisfies both, and the split is declared in each derived
+#: expectation's ``fixture.provenance`` block rather than left to be inferred.
+#:
+#: Each one exists because the case it carries is measurably unreachable from captured
+#: output in this provisioning: no raw SARIF artifact here emits
+#: ``run.originalUriBaseIds``, none carries a result with a ``ruleIndex`` and no
+#: ``ruleId``, none carries a rule listing more than one CVE identifier, and no raw
+#: ``datadog-static-analyzer`` rule carries ``properties.severity``,
+#: ``properties.problem.severity`` or a ``defaultConfiguration``. The measurements are
+#: recorded in each derived expectation.
+DERIVED_FIXTURES: dict[str, str] = {
+    "derived-semgrep-features": "semgrep",
+    "derived-datadog-static-analyzer-features": "datadog-static-analyzer",
+}
+
+#: Every committed fixture that produces rows, captured or derived, with its tool.
+#:
+#: The generic row, derivation, schema and root-independence loops iterate this rather
+#: than :data:`POSITIVE_FIXTURES`, so moving a case out of a capture and into a derived
+#: fixture re-points the assertion instead of dropping it.
+#: :data:`POSITIVE_FIXTURES` stays exactly ``sarif.SUPPORTED_TOOLS`` and is what
+#: :class:`RawArtifactProvenanceTests` holds to the captured-excerpt contract.
+ROW_FIXTURES: dict[str, str] = {**POSITIVE_FIXTURES, **DERIVED_FIXTURES}
+
+#: The negative fixtures, one per rejection condition this adapter can produce, plus the
+#: four that separate the ways a record can state no usable location or line: no
+#: ``locations`` array at all, and a ``startLine`` of zero, of a negative value, or of a
+#: boolean. Every one is an ``opengrep`` artifact: the condition under test is a property
+#: of the shared adapter, and one producer's shape is enough to exercise it.
+#: No comparison between producers is implied or made.
 NEGATIVE_FIXTURES: tuple[str, ...] = (
     "reject-sarif-unresolvable-path",
     "reject-sarif-uribaseid-missing-base",
@@ -322,6 +388,10 @@ NEGATIVE_FIXTURES: tuple[str, ...] = (
     "reject-sarif-missing-message",
     "reject-sarif-non-integer-start-line",
     "reject-sarif-malformed-record",
+    "reject-sarif-absent-path",
+    "reject-sarif-zero-start-line",
+    "reject-sarif-negative-start-line",
+    "reject-sarif-boolean-start-line",
 )
 
 #: The tool every negative fixture was captured from.
@@ -542,13 +612,19 @@ class RecordingTally:
 # --------------------------------------------------------------------------------------
 # Authored SARIF documents.
 #
-# Ten of the twenty-two assertions concern behaviour no captured artifact exercises --
-# each positive expected file names them under
-# ``behaviours_not_exercised_by_this_fixture`` and says to *"cover with a derived
-# fixture"*. They are authored in memory here rather than written to
-# ``fixtures/``: this run creates exactly one file, and an authored document is not a
-# captured artifact, so putting one in that directory beside the ten captured negatives
-# would blur the distinction AAP 0.6.2 draws between them. Every authored document is a
+# Ten of the twenty-two assertions concern behaviour no captured artifact exercises, and
+# each captured expected file lists them under
+# ``behaviours_not_exercised_by_this_fixture`` with the fixture or the test method that
+# does carry the case -- a named one in every entry, since a "cover with a derived
+# fixture" that names nothing is a coverage gap written down rather than closed. They are authored in memory here rather than written to
+# ``fixtures/`` wherever the assertion turns on a shape rather than on committed content:
+# an authored document is not captured output, and an unnamed one sitting in that
+# directory would blur the distinction AAP 0.6.2 draws. Where a case does need a
+# committed file -- because it must be exercised through the same load-and-adapt path as a
+# capture -- the file is named ``derived-<tool>-features.sarif``, is listed in
+# :data:`DERIVED_FIXTURES` rather than :data:`POSITIVE_FIXTURES`, and declares its
+# provenance in its own expected file, which
+# :class:`RawArtifactProvenanceTests` then holds it to. Every authored document is a
 # minimal, conformant SARIF 2.1.0 envelope -- ``version`` plus a ``runs`` array, which is
 # what ``shape.py`` routes on -- carrying only the properties the assertion turns on.
 # --------------------------------------------------------------------------------------
@@ -709,7 +785,12 @@ class SarifAdapterTestCase(unittest.TestCase):
     tests loudly instead of leaving them asserting against a stale hand-made stand-in.
 
     :meth:`tearDown` re-digests every fixture, so "never mutate a fixture" is a checked
-    property of each test rather than a convention.
+    property of each test rather than a convention. That digest is a mutation tripwire
+    **within** the run and nothing more: it compares a file with itself as it stood a
+    moment earlier, so it cannot establish where the bytes came from.
+    :class:`RawArtifactProvenanceTests` is what establishes provenance, by opening the
+    runner's own artifact under ``harness/artifacts/raw/`` and comparing record for
+    record.
     """
 
     #: The shipped runner metadata, read once per class.
@@ -718,19 +799,21 @@ class SarifAdapterTestCase(unittest.TestCase):
     scan_root: str
     #: The twelve globs, in file order, as the loader returns them.
     allowlist: tuple[str, ...]
-    #: Fixture stem -> sha256 at class setup, re-checked after every test.
+    #: Fixture stem -> sha256 at class setup, re-checked after every test. Covers every
+    #: committed fixture -- the three captures, the two derived features fixtures and the
+    #: ten negatives -- so no committed fixture can be mutated by a test unnoticed.
     fixture_digests: dict[str, str]
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Read the three shared inputs, and digest the fixtures."""
+        """Read the three shared inputs, and digest every committed fixture."""
         super().setUpClass()
         cls.runner_metadata = paths.load_runner_metadata(RUNNER_METADATA_PATH)
         cls.scan_root = paths.metadata_scan_root(cls.runner_metadata)
         cls.allowlist = paths.load_allowlist(ALLOWLIST_PATH)
         cls.fixture_digests = {
             stem: _sha256(_fixture_path(stem))
-            for stem in (*POSITIVE_FIXTURES, *NEGATIVE_FIXTURES)
+            for stem in (*ROW_FIXTURES, *NEGATIVE_FIXTURES)
         }
 
     def tearDown(self) -> None:
@@ -1159,8 +1242,13 @@ class FixtureInventoryTests(SarifAdapterTestCase):
     """Every fixture and expectation this module needs is present, parsable and paired."""
 
     def test_every_fixture_and_expectation_exists_and_parses(self) -> None:
-        """All thirteen fixtures and their expected files are present and valid JSON."""
-        for stem in (*POSITIVE_FIXTURES, *NEGATIVE_FIXTURES):
+        """Every committed fixture and its expected file are present and valid JSON.
+
+        The inventory is the three captures, the two derived fixtures and the fourteen
+        negatives. It is iterated from the manifests rather than counted here, so adding a
+        fixture to a manifest without committing the file fails loudly.
+        """
+        for stem in (*ROW_FIXTURES, *NEGATIVE_FIXTURES):
             fixture = _fixture_path(stem)
             expectation = _expected_path(stem)
             with self.subTest(stem=stem):
@@ -1186,19 +1274,27 @@ class FixtureInventoryTests(SarifAdapterTestCase):
                     msg=f"{stem}: the expectation is not a JSON object",
                 )
 
-    def test_the_inventory_is_the_thirteen_this_module_asserts_on(self) -> None:
+    def test_every_committed_sarif_fixture_is_claimed_by_exactly_one_manifest(self) -> None:
         """No SARIF fixture in the directory is left without an assertion.
 
         The direction that matters: a fixture added to ``fixtures/`` and not added to
-        :data:`POSITIVE_FIXTURES` or :data:`NEGATIVE_FIXTURES` would sit there untested,
-        and nothing else would notice. Enumerating the directory is what closes that.
+        :data:`POSITIVE_FIXTURES`, :data:`DERIVED_FIXTURES` or :data:`NEGATIVE_FIXTURES`
+        would sit there untested, and nothing else would notice. Enumerating the directory
+        is what closes that.
+
+        Deliberately count-agnostic. An earlier form of this test asserted a fixed
+        inventory size, which turned *adding* coverage into a failure and invited the
+        wrong repair -- deleting the new fixture. What must hold is that the directory and
+        the manifests describe the same set, and that the three manifests are pairwise
+        disjoint: a stem claimed as both a capture and a derived fixture would let the
+        captured-excerpt contract be asserted against authored material.
         """
         on_disk = {
             path.name[: -len(FIXTURE_SUFFIX)]
             for path in FIXTURES_DIR.iterdir()
             if path.is_file() and path.name.endswith(FIXTURE_SUFFIX)
         }
-        asserted = set(POSITIVE_FIXTURES) | set(NEGATIVE_FIXTURES)
+        asserted = set(POSITIVE_FIXTURES) | set(DERIVED_FIXTURES) | set(NEGATIVE_FIXTURES)
         self.assertEqual(
             on_disk,
             asserted,
@@ -1208,6 +1304,156 @@ class FixtureInventoryTests(SarifAdapterTestCase):
                 f"{sorted(asserted - on_disk)!r}"
             ),
         )
+        for left_name, left, right_name, right in (
+            ("POSITIVE_FIXTURES", set(POSITIVE_FIXTURES),
+             "DERIVED_FIXTURES", set(DERIVED_FIXTURES)),
+            ("POSITIVE_FIXTURES", set(POSITIVE_FIXTURES),
+             "NEGATIVE_FIXTURES", set(NEGATIVE_FIXTURES)),
+            ("DERIVED_FIXTURES", set(DERIVED_FIXTURES),
+             "NEGATIVE_FIXTURES", set(NEGATIVE_FIXTURES)),
+        ):
+            with self.subTest(manifests=f"{left_name} vs {right_name}"):
+                self.assertEqual(
+                    left & right,
+                    set(),
+                    msg=(
+                        f"{left_name} and {right_name} both claim "
+                        f"{sorted(left & right)!r}; a stem belongs to exactly one manifest"
+                    ),
+                )
+        self.assertEqual(
+            set(ROW_FIXTURES),
+            set(POSITIVE_FIXTURES) | set(DERIVED_FIXTURES),
+            msg="ROW_FIXTURES is not the union of the captured and derived manifests",
+        )
+        for stem, tool in DERIVED_FIXTURES.items():
+            with self.subTest(stem=stem):
+                self.assertTrue(
+                    stem.startswith("derived-"),
+                    msg=(
+                        f"{stem!r} is claimed as derived but is not named derived-*; the "
+                        "name is the first thing a reader sees and it must not read as a "
+                        "capture"
+                    ),
+                )
+                self.assertIn(
+                    tool,
+                    SARIF_PRODUCERS,
+                    msg=f"{stem}: {tool!r} is not a tool this adapter serves",
+                )
+
+    def test_every_uncovered_behaviour_names_something_that_exists(self) -> None:
+        """Each ``cover_with`` entry names a fixture or a test that is actually there.
+
+        Every row-producing expectation lists the behaviours its own fixture does not
+        exercise, and says where each is covered instead. An entry naming nothing that
+        exists -- *"a derived fixture carrying a second location on a result"* -- is a
+        coverage gap written down rather than closed, and reads as coverage to anyone
+        skimming the file. This resolves each entry: it must name a committed SARIF fixture
+        that is on disk, a test class or test method defined in this module, or an expected
+        file in ``expected/``.
+
+        The module's own names are collected from its syntax tree rather than from
+        ``dir()``, so a name that appears only inside a string cannot satisfy the check by
+        accident.
+        """
+        tree = ast.parse(_THIS_FILE.read_text(encoding="utf-8"))
+        defined = {
+            node.name
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        for stem in ROW_FIXTURES:
+            expectation = _read_json(_expected_path(stem))
+            behaviours = expectation.get("behaviours_not_exercised_by_this_fixture")
+            with self.subTest(stem=stem):
+                self.assertIsInstance(
+                    behaviours,
+                    list,
+                    msg=f"{stem}: the expectation lists no uncovered behaviours",
+                )
+                self.assertTrue(
+                    behaviours, msg=f"{stem}: the uncovered-behaviour list is empty"
+                )
+            for entry in behaviours:
+                cover_with = entry.get("cover_with", "")
+                tokens = [
+                    token.strip("`'\".,;()[]{}")
+                    for token in str(cover_with).replace(",", " ").split()
+                ]
+                named = []
+                for token in tokens:
+                    if token in defined:
+                        named.append(f"{token} in this module")
+                    elif token.endswith(FIXTURE_SUFFIX):
+                        candidate = FIXTURES_DIR / Path(token).name
+                        if candidate.is_file():
+                            named.append(f"fixture {candidate.name}")
+                    elif token.endswith(EXPECTED_SUFFIX):
+                        candidate = EXPECTED_DIR / Path(token).name
+                        if candidate.is_file():
+                            named.append(f"expectation {candidate.name}")
+                    elif "." in token:
+                        # A dotted reference such as ClassName.test_method_name.
+                        head, _, tail = token.rpartition(".")
+                        if tail in defined and head.rpartition(".")[2] in defined:
+                            named.append(f"{token} in this module")
+                with self.subTest(stem=stem, behaviour=entry.get("behaviour")):
+                    self.assertTrue(
+                        named,
+                        msg=(
+                            f"{stem}: the entry for {entry.get('behaviour')!r} says to "
+                            f"cover it with {cover_with!r}, which names no fixture on "
+                            "disk, no test in this module and no expected file. An "
+                            "unnamed target is a gap recorded rather than closed"
+                        ),
+                    )
+
+    def test_every_expectation_records_its_fixtures_byte_size_and_digest(self) -> None:
+        """Each expected file's ``fixture`` block describes the file on disk.
+
+        The module's own contract is that a fixture is loaded, used and left
+        byte-identical, and each expected file states the size and sha256 it was
+        hand-derived against. Nothing checked that the two agreed, so an expectation could
+        have described one file while the assertions ran against another -- for instance
+        after a fixture was rebuilt and its expectation was not. Both values are asserted
+        here against the bytes on disk.
+
+        The digest proves self-consistency and nothing more.
+        :class:`RawArtifactProvenanceTests` is what proves provenance, and each captured
+        expectation says so in ``fixture.excerpt_verification``.
+        """
+        for stem in (*ROW_FIXTURES, *NEGATIVE_FIXTURES):
+            expectation = _read_json(_expected_path(stem))
+            block = expectation.get("fixture")
+            fixture = _fixture_path(stem)
+            with self.subTest(stem=stem):
+                self.assertIsInstance(
+                    block,
+                    dict,
+                    msg=f"{stem}: the expectation carries no fixture block",
+                )
+                self.assertEqual(
+                    block.get("path"),
+                    f"oss-scan-results/adapter-tests/fixtures/{stem}{FIXTURE_SUFFIX}",
+                    msg=f"{stem}: the fixture block names a different path",
+                )
+                self.assertEqual(
+                    block.get("bytes"),
+                    fixture.stat().st_size,
+                    msg=(
+                        f"{stem}: the expectation records {block.get('bytes')!r} bytes and "
+                        f"the file is {fixture.stat().st_size}"
+                    ),
+                )
+                self.assertEqual(
+                    block.get("sha256"),
+                    _sha256(fixture),
+                    msg=(
+                        f"{stem}: the expectation's recorded sha256 is not the digest of "
+                        "the fixture on disk, so the two describe different bytes"
+                    ),
+                )
 
     def test_every_positive_fixture_names_a_tool_this_adapter_serves(self) -> None:
         """The three canonical identifiers, read from the adapter's own constant."""
@@ -1322,12 +1568,807 @@ class FixtureInventoryTests(SarifAdapterTestCase):
 
 
 # --------------------------------------------------------------------------------------
+# Provenance. The two assertions F3 adds, and the only ones in this module that read the
+# runners' own artifacts.
+#
+# AAP 0.6.2 defines a positive fixture as "an unmodified captured excerpt" of the tool's
+# own output, and gives the reason: a hand-written fixture tests the adapter against the
+# shape someone believed the tool emits rather than the shape it emits. Every other class
+# here asserts the adapter's behaviour on a fixture; this one asserts the fixture itself,
+# against harness/artifacts/raw/<tool>.sarif, because nothing else in the tree did -- and
+# a fixture's own sha256, recorded in its own expected file, can only ever show that the
+# file has not changed since that digest was taken.
+#
+# "Byte for byte", for a JSON record, is asserted here as equality of
+# json.dumps(obj, sort_keys=True): the raw artifacts are written as one compact line and
+# the fixtures are indented for review, so file bytes cannot be compared directly, while
+# a canonical serialization compares the record's whole structure -- every key, every
+# value, every nesting level, and no key the fixture added or dropped. Two records that
+# differ anywhere differ in it.
+#
+# Reading three artifacts totalling about 120 MB is done once per class, and only the
+# comparison surface is kept: the canonical form of every record and rule, the envelope
+# with those two arrays removed, and the counts. The parsed documents are released
+# immediately, so the class holds tens of megabytes rather than the parse tree.
+# --------------------------------------------------------------------------------------
+
+
+def _canonical(value: Any) -> str:
+    """Return the canonical serialization this module compares JSON records by.
+
+    ``sort_keys`` makes the comparison independent of member order, which a JSON object
+    does not define, while preserving every key and value. Array order is preserved,
+    because a SARIF array's order is significant -- ``locations[0]`` is the first location
+    and ``rules[i]`` is what a ``ruleIndex`` names.
+    """
+    return json.dumps(value, sort_keys=True, ensure_ascii=False)
+
+
+def _raw_artifact_path(tool: str) -> Path:
+    """Return the runner's verbatim artifact for ``tool``."""
+    return RAW_DIR / f"{tool}{FIXTURE_SUFFIX}"
+
+
+class _RawView:
+    """The comparison surface of one raw artifact, without its parse tree.
+
+    Built once, from the artifact as the runner wrote it. ``results`` and
+    ``tool.driver.rules`` are kept as canonical strings; every other envelope member is
+    kept as a canonical string too, so an envelope difference is detectable without
+    holding the document. The document itself is dropped once this is built.
+    """
+
+    __slots__ = (
+        "tool", "path", "top_keys", "run_keys", "driver_keys", "result_canons",
+        "rule_ids_in_order", "rule_canon_by_id", "rule_index_by_id", "top_members",
+        "run_members", "driver_members", "has_original_uri_base_ids",
+        "notification_count", "artifact_count",
+    )
+
+    def __init__(self, tool: str, document: Any) -> None:
+        run = document["runs"][0]
+        driver = run["tool"]["driver"]
+        rules = driver.get("rules") or []
+        self.tool = tool
+        self.path = _raw_artifact_path(tool)
+        self.top_keys = tuple(document)
+        self.run_keys = tuple(run)
+        self.driver_keys = tuple(driver)
+        # Every top-level and run member except the two record-bearing arrays and the
+        # tool object that holds the rules; those are compared element by element.
+        self.top_members = {
+            key: _canonical(value) for key, value in document.items() if key != "runs"
+        }
+        self.run_members = {
+            key: _canonical(value)
+            for key, value in run.items()
+            if key not in ("results", "tool")
+        }
+        self.driver_members = {
+            key: _canonical(value) for key, value in driver.items() if key != "rules"
+        }
+        self.result_canons = [_canonical(result) for result in run["results"]]
+        self.rule_ids_in_order = tuple(rule.get("id") for rule in rules)
+        self.rule_canon_by_id = {}
+        self.rule_index_by_id = {}
+        for index, rule in enumerate(rules):
+            identifier = rule.get("id")
+            if identifier not in self.rule_canon_by_id:
+                self.rule_canon_by_id[identifier] = _canonical(rule)
+                self.rule_index_by_id[identifier] = index
+        self.has_original_uri_base_ids = "originalUriBaseIds" in run
+        invocations = run.get("invocations")
+        if isinstance(invocations, list) and invocations:
+            notifications = invocations[0].get("toolExecutionNotifications")
+            self.notification_count = (
+                len(notifications) if isinstance(notifications, list) else None
+            )
+        else:
+            self.notification_count = None
+        artifacts = run.get("artifacts")
+        self.artifact_count = len(artifacts) if isinstance(artifacts, list) else None
+
+
+class RawArtifactProvenanceTests(SarifAdapterTestCase):
+    """Each captured fixture is its tool's raw artifact; each derived fixture is not.
+
+    Two assertions, and they are the ones that make every "unmodified captured excerpt"
+    claim in this tree falsifiable:
+
+    * every result and every retained rule in a captured fixture is the raw artifact's own
+      object, identical under :func:`_canonical` and in raw document order, and the
+      envelope around them -- keys and values, the notification array's full length, the
+      artifacts array, and the *absence* of ``run.originalUriBaseIds`` -- is raw's own,
+      with no member the fixture introduced;
+    * every derived fixture's expectation declares it derived, and the fixture is not a
+      faithful excerpt of the raw artifact, so a derived file can never be read as a
+      capture.
+
+    The second is not the trivial converse of the first. A derived fixture that happened
+    to be a faithful excerpt would be miscategorised, and its expected file would be
+    stating a provenance that understated what the file actually is.
+    """
+
+    #: Tool -> its raw artifact's comparison surface, built once for the class.
+    raw_views: dict[str, _RawView]
+    #: Tool -> why its raw artifact could not be read, where it could not be.
+    raw_unavailable: dict[str, str]
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Build each tool's raw comparison surface once.
+
+        A failure to read one is recorded rather than raised here, so that
+        :meth:`test_every_raw_artifact_this_module_needs_is_present` reports it as a named
+        failure against the path it looked for. Raising in class setup would report an
+        error on every method in the class and bury the one fact that matters.
+        """
+        super().setUpClass()
+        cls.raw_views = {}
+        cls.raw_unavailable = {}
+        for tool in sorted(set(ROW_FIXTURES.values())):
+            path = _raw_artifact_path(tool)
+            try:
+                document = _read_json(path)
+                cls.raw_views[tool] = _RawView(tool, document)
+                del document
+            except (OSError, ValueError, KeyError, IndexError, TypeError) as error:
+                cls.raw_unavailable[tool] = f"{type(error).__name__}: {error}"
+
+    def raw_view(self, tool: str) -> _RawView:
+        """Return ``tool``'s raw comparison surface, failing explicitly if it is absent.
+
+        No test in this class is skipped when an artifact is missing. A skip would leave
+        the run record reporting a pass over a fixture whose provenance nobody checked,
+        and the run record reports ``skipped=0`` as a property of this suite.
+        """
+        if tool not in self.raw_views:
+            self.fail(
+                f"the raw artifact for {tool!r} could not be read from "
+                f"{_raw_artifact_path(tool)}: "
+                f"{self.raw_unavailable.get(tool, 'no reason recorded')}. "
+                "It is a git-tracked deliverable of this run and the provenance of "
+                "fixtures/"
+                f"{tool}{FIXTURE_SUFFIX} cannot be established without it. This is a "
+                "condition to report, not one to repair from a test: nothing under "
+                "harness/artifacts/ is created, cleared or edited here."
+            )
+        return self.raw_views[tool]
+
+    @staticmethod
+    def _difference(left: str, right: str) -> str:
+        """Return a bounded description of where two canonical strings first differ.
+
+        Bounded deliberately. A raw SARIF rule can serialize to several kilobytes and a
+        full diff of two of them buries the one position that matters; the offset and a
+        short window on each side name it precisely.
+        """
+        limit = min(len(left), len(right))
+        offset = next((i for i in range(limit) if left[i] != right[i]), limit)
+        window = slice(max(0, offset - 40), offset + 40)
+        return (
+            f"first difference at character {offset} of "
+            f"{len(left)}/{len(right)}; fixture ...{left[window]}... raw ...{right[window]}..."
+        )
+
+    def provenance_defects(self, stem: str, tool: str) -> list[str]:
+        """Return every way the fixture named ``stem`` departs from a faithful excerpt.
+
+        One implementation, used in both directions: a captured fixture must produce an
+        empty list, and a derived fixture must produce a non-empty one. Writing the check
+        once is what keeps the two categories from being judged by different standards.
+
+        A defect is any of: a top-level or ``runs[0]`` or ``tool.driver`` key the raw
+        artifact does not have or does have; a non-record member whose value differs; a
+        result that is not a raw result object, or one that appears out of raw document
+        order; a retained rule that is not the raw rule with that identifier; a
+        ``run.originalUriBaseIds`` whose presence differs from raw's; and a truncated
+        ``toolExecutionNotifications`` or ``artifacts`` array.
+        """
+        view = self.raw_view(tool)
+        document = _read_json(_fixture_path(stem))
+        defects: list[str] = []
+
+        if tuple(document) != view.top_keys:
+            defects.append(
+                f"top-level keys {tuple(document)!r} differ from raw's {view.top_keys!r}"
+            )
+        for key, value in document.items():
+            if key == "runs":
+                continue
+            if key not in view.top_members:
+                defects.append(f"top-level member {key!r} is not in the raw artifact")
+            elif _canonical(value) != view.top_members[key]:
+                defects.append(f"top-level member {key!r} differs from raw's")
+        for key in view.top_members:
+            if key not in document:
+                defects.append(f"top-level member {key!r} of the raw artifact is absent")
+
+        runs = document.get("runs")
+        if not isinstance(runs, list) or len(runs) != 1:
+            defects.append("the fixture does not carry exactly one run, as raw does")
+            return defects
+        run = runs[0]
+        if tuple(run) != view.run_keys:
+            defects.append(
+                f"runs[0] keys {tuple(run)!r} differ from raw's {view.run_keys!r}"
+            )
+        for key, value in run.items():
+            if key in ("results", "tool"):
+                continue
+            if key not in view.run_members:
+                defects.append(f"runs[0] member {key!r} is not in the raw artifact")
+            elif _canonical(value) != view.run_members[key]:
+                defects.append(f"runs[0] member {key!r} differs from raw's")
+        for key in view.run_members:
+            if key not in run:
+                defects.append(f"runs[0] member {key!r} of the raw artifact is absent")
+        if ("originalUriBaseIds" in run) != view.has_original_uri_base_ids:
+            defects.append(
+                "run.originalUriBaseIds is "
+                f"{'present' if 'originalUriBaseIds' in run else 'absent'} here and "
+                f"{'present' if view.has_original_uri_base_ids else 'absent'} in raw"
+            )
+
+        driver = run.get("tool", {}).get("driver", {})
+        if tuple(driver) != view.driver_keys:
+            defects.append(
+                f"tool.driver keys {tuple(driver)!r} differ from raw's "
+                f"{view.driver_keys!r}"
+            )
+        for key, value in driver.items():
+            if key == "rules":
+                continue
+            if key not in view.driver_members:
+                defects.append(f"tool.driver member {key!r} is not in the raw artifact")
+            elif _canonical(value) != view.driver_members[key]:
+                defects.append(f"tool.driver member {key!r} differs from raw's")
+
+        previous = -1
+        for index, result in enumerate(run.get("results") or []):
+            canonical = _canonical(result)
+            position = next(
+                (
+                    i
+                    for i, raw_canonical in enumerate(view.result_canons)
+                    if raw_canonical == canonical and i > previous
+                ),
+                None,
+            )
+            if position is None:
+                if canonical in view.result_canons:
+                    defects.append(
+                        f"result {index} appears in the raw artifact but out of raw "
+                        f"document order, after raw index {previous}"
+                    )
+                else:
+                    defects.append(
+                        f"result {index} is not a raw result object: no raw result is "
+                        "identical to it"
+                    )
+            else:
+                previous = position
+
+        for index, rule in enumerate(driver.get("rules") or []):
+            identifier = rule.get("id")
+            if identifier not in view.rule_canon_by_id:
+                defects.append(
+                    f"rule {index} carries id {identifier!r}, which the raw artifact's "
+                    "rules array does not"
+                )
+            elif _canonical(rule) != view.rule_canon_by_id[identifier]:
+                defects.append(
+                    f"rule {index} ({identifier!r}) differs from the raw rule with that "
+                    "id"
+                )
+        return defects
+
+    # -- the captured fixtures ---------------------------------------------------------
+
+    def test_every_raw_artifact_this_module_needs_is_present(self) -> None:
+        """Each tool's raw artifact exists, parses, and is a SARIF envelope with a run.
+
+        Failure names the path it looked for. This runs as a test rather than as a skip
+        condition precisely so that a missing artifact is reported as a failure of this
+        suite rather than as coverage nobody notices is gone.
+        """
+        for tool in sorted(set(ROW_FIXTURES.values())):
+            with self.subTest(tool=tool):
+                path = _raw_artifact_path(tool)
+                self.assertTrue(
+                    path.is_file(),
+                    msg=(
+                        f"the raw artifact {path} is absent. It is the provenance "
+                        f"authority for fixtures/{tool}{FIXTURE_SUFFIX} and is a "
+                        "git-tracked deliverable of this run"
+                    ),
+                )
+                view = self.raw_view(tool)
+                self.assertIn(
+                    "version",
+                    view.top_members,
+                    msg=f"{path}: no top-level version member",
+                )
+                self.assertEqual(
+                    view.top_members["version"],
+                    _canonical("2.1.0"),
+                    msg=f"{path}: not a SARIF 2.1.0 envelope",
+                )
+                self.assertTrue(
+                    view.result_canons,
+                    msg=f"{path}: the artifact carries no results to excerpt",
+                )
+
+    def test_every_captured_result_is_the_raw_object_in_raw_document_order(self) -> None:
+        """Assertion 23: each selected record is raw's own record, and the order is raw's.
+
+        Selection is the only freedom AAP 0.6.2 allows -- whole records, chosen -- so both
+        halves matter. Identity under :func:`_canonical` is the operative meaning of "byte
+        for byte" for a JSON record, since the artifact is written compact and the fixture
+        indented. Order is asserted by requiring each match to sit at a strictly greater
+        raw index than the last: a fixture that reordered its records would still contain
+        raw objects, and reading it would misrepresent the artifact's own sequence.
+        """
+        for stem, tool in POSITIVE_FIXTURES.items():
+            view = self.raw_view(tool)
+            document = _read_json(_fixture_path(stem))
+            results = document["runs"][0]["results"]
+            with self.subTest(fixture=stem):
+                self.assertTrue(results, msg=f"{stem}: the fixture selects no records")
+                previous = -1
+                positions: list[int] = []
+                for index, result in enumerate(results):
+                    canonical = _canonical(result)
+                    position = next(
+                        (
+                            i
+                            for i, raw_canonical in enumerate(view.result_canons)
+                            if raw_canonical == canonical and i > previous
+                        ),
+                        None,
+                    )
+                    self.assertIsNotNone(
+                        position,
+                        msg=(
+                            f"{stem}: result {index} is not an unmodified record of "
+                            f"{view.path.name} at an index above {previous}. Either it "
+                            "was edited, or it was reordered; both are the edit AAP 0.6.2 "
+                            "forbids in a positive fixture"
+                        ),
+                    )
+                    positions.append(position)
+                    previous = position
+                self.assertEqual(
+                    positions,
+                    sorted(positions),
+                    msg=f"{stem}: the selected records are not in raw document order",
+                )
+                self.assertEqual(
+                    len(set(positions)),
+                    len(positions),
+                    msg=(
+                        f"{stem}: two selected records matched one raw record, so the "
+                        "selection is not a set of whole distinct records"
+                    ),
+                )
+
+    def test_every_retained_rule_is_the_raw_rule_with_the_same_id(self) -> None:
+        """Assertion 23, continued: rule metadata is raw's, not a rewritten subset.
+
+        A rule object is where the severity, the CWE tokens and the help text come from, so
+        a rule "trimmed to what the test needs" silently changes the answer the adapter
+        gives. Each retained rule is compared with the raw rule carrying the same
+        identifier, and the retained sequence is required to be in raw's own order -- which
+        is what keeps a ``ruleIndex`` meaningful.
+
+        Where a fixture retains the artifact's complete rules array, that is asserted as
+        completeness rather than assumed: the ``datadog-static-analyzer`` results state
+        absolute indexes into it, and a subset would have required renumbering the very
+        field a capture must not touch.
+        """
+        for stem, tool in POSITIVE_FIXTURES.items():
+            view = self.raw_view(tool)
+            document = _read_json(_fixture_path(stem))
+            run = document["runs"][0]
+            rules = run["tool"]["driver"].get("rules") or []
+            results = run["results"]
+            with self.subTest(fixture=stem):
+                self.assertTrue(rules, msg=f"{stem}: no rules retained at all")
+                indexes: list[int] = []
+                for index, rule in enumerate(rules):
+                    identifier = rule.get("id")
+                    self.assertIn(
+                        identifier,
+                        view.rule_canon_by_id,
+                        msg=(
+                            f"{stem}: rule {index} carries id {identifier!r}, which "
+                            f"{view.path.name} does not"
+                        ),
+                    )
+                    same = _canonical(rule) == view.rule_canon_by_id[identifier]
+                    self.assertTrue(
+                        same,
+                        msg=(
+                            f"{stem}: rule {index} ({identifier!r}) differs from the raw "
+                            "rule with that id -- "
+                            + self._difference(
+                                _canonical(rule), view.rule_canon_by_id[identifier]
+                            )
+                        ),
+                    )
+                    indexes.append(view.rule_index_by_id[identifier])
+                self.assertEqual(
+                    indexes,
+                    sorted(indexes),
+                    msg=f"{stem}: the retained rules are not in raw document order",
+                )
+                if len(rules) == len(view.rule_ids_in_order):
+                    self.assertEqual(
+                        tuple(rule.get("id") for rule in rules),
+                        view.rule_ids_in_order,
+                        msg=(
+                            f"{stem}: the fixture retains as many rules as the artifact "
+                            "has but not the same ones in the same order"
+                        ),
+                    )
+                # Every ruleIndex a retained result states must still name its own rule.
+                for index, result in enumerate(results):
+                    stated = result.get("ruleIndex")
+                    if not isinstance(stated, int) or isinstance(stated, bool):
+                        continue
+                    self.assertLess(
+                        stated,
+                        len(rules),
+                        msg=(
+                            f"{stem}: result {index} states ruleIndex {stated}, which is "
+                            "outside the retained rules array -- a capture must keep the "
+                            "index resolvable rather than renumber it"
+                        ),
+                    )
+                    self.assertEqual(
+                        rules[stated].get("id"),
+                        result.get("ruleId"),
+                        msg=(
+                            f"{stem}: result {index} states ruleIndex {stated}, which "
+                            "names a different rule than its own ruleId. The index was "
+                            "renumbered, which is the alteration this test exists to catch"
+                        ),
+                    )
+
+    def test_the_captured_envelope_is_raws_own_and_introduces_no_member(self) -> None:
+        """Assertion 23, continued: the structure around the records is the artifact's.
+
+        Everything a reader would take on trust: the top-level key set and every non-record
+        value in it, ``$schema`` present exactly where raw has it and with raw's value, the
+        ``runs[0]`` key set, the driver's own metadata, the complete
+        ``toolExecutionNotifications`` array where the producer emits one, the complete
+        ``artifacts`` array where it emits one, and the absence of
+        ``run.originalUriBaseIds`` where the producer emits none -- which is what makes the
+        documented degenerate-base fallback the live path rather than an authored base map.
+        """
+        for stem, tool in POSITIVE_FIXTURES.items():
+            view = self.raw_view(tool)
+            document = _read_json(_fixture_path(stem))
+            run = document["runs"][0]
+            driver = run["tool"]["driver"]
+            with self.subTest(fixture=stem):
+                self.assertEqual(
+                    tuple(document),
+                    view.top_keys,
+                    msg=f"{stem}: the top-level key set is not {view.path.name}'s",
+                )
+                self.assertEqual(
+                    tuple(run),
+                    view.run_keys,
+                    msg=f"{stem}: the runs[0] key set is not {view.path.name}'s",
+                )
+                self.assertEqual(
+                    tuple(driver),
+                    view.driver_keys,
+                    msg=f"{stem}: the tool.driver key set is not {view.path.name}'s",
+                )
+                self.assertEqual(
+                    ("$schema" in document),
+                    ("$schema" in view.top_members),
+                    msg=(
+                        f"{stem}: $schema is "
+                        f"{'present' if '$schema' in document else 'absent'} here and "
+                        f"{'present' if '$schema' in view.top_members else 'absent'} in "
+                        f"{view.path.name}. An authored $schema is a member the producer "
+                        "did not write"
+                    ),
+                )
+                for key, value in document.items():
+                    if key == "runs":
+                        continue
+                    self.assertEqual(
+                        _canonical(value),
+                        view.top_members[key],
+                        msg=f"{stem}: top-level member {key!r} differs from raw's",
+                    )
+                for key, value in run.items():
+                    if key in ("results", "tool"):
+                        continue
+                    self.assertEqual(
+                        _canonical(value),
+                        view.run_members[key],
+                        msg=(
+                            f"{stem}: runs[0] member {key!r} differs from raw's -- "
+                            + self._difference(
+                                _canonical(value), view.run_members[key]
+                            )
+                        ),
+                    )
+                for key, value in driver.items():
+                    if key == "rules":
+                        continue
+                    self.assertEqual(
+                        _canonical(value),
+                        view.driver_members[key],
+                        msg=f"{stem}: tool.driver member {key!r} differs from raw's",
+                    )
+                self.assertNotIn(
+                    "originalUriBaseIds",
+                    run,
+                    msg=(
+                        f"{stem}: the fixture carries a base map that {view.path.name} "
+                        "does not. That is the authored member F3 named, and it changes "
+                        "which resolution branch every row takes"
+                    ),
+                )
+                self.assertFalse(
+                    view.has_original_uri_base_ids,
+                    msg=(
+                        f"{view.path.name} now emits originalUriBaseIds, so this "
+                        "assertion's premise has changed and the fixture must be "
+                        "recaptured with it -- a producer change to record, not to "
+                        "suppress"
+                    ),
+                )
+                if view.notification_count is not None:
+                    notifications = run["invocations"][0]["toolExecutionNotifications"]
+                    self.assertEqual(
+                        len(notifications),
+                        view.notification_count,
+                        msg=(
+                            f"{stem}: the fixture carries {len(notifications)} of "
+                            f"{view.path.name}'s {view.notification_count} "
+                            "toolExecutionNotifications. A truncated notification array is "
+                            "an edited envelope: it is the runner's own record of what the "
+                            "tool reported about its execution"
+                        ),
+                    )
+                if view.artifact_count is not None:
+                    self.assertEqual(
+                        len(run["artifacts"]),
+                        view.artifact_count,
+                        msg=(
+                            f"{stem}: the fixture carries {len(run['artifacts'])} of "
+                            f"{view.path.name}'s {view.artifact_count} artifacts entries"
+                        ),
+                    )
+
+    def test_every_captured_fixture_is_a_faithful_excerpt(self) -> None:
+        """The aggregate: no defect at all, by the same test the derived fixtures fail.
+
+        The three preceding methods name each aspect so a failure says which one broke.
+        This one runs the shared :meth:`provenance_defects` check and requires it empty, so
+        that the standard a capture is held to and the standard a derived fixture is
+        measured against are literally the same code.
+        """
+        for stem, tool in POSITIVE_FIXTURES.items():
+            with self.subTest(fixture=stem):
+                defects = self.provenance_defects(stem, tool)
+                self.assertEqual(
+                    defects,
+                    [],
+                    msg=(
+                        f"{stem} is committed as an unmodified captured excerpt of "
+                        f"{_raw_artifact_path(tool).name} but departs from it: "
+                        + "; ".join(defects)
+                    ),
+                )
+
+    def test_every_captured_expectation_claims_the_capture_and_the_raw_indexes_it_names(
+        self,
+    ) -> None:
+        """Each captured expectation's provenance claims are true of the file it describes.
+
+        Two claims are checked rather than read. The ``fixture`` block must name the raw
+        artifact as its source and must not carry a derived declaration -- the false
+        ``excerpt_note`` on the opengrep expectation was exactly this: a claim of
+        unmodified capture over a fixture whose notification array had been truncated. And
+        every ``raw_artifact_result_index`` and ``raw_artifact_rule_index`` the row
+        derivations record must resolve, in the raw artifact, to the object the fixture
+        carries at the pointer beside it. A recorded index nobody resolves is a citation to
+        a line number that may not exist.
+        """
+        for stem, tool in POSITIVE_FIXTURES.items():
+            view = self.raw_view(tool)
+            expectation = _read_json(_expected_path(stem))
+            document = _read_json(_fixture_path(stem))
+            block = expectation["fixture"]
+            with self.subTest(fixture=stem):
+                self.assertEqual(
+                    block.get("excerpt_of"),
+                    f"harness/artifacts/raw/{tool}{FIXTURE_SUFFIX}",
+                    msg=f"{stem}: the expectation does not name the raw artifact it excerpts",
+                )
+                self.assertEqual(
+                    block.get("excerpt_kind"),
+                    "unmodified captured excerpt",
+                    msg=f"{stem}: the expectation does not claim an unmodified excerpt",
+                )
+                self.assertNotIn(
+                    "provenance",
+                    block,
+                    msg=(
+                        f"{stem}: a captured expectation carries no derived-provenance "
+                        "block; that block belongs to the derived fixtures"
+                    ),
+                )
+                self.assertEqual(
+                    block.get("results"),
+                    len(document["runs"][0]["results"]),
+                    msg=f"{stem}: the recorded result count is not the fixture's",
+                )
+                self.assertEqual(
+                    block.get("driver_rules"),
+                    len(document["runs"][0]["tool"]["driver"]["rules"]),
+                    msg=f"{stem}: the recorded rule count is not the fixture's",
+                )
+                for derivation in expectation["row_derivations"]:
+                    raw_result_index = derivation["raw_artifact_result_index"]
+                    self.assertEqual(
+                        _canonical(
+                            _json_pointer(document, derivation["result_pointer"])
+                        ),
+                        view.result_canons[raw_result_index],
+                        msg=(
+                            f"{stem}: row {derivation['row_index']} records raw result "
+                            f"index {raw_result_index}, which is not the record at "
+                            f"{derivation['result_pointer']}"
+                        ),
+                    )
+                    rule = _json_pointer(document, derivation["rule_pointer"])
+                    self.assertEqual(
+                        view.rule_index_by_id[rule["id"]],
+                        derivation["raw_artifact_rule_index"],
+                        msg=(
+                            f"{stem}: row {derivation['row_index']} records raw rule index "
+                            f"{derivation['raw_artifact_rule_index']} for rule "
+                            f"{rule['id']!r}, which sits at "
+                            f"{view.rule_index_by_id[rule['id']]} in the raw artifact"
+                        ),
+                    )
+
+    # -- the derived fixtures ----------------------------------------------------------
+
+    def test_every_derived_fixture_is_declared_derived_and_is_not_a_raw_excerpt(
+        self,
+    ) -> None:
+        """Assertion 24: a derived fixture can never be mistaken for a capture.
+
+        Both halves are needed. The declaration is what a reader sees -- the expectation
+        states ``kind`` as a derived fixture, sets ``declared_derived``, names what it was
+        derived from and lists the authored feature cases it exists to exercise, and makes
+        no ``excerpt_kind`` claim. The measurement is what makes the declaration
+        falsifiable: the same :meth:`provenance_defects` check the captures must pass
+        cleanly must report at least one defect here, and the defects are what the
+        expectation's ``alterations`` list describes in prose.
+
+        A derived fixture that turned out to be a faithful excerpt would fail this, and
+        rightly: it would be a capture filed under the wrong provenance, and its expected
+        file would be understating what the file is.
+        """
+        for stem, tool in DERIVED_FIXTURES.items():
+            expectation = _read_json(_expected_path(stem))
+            block = expectation["fixture"]
+            provenance = block.get("provenance")
+            with self.subTest(fixture=stem):
+                self.assertIsInstance(
+                    provenance,
+                    dict,
+                    msg=f"{stem}: the expectation carries no fixture.provenance block",
+                )
+                self.assertTrue(
+                    provenance.get("declared_derived") is True,
+                    msg=(
+                        f"{stem}: the expectation does not set declared_derived true, so "
+                        "nothing marks the file as authored material"
+                    ),
+                )
+                self.assertIn(
+                    "derived",
+                    str(provenance.get("kind", "")).lower(),
+                    msg=f"{stem}: provenance.kind does not say the fixture is derived",
+                )
+                self.assertNotIn(
+                    "excerpt_kind",
+                    block,
+                    msg=(
+                        f"{stem}: a derived fixture must make no captured-excerpt claim; "
+                        "AAP 0.6.2 reserves that word for unmodified captured output"
+                    ),
+                )
+                for key in ("derived_from", "ultimate_source", "alterations"):
+                    self.assertIn(
+                        key,
+                        provenance,
+                        msg=f"{stem}: provenance records no {key!r}",
+                    )
+                self.assertTrue(
+                    provenance["alterations"],
+                    msg=f"{stem}: provenance lists no alteration, so nothing is declared",
+                )
+                defects = self.provenance_defects(stem, tool)
+                self.assertNotEqual(
+                    defects,
+                    [],
+                    msg=(
+                        f"{stem} is declared derived but is a faithful excerpt of "
+                        f"{_raw_artifact_path(tool).name}. A capture filed as derived "
+                        "understates what the file is, and the expectation's provenance "
+                        "block is then wrong in the opposite direction"
+                    ),
+                )
+
+    def test_every_derived_fixture_carries_a_case_no_capture_supplies(self) -> None:
+        """A derived fixture earns its place by covering something a capture cannot.
+
+        Otherwise it is duplicated coverage that leaves nothing better tested, and the case
+        for splitting the file falls away. The check is behavioural rather than textual:
+        the derived fixture must move at least one counter that no captured fixture moves,
+        with the counters read from the adapter on each fixture rather than from the
+        expected files.
+        """
+        captured_totals: dict[str, int] = {}
+        for stem, tool in POSITIVE_FIXTURES.items():
+            expectation = _read_json(_expected_path(stem))
+            _rows, _rejections, counters, _tally = self.adapt_fixture(
+                stem,
+                tool=tool,
+                tool_base=self.base_of_kind(tool, expected_path_base_kind(expectation)),
+            )
+            for key, value in counters.items():
+                captured_totals[key] = captured_totals.get(key, 0) + value
+        for stem, tool in DERIVED_FIXTURES.items():
+            expectation = _read_json(_expected_path(stem))
+            with self.subTest(fixture=stem):
+                _rows, _rejections, counters, _tally = self.adapt_fixture(
+                    stem,
+                    tool=tool,
+                    tool_base=self.base_of_kind(
+                        tool, expected_path_base_kind(expectation)
+                    ),
+                )
+                exclusive = sorted(
+                    key
+                    for key, value in counters.items()
+                    if value > 0 and captured_totals.get(key, 0) == 0
+                )
+                self.assertTrue(
+                    exclusive,
+                    msg=(
+                        f"{stem} moves no counter the captured fixtures leave at zero, so "
+                        "it adds no coverage the captures do not already have"
+                    ),
+                )
+
+
+# --------------------------------------------------------------------------------------
 # Assertions 1, 2, 3 -- and 9 to 11 wherever rows appear.
 # --------------------------------------------------------------------------------------
 
 
 class PositiveRowTests(SarifAdapterTestCase):
-    """Every row of every positive fixture, field by field, against its expected file."""
+    """Every row of every row-producing fixture, field by field, against its expectation.
+
+    The inventory is :data:`ROW_FIXTURES`: the three captured positives and the two
+    derived features fixtures. Both kinds carry a hand-verified expectation and both must
+    map field for field; what separates them is provenance, which
+    :class:`RawArtifactProvenanceTests` owns, not whether their rows are asserted.
+    """
 
     def test_rows_match_the_expected_file_field_by_field(self) -> None:
         """Assertions 1 and 2: the row count, then all twelve fields in order.
@@ -1336,7 +2377,7 @@ class PositiveRowTests(SarifAdapterTestCase):
         root. Each expected file states that its rows were derived under exactly that,
         and :meth:`base_of_kind` fails loudly if the metadata has since changed.
         """
-        for stem, tool in POSITIVE_FIXTURES.items():
+        for stem, tool in ROW_FIXTURES.items():
             expectation = _read_json(_expected_path(stem))
             with self.subTest(fixture=stem):
                 self.assertEqual(
@@ -1360,7 +2401,7 @@ class PositiveRowTests(SarifAdapterTestCase):
                     rejections,
                     [],
                     msg=(
-                        f"{stem}: a positive fixture produces no rejection; got "
+                        f"{stem}: a positive-mapping fixture produces no rejection; got "
                         f"{[rejection.reject_class for rejection in rejections]!r}"
                     ),
                 )
@@ -1379,7 +2420,7 @@ class PositiveRowTests(SarifAdapterTestCase):
         every row rather than against a literal written here.
         """
         self.assertEqual(sarif.SCANNER_CLASS, "sast")
-        for stem, tool in POSITIVE_FIXTURES.items():
+        for stem, tool in ROW_FIXTURES.items():
             expectation = _read_json(_expected_path(stem))
             rows, _rejections, _counters, _tally = self.adapt_fixture(
                 stem,
@@ -1394,7 +2435,7 @@ class PositiveRowTests(SarifAdapterTestCase):
 
     def test_counters_match_the_expected_file_key_for_key(self) -> None:
         """Every counter the adapter returns, including the four reported per tool."""
-        for stem, tool in POSITIVE_FIXTURES.items():
+        for stem, tool in ROW_FIXTURES.items():
             expectation = _read_json(_expected_path(stem))
             with self.subTest(fixture=stem):
                 _rows, _rejections, counters, _tally = self.adapt_fixture(
@@ -1415,8 +2456,12 @@ class PositiveRowTests(SarifAdapterTestCase):
                     )
 
     def test_the_reconciliation_identity_holds_on_every_positive_fixture(self) -> None:
-        """``records walked == rows + rejections``, the left side counted independently."""
-        for stem, tool in POSITIVE_FIXTURES.items():
+        """``records walked == rows + rejections`` on every row-producing fixture.
+
+        The left side is counted by a traversal that builds nothing, so the identity is
+        checked from a second implementation rather than from the adapter's own bookkeeping.
+        """
+        for stem, tool in ROW_FIXTURES.items():
             expectation = _read_json(_expected_path(stem))
             document = _read_json(_fixture_path(stem))
             with self.subTest(fixture=stem):
@@ -1436,8 +2481,8 @@ class PositiveRowTests(SarifAdapterTestCase):
                 )
 
     def test_schema_invariants_hold_on_every_positive_row(self) -> None:
-        """Assertions 9, 10 and 11 over every row of every positive fixture."""
-        for stem, tool in POSITIVE_FIXTURES.items():
+        """Assertions 9, 10 and 11 over every row of every row-producing fixture."""
+        for stem, tool in ROW_FIXTURES.items():
             expectation = _read_json(_expected_path(stem))
             with self.subTest(fixture=stem):
                 rows, _rejections, _counters, _tally = self.adapt_fixture(
@@ -1514,7 +2559,7 @@ class RowDerivationTests(SarifAdapterTestCase):
         list[dict[str, Any]],
     ]:
         """Return ``(document, rows, counters, tally, derivations)`` for one fixture."""
-        tool = POSITIVE_FIXTURES[stem]
+        tool = ROW_FIXTURES[stem]
         expectation = _read_json(_expected_path(stem))
         document = _read_json(_fixture_path(stem))
         rows, rejections, counters, tally = self.adapt(
@@ -1545,7 +2590,7 @@ class RowDerivationTests(SarifAdapterTestCase):
         for entirely different reasons -- a mapped label, an unmapped literal disclosed, or
         no vocabulary at all -- and only the basis distinguishes them.
         """
-        for stem in POSITIVE_FIXTURES:
+        for stem in ROW_FIXTURES:
             _document, rows, _counters, tally, derivations = self._run(stem)
             self.assertEqual(
                 len(tally.results),
@@ -1617,7 +2662,7 @@ class RowDerivationTests(SarifAdapterTestCase):
         They differ by design, and summing the per-row records against both is what shows
         the counters describe these rows rather than some other set.
         """
-        for stem in POSITIVE_FIXTURES:
+        for stem in ROW_FIXTURES:
             _document, rows, counters, tally, derivations = self._run(stem)
             with self.subTest(fixture=stem):
                 from_source: dict[str, int] = {}
@@ -1655,8 +2700,8 @@ class RowDerivationTests(SarifAdapterTestCase):
         to be the path the row carries. That equality is what makes the re-derivation a
         check on the row rather than a separate calculation beside it.
         """
-        for stem in POSITIVE_FIXTURES:
-            tool = POSITIVE_FIXTURES[stem]
+        for stem in ROW_FIXTURES:
+            tool = ROW_FIXTURES[stem]
             expectation = _read_json(_expected_path(stem))
             base = self.base_of_kind(tool, expected_path_base_kind(expectation))
             document, rows, counters, _tally, derivations = self._run(stem)
@@ -1727,7 +2772,7 @@ class RowDerivationTests(SarifAdapterTestCase):
         to the class that owns that field, since a pointer is the only form a test can
         follow mechanically.
         """
-        for stem in POSITIVE_FIXTURES:
+        for stem in ROW_FIXTURES:
             document, rows, _counters, _tally, derivations = self._run(stem)
             for index, (row, derivation) in enumerate(zip(rows, derivations)):
                 for key, field in (
@@ -1756,7 +2801,7 @@ class RowDerivationTests(SarifAdapterTestCase):
         recorded glob is the one the matcher actually returns for that path -- and the
         multi-location counter is checked against the recorded counts in the same pass.
         """
-        for stem in POSITIVE_FIXTURES:
+        for stem in ROW_FIXTURES:
             document, rows, counters, _tally, derivations = self._run(stem)
             multi = 0
             for index, (row, derivation) in enumerate(zip(rows, derivations)):
@@ -1798,7 +2843,7 @@ class RowDerivationTests(SarifAdapterTestCase):
         the counter is how the multi-valued records are reported per tool, so it is checked
         against the per-row records rather than assumed.
         """
-        for stem in POSITIVE_FIXTURES:
+        for stem in ROW_FIXTURES:
             _document, rows, counters, _tally, derivations = self._run(stem)
             multi_cwe = 0
             multi_cve = 0
@@ -1835,22 +2880,36 @@ class RowDerivationTests(SarifAdapterTestCase):
 class RuleIdentifierResolutionTests(SarifAdapterTestCase):
     """``rule_id`` from ``ruleId``, and from ``ruleIndex`` where ``ruleId`` is absent."""
 
-    def test_both_routes_are_exercised_by_the_captured_fixtures(self) -> None:
-        """A captured artifact covers each route, and the counters say which was taken.
+    def test_both_routes_are_exercised_by_the_committed_fixtures(self) -> None:
+        """A committed fixture covers each route, and the counters say which was taken.
 
         SARIF 2.1.0 lets a result identify its rule either directly or by index into
-        ``runs[].tool.driver.rules[]``. Both are live somewhere in the captured fixtures,
-        and the adapter counts them separately, so the counters are the evidence that each
-        route was actually taken rather than one route serving twice.
+        ``runs[].tool.driver.rules[]``. Both are live somewhere in the committed
+        row-producing fixtures, and the adapter counts them separately, so the counters are
+        the evidence that each route was actually taken rather than one route serving
+        twice.
+
+        The inventory iterated is :data:`ROW_FIXTURES` -- the captures and the derived
+        features fixtures -- rather than the captures alone, because the indexed route is
+        measurably unreachable from captured output in this provisioning: not one result in
+        the raw ``opengrep`` or ``semgrep`` artifact carries a ``ruleIndex`` at all, and
+        every result in the raw ``datadog-static-analyzer`` artifact carries a ``ruleId``
+        beside its index, which outranks it. The route is therefore supplied by
+        ``derived-semgrep-features``, whose expected file records that as the reason it
+        exists. An earlier form of this test claimed captured coverage it could not have,
+        and asserting a sum over the wrong inventory is how that claim survived.
 
         The two counters are summed across the fixtures rather than read per fixture, and
         deliberately so: the question is whether the adapter's two routes are exercised at
         all, not which artifact exercises which. Reading them per tool would invite a
-        comparison between producers, and this module makes none.
+        comparison between producers, and this module makes none. The fixture supplying
+        each route is nonetheless recorded below, because a sum that reached one cannot say
+        which member moved.
         """
         totals = {sarif.COUNTER_RULE_ID_FROM_RULE_ID: 0,
                   sarif.COUNTER_RULE_ID_FROM_RULE_INDEX: 0}
-        for stem, tool in POSITIVE_FIXTURES.items():
+        supplied_by: dict[str, list[str]] = {key: [] for key in totals}
+        for stem, tool in ROW_FIXTURES.items():
             expectation = _read_json(_expected_path(stem))
             _rows, _rejections, counters, _tally = self.adapt_fixture(
                 stem,
@@ -1859,16 +2918,33 @@ class RuleIdentifierResolutionTests(SarifAdapterTestCase):
             )
             for key in totals:
                 totals[key] += counters[key]
+                if counters[key] > 0:
+                    supplied_by[key].append(stem)
         for key, total in totals.items():
             with self.subTest(counter=key):
                 self.assertGreater(
                     total,
                     0,
                     msg=(
-                        f"no captured fixture exercises {key!r}; one of the two rule "
+                        f"no committed fixture exercises {key!r}; one of the two rule "
                         "identifier routes is untested"
                     ),
                 )
+                self.assertTrue(
+                    supplied_by[key],
+                    msg=f"{key!r} reached {total} with no fixture recorded as its source",
+                )
+        self.assertEqual(
+            supplied_by[sarif.COUNTER_RULE_ID_FROM_RULE_INDEX],
+            ["derived-semgrep-features"],
+            msg=(
+                "the indexed route is expected to come from the derived fixture that "
+                "declares it, and from that fixture alone; it came from "
+                f"{supplied_by[sarif.COUNTER_RULE_ID_FROM_RULE_INDEX]!r}. If a capture now "
+                "carries a result with a ruleIndex and no ruleId, that is a change in the "
+                "producer's output to record rather than a failure to suppress"
+            ),
+        )
 
     def test_rule_id_comes_from_the_result_where_it_states_one(self) -> None:
         """The direct route: ``ruleId`` on the result is the identifier, verbatim."""
@@ -1992,11 +3068,26 @@ class MessageAndSeverityTests(SarifAdapterTestCase):
         for result in tally.results:
             self.assertEqual(result.basis, severity.BASIS_SARIF_LEVEL)
 
-    def test_the_rules_default_configuration_level_is_the_second_source(self) -> None:
-        """A result stating no level takes the level its own rule states.
+    def test_the_rules_default_configuration_level_is_not_consulted(self) -> None:
+        """A rule's ``defaultConfiguration.level`` is not one of the authorised sources.
 
-        SARIF's own derivation for a result that omits the property, rather than an
-        inference about it -- so the basis is still the level table's.
+        AAP 0.5.4's per-shape table enumerates the field sources for a shared-SARIF
+        record as the result's own ``level``, then the rule's ``properties.severity`` or
+        ``properties.problem.severity``.  ``rule.defaultConfiguration.level`` is not
+        among them, so a result that states no level of its own and whose rule carries no
+        properties severity has no stated severity at all -- however plainly the rule
+        configures a default, and however routinely other SARIF consumers derive one
+        from it.
+
+        The assertion is the negative because that is the only thing that can catch the
+        source being reintroduced: a rule configuring ``warning`` here must **not**
+        produce ``severity_native`` ``warning`` or the Medium band, and the row must land
+        on the ``no_vocabulary`` basis with ``severity_absent`` counted.  A test that
+        merely checked the three authorised sources would pass either way.
+
+        The counter for the removed source is asserted absent from the adapter's counter
+        set as well, since a key left behind would keep appearing in every expected file
+        and in ``normalize-run.json`` while nothing could ever move it.
         """
         document = authored_document(
             [authored_result(DISK_STORE_PATH, rule_id="authored.rule.one", level=None)],
@@ -2008,14 +3099,36 @@ class MessageAndSeverityTests(SarifAdapterTestCase):
             ],
         )
         rows, _rejections, counters, tally = self.adapt(document, tool="opengrep")
-        self.assertEqual(rows[0]["severity_native"], "warning")
-        self.assertEqual(rows[0]["severity_norm"], "Medium")
-        self.assertEqual(tally.results[0].basis, severity.BASIS_SARIF_LEVEL)
-        self.assertEqual(
-            counters[sarif.COUNTER_SEVERITY_FROM_RULE_DEFAULT_CONFIGURATION], 1
+        self.assertIsNone(
+            rows[0]["severity_native"],
+            msg=(
+                "the rule's defaultConfiguration.level must not reach severity_native: "
+                "AAP 0.5.4 enumerates the field sources for this shape and does not "
+                "carry it"
+            ),
+        )
+        self.assertNotEqual(rows[0]["severity_native"], "warning")
+        self.assertEqual(rows[0]["severity_norm"], severity.INFO)
+        self.assertNotEqual(rows[0]["severity_norm"], "Medium")
+        self.assertEqual(tally.results[0].basis, severity.BASIS_NO_VOCABULARY)
+        self.assertEqual(counters[sarif.COUNTER_SEVERITY_ABSENT], 1)
+        self.assertEqual(counters[sarif.COUNTER_SEVERITY_FROM_LEVEL], 0)
+        self.assertEqual(counters[sarif.COUNTER_SEVERITY_FROM_RULE_PROPERTY], 0)
+        self.assertNotIn(
+            "severity_from_rule_default_configuration",
+            counters,
+            msg=(
+                "the counter for the removed source must be gone from the adapter's "
+                "counter set, not left at a permanent zero"
+            ),
+        )
+        self.assertNotIn(
+            "severity_from_rule_default_configuration",
+            sarif.COUNTER_KEYS,
+            msg="and it must be gone from the authored counter vocabulary",
         )
 
-    def test_a_rule_property_severity_is_the_third_source(self) -> None:
+    def test_a_rule_property_severity_is_the_second_source(self) -> None:
         """``properties.severity`` on the rule, mapped through the label vocabulary.
 
         The label lookup strips and upper-cases the observed literal while
@@ -2033,8 +3146,8 @@ class MessageAndSeverityTests(SarifAdapterTestCase):
         self.assertEqual(tally.results[0].selected_entry, {"label": "Moderate"})
         self.assertEqual(counters[sarif.COUNTER_SEVERITY_FROM_RULE_PROPERTY], 1)
 
-    def test_a_rule_problem_severity_is_the_fourth_source(self) -> None:
-        """``properties.problem.severity`` is consulted where the three before it are silent."""
+    def test_a_rule_problem_severity_is_the_third_source(self) -> None:
+        """``properties.problem.severity`` is consulted where the two before it are silent."""
         document = authored_document(
             [authored_result(DISK_STORE_PATH, rule_id="authored.rule.one", level=None)],
             rules=[
@@ -2082,7 +3195,7 @@ class MessageAndSeverityTests(SarifAdapterTestCase):
             1,
         )
 
-    def test_all_four_sources_silent_states_the_absence(self) -> None:
+    def test_all_three_sources_silent_states_the_absence(self) -> None:
         """No level anywhere: ``severity_native`` absent, band Info, basis no_vocabulary.
 
         The absence is stated rather than a level assumed. ``severity_native`` is one of
@@ -2361,27 +3474,34 @@ class IdentifierSelectionTests(SarifAdapterTestCase):
             msg="one identifier written several ways is still one identifier",
         )
 
-    def test_a_captured_fixture_exercises_the_multi_valued_counter(self) -> None:
-        """The multi-valued path is reached from captured output, not only authored input.
+    def test_a_committed_fixture_exercises_the_multi_valued_counter(self) -> None:
+        """The multi-valued path is reached from a committed fixture, not only in memory.
 
         The authored documents above pin the ordering; this checks that the same counter
-        moves on a real captured artifact, so the behaviour is not reachable only from input
-        this module wrote itself. Which of the fixtures carries such a record is a property
-        of that captured excerpt and is asserted from its own expected file -- the fixture
-        is located by scanning the inventory rather than named here, and no property is
-        attributed to a producer.
+        moves on a fixture committed to this tree, so the behaviour is not reachable only
+        from input a test method wrote itself. Which fixture carries such a record is
+        asserted from its own expected file -- the fixture is located by scanning the
+        inventory rather than named here, and no property is attributed to a producer.
+
+        The inventory is :data:`ROW_FIXTURES` rather than the captures alone. Measured
+        across the three raw artifacts, not one of their 2002, 2126 and 1093 rules carries
+        more than one distinct CVE identifier, so no captured excerpt can move this
+        counter, and ``derived-semgrep-features`` carries the case with its provenance
+        declared. An earlier form of this test named the captures and would have had to be
+        weakened to stay green once they became true captures; re-pointing the inventory
+        keeps the assertion at full strength instead.
         """
         carrying = [
             (stem, tool, expectation)
-            for stem, tool in POSITIVE_FIXTURES.items()
+            for stem, tool in ROW_FIXTURES.items()
             for expectation in (_read_json(_expected_path(stem)),)
             if expectation["counters"][sarif.COUNTER_MULTI_VALUED_CVE] > 0
         ]
         self.assertTrue(
             carrying,
             msg=(
-                "no captured fixture records a multi-valued CVE any more, so the ordering "
-                "rule is exercised only by authored input"
+                "no committed fixture records a multi-valued CVE any more, so the ordering "
+                "rule is exercised only by documents authored inside a test method"
             ),
         )
         for stem, tool, expectation in carrying:
@@ -2417,7 +3537,7 @@ class SchemaInvariantTests(SarifAdapterTestCase):
         twelve keys are the schema and a row missing one would not round-trip through
         ``findings.csv``.
         """
-        for stem, tool in POSITIVE_FIXTURES.items():
+        for stem, tool in ROW_FIXTURES.items():
             expectation = _read_json(_expected_path(stem))
             rows, _rejections, _counters, _tally = self.adapt_fixture(
                 stem,
@@ -3545,7 +4665,7 @@ class RootIndependenceTests(SarifAdapterTestCase):
         re-run under a temporary root and fail for a reason that looked like a defect in
         the adapter.
         """
-        for stem in (*POSITIVE_FIXTURES, *NEGATIVE_FIXTURES):
+        for stem in (*ROW_FIXTURES, *NEGATIVE_FIXTURES):
             expectation = _read_json(_expected_path(stem))
             recorded = expectation.get("resolution_context", {}).get(
                 "sarif_original_uri_base_ids_present"
@@ -3582,14 +4702,14 @@ class RootIndependenceTests(SarifAdapterTestCase):
         """
         independent = [
             stem
-            for stem in (*POSITIVE_FIXTURES, *NEGATIVE_FIXTURES)
+            for stem in (*ROW_FIXTURES, *NEGATIVE_FIXTURES)
             if not fixture_has_a_base_map(_read_json(_fixture_path(stem)))
         ]
         self.assertTrue(
             independent, msg="no fixture is root-independent, so this class asserts nothing"
         )
         for stem in independent:
-            tool = POSITIVE_FIXTURES.get(stem, NEGATIVE_FIXTURE_TOOL)
+            tool = ROW_FIXTURES.get(stem, NEGATIVE_FIXTURE_TOOL)
             document = _read_json(_fixture_path(stem))
             with self.subTest(stem=stem):
                 recorded_rows, recorded_rejections, recorded_counters, _tally = self.adapt(

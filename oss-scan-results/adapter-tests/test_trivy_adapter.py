@@ -43,12 +43,20 @@ counterfactual arithmetic that would have balanced.
 
 Rejection conditions this adapter can produce, one negative fixture each
 -----------------------------------------------------------------------
-Seven of the ten classes in :data:`normalize.paths.REJECT_CLASSES` are reachable from
+Eight of the ten classes in :data:`normalize.paths.REJECT_CLASSES` are reachable from
 a Trivy artifact, and every one has a committed fixture asserted below whether or not
-this run's own artifact contained the case (AAP 0.9.4): ``unresolvable_path``,
-``missing_rule_id``, ``missing_message``, ``non_integer_start_line``,
-``unattributable_section``, ``unformable_package_coordinate`` and
-``malformed_record``.
+this run's own artifact contained the case (AAP 0.9.4): ``absent_path``,
+``unresolvable_path``, ``missing_rule_id``, ``missing_message``,
+``non_integer_start_line``, ``unattributable_section``,
+``unformable_package_coordinate`` and ``malformed_record``.
+
+The two sets are asserted to **partition** the closed vocabulary by
+:class:`RejectionClassPartitionTest`: every class this shape can produce is named with
+the fixture that produces it, every class it cannot is named with the reason, and the
+two together are asserted equal to :data:`normalize.paths.REJECT_CLASSES` with no
+remainder on either side.  A class that fell out of both sets -- reachable but
+untested -- is what that assertion exists to catch, and it is exactly how
+``absent_path`` went unexercised while this docstring said it was not claimed.
 
 Conditions this adapter **cannot** produce, and why
 ---------------------------------------------------
@@ -64,11 +72,10 @@ Stated so their absence is a recorded fact rather than a gap:
   this adapter resolves reported paths, never bytecode.  Its input is a filesystem
   report, there is no class identifier to resolve against ``src/main`` and
   ``src/test``, and therefore nothing that two source files could both claim.  That
-  belongs to the Joern adapter and is asserted by ``test_joern_adapter.py``;
-* ``absent_path`` -- not exercised here.  A Trivy record's path comes from the
-  enclosing ``Results[].Target``, and the shape in which it goes missing in this
-  corpus is the unresolvable one rather than the absent one.  It remains a member of
-  :data:`normalize.paths.REJECT_CLASSES` and is not claimed by this file.
+  belongs to the Joern adapter and is asserted by ``test_joern_adapter.py``.
+
+Both are asserted absent from every committed fixture's rejections rather than only
+argued for in prose, so "cannot happen" is a measured claim.
 
 Hermetic by construction
 ------------------------
@@ -90,11 +97,17 @@ writes no deliverable -- in particular never ``oss-scan-results/findings.json`` 
 
 Presence is observed, never assumed
 -----------------------------------
-The precedent provisioning wrote **no Trivy artifact at all**, so nothing here reads
-``harness/artifacts/raw/trivy.json`` or assumes it exists.  Every assertion is over a
-committed fixture, and a missing fixture is reported as a blocking gap by
-:class:`FixtureCorpusTest` rather than skipped silently -- a skipped test is a green
-suite that asserted nothing.
+This run wrote ``harness/artifacts/raw/trivy.json``, and ``fixtures/trivy.json`` is a
+byte-for-byte copy of it (AAP 0.6.2).  :class:`CapturedFixtureProvenanceTest` is the
+one class that reads the artifact, and it reads it to prove that provenance: the two
+files' bytes, lengths and digests, then every ``Results`` element and every
+``Misconfigurations`` record under canonical comparison, then the envelope member by
+member.  Every other assertion in this module is over a committed fixture, so the
+corpus stands on its own even where the artifact tree is absent.
+
+Absence is reported, never skipped.  A missing fixture is a blocking gap raised by
+:class:`FixtureCorpusTest`, and a missing raw artifact is an explicit failure naming
+the path rather than a skip -- a skipped test is a green suite that asserted nothing.
 
 Prohibitions this module observes (AAP 0.3.2, AAP 0.8.2)
 --------------------------------------------------------
@@ -125,6 +138,7 @@ Public API
 """
 
 import copy
+import dataclasses
 import hashlib
 import json
 import sys
@@ -153,7 +167,7 @@ _LIB_DIR = str(REPO_ROOT / "harness" / "lib")
 if _LIB_DIR not in sys.path:
     sys.path.insert(0, _LIB_DIR)
 
-from normalize import emit, paths, severity  # noqa: E402
+from normalize import emit, paths, reconcile, severity  # noqa: E402
 from normalize.adapters import trivy  # noqa: E402
 
 # --------------------------------------------------------------------------------------
@@ -192,18 +206,66 @@ AUTHORITATIVE_GLOBS = (
 #: The canonical tool identifier every row this adapter emits must carry.
 TOOL = "trivy"
 
-#: The positive fixture: an unmodified captured-shape Trivy 0.74.0 filesystem report
-#: carrying all three supported finding sections.
+#: The primary positive fixture: a byte-for-byte capture of this run's own Trivy
+#: artifact, ``harness/artifacts/raw/trivy.json``.  The whole report is 3,496 bytes, so
+#: the capture needs no excerpting at all and its sha256 equals the raw artifact's --
+#: the strongest provenance available for a fixture (AAP 0.6.2, which requires the
+#: primary positive fixture to be an unmodified captured excerpt of the tool's own
+#: output).  It carries three ``Misconfigurations`` records and nothing else:
+#: ``CapturedFixtureProvenanceTest`` asserts the identity against the raw artifact, and
+#: the sections it does not contain are covered by ``FEATURES_FIXTURE`` below.
 POSITIVE_FIXTURE = "trivy.json"
+
+#: The raw artifact ``POSITIVE_FIXTURE`` is captured from, repository-root-relative.
+#: Read by ``CapturedFixtureProvenanceTest`` and by nothing else; no test writes to it.
+RAW_ARTIFACT_RELPATH = "harness/artifacts/raw/trivy.json"
+
+#: The derived companion to the capture: the authored multi-section document this
+#: module used as its positive fixture before the capture replaced it, kept verbatim
+#: under a name that states what it is.  It exists because the raw artifact contains no
+#: ``Vulnerabilities`` and no ``Secrets`` section, so the capture cannot exercise
+#: scanner_class variation, section-dependent ``start_line``, secret redaction,
+#: multi-valued CWE/CVE selection or any package-coordinate level.  Its expected file
+#: declares it derived, names what it was derived from, and enumerates the feature
+#: cases it exists to carry.  Every assertion that needs those features runs against
+#: this document; every assertion about provenance runs against the capture.
+FEATURES_FIXTURE = "derived-trivy-features.json"
+
+#: The expected-row stems for the two positive fixtures, so a test can name the pair it
+#: is running against as data rather than as a literal in two places.
+POSITIVE_EXPECTED_STEM = "trivy"
+FEATURES_EXPECTED_STEM = "derived-trivy-features"
 
 #: The fixture whose two appended elements each hold a non-empty unsupported finding
 #: section. Its expected file records a stop rather than rows.
 UNSUPPORTED_SECTION_FIXTURE = "halt-trivy-unsupported-section.json"
 
+#: One committed halt fixture per member of ``trivy.HALT_REASONS``, keyed by the reason
+#: constant it raises, so the closed-set check in ``HaltReasonCoverageTest`` reads the
+#: mapping rather than a hand-kept list.  ``validate_finding_sections`` checks the four
+#: conditions in the order ``HALT_REASONS`` states them, so each fixture is built to
+#: reach its own condition without tripping an earlier one -- which is what makes the
+#: raised reason attributable to the structure the fixture names.
+HALT_FIXTURE_BY_REASON = {
+    trivy.HALT_UNSUPPORTED_SECTION: "halt-trivy-unsupported-section",
+    trivy.HALT_UNKNOWN_SECTION: "halt-trivy-unknown-section",
+    trivy.HALT_SECTION_NOT_AN_ARRAY: "halt-trivy-section-not-an-array",
+    trivy.HALT_DECLARED_FINDINGS_UNHELD: "halt-trivy-declared-findings-unheld",
+}
+
 #: One negative fixture per rejection condition this adapter can produce (AAP 0.9.4).
 #: The stems are the fixture and expected filenames alike, which is this folder's
 #: convention: fixtures/<stem>.json against expected/<stem>.rows.json.
+#:
+#: ``reject-trivy-absent-path`` is the ``absent_path`` case.  A ``Results[]`` element
+#: whose ``Target`` is absent, null or blank reaches ``paths.resolve_trivy_path``, which
+#: hands it to ``resolve_recorded_path``; that returns ``paths.REJECT_ABSENT_PATH``
+#: because ``path`` is not one of the five fields absence is permitted for (AAP 0.8.2).
+#: The condition is reachable for this adapter and therefore carries a fixture, and
+#: :class:`RejectionClassPartitionTest` asserts the producible and unreachable sets
+#: partition ``paths.REJECT_CLASSES`` exactly.
 REJECT_FIXTURE_STEMS = (
+    "reject-trivy-absent-path",
     "reject-trivy-unresolvable-path",
     "reject-trivy-missing-rule-id",
     "reject-trivy-missing-message",
@@ -211,12 +273,15 @@ REJECT_FIXTURE_STEMS = (
     "reject-trivy-unattributable-section",
     "reject-trivy-no-package-coordinate",
     "reject-trivy-malformed-record",
+    "reject-trivy-negative-start-line",
+    "reject-trivy-boolean-start-line",
 )
 
-#: The rejection classes those seven fixtures assert, so the mapping from fixture to
+#: The rejection class each of those fixtures asserts, so the mapping from fixture to
 #: class is data rather than a string buried in a test. Each value is asserted to be a
 #: literal member of paths.REJECT_CLASSES and to equal the module's own constant.
 REJECT_CLASS_BY_STEM = {
+    "reject-trivy-absent-path": paths.REJECT_ABSENT_PATH,
     "reject-trivy-unresolvable-path": paths.REJECT_UNRESOLVABLE_PATH,
     "reject-trivy-missing-rule-id": paths.REJECT_MISSING_RULE_ID,
     "reject-trivy-missing-message": paths.REJECT_MISSING_MESSAGE,
@@ -224,6 +289,33 @@ REJECT_CLASS_BY_STEM = {
     "reject-trivy-unattributable-section": paths.REJECT_UNATTRIBUTABLE_SECTION,
     "reject-trivy-no-package-coordinate": paths.REJECT_UNFORMABLE_PACKAGE_COORDINATE,
     "reject-trivy-malformed-record": paths.REJECT_MALFORMED_RECORD,
+    "reject-trivy-negative-start-line": paths.REJECT_NON_INTEGER_START_LINE,
+    "reject-trivy-boolean-start-line": paths.REJECT_NON_INTEGER_START_LINE,
+}
+
+#: The two rejection classes a Trivy native artifact cannot produce, each with the
+#: structural reason it cannot. The other half of the partition
+#: :class:`RejectionClassPartitionTest` asserts over ``paths.REJECT_CLASSES``: this
+#: mapping plus the classes in :data:`REJECT_CLASS_BY_STEM` must together be the closed
+#: vocabulary exactly, with nothing left over on either side.
+#:
+#: Each reason is a claim about the artifact's shape rather than about this corpus, which
+#: is why each is also asserted to appear in no committed fixture's rejections. "This
+#: shape has no URI" is falsifiable; "our fixtures happen not to contain one" is not, and
+#: would let a class drift from unreachable to merely untested without anything noticing.
+UNREACHABLE_REJECT_CLASSES = {
+    paths.REJECT_INVALID_URI: (
+        "a Trivy native report carries no SARIF base map: no uri, no uriBaseId and no "
+        "originalUriBaseIds. There is no reference to parse and no chain to walk, so "
+        "none can be syntactically invalid, cycle or exceed a depth. Those terminals "
+        "belong to the shared SARIF adapter and are asserted by test_sarif_adapter.py"
+    ),
+    paths.REJECT_AMBIGUOUS_SOURCE_RESOLUTION: (
+        "this adapter resolves reported filesystem paths, never bytecode. There is no "
+        "class identifier to resolve against src/main and src/test and therefore "
+        "nothing two source files could both claim. That class belongs to the Joern "
+        "adapter and is asserted by test_joern_adapter.py"
+    ),
 }
 
 #: The one fixture that is an unmerged per-directory part rather than the merged
@@ -233,7 +325,9 @@ REJECT_CLASS_BY_STEM = {
 #: Every other Trivy fixture states ArtifactName "." with each Target already prefixed
 #: by its scope directory -- the merged shape run-trivy.sh writes. This one states its
 #: own scope directory as ArtifactName with Targets relative to it, which is the shape
-#: of one of the eighteen retained per-directory reports under logs/trivy.parts/.
+#: of one of the eighteen per-directory reports the runner wrote under
+#: logs/trivy.parts/ -- reports that are ABSENT from this checkout, so this fixture is
+#: authored to that shape rather than captured from one of them.
 #: runner-metadata.json records of those parts that they are not root-anchored, and
 #: paths.resolve_trivy_path states the same from the resolver's side: a caller reading
 #: one "passes a per_section_target base and a section_base; passing neither is a
@@ -259,7 +353,8 @@ SEAM_SECTION_KEY = "Packages"
 #: The two path-base readings this module needs, both written into runner metadata
 #: documents and loaded back through paths.py. The kinds are the ones
 #: harness/artifacts/logs/runner-metadata.json records for this provisioning: scan_root
-#: for the merged artifact, and per_section_target for the retained parts.
+#: for the merged artifact, and per_section_target for the runner-written parts, which
+#: are absent from this checkout.
 BASE_KIND_MERGED = paths.PATH_BASE_KIND_SCAN_ROOT
 BASE_KIND_PART = paths.PATH_BASE_KIND_PER_SECTION_TARGET
 
@@ -302,7 +397,8 @@ class Environment:
 
     Two runner-metadata documents are written, not one, because two of this folder's
     Trivy fixtures are different artifacts.  The merged report the runner writes is
-    ``scan_root``-based; the retained per-directory parts are ``per_section_target``
+    ``scan_root``-based; the per-directory parts the runner wrote -- absent from this
+    checkout -- are ``per_section_target``
     and carry no single base, which is the whole subject of the unresolvable-path
     fixture.  Reading one with the other's base is what the metadata's own note about
     the parts exists to prevent.
@@ -368,7 +464,7 @@ class Environment:
         else:
             path_base["value"] = None
             path_base["evidence"] = (
-                "A retained per-directory part is not root-anchored: each states its "
+                "A per-directory part is not root-anchored: each states its "
                 "Target relative to the single path its invocation was given, so it is "
                 "read with a section base rather than against the root."
             )
@@ -415,11 +511,22 @@ _TEMPORARY_DIRECTORY: tempfile.TemporaryDirectory | None = None
 _FIXTURE_DIGESTS: dict[str, str] = {}
 
 
+def halt_fixture_stems() -> tuple[str, ...]:
+    """The halt fixture stems in ``trivy.HALT_REASONS`` order, one per reason.
+
+    Ordered by the closed reason tuple rather than alphabetically, so the sequence
+    mirrors the order ``validate_finding_sections`` checks the four conditions in and a
+    reader can see that each fixture reaches its own condition.
+    """
+    return tuple(HALT_FIXTURE_BY_REASON[reason] for reason in trivy.HALT_REASONS)
+
+
 def required_fixture_names() -> tuple[str, ...]:
     """Every fixture filename this module reads, in a stable order."""
     return (
         POSITIVE_FIXTURE,
-        UNSUPPORTED_SECTION_FIXTURE,
+        FEATURES_FIXTURE,
+        *(f"{stem}.json" for stem in halt_fixture_stems()),
         *(f"{stem}.json" for stem in REJECT_FIXTURE_STEMS),
     )
 
@@ -427,8 +534,9 @@ def required_fixture_names() -> tuple[str, ...]:
 def required_expected_names() -> tuple[str, ...]:
     """Every hand-verified expected filename this module reads, in a stable order."""
     return (
-        "trivy.rows.json",
-        "halt-trivy-unsupported-section.rows.json",
+        f"{POSITIVE_EXPECTED_STEM}.rows.json",
+        f"{FEATURES_EXPECTED_STEM}.rows.json",
+        *(f"{stem}.rows.json" for stem in halt_fixture_stems()),
         *(f"{stem}.rows.json" for stem in REJECT_FIXTURE_STEMS),
     )
 
@@ -1021,11 +1129,17 @@ class FixtureCorpusTest(TrivyAdapterTestCase):
         )
 
     def test_every_rejection_condition_has_its_own_fixture(self) -> None:
-        """The seven conditions this adapter can produce each have one committed fixture.
+        """Every condition this adapter can produce is covered by a committed fixture.
 
         The mapping is asserted in both directions: every stem has a class and every
         class named is a literal member of :data:`normalize.paths.REJECT_CLASSES`,
         equal to the module's own constant rather than to a string spelled by hand.
+
+        Coverage is asserted as *onto* rather than as a bijection. Three fixtures reach
+        ``non_integer_start_line`` -- a boolean, a negative integer and a non-numeric
+        ``StartLine`` -- because those are three routes into one class and a corpus with
+        one of them cannot show that the adapter treats them alike. What must not happen
+        is a class with NO fixture, and that is what the set equality below states.
         """
         self.assertEqual(
             sorted(REJECT_CLASS_BY_STEM),
@@ -1044,9 +1158,9 @@ class FixtureCorpusTest(TrivyAdapterTestCase):
                     msg="and paths.py itself recognises it",
                 )
         self.assertEqual(
-            len(set(REJECT_CLASS_BY_STEM.values())),
-            len(REJECT_FIXTURE_STEMS),
-            msg="no two fixtures assert the same rejection class",
+            set(REJECT_CLASS_BY_STEM.values()),
+            set(paths.REJECT_CLASSES) - set(UNREACHABLE_REJECT_CLASSES),
+            msg="the committed fixtures cover every producible class and no other",
         )
 
 
@@ -1090,6 +1204,318 @@ class FixtureIntegrityTest(TrivyAdapterTestCase):
             load_fixture(POSITIVE_FIXTURE)["Results"][0]["Target"],
             second["Results"][0]["Target"],
             msg="and leaves the file on disk untouched",
+        )
+
+
+class CapturedFixtureProvenanceTest(TrivyAdapterTestCase):
+    """The primary positive fixture is this run's own artifact, asserted against it.
+
+    AAP 0.6.2 requires the primary positive fixture to be *an unmodified captured
+    excerpt of the tool's own output*, because "a hand-written fixture tests the adapter
+    against the shape you believed the tool emits rather than the shape it emits".  A
+    digest recorded in the fixture's own expected file cannot establish that: the tree
+    owns both files, so the pair is self-consistent whatever the fixture contains.  The
+    only external witness is the artifact under ``harness/artifacts/raw/``, and these
+    assertions read it.
+
+    ``harness/artifacts/raw/trivy.json`` is 3,496 bytes, so the capture is the whole
+    report rather than an excerpt of it -- which makes the strongest form of the claim
+    available: identical bytes, hence an identical sha256.  Every weaker structural
+    comparison is asserted as well, because byte equality alone would pass vacuously if
+    someone later replaced *both* files together, whereas the per-element and per-record
+    comparisons state what specifically must survive: each ``Results`` element and each
+    ``Misconfigurations`` record as an object, and each envelope member.
+
+    The raw artifact is opened read-only and never written.  Nothing under
+    ``harness/artifacts/raw/`` is this module's to modify (AAP 0.3.2), and a missing raw
+    artifact is reported as a blocking gap rather than skipped: a skipped provenance
+    test is exactly the state this class exists to make impossible.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Locate the raw artifact and read both files once, as bytes and as documents."""
+        super().setUpClass()
+        cls.raw_location = REPO_ROOT / RAW_ARTIFACT_RELPATH
+        cls.fixture_location = FIXTURES_DIR / POSITIVE_FIXTURE
+
+    def raw_bytes(self) -> bytes:
+        """Return the raw artifact's bytes, failing loudly if it is absent.
+
+        Reported rather than skipped, and the message names the path so the reader knows
+        what to restore.  ``adapter-tests-run.json`` records this module's outcomes, and
+        a skip there would read as coverage that never ran.
+        """
+        if not self.raw_location.is_file():
+            self.fail(
+                f"blocking gap: the raw artifact {self.raw_location} is absent, so the "
+                f"provenance of fixtures/{POSITIVE_FIXTURE} cannot be established "
+                "against the tool's own output. AAP 0.6.2 requires the primary positive "
+                "fixture to be a capture of that artifact, and this is reported rather "
+                "than skipped."
+            )
+        return self.raw_location.read_bytes()
+
+    def test_the_raw_artifact_this_fixture_is_captured_from_exists(self) -> None:
+        """The external witness is present, is a file, and parses as a Trivy report."""
+        data = self.raw_bytes()
+        self.assertGreater(len(data), 0, msg="the raw artifact is not an empty file")
+        document = json.loads(data.decode("utf-8"))
+        self.assertIsInstance(
+            document, dict, msg="a Trivy native artifact's top level is an object"
+        )
+        self.assertIn(
+            "Results",
+            document,
+            msg="and the artifact carries the Results member the count unit is taken from",
+        )
+
+    def test_the_captured_fixture_is_the_raw_artifact_byte_for_byte(self) -> None:
+        """Identical bytes and therefore an identical sha256: the strongest claim.
+
+        Not "an excerpt that agrees in the parts we checked" -- the same file.  A single
+        byte of difference fails here, including a re-indentation or an added trailing
+        newline, either of which would make the fixture an edited document rather than a
+        capture.
+        """
+        raw = self.raw_bytes()
+        fixture = self.fixture_location.read_bytes()
+        self.assertEqual(
+            len(fixture),
+            len(raw),
+            msg=(
+                f"fixtures/{POSITIVE_FIXTURE} is {len(fixture)} bytes and "
+                f"{RAW_ARTIFACT_RELPATH} is {len(raw)}; a capture is the same length"
+            ),
+        )
+        self.assertEqual(
+            hashlib.sha256(fixture).hexdigest(),
+            hashlib.sha256(raw).hexdigest(),
+            msg="the two digests are equal, so the fixture is the artifact",
+        )
+        self.assertEqual(fixture, raw, msg="and the bytes themselves are equal")
+
+    def test_the_expected_file_records_the_raw_artifacts_own_digest(self) -> None:
+        """The recorded provenance names the artifact and its real digest.
+
+        The digest in the expected file is checked against the *raw artifact*, not only
+        against the fixture, so the recorded provenance is verified against the external
+        witness rather than against the tree's own copy of it.
+        """
+        raw = self.raw_bytes()
+        block = load_expected(POSITIVE_EXPECTED_STEM)["fixture"]
+        self.assertEqual(block["kind"], "captured")
+        self.assertEqual(block["captured_from"], RAW_ARTIFACT_RELPATH)
+        self.assertEqual(
+            block["sha256"],
+            hashlib.sha256(raw).hexdigest(),
+            msg="the recorded sha256 is the raw artifact's",
+        )
+        self.assertEqual(
+            block["bytes"], len(raw), msg="and the recorded byte count is its length"
+        )
+
+    def test_every_results_element_is_the_raw_artifacts_element_object_for_object(
+        self,
+    ) -> None:
+        """Element by element, compared canonically rather than by dict identity.
+
+        ``json.dumps(..., sort_keys=True)`` makes the comparison independent of member
+        order, so a fixture that reordered members while keeping content would still be
+        recognised as carrying the same records -- and one that changed a Target, a
+        Severity or a MisconfSummary would not.
+        """
+        raw = json.loads(self.raw_bytes().decode("utf-8"))
+        fixture = load_fixture(POSITIVE_FIXTURE)
+        self.assertEqual(
+            len(fixture["Results"]),
+            len(raw["Results"]),
+            msg="the capture carries every Results element the artifact does",
+        )
+        for index, (captured, original) in enumerate(
+            zip(fixture["Results"], raw["Results"])
+        ):
+            with self.subTest(result_index=index):
+                self.assertEqual(
+                    json.dumps(captured, sort_keys=True),
+                    json.dumps(original, sort_keys=True),
+                    msg=f"/Results/{index} is the artifact's element unchanged",
+                )
+
+    def test_every_misconfiguration_record_is_the_raw_artifacts_record(self) -> None:
+        """Record by record, the unit reconciliation counts, compared canonically.
+
+        The element comparison above already covers these, and they are asserted again
+        on their own because the record is the count unit: this is the assertion that
+        fails by name if a finding record were added, dropped or edited inside an
+        element that otherwise still matched.
+        """
+        raw = json.loads(self.raw_bytes().decode("utf-8"))
+        fixture = load_fixture(POSITIVE_FIXTURE)
+        section = "Misconfigurations"
+        pairs = 0
+        for index, (captured, original) in enumerate(
+            zip(fixture["Results"], raw["Results"])
+        ):
+            captured_records = captured.get(section) or []
+            original_records = original.get(section) or []
+            with self.subTest(result_index=index):
+                self.assertEqual(
+                    len(captured_records),
+                    len(original_records),
+                    msg=f"/Results/{index}/{section} holds the artifact's record count",
+                )
+            for record_index, (one, other) in enumerate(
+                zip(captured_records, original_records)
+            ):
+                pairs += 1
+                with self.subTest(result_index=index, record_index=record_index):
+                    self.assertEqual(
+                        json.dumps(one, sort_keys=True),
+                        json.dumps(other, sort_keys=True),
+                        msg=(
+                            f"/Results/{index}/{section}/{record_index} is the "
+                            "artifact's record unchanged"
+                        ),
+                    )
+        self.assertEqual(
+            pairs,
+            load_expected(POSITIVE_EXPECTED_STEM)["counts"]["raw_finding_records"],
+            msg=(
+                "and the number of records compared is the count unit the expectation "
+                "reconciles against, so no record escaped this comparison"
+            ),
+        )
+
+    def test_every_envelope_member_is_the_raw_artifacts(self) -> None:
+        """The report envelope too: schema version, tool version, id, time, artifact.
+
+        The envelope is what a reader uses to tell one run's artifact from another's, so
+        an authored fixture is most easily recognised by an envelope that belongs to no
+        run.  Each member is compared individually, and the member set is compared as a
+        whole so neither file may carry a top-level member the other does not.
+        """
+        raw = json.loads(self.raw_bytes().decode("utf-8"))
+        fixture = load_fixture(POSITIVE_FIXTURE)
+        self.assertEqual(
+            sorted(fixture),
+            sorted(raw),
+            msg="the two documents carry exactly the same top-level members",
+        )
+        for member in sorted(member for member in raw if member != "Results"):
+            with self.subTest(member=member):
+                self.assertEqual(
+                    json.dumps(fixture[member], sort_keys=True),
+                    json.dumps(raw[member], sort_keys=True),
+                    msg=f"the envelope member {member} is the artifact's",
+                )
+        recorded = load_expected(POSITIVE_EXPECTED_STEM)["fixture"]
+        self.assertEqual(recorded["schema_version"], raw["SchemaVersion"])
+        self.assertEqual(recorded["trivy_version"], raw["Trivy"]["Version"])
+        self.assertEqual(recorded["report_id"], raw["ReportID"])
+        self.assertEqual(recorded["created_at"], raw["CreatedAt"])
+        self.assertEqual(recorded["artifact_name"], raw["ArtifactName"])
+        self.assertEqual(recorded["artifact_type"], raw["ArtifactType"])
+
+    def test_the_derived_fixture_is_declared_derived_and_is_not_the_raw_artifact(
+        self,
+    ) -> None:
+        """The companion document states what it is, and is provably not a capture.
+
+        The two roles are separated rather than traded off: the capture carries the
+        provenance and the derived document carries the feature cases the raw artifact
+        does not contain.  This asserts the second half of that -- the derived file is
+        declared derived, names what it was derived from, and is not the artifact -- so
+        no reader can take it for a capture, and the module cannot quietly drift back to
+        asserting provenance against an authored document.
+        """
+        raw = self.raw_bytes()
+        derived_bytes = (FIXTURES_DIR / FEATURES_FIXTURE).read_bytes()
+        self.assertNotEqual(
+            derived_bytes, raw, msg="the derived document is not the raw artifact"
+        )
+        self.assertNotEqual(
+            hashlib.sha256(derived_bytes).hexdigest(),
+            hashlib.sha256(raw).hexdigest(),
+            msg="and does not share its digest",
+        )
+        block = load_expected(FEATURES_EXPECTED_STEM)["fixture"]
+        self.assertEqual(
+            block["kind"], "derived", msg="its expected file declares it derived"
+        )
+        provenance = block["derived_from"]
+        self.assertIsInstance(
+            provenance,
+            dict,
+            msg=(
+                "and states its provenance as separately checkable parts rather than "
+                "as one sentence"
+            ),
+        )
+        for part in ("shape_source", "record_source", "history", "not_a_capture"):
+            with self.subTest(part=part):
+                self.assertIsInstance(provenance[part], str)
+                self.assertTrue(
+                    provenance[part].strip(),
+                    msg=f"the {part} half of the provenance is stated",
+                )
+        self.assertIn(
+            RAW_ARTIFACT_RELPATH,
+            provenance["shape_source"],
+            msg="the shape it was modelled on names the raw artifact",
+        )
+        self.assertIn(
+            RAW_ARTIFACT_RELPATH,
+            provenance["record_source"],
+            msg="and the record provenance states the records are not from it",
+        )
+        self.assertEqual(
+            block["sha256"],
+            hashlib.sha256(derived_bytes).hexdigest(),
+            msg="and records its own digest, which is not the artifact's",
+        )
+        self.assertNotIn(
+            "captured_from",
+            block,
+            msg=(
+                "and claims no capture: a derived document that also claimed to be "
+                "captured would be the provenance defect this split removed"
+            ),
+        )
+
+    def test_the_capture_carries_the_sections_the_expectation_says_it_does(self) -> None:
+        """What the artifact does and does not contain, asserted rather than assumed.
+
+        The features fixture exists because the raw artifact has no ``Vulnerabilities``
+        and no ``Secrets`` section.  If a later run's artifact did carry them, this
+        assertion fails and the split would be reconsidered on evidence -- rather than
+        the module continuing to route feature assertions at a derived document for a
+        reason that had stopped being true.
+        """
+        raw = json.loads(self.raw_bytes().decode("utf-8"))
+        observed = {section: 0 for section in trivy.SUPPORTED_SECTIONS}
+        for element in raw["Results"]:
+            for section in trivy.SUPPORTED_SECTIONS:
+                value = element.get(section)
+                if isinstance(value, list):
+                    observed[section] += len(value)
+        self.assertEqual(
+            observed,
+            load_expected(POSITIVE_EXPECTED_STEM)["fixture"]["records_by_section"],
+            msg="the per-section record split is the expectation's, read from the artifact",
+        )
+        self.assertEqual(
+            observed["Vulnerabilities"],
+            0,
+            msg=(
+                "the raw artifact carries no vulnerability record, which is why the "
+                "coordinate and CVSS cases run against the derived features document"
+            ),
+        )
+        self.assertEqual(
+            observed["Secrets"],
+            0,
+            msg="and no secret record, which is why redaction is asserted there too",
         )
 
 
@@ -1330,21 +1756,576 @@ class ContractConstantsTest(TrivyAdapterTestCase):
         )
 
 
-class PositiveMappingTest(TrivyAdapterTestCase):
-    """The positive fixture maps field for field onto its hand-verified expectation.
+class CallerContractTest(TrivyAdapterTestCase):
+    """The six argument validators, one precise negative each, plus a passing control.
 
-    The fixture is a Trivy 0.74.0 filesystem report carrying all three supported
-    finding sections, and the expectation was derived by reading it and the authored
-    contracts rather than by recording what the adapter printed.  Where the two
-    disagree, the disagreement is the finding: it is diagnosed, never papered over by
-    editing either file.
+    :func:`trivy.adapt` runs six validators before it walks anything, and every one
+    raises :class:`trivy.TrivyAdapterError` rather than returning a sentinel.  Each is
+    asserted here with the fault it names quoted from the raised message, because a bare
+    ``assertRaises`` would pass on any of the six -- and on a ``TypeError`` from a
+    keyword typo -- while telling a reader nothing about which contract was broken.
+
+    A caller fault is deliberately **not** a rejection.  A rejection describes a
+    defective record inside an artifact and is counted and carried past; these describe a
+    defective *call* or a structurally impossible artifact, and they stop the caller.  So
+    every test here asserts that nothing was returned at all, and none of these faults
+    appears in any rejection count anywhere in this module.
+
+    The control matters as much as the negatives.  ``test_a_well_formed_call_raises
+    _nothing`` runs the same argument set with no substitution, so each negative is
+    attributable to the one value it changed rather than to the way this class assembles
+    a call.
+
+    One documented non-error is covered too: ``Results`` absent or null is ordinary
+    Trivy output, is counted under ``results_absent_or_null``, and must not raise.  It
+    sits beside the negative for ``Results`` present as a non-array, which must -- the
+    pair is what shows the line is drawn where ``_validated_document``'s docstring says
+    it is.
     """
+
+    #: The six validators the public entry runs, in the order it runs them. Iterated by
+    #: the closed-set test so a seventh validator added to ``adapt`` arrives with a
+    #: failure naming it rather than silently untested.
+    VALIDATORS = (
+        "_validated_tool",
+        "_validated_root",
+        "_validated_tool_base",
+        "_validated_allowlist",
+        "_validated_tally",
+        "_validated_document",
+    )
+
+    def well_formed(self) -> dict[str, Any]:
+        """Every argument :func:`trivy.adapt` requires, all of them valid.
+
+        Built fresh per call: a tally accumulates, and a test that substituted one
+        argument must not inherit another test's recorder.
+        """
+        env = environment()
+        return {
+            "doc": load_fixture(POSITIVE_FIXTURE),
+            "tool": TOOL,
+            "root": env.root,
+            "tool_base": env.tool_base(),
+            "allowlist": env.globs,
+            "tally": severity.LiteralTally.with_all_tools(),
+        }
+
+    def call(self, **overrides: Any) -> Any:
+        """Call ``trivy.adapt`` with the well-formed set and the overrides applied."""
+        arguments = self.well_formed()
+        arguments.update(overrides)
+        document = arguments.pop("doc")
+        return trivy.adapt(document, **arguments)
+
+    def assertRefused(self, fragments: tuple[str, ...], **overrides: Any) -> str:
+        """Assert the call raises ``TrivyAdapterError`` naming the fault, and return it.
+
+        The fragments are asserted individually so a failure says which part of the
+        message was missing, and the message is asserted non-trivial so a validator that
+        raised with an empty string could not pass.
+        """
+        with self.assertRaises(trivy.TrivyAdapterError) as caught:
+            self.call(**overrides)
+        message = str(caught.exception)
+        self.assertGreater(
+            len(message.strip()),
+            20,
+            msg="a caller fault has to say what was wrong in words",
+        )
+        for fragment in fragments:
+            self.assertIn(
+                fragment,
+                message,
+                msg=f"the message must name the fault: {fragment!r} missing",
+            )
+        self.assertIsInstance(caught.exception, ValueError)
+        self.assertNotIsInstance(
+            caught.exception,
+            trivy.UnsupportedTrivySection,
+            msg=(
+                "an argument fault is not a structural halt: the two are caught by "
+                "different callers and mean different things"
+            ),
+        )
+        return message
+
+    def test_a_well_formed_call_raises_nothing(self) -> None:
+        """The control. Without it every negative below could be an assembly error."""
+        rows, rejections, counters = self.call()
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rejections, [])
+        self.assertEqual(set(counters), set(trivy.COUNTER_KEYS))
+        self.assertEqual(counters[trivy.COUNTER_RESULTS], 3)
+        self.assertEqual(counters[trivy.COUNTER_RESULTS_ABSENT], 0)
+
+    def test_validated_tool_refuses_a_non_string_and_another_tools_identifier(
+        self,
+    ) -> None:
+        """The tool must be a string, and must be this adapter's own identifier.
+
+        ``cli.py``'s registry calls every adapter with the same keyword set, so a
+        mis-keyed registry entry has to fail on the call rather than stamp ``trivy`` onto
+        another tool's records -- which would be invisible in the dataset, since the row
+        shape is identical.
+        """
+        for label, value in (
+            ("null", None),
+            ("number", 7),
+            ("list", [TOOL]),
+            ("bytes", b"trivy"),
+        ):
+            with self.subTest(shape=label):
+                self.assertRefused(
+                    ("tool must be a canonical tool identifier string", "observed"),
+                    tool=value,
+                )
+
+        for other in ("checkov", "gitleaks", "dependency-check", "Trivy", "trivy "):
+            with self.subTest(tool=other):
+                message = self.assertRefused(
+                    (repr(other), "is not the tool this adapter serves", repr(TOOL)),
+                    tool=other,
+                )
+                self.assertIn(
+                    "One adapter per",
+                    message,
+                    msg="and says why one adapter per native shape is the rule",
+                )
+
+    def test_validated_root_refuses_a_non_path_bytes_empty_and_relative_root(
+        self,
+    ) -> None:
+        """Four faults, four messages, and the relative root is the dangerous one.
+
+        A relative root cannot anchor anything, and accepting one would produce a
+        plausible-looking wrong path for every row rather than an error anybody notices.
+        """
+        for label, value in (("number", 7), ("null", None), ("list", ["/tmp"])):
+            with self.subTest(shape=label):
+                self.assertRefused(
+                    (
+                        "root must be a str or an os.PathLike naming the SPARK_SRC root",
+                        "observed",
+                    ),
+                    root=value,
+                )
+
+        self.assertRefused(
+            ("root must be a text path, not bytes", "guess an encoding"),
+            root=b"/tmp/spark-src",
+        )
+        self.assertRefused(("root must not be empty",), root="")
+        for relative in ("spark-src", "./spark-src", "../spark-src"):
+            with self.subTest(root=relative):
+                self.assertRefused(
+                    (
+                        "root must be an absolute path to express a reported path "
+                        "against",
+                        repr(relative),
+                    ),
+                    root=relative,
+                )
+
+        # And a PathLike is accepted, so the refusals above are about the value rather
+        # than about the type the caller happened to use.
+        rows, rejections, _ = self.call(root=Path(environment().root))
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rejections, [])
+
+    def test_validated_tool_base_refuses_a_non_base_and_another_tools_base(self) -> None:
+        """The base is the per-tool view over the runner metadata, and it is checked.
+
+        Handing this adapter another tool's recorded base would resolve every path
+        against the wrong base while every row still looked well-formed -- exactly the
+        failure AAP 0.5.4's "every base taken from the recorded runner metadata"
+        prevents, and one no field-level assertion could catch.
+        """
+        env = environment()
+        for label, value in (
+            ("null", None),
+            ("string", env.root),
+            ("dict", {"kind": BASE_KIND_MERGED, "value": env.root}),
+        ):
+            with self.subTest(shape=label):
+                self.assertRefused(
+                    (
+                        "tool_base must be a paths.ToolPathBase built from the runner "
+                        "metadata",
+                        "observed",
+                    ),
+                    tool_base=value,
+                )
+
+        for other in ("checkov", "gitleaks", "opengrep"):
+            with self.subTest(tool=other):
+                foreign = dataclasses.replace(env.tool_base(), tool=other)
+                self.assertEqual(foreign.tool, other)
+                message = self.assertRefused(
+                    (f"tool_base names {other!r}", f"but the artifact is {TOOL!r}"),
+                    tool_base=foreign,
+                )
+                self.assertIn("wrong path for every row", message)
+
+    def test_validated_allowlist_refuses_a_string_a_non_iterable_and_a_bad_glob(
+        self,
+    ) -> None:
+        """A single string, a non-iterable, and an entry that is not a non-empty string.
+
+        The string case is the one worth having: a string is iterable, so it would be
+        consumed character by character and every row would silently take
+        ``in_scope: false`` with nothing raised at all.
+        """
+        for label, value in (("str", "core/src/main/**"), ("bytes", b"core/**")):
+            with self.subTest(shape=label):
+                self.assertRefused(
+                    (
+                        "allowlist must be an iterable of glob strings, not a single "
+                        "string",
+                        "character by character",
+                    ),
+                    allowlist=value,
+                )
+
+        for label, value in (("null", None), ("number", 7)):
+            with self.subTest(shape=label):
+                self.assertRefused(
+                    (
+                        "allowlist must be an iterable of glob strings from "
+                        "paths.load_allowlist()",
+                        "observed",
+                    ),
+                    allowlist=value,
+                )
+
+        globs = list(environment().globs)
+        for index, bad in ((0, ""), (1, None), (2, 7), (len(globs) - 1, ["core/**"])):
+            with self.subTest(entry=index, value=bad):
+                broken = list(globs)
+                broken[index] = bad
+                self.assertRefused(
+                    (
+                        f"allowlist entry {index} must be a non-empty glob string",
+                        repr(bad),
+                    ),
+                    allowlist=broken,
+                )
+
+        # A generator is materialised rather than exhausted by the first row: the check
+        # that makes the tuple() in the validator load-bearing.
+        rows, rejections, _ = self.call(allowlist=(glob for glob in globs))
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rejections, [])
+        self.assertTrue(all(row["in_scope"] for row in rows))
+
+    def test_validated_tally_refuses_anything_that_cannot_record(self) -> None:
+        """Capability, not class: a double with a callable ``record`` is accepted.
+
+        ``None`` is refused because every row's native literal has to reach
+        ``severity-map.md``, and a silently skipped tally would leave that document
+        under-reporting with nothing to show it had.
+        """
+        for label, value in (
+            ("null", None),
+            ("number", 7),
+            ("string", "tally"),
+            ("dict", {"record": "not callable"}),
+            ("object with a non-callable record", type("T", (), {"record": 3})()),
+        ):
+            with self.subTest(shape=label):
+                self.assertRefused(
+                    (
+                        "tally must expose a callable record(tool, result)",
+                        "severity.LiteralTally",
+                        "observed",
+                    ),
+                    tally=value,
+                )
+
+        class Recorder:
+            """A minimal double: the capability and nothing else."""
+
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, Any]] = []
+
+            def record(self, tool: str, result: Any) -> None:
+                self.calls.append((tool, result))
+
+        double = Recorder()
+        rows, rejections, _ = self.call(tally=double)
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(rejections, [])
+        self.assertEqual(
+            len(double.calls),
+            len(rows),
+            msg="one record(tool, result) per emitted row, and the double received them",
+        )
+        self.assertEqual({tool for tool, _ in double.calls}, {TOOL})
+
+    def test_validated_document_refuses_a_non_object_top_level(self) -> None:
+        """``report.go``'s ``Report`` is a struct, so a bare array or scalar is a mis-route.
+
+        Shape detection belongs to ``shape.py``; this adapter owns the structural
+        validation of what it walks, and says so in the message.
+        """
+        for label, value in (
+            ("array", [{"Results": []}]),
+            ("string", "{}"),
+            ("number", 2),
+            ("null", None),
+            ("boolean", True),
+        ):
+            with self.subTest(shape=label):
+                message = self.assertRefused(
+                    ("a Trivy report's top level is an object", "observed"),
+                    doc=value,
+                )
+                self.assertIn(
+                    "Shape detection belongs to shape.py",
+                    message,
+                    msg="the message names where shape detection does belong",
+                )
+
+    def test_validated_document_refuses_results_present_as_a_non_array(self) -> None:
+        """Present-but-not-an-array is refused; absent or null is not.
+
+        Counting a non-array ``Results`` as zero records would agree with
+        ``reconcile._count_trivy`` and reconcile cleanly while reporting a malformed
+        artifact as a clean scan -- and an empty result set is indistinguishable from a
+        clean scan.  That is why this one is a raise rather than a count.
+        """
+        for label, value in (
+            ("object", {"0": {"Target": "core/src/main/scala/x.scala"}}),
+            ("string", "[]"),
+            ("number", 3),
+            ("boolean", False),
+        ):
+            with self.subTest(shape=label):
+                document = derived(POSITIVE_FIXTURE)
+                document["Results"] = value
+                message = self.assertRefused(("not an array",), doc=document)
+                self.assertIn("Results", message)
+                self.assertIn(
+                    "reconcile cleanly while reporting a malformed artifact as a clean "
+                    "scan",
+                    message,
+                    msg="and states the failure mode the refusal prevents",
+                )
+
+    def test_results_absent_or_null_is_counted_and_never_raised(self) -> None:
+        """The documented non-error, asserted as an outcome rather than as an absence.
+
+        An empty Trivy report is ordinary: ``shape.py`` states that a ``trivy.json``
+        carrying no ``Results`` key still routes here, and AAP 0.5.4 makes it so.  The
+        absence is counted so it is visible in ``normalize-run.json`` rather than
+        indistinguishable from a report nobody read.
+        """
+        for label, prepare in (
+            ("absent", lambda document: document.pop("Results", None)),
+            ("null", lambda document: document.__setitem__("Results", None)),
+        ):
+            with self.subTest(shape=label):
+                document = derived(POSITIVE_FIXTURE)
+                prepare(document)
+                rows, rejections, counters = self.call(doc=document)
+                self.assertEqual(rows, [])
+                self.assertEqual(rejections, [])
+                self.assertEqual(
+                    counters[trivy.COUNTER_RESULTS_ABSENT],
+                    1,
+                    msg="counted, so the emptiness is reported rather than inferred",
+                )
+                self.assertEqual(counters[trivy.COUNTER_RESULTS], 0)
+                self.assertEqual(
+                    reconcile.count_records(TOOL, document),
+                    0,
+                    msg="and the independent traversal agrees: nothing was dropped",
+                )
+
+        # An empty array is a third ordinary case, and is not the absent one.
+        document = derived(POSITIVE_FIXTURE)
+        document["Results"] = []
+        rows, rejections, counters = self.call(doc=document)
+        self.assertEqual((rows, rejections), ([], []))
+        self.assertEqual(
+            counters[trivy.COUNTER_RESULTS_ABSENT],
+            0,
+            msg="a stated empty array is not an absent member and is not counted as one",
+        )
+
+    def test_every_validator_the_entry_runs_has_a_negative_here(self) -> None:
+        """The validator set is closed, and each one is reachable through the public entry.
+
+        Read off the module rather than listed by hand: a seventh validator added to
+        ``adapt`` arrives with a failure naming it instead of going untested, which is
+        how these six came to have no test at all.
+        """
+        source = Path(trivy.__file__).read_text(encoding="utf-8")
+        declared = {
+            name
+            for name in dir(trivy)
+            if name.startswith("_validated_") and callable(getattr(trivy, name))
+        }
+        self.assertEqual(
+            declared,
+            set(self.VALIDATORS),
+            msg="every _validated_* helper the module defines is covered by this class",
+        )
+        for name in self.VALIDATORS:
+            with self.subTest(validator=name):
+                validator = getattr(trivy, name)
+                self.assertTrue(callable(validator))
+                self.assertTrue(
+                    (validator.__doc__ or "").strip(),
+                    msg="each states its contract",
+                )
+                self.assertIn(
+                    f"{name}(",
+                    source,
+                    msg="and is called rather than merely defined",
+                )
+
+        # Every one is invoked by the public entry, in the order it appears here.
+        entry = source.split("def adapt(", 1)[1]
+        positions = [entry.index(f"{name}(") for name in self.VALIDATORS]
+        self.assertEqual(
+            positions,
+            sorted(positions),
+            msg=(
+                "the order asserted here is the order adapt runs them, so a negative "
+                "for a later validator cannot be masked by an earlier one"
+            ),
+        )
+
+    def test_no_caller_fault_is_ever_absorbed_into_a_rejection(self) -> None:
+        """A ``TrivyAdapterError`` is raised, never counted, and returns nothing.
+
+        The two outcomes are not interchangeable: a rejection leaves the run going with
+        a counted record, and a caller fault stops it.  Asserting that no committed
+        fixture's rejections carry a caller-fault class is what keeps the boundary from
+        eroding into a catch-all.
+        """
+        for stem in REJECT_FIXTURE_STEMS:
+            adapted = adapt_negative(stem)
+            for rejection in adapted.rejections:
+                with self.subTest(fixture=stem, reject_class=rejection.reject_class):
+                    self.assertIn(rejection.reject_class, paths.REJECT_CLASSES)
+
+        # And the raise really does return nothing: no partial row list escapes.
+        captured: Any = "untouched"
+        try:
+            captured = self.call(tool="checkov")
+        except trivy.TrivyAdapterError:
+            pass
+        self.assertEqual(
+            captured,
+            "untouched",
+            msg="a refused call assigns nothing, so no partial result can be used",
+        )
+        self.assertFalse(
+            issubclass(trivy.TrivyAdapterError, trivy.UnsupportedTrivySection),
+            msg="the caller fault is not a halt",
+        )
+        self.assertFalse(
+            issubclass(trivy.UnsupportedTrivySection, trivy.TrivyAdapterError),
+            msg=(
+                "and the halt is not a caller fault. The two hierarchies are disjoint on "
+                "purpose, as the halt's own docstring states: a caller catching argument "
+                "faults must not be able to swallow a condition the run is required to "
+                "stop on"
+            ),
+        )
+        self.assertTrue(issubclass(trivy.TrivyAdapterError, ValueError))
+        self.assertTrue(issubclass(trivy.UnsupportedTrivySection, Exception))
+        self.assertFalse(
+            issubclass(trivy.UnsupportedTrivySection, ValueError),
+            msg=(
+                "nor is the halt a ValueError: catching argument errors broadly must not "
+                "reach it either"
+            ),
+        )
+
+
+class PositiveMappingContract:
+    """The field-for-field contract every positive fixture is held to.
+
+    A mixin rather than a ``TestCase``, so ``unittest`` collects it only through the
+    two concrete classes below and no assertion runs twice under a name that hides
+    which document it ran against.  Each concrete class names its fixture and its
+    hand-verified expectation, and every assertion here reads both from the class --
+    nothing in this contract is written for one document.
+
+    The two documents are deliberately different in kind.  The capture is this run's
+    own artifact byte for byte, so it establishes that the adapter maps what Trivy
+    actually emitted; the derived features document carries the vulnerability, secret,
+    coordinate and multi-identifier cases the raw artifact does not contain, so it
+    establishes that the adapter maps the rest of the shape Trivy can emit.  Holding
+    both to the same contract is what makes the pair a pair: a change that fits one
+    document and breaks the other fails here rather than in one document's private
+    test.
+
+    Each expectation was derived by reading its fixture and the authored contracts
+    rather than by recording what the adapter printed.  Where the two disagree, the
+    disagreement is the finding: it is diagnosed, never papered over by editing either
+    file.
+
+    Attributes:
+        FIXTURE: The fixture filename this concrete class adapts.
+        EXPECTED_STEM: The expected-file stem holding its hand-verified rows.
+    """
+
+    #: Set by each concrete class. Left unset here so a subclass that forgets fails
+    #: loudly in ``setUpClass`` instead of silently adapting some default document.
+    FIXTURE: str = ""
+    EXPECTED_STEM: str = ""
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Adapt the positive fixture once for the whole class."""
-        cls.adapted = adapt_document(load_fixture(POSITIVE_FIXTURE))
-        cls.expected = load_expected("trivy")
+        """Adapt this class's fixture once, and load its expectation."""
+        super().setUpClass()
+        if not cls.FIXTURE or not cls.EXPECTED_STEM:  # pragma: no cover - defended
+            raise RuntimeError(
+                f"{cls.__name__} inherits the positive-mapping contract without naming "
+                "a fixture and an expected stem, so it would assert nothing"
+            )
+        cls.adapted = adapt_document(load_fixture(cls.FIXTURE))
+        cls.expected = load_expected(cls.EXPECTED_STEM)
+
+    def test_the_fixture_and_expectation_name_each_other(self) -> None:
+        """The expectation under test describes the fixture under test, not another.
+
+        Both documents in this pair state nine-or-three rows of their own, so a
+        concrete class wired to the wrong expectation would fail with a row-count
+        mismatch that reads like an adapter defect.  This assertion makes the wiring
+        itself the thing that fails.
+        """
+        recorded = self.expected["fixture"]["path"]
+        self.assertEqual(
+            recorded,
+            f"oss-scan-results/adapter-tests/fixtures/{self.FIXTURE}",
+            msg="the expectation's fixture block names the document being adapted",
+        )
+        self.assertEqual(
+            _sha256(FIXTURES_DIR / self.FIXTURE),
+            self.expected["fixture"]["sha256"],
+            msg=(
+                f"{self.EXPECTED_STEM}.rows.json records the sha256 of the fixture on "
+                "disk; a mismatch means one of the pair moved without the other"
+            ),
+        )
+        self.assertEqual(
+            (FIXTURES_DIR / self.FIXTURE).stat().st_size,
+            self.expected["fixture"]["bytes"],
+            msg="and its byte count",
+        )
+        self.assertIn(
+            self.expected["fixture"]["kind"],
+            ("captured", "derived"),
+            msg=(
+                "every positive fixture states whether it is a capture of the tool's "
+                "own output or a derived document, so no reader has to infer it"
+            ),
+        )
 
     def test_the_row_count_is_the_expected_files_exactly(self) -> None:
         """Assertion 1: neither a row more nor a row fewer."""
@@ -1367,7 +2348,7 @@ class PositiveMappingTest(TrivyAdapterTestCase):
     def test_every_row_matches_field_by_field_over_the_twelve_fields(self) -> None:
         """Assertions 2 and 3: every field of every row, iterating ``emit.FIELDS``."""
         self.assertRowsEqualExpected(
-            self.adapted.rows, self.expected["rows"], where=POSITIVE_FIXTURE
+            self.adapted.rows, self.expected["rows"], where=self.FIXTURE
         )
         for index, row in enumerate(self.adapted.rows):
             with self.subTest(row=index):
@@ -1390,8 +2371,13 @@ class PositiveMappingTest(TrivyAdapterTestCase):
         )
 
     def test_one_outcome_per_record_walked(self) -> None:
-        """Nine records walked, nine rows, nothing dropped and nothing duplicated."""
-        self.assertOneOutcomePerRecord(self.adapted, where=POSITIVE_FIXTURE)
+        """Every record walked reached exactly one outcome: nothing dropped, none twice.
+
+        The counts are the expectation's own rather than a number written here, so the
+        same assertion holds for a three-record capture and a nine-record derived
+        document without either being special-cased.
+        """
+        self.assertOneOutcomePerRecord(self.adapted, where=self.FIXTURE)
         self.assertEqual(
             self.adapted.raw_records,
             self.expected["counts"]["raw_finding_records"],
@@ -1411,7 +2397,7 @@ class PositiveMappingTest(TrivyAdapterTestCase):
     def test_the_counters_are_the_expected_files(self) -> None:
         """Every counter, including the four AAP 0.5.4 has reported per tool."""
         self.assertCountersEqualExpected(
-            self.adapted, self.expected, where=POSITIVE_FIXTURE
+            self.adapted, self.expected, where=self.FIXTURE
         )
         reported = self.expected["aap_reported_counters"]
         for key in (
@@ -1443,8 +2429,12 @@ class PositiveMappingTest(TrivyAdapterTestCase):
         ``DetectedSecret`` and ``DetectedMisconfiguration`` declare no path field, so a
         secret and a misconfiguration take their Target unrefined -- and a
         misconfiguration's ``CauseMetadata.Resource`` names a resource rather than a
-        file, so reading one as a path would be inference.  Exactly one record in this
-        fixture refines its Target, through ``PkgPath``.
+        file, so reading one as a path would be inference.  How many records refine
+        their Target is read from the expectation's own refinement counter rather than
+        written here: the derived features document has exactly one such record,
+        through ``PkgPath``, and the capture -- three misconfigurations and no
+        vulnerability -- has none, so the same assertion covers both the refining and
+        the unrefined case.
         """
         refinements = 0
         for row, record in zip(self.adapted.rows, self.adapted.records):
@@ -1477,7 +2467,115 @@ class PositiveMappingTest(TrivyAdapterTestCase):
             msg="and the adapter counted the refinements this walk found",
         )
         self.assertEqual(
-            refinements, 1, msg="exactly one record in this fixture refines its Target"
+            refinements,
+            self.expected["counters"][trivy.COUNTER_PER_RECORD_PATH_REFINEMENTS],
+            msg=(
+                "and the hand-verified expectation states the same number, so the "
+                "walk, the adapter and the expectation agree on it"
+            ),
+        )
+
+    def test_every_rows_class_is_the_section_its_record_sits_in(self) -> None:
+        """``scanner_class`` is the enclosing array's class, on every row of this document.
+
+        :class:`ScannerClassFromSectionTest` proves this at depth against the derived
+        features document, which is the only one of the two carrying more than one
+        section.  It is asserted here as well so the capture -- the document that is
+        this run's actual Trivy output -- is held to the same rule rather than having
+        its class taken on trust from a fixture it does not resemble.
+        """
+        self.assertEqual(
+            len(self.adapted.rows),
+            len(self.adapted.records),
+            msg="a positive fixture rejects nothing, so rows and records align",
+        )
+        for row, record in zip(self.adapted.rows, self.adapted.records):
+            with self.subTest(pointer=record.pointer):
+                self.assertEqual(
+                    row["scanner_class"],
+                    trivy.SUPPORTED_SECTIONS[record.section],
+                    msg=(
+                        f"{record.pointer} sits in {record.section}, so its class is "
+                        "that section's and nothing about its content can change it"
+                    ),
+                )
+                self.assertIn(
+                    row["scanner_class"],
+                    trivy.SCANNER_CLASSES,
+                    msg="and the class is a member of the adapter's closed set",
+                )
+
+
+class CapturedPositiveMappingTest(PositiveMappingContract, TrivyAdapterTestCase):
+    """The contract above, against the byte-for-byte capture of this run's artifact.
+
+    ``fixtures/trivy.json`` is ``harness/artifacts/raw/trivy.json`` copied whole --
+    3,496 bytes, same sha256 -- so what this class asserts is that the adapter maps the
+    output Trivy actually produced on this run.  Three ``Misconfigurations`` records,
+    three rows, no rejection.  :class:`CapturedFixtureProvenanceTest` establishes the
+    identity with the raw artifact; this class establishes the mapping.
+    """
+
+    FIXTURE = POSITIVE_FIXTURE
+    EXPECTED_STEM = POSITIVE_EXPECTED_STEM
+
+    def test_this_fixture_is_declared_a_capture_of_the_runs_own_artifact(self) -> None:
+        """The expectation states it is captured, and from where."""
+        block = self.expected["fixture"]
+        self.assertEqual(block["kind"], "captured", msg="declared a capture")
+        self.assertEqual(
+            block["captured_from"],
+            RAW_ARTIFACT_RELPATH,
+            msg="and names the raw artifact it was captured from",
+        )
+        self.assertTrue(
+            block["capture_is_byte_for_byte"],
+            msg="and states the capture is the whole artifact, not an excerpt",
+        )
+
+
+class DerivedFeaturesPositiveMappingTest(PositiveMappingContract, TrivyAdapterTestCase):
+    """The same contract, against the derived multi-section features document.
+
+    The raw artifact carries no ``Vulnerabilities`` and no ``Secrets`` section, so the
+    capture cannot exercise scanner_class variation, section-dependent ``start_line``,
+    secret redaction, multi-valued identifier selection or any package-coordinate
+    level.  This document carries all of them, and every assertion in this module that
+    needs one of those features runs against it.  It is explicitly derived rather than
+    captured, and its expectation says so in its own fixture block -- which is what
+    keeps AAP 0.6.2's provenance requirement and this module's feature coverage from
+    being traded off against each other.
+    """
+
+    FIXTURE = FEATURES_FIXTURE
+    EXPECTED_STEM = FEATURES_EXPECTED_STEM
+
+    def test_this_fixture_is_declared_derived_and_names_what_it_carries(self) -> None:
+        """The expectation states it is derived, from what, and why it exists."""
+        block = self.expected["fixture"]
+        self.assertEqual(block["kind"], "derived", msg="declared derived, not captured")
+        self.assertIn(
+            "derived_from",
+            block,
+            msg="and names the document it was derived from",
+        )
+        cases = block["why_this_derived_fixture_exists"][
+            "feature_cases_only_this_fixture_carries"
+        ]
+        self.assertTrue(
+            cases, msg="and enumerates the feature cases it exists to carry"
+        )
+        for case in cases:
+            with self.subTest(case=case[:60]):
+                self.assertIsInstance(case, str)
+                self.assertTrue(case.strip(), msg="each case is stated, not blank")
+        self.assertNotEqual(
+            _sha256(FIXTURES_DIR / self.FIXTURE),
+            _sha256(REPO_ROOT / RAW_ARTIFACT_RELPATH),
+            msg=(
+                "and it is not the raw artifact: a derived document that happened to "
+                "equal the capture would make the split meaningless"
+            ),
         )
 
 
@@ -1526,15 +2624,20 @@ class ScannerClassFromSectionTest(TrivyAdapterTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Adapt the positive fixture once, and hold its section walk."""
-        cls.adapted = adapt_document(load_fixture(POSITIVE_FIXTURE))
+        """Adapt the derived features document once, and hold its section walk.
+
+        The capture carries one section, so it cannot show a class varying with the
+        array; this document carries all three.  :class:`CapturedPositiveMappingTest`
+        holds the capture to the same per-row rule.
+        """
+        cls.adapted = adapt_document(load_fixture(FEATURES_FIXTURE))
 
     def test_every_rows_class_is_the_class_its_enclosing_array_dictates(self) -> None:
         """Assertion 4, per row, with the section names read from the module constant."""
         self.assertEqual(
             len(self.adapted.rows),
             len(self.adapted.records),
-            msg="the positive fixture rejects nothing, so rows and records align",
+            msg="this fixture rejects nothing, so rows and records align",
         )
         for row, record in zip(self.adapted.rows, self.adapted.records):
             with self.subTest(pointer=record.pointer, section=record.section):
@@ -1685,7 +2788,7 @@ class ScannerClassFromSectionTest(TrivyAdapterTestCase):
         copy of the fixture rather than in the fixture itself.  Both rows keep the class
         their array dictates.
         """
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         misconfiguration = document["Results"][0]["Misconfigurations"][0]
         misconfiguration["Title"] = "CVE-2021-3749 mentioned inside a misconfiguration"
         vulnerability = document["Results"][3]["Vulnerabilities"][0]
@@ -1729,8 +2832,8 @@ class StartLineSectionDependenceTest(TrivyAdapterTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Adapt the positive fixture once for the whole class."""
-        cls.adapted = adapt_document(load_fixture(POSITIVE_FIXTURE))
+        """Adapt the derived features document once for the whole class."""
+        cls.adapted = adapt_document(load_fixture(FEATURES_FIXTURE))
 
     def test_a_vulnerability_row_carries_no_line_at_all(self) -> None:
         """Assertion 6, the half that catches a default: ``None``, not ``0`` and not ``1``."""
@@ -1813,7 +2916,7 @@ class StartLineSectionDependenceTest(TrivyAdapterTestCase):
         reading is counted, so it is visible rather than silently rounded into 1 or
         rejected.
         """
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"] = [copy.deepcopy(document["Results"][1])]
         document["Results"][0]["Secrets"] = [
             copy.deepcopy(document["Results"][0]["Secrets"][0])
@@ -1832,6 +2935,236 @@ class StartLineSectionDependenceTest(TrivyAdapterTestCase):
         )
 
 
+class MultiLocationRecordTest(TrivyAdapterTestCase):
+    """The first-location rule, and the counter AAP 0.5.4 requires reported per tool.
+
+    Where a record names more than one location the row takes the **first**, the record
+    still counts **once**, and the number of such records is reported.  For Trivy that
+    case is a misconfiguration whose ``CauseMetadata.Occurrences`` holds more than one
+    entry: ``ftypes.CauseMetadata`` is the only member of any of the three sections that
+    carries a list of locations, and a vulnerability and a secret each name exactly one.
+
+    No committed fixture drives ``Occurrences`` above one -- the run's own artifact
+    carries none at all -- so nothing exercised the increment and deleting it left the
+    suite green.  These documents drive it, and the counter is asserted by **value**
+    rather than by ``assertGreater``, because a single record with three occurrences and
+    three records with one each are different artifacts that a bare "more than zero"
+    check could not tell apart.
+
+    The paired assertion matters as much: ``Occurrences`` feeds the count and nothing
+    else.  ``start_line`` stays the record's own ``CauseMetadata.StartLine``, never an
+    occurrence's, because reading a line out of an occurrence would be choosing a
+    location the record did not put first.
+    """
+
+    def occurrence(self, start_line: int, name: str) -> dict[str, Any]:
+        """One ``CauseMetadata.Occurrences`` entry, in ``ftypes``' own shape."""
+        return {
+            "Resource": name,
+            "Filename": "resource-managers/kubernetes/docker/src/main/dockerfiles"
+            "/spark/Dockerfile",
+            "Location": {"StartLine": start_line, "EndLine": start_line + 2},
+        }
+
+    def with_occurrences(
+        self, counts: tuple[int, ...], *, stated_line: int | None = None
+    ) -> Any:
+        """The capture with ``counts[i]`` occurrences on element ``i``'s record.
+
+        A count of zero leaves ``Occurrences`` absent rather than writing an empty
+        array, so the absent and the present-and-empty shapes are both represented
+        across the cases below.
+        """
+        document = derived(POSITIVE_FIXTURE)
+        for index, count in enumerate(counts):
+            cause = document["Results"][index]["Misconfigurations"][0]["CauseMetadata"]
+            if stated_line is not None:
+                cause["StartLine"] = stated_line
+            if count == 0:
+                continue
+            cause["Occurrences"] = [
+                self.occurrence(10 + (position * 37), f"stage-{index}-{position}")
+                for position in range(count)
+            ]
+        return document
+
+    def test_a_record_with_several_occurrences_is_counted_once_by_value(self) -> None:
+        """One record, three occurrences: the counter is exactly 1 and the rows are 3."""
+        document = self.with_occurrences((3, 0, 0))
+        adapted = adapt_document(document)
+        self.assertEqual(
+            adapted.counters[trivy.COUNTER_MULTI_LOCATION],
+            1,
+            msg="one record named more than one location, so the counter is 1",
+        )
+        self.assertEqual(
+            len(adapted.rows),
+            3,
+            msg="the record still produced exactly one row, not one per occurrence",
+        )
+        self.assertEqual(adapted.rejections, [])
+        self.assertEqual(
+            len(adapted.rows) + len(adapted.rejections),
+            adapted.raw_records,
+            msg="and it still counts once on both sides of the identity",
+        )
+        self.assertEqual(
+            len(
+                document["Results"][0]["Misconfigurations"][0]["CauseMetadata"][
+                    "Occurrences"
+                ]
+            ),
+            3,
+            msg="three occurrences went in, and the counter counted records not entries",
+        )
+
+    def test_the_counter_is_the_number_of_records_not_the_number_of_locations(
+        self,
+    ) -> None:
+        """Two multi-location records among three: the counter is 2, never 5.
+
+        The falsifying pair for an implementation that added ``len(Occurrences)`` instead
+        of one, which would report 5 for this document.
+        """
+        adapted = adapt_document(self.with_occurrences((3, 1, 2)))
+        self.assertEqual(adapted.counters[trivy.COUNTER_MULTI_LOCATION], 2)
+        self.assertEqual(len(adapted.rows), 3)
+
+        every = adapt_document(self.with_occurrences((2, 2, 2)))
+        self.assertEqual(
+            every.counters[trivy.COUNTER_MULTI_LOCATION],
+            3,
+            msg="all three records named two locations each",
+        )
+        self.assertEqual(len(every.rows), 3)
+
+    def test_one_occurrence_absent_and_empty_all_leave_the_counter_at_zero(self) -> None:
+        """The three shapes that name exactly one location, asserted individually.
+
+        ``max(1, len(...))`` is what makes an empty array and an absent member behave as
+        one location rather than as zero, and an implementation using a bare ``len`` on a
+        record with an empty ``Occurrences`` would report a location count of zero -- not
+        greater than one, so still no increment, but the guard is asserted here so the
+        reading is deliberate rather than incidental.
+        """
+        for label, prepare in (
+            ("absent", lambda cause: cause.pop("Occurrences", None)),
+            ("empty array", lambda cause: cause.__setitem__("Occurrences", [])),
+            (
+                "one entry",
+                lambda cause: cause.__setitem__(
+                    "Occurrences", [self.occurrence(41, "only")]
+                ),
+            ),
+            ("null", lambda cause: cause.__setitem__("Occurrences", None)),
+            (
+                "not an array",
+                lambda cause: cause.__setitem__("Occurrences", {"0": "one"}),
+            ),
+        ):
+            with self.subTest(shape=label):
+                document = derived(POSITIVE_FIXTURE)
+                for element in document["Results"]:
+                    prepare(element["Misconfigurations"][0]["CauseMetadata"])
+                adapted = adapt_document(document)
+                self.assertEqual(
+                    adapted.counters[trivy.COUNTER_MULTI_LOCATION],
+                    0,
+                    msg=f"{label} names one location, so nothing is counted",
+                )
+                self.assertEqual(len(adapted.rows), 3)
+                self.assertEqual(adapted.rejections, [])
+
+    def test_a_vulnerability_and_a_secret_never_reach_the_multi_location_count(
+        self,
+    ) -> None:
+        """Only a misconfiguration can carry a list of locations, and that is asserted.
+
+        ``Occurrences`` planted on a vulnerability and on a secret must be ignored: the
+        count is section-bound, and an implementation that read ``CauseMetadata``
+        regardless of section would report locations for records whose shape cannot
+        carry them.
+        """
+        document = derived(FEATURES_FIXTURE)
+        planted = 0
+        for element in document["Results"]:
+            for section in ("Vulnerabilities", "Secrets"):
+                for record in element.get(section) or []:
+                    record["CauseMetadata"] = {
+                        "Occurrences": [
+                            self.occurrence(11, "a"),
+                            self.occurrence(22, "b"),
+                            self.occurrence(33, "c"),
+                        ]
+                    }
+                    planted += 1
+        self.assertGreater(planted, 0, msg="the features document has both sections")
+        adapted = adapt_document(document)
+        self.assertEqual(
+            adapted.counters[trivy.COUNTER_MULTI_LOCATION],
+            0,
+            msg=(
+                "not one of the planted lists is counted: only Misconfigurations names "
+                "a location list in report.go"
+            ),
+        )
+
+    def test_the_row_keeps_the_records_own_line_and_not_an_occurrences(self) -> None:
+        """``Occurrences`` feeds the counter and nothing else.
+
+        The record states line 62; its three occurrences state 10, 47 and 84.  The row
+        must carry 62 -- an implementation that took the first occurrence's line would
+        emit 10 and would satisfy every "is an integer" check in this module.
+        """
+        document = self.with_occurrences((3, 0, 0), stated_line=62)
+        occurrences = document["Results"][0]["Misconfigurations"][0]["CauseMetadata"][
+            "Occurrences"
+        ]
+        occurrence_lines = [entry["Location"]["StartLine"] for entry in occurrences]
+        self.assertEqual(occurrence_lines, [10, 47, 84])
+        self.assertNotIn(62, occurrence_lines, msg="no occurrence states the row's line")
+
+        adapted = adapt_document(document)
+        self.assertEqual(adapted.counters[trivy.COUNTER_MULTI_LOCATION], 1)
+        self.assertEqual(
+            adapted.rows[0]["start_line"],
+            62,
+            msg="the record's own CauseMetadata.StartLine, not an occurrence's",
+        )
+        for row in adapted.rows:
+            with self.subTest(path=row["path"]):
+                self.assertNotIn(
+                    row["start_line"],
+                    occurrence_lines,
+                    msg="no row took a line from the occurrence list",
+                )
+
+    def test_the_multi_location_counter_is_one_of_the_four_aap_reports(self) -> None:
+        """The counter is the AAP's own key, and it is initialised for every call.
+
+        Asserted against the module's constant and against ``new_counters()`` rather
+        than spelled here, so a renamed counter fails on the name instead of silently
+        counting into a key no report reads.
+        """
+        self.assertEqual(trivy.COUNTER_MULTI_LOCATION, "multi_location_records")
+        self.assertIn(trivy.COUNTER_MULTI_LOCATION, trivy.COUNTER_KEYS)
+        self.assertEqual(trivy.new_counters()[trivy.COUNTER_MULTI_LOCATION], 0)
+        expectation = load_expected(POSITIVE_EXPECTED_STEM)["aap_reported_counters"]
+        self.assertIn(
+            trivy.COUNTER_MULTI_LOCATION,
+            expectation,
+            msg="and the expected files report it per tool",
+        )
+        self.assertEqual(
+            expectation[trivy.COUNTER_MULTI_LOCATION],
+            0,
+            msg=(
+                "the captured artifact carries no Occurrences at all, which is why the "
+                "increment needed a document of its own to be exercised"
+            ),
+        )
+
+
 class SeverityMappingTest(TrivyAdapterTestCase):
     """``severity_native`` is the literal as observed; ``severity_norm`` is policy.
 
@@ -1843,9 +3176,9 @@ class SeverityMappingTest(TrivyAdapterTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Adapt the positive fixture once for the whole class."""
-        cls.adapted = adapt_document(load_fixture(POSITIVE_FIXTURE))
-        cls.expected = load_expected("trivy")
+        """Adapt the derived features document once for the whole class."""
+        cls.adapted = adapt_document(load_fixture(FEATURES_FIXTURE))
+        cls.expected = load_expected(FEATURES_EXPECTED_STEM)
 
     def test_the_label_vocabulary_is_the_one_the_policy_states(self) -> None:
         """Ten literals, five bands, restated here independently of ``severity.py``."""
@@ -1935,13 +3268,13 @@ class SeverityMappingTest(TrivyAdapterTestCase):
     def test_a_literal_outside_the_vocabulary_maps_to_info_and_is_disclosed(self) -> None:
         """Assertion 8's second half, on a derived document.
 
-        The positive fixture carries no unmapped literal -- its ``UNKNOWN`` is mapped --
+        The features fixture carries no unmapped literal -- its ``UNKNOWN`` is mapped --
         so the case is exercised on a copy.  An unmapped literal is banded ``Info``,
         never dropped and never guessed at, and it is recorded in the tally **as
         unmapped with its row count**, which is what AAP 0.5.4 requires
         ``severity-map.md`` to list.
         """
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"] = [copy.deepcopy(document["Results"][0])]
         unmapped_literal = "SEVERE"
         self.assertNotIn(
@@ -1999,7 +3332,7 @@ class SeverityMappingTest(TrivyAdapterTestCase):
             ("Informational", "Info"),
         ):
             with self.subTest(literal=literal):
-                document = derived(POSITIVE_FIXTURE)
+                document = derived(FEATURES_FIXTURE)
                 document["Results"] = [copy.deepcopy(document["Results"][0])]
                 document["Results"][0]["Misconfigurations"] = [
                     copy.deepcopy(document["Results"][0]["Misconfigurations"][0])
@@ -2029,7 +3362,7 @@ class SeverityMappingTest(TrivyAdapterTestCase):
         used rather than leaving a reader to guess which of the record's several score
         entries decided the band.
         """
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"] = [copy.deepcopy(document["Results"][2])]
         document["Results"][0]["Vulnerabilities"] = [
             copy.deepcopy(document["Results"][0]["Vulnerabilities"][0])
@@ -2063,7 +3396,7 @@ class SeverityMappingTest(TrivyAdapterTestCase):
         The absence is stated rather than a level being assumed, which is the whole
         distinction between this case and the unmapped one above.
         """
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"] = [copy.deepcopy(document["Results"][1])]
         document["Results"][0]["Secrets"] = [
             copy.deepcopy(document["Results"][0]["Secrets"][0])
@@ -2087,6 +3420,251 @@ class SeverityMappingTest(TrivyAdapterTestCase):
         )
 
 
+    # ---------------------------------------------------------------- #
+    # Which score entry was selected, and from where.
+    #
+    # AAP 0.5.4 requires that the entry used be *recorded* -- "the label, or the
+    # score with its source and version".  A rendered score in
+    # ``severity_native`` states the number and says nothing about which of an
+    # advisory's several entries produced it, and research established that an
+    # advisory commonly carries scores from several sources.  So these assert the
+    # resolved ``SeverityResult.selected_entry`` itself, over candidate lists the
+    # adapter built, with competing entries arranged so that selecting by the
+    # wrong rule produces a different answer.
+    # ---------------------------------------------------------------- #
+
+    def resolved(self, record: Any) -> severity.SeverityResult:
+        """Resolve one record's severity through the adapter's own candidate builder.
+
+        ``trivy._score_candidates`` is called directly, and deliberately: it is the
+        function that turns a Trivy ``CVSS`` table into the ``{score, source, version}``
+        candidates ``severity.resolve`` reads, and asserting ``resolve`` over a
+        hand-written candidate list would test ``severity.py`` against a shape this
+        adapter might not actually produce.  Every assertion below is tied back to the
+        public route as well: the band it selects is compared with the band the adapter
+        put in the row for the same record.
+        """
+        return severity.resolve(
+            label=record.get("Severity"), scores=trivy._score_candidates(record) or None
+        )
+
+    def one_vulnerability(self, cvss: Any, *, label: Any = None) -> Any:
+        """A single-record document whose one vulnerability carries ``cvss``.
+
+        Derived from the features fixture's own vulnerability so every other field is
+        real tool output; only the score table, and the label where one is asked for, are
+        this test's.
+        """
+        document = derived(FEATURES_FIXTURE)
+        element = copy.deepcopy(document["Results"][2])
+        element["Vulnerabilities"] = [copy.deepcopy(element["Vulnerabilities"][0])]
+        record = element["Vulnerabilities"][0]
+        record["CVSS"] = cvss
+        if label is None:
+            record.pop("Severity", None)
+        else:
+            record["Severity"] = label
+        document["Results"] = [element]
+        return document
+
+    def test_a_tie_between_two_sources_is_broken_lexicographically(self) -> None:
+        """Two sources, the same version, the same score: the smaller source name wins.
+
+        Both entries render ``7.5``, so the row cannot show which was used and only
+        ``selected_entry`` can.  ``redhat`` is written **first** in the table and
+        ``ghsa`` second, so an implementation selecting the first entry in document
+        order, or the last, picks ``redhat`` and fails here.  The score and the band are
+        identical either way, which is exactly why a test that asserted only those would
+        survive the mutation.
+        """
+        document = self.one_vulnerability(
+            {
+                "redhat": {"V3Score": 7.5, "V3Vector": "CVSS:3.1/AV:N/AC:L"},
+                "ghsa": {"V3Score": 7.5, "V3Vector": "CVSS:3.1/AV:N/AC:L"},
+            }
+        )
+        record = document["Results"][0]["Vulnerabilities"][0]
+        self.assertEqual(
+            list(record["CVSS"]),
+            ["redhat", "ghsa"],
+            msg="document order is redhat then ghsa, the reverse of lexicographic",
+        )
+
+        result = self.resolved(record)
+        self.assertEqual(result.basis, severity.BASIS_CVSS_SCORE)
+        self.assertIsNotNone(result.selected_entry)
+        self.assertEqual(
+            result.selected_entry,
+            {"score": 7.5, "source": "ghsa:V3Score", "version": "3"},
+            msg=(
+                "the entry used is recorded in full -- score, source and version -- and "
+                "the source is the lexicographically smaller of the two"
+            ),
+        )
+        self.assertEqual(result.severity_native, "7.5")
+        self.assertEqual(result.severity_norm, "High")
+
+        adapted = adapt_document(document)
+        self.assertEqual(len(adapted.rows), 1)
+        self.assertEqual(adapted.rows[0]["severity_native"], result.severity_native)
+        self.assertEqual(adapted.rows[0]["severity_norm"], result.severity_norm)
+        self.assertEqual(
+            adapted.counters[trivy.COUNTER_SEVERITY_CVSS_ENTRIES_PRESENT],
+            1,
+            msg="and the adapter counted the record as carrying score entries",
+        )
+
+    def test_a_tie_within_one_source_is_broken_by_version_not_by_score(self) -> None:
+        """A higher score at a lower version loses: version precedence comes first.
+
+        ``nvd:V2Score`` is 10.0 and ``nvd:V3Score`` is 4.0.  Selecting by score magnitude
+        gives 10.0 and a Critical band; the documented order gives the version-3 entry,
+        4.0 and Medium.  The two answers differ in the band as well as in the entry, so
+        this case falsifies both a wrong selection and a wrong band.
+        """
+        document = self.one_vulnerability({"nvd": {"V2Score": 10.0, "V3Score": 4.0}})
+        record = document["Results"][0]["Vulnerabilities"][0]
+
+        result = self.resolved(record)
+        self.assertEqual(
+            result.selected_entry,
+            {"score": 4.0, "source": "nvd:V3Score", "version": "3"},
+            msg="the higher CVSS version governs, whatever the scores are",
+        )
+        self.assertEqual(result.severity_norm, "Medium")
+        self.assertNotEqual(
+            result.severity_norm,
+            "Critical",
+            msg="which 10.0 would have given, and is the mutation this case catches",
+        )
+        adapted = adapt_document(document)
+        self.assertEqual(adapted.rows[0]["severity_native"], "4.0")
+        self.assertEqual(adapted.rows[0]["severity_norm"], "Medium")
+
+    def test_version_four_outranks_a_far_higher_version_three_score(self) -> None:
+        """``V40Score`` 0.1 beats ``V3Score`` 9.9, and the recorded version says so.
+
+        The most extreme form of the same rule, kept separate because the three score
+        fields are a closed list in the adapter and a reader should see all three
+        exercised: the selected entry is the version-4 one and the band is Low.
+        """
+        document = self.one_vulnerability(
+            {
+                "zulu": {"V3Score": 9.9},
+                "alpha": {"V40Score": 0.1},
+            }
+        )
+        record = document["Results"][0]["Vulnerabilities"][0]
+        result = self.resolved(record)
+        self.assertEqual(
+            result.selected_entry,
+            {"score": 0.1, "source": "alpha:V40Score", "version": "4"},
+        )
+        self.assertEqual(result.severity_norm, "Low")
+        self.assertEqual(adapt_document(document).rows[0]["severity_native"], "0.1")
+
+    def test_every_score_field_the_adapter_reads_is_recorded_with_its_version(
+        self,
+    ) -> None:
+        """The three fields, their three major versions, and one source each.
+
+        Asserted per field in isolation, so the version a field maps to is checked
+        rather than inferred from the tie-breaking cases above.  The recorded version is
+        the **major** the field name states and nothing more: ``V3Score`` does not say
+        whether the score is 3.0 or 3.1, and writing ``3.1`` would supply precision the
+        artifact never stated.
+        """
+        for field, major, band in (
+            ("V40Score", "4", "High"),
+            ("V3Score", "3", "High"),
+            ("V2Score", "2", "High"),
+        ):
+            with self.subTest(field=field):
+                document = self.one_vulnerability({"nvd": {field: 7.5}})
+                record = document["Results"][0]["Vulnerabilities"][0]
+                result = self.resolved(record)
+                self.assertEqual(
+                    result.selected_entry,
+                    {"score": 7.5, "source": f"nvd:{field}", "version": major},
+                )
+                self.assertEqual(result.severity_norm, band)
+                self.assertEqual(
+                    adapt_document(document).rows[0]["severity_norm"], band
+                )
+
+    def test_a_mapped_label_governs_and_the_selected_entry_is_the_label(self) -> None:
+        """With a label present the entry recorded is the label, not any score.
+
+        The other half of AAP 0.5.4's "record which entry was used": where the label
+        governs, ``selected_entry`` must be the label shape rather than a score, so a
+        reader of ``severity-map.md`` can tell the two bases apart.  The scores here
+        would band Critical, and the label bands Low, so a precedence error is visible in
+        the band as well as in the entry.
+        """
+        document = self.one_vulnerability({"nvd": {"V3Score": 9.8}}, label="LOW")
+        record = document["Results"][0]["Vulnerabilities"][0]
+        result = self.resolved(record)
+        self.assertEqual(
+            result.selected_entry,
+            {"label": "LOW"},
+            msg="the label shape, with no score, source or version",
+        )
+        self.assertEqual(result.basis, severity.BASIS_LABEL)
+        self.assertEqual(result.severity_norm, "Low")
+
+        adapted = adapt_document(document)
+        self.assertEqual(adapted.rows[0]["severity_native"], "LOW")
+        self.assertEqual(adapted.rows[0]["severity_norm"], "Low")
+        self.assertEqual(
+            adapted.counters[trivy.COUNTER_SEVERITY_CVSS_ENTRIES_PRESENT],
+            1,
+            msg=(
+                "the score entries are still counted as present -- the record carried "
+                "them -- while the label is what governed"
+            ),
+        )
+        self.assertEqual(adapted.counters[trivy.COUNTER_SEVERITY_LABEL_PRESENT], 1)
+
+    def test_an_unreadable_or_empty_score_table_selects_nothing(self) -> None:
+        """A table that yields no candidate falls through to the absence, not to a guess.
+
+        Four shapes: no table, a table that is not an object, a source whose entry is not
+        an object, and an entry whose score fields are all null.  Each must leave the
+        record with no vocabulary at all rather than banding something.
+        """
+        for label, table in (
+            ("absent", None),
+            ("not an object", ["nvd"]),
+            ("entry not an object", {"nvd": "7.5"}),
+            ("all fields null", {"nvd": {"V3Score": None, "V2Score": None}}),
+            ("no known field", {"nvd": {"V4Vector": "CVSS:4.0/AV:N"}}),
+        ):
+            with self.subTest(shape=label):
+                document = self.one_vulnerability(table)
+                record = document["Results"][0]["Vulnerabilities"][0]
+                if table is None:
+                    record.pop("CVSS", None)
+                result = self.resolved(record)
+                self.assertIsNone(
+                    result.selected_entry,
+                    msg="nothing was used, so nothing is recorded as used",
+                )
+                self.assertEqual(result.basis, severity.BASIS_NO_VOCABULARY)
+                self.assertIsNone(result.severity_native)
+                self.assertEqual(
+                    result.severity_norm,
+                    "Info",
+                    msg="severity_norm is never absent; the band comes from policy",
+                )
+                adapted = adapt_document(document)
+                self.assertIsNone(adapted.rows[0]["severity_native"])
+                self.assertEqual(
+                    adapted.counters[trivy.COUNTER_SEVERITY_ABSENT],
+                    1,
+                    msg="and the absence is counted rather than inferred from a null",
+                )
+
+
 class IdentifierSelectionTest(TrivyAdapterTestCase):
     """``cwe`` and ``cve`` carry one value each, chosen by ascending numeric identifier.
 
@@ -2098,8 +3676,8 @@ class IdentifierSelectionTest(TrivyAdapterTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Adapt the positive fixture once for the whole class."""
-        cls.adapted = adapt_document(load_fixture(POSITIVE_FIXTURE))
+        """Adapt the derived features document once for the whole class."""
+        cls.adapted = adapt_document(load_fixture(FEATURES_FIXTURE))
 
     def test_the_multi_valued_record_takes_the_smallest_numeric_identifier(self) -> None:
         """Assertion 9, on the fixture's own record whose two orders disagree.
@@ -2155,7 +3733,7 @@ class IdentifierSelectionTest(TrivyAdapterTestCase):
 
     def test_three_identifiers_out_of_order_still_yield_the_smallest(self) -> None:
         """A derived record whose three values put the numeric minimum last but one."""
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"] = [copy.deepcopy(document["Results"][3])]
         document["Results"][0]["Vulnerabilities"] = [
             copy.deepcopy(document["Results"][0]["Vulnerabilities"][0])
@@ -2229,8 +3807,8 @@ class PackageCoordinateTest(TrivyAdapterTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Adapt the positive fixture once for the whole class."""
-        cls.adapted = adapt_document(load_fixture(POSITIVE_FIXTURE))
+        """Adapt the derived features document once for the whole class."""
+        cls.adapted = adapt_document(load_fixture(FEATURES_FIXTURE))
 
     def test_a_record_purl_is_taken_verbatim(self) -> None:
         """Level 1: the record's own ``PkgIdentifier.PURL``, unmodified."""
@@ -2320,7 +3898,7 @@ class PackageCoordinateTest(TrivyAdapterTestCase):
 
     def test_an_upper_cased_ecosystem_is_lower_cased_in_the_coordinate(self) -> None:
         """The lower-casing is asserted where it can be seen, on a derived document."""
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"] = [copy.deepcopy(document["Results"][3])]
         document["Results"][0]["Type"] = "BUNDLER"
         document["Results"][0]["Vulnerabilities"] = [
@@ -2336,11 +3914,11 @@ class PackageCoordinateTest(TrivyAdapterTestCase):
     def test_the_enclosing_packages_fields_are_the_fourth_candidate(self) -> None:
         """Level 4, on a derived document: the record supplies neither name nor version.
 
-        The positive fixture never reaches this level because levels 1 to 3 resolve for
+        The features fixture never reaches this level because levels 1 to 3 resolve for
         every record that gets there, so the level is exercised on a copy whose
         inventory entry carries a name and a version but no PURL.
         """
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"] = [copy.deepcopy(document["Results"][2])]
         element = document["Results"][0]
         element["Packages"] = [
@@ -2403,6 +3981,230 @@ class PackageCoordinateTest(TrivyAdapterTestCase):
         )
 
 
+    # ---------------------------------------------------------------- #
+    # The same-level tiebreak.
+    #
+    # AAP 0.5.4: "Where several candidates sit at one level, the
+    # lexicographically smallest wins."  Every committed fixture has at most one
+    # candidate at whichever level it resolves at, so nothing exercised the
+    # tiebreak and an implementation taking the first candidate in document order
+    # -- or the last -- passed every assertion in this class.  These cases put
+    # competing candidates at ONE level, ordered so document order and
+    # lexicographic order disagree.
+    # ---------------------------------------------------------------- #
+
+    def single_vulnerability(
+        self, *, record_changes: dict[str, Any], packages: Any = None
+    ) -> Any:
+        """A one-record document whose vulnerability carries exactly ``record_changes``.
+
+        Every coordinate-bearing member the features fixture's own record states is
+        removed first, so the level a case resolves at is the level it sets up rather
+        than one inherited from the capture.
+        """
+        document = derived(FEATURES_FIXTURE)
+        element = copy.deepcopy(document["Results"][2])
+        element["Vulnerabilities"] = [copy.deepcopy(element["Vulnerabilities"][0])]
+        record = element["Vulnerabilities"][0]
+        for member in ("PkgIdentifier", "PURL", "PkgName", "InstalledVersion", "PkgID"):
+            record.pop(member, None)
+        record.update(record_changes)
+        if packages is None:
+            element.pop("Packages", None)
+        else:
+            element["Packages"] = packages
+        document["Results"] = [element]
+        return document
+
+    def test_level_one_breaks_a_tie_lexicographically_not_by_document_order(
+        self,
+    ) -> None:
+        """Two record-level package URLs: the smaller string wins, not the first stated.
+
+        The direct ``PURL`` member is written first and states ``pkg:maven/org.z/zeta``;
+        ``PkgIdentifier.PURL`` is written second and states ``pkg:maven/org.a/alpha``.
+        An implementation preferring the direct member, the first key, or the last key
+        picks ``zeta`` and fails here.  Both are level-1 candidates, so the counter is
+        the same either way and only the value distinguishes them.
+        """
+        larger = "pkg:maven/org.z/zeta@9.9"
+        smaller = "pkg:maven/org.a/alpha@1.0"
+        document = self.single_vulnerability(
+            record_changes={
+                "PURL": larger,
+                "PkgIdentifier": {"PURL": smaller, "UID": "0f1e2d3c"},
+            }
+        )
+        record = document["Results"][0]["Vulnerabilities"][0]
+        self.assertEqual(
+            [key for key in record if key in ("PURL", "PkgIdentifier")],
+            ["PURL", "PkgIdentifier"],
+            msg="document order states the larger candidate first",
+        )
+        self.assertLess(smaller, larger, msg="and the smaller one is the later key")
+
+        adapted = adapt_document(document)
+        self.assertEqual(len(adapted.rows), 1)
+        self.assertEqual(
+            adapted.rows[0]["package_coordinate"],
+            smaller,
+            msg="the lexicographically smallest of the level's candidates",
+        )
+        self.assertEqual(
+            adapted.counters[trivy.COUNTER_COORDINATE_RECORD_PURL],
+            1,
+            msg="and it resolved at level 1, which both candidates share",
+        )
+        self.assertEqual(adapted.counters[trivy.COUNTER_COORDINATE_ABSENT], 0)
+
+    def test_level_two_breaks_a_tie_across_three_matched_packages(self) -> None:
+        """Three inventory entries match; the winner is neither first nor last.
+
+        With two candidates a wrong rule could still be right by accident, so the
+        smallest is placed in the **middle** of document order: first-wins gives ``mid``,
+        last-wins gives ``zzz``, and only the lexicographic rule gives ``aaa``.
+        """
+        document = self.single_vulnerability(
+            record_changes={"PkgID": "org.example:shared@4.2"},
+            packages=[
+                {
+                    "ID": "org.example:shared@4.2",
+                    "Name": "shared",
+                    "Version": "4.2",
+                    "Identifier": {"PURL": "pkg:maven/org.m/mid@2.0"},
+                },
+                {
+                    "ID": "org.example:shared@4.2",
+                    "Name": "shared",
+                    "Version": "4.2",
+                    "Identifier": {"PURL": "pkg:maven/org.a/aaa@1.0"},
+                },
+                {
+                    "ID": "org.example:shared@4.2",
+                    "Name": "shared",
+                    "Version": "4.2",
+                    "Identifier": {"PURL": "pkg:maven/org.z/zzz@3.0"},
+                },
+            ],
+        )
+        stated = [
+            package["Identifier"]["PURL"]
+            for package in document["Results"][0]["Packages"]
+        ]
+        self.assertEqual(
+            stated,
+            [
+                "pkg:maven/org.m/mid@2.0",
+                "pkg:maven/org.a/aaa@1.0",
+                "pkg:maven/org.z/zzz@3.0",
+            ],
+        )
+        self.assertEqual(
+            sorted(stated)[0],
+            stated[1],
+            msg="the smallest candidate is the middle one in document order",
+        )
+
+        adapted = adapt_document(document)
+        self.assertEqual(len(adapted.rows), 1)
+        self.assertEqual(
+            adapted.rows[0]["package_coordinate"],
+            "pkg:maven/org.a/aaa@1.0",
+            msg="neither the first nor the last stated candidate",
+        )
+        self.assertEqual(
+            adapted.counters[trivy.COUNTER_COORDINATE_PACKAGE_PURL],
+            1,
+            msg="resolved at level 2, since the record states no PURL of its own",
+        )
+        self.assertEqual(adapted.counters[trivy.COUNTER_COORDINATE_RECORD_PURL], 0)
+
+    def test_level_four_breaks_a_tie_across_packages_matched_by_id(self) -> None:
+        """Two inventory entries share the record's ``PkgID`` and differ in name.
+
+        Reachable only because matching is by ``PkgID``: matching by name and version
+        would force every matched entry to compose the same coordinate, so there would be
+        nothing to break.  The record itself states no name or version, which is what
+        makes level 3 fail and level 4 the one that decides.  The smaller composed string
+        is second in document order.
+        """
+        document = self.single_vulnerability(
+            record_changes={"PkgID": "org.example:shared@4.2"},
+            packages=[
+                {"ID": "org.example:shared@4.2", "Name": "zeta", "Version": "9.9"},
+                {"ID": "org.example:shared@4.2", "Name": "alpha", "Version": "1.0"},
+            ],
+        )
+        element = document["Results"][0]
+        self.assertEqual(element["Type"], "npm", msg="the ecosystem the Type states")
+        record = element["Vulnerabilities"][0]
+        self.assertNotIn("PkgName", record, msg="so level 3 cannot be formed")
+        self.assertNotIn("InstalledVersion", record)
+
+        adapted = adapt_document(document)
+        self.assertEqual(len(adapted.rows), 1)
+        self.assertEqual(
+            adapted.rows[0]["package_coordinate"],
+            "npm:alpha@1.0",
+            msg=(
+                "the lexicographically smallest composed coordinate, with the ecosystem "
+                "lower-cased, and not the first entry stated"
+            ),
+        )
+        self.assertEqual(
+            adapted.counters[trivy.COUNTER_COORDINATE_PACKAGE_FIELDS],
+            1,
+            msg="resolved at level 4",
+        )
+        for earlier in (
+            trivy.COUNTER_COORDINATE_RECORD_PURL,
+            trivy.COUNTER_COORDINATE_PACKAGE_PURL,
+            trivy.COUNTER_COORDINATE_RECORD_FIELDS,
+        ):
+            with self.subTest(counter=earlier):
+                self.assertEqual(
+                    adapted.counters[earlier],
+                    0,
+                    msg="every earlier level failed, which is why level 4 decided",
+                )
+
+    def test_a_higher_level_candidate_wins_however_large_its_string(self) -> None:
+        """The tiebreak is within a level and never across levels.
+
+        The record's own package URL sorts after every level-2 and level-4 candidate the
+        same document offers, and it still wins: an implementation that sorted all
+        candidates from all levels together would pick the level-2 entry and fail here.
+        """
+        document = self.single_vulnerability(
+            record_changes={
+                "PkgIdentifier": {"PURL": "pkg:maven/org.z/zzz-record@9.9"},
+                "PkgID": "org.example:shared@4.2",
+            },
+            packages=[
+                {
+                    "ID": "org.example:shared@4.2",
+                    "Name": "aaa",
+                    "Version": "0.1",
+                    "Identifier": {"PURL": "pkg:maven/org.a/aaa-package@0.1"},
+                }
+            ],
+        )
+        adapted = adapt_document(document)
+        self.assertEqual(len(adapted.rows), 1)
+        self.assertEqual(
+            adapted.rows[0]["package_coordinate"],
+            "pkg:maven/org.z/zzz-record@9.9",
+            msg="level 1 governs, whatever the lower levels offer",
+        )
+        self.assertLess(
+            "pkg:maven/org.a/aaa-package@0.1",
+            adapted.rows[0]["package_coordinate"],
+            msg="and the losing candidate really does sort first",
+        )
+        self.assertEqual(adapted.counters[trivy.COUNTER_COORDINATE_RECORD_PURL], 1)
+        self.assertEqual(adapted.counters[trivy.COUNTER_COORDINATE_PACKAGE_PURL], 0)
+
+
 class SecretRedactionTest(TrivyAdapterTestCase):
     """No secret value reaches any dataset field, and none is in this tree.
 
@@ -2442,7 +4244,7 @@ class SecretRedactionTest(TrivyAdapterTestCase):
 
     def test_a_secret_rows_message_is_the_redacted_match_and_no_other_member(self) -> None:
         """The message is the ``Match`` where one exists, and the ``Title`` where none does."""
-        adapted = adapt_document(load_fixture(POSITIVE_FIXTURE))
+        adapted = adapt_document(load_fixture(FEATURES_FIXTURE))
         secrets = [
             (row, record)
             for row, record in zip(adapted.rows, adapted.records)
@@ -2477,7 +4279,7 @@ class SecretRedactionTest(TrivyAdapterTestCase):
         ``StartLine`` on a single-line match, and a coincidence of integers is not a
         disclosure -- a secret is text.
         """
-        adapted = adapt_document(load_fixture(POSITIVE_FIXTURE))
+        adapted = adapt_document(load_fixture(FEATURES_FIXTURE))
         examined = 0
         for row, record in zip(adapted.rows, adapted.records):
             if record.section != "Secrets":
@@ -2510,7 +4312,7 @@ class SecretRedactionTest(TrivyAdapterTestCase):
         The planted value is an obvious placeholder rather than anything resembling a
         credential, since this assertion lives in a committed file.
         """
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"] = [copy.deepcopy(document["Results"][1])]
         placeholder = "REDACTED_PLACEHOLDER_NEVER_A_REAL_VALUE"
         for record in document["Results"][0]["Secrets"]:
@@ -2546,7 +4348,7 @@ class UnsupportedSectionStopsTheRunTest(TrivyAdapterTestCase):
     The three deliberate non-stops are asserted too: an unsupported member that is
     present and **empty**, one that is absent, and one holding a scalar.  Validated
     empty is the requirement, not validated absent -- and an implementation that stopped
-    on the members' mere presence would fail on the positive fixture, where both are
+    on the members' mere presence would fail on the features fixture, where both are
     present and empty on all six elements.
     """
 
@@ -2566,14 +4368,14 @@ class UnsupportedSectionStopsTheRunTest(TrivyAdapterTestCase):
         )
 
     def document_offending_only_in(self, section: str) -> Any:
-        """Return the positive fixture with one offending element appended.
+        """Return the features fixture with one offending element appended.
 
         Appending puts the offence in the **last** element, which is what establishes
         that the validation pass runs over every element rather than stopping at the
         first: a defect in the last element must stop the run as surely as one in the
         first, or a partial dataset would be produced from the elements already walked.
         """
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"] = document["Results"] + [self.offending_element(section)]
         return document
 
@@ -2616,7 +4418,7 @@ class UnsupportedSectionStopsTheRunTest(TrivyAdapterTestCase):
         )
         self.assertEqual(
             error.result_index,
-            len(load_fixture(POSITIVE_FIXTURE)["Results"]),
+            len(load_fixture(FEATURES_FIXTURE)["Results"]),
             msg="the offence is in the appended last element, and was still reached",
         )
 
@@ -2652,12 +4454,12 @@ class UnsupportedSectionStopsTheRunTest(TrivyAdapterTestCase):
     def test_an_empty_unsupported_section_does_not_stop_the_run(self) -> None:
         """Assertion 14, first half: validated empty is the requirement.
 
-        Both members are present and empty on every element of the positive fixture, so
+        Both members are present and empty on every element of the features fixture, so
         the passing case is asserted there, and then on the three further empty shapes
         the adapter documents as non-stops: an empty object, a null and a scalar.  None
         of them holds a finding record to drop.
         """
-        document = load_fixture(POSITIVE_FIXTURE)
+        document = load_fixture(FEATURES_FIXTURE)
         for element in document["Results"]:
             for section in trivy.UNSUPPORTED_FINDING_SECTIONS:
                 self.assertEqual(
@@ -2672,7 +4474,7 @@ class UnsupportedSectionStopsTheRunTest(TrivyAdapterTestCase):
         self.assertEqual(len(adapt_document(document).rows), 9)
         for label, value in (("empty object", {}), ("null", None), ("scalar", 0)):
             with self.subTest(shape=label):
-                variant = derived(POSITIVE_FIXTURE)
+                variant = derived(FEATURES_FIXTURE)
                 for element in variant["Results"]:
                     for section in trivy.UNSUPPORTED_FINDING_SECTIONS:
                         element[section] = value
@@ -2685,7 +4487,7 @@ class UnsupportedSectionStopsTheRunTest(TrivyAdapterTestCase):
 
     def test_an_absent_unsupported_section_does_not_stop_the_run(self) -> None:
         """Assertion 14, second half: the members are optional, and absence is ordinary."""
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         for element in document["Results"]:
             for section in trivy.UNSUPPORTED_FINDING_SECTIONS:
                 element.pop(section, None)
@@ -2695,6 +4497,40 @@ class UnsupportedSectionStopsTheRunTest(TrivyAdapterTestCase):
         self.assertEqual(len(adapted.rows), 9)
         self.assertEqual(adapted.rejections, [])
 
+    def test_the_captured_artifact_is_the_unaltered_witness_that_absence_is_ordinary(
+        self,
+    ) -> None:
+        """The run's own artifact carries neither member, and normalizes without a stop.
+
+        The test above establishes the rule on a document this module edited.  This one
+        establishes it on a document nobody edited: ``fixtures/trivy.json`` is
+        ``harness/artifacts/raw/trivy.json`` byte for byte, and Trivy wrote no
+        ``Licenses`` and no ``ExperimentalModifiedFindings`` member on any of its three
+        elements.  An implementation that required either member to be present -- the
+        mirror-image defect of one that halts on their presence -- would stop on this
+        run's real output, and that is what this asserts cannot happen.
+        """
+        document = load_fixture(POSITIVE_FIXTURE)
+        for index, element in enumerate(document["Results"]):
+            for section in trivy.UNSUPPORTED_FINDING_SECTIONS:
+                with self.subTest(result_index=index, section=section):
+                    self.assertNotIn(
+                        section,
+                        element,
+                        msg="the captured artifact states no unsupported finding member",
+                    )
+        self.assertIsNone(
+            trivy.validate_finding_sections(document, tool=TOOL),
+            msg="validation returns on the run's own artifact rather than raising",
+        )
+        adapted = adapt_document(document)
+        self.assertEqual(
+            len(adapted.rows),
+            len(load_expected(POSITIVE_EXPECTED_STEM)["rows"]),
+            msg="and every captured record became its hand-verified row",
+        )
+        self.assertEqual(adapted.rejections, [], msg="with nothing rejected")
+
     def test_a_non_empty_object_under_an_unsupported_key_also_stops_the_run(self) -> None:
         """The member's name says it holds findings, so non-empty content of any shape stops.
 
@@ -2703,7 +4539,7 @@ class UnsupportedSectionStopsTheRunTest(TrivyAdapterTestCase):
         an array -- and carries a note saying so, which is how a halt report tells the two
         apart.
         """
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"][0]["Licenses"] = {"Name": "a licence object, not an array"}
         with self.assertRaises(trivy.UnsupportedTrivySection) as caught:
             adapt_document(document)
@@ -2796,7 +4632,7 @@ class UnsupportedSectionStopsTheRunTest(TrivyAdapterTestCase):
     def test_the_counterfactual_that_a_skip_would_have_balanced(self) -> None:
         """The arithmetic a tolerated skip would have satisfied, measured rather than argued.
 
-        The fixture's first six elements are the positive fixture's, so a skipping
+        The fixture's first six elements are the features fixture's, so a skipping
         implementation would emit that fixture's nine rows, reject nothing, and satisfy
         ``9 == 9 + 0`` against a supported-section count of nine -- while the four
         records in the two unsupported arrays left no trace anywhere.  Both numbers are
@@ -2805,7 +4641,7 @@ class UnsupportedSectionStopsTheRunTest(TrivyAdapterTestCase):
         """
         document = load_fixture(UNSUPPORTED_SECTION_FIXTURE)
         supported_records = len(section_walk(document))
-        positive = adapt_document(load_fixture(POSITIVE_FIXTURE))
+        positive = adapt_document(load_fixture(FEATURES_FIXTURE))
         self.assertEqual(
             supported_records,
             self.expected["counts"]["raw_finding_records"],
@@ -2838,7 +4674,7 @@ class UnsupportedSectionStopsTheRunTest(TrivyAdapterTestCase):
 def adapt_negative(stem: str) -> Adapted:
     """Adapt one negative fixture the way its own expected file prescribes.
 
-    Six of the seven go through ``trivy.adapt``.  The unattributable-section fixture
+    Seven of the eight go through ``trivy.adapt``.  The unattributable-section fixture
     goes through the public seam instead, because ``adapt``'s iteration is section-bound
     by construction and cannot produce that condition -- which is a property of the
     adapter's design, not a convenience of this test.
@@ -2862,6 +4698,970 @@ def expected_rejection_section(entry: Any) -> Any:
     if "section_passed_to_adapt_record" in entry:
         return entry["section_passed_to_adapt_record"]
     return entry["section"]
+
+
+class StructuralHaltContract:
+    """The contract every one of ``trivy.HALT_REASONS``' four reasons is held to.
+
+    ``validate_finding_sections`` raises :class:`trivy.UnsupportedTrivySection` on four
+    distinct structural conditions, checked in the order ``HALT_REASONS`` declares them.
+    Each has one committed fixture that isolates its own condition, one hand-verified
+    expected file recording the stop rather than rows, and one concrete class below.
+    :class:`HaltReasonCoverageTest` iterates the closed tuple and fails by name if any of
+    the three is missing, so a fifth reason added to the adapter cannot arrive untested.
+
+    A mixin rather than a ``TestCase``: ``unittest`` collects it only through the
+    concrete classes, each of which names its reason and its fixture stem and asserts
+    nothing that is written for one document.
+
+    What the contract asserts, for every reason:
+
+    * the reason is the module's own constant and a member of the closed tuple;
+    * the expectation names the fixture under test and records its digest;
+    * the adapter raises with **every** recorded attribute equal -- reason, section,
+      target, result index, element count, note and the whole structure mapping -- so a
+      test cannot pass on "something raised";
+    * the composed message names the reason and quotes the structural excerpt;
+    * the same halt comes out of ``validate_finding_sections`` called directly, which is
+      what establishes it is pass one and that ``adapt`` propagates it untouched;
+    * every condition checked **before** this one is absent from the fixture, so the
+      halt is attributable to this reason rather than to an earlier branch that happened
+      to fire;
+    * the independent counting traversal returns the recorded raw count, and the
+      counterfactual identity in ``guarded_failure`` balances -- which is the whole
+      reason a halt rather than a skip is required;
+    * the outcome is not a member of ``paths.REJECT_CLASSES``.
+
+    Attributes:
+        REASON: The member of ``trivy.HALT_REASONS`` this class covers.
+        FIXTURE_STEM: The committed fixture and expected stem isolating that condition.
+    """
+
+    #: Set by each concrete class; left unset so a subclass that forgets fails loudly.
+    REASON: str = ""
+    FIXTURE_STEM: str = ""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Load the expectation once, and hold the fixture's filename."""
+        super().setUpClass()
+        if not cls.REASON or not cls.FIXTURE_STEM:  # pragma: no cover - defended
+            raise RuntimeError(
+                f"{cls.__name__} inherits the structural-halt contract without naming a "
+                "reason and a fixture stem, so it would assert nothing"
+            )
+        cls.expected = load_expected(cls.FIXTURE_STEM)
+        cls.fixture_name = f"{cls.FIXTURE_STEM}.json"
+
+    # -- helpers ---------------------------------------------------------------------
+
+    @property
+    def observed(self) -> Any:
+        """The attributes this reason's expected file records for the raised halt."""
+        return self.expected["halt"]["observed_attributes"]
+
+    def document(self) -> Any:
+        """A fresh parse of this class's committed fixture."""
+        return load_fixture(self.fixture_name)
+
+    def raised_by_adapt(self, document: Any = None) -> trivy.UnsupportedTrivySection:
+        """Adapt a document and return the halt it raised, failing if it raised none."""
+        with self.assertRaises(trivy.UnsupportedTrivySection) as caught:
+            adapt_document(self.document() if document is None else document)
+        return caught.exception
+
+    # -- the contract ----------------------------------------------------------------
+
+    def test_the_reason_is_the_modules_own_constant_in_the_closed_tuple(self) -> None:
+        """The reason under test is ``trivy``'s, not a string spelled in this file."""
+        self.assertIn(
+            self.REASON,
+            trivy.HALT_REASONS,
+            msg="the reason is a member of the closed set of four",
+        )
+        self.assertEqual(
+            self.expected["halt"]["reason"],
+            self.REASON,
+            msg="and the expectation records the same reason",
+        )
+        constant = self.expected["halt"]["reason_constant"]
+        self.assertTrue(
+            constant.startswith("trivy."),
+            msg="the expectation names the constant in the module it belongs to",
+        )
+        self.assertEqual(
+            getattr(trivy, constant.split(".", 1)[1]),
+            self.REASON,
+            msg=f"{constant} is the module attribute holding this reason",
+        )
+        self.assertEqual(
+            self.expected["outcome"], "halt", msg="and the outcome is a halt, not rows"
+        )
+        self.assertEqual(self.expected["rows"], [], msg="with no row expected")
+        self.assertEqual(self.expected["rejections"], [], msg="and no rejection")
+        self.assertEqual(self.expected["counts"]["rows"], 0)
+        self.assertEqual(self.expected["counts"]["rejections"], 0)
+
+    def test_the_expectation_names_this_fixture_and_records_its_digest(self) -> None:
+        """The pair is wired to each other, so neither can drift alone."""
+        block = self.expected["fixture"]
+        self.assertEqual(
+            block["path"],
+            f"oss-scan-results/adapter-tests/fixtures/{self.fixture_name}",
+        )
+        location = FIXTURES_DIR / self.fixture_name
+        self.assertEqual(
+            _sha256(location), block["sha256"], msg="the recorded sha256 is the file's"
+        )
+        self.assertEqual(location.stat().st_size, block["bytes"])
+
+    def test_the_adapter_raises_with_every_recorded_attribute(self) -> None:
+        """Reason, section, target, index, count, note and structure -- all of them.
+
+        Asserting the type alone would pass on any of the four reasons firing for any
+        structure, which is how a halt test becomes a test that something went wrong
+        somewhere.  Every attribute the exception carries is compared, and the structure
+        mapping is compared whole rather than by one of its keys.
+        """
+        error = self.raised_by_adapt()
+        self.assertEqual(error.reason, self.REASON)
+        self.assertEqual(error.reason, self.observed["reason"])
+        self.assertEqual(error.section, self.observed["section"])
+        self.assertEqual(error.target, self.observed["target"])
+        self.assertEqual(error.result_index, self.observed["result_index"])
+        self.assertEqual(error.element_count, self.observed["element_count"])
+        self.assertEqual(error.note, self.observed["note"])
+        self.assertEqual(
+            dict(error.structure),
+            self.observed["structure"],
+            msg="the observed structure is the expectation's, key for key",
+        )
+        self.assertEqual(
+            error.as_dict()["tool"],
+            self.observed["tool"],
+            msg="and the dict form the run record would carry names this tool",
+        )
+
+    def test_the_structure_diagnostics_describe_shape_and_never_content(self) -> None:
+        """The excerpt is quotable: JSON types, key names, counts -- no value.
+
+        AAP 0.5.4 requires the halt to quote the observed structure, and equally
+        requires that no adapter carry a value into a published field.  The structure is
+        therefore asserted to be describable -- every leaf a JSON type name or a count --
+        rather than merely present.
+        """
+        error = self.raised_by_adapt()
+        structure = dict(error.structure)
+        self.assertIn("json_type", structure, msg="the excerpt names the JSON type")
+        self.assertIn(
+            structure["json_type"],
+            ("array", "object", "string", "number", "boolean", "null"),
+            msg="in JSON's own vocabulary",
+        )
+        self.assertEqual(
+            error.structure_excerpt,
+            json.dumps(structure, sort_keys=False, default=str),
+            msg="the excerpt is the compact rendering of that same mapping",
+        )
+        self.assertIn(
+            error.structure_excerpt,
+            str(error),
+            msg="and the message quotes it verbatim, so the fault is legible",
+        )
+        self.assertIn(self.REASON, str(error), msg="the message names the reason")
+        self.assertIn(TOOL, str(error), msg="and the tool")
+
+    def test_the_same_halt_comes_out_of_the_validation_pass_directly(self) -> None:
+        """It is pass one, and ``adapt`` propagates it untouched.
+
+        Calling the validator directly and comparing the two exceptions is what
+        establishes both halves: the condition is decided before any row is built, and
+        ``adapt`` neither wraps it, downgrades it to a rejection, nor re-raises it with
+        different attributes.
+        """
+        with self.assertRaises(trivy.UnsupportedTrivySection) as caught:
+            trivy.validate_finding_sections(self.document(), tool=TOOL)
+        direct = caught.exception
+        through_adapt = self.raised_by_adapt()
+        for attribute in ("reason", "section", "target", "result_index", "element_count"):
+            with self.subTest(attribute=attribute):
+                self.assertEqual(
+                    getattr(direct, attribute),
+                    getattr(through_adapt, attribute),
+                    msg=f"{attribute} is the same whichever entry point raised",
+                )
+        self.assertEqual(dict(direct.structure), dict(through_adapt.structure))
+        self.assertEqual(str(direct), str(through_adapt))
+        self.assertNotIsInstance(
+            through_adapt,
+            trivy.TrivyAdapterError,
+            msg=(
+                "and the halt is not a caller fault: a caller catching TrivyAdapterError "
+                "must not be able to swallow it"
+            ),
+        )
+
+    def test_every_condition_checked_before_this_one_is_absent_from_the_fixture(
+        self,
+    ) -> None:
+        """The halt is attributable to this reason, not to an earlier branch.
+
+        ``validate_finding_sections`` checks the four conditions in the order
+        ``HALT_REASONS`` states them and raises on the first it meets, so a fixture that
+        also tripped an earlier condition would raise that one instead -- and a test
+        asserting only "it raised" would still pass.  Each earlier condition is
+        therefore shown absent by walking the fixture, and the expectation's own
+        ``halt_conditions_excluded`` block is required to say so too.
+        """
+        position = trivy.HALT_REASONS.index(self.REASON)
+        earlier = trivy.HALT_REASONS[:position]
+        excluded = self.expected["halt"]["halt_conditions_excluded"]
+        elements = [
+            element
+            for element in self.document()["Results"]
+            if isinstance(element, dict)
+        ]
+        self.assertTrue(elements, msg="the fixture carries at least one element")
+        for reason in earlier:
+            with self.subTest(earlier_reason=reason):
+                self.assertIn(
+                    reason,
+                    excluded,
+                    msg=(
+                        f"the expectation states why {reason} does not apply, so the "
+                        "exclusion is recorded rather than assumed"
+                    ),
+                )
+        if trivy.HALT_UNSUPPORTED_SECTION in earlier:
+            for index, element in enumerate(elements):
+                for section in trivy.UNSUPPORTED_FINDING_SECTIONS:
+                    with self.subTest(result_index=index, section=section):
+                        self.assertFalse(
+                            element.get(section),
+                            msg=(
+                                "no unsupported finding member is non-empty, so "
+                                "condition 1 cannot be what fired"
+                            ),
+                        )
+        if trivy.HALT_UNKNOWN_SECTION in earlier:
+            for index, element in enumerate(elements):
+                for key, value in element.items():
+                    if key in trivy.RESULT_KNOWN_KEYS:
+                        continue
+                    with self.subTest(result_index=index, member=key):
+                        self.assertFalse(
+                            isinstance(value, list)
+                            and any(isinstance(item, dict) for item in value),
+                            msg=(
+                                f"the unknown member {key!r} is not a non-empty array of "
+                                "objects, so condition 2 cannot be what fired"
+                            ),
+                        )
+        if trivy.HALT_SECTION_NOT_AN_ARRAY in earlier:
+            for index, element in enumerate(elements):
+                for section in trivy.SUPPORTED_SECTIONS:
+                    if section not in element:
+                        continue
+                    value = element[section]
+                    with self.subTest(result_index=index, section=section):
+                        self.assertTrue(
+                            value is None or isinstance(value, list),
+                            msg=(
+                                "every supported section present is an array or null, so "
+                                "condition 3 cannot be what fired"
+                            ),
+                        )
+
+    def test_the_independent_traversal_returns_the_recorded_raw_count(self) -> None:
+        """And the counterfactual identity balances, which is why a skip is not enough.
+
+        ``reconcile.count_records`` walks the artifact without building a row, so the
+        number it returns is what a dataset built by a defective implementation would be
+        reconciled against.  For every one of these four conditions that number leaves
+        the fault invisible: the identity balances while the artifact's output is not
+        fully represented.  That arithmetic is stated in each expectation's
+        ``guarded_failure`` block and asserted here against the traversal itself.
+        """
+        counted = reconcile.count_records(TOOL, self.document())
+        self.assertEqual(
+            counted,
+            self.expected["counts"]["raw_finding_records"],
+            msg="the independent traversal returns the recorded raw record count",
+        )
+        arithmetic = self.expected["guarded_failure"][
+            "arithmetic_if_the_guard_were_removed"
+        ]
+        self.assertEqual(
+            arithmetic["raw_finding_records"],
+            counted,
+            msg="the counterfactual uses that same count",
+        )
+        self.assertEqual(
+            arithmetic["raw_finding_records"],
+            arithmetic["rows"] + arithmetic["rejections"],
+            msg=(
+                "and it balances: a defective implementation would satisfy the "
+                "reconciliation identity, which is why the halt and not the identity is "
+                "what catches this"
+            ),
+        )
+        self.assertTrue(arithmetic["holds"], msg="stated as holding, and it does")
+
+    def test_this_outcome_is_never_a_counted_rejection(self) -> None:
+        """A halt is not a rejection class, and the expectation may not name one."""
+        self.assertNotIn(
+            self.REASON,
+            paths.REJECT_CLASSES,
+            msg="the reason is not one of the ten rejection classes",
+        )
+        self.assertFalse(paths.is_reject_class(self.REASON))
+        not_a_rejection = self.expected["halt"]["not_a_rejection"]
+        self.assertFalse(not_a_rejection["is_reject_class"])
+        self.assertIsNone(not_a_rejection["reject_class"])
+        self.assertEqual(
+            self.expected["counts"]["rejections_by_class"],
+            {},
+            msg="and no class is counted for it",
+        )
+
+
+class UnsupportedFindingSectionHaltTest(StructuralHaltContract, TrivyAdapterTestCase):
+    """Condition 1: a known finding section this dataset does not support, non-empty.
+
+    :class:`UnsupportedSectionStopsTheRunTest` covers this reason at depth -- both
+    members of ``UNSUPPORTED_FINDING_SECTIONS``, the object form, the three non-stops and
+    the counterfactual.  This class exists so the reason is held to the same contract as
+    the other three and is reachable from the closed-set iteration, rather than being the
+    one reason whose coverage lives in a differently-shaped test.
+    """
+
+    REASON = trivy.HALT_UNSUPPORTED_SECTION
+    FIXTURE_STEM = "halt-trivy-unsupported-section"
+
+
+class UnknownFindingSectionHaltTest(StructuralHaltContract, TrivyAdapterTestCase):
+    """Condition 2: a member outside ``RESULT_KNOWN_KEYS`` holding findings.
+
+    A member this adapter has never heard of, carrying a non-empty array of objects, is
+    read as a finding section it cannot map rather than as metadata to walk past.  The
+    fixture puts one on the **last** of the capture's three elements, so the assertion
+    also establishes that the validation pass reaches every element.
+
+    The boundary matters as much as the condition: the same unknown key holding an
+    object, or holding an array of strings, must **not** halt, or the adapter would stop
+    on the next metadata field Trivy adds.  Both non-halting shapes are asserted below.
+    """
+
+    REASON = trivy.HALT_UNKNOWN_SECTION
+    FIXTURE_STEM = "halt-trivy-unknown-section"
+
+    def test_the_offending_member_is_outside_the_known_result_keys(self) -> None:
+        """The member named by the halt is genuinely unknown, and its note says which."""
+        section = self.observed["section"]
+        self.assertNotIn(
+            section,
+            trivy.RESULT_KNOWN_KEYS,
+            msg=f"{section!r} is outside the known Result members",
+        )
+        element = self.document()["Results"][self.observed["result_index"]]
+        self.assertIn(section, element, msg="and the fixture element carries it")
+        self.assertEqual(
+            len(element[section]),
+            self.observed["element_count"],
+            msg="whose element count is the one the halt reports",
+        )
+        error = self.raised_by_adapt()
+        for known in trivy.RESULT_KNOWN_KEYS:
+            with self.subTest(known_member=known):
+                self.assertIn(
+                    known,
+                    error.note,
+                    msg=(
+                        "the note lists every known member, so a reader can see what the "
+                        "adapter does recognise"
+                    ),
+                )
+
+    def test_an_unknown_member_holding_an_object_does_not_stop_the_run(self) -> None:
+        """Metadata, not findings: every non-finding member Trivy adds is an object.
+
+        Halting on an unknown object would halt on the next metadata field Trivy
+        introduces, which is not what AAP 0.5.4 asks for.  The section is removed and
+        replaced with an object of the same key name, so the only difference from the
+        raising document is the JSON type of the value.
+        """
+        document = self.document()
+        section = self.observed["section"]
+        document["Results"][self.observed["result_index"]][section] = {
+            "SchemaHint": "an object under the same key name",
+            "Count": 2,
+        }
+        self.assertIsNone(
+            trivy.validate_finding_sections(document, tool=TOOL),
+            msg="an unknown object is metadata and does not halt",
+        )
+        adapted = adapt_document(document)
+        self.assertEqual(
+            len(adapted.rows),
+            self.expected["counts"]["raw_finding_records"],
+            msg="and every supported record still becomes a row",
+        )
+        self.assertEqual(adapted.rejections, [], msg="with nothing rejected")
+
+    def test_an_unknown_member_holding_an_array_of_strings_does_not_stop_the_run(
+        self,
+    ) -> None:
+        """Not finding-shaped: every finding section Trivy emits is an array of objects.
+
+        A list of references or of names under an unknown key holds no record this
+        adapter could have mapped, so it is not the condition.  ``_is_object_array``'s
+        ``any`` rather than ``all`` is asserted too: a mixed array is at least partly
+        finding-shaped and does halt.
+        """
+        section = self.observed["section"]
+        index = self.observed["result_index"]
+        document = self.document()
+        document["Results"][index][section] = ["a-string", "another-string"]
+        self.assertIsNone(
+            trivy.validate_finding_sections(document, tool=TOOL),
+            msg="an array of scalars is not finding-shaped and does not halt",
+        )
+        self.assertEqual(
+            len(adapt_document(document).rows),
+            self.expected["counts"]["raw_finding_records"],
+            msg="and every supported record still becomes a row",
+        )
+        mixed = self.document()
+        mixed["Results"][index][section] = ["a-string", {"ID": "TF-0003"}]
+        error = self.raised_by_adapt(mixed)
+        self.assertEqual(
+            error.reason,
+            trivy.HALT_UNKNOWN_SECTION,
+            msg="a mixed array carries at least one object and does halt",
+        )
+        self.assertEqual(error.element_count, 2, msg="counting every element it holds")
+
+    def test_an_empty_array_under_an_unknown_member_does_not_stop_the_run(self) -> None:
+        """Nothing to drop: an empty array under any key holds no record."""
+        document = self.document()
+        document["Results"][self.observed["result_index"]][self.observed["section"]] = []
+        self.assertIsNone(
+            trivy.validate_finding_sections(document, tool=TOOL),
+            msg="an empty unknown array holds no finding to lose",
+        )
+
+    def test_the_offence_is_reached_in_the_last_element_and_in_the_first(self) -> None:
+        """The pass runs over every element, whichever one carries the fault.
+
+        The committed fixture's offence is on the last element, so a validator that
+        stopped after the first would miss it.  Moving the same member to the first
+        element must raise the same reason at index 0, which is what shows the fixture's
+        position is a property of the fixture rather than of the branch.
+        """
+        section = self.observed["section"]
+        last = self.observed["result_index"]
+        self.assertEqual(
+            last,
+            len(self.document()["Results"]) - 1,
+            msg="the committed fixture offends in the last element",
+        )
+        error = self.raised_by_adapt()
+        self.assertEqual(error.result_index, last)
+
+        moved = self.document()
+        offending = moved["Results"][last].pop(section)
+        moved["Results"][0][section] = offending
+        first = self.raised_by_adapt(moved)
+        self.assertEqual(first.reason, trivy.HALT_UNKNOWN_SECTION)
+        self.assertEqual(
+            first.result_index, 0, msg="and the same member on the first element raises there"
+        )
+        self.assertEqual(
+            first.target,
+            moved["Results"][0]["Target"],
+            msg="naming that element's own Target",
+        )
+
+
+class SupportedSectionNotAnArrayHaltTest(StructuralHaltContract, TrivyAdapterTestCase):
+    """Condition 3: a supported section present as something other than array or null.
+
+    This is the branch that exists specifically to stop malformed output from
+    reconciling as a clean scan.  ``reconcile._count_trivy`` reads a non-array member as
+    zero records and the adapter's own walk would read it as zero too, so **both** sides
+    of the reconciliation identity agree on a number that is wrong -- the one condition
+    the identity structurally cannot catch.  The fixture carries two record-shaped
+    objects under ``Vulnerabilities`` keyed ``"0"`` and ``"1"``, which is what a lossy
+    array-to-object transform produces.
+
+    The boundary is asserted alongside: ``null`` and absent are **not** this condition,
+    because neither holds a record to lose.
+    """
+
+    REASON = trivy.HALT_SECTION_NOT_AN_ARRAY
+    FIXTURE_STEM = "halt-trivy-section-not-an-array"
+
+    def test_the_offending_member_is_a_supported_section_of_the_wrong_type(self) -> None:
+        """The fault is the type, not the name: the key is one of the three."""
+        section = self.observed["section"]
+        self.assertIn(
+            section,
+            trivy.SUPPORTED_SECTIONS,
+            msg="the member is a supported section, so this is not the unknown-key branch",
+        )
+        value = self.document()["Results"][self.observed["result_index"]][section]
+        self.assertNotIsInstance(value, list, msg="and it is not an array")
+        self.assertIsNotNone(value, msg="nor null, which would be the passing case")
+        self.assertIsNone(
+            self.observed["element_count"],
+            msg=(
+                "so no element count is reported: there is no array whose elements could "
+                "be counted, and null rather than 0 is what says so"
+            ),
+        )
+
+    def test_a_null_supported_section_does_not_stop_the_run(self) -> None:
+        """Null holds no record, so both sides of the identity agree truthfully."""
+        document = self.document()
+        document["Results"][self.observed["result_index"]][self.observed["section"]] = None
+        self.assertIsNone(
+            trivy.validate_finding_sections(document, tool=TOOL),
+            msg="a null supported section is explicitly not this condition",
+        )
+        adapted = adapt_document(document)
+        self.assertEqual(
+            len(adapted.rows),
+            self.expected["counts"]["raw_finding_records"],
+            msg="and every supported record still becomes a row",
+        )
+        self.assertEqual(adapted.rejections, [])
+
+    def test_an_absent_supported_section_does_not_stop_the_run(self) -> None:
+        """Absence is the capture's own shape and must remain ordinary."""
+        document = self.document()
+        document["Results"][self.observed["result_index"]].pop(self.observed["section"])
+        self.assertIsNone(
+            trivy.validate_finding_sections(document, tool=TOOL),
+            msg="an absent supported section is ordinary output",
+        )
+
+    def test_every_non_array_shape_raises_this_reason_with_its_own_type_named(
+        self,
+    ) -> None:
+        """A string, a number and a boolean each halt, and the note names the type.
+
+        The committed fixture's object is the realistic malformation; these three
+        establish that the branch is about not-an-array rather than about objects, and
+        that the note quotes the observed JSON type so a reader knows what they are
+        looking at.
+        """
+        section = self.observed["section"]
+        index = self.observed["result_index"]
+        for label, value in (
+            ("string", "2 vulnerabilities"),
+            ("number", 2),
+            ("boolean", True),
+        ):
+            with self.subTest(json_type=label):
+                document = self.document()
+                document["Results"][index][section] = value
+                error = self.raised_by_adapt(document)
+                self.assertEqual(error.reason, trivy.HALT_SECTION_NOT_AN_ARRAY)
+                self.assertEqual(error.section, section)
+                self.assertEqual(error.result_index, index)
+                self.assertIsNone(error.element_count)
+                self.assertIn(
+                    label,
+                    error.note,
+                    msg="the note names the JSON type actually observed",
+                )
+                self.assertEqual(
+                    dict(error.structure)["json_type"],
+                    label,
+                    msg="and so does the structural excerpt",
+                )
+
+    def test_each_of_the_three_supported_sections_reaches_this_branch(self) -> None:
+        """Iterate ``SUPPORTED_SECTIONS``, so no section is covered by inheritance.
+
+        The branch loops the three sections, and a fourth section added to the constant
+        with no case would otherwise be unexercised.  Each is malformed on its own, with
+        the other two left as the fixture has them.
+        """
+        index = self.observed["result_index"]
+        covered: set[str] = set()
+        for section in trivy.SUPPORTED_SECTIONS:
+            with self.subTest(section=section):
+                document = self.document()
+                document["Results"][index].pop(self.observed["section"], None)
+                document["Results"][index][section] = {"0": {"ID": "X-1"}}
+                error = self.raised_by_adapt(document)
+                self.assertEqual(error.reason, trivy.HALT_SECTION_NOT_AN_ARRAY)
+                self.assertEqual(error.section, section)
+                covered.add(error.section)
+        self.assertEqual(
+            covered,
+            set(trivy.SUPPORTED_SECTIONS),
+            msg="every supported section has a raising case",
+        )
+
+    def test_the_counting_traversal_reads_the_malformed_section_as_zero(self) -> None:
+        """The two code paths fail identically, which is why the identity cannot help.
+
+        Asserted rather than argued: the independent traversal returns the same count for
+        this fixture as for a document with the member removed entirely, so the
+        malformation is invisible to reconciliation on both sides.
+        """
+        with_malformation = reconcile.count_records(TOOL, self.document())
+        without = self.document()
+        without["Results"][self.observed["result_index"]].pop(self.observed["section"])
+        self.assertEqual(
+            with_malformation,
+            reconcile.count_records(TOOL, without),
+            msg=(
+                "the counting traversal cannot tell the malformed artifact from one that "
+                "never carried the member, so only the halt records the difference"
+            ),
+        )
+
+
+class DeclaredFindingsUnheldHaltTest(StructuralHaltContract, TrivyAdapterTestCase):
+    """Condition 4: ``MisconfSummary`` declares failures no supported section holds.
+
+    The subtlest of the four, because nothing is dropped: the record is already absent
+    from the artifact, and a dataset built from the records alone reconciles perfectly
+    while reporting two failures where the artifact declares three.  The fixture empties
+    ``Results[1]``'s ``Misconfigurations`` array and leaves its summary declaring one
+    failure -- the present-and-empty shape, which an implementation checking only whether
+    the member exists would miss.
+
+    Deliberately **not** a count comparison: ``--include-non-failures`` puts passing
+    checks in the same array, so a section holding more records than the declared failure
+    count is ordinary and is asserted to continue.
+    """
+
+    REASON = trivy.HALT_DECLARED_FINDINGS_UNHELD
+    FIXTURE_STEM = "halt-trivy-declared-findings-unheld"
+
+    def test_the_contradiction_is_internal_to_the_fixture(self) -> None:
+        """The element's own summary declares a failure its section does not hold."""
+        element = self.document()["Results"][self.observed["result_index"]]
+        summary = element["MisconfSummary"]
+        self.assertGreater(
+            summary["Failures"],
+            0,
+            msg="the element declares at least one failure",
+        )
+        self.assertEqual(
+            element["Misconfigurations"],
+            [],
+            msg="and its Misconfigurations array holds no record",
+        )
+        self.assertEqual(
+            self.observed["element_count"],
+            0,
+            msg="which is the stated zero the halt reports, rather than null",
+        )
+        self.assertIn(
+            str(summary["Failures"]),
+            self.observed["note"],
+            msg="and the note quotes the declared count",
+        )
+
+    def test_an_absent_misconfigurations_member_raises_the_same_reason(self) -> None:
+        """The removed-key variant of the same contradiction, with its own note.
+
+        The committed fixture carries the present-and-empty shape because it is the one
+        a membership check would miss.  Removing the member entirely is the other shape,
+        and it must reach the same reason -- with the note naming ``null`` rather than
+        ``array``, which is how a reader tells the two apart.
+        """
+        document = self.document()
+        document["Results"][self.observed["result_index"]].pop("Misconfigurations")
+        error = self.raised_by_adapt(document)
+        self.assertEqual(error.reason, trivy.HALT_DECLARED_FINDINGS_UNHELD)
+        self.assertEqual(error.section, "Misconfigurations")
+        self.assertEqual(error.result_index, self.observed["result_index"])
+        self.assertEqual(error.element_count, 0)
+        self.assertIn(
+            "null",
+            error.note,
+            msg="the note names the observed type, which is null with the member removed",
+        )
+        self.assertNotEqual(
+            error.note,
+            self.observed["note"],
+            msg="so the two shapes are distinguishable in the halt report",
+        )
+
+    def test_more_records_than_declared_failures_does_not_stop_the_run(self) -> None:
+        """``--include-non-failures`` output is ordinary, not a fault.
+
+        A count comparison would halt here, which is why the adapter does not make one.
+        The element declares one failure and is given three records, two of them passing
+        checks; the run continues and every record becomes a row.
+        """
+        document = self.document()
+        index = self.observed["result_index"]
+        template = copy.deepcopy(self.document()["Results"][0]["Misconfigurations"][0])
+        passing_one = copy.deepcopy(template)
+        passing_one["Status"] = "PASS"
+        passing_two = copy.deepcopy(template)
+        passing_two["Status"] = "PASS"
+        document["Results"][index]["Misconfigurations"] = [
+            copy.deepcopy(template),
+            passing_one,
+            passing_two,
+        ]
+        self.assertEqual(document["Results"][index]["MisconfSummary"]["Failures"], 1)
+        self.assertIsNone(
+            trivy.validate_finding_sections(document, tool=TOOL),
+            msg="three records against one declared failure is ordinary output",
+        )
+        self.assertEqual(
+            len(adapt_document(document).rows),
+            self.expected["counts"]["raw_finding_records"] + 3,
+            msg="and every record in the section becomes a row",
+        )
+
+    def test_a_zero_or_absent_failure_count_does_not_stop_the_run(self) -> None:
+        """No declared failure, nothing unheld -- on every shape the count can take."""
+        index = self.observed["result_index"]
+        for label, summary in (
+            ("zero failures", {"Successes": 26, "Failures": 0}),
+            ("no Failures member", {"Successes": 26}),
+            ("a null Failures member", {"Successes": 26, "Failures": None}),
+            ("a non-integer Failures member", {"Successes": 26, "Failures": "1"}),
+            ("a boolean Failures member", {"Successes": 26, "Failures": True}),
+        ):
+            with self.subTest(summary=label):
+                document = self.document()
+                document["Results"][index]["MisconfSummary"] = dict(summary)
+                self.assertIsNone(
+                    trivy.validate_finding_sections(document, tool=TOOL),
+                    msg=(
+                        "the condition needs a positive integer failure count; anything "
+                        "else declares nothing and cannot leave a finding unheld"
+                    ),
+                )
+
+    def test_an_unreadable_summary_is_counted_and_does_not_stop_the_run(self) -> None:
+        """A ``MisconfSummary`` that is not an object increments a counter and continues.
+
+        A branch that counts and continues is easily mistaken for one that stops, so the
+        distinction is asserted: the counter rises by exactly one and no halt is raised,
+        even though the element's now-unreadable summary sits beside an empty
+        ``Misconfigurations`` array -- the very element the committed fixture halts on.
+        """
+        document = self.document()
+        index = self.observed["result_index"]
+        document["Results"][index]["MisconfSummary"] = "26 successes, 1 failure"
+        counters = {key: 0 for key in trivy.COUNTER_KEYS}
+        self.assertIsNone(
+            trivy.validate_finding_sections(document, tool=TOOL, counters=counters),
+            msg="an unreadable summary declares nothing and does not halt",
+        )
+        self.assertEqual(
+            counters[trivy.COUNTER_MISCONF_SUMMARY_UNREADABLE],
+            1,
+            msg="it is recorded rather than passed over in silence",
+        )
+        adapted = adapt_document(document)
+        self.assertEqual(
+            adapted.counters[trivy.COUNTER_MISCONF_SUMMARY_UNREADABLE],
+            1,
+            msg="and adapt's own counters carry the same observation",
+        )
+        self.assertEqual(
+            len(adapted.rows),
+            self.expected["counts"]["raw_finding_records"],
+            msg="while every record the artifact does hold still becomes a row",
+        )
+
+    def test_the_declared_failures_across_the_document_exceed_the_records_present(
+        self,
+    ) -> None:
+        """The arithmetic the expectation states, read from the fixture itself.
+
+        Three declared failures, two records: the discrepancy is a property of the
+        document rather than a claim of this test, and it is what makes the identity's
+        silence total -- no record is dropped, so nothing is missing from either side of
+        it.
+        """
+        declared = 0
+        records = 0
+        for element in self.document()["Results"]:
+            summary = element.get("MisconfSummary") or {}
+            failures = summary.get("Failures")
+            if isinstance(failures, int) and not isinstance(failures, bool):
+                declared += failures
+            records += len(element.get("Misconfigurations") or [])
+        arithmetic = self.expected["guarded_failure"][
+            "arithmetic_if_the_guard_were_removed"
+        ]
+        self.assertEqual(declared, arithmetic["declared_failures_across_the_document"])
+        self.assertEqual(records, arithmetic["failure_records_present"])
+        self.assertEqual(
+            declared - records,
+            arithmetic["unheld_declared_failures"],
+            msg="one declared failure the artifact carries no record of",
+        )
+        self.assertEqual(
+            arithmetic["records_that_would_vanish"],
+            0,
+            msg=(
+                "and nothing would vanish, which is exactly why this condition needs an "
+                "artifact-level stop: there is no missing record for a count to notice"
+            ),
+        )
+
+
+class HaltReasonCoverageTest(TrivyAdapterTestCase):
+    """Every member of the closed ``trivy.HALT_REASONS`` tuple has a behavioural case.
+
+    Iterating the constant rather than listing the reasons is the whole point: a fifth
+    condition added to ``validate_finding_sections`` fails here by name, with its own
+    message, instead of arriving with no fixture, no expectation and no test and being
+    invisible.  The check is behavioural rather than declarative -- each reason's fixture
+    is adapted and required to raise *that* reason -- so a fixture that stopped reaching
+    its condition would fail here too.
+    """
+
+    def halt_contract_classes(self) -> dict[str, type]:
+        """Every concrete class in this module built on the structural-halt contract."""
+        found: dict[str, type] = {}
+        for value in list(globals().values()):
+            if (
+                isinstance(value, type)
+                and issubclass(value, StructuralHaltContract)
+                and issubclass(value, unittest.TestCase)
+                and value.REASON
+            ):
+                found[value.REASON] = value
+        return found
+
+    def test_the_reason_tuple_is_closed_and_each_member_is_distinct(self) -> None:
+        """Four reasons, each a distinct non-empty string, each a module attribute."""
+        self.assertEqual(
+            len(set(trivy.HALT_REASONS)),
+            len(trivy.HALT_REASONS),
+            msg="no reason appears twice",
+        )
+        for reason in trivy.HALT_REASONS:
+            with self.subTest(reason=reason):
+                self.assertIsInstance(reason, str)
+                self.assertTrue(reason.strip(), msg="each reason is a stated name")
+                self.assertNotIn(
+                    reason,
+                    paths.REJECT_CLASSES,
+                    msg="and no halt reason is also a rejection class",
+                )
+
+    def test_every_reason_has_a_committed_fixture_and_expectation(self) -> None:
+        """The mapping covers the tuple exactly, in both directions."""
+        self.assertEqual(
+            sorted(HALT_FIXTURE_BY_REASON),
+            sorted(trivy.HALT_REASONS),
+            msg=(
+                "every halt reason is mapped to one fixture stem and no stem is mapped "
+                "to a reason the adapter does not declare"
+            ),
+        )
+        self.assertEqual(
+            len(set(HALT_FIXTURE_BY_REASON.values())),
+            len(trivy.HALT_REASONS),
+            msg="no two reasons share a fixture",
+        )
+        for reason, stem in sorted(HALT_FIXTURE_BY_REASON.items()):
+            with self.subTest(reason=reason):
+                fixture = FIXTURES_DIR / f"{stem}.json"
+                expectation = EXPECTED_DIR / f"{stem}.rows.json"
+                self.assertTrue(
+                    fixture.is_file(),
+                    msg=(
+                        f"blocking gap: {fixture} is absent, so the halt reason {reason} "
+                        "has no committed input. Reported, not skipped."
+                    ),
+                )
+                self.assertTrue(
+                    expectation.is_file(),
+                    msg=f"blocking gap: {expectation} is absent for reason {reason}",
+                )
+                document = load_expected(stem)
+                self.assertEqual(document["outcome"], "halt")
+                self.assertEqual(document["halt"]["reason"], reason)
+                self.assertEqual(document["rows"], [])
+                self.assertEqual(document["rejections"], [])
+
+    def test_every_reason_is_raised_by_its_own_fixture(self) -> None:
+        """The behavioural half: adapt each fixture, and require its own reason.
+
+        This is what makes the coverage claim more than bookkeeping.  A reason whose
+        fixture stopped reaching its condition -- because an earlier condition began
+        firing first, say -- fails here even though the fixture, the expectation and the
+        test class all still exist.
+        """
+        raised: dict[str, str] = {}
+        for reason, stem in sorted(HALT_FIXTURE_BY_REASON.items()):
+            with self.subTest(reason=reason):
+                with self.assertRaises(trivy.UnsupportedTrivySection) as caught:
+                    adapt_document(load_fixture(f"{stem}.json"))
+                raised[caught.exception.reason] = stem
+                self.assertEqual(
+                    caught.exception.reason,
+                    reason,
+                    msg=(
+                        f"fixtures/{stem}.json must raise {reason}; it raised "
+                        f"{caught.exception.reason} instead, so that reason's fixture no "
+                        "longer isolates its own condition"
+                    ),
+                )
+        self.assertEqual(
+            sorted(raised),
+            sorted(trivy.HALT_REASONS),
+            msg="every reason in the closed tuple was raised by exactly one fixture",
+        )
+
+    def test_every_reason_has_a_concrete_test_class_in_this_module(self) -> None:
+        """A reason with no class is a reason whose attributes nobody asserted."""
+        classes = self.halt_contract_classes()
+        self.assertEqual(
+            sorted(classes),
+            sorted(trivy.HALT_REASONS),
+            msg=(
+                "every halt reason is covered by exactly one concrete class built on "
+                "StructuralHaltContract; a reason missing from this list has no test "
+                "asserting the attributes its halt carries"
+            ),
+        )
+        for reason, klass in sorted(classes.items()):
+            with self.subTest(reason=reason):
+                self.assertEqual(
+                    klass.FIXTURE_STEM,
+                    HALT_FIXTURE_BY_REASON[reason],
+                    msg="and each class names the fixture stem mapped to its reason",
+                )
+
+    def test_the_exception_carries_only_a_reason_the_module_declares(self) -> None:
+        """A reason outside the closed tuple is a caller fault, not a halt.
+
+        The constructor refuses it with ``TrivyAdapterError``, so a typo cannot invent a
+        fifth reason at run time and quietly become a halt nobody has a fixture for.
+        """
+        with self.assertRaises(trivy.TrivyAdapterError) as caught:
+            trivy.UnsupportedTrivySection(
+                "a_reason_the_module_does_not_declare",
+                section="Findings",
+                target="a-target",
+                result_index=0,
+            )
+        message = str(caught.exception)
+        self.assertIn("unknown halt reason", message)
+        for reason in trivy.HALT_REASONS:
+            with self.subTest(reason=reason):
+                self.assertIn(
+                    reason, message, msg="and the refusal names the closed set"
+                )
 
 
 class RejectedRecordTest(TrivyAdapterTestCase):
@@ -3041,6 +5841,297 @@ class RejectedRecordTest(TrivyAdapterTestCase):
                         msg="whose class was never in doubt",
                     )
 
+    def test_the_absent_path_rejection_is_the_class_that_paths_py_owns(self) -> None:
+        """The ``absent_path`` condition, asserted by class, identity and reason.
+
+        ``path`` is not one of the five fields absence is permitted for (AAP 0.8.2), so
+        a record whose enclosing ``Target`` states nothing is rejected and counted
+        rather than emitted with a null path or given the scan root.  The class name is
+        read from :mod:`normalize.paths` rather than spelled here, and the identity is
+        asserted key by key because it is what a reader uses to find the record in the
+        artifact again.
+        """
+        stem = "reject-trivy-absent-path"
+        adapted = adapt_negative(stem)
+        expected = load_expected(stem)
+
+        self.assertEqual(len(adapted.rejections), 1)
+        rejection = adapted.rejections[0]
+        self.assertIs(
+            type(rejection.reject_class),
+            str,
+            msg="a class is a string from the closed vocabulary, not an enum member",
+        )
+        self.assertEqual(
+            rejection.reject_class,
+            paths.REJECT_ABSENT_PATH,
+            msg="the module's own constant, not a hand-spelled copy of it",
+        )
+        self.assertIn(paths.REJECT_ABSENT_PATH, paths.REJECT_CLASSES)
+        self.assertTrue(paths.is_reject_class(rejection.reject_class))
+        self.assertNotEqual(
+            rejection.reject_class,
+            paths.REJECT_UNRESOLVABLE_PATH,
+            msg=(
+                "absent and unresolvable are neighbouring classes and this fixture is "
+                "the first: nothing was stated, so nothing failed to resolve"
+            ),
+        )
+
+        entry = expected["rejections"][0]
+        identity = dict(rejection.record_identity)
+        self.assertEqual(
+            sorted(identity),
+            sorted(entry["identity_keys_expected"].keys() - {"note"}),
+            msg="the identity carries exactly the keys the expectation lists",
+        )
+        for key, value in entry["identity_keys_expected"].items():
+            if key == "note":
+                continue
+            with self.subTest(identity_key=key):
+                self.assertEqual(identity[key], value)
+        self.assertIn(
+            "reported_path",
+            identity,
+            msg=(
+                "the resolver records the value it could not resolve, and an empty "
+                "string is a value: a key set to '' is not a key that was never set"
+            ),
+        )
+        self.assertEqual(identity["Target"], "")
+        self.assertEqual(identity["rule_id"], "DS-0026")
+
+        field_name = environment().tool_base().record_path_field or "path"
+        self.assertIn(
+            f"carries no {field_name} value",
+            rejection.detail,
+            msg=(
+                "the detail names the field it looked in, taking that name from the "
+                "runner metadata rather than from a literal in this test"
+            ),
+        )
+        for fragment in entry["detail_expected"]["required_substrings"]:
+            with self.subTest(fragment=fragment):
+                self.assertIn(fragment, rejection.detail)
+        self.assertNotIn(
+            "resolve",
+            rejection.detail,
+            msg="nothing was resolved, so the detail must not describe a resolution",
+        )
+
+    def test_the_absent_path_fixture_changes_only_the_target_it_claims_to(self) -> None:
+        """The derived fixture differs from the capture in one member and no other.
+
+        A negative fixture that changed two things could not attribute its rejection to
+        either.  The comparison is structural rather than a byte diff, so a
+        reformatting of the file cannot mask a second change.
+        """
+        stem = "reject-trivy-absent-path"
+        capture = load_fixture(POSITIVE_FIXTURE)
+        fixture = load_fixture(f"{stem}.json")
+        expectation = load_expected(stem)
+
+        self.assertEqual(
+            expectation["fixture"]["kind"],
+            "derived",
+            msg="and it says so: only fixtures/trivy.json claims to be a capture",
+        )
+        self.assertEqual(
+            expectation["fixture"]["derived_from"]["fixture"],
+            f"oss-scan-results/adapter-tests/fixtures/{POSITIVE_FIXTURE}",
+        )
+        self.assertEqual(
+            set(capture) ^ set(fixture),
+            set(),
+            msg="the envelope members are the capture's, none added and none removed",
+        )
+        for member in capture:
+            if member == "Results":
+                continue
+            with self.subTest(member=member):
+                self.assertEqual(capture[member], fixture[member])
+        self.assertEqual(len(fixture["Results"]), len(capture["Results"]))
+        differing = []
+        for index, (before, after) in enumerate(
+            zip(capture["Results"], fixture["Results"])
+        ):
+            if json.dumps(before, sort_keys=True) != json.dumps(after, sort_keys=True):
+                differing.append(index)
+        self.assertEqual(
+            differing,
+            [expectation["rejections"][0]["result_index"]],
+            msg="exactly one element differs, and it is the one the expectation names",
+        )
+        element_before = capture["Results"][differing[0]]
+        element_after = fixture["Results"][differing[0]]
+        for member in element_before:
+            if member == "Target":
+                continue
+            with self.subTest(member=member):
+                self.assertEqual(
+                    json.dumps(element_before[member], sort_keys=True),
+                    json.dumps(element_after[member], sort_keys=True),
+                    msg="the record itself is the capture's, unchanged",
+                )
+        self.assertTrue(element_before["Target"].strip())
+        self.assertEqual(element_after["Target"], "")
+
+    def test_every_shape_of_a_missing_target_reaches_the_same_class(self) -> None:
+        """Blank, whitespace-only, null and removed all reject; a non-string does not.
+
+        Four shapes of the same omission, and the neighbouring class on the other side
+        of the line.  Committing four near-identical fixtures would assert nothing the
+        first does not; asserting the four shapes against one fixture's document is what
+        shows the guard is ``if not value.strip()`` rather than ``if value is None``.
+        """
+        stem = "reject-trivy-absent-path"
+        pointer = load_expected(stem)["rejections"][0]["result_index"]
+
+        for label, mutate in (
+            ("blank string", lambda element: element.__setitem__("Target", "")),
+            ("whitespace only", lambda element: element.__setitem__("Target", " \t ")),
+            ("null", lambda element: element.__setitem__("Target", None)),
+            ("removed key", lambda element: element.pop("Target", None)),
+        ):
+            with self.subTest(shape=label):
+                document = derived(POSITIVE_FIXTURE)
+                mutate(document["Results"][pointer])
+                adapted = adapt_document(document)
+                self.assertEqual(len(adapted.rejections), 1)
+                self.assertEqual(
+                    adapted.rejections[0].reject_class,
+                    paths.REJECT_ABSENT_PATH,
+                    msg=f"{label} is the same omission and takes the same class",
+                )
+                self.assertEqual(len(adapted.rows), 2)
+                self.assertOneOutcomePerRecord(adapted, where=label)
+
+        for label, value in (
+            ("number", 7),
+            ("object", {"path": "core/src/main/scala/x.scala"}),
+            ("array", ["core/src/main/scala/x.scala"]),
+            ("boolean", True),
+        ):
+            with self.subTest(shape=label):
+                document = derived(POSITIVE_FIXTURE)
+                document["Results"][pointer]["Target"] = value
+                adapted = adapt_document(document)
+                self.assertEqual(len(adapted.rejections), 1)
+                self.assertEqual(
+                    adapted.rejections[0].reject_class,
+                    paths.REJECT_MALFORMED_RECORD,
+                    msg=(
+                        f"a Target present as a {label} is a malformed artifact rather "
+                        "than an omission, and the two classes tell a reader to do "
+                        "different things"
+                    ),
+                )
+
+    def test_the_absent_path_rejection_balances_the_independent_count(self) -> None:
+        """``raw finding records = rows + rejections``, the left side counted separately.
+
+        :func:`normalize.reconcile.count_records` never reads a ``Target``, so a record
+        with no coordinate still counts as one raw record -- which is exactly why the
+        identity catches a silent drop.  The counter signature is asserted alongside it:
+        ``records_misconfigurations`` counts the record as walked while
+        ``rows_class_misconfig`` does not count it as emitted, and that difference of
+        one is what a rejection looks like in the counters.
+        """
+        stem = "reject-trivy-absent-path"
+        document = load_fixture(f"{stem}.json")
+        adapted = adapt_negative(stem)
+        expected = load_expected(stem)
+
+        independent = reconcile.count_records(TOOL, document)
+        self.assertEqual(
+            independent,
+            expected["counts"]["raw_finding_records"],
+            msg="the count unit is the expectation's, taken from the counting traversal",
+        )
+        self.assertEqual(independent, 3)
+        self.assertEqual(
+            independent,
+            len(adapted.rows) + len(adapted.rejections),
+            msg=expected["counts"]["reconciliation_identity"],
+        )
+        self.assertEqual(f"{independent} == {len(adapted.rows)} + "
+                         f"{len(adapted.rejections)}",
+                         expected["counts"]["reconciliation_arithmetic"])
+        self.assertEqual(
+            adapted.rejections_by_class,
+            {paths.REJECT_ABSENT_PATH: 1},
+            msg="one class, one rejection, and no other class present",
+        )
+
+        counters = adapted.counters
+        walked = f"{trivy.COUNTER_RECORDS_PREFIX}misconfigurations"
+        emitted = f"{trivy.COUNTER_ROWS_CLASS_PREFIX}misconfig"
+        self.assertEqual(counters[walked], 3)
+        self.assertEqual(counters[emitted], 2)
+        self.assertEqual(
+            counters[walked] - counters[emitted],
+            len(adapted.rejections),
+            msg="walked minus emitted is the rejection count, per section",
+        )
+        for key in (
+            trivy.COUNTER_SEVERITY_LABEL_PRESENT,
+            trivy.COUNTER_START_LINE_ABSENT,
+            trivy.COUNTER_COORDINATE_ABSENT,
+            f"{trivy.COUNTER_PATH_KIND_PREFIX}{paths.PATH_KIND_TREE_FILE}",
+            trivy.COUNTER_ROWS_IN_SCOPE,
+        ):
+            with self.subTest(counter=key):
+                self.assertEqual(
+                    counters[key],
+                    2,
+                    msg=(
+                        "every counter downstream of the path step counts the two rows "
+                        "only: the rejected record returns at step 5 and reaches none "
+                        "of them"
+                    ),
+                )
+        self.assertEqual(counters[trivy.COUNTER_PER_RECORD_PATH_REFINEMENTS], 0)
+
+    def test_a_stated_target_makes_the_same_record_a_row(self) -> None:
+        """The falsifying control: the record is a constant and the Target is the variable.
+
+        The same DS-0026 record is a row on the other two elements of this fixture, and
+        restoring the emptied Target makes it a row too.  Without this the rejection
+        could be attributed to anything about the record.
+        """
+        stem = "reject-trivy-absent-path"
+        pointer = load_expected(stem)["rejections"][0]["result_index"]
+        fixture = load_fixture(f"{stem}.json")
+        capture = load_fixture(POSITIVE_FIXTURE)
+
+        restored = derived(f"{stem}.json")
+        restored["Results"][pointer]["Target"] = capture["Results"][pointer]["Target"]
+        adapted = adapt_document(restored)
+        self.assertEqual(
+            adapted.rejections,
+            [],
+            msg="with a Target stated, the record has a coordinate and becomes a row",
+        )
+        self.assertEqual(len(adapted.rows), 3)
+        self.assertRowsEqualExpected(
+            adapted.rows,
+            load_expected(POSITIVE_EXPECTED_STEM)["rows"],
+            where="the absent-path fixture with its Target restored",
+        )
+
+        records = {
+            json.dumps(element["Misconfigurations"][0], sort_keys=True)
+            for element in fixture["Results"]
+        }
+        self.assertEqual(
+            len(records),
+            1,
+            msg=(
+                "all three elements hold the identical DS-0026 record, so the record "
+                "cannot be what distinguishes the rejected one from the two rows"
+            ),
+        )
+
     def test_the_unattributable_branch_is_reached_only_through_the_seam(self) -> None:
         """The same record is a row under its own section and a rejection under any other.
 
@@ -3132,12 +6223,13 @@ class RejectedRecordTest(TrivyAdapterTestCase):
     def test_the_unmerged_part_is_read_with_the_base_its_shape_requires(self) -> None:
         """The three readings of the per-directory part, and why only one asserts anything.
 
-        The metadata records that the retained parts are not root-anchored, and
-        ``paths.resolve_trivy_path`` requires a ``per_section_target`` base with a section
-        base for one.  Measuring all three readings is what shows the chosen one is the
-        metadata's rather than the one that happens to produce a rejection: read against
-        the scan root the fixture yields four rows and no rejection at all, and with no
-        section base every record fails for the same reason and none survives.
+        The metadata records that the runner-written parts, absent from this checkout, are
+        not root-anchored, and ``paths.resolve_trivy_path`` requires a ``per_section_target``
+        base with a section base for one.  Measuring all three readings is what shows the
+        chosen one is the metadata's rather than the one that happens to produce a
+        rejection: read against the scan root the fixture yields four rows and no rejection
+        at all, and with no section base every record fails for the same reason and none
+        survives.
         """
         stem = "reject-trivy-unresolvable-path"
         self.assertIn(stem, PER_SECTION_TARGET_STEMS)
@@ -3206,6 +6298,212 @@ class RejectedRecordTest(TrivyAdapterTestCase):
         )
 
 
+class RejectionClassPartitionTest(TrivyAdapterTestCase):
+    """The closed rejection vocabulary, partitioned into what this shape can and cannot do.
+
+    :data:`normalize.paths.REJECT_CLASSES` is a closed set of ten.  For each member this
+    module states one of exactly two things: the committed fixture that produces it for
+    a Trivy artifact, or the structural reason a Trivy artifact cannot produce it.  The
+    two sets are asserted to be disjoint and to cover the vocabulary with no remainder,
+    which is what makes "this adapter cannot produce that" a measured claim rather than
+    an assumption nobody rechecked.
+
+    The assertion exists because of a real failure mode rather than a hypothetical one.
+    ``absent_path`` sat outside both sets: the adapter could produce it -- a missing,
+    null or blank ``Results[].Target`` reaches it through
+    :func:`normalize.paths.resolve_trivy_path` -- while this module's own docstring said
+    it was "not exercised here".  Nothing failed, because nothing was looking.  A class
+    that falls out of both sets now fails here, and a tenth class added to
+    ``paths.py`` arrives with a failure naming it rather than silently untested.
+    """
+
+    def producible_classes(self) -> set[str]:
+        """The classes this module drives with a committed fixture."""
+        return set(REJECT_CLASS_BY_STEM.values())
+
+    def test_the_two_sets_partition_the_closed_vocabulary_exactly(self) -> None:
+        """Disjoint, and together the whole of ``paths.REJECT_CLASSES``."""
+        producible = self.producible_classes()
+        unreachable = set(UNREACHABLE_REJECT_CLASSES)
+        vocabulary = set(paths.REJECT_CLASSES)
+
+        self.assertEqual(
+            producible & unreachable,
+            set(),
+            msg="a class cannot be both driven by a fixture and unreachable",
+        )
+        self.assertEqual(
+            producible | unreachable,
+            vocabulary,
+            msg=(
+                "every member of the closed vocabulary is accounted for: the "
+                "difference names the classes that are neither tested nor explained"
+            ),
+        )
+        self.assertEqual(
+            vocabulary - producible,
+            unreachable,
+            msg="stated the other way round, so a missing entry cannot cancel out",
+        )
+        self.assertEqual(len(paths.REJECT_CLASSES), 10)
+        self.assertEqual(len(producible), 8)
+        self.assertEqual(len(unreachable), 2)
+        self.assertEqual(
+            len(set(paths.REJECT_CLASSES)),
+            len(paths.REJECT_CLASSES),
+            msg="the vocabulary itself carries no duplicate",
+        )
+
+    def test_every_producible_class_names_one_fixture_and_that_fixture_produces_it(
+        self,
+    ) -> None:
+        """Every producible class is named by a fixture, and every fixture actually fires.
+
+        A mapping that named a fixture which produced a different class would pass a
+        set-equality check and assert nothing, so the class is read back off the
+        adapter's own output for every entry.
+
+        The relation is onto, not one-to-one: a class may be reached by more than one
+        committed route (``non_integer_start_line`` is reached by three), and what is
+        asserted is that the classes the fixtures claim are exactly the producible set --
+        no class left uncovered, and no fixture claiming a class this shape cannot produce.
+        """
+        producible = self.producible_classes()
+        self.assertEqual(
+            set(REJECT_CLASS_BY_STEM.values()),
+            set(producible),
+            msg="the fixtures' classes are exactly the producible set",
+        )
+        self.assertEqual(
+            sorted(REJECT_CLASS_BY_STEM),
+            sorted(REJECT_FIXTURE_STEMS),
+            msg="the stems and the class mapping cover the same fixtures",
+        )
+        for stem, expected_class in sorted(REJECT_CLASS_BY_STEM.items()):
+            with self.subTest(fixture=stem, reject_class=expected_class):
+                self.assertTrue(
+                    paths.is_reject_class(expected_class),
+                    msg="the class is one paths.py owns",
+                )
+                self.assertEqual(
+                    expected_class,
+                    getattr(paths, f"REJECT_{expected_class.upper()}"),
+                    msg="and equals the module's own constant of that name",
+                )
+                self.assertTrue(
+                    (FIXTURES_DIR / f"{stem}.json").is_file(),
+                    msg=f"fixtures/{stem}.json is committed",
+                )
+                adapted = adapt_negative(stem)
+                self.assertEqual(
+                    sorted(adapted.rejections_by_class),
+                    [expected_class],
+                    msg="the fixture produces exactly the class it is mapped to",
+                )
+                self.assertEqual(
+                    load_expected(stem)["counts"]["rejections_by_class"],
+                    adapted.rejections_by_class,
+                    msg="and the hand-verified expectation states the same",
+                )
+
+    def test_every_unreachable_class_is_named_with_a_reason_and_never_appears(
+        self,
+    ) -> None:
+        """The reason is prose a reader can check, and the absence is measured.
+
+        Each unreachable class is asserted to appear in no rejection of any committed
+        fixture -- the two positive documents, the four halt documents insofar as they
+        reach the record pass, and all eight negatives.  A reason alone would be an
+        assertion about intent; this is an assertion about output.
+        """
+        for unreachable, reason in sorted(UNREACHABLE_REJECT_CLASSES.items()):
+            with self.subTest(unreachable=unreachable):
+                self.assertTrue(
+                    paths.is_reject_class(unreachable),
+                    msg="an unreachable class is still a real class",
+                )
+                self.assertIsInstance(reason, str)
+                self.assertGreater(
+                    len(reason.strip()),
+                    60,
+                    msg=(
+                        "the reason has to say why the shape cannot produce it, which "
+                        "a few words cannot"
+                    ),
+                )
+                self.assertNotIn(
+                    "fixture",
+                    reason,
+                    msg=(
+                        "the reason must be about the artifact's shape, never about "
+                        "which cases this corpus happens to contain"
+                    ),
+                )
+
+        for stem in (POSITIVE_EXPECTED_STEM, FEATURES_EXPECTED_STEM):
+            fixture = (
+                POSITIVE_FIXTURE if stem == POSITIVE_EXPECTED_STEM else FEATURES_FIXTURE
+            )
+            with self.subTest(fixture=fixture):
+                adapted = adapt_document(load_fixture(fixture))
+                self.assertEqual(
+                    adapted.rejections,
+                    [],
+                    msg="a positive fixture rejects nothing at all",
+                )
+        for stem in REJECT_FIXTURE_STEMS:
+            adapted = adapt_negative(stem)
+            for unreachable in UNREACHABLE_REJECT_CLASSES:
+                with self.subTest(fixture=stem, unreachable=unreachable):
+                    self.assertNotIn(unreachable, adapted.rejections_by_class)
+
+    def test_no_reject_class_is_also_a_halt_reason_or_a_path_kind(self) -> None:
+        """Three closed vocabularies, no overlap, and none of them invented here.
+
+        A rejection is a counted record-level outcome, a halt stops the run, and a path
+        kind describes a resolved coordinate.  A name shared between two of them would
+        make a reader unable to tell which outcome a value described, and would let one
+        vocabulary's coverage assertion be satisfied by another's member.
+        """
+        rejections = set(paths.REJECT_CLASSES)
+        halts = set(trivy.HALT_REASONS)
+        kinds = set(paths.PATH_KINDS)
+        self.assertEqual(rejections & halts, set())
+        self.assertEqual(rejections & kinds, set())
+        self.assertEqual(halts & kinds, set())
+        for name in sorted(rejections | halts | kinds):
+            with self.subTest(name=name):
+                self.assertIsInstance(name, str)
+                self.assertTrue(name.strip())
+                self.assertEqual(name, name.strip())
+
+    def test_the_module_docstrings_claim_matches_the_measured_partition(self) -> None:
+        """The prose at the top of this file is asserted, not merely written.
+
+        A docstring that says which classes are covered is documentation a reader trusts,
+        and it is exactly what was wrong before: it named ``absent_path`` as not claimed
+        while the adapter could produce it.  Asserting the counts against the sets means
+        the prose cannot drift from the code again without a failure.
+        """
+        docstring = __doc__ or ""
+        self.assertIn(
+            "Eight of the ten classes",
+            docstring,
+            msg="the count in the docstring is the size of the producible set",
+        )
+        self.assertEqual(len(self.producible_classes()), 8)
+        for reject_class in sorted(self.producible_classes()):
+            with self.subTest(reject_class=reject_class):
+                self.assertIn(
+                    f"``{reject_class}``",
+                    docstring,
+                    msg="every covered class is named in the docstring's list",
+                )
+        for unreachable in sorted(UNREACHABLE_REJECT_CLASSES):
+            with self.subTest(unreachable=unreachable):
+                self.assertIn(f"``{unreachable}``", docstring)
+
+
 class KeptRowTest(TrivyAdapterTestCase):
     """Rows that are kept rather than rejected, asserted so a tidy-up cannot drop them.
 
@@ -3222,8 +6520,8 @@ class KeptRowTest(TrivyAdapterTestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        """Adapt the positive fixture once for the whole class."""
-        cls.adapted = adapt_document(load_fixture(POSITIVE_FIXTURE))
+        """Adapt the derived features document once for the whole class."""
+        cls.adapted = adapt_document(load_fixture(FEATURES_FIXTURE))
 
     def test_a_manifest_outside_the_twelve_globs_is_kept_with_in_scope_false(self) -> None:
         """Assertion 17: four rows from two real lockfiles, kept and marked out of scope.
@@ -3314,7 +6612,7 @@ class KeptRowTest(TrivyAdapterTestCase):
             paths.matches_any_glob(container, environment().globs),
             msg="the container itself is inside the twelve globs",
         )
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"] = [copy.deepcopy(document["Results"][4])]
         element = document["Results"][0]
         element["Target"] = container
@@ -3377,7 +6675,7 @@ class KeptRowTest(TrivyAdapterTestCase):
             paths.contains_src_test(target),
             msg="the path does carry the literal marker",
         )
-        document = derived(POSITIVE_FIXTURE)
+        document = derived(FEATURES_FIXTURE)
         document["Results"] = [copy.deepcopy(document["Results"][1])]
         document["Results"][0]["Target"] = target
         adapted = adapt_document(document)

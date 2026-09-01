@@ -272,8 +272,10 @@ and parses.
 
 **Second appearance.** Opengrep appears twice in this run by design: here as one
 of the nine scanned runners, and separately as the subject of the taint A/B, whose
-two arms are written to `harness/artifacts/logs/taint-ab-on.{log,sarif}` and
-`harness/artifacts/logs/taint-ab-off.{log,sarif}` — outside
+arms are written to `harness/artifacts/logs/taint-ab-anchor-diskstore-{on,off}.{log,sarif}`
+for the mandated subject, `…-fullruleset-{on,off}.{log,sarif}` for the same subject
+under the whole ruleset, `taint-ab-hiveshim-{on,off}.{log,sarif}` for the
+discriminating pair, and `taint-ab-{on,off}.log` for the analysis — all outside
 `harness/artifacts/raw/` so neither can overwrite this runner's artifact. That
 A/B **contributes no dataset row**, and none of its findings is folded into the
 1,322 above; doing so would corrupt both this tool's count and the dataset total.
@@ -929,6 +931,16 @@ occurrences of it against **zero occurrences of `importCode`**, and reported
 was not rebuilt by this invocation. Had the digest differed, the run would have
 halted.
 
+**The file at that path now holds different bytes, and that is recorded rather than
+smoothed over.** Measured at this checkpoint it is **541,309,809** bytes, sha256
+`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` — neither the
+pair this load verified and read, nor the pair probe query 03 read. Provisioning
+re-ran against the host and replaced the shared file. What this entry records is
+unchanged and remains exact: the identity **this** load verified immediately before
+reading, and that the comparison matched. The three-pair divergence, and why it is a
+halt-class record contradiction rather than a tolerated difference, is **D4** in
+`oss-scan-results/run-record.md` §13.
+
 **Rejections, all 585 under `unresolvable_path`.** Each rejected record is a
 bytecode class with no source coordinate in the pinned tree — third-party classes
 shaded into Spark's JARs. Projecting the rejection records' own class fields
@@ -982,15 +994,12 @@ written, so a dataset whose identity already failed would never have reached dis
 The parse status, record counts and reconciliation results in every entry above
 are this run's measurements (`harness/artifacts/logs/normalize-run.json`).
 
-**The adapter tests.** Suite exit **0**, **577 tests** and 12,955 subtests, with
+**The adapter tests.** Suite exit **0**, **1134 tests** and 27,087 subtests, with
 0 failures, 0 errors, 0 skips, 0 expected failures and 0 unexpected successes;
-verbatim trailer `Ran 577 tests in 1.534s` / `OK`. Interpreter
+verbatim trailer `Ran 1134 tests in 7.026s` / `OK`. Interpreter
 `/usr/bin/python3` at **3.13.7**, the same base interpreter as the normalizer and
 independent of every scanner's environment. Per-module exit status 0 for all
-eight modules: `test_sarif_adapter`, `test_trivy_adapter`,
-`test_gitleaks_adapter`, `test_checkov_adapter`,
-`test_dependency_check_adapter`, `test_joern_adapter`,
-`test_shape_routing_negative` and `test_reconciliation`. A failed adapter
+10 modules: `test_checkov_adapter`, `test_cli_writers`, `test_dependency_check_adapter`, `test_emit_publication`, `test_gitleaks_adapter`, `test_joern_adapter`, `test_reconciliation`, `test_sarif_adapter`, `test_shape_routing_negative` and `test_trivy_adapter`. A failed adapter
 fixture, rejection or reconciliation test is a condition that **stops the run**;
 it was never met, and no result here is recorded as a soft warning, a known
 failure, an expected failure or a skip

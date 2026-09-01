@@ -1,0 +1,10 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.74.0"
+  },
+  "ReportID": "01a0574b-18aa-7738-82a5-a921ba190246",
+  "CreatedAt": "2026-08-31T10:08:54.442475466Z",
+  "ArtifactName": "resource-managers/yarn/src/main",
+  "ArtifactType": "filesystem"
+}

@@ -1,0 +1,197 @@
+{
+ "description": "The hand-verified expected outcome for oss-scan-results/adapter-tests/fixtures/malformed-joern.json -- a document written under a KNOWN artifact name whose content is not that writer's native shape. It states a HALT, not rows, despite the .rows.json suffix this folder's naming convention requires: the suffix names the folder's contract (one expected file per fixture), not the shape of every outcome. Every value below was derived by reading the fixture and the authored tables in harness/lib/normalize/shape.py, and each is asserted programmatically by oss-scan-results/adapter-tests/test_shape_routing_negative.py rather than taken on trust.",
+ "outcome": "halt",
+ "outcome_kind": "shape-detection halt before adapter selection",
+ "tool": "joern",
+ "tool_note": "The tool IS resolved here, which is what distinguishes this fixture from expected/unknown-shape.rows.json: the name routing keys on is one of the nine, so the writer is known and only its document shape is wrong.",
+ "scanner_class": null,
+ "adapter": null,
+ "adapter_invoked": false,
+ "null_field_note": "scanner_class and adapter are null rather than omitted, so a generic loader reads this file with the same keys as the positive expected files in this folder. They are null because the halt precedes adapter selection and row construction: no row exists to carry a scanner_class (the joern writer's rows would have carried sast, from shape.SCANNER_CLASS_BY_TOOL, and that is deliberately not recorded as this document's outcome), and no adapter module is named, imported or called.",
+ "fixture": {
+  "path": "oss-scan-results/adapter-tests/fixtures/malformed-joern.json",
+  "sha256": "209233998ea65ba86ebd497267b9ea8f9f643aa6ca63775b1a9fadf28e495048",
+  "bytes": 164,
+  "json_well_formed": true,
+  "top_level_type": "object",
+  "python_type": "dict",
+  "top_level_length": 6,
+  "top_level_keys": [
+   "tool",
+   "tool_version",
+   "cpg",
+   "query_set",
+   "queries",
+   "findings"
+  ],
+  "authored_note": "An authored document, not captured tool output. joern.json is this harness's own shape rather than a Joern output format -- the runner bakes a collector that writes an envelope plus a findings array -- so this fixture is that envelope with the one member the signature requires broken: findings carries JSON null. The envelope members are deliberately plausible and deliberately not measurements: tool_version is the literal 0.0.0-example, the query set is named example-query-set, and the cpg member names the graph path the harness uses without asserting anything about a graph. Nothing in it is a finding, a secret, a credential or a token.",
+  "why_it_is_not_named_joern_json": "This folder already holds fixtures/joern.json, the captured positive fixture, so a second file cannot take that name. The negative test therefore routes this document under the artifact filename its writer uses (see routed_as below) rather than under the fixture's own filename, which resolves to no tool at all."
+ },
+ "routed_as": {
+  "subject": "joern.json",
+  "second_subject": "harness/artifacts/raw/joern.json",
+  "second_subject_note": "Both forms are asserted, because a run resolves the path form (shape.route_artifact over an entry in harness/artifacts/raw/) while a bare filename is what the authored tables hold. Only the filename component is read; neither path is opened, and no absolute path appears in this file or in the test.",
+  "fixture_name_resolves_to_a_tool": false,
+  "fixture_name_resolution_note": "shape.resolve_tool(\"malformed-joern.json\") is None. Asserted by the test so the halt below cannot be passing for the wrong reason: routed under its own name this document would halt with shape.REASON_UNRECOGNIZED_ARTIFACT_NAME, a different condition owned by expected/unknown-shape.rows.json."
+ },
+ "field_order": [
+  "tool",
+  "scanner_class",
+  "rule_id",
+  "message",
+  "severity_native",
+  "severity_norm",
+  "path",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate",
+  "in_scope"
+ ],
+ "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Recorded for parity with the positive expected files in this folder; no row below carries it, because rows is empty by expectation.",
+ "shape_detection": {
+  "function": "normalize.shape.is_sarif",
+  "authority": "harness/lib/normalize/shape.py",
+  "conjunction": "isinstance(doc, Mapping) and doc.get(\"version\") == \"2.1.0\" and isinstance(doc.get(\"runs\"), list)",
+  "mapping_condition_met": true,
+  "version_key_present": false,
+  "version_condition_met": false,
+  "version_observed": null,
+  "runs_key_present": false,
+  "runs_condition_met": false,
+  "is_sarif": false,
+  "is_sarif_derivation": "A mapping with no version key and no runs key: None == \"2.1.0\" is False and isinstance(None, list) is False, so both halves fail and the native signature below is the test that decides this document's fate."
+ },
+ "native_signature": {
+  "authority": "normalize.shape.NATIVE_SIGNATURES[\"joern\"], derived from AAP 0.5.4's per-shape record-location table",
+  "signature_required": true,
+  "expected": "a JSON object carrying \"findings\" whose value is a JSON array, each element one finding. An empty array is legitimate: it is a query set that matched nothing. No envelope member is required, so the collector may add one without invalidating its own artifact",
+  "expected_note": "Recorded verbatim and asserted equal to the signature's own statement string, so this file cannot describe a requirement the implementation does not make.",
+  "accepted_top_level_types": [
+   "object"
+  ],
+  "required_key": "findings",
+  "required_key_type": "array",
+  "required_key_present": true,
+  "observed_key_type": "null",
+  "matches": false,
+  "why_it_fails": "The key is present, so a presence-only test would pass this document, and its value is JSON null rather than an array -- so the container the adapter walks and the container reconcile._count_joern counts does not exist. observed_key_type is \"null\" for a present key holding JSON null, which is distinct from the \"absent\" this file's dependency-check sibling records.",
+  "what_is_deliberately_not_required": "No envelope member is required -- not tool, not cpg, not queries -- because they are metadata that reaches the counters rather than the dataset, and a signature requiring one would reject a legitimate artifact the collector extended. An EMPTY findings array satisfies the signature: it is a query set that matched nothing, and reconcile._count_joern reads it as zero records rather than as an error."
+ },
+ "counting_traversal": {
+  "function": "normalize.reconcile.count_records(\"joern\", doc)",
+  "would_return": 0,
+  "note": "This is the measured reason the halt has to exist. _count_joern takes _length over a non-array and returns zero, and the joern adapter's own _json_array reads null as an empty sequence and emits zero rows and zero rejections -- so before this fix the identity balanced at 0 = 0 + 0 over a malformed document, parse status read clean, and nothing downstream could tell that apart from a query set that matched nothing. AAP 0.5.4 requires a halt rather than a best-effort parse, and AAP 0.9.2 lists the condition among those that stop the run.",
+  "traversal_unchanged": "reconcile.py's traversal is deliberately not hardened into a second shape test: its value is that it shares no code and no judgement with the row builder. The halt belongs one layer up, in shape.py."
+ },
+ "named_halt_requirement": {
+  "requirement": "a deliberate, NAMED halt",
+  "expected_exception": "shape.UnknownArtifactShape",
+  "expected_exception_qualified": "normalize.shape.UnknownArtifactShape",
+  "any_exception_is_a_pass": false,
+  "unnamed_exception_is_a_failure": true,
+  "forbidden_escaping_exceptions": [
+   "KeyError",
+   "TypeError"
+  ],
+  "statement": "A KeyError or TypeError escaping a half-attempted parse is a FAILURE, not a pass: it carries no reason, names no artifact, quotes no expected signature and cannot be told apart from a defect in the normalizer itself. The test asserts the exact type with assertIs(type(error), shape.UnknownArtifactShape), never Exception.",
+  "raised_by_the_shape_layer": "The exception must come from normalize.shape.route or normalize.shape.route_artifact -- the module that owns the decision -- rather than from an adapter reached with a document whose shape was never established."
+ },
+ "halt": {
+  "expected": true,
+  "expected_exception": "shape.UnknownArtifactShape",
+  "reason": "native-shape-unrecognized",
+  "reason_constant": "shape.REASON_NATIVE_SIGNATURE_MISMATCH",
+  "reason_inventory": "shape.HALT_REASONS, the closed set of four: unrecognized-artifact-name, unsupported-document-type, sarif-producer-artifact-not-sarif, native-shape-unrecognized.",
+  "reason_note": "Not the name reason: the name resolves to joern. Not the container reason: an object top level is a supported container. The halt is attributable to the document not being this writer's native shape.",
+  "raised_by": [
+   "normalize.shape.route",
+   "normalize.shape.route_artifact"
+  ],
+  "raised_before": "any adapter module is named, imported or called, and before any record traversal of any kind",
+  "observed_attributes": {
+   "reason": "native-shape-unrecognized",
+   "artifact_path": "joern.json",
+   "stem": "joern",
+   "stem_note": "For this reason the stem carries the canonical tool identifier rather than a filename: the writer is known by the time the signature is tested.",
+   "top_level_type": "object",
+   "python_type": "dict",
+   "version": null,
+   "top_level_keys": [
+    "tool",
+    "tool_version",
+    "cpg",
+    "query_set",
+    "queries",
+    "findings"
+   ],
+   "top_level_length": 6,
+   "sarif_detected": false,
+   "signature_tool": "joern",
+   "expected_signature_recorded": true,
+   "signature_observation_recorded": true
+  },
+  "message_must_carry": [
+   "the canonical tool identifier",
+   "the expected signature in words",
+   "the observed structure where that signature required a container"
+  ],
+  "details_method": "shape.UnknownArtifactShape.details() returns the same facts as a flat JSON-serialisable mapping, adding expected_artifacts, signature_tool, expected_signature and signature_observation. The test asserts json.dumps over it succeeds, because harness/artifacts/logs/normalize-run.json has to carry the halt record.",
+  "not_a_rejection": {
+   "is_reject_class": false,
+   "reject_class": null,
+   "reject_classes_authority": "harness/lib/normalize/paths.py, the REJECT_CLASSES tuple -- a closed set of ten class names, not copied here so the one authority cannot drift into two.",
+   "statement": "The stated outcome is a halt, not a counted rejection: a rejection is a per-record outcome inside an adapter that already owns its artifact, and this document never reaches an adapter. The test asserts the non-membership of the reason and the exception name over paths.REJECT_CLASSES programmatically."
+  },
+  "reason_literal_divergence": "This value was authored as the literal 'native-signature-mismatch' against a tree where the signature check owned a reason of its own. In the delivered tree that constant and shape.REASON_NATIVE_SHAPE_UNRECOGNIZED are ONE literal -- 'native-shape-unrecognized' -- because a known artifact name whose document does not carry that writer's structure is one condition however it is detected, and two literals for it would put a reason outside shape.HALT_REASONS, which the router's own inventory is asserted closed over. reason_constant is unchanged and is what the test compares against; the literal recorded here is the value that constant holds in this tree."
+ },
+ "parse": {
+  "json_load_expected_to_succeed": true,
+  "json_load_error": null,
+  "well_formed_is_essential": true,
+  "why_well_formedness_is_the_point": "A document that fails to parse is stopped by the parser and no shape decision is reached. It is precisely a document that parses perfectly, carries a known artifact name and reads plausibly that tempts a best-effort parse."
+ },
+ "counts": {
+  "raw_finding_records": null,
+  "raw_count_unit": null,
+  "raw_count_unit_note": "Null rather than 0: a count unit is a property of a document of the right shape, and this document has none. What the traversal would return over it anyway is recorded above under counting_traversal.would_return, where it is evidence about the defect rather than a reconciliation figure.",
+  "rows": 0,
+  "rejections": 0,
+  "rejections_by_class": {},
+  "reconciliation_identity": "not applicable -- the halt precedes any record traversal, so no count unit exists to reconcile against"
+ },
+ "rows": [],
+ "rows_note": "Explicitly empty, and empty for a different reason than a clean scan is empty: the pipeline stopped, it did not look and find nothing.",
+ "row_derivations": [],
+ "guarded_failure": "A permissive shape layer does not raise on this document -- it hands it to the joern adapter, which reads null as no findings, emits zero rows and zero rejections, surfaces the envelope counters and reports success. The independent counting traversal returns zero as well, so the identity balances and parse status reads clean. Every downstream signal is identical to a Joern query set that matched nothing.",
+ "negative_test_contract": {
+  "test": "oss-scan-results/adapter-tests/test_shape_routing_negative.py",
+  "assertions": [
+   "shape.route over this fixture's parsed document under the subject joern.json raises shape.UnknownArtifactShape, and the raised type is exactly that class.",
+   "shape.route_artifact over harness/artifacts/raw/joern.json and the same document raises the same reason, so both entry points halt.",
+   "error.reason equals shape.REASON_NATIVE_SIGNATURE_MISMATCH, and is neither of the other two members of shape.HALT_REASONS.",
+   "error.signature_tool is joern and error.expected_signature equals shape.NATIVE_SIGNATURES[\"joern\"].statement, which this file records verbatim.",
+   "error.signature_observation records the required key, the required type and the observed type, and those match the values recorded here.",
+   "shape.is_sarif over the document is False and shape.matches_native_signature(\"joern\", doc) is False.",
+   "reconcile.count_records(\"joern\", doc) is 0 -- the false-clean this halt prevents, asserted rather than asserted about.",
+   "No adapter module is imported by the halting routing call.",
+   "The rows array is empty, the rejection total is 0, and neither the reason nor the exception name is a member of paths.REJECT_CLASSES.",
+   "shape.resolve_tool over the fixture's own filename is None, so the subject the test routes under is the artifact filename and not the fixture name.",
+   "The fixture's sha256, byte size, top-level type and top-level keys equal the values recorded here, so this file cannot drift from the document it describes."
+  ],
+  "mandated_direction_note": "AAP 0.5.4 mandates a negative test asserting that a native artifact does not route to the SARIF adapter; that assertion is owned by the same test file over the captured native fixtures. This fixture extends it in the direction the review found open: a KNOWN filename whose content is not that writer's native shape must halt rather than become a clean zero-result."
+ },
+ "related_fixtures": {
+  "the_captured_positive": "oss-scan-results/adapter-tests/fixtures/joern.json -- the envelope this document imitates, whose findings IS an array and which routes normally.",
+  "the_legitimate_empty_case": "An envelope carrying an EMPTY findings array, exercised in oss-scan-results/adapter-tests/test_joern_adapter.py and asserted to route rather than halt: an empty finding set is legitimate for every writer.",
+  "the_fall_through": "oss-scan-results/adapter-tests/fixtures/unknown-shape.json -- a document under an UNRECOGNISED name, which halts for a different reason.",
+  "the_sibling_malformed_documents": [
+   "oss-scan-results/adapter-tests/fixtures/malformed-checkov.json",
+   "oss-scan-results/adapter-tests/fixtures/malformed-gitleaks.json",
+   "oss-scan-results/adapter-tests/fixtures/malformed-trivy.json",
+   "oss-scan-results/adapter-tests/fixtures/malformed-dependency-check.json"
+  ],
+  "note": "Named so a reader can see which layer owns which failure. No fixture's outcome is inferred from another's, and each expected file states its own."
+ },
+ "prohibitions_observed": "No secret value, credential, token or redacted-secret placeholder appears in any field of this file or its fixture (this tree is committed to git). No finding is judged, nothing is deduplicated, and no tool's output is characterised against another's: this file describes one document's shape decision and the halt it must produce, and nothing else."
+}

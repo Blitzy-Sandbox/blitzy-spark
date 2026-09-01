@@ -291,7 +291,6 @@ _NAME_KEY: Final[str] = "name"
 _MESSAGE_KEY: Final[str] = "message"
 _TEXT_KEY: Final[str] = "text"
 _LEVEL_KEY: Final[str] = "level"
-_DEFAULT_CONFIGURATION_KEY: Final[str] = "defaultConfiguration"
 _LOCATIONS_KEY: Final[str] = "locations"
 _PHYSICAL_LOCATION_KEY: Final[str] = "physicalLocation"
 _ARTIFACT_LOCATION_KEY: Final[str] = "artifactLocation"
@@ -373,12 +372,12 @@ COUNTER_RULE_METADATA_UNRESOLVED: Final[str] = "rule_metadata_unresolved"
 #: Which source supplied ``severity_native``.  Two different vocabularies are in
 #: play and the two rule-borne sources are not the same field, so recording which
 #: one was used is what makes the mapping auditable rather than merely plausible.
-#: In this provisioning the ``defaultConfiguration`` counter is the one that moves:
-#: every opengrep and semgrep result was measured to carry no ``level`` of its own.
+#: In this provisioning ``severity_absent`` is the counter that moves for two of the
+#: three producers: every opengrep and semgrep result was measured to carry no
+#: ``level`` of its own and no rule ``properties`` severity either, and AAP 0.5.4
+#: enumerates exactly three field sources for a SARIF result, so those rows state the
+#: absence rather than borrowing a literal from a source the AAP does not carry.
 COUNTER_SEVERITY_FROM_LEVEL: Final[str] = "severity_from_level"
-COUNTER_SEVERITY_FROM_RULE_DEFAULT_CONFIGURATION: Final[str] = (
-    "severity_from_rule_default_configuration"
-)
 COUNTER_SEVERITY_FROM_RULE_PROPERTY: Final[str] = "severity_from_rule_property"
 COUNTER_SEVERITY_ABSENT: Final[str] = "severity_absent"
 
@@ -410,7 +409,6 @@ _AUTHORED_COUNTER_KEYS: Final[tuple[str, ...]] = (
     COUNTER_RULE_METADATA_FROM_EXTENSION,
     COUNTER_RULE_METADATA_UNRESOLVED,
     COUNTER_SEVERITY_FROM_LEVEL,
-    COUNTER_SEVERITY_FROM_RULE_DEFAULT_CONFIGURATION,
     COUNTER_SEVERITY_FROM_RULE_PROPERTY,
     COUNTER_SEVERITY_ABSENT,
     COUNTER_START_LINE_ABSENT,
@@ -933,56 +931,47 @@ def _severity_for(
     * a rule's ``properties.severity`` or ``properties.problem.severity`` maps
       through the case-insensitive native-label table, so it is passed as ``label``.
 
-    The four sources are consulted in this fixed order, and the first that states a
-    literal wins outright:
+    Exactly three sources are consulted, in this fixed order, and the first that
+    states a literal wins outright:
 
     1. ``result.level`` -- the level the producer stated on this very result;
-    2. ``rule.defaultConfiguration.level`` -- the *same* ``level`` field, reached by
-       the specification's own derivation for a result that omits it;
-    3. ``rule.properties.severity``;
-    4. ``rule.properties.problem.severity``.
+    2. ``rule.properties.severity``;
+    3. ``rule.properties.problem.severity``.
 
-    Step 2 is the one this pipeline actually depends on, and it is a derivation rather
-    than an inference.  SARIF 2.1.0 defines ``result.level``'s value for a result that
-    omits the property in terms of the rule's ``defaultConfiguration.level``; the
-    specification "defines precisely how to derive the value", and mainstream
-    consumers implement exactly that -- SonarQube's importer documents that where the
-    result field "is not defined ``runs[].tool.driver.rules[].defaultConfiguration``
-    will be used instead".  Reading it is therefore the same class of act as resolving
-    ``ruleId`` through ``tool.driver.rules[]`` by ``ruleIndex``, which AAP 0.5.4
-    already mandates: following the artifact's own indirection to the literal the
-    producer did state.  It widens no vocabulary -- the value is a SARIF ``level``
-    literal and maps through the ``level`` table, exactly as a result-borne one does.
+    That set is not a choice made here.  AAP 0.5.4's per-shape table enumerates the
+    field sources for a shared-SARIF record as *"severity_native <- level, or the
+    rule's properties.severity/problem.severity where level is absent"*, and the AAP
+    is the frozen contract this module is aligned to rather than a document to be
+    reinterpreted.  Three sources is therefore the whole of the authorisation.
 
-    It is load-bearing rather than defensive.  Measured over this provisioning's own
-    captured output, **no** opengrep or semgrep result carries a ``level`` and **no**
-    rule carries ``properties.severity`` or ``properties.problem.severity``; the
-    severity those artifacts state lives solely in ``defaultConfiguration.level``,
-    distributed across their rule sets as ``note``/``warning``/``error``.  Omitting
-    step 2 would therefore report every row from two of the three tools this module
-    serves as having no stated severity while the artifact plainly states one -- a
-    silent loss of a field the producer supplied, which is the failure mode AAP 0.5.4
-    exists to prevent.
+    ``rule.defaultConfiguration.level`` is deliberately **not** consulted, and the
+    omission is the substance of this function rather than an oversight in it.  The
+    field exists, SARIF 2.1.0 does describe deriving an omitted ``result.level``
+    through it, and mainstream consumers do implement that derivation -- and none of
+    that is an authorisation, because AAP 0.5.4 enumerates the field sources for this
+    shape and does not carry it.  Reading it would be this module deciding that a
+    source the contract omits ought to count, which is exactly the reinterpretation
+    the contract forbids; where the specification and the AAP describe different
+    behaviour, the AAP is what the code is held to.
 
-    What is deliberately **not** done, because it would cross from derivation into
-    assumption: the specification's *terminal* default, under which a result whose
-    level cannot be derived from any rule falls back to ``warning``.  Applying that
-    would manufacture a Medium band for a record no part of the artifact assigns a
-    severity to.  AAP 0.5.4's "No vocabulary at all" row requires the opposite -- the
-    absence *stated*, never a level assumed -- so where all four sources are silent
-    ``severity.resolve()`` returns ``severity_native`` ``None`` and ``severity_norm``
-    ``Info`` on the ``no_vocabulary`` basis.  A "warning" nobody wrote is
-    indistinguishable in the dataset from a "warning" a producer did write, which is
-    precisely why the standard's convenience default is refused here.
+    The consequence is measured rather than assumed, and it is deliberate.  Over this
+    provisioning's own captured output no opengrep or semgrep result carries a
+    ``level`` and no rule of theirs carries ``properties.severity`` or
+    ``properties.problem.severity``: what those two artifacts state lives solely in
+    ``defaultConfiguration.level``.  Every one of their rows therefore resolves to
+    ``severity_native`` ``None`` and ``severity_norm`` ``Info`` on the
+    ``no_vocabulary`` basis -- the absence *stated*, which is what AAP 0.5.4's "No
+    vocabulary at all" row requires -- and ``severity-map.md`` reports the two tools
+    as contributing no native literal.  Datadog's results carry their own ``level``
+    and are unaffected.
 
-    Also deliberately not consulted: ``run.policies`` and
-    ``invocation.ruleConfigurationOverrides``, the two run-time override surfaces that
-    can outrank ``defaultConfiguration``.  No producer in this pipeline emits either
-    -- verified absent across all three captured artifacts -- so honouring them would
-    be untested code on a path nothing exercises, and consulting an override that is
-    never present cannot change any row.  Should a future provisioning emit one, this
-    is the function that must grow the step, which is why the omission is named here
-    rather than left as silence.
+    Two further surfaces are likewise not consulted, for the same reason and named
+    here so the omissions are visible rather than silent: the specification's terminal
+    ``warning`` default for a result whose level cannot be derived at all, which would
+    manufacture a Medium band for a record nothing in the artifact assigns a severity
+    to; and ``run.policies`` / ``invocation.ruleConfigurationOverrides``, the run-time
+    override surfaces that can outrank a rule's configuration.  Neither appears in the
+    AAP's field sources, and no producer in this pipeline emits either.
 
     An earlier source outranks a later one even when its literal is unmappable: a
     ``level`` outside the SARIF vocabulary is disclosed as an unmapped literal rather
@@ -996,21 +985,6 @@ def _severity_for(
     level = result.get(_LEVEL_KEY)
     if _literal_is_present(level):
         return severity.resolve(sarif_level=level), COUNTER_SEVERITY_FROM_LEVEL
-
-    # The specification's own derivation for a result that omits ``level``.  Guarded
-    # with ``_json_object`` because a producer may carry ``defaultConfiguration`` as
-    # something other than an object, and a malformed configuration must fall through
-    # to the next source rather than raise.
-    default_configuration = _json_object(
-        rule.get(_DEFAULT_CONFIGURATION_KEY) if rule is not None else None
-    )
-    if default_configuration is not None:
-        default_level = default_configuration.get(_LEVEL_KEY)
-        if _literal_is_present(default_level):
-            return (
-                severity.resolve(sarif_level=default_level),
-                COUNTER_SEVERITY_FROM_RULE_DEFAULT_CONFIGURATION,
-            )
 
     properties = _rule_properties(rule)
     if properties is not None:
@@ -1749,4 +1723,3 @@ def adapt(
                 rows.append(outcome)
 
     return rows, rejections, counters
-

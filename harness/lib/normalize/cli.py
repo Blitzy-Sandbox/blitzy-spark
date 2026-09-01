@@ -40,12 +40,18 @@ COMPOSITION ORDER -- the order this module runs, and the reason for it
     adapter through the registry defined *here*, and call ``adapter.adapt(...)``.
 7.  **Reconciliation, stages A and B, before anything is written.**  A dataset whose
     identity already fails is never written to disk.
-8.  **``emit.emit_findings``** -- both files from the same validated rows, then the typed
-    re-parse comparison.
+8.  **``emit.publish_findings``** -- both files rendered from the same validated rows,
+    staged in their target directories, read back and compared field for field under
+    typed coercion, and only then moved into place.  The two deliverables are one
+    generation of one row list: they are published together or not at all, and both
+    carry one content-derived publication identifier recorded in the run record.
 9.  **Reconciliation stage C** -- the parsed ``findings.json`` and parsed ``findings.csv``
     row counts against the stage B identity, separately and against each other.
 10. **``harness/artifacts/logs/normalize-run.json``** -- written on every path out of this
-    module, including every halt.
+    module, including every halt, and published through ``emit.publish_document`` under
+    the same validated-directory, exclusive-no-follow, fsync-and-rename protocol as the
+    dataset, so no reader ever sees a truncated record and no symlink at either path can
+    redirect one.
 
 THE CLI CONTRACT
 ----------------
@@ -70,6 +76,36 @@ The exact command as invoked, the interpreter's absolute path and its reported v
 recorded (AAP 0.6.1).  The version is compared against the expected ``3.13.7`` (AAP 0.4.1)
 and any difference -- major, minor or patch -- is **recorded with both values while the run
 continues**.  It is never a halt.
+
+WHERE AN OUTPUT MAY BE WRITTEN -- three rules, all of them halts
+---------------------------------------------------------------
+The three configured outputs are the only files this module writes, and each has exactly
+one owner root.  ``findings.json`` and ``findings.csv`` must resolve inside the repository
+root the run declares (``$HARNESS_REPO_ROOT``, else the repository this module is installed
+in); ``normalize-run.json`` must resolve inside the log tree.  A path outside its owner is a
+configuration fault naming the path and the root (CWE-73), not a location.  The three must
+be three distinct files and none of them may name an input -- the raw directory, any
+artifact in it, the allowlist or ``runner-metadata.json`` -- because an output written over
+an input destroys the evidence the dataset was derived from, and two outputs at one path
+make the second write destroy the first while every count still reconciles.  Finally the
+target and every component at or below its owner root are checked with ``lstat``, and a
+symbolic link anywhere among them is refused with the component named (CWE-59).
+
+Every write then goes through ``emit.py``'s discipline, which this module uses rather than
+copies: an exclusive, no-follow staged file with an unguessable name, verified, and promoted
+by an atomic rename with the previously published set restored on failure.  There is no
+working-directory fallback for the run record's location: two sources supply it,
+``--run-record`` and ``$HARNESS_LOG_DIR``, and its absence is a configuration fault rather
+than a record written wherever the run was started from.
+
+REQUIRED EVIDENCE FAILS CLOSED
+------------------------------
+``harness/artifacts/logs/normalize-run.json`` is written on every path out of this module,
+**and a run that could not write and verify it never reports success**.  The record is
+staged, read back from disk, parsed as JSON and only then promoted; where any of that fails
+the diagnostic goes to stderr and the failure becomes the process's outcome with a non-zero
+exit code (CWE-703).  A dataset whose run record was lost is a dataset nobody can trace, so
+the honest outcome is the loss rather than the dataset.
 
 READ ONLY FROM THE RAW DIRECTORY -- an asserted boundary, not an assumption
 --------------------------------------------------------------------------
@@ -101,9 +137,16 @@ THE FOUR PARSE STATUSES (AAP 0.5.4)
 ``absent``   artifact absent **and the tool stated a no-work reason in its own output** --
              that output is quoted verbatim, the tool contributes zero rows and the run
              continues.  OSV-Scanner's exit 128 with *"No package sources found, --help
-             for usage information."* is the expected instance.  An artifact absent with
-             **no** stated reason halts: ``exit_status: timeout`` names how a process ended
-             and *"it does not excuse a missing artifact"*.
+             for usage information."* is the expected instance, and it is recognised by
+             matching that exact sentence: "stated a reason" is decided against the
+             per-tool table in :data:`_NO_WORK_STATEMENTS`, never by the streams being
+             non-empty, because a stack trace and a permission error are output rather
+             than an account of a tool having nothing to do.  Eight of the nine tools
+             have no such statement at all and are expected to write an artifact.  An
+             artifact absent with **no** words, or with words matching no recognised
+             statement, halts -- under two separately named reasons -- and
+             ``exit_status: timeout`` names how a process ended while *"it does not
+             excuse a missing artifact"*.
 
 Artifact status and exit status are independent.  A valid artifact is never suppressed
 because its runner exited non-zero, and two of the nine exit non-zero precisely because
@@ -132,6 +175,43 @@ This module reads artifacts that already exist.  It writes no Markdown, judges n
 compares no tool against another, deduplicates nothing, and repairs no count to make an
 identity hold.
 
+TWO PATH MEASUREMENTS, AND NEITHER SUBSTITUTES FOR THE OTHER
+-----------------------------------------------------------
+``totals.path_kinds`` classifies every resolved path by its **form** -- a tree file, a
+coordinate outside the root, an archive member, a bytecode-derived source -- which a
+resolver decides with no filesystem at all, and it carries the non-filesystem count and
+proportion AAP 0.6.1 puts in ``run-record.md``.  ``totals.paths_not_on_disk`` asks the
+other question AAP 0.1.1 requires answered: whether the thing each row names is
+**actually present in the pinned tree**.  A ``tree_file`` naming a file the pin does not
+carry is invisible to the first and counted by the second, which is why both are recorded.
+
+The second is measured **once**, by :func:`_paths_not_on_disk`, against the same root every
+path in the dataset was expressed against, and it is written into the record with its
+denominator, its per-reason and per-tool breakdown and a bounded set of examples -- so a
+count of zero reads as "none of 9,466 rows" rather than as an absent field.  A row counted
+there is kept, never dropped: an external coordinate, an archive member and a virtual
+reference are legitimate coordinates (AAP 0.9.3).
+
+NO RAW ARTIFACT STRING REACHES A DURABLE RECORD
+-----------------------------------------------
+``normalize-run.json`` is persisted and quoted into ``tool-status.md``, and much of what a
+halt or a rejection says is composed from text this module did not author -- an artifact's
+own rule identifiers, messages and URIs, and a runner status record's fields.  Two hazards
+follow: a terminal control sequence rewrites what an operator reading the record sees, and
+a URI carrying userinfo puts whatever credential the artifact happened to contain into a
+durable file.  Rejecting a record does not help, because a rejected record is still a
+*recorded* record.
+
+So there is one renderer, :func:`paths.safe_diagnostic` and its siblings, and this module
+uses it at three places: :meth:`NormalizeHalt.as_dict` and :attr:`NormalizeHalt.safe_message`
+(the persistence boundary for every halt), the adapter-contract halt (whose text the adapter
+composed from the artifact), and the unexpected-error path, where
+:func:`_safe_exception_chain` renders frames from :func:`traceback.format_tb` -- this
+repository's own source -- while *describing* each exception message rather than quoting it.
+``traceback.format_exc()`` is never written to the record: its final line is the exception's
+``str()``, which on an unexpected error is composed from whatever artifact content was being
+processed at the time.
+
 Exit codes
 ----------
 ``0``  the dataset was written and all three reconciliation stages and the typed
@@ -143,14 +223,22 @@ Exit codes
 ``78`` a configuration fault, the same ``EX_CONFIG`` the provisioned runners use through
        ``harness/lib/scope.sh``: unreadable or incomplete runner metadata, a scan root that
        contradicts the recorded one, an allowlist that is not the twelve authoritative
-       globs, a missing raw tree, or a missing conditional adapter module.
+       globs, a missing raw tree, a missing conditional adapter module, an output path
+       outside its owner root or aliasing another path or carrying a symlinked component,
+       and a run record that could not be written and verified.
 
 ``harness/artifacts/logs/normalize-run.json`` is written on **every** one of those paths, so
 a halt is diagnosable from the record rather than only from the console.  That tree is
 git-ignored (``.gitignore:31`` is ``artifacts/``), so the record is published through the
 per-file size-and-sha256 manifest (AAP 0.1.3) rather than by ``git add`` -- which is why it
-is written self-describing, carrying the byte size and sha256 of every input and output it
-names.
+is written self-describing, carrying the byte size and sha256 of **every** file it names
+that exists on disk: every input, every output, every runner artifact and every runner
+stream, including the tens-of-megabytes stdout logs, which are digested in bounded chunks
+rather than read whole.  A null measurement appears only where the file is absent, where
+it exists but could not be read, or where the entry names no file, and each such entry
+carries a ``null_reason`` saying which -- so no reader has to work out whether a null
+means "not measured" or "nothing to measure".  The record's own ``file_measurement`` block
+states that contract beside the data.
 
 Imports and the ``sys.path`` bootstrap
 --------------------------------------
@@ -184,6 +272,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shlex
 import sys
 import traceback
@@ -230,6 +319,10 @@ from normalize.adapters import (  # noqa: E402
 __all__ = [
     "SCHEMA_VERSION",
     "EXPECTED_INTERPRETER_VERSION",
+    "STATUS_DEFECT_DUPLICATE_KEY",
+    "STATUS_DEFECT_UNPARSABLE_LINE",
+    "STATUS_LINE_INVALID_KEY",
+    "STATUS_LINE_NO_SEPARATOR",
     "ARTIFACT_ORDER",
     "ADAPTER_REGISTRY",
     "CONDITIONAL_ADAPTER_MODULES",
@@ -246,6 +339,10 @@ __all__ = [
     "EXIT_STATUS_TIMEOUT",
     "EXIT_STATUS_UNRECORDED",
     "HALT_REASONS",
+    "NOT_ON_DISK_REASONS",
+    "PATHS_NOT_ON_DISK_EXAMPLE_LIMIT",
+    "NoWorkStatement",
+    "no_work_statements",
     "NormalizeHalt",
     "ConfigurationFault",
     "MissingAdapterModule",
@@ -270,6 +367,11 @@ SCHEMA_VERSION: str = "normalize-run/1.0.0"
 #: The document this module writes, named in AAP 0.6.1.
 RUN_RECORD_DOCUMENT: str = "harness/artifacts/logs/normalize-run.json"
 
+#: The role the run record is published under.  ``emit.publish_document`` records the role
+#: rather than deriving one from the filename, because a caller may write the record to a
+#: scratch path and a reader still has to know which document it is looking at.
+RUN_RECORD_ROLE: str = "normalize_run_record"
+
 #: The interpreter AAP 0.4.1 expects.  A difference is recorded with both values and the
 #: run continues -- major, minor or patch alike.  This is never a halt.
 EXPECTED_INTERPRETER_VERSION: str = "3.13.7"
@@ -282,6 +384,14 @@ ARTIFACT_ORDER: tuple[str, ...] = tuple(shape.CANONICAL_TOOLS)
 #: Default filenames, joined onto an environment-derived directory rather than onto a
 #: hardcoded repository-relative path.
 RUNNER_METADATA_FILENAME: str = "runner-metadata.json"
+#: The dataset's completion manifest, published LAST by the emitter's commit protocol
+#: and required by it immediately afterwards.  It lives in the log tree rather than
+#: beside the two deliverables because AAP 0.6.1 enumerates `oss-scan-results/` file by
+#: file while `harness/artifacts/logs/*.json` is an enumerated pattern -- so the commit
+#: record lands where this run's evidence legitimately accumulates rather than adding an
+#: unlisted file to the result tree.
+PUBLICATION_MANIFEST_FILENAME: str = "findings-publication.json"
+
 RUN_RECORD_FILENAME: str = "normalize-run.json"
 FINDINGS_JSON_RELATIVE: str = "oss-scan-results/findings.json"
 FINDINGS_CSV_RELATIVE: str = "oss-scan-results/findings.csv"
@@ -331,12 +441,18 @@ HALT_MISSING_ADAPTER_MODULE: str = "missing-adapter-module"
 HALT_ADAPTER_STRUCTURAL: str = "adapter-structural-halt"
 HALT_ADAPTER_CONTRACT: str = "adapter-contract-fault"
 HALT_ABSENT_WITHOUT_STATED_REASON: str = "artifact-absent-without-stated-reason"
+HALT_ABSENT_WITHOUT_NO_WORK_STATEMENT: str = "artifact-absent-without-no-work-statement"
 HALT_WRONG_SCAN_ROOT_EVIDENCE: str = "runner-resolved-another-tree"
 HALT_SMOKE_OVERRIDE_EVIDENCE: str = "runner-scanned-smoke-target"
 HALT_SOURCE_INDEX_EMPTY: str = "source-index-empty"
+HALT_SOURCE_INDEX_INCOMPLETE: str = "source-index-incomplete"
 HALT_RECONCILIATION: str = "reconciliation-failed"
 HALT_EMIT: str = "output-write-failed"
 HALT_OUTPUT_COMPARISON: str = "output-comparison-failed"
+HALT_OUTPUT_OUTSIDE_OWNER: str = "output-path-outside-its-owner-root"
+HALT_OUTPUT_ALIASED: str = "output-path-aliases-another-path"
+HALT_OUTPUT_SYMLINKED: str = "output-path-has-a-symlinked-component"
+HALT_RUN_RECORD_NOT_PERSISTED: str = "run-record-not-persisted"
 HALT_UNEXPECTED: str = "unexpected-error"
 HALT_REASONS: tuple[str, ...] = (
     HALT_VOCABULARY_MISMATCH,
@@ -355,12 +471,18 @@ HALT_REASONS: tuple[str, ...] = (
     HALT_ADAPTER_STRUCTURAL,
     HALT_ADAPTER_CONTRACT,
     HALT_ABSENT_WITHOUT_STATED_REASON,
+    HALT_ABSENT_WITHOUT_NO_WORK_STATEMENT,
     HALT_WRONG_SCAN_ROOT_EVIDENCE,
     HALT_SMOKE_OVERRIDE_EVIDENCE,
     HALT_SOURCE_INDEX_EMPTY,
+    HALT_SOURCE_INDEX_INCOMPLETE,
     HALT_RECONCILIATION,
     HALT_EMIT,
     HALT_OUTPUT_COMPARISON,
+    HALT_OUTPUT_OUTSIDE_OWNER,
+    HALT_OUTPUT_ALIASED,
+    HALT_OUTPUT_SYMLINKED,
+    HALT_RUN_RECORD_NOT_PERSISTED,
     HALT_UNEXPECTED,
 )
 
@@ -448,13 +570,46 @@ class NormalizeHalt(Exception):
         self.exit_code = exit_code
         super().__init__(message)
 
+    @property
+    def safe_message(self) -> str:
+        """The message with URI userinfo redacted and control characters escaped.
+
+        Used for the terminal report as well as the record, because a control sequence
+        in a message printed to a terminal is the more immediate of the two hazards: it
+        rewrites what the operator reading the halt sees.  ``\\n`` and ``\\t`` survive,
+        so a multi-line authored message still reads as one.
+        """
+        return paths.sanitise_diagnostic(self.message, limit=None).text
+
     def as_dict(self) -> dict[str, Any]:
-        """Return the halt as a JSON-serialisable mapping for the run record."""
+        """Return the halt as a JSON-serialisable mapping, safe to persist.
+
+        This is the persistence boundary for every halt: ``main`` writes the result into
+        ``normalize-run.json``.  A halt message and its details are composed partly from
+        externally supplied text -- an artifact's own strings, a runner status record's
+        fields, a path the caller passed -- so both go through the one renderer in
+        ``paths``: URI userinfo redacted, control characters escaped.
+
+        **Length is bounded where the artifact decides it, not here.**  The bound belongs
+        to the site that owns the evidence contract: an artifact-supplied value reaches a
+        message through :func:`paths.safe_diagnostic`, which bounds it at
+        :data:`paths.DIAGNOSTIC_VALUE_LIMIT` and records its digest;
+        ``shape.UnknownArtifactShape`` bounds its own observed-structure excerpts; and a
+        runner's own words are bounded at :data:`TOOL_WORDS_EXCERPT_LIMIT` with the byte
+        size and sha256 recorded beside them.  Truncating again here would cut a verbatim
+        excerpt AAP 0.5.4 requires quoted in full, and would truncate authored prose that
+        was never the hazard -- so the boundary redacts and escapes, and leaves lengths to
+        the contracts that state them.
+
+        The exception's own ``message`` and ``details`` attributes are left as composed,
+        so an assertion reads what the code said while the durable record reads what is
+        safe to keep.
+        """
         return {
             "reason": self.reason,
-            "message": self.message,
+            "message": self.safe_message,
             "exit_code": self.exit_code,
-            "details": self.details,
+            "details": paths.sanitise_persisted(self.details, limit=None),
         }
 
 
@@ -518,6 +673,89 @@ def _halt(
     return NormalizeHalt(reason, message, details=details)
 
 
+#: How many links of an exception chain are rendered for an unexpected error.  A chain is
+#: normally one or two links; the bound exists so a pathological ``raise ... from`` cycle
+#: of wrapped errors cannot decide how large this pipeline's record is.
+UNEXPECTED_ERROR_CHAIN_MAX_DEPTH: int = 8
+
+#: How many stack frames are rendered per link.  Frames are this repository's own source,
+#: so they are safe to quote; the bound is against a runaway recursion, not against
+#: content.
+UNEXPECTED_ERROR_FRAME_LIMIT: int = 50
+
+
+def _safe_exception_chain(error: BaseException) -> list[dict[str, Any]]:
+    """Render an exception and its chain for the record, without any raw artifact string.
+
+    ``traceback.format_exc()`` is not usable in a durable record.  Its final line is the
+    exception's own ``str()``, and for every error this module can raise unexpectedly that
+    string is composed from artifact-supplied text -- a ``KeyError`` naming an observed
+    key, a ``ValueError`` quoting an observed value, a ``UnicodeDecodeError`` carrying the
+    offending bytes.  Writing it unchanged is how a secret or a terminal control sequence
+    reaches ``normalize-run.json`` on the one path nobody planned for.
+
+    So the two halves are separated.  The **frames** come from
+    :func:`traceback.format_tb`, which renders file, line, function and source line --
+    all of it this repository's own authored source, never artifact content -- bounded by
+    :data:`UNEXPECTED_ERROR_FRAME_LIMIT`.  The **message** is rendered by
+    :func:`paths.safe_diagnostic`, so it is described (type, length, digest, bounded
+    redacted excerpt) rather than shown.
+
+    The chain is walked because ``raise ... from`` is this module's normal idiom: the
+    adapter-contract halt chains the adapter's own error, and the artifact-supplied text
+    lives on the *cause*, not on the wrapper.  ``__cause__`` is preferred over
+    ``__context__`` where both exist, matching what :mod:`traceback` itself reports, and
+    the walk keeps an identity set so a self-referential chain terminates.
+
+    Returns:
+        One mapping per link, outermost first, each carrying ``exception_type``,
+        ``exception_module``, ``message`` (a :meth:`paths.SafeDiagnostic.as_dict`
+        rendering), ``frames``, ``frames_truncated`` and ``linked_by``.
+    """
+    chain: list[dict[str, Any]] = []
+    seen: set[int] = set()
+    current: BaseException | None = error
+    linked_by: str | None = None
+    while current is not None and len(chain) < UNEXPECTED_ERROR_CHAIN_MAX_DEPTH:
+        if id(current) in seen:
+            chain.append(
+                {
+                    "exception_type": type(current).__name__,
+                    "exception_module": type(current).__module__,
+                    "message": None,
+                    "frames": [],
+                    "frames_truncated": False,
+                    "linked_by": linked_by,
+                    "note": "chain revisits an exception already rendered; walk stopped",
+                }
+            )
+            break
+        seen.add(id(current))
+        frames = traceback.format_tb(
+            current.__traceback__, limit=UNEXPECTED_ERROR_FRAME_LIMIT
+        )
+        total_frames = len(traceback.format_tb(current.__traceback__))
+        chain.append(
+            {
+                "exception_type": type(current).__name__,
+                "exception_module": type(current).__module__,
+                "message": paths.safe_diagnostic(
+                    str(current), context=f"{type(current).__name__} message"
+                ).as_dict(),
+                "frames": [frame.rstrip("\n") for frame in frames],
+                "frames_truncated": total_frames > len(frames),
+                "linked_by": linked_by,
+            }
+        )
+        if current.__cause__ is not None:
+            current, linked_by = current.__cause__, "cause"
+        elif current.__context__ is not None and not current.__suppress_context__:
+            current, linked_by = current.__context__, "context"
+        else:
+            break
+    return chain
+
+
 # --------------------------------------------------------------------------- #
 # Small helpers -- timestamps, digests, and the runner's own side records      #
 # --------------------------------------------------------------------------- #
@@ -542,47 +780,89 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _file_record(path: Path, *, digest: bool = True) -> dict[str, Any]:
+def _file_record(path: Path) -> dict[str, Any]:
     """Describe one file for the record: its path, byte size and sha256.
 
     ``harness/artifacts/**`` is git-ignored, so this record is published through the
     per-file size-and-sha256 manifest (AAP 0.1.3) rather than by ``git add``.  Every file
     this module names is therefore described here well enough for a reader to verify it
-    independently.  A file that is absent says so rather than being omitted.
+    independently, and *"every file it names carries that file's byte size and sha256"* is
+    a claim this function is the whole of.
+
+    So there is no ``digest=False``: a named file that exists is always digested.  The
+    digest is streamed in :data:`_DIGEST_CHUNK` chunks, which is what makes that
+    affordable -- the largest stream this run names is a 40 MB stdout log and it hashes in
+    well under a second, so there was never a size at which skipping the measurement was
+    the cheaper option.
+
+    Where a value is legitimately ``null`` the record says why, in a ``null_reason`` field
+    beside it: a file that does not exist has no bytes to size and no bytes to digest, and
+    a file that cannot be read says which error stopped it.  A reader therefore never has
+    to guess whether a ``null`` means "not measured", "not measurable" or "measured as
+    nothing", and the claim above and the data below cannot drift apart.
     """
     record: dict[str, Any] = {"path": str(path), "present": path.is_file()}
     if not record["present"]:
         record["bytes"] = None
         record["sha256"] = None
+        record["null_reason"] = (
+            "no file exists at this path, so there are no bytes to size and no bytes to "
+            "digest; both measurements are null because the file is absent, not because "
+            "it was skipped"
+        )
         return record
     try:
         record["bytes"] = path.stat().st_size
-        record["sha256"] = _sha256(path) if digest else None
+        record["sha256"] = _sha256(path)
     except OSError as error:  # unreadable rather than absent -- say which
         record["bytes"] = None
         record["sha256"] = None
         record["read_error"] = f"{type(error).__name__}: {error}"
+        record["null_reason"] = (
+            "the file exists but could not be read, so neither measurement could be "
+            f"taken: {type(error).__name__}: {error}"
+        )
     return record
 
 
 def _stream_record(path: Path, *, with_text: bool) -> dict[str, Any]:
     """Describe one runner stream, optionally carrying the tool's own words verbatim.
 
-    ``with_text`` is true only where the classification depends on the content -- the
-    absent-artifact case, whose verdict AAP 0.5.4 settles *"using only the tool's own
-    stated words"*.  The excerpt is bounded by :data:`TOOL_WORDS_EXCERPT_LIMIT` and says so
-    when it was cut, and the stream's byte size and sha256 sit beside it, so a cap can
-    never lose evidence without a reader seeing that it did.
+    The stream's byte size and sha256 are recorded **always**, because they describe the
+    file and the file exists either way.  ``with_text`` governs one thing only: whether
+    the tool's own words are embedded beside them.  It is true where the classification
+    depends on the content -- the absent-artifact case, whose verdict AAP 0.5.4 settles
+    *"using only the tool's own stated words"* -- and false where the artifact is present
+    and the verdict comes from the artifact, in which case the stream is described,
+    retained on disk, and cited by digest rather than copied into the record.
+
+    The excerpt is bounded by :data:`TOOL_WORDS_EXCERPT_LIMIT` and says so when it was
+    cut.  Between the bound, the digest and the retained file, a cap can never lose
+    evidence without a reader seeing that it did.
     """
-    record = _file_record(path, digest=with_text)
+    record = _file_record(path)
     record["text"] = None
     record["text_truncated"] = False
-    if not with_text or not record["present"]:
+    if not with_text:
+        record["text_null_reason"] = (
+            "the artifact is present, so its classification comes from the artifact "
+            "rather than from the tool's own words; this stream is measured by size and "
+            "sha256 above and retained verbatim on disk at the path named, so nothing is "
+            "lost by not embedding it here"
+        )
+        return record
+    if not record["present"]:
+        record["text_null_reason"] = (
+            "no file exists at this path, so there are no words to carry"
+        )
         return record
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError as error:
         record["read_error"] = f"{type(error).__name__}: {error}"
+        record["text_null_reason"] = (
+            f"the stream could not be read: {type(error).__name__}: {error}"
+        )
         return record
     if len(text) > TOOL_WORDS_EXCERPT_LIMIT:
         record["text"] = text[:TOOL_WORDS_EXCERPT_LIMIT]
@@ -593,25 +873,229 @@ def _stream_record(path: Path, *, with_text: bool) -> dict[str, Any]:
     return record
 
 
-def _tool_words(log_dir: Path | None, tool: str, *, with_text: bool) -> dict[str, Any]:
-    """Collect a runner's own streams, and whether they state a reason at all.
+@dataclass(frozen=True)
+class NoWorkStatement:
+    """One exact sentence a named tool is documented to print when it has no work.
 
-    Both streams are looked at because the two documented accounts of OSV-Scanner's
+    A *classifier*, not a heuristic.  ``sentence`` is the tool's own wording and is
+    matched literally, case-sensitively, as a substring of one stream -- a substring
+    because a runner's stream legitimately carries the sentence inside its own framing
+    (``harness/lib/scope.sh``'s begin/finish lines surround every invocation), and
+    literally because the whole value of the classifier is that it recognises *this*
+    statement rather than text that resembles one.
+
+    ``exit_codes`` records the exit codes the statement has been observed with.  It is
+    **corroboration and never the test**: AAP 0.5.4 settles this classification *"using
+    only the tool's own stated words"*, so gating on a code would decide the case on
+    something other than the words.  Agreement or difference is recorded either way, which
+    is what lets a reader see that the recorded outcome was reproduced rather than assumed.
+
+    ``authority`` names where the wording comes from, so the table is checkable against a
+    primary source rather than against this file.
+    """
+
+    tool: str
+    sentence: str
+    exit_codes: tuple[int, ...]
+    authority: str
+
+    def matches(self, text: str) -> bool:
+        """Return ``True`` where *text* carries this statement verbatim."""
+        return self.sentence in text
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return the statement for the structured run record."""
+        return {
+            "tool": self.tool,
+            "sentence": self.sentence,
+            "exit_codes": list(self.exit_codes),
+            "authority": self.authority,
+        }
+
+
+#: The exact no-work statements this pipeline recognises, one entry per canonical tool.
+#:
+#: Eight of the nine tools carry an EMPTY tuple, and that is the substance of the table
+#: rather than a gap in it.  AAP 0.5.4 admits the ``absent`` status only where *"the tool
+#: stated a no-work reason in its own output"*, and only OSV-Scanner has such a statement:
+#: it resolves zero packages over a scope holding no dependency manifest, prints its own
+#: sentence and exits 128 (AAP 0.2.2, from the tool's own issue tracker).  Every other
+#: runner is expected to write an artifact, so an absence from one of them is a condition
+#: nobody has an account of -- and a stack trace, a permission error or a truncated crash
+#: message is text, not an account.  Treating any non-empty stream as a statement is what
+#: turns a failure into a continuing zero, and a zero-row tool is invisible in a row-only
+#: ``findings.json`` by construction.
+#:
+#: A tool acquiring a documented no-work statement is a table entry, added with its
+#: primary source.  It is deliberately not something the code can infer.
+_NO_WORK_STATEMENTS: Mapping[str, tuple[NoWorkStatement, ...]] = MappingProxyType(
+    {
+        "opengrep": (),
+        "semgrep": (),
+        "datadog-static-analyzer": (),
+        "gitleaks": (),
+        "checkov": (),
+        "trivy": (),
+        "osv-scanner": (
+            NoWorkStatement(
+                tool="osv-scanner",
+                sentence="No package sources found",
+                exit_codes=(128,),
+                authority=(
+                    "OSV-Scanner's own stated zero-package behaviour: it prints \"No "
+                    "package sources found, --help for usage information.\" and exits 128 "
+                    "when it resolves no package source. Long-standing documented "
+                    "behaviour rather than a crash -- google/osv-scanner issues 348 and "
+                    "93, cited in AAP 0.2.2 -- and AAP 0.2.1 records why this scope "
+                    "reaches it: the one manifest-shaped file in the twelve globs, "
+                    "core/src/main/resources/org/apache/spark/ui/static/package.json, "
+                    "carries a name, a license and a type and no dependencies block."
+                ),
+            ),
+        ),
+        "dependency-check": (),
+        "joern": (),
+    }
+)
+
+
+def no_work_statements(tool: str) -> tuple[NoWorkStatement, ...]:
+    """Return the no-work statements recognised for *tool*, possibly none.
+
+    Raises ``KeyError`` for an identifier outside the nine, which is a caller bug rather
+    than an artifact condition: the table is keyed by the same canonical vocabulary
+    ``_verify_vocabularies`` has already established agreement over.
+    """
+    return _NO_WORK_STATEMENTS[tool]
+
+
+def _classify_no_work(
+    tool: str,
+    tool_words: Mapping[str, Any],
+    runner_status: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Decide whether *tool*'s streams carry a recognised no-work statement.
+
+    The classification AAP 0.5.4 requires, and it is deliberately narrow.  Both streams
+    are searched, in the fixed order ``stderr`` then ``stdout``, because the two documented
+    accounts of OSV-Scanner's outcome disagree about which one carries the sentence; the
+    first stream carrying a recognised statement is named in the record, and both streams
+    are described either way whether or not they matched.
+
+    Three outcomes, all of them recorded rather than inferred:
+
+    * **no words at all** -- neither stream carries non-whitespace text.  There is nothing
+      to classify, and the caller halts under
+      :data:`HALT_ABSENT_WITHOUT_STATED_REASON`.
+    * **words that match no statement** -- the streams say something and it is not one of
+      the sentences this pipeline recognises for this tool.  The caller halts under
+      :data:`HALT_ABSENT_WITHOUT_NO_WORK_STATEMENT`, with both streams preserved verbatim
+      so a reader adjudicates from the tool's own text rather than from this verdict.
+    * **a recognised statement** -- the ``absent`` status, zero rows, run continues.
+
+    The exit code is compared against the codes the statement is recorded with and the
+    agreement is reported, never enforced: the words decide.  A tool with an empty entry in
+    the table can only reach the second outcome, which is the point of its emptiness.
+    """
+    streams: Mapping[str, Any] = tool_words.get("streams") or {}
+    statements = no_work_statements(tool)
+    record: dict[str, Any] = {
+        "tool": tool,
+        "recognised_statements": [statement.as_dict() for statement in statements],
+        "words_present": bool(tool_words.get("stated_reason_present")),
+        "words_stream": tool_words.get("stated_reason_stream"),
+        "classified": False,
+        "matched_sentence": None,
+        "matched_stream": None,
+        "matched_statement": None,
+        "exit_code": runner_status.get("exit_code"),
+        "exit_status": runner_status.get("exit_status"),
+        "exit_code_agrees_with_statement": None,
+        "streams_searched": [],
+        "basis": None,
+    }
+
+    for stream in ("stderr", "stdout"):
+        text = (streams.get(stream) or {}).get("text")
+        searched = {
+            "stream": stream,
+            "text_present": isinstance(text, str) and bool(text.strip()),
+            "text_truncated": bool((streams.get(stream) or {}).get("text_truncated")),
+            "matched": False,
+        }
+        if isinstance(text, str) and not record["classified"]:
+            for statement in statements:
+                if statement.matches(text):
+                    searched["matched"] = True
+                    record["classified"] = True
+                    record["matched_sentence"] = statement.sentence
+                    record["matched_stream"] = stream
+                    record["matched_statement"] = statement.as_dict()
+                    break
+        record["streams_searched"].append(searched)
+
+    if record["classified"]:
+        codes = tuple(record["matched_statement"]["exit_codes"])
+        code = record["exit_code"]
+        record["exit_code_agrees_with_statement"] = (
+            None if not isinstance(code, int) else code in codes
+        )
+        record["basis"] = (
+            f"the tool's own words on {record['matched_stream']}: "
+            f"{record['matched_sentence']!r}"
+        )
+    elif not record["words_present"]:
+        record["basis"] = "no words on either stream; there is nothing to classify"
+    else:
+        record["basis"] = (
+            "the streams carry text and none of it is a no-work statement this pipeline "
+            f"recognises for {tool!r}"
+            + (
+                " -- no statement is recognised for this tool at all, because it is "
+                "expected to write an artifact"
+                if not statements
+                else ""
+            )
+        )
+    return record
+
+
+def _tool_words(log_dir: Path | None, tool: str, *, with_text: bool) -> dict[str, Any]:
+    """Collect a runner's own streams, and whether they carry any words at all.
+
+    ``stated_reason`` is the first non-empty stream's text, stderr preferred, and it means
+    exactly what it says: *some* text was written.  It is **evidence, not a verdict** --
+    whether those words state a no-work reason is :func:`_classify_no_work`'s decision
+    against the exact-sentence table, because a stack trace, a permission error and a
+    truncated crash message are all non-empty and none of them is an account of a tool
+    having nothing to do (AAP 0.5.4).
+
+    Both streams are collected because the two documented accounts of OSV-Scanner's
     zero-package outcome disagree about which one carries the sentence -- the runbook
-    reports it on stdout, the environment record on stderr.  Stderr is preferred where both
-    carry text; whichever supplied it is named in the record, and both are described either
-    way.
+    reports it on stdout, the environment record on stderr.  Both are described either way,
+    and the classifier searches both rather than only the one this function preferred.
     """
     streams: dict[str, Any] = {}
     for stream in ("stderr", "stdout"):
         if log_dir is None:
+            # No log directory was resolved, so this entry names no file at all. The
+            # nulls are stated as such rather than left to look like an unmeasured
+            # file: the record's claim covers every file it names, and this names none.
             streams[stream] = {
                 "path": None,
                 "present": False,
                 "bytes": None,
                 "sha256": None,
+                "null_reason": (
+                    "no log directory was resolved for this run, so this entry names no "
+                    "file; there is nothing to size or digest rather than something that "
+                    "went unmeasured"
+                ),
                 "text": None,
                 "text_truncated": False,
+                "text_null_reason": (
+                    "no log directory was resolved, so there is no stream to carry"
+                ),
             }
             continue
         streams[stream] = _stream_record(
@@ -635,6 +1119,38 @@ def _tool_words(log_dir: Path | None, tool: str, *, with_text: bool) -> dict[str
     }
 
 
+#: A status line whose first non-space character is this is a comment and is never a
+#: field, however many ``=`` characters it carries.
+_STATUS_COMMENT_PREFIX: str = "#"
+
+#: The syntax a status key must have, as ``harness/lib/scope.sh``'s ``scope_finish``
+#: writes it: a plain field name, at column zero, with no surrounding whitespace.
+_STATUS_KEY_PATTERN: str = r"[A-Za-z_][A-Za-z0-9_]*"
+_STATUS_KEY_RE = re.compile(rf"\A{_STATUS_KEY_PATTERN}\Z")
+
+#: How much of a rejected line the record quotes.  Status files carry prose lines
+#: hundreds of characters long; the count of rejected lines is always exact and the
+#: excerpt is bounded, and an excerpt that was cut says so.
+_STATUS_LINE_EXCERPT_LIMIT: int = 200
+
+#: Why a line carrying an ``=`` was not made a field.  A closed vocabulary, so a reader
+#: of the run record can enumerate the reasons rather than parse a sentence.
+STATUS_LINE_NO_SEPARATOR: str = "no-key-value-separator"
+STATUS_LINE_INVALID_KEY: str = "text-before-the-first-equals-is-not-a-field-name"
+
+#: The defects a status file can carry, by name.  Both are conditions in the *file*
+#: rather than in this parser, and both are recorded with their counts.
+STATUS_DEFECT_DUPLICATE_KEY: str = "duplicate-key"
+STATUS_DEFECT_UNPARSABLE_LINE: str = "unparsable-line"
+
+
+def _status_line_excerpt(line: str) -> str:
+    """Return a bounded excerpt of a rejected status line, saying when it was cut."""
+    if len(line) <= _STATUS_LINE_EXCERPT_LIMIT:
+        return line
+    return line[:_STATUS_LINE_EXCERPT_LIMIT] + f"... [cut at {_STATUS_LINE_EXCERPT_LIMIT}]"
+
+
 def _runner_status(log_dir: Path | None, tool: str) -> dict[str, Any]:
     """Read ``<tool>.status`` -- the key=value record ``scope_finish`` writes.
 
@@ -649,12 +1165,65 @@ def _runner_status(log_dir: Path | None, tool: str) -> dict[str, Any]:
     status and does not excuse a missing artifact.  Where there is no status file at all
     the status is :data:`EXIT_STATUS_UNRECORDED`, which is a different thing and is said to
     be.
+
+    WHAT COUNTS AS A FIELD, AND WHY THE RULE IS THIS NARROW
+    ------------------------------------------------------
+    A ``.status`` file in this tree is a runner-written key=value block **plus** the
+    composed record around it: a commented header, fenced command examples, indented
+    prose.  Any of those can contain an ``=`` -- ``dependency-check.status`` carries six
+    such comment lines -- so splitting every line on its first ``=`` and assigning the
+    result invents fields out of prose, and a duplicate assignment silently keeps the
+    last one.  Between them those two behaviours let a comment shadow authoritative
+    state: a line in an indented example whose text before the ``=`` strips to
+    ``exit_code`` would overwrite the runner's own value with a fragment of documentation.
+
+    So a line becomes a field only where all of this holds, and nothing is inferred:
+
+    * it is not blank and its first non-space character is not ``#``;
+    * it carries an ``=``;
+    * the text before the first ``=`` is a plain field name at column zero --
+      :data:`_STATUS_KEY_RE`, no leading or trailing space, which is exactly what
+      ``scope_finish`` writes.  Requiring column zero is what closes the indented-example
+      hole, and it costs nothing: across all nine committed status files it excludes zero
+      lines that were ever fields.
+    * the key has not been seen before.  A **duplicate is a defect in the status file**,
+      not a value to resolve: the FIRST occurrence is kept, because it is the one the
+      runner wrote before any composed commentary was appended, and the duplicate is
+      recorded with its line number and value under ``duplicate_fields`` so nothing is
+      lost silently.
+
+    Every line the rule rejects is recorded under ``unparsed_lines`` with its number, an
+    excerpt and the reason, and both conditions are also named in ``defects`` with their
+    counts -- so a reader sees "this file has 6 lines that look like fields and are not"
+    rather than a field list quietly a few entries longer than the runner's.
     """
     path = None if log_dir is None else log_dir / f"{tool}.status"
     record: dict[str, Any] = {
         "path": None if path is None else str(path),
         "present": bool(path is not None and path.is_file()),
+        # This entry names a file, so it carries that file's measurement like every
+        # other entry that names one: the record's self-describing claim is that every
+        # named file which exists is sized and digested, and a parsed record is still a
+        # named file.  Filled in below once the path is known to exist.
+        "bytes": None,
+        "sha256": None,
         "fields": {},
+        "field_count": 0,
+        "comment_lines": 0,
+        "blank_lines": 0,
+        "unparsed_lines": [],
+        "unparsed_line_count": 0,
+        "duplicate_fields": [],
+        "duplicate_field_count": 0,
+        "defects": [],
+        "parser_contract": (
+            "A field is a line whose first non-space character is not '#', which carries "
+            "an '=', and whose text before the first '=' is a plain field name at column "
+            "zero (" + _STATUS_KEY_PATTERN + ") not already seen. A duplicate key is a "
+            "defect in the status file: the first occurrence is kept and the duplicate is "
+            "recorded under duplicate_fields. Every other line carrying an '=' is recorded "
+            "under unparsed_lines rather than becoming a field."
+        ),
         "exit_code": None,
         "exit_code_literal": None,
         "exit_status": EXIT_STATUS_UNRECORDED,
@@ -664,6 +1233,21 @@ def _runner_status(log_dir: Path | None, tool: str) -> dict[str, Any]:
         "scan_root_source": None,
     }
     if path is None or not record["present"]:
+        record["null_reason"] = (
+            "no status file exists at this path (or no log directory was given), so "
+            "there are no bytes to size and no bytes to digest; both measurements are "
+            "null because the file is absent, not because they were skipped"
+        )
+        return record
+    try:
+        record["bytes"] = path.stat().st_size
+        record["sha256"] = _sha256(path)
+    except OSError as error:  # unreadable rather than absent -- say which
+        record["read_error"] = f"{type(error).__name__}: {error}"
+        record["null_reason"] = (
+            "the status file exists but could not be measured: "
+            f"{type(error).__name__}: {error}"
+        )
         return record
     try:
         text = path.read_text(encoding="utf-8", errors="replace")
@@ -672,12 +1256,86 @@ def _runner_status(log_dir: Path | None, tool: str) -> dict[str, Any]:
         return record
 
     fields: dict[str, str] = {}
-    for line in text.splitlines():
+    first_line_of: dict[str, int] = {}
+    duplicates: list[dict[str, Any]] = []
+    unparsed: list[dict[str, Any]] = []
+    comment_lines = 0
+    blank_lines = 0
+    for number, line in enumerate(text.splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped:
+            blank_lines += 1
+            continue
+        if stripped.startswith(_STATUS_COMMENT_PREFIX):
+            comment_lines += 1
+            continue
         key, separator, value = line.partition("=")
         if not separator:
+            unparsed.append(
+                {
+                    "line": number,
+                    "excerpt": _status_line_excerpt(line),
+                    "reason": STATUS_LINE_NO_SEPARATOR,
+                }
+            )
             continue
-        fields[key.strip()] = value
+        if not _STATUS_KEY_RE.match(key):
+            unparsed.append(
+                {
+                    "line": number,
+                    "excerpt": _status_line_excerpt(line),
+                    "reason": STATUS_LINE_INVALID_KEY,
+                }
+            )
+            continue
+        if key in fields:
+            duplicates.append(
+                {
+                    "line": number,
+                    "key": key,
+                    "value": value,
+                    "first_seen_on_line": first_line_of[key],
+                    "kept": "the first occurrence",
+                }
+            )
+            continue
+        fields[key] = value
+        first_line_of[key] = number
+
+    defects: list[dict[str, Any]] = []
+    if duplicates:
+        defects.append(
+            {
+                "class": STATUS_DEFECT_DUPLICATE_KEY,
+                "count": len(duplicates),
+                "keys": sorted({entry["key"] for entry in duplicates}),
+                "handling": (
+                    "the first occurrence is the value used; every duplicate is recorded "
+                    "under duplicate_fields with its line number and value"
+                ),
+            }
+        )
+    if unparsed:
+        defects.append(
+            {
+                "class": STATUS_DEFECT_UNPARSABLE_LINE,
+                "count": len(unparsed),
+                "handling": (
+                    "recorded under unparsed_lines with the reason; no such line becomes "
+                    "a field, so prose carrying an '=' cannot shadow runner-written state"
+                ),
+            }
+        )
+
     record["fields"] = fields
+    record["field_count"] = len(fields)
+    record["comment_lines"] = comment_lines
+    record["blank_lines"] = blank_lines
+    record["unparsed_lines"] = unparsed
+    record["unparsed_line_count"] = len(unparsed)
+    record["duplicate_fields"] = duplicates
+    record["duplicate_field_count"] = len(duplicates)
+    record["defects"] = defects
 
     literal = fields.get("exit_code")
     record["exit_code_literal"] = literal
@@ -792,6 +1450,11 @@ class Inputs:
     Frozen, and built once by :func:`resolve_inputs` from the parsed arguments and the
     environment.  Nothing here is read at import time, and no value is a repository-relative
     default resolved against whatever directory the caller happened to be in.
+
+    ``output_guards`` is not a path: it is the record of the containment, distinctness and
+    symlink checks these three write targets passed, carried here because
+    :func:`resolve_inputs` is where they are established and the run record must publish
+    that one measurement rather than take a second one later.
     """
 
     raw_dir: Path
@@ -802,6 +1465,7 @@ class Inputs:
     findings_json: Path
     findings_csv: Path
     run_record: Path
+    output_guards: Mapping[str, Any] = MappingProxyType({})
 
     def as_dict(self) -> dict[str, Any]:
         """Return the resolved inputs as a JSON-serialisable mapping."""
@@ -814,6 +1478,7 @@ class Inputs:
             "findings_json": str(self.findings_json),
             "findings_csv": str(self.findings_csv),
             "run_record": str(self.run_record),
+            "output_guards": dict(self.output_guards),
         }
 
 
@@ -932,9 +1597,348 @@ def _absolute(value: str) -> Path:
     """Return ``value`` as an absolute path, expanding ``~`` and never resolving symlinks.
 
     Symlinks are deliberately preserved: the recorded path is the one the caller named, and
-    the containment check that needs a real path computes it where it needs it.
+    the containment check that needs a real path computes it where it needs it --
+    :func:`_path_identity` for aliasing, :func:`_within` for containment, and
+    ``emit.assert_safe_output_path`` for the per-component ``lstat`` walk.  Resolving here
+    instead would make the record name a path the caller never wrote and would silently
+    accept a symlinked target as its own destination (CWE-59).
     """
     return Path(os.path.abspath(os.path.expanduser(value)))
+
+
+# --------------------------------------------------------------------------- #
+# Where an output may be written -- containment, distinctness, no symlink      #
+#                                                                             #
+# The three configured outputs are the only files this module writes:          #
+# findings.json, findings.csv and normalize-run.json.  Each has exactly one     #
+# owner root, is refused anywhere else, may not be a second name for any other  #
+# of the three, and may not name an INPUT -- the raw artifacts, the allowlist   #
+# or runner-metadata.json.  Every check below is a fault to correct in the      #
+# invocation rather than an outcome to classify, so all of them are             #
+# ConfigurationFault (exit 78) and all of them happen before anything is read   #
+# or written.                                                                  #
+# --------------------------------------------------------------------------- #
+
+#: Where this module's own repository root is, relative to this file:
+#: ``harness/lib/normalize/cli.py`` -> ``normalize`` -> ``lib`` -> ``harness`` -> the root.
+_REPO_ROOT_DEPTH: int = 3
+
+
+def _path_identity(path: Path) -> str:
+    """Return the identity two configured paths are compared on for aliasing.
+
+    The real path of the *parent* joined with the name.  Two properties this needs and a
+    plain string comparison does not have: it answers for a file that does not exist yet,
+    which every output does before it is written; and it sees through a symlinked or
+    otherwise differently-spelled directory, so ``$HARNESS_REPO_ROOT/oss-scan-results`` and
+    a second route to the same directory compare equal.  The file's own name is never
+    resolved, because resolving it is exactly what the symlink refusal exists to prevent.
+    """
+    try:
+        parent = os.path.realpath(path.parent)
+    except OSError:  # pragma: no cover -- realpath does not raise for a plain string
+        parent = str(path.parent)
+    return str(Path(parent) / path.name)
+
+
+def _within(path: Path, root: Path) -> bool:
+    """Return whether ``path`` would be written inside ``root``.
+
+    Compared on real paths of the two *directories*, so a differently-spelled route to one
+    directory is containment and a genuinely different tree is not.
+    """
+    try:
+        real_root = Path(os.path.realpath(root))
+        real_parent = Path(os.path.realpath(path.parent))
+    except OSError:  # pragma: no cover -- realpath does not raise for a plain string
+        return False
+    return real_parent == real_root or real_root in real_parent.parents
+
+
+def _declared_repository_root(environ: Mapping[str, str]) -> tuple[Path, str]:
+    """Return the repository root that owns the dataset files, and where it came from.
+
+    ``$HARNESS_REPO_ROOT`` where the provisioned ``harness/env.sh`` exported it -- the run's
+    own declaration, and the same variable the ``--findings-json`` default is derived from.
+    Where it is unset, the root is *this module's own repository*, three levels above this
+    file, which is a fact about the installed harness rather than about whatever directory
+    the caller happened to be in.  The working directory is deliberately not a candidate:
+    an output root taken from the cwd is an output that lands wherever the run was started
+    (CWE-73).
+    """
+    declared = _environment_value(environ, "HARNESS_REPO_ROOT")
+    if declared is not None:
+        return _absolute(declared), "$HARNESS_REPO_ROOT"
+    return (
+        Path(__file__).resolve().parents[_REPO_ROOT_DEPTH],
+        "the repository containing harness/lib/normalize/cli.py",
+    )
+
+
+def _require_within(
+    path: Path,
+    *,
+    name: str,
+    owner: Path,
+    owner_name: str,
+) -> None:
+    """Refuse ``path`` where it would be written outside the root that owns it."""
+    if not _within(path, owner):
+        raise _fault(
+            HALT_OUTPUT_OUTSIDE_OWNER,
+            f"{name} would be written to {path}, which is outside {owner_name} "
+            f"({owner}). Every output this module writes belongs to exactly one root: "
+            "the dataset files to the repository root the run declares and the run "
+            "record to the log tree. A path outside its owner is a fault in the "
+            "invocation, not a location.",
+            output=name,
+            path=str(path),
+            owner_root=str(owner),
+            owner_root_source=owner_name,
+        )
+
+
+def _require_safe_components(path: Path, *, name: str, owner: Path) -> dict[str, Any]:
+    """Refuse ``path`` where the target or a component at or below ``owner`` is a link."""
+    try:
+        return emit.assert_safe_output_path(path, boundary=owner)
+    except emit.UnsafeOutputPath as error:
+        raise _fault(
+            HALT_OUTPUT_SYMLINKED,
+            f"{name} cannot be written: {error}",
+            output=name,
+            path=str(path),
+            owner_root=str(owner),
+            error=str(error),
+        ) from error
+
+
+def _validate_output_targets(
+    inputs: Inputs,
+    environ: Mapping[str, str],
+) -> dict[str, Any]:
+    """Establish that the three outputs are contained, distinct and unaliased.
+
+    Three questions, each asked of every output, and each a halt rather than a warning:
+
+    1.  **Containment.**  ``findings.json`` and ``findings.csv`` must resolve inside the
+        repository root the run declares; ``normalize-run.json`` must resolve inside the
+        log tree.  A configured path is otherwise free to land anywhere the process can
+        write, which turns a mis-set variable into a write outside the deliverable trees
+        (CWE-73).
+    2.  **Distinctness.**  The three must be three different files, and none of them may be
+        an input: not the raw directory or any artifact in it, not the allowlist, not
+        ``runner-metadata.json``.  Writing an output over an input destroys the evidence
+        the dataset was derived from, and two outputs at one path make the second write
+        destroy the first while every count still reconciles.
+    3.  **No symlinked component.**  The target and every component at or below its owner
+        root are checked with ``lstat``; the first link is named.  ``emit.py`` owns that
+        walk and the exclusive no-follow write that follows it, so there is one
+        implementation of the rule rather than one per caller.
+
+    The order of 1 and 3 decides which message a reader gets, and it is deliberate.
+    Containment is answered on *real* paths, so a symlinked component that points **out**
+    of the owner root is reported as the escape it is, with the declared root named --
+    which is the fact that matters, whether the escape was spelled with a link or with
+    ``..``.  A symlinked component pointing **inside** the root passes containment and is
+    then refused by the component walk, which names the link itself.  Every path that
+    reaches the write is therefore both contained on real paths and free of links below
+    its root.
+
+    Returns:
+        The record of what was checked, carried in :attr:`Inputs.output_guards` and
+        published in ``normalize-run.json``.
+
+    Raises:
+        ConfigurationFault: On the first condition that fails, naming the path, the owner
+            root and -- for an alias -- the other path it collides with.
+    """
+    repo_root, repo_root_source = _declared_repository_root(environ)
+    owners: tuple[tuple[str, Path, Path, str], ...] = (
+        ("--findings-json", inputs.findings_json, repo_root, f"the repository root ({repo_root_source})"),
+        ("--findings-csv", inputs.findings_csv, repo_root, f"the repository root ({repo_root_source})"),
+        ("--run-record", inputs.run_record, inputs.log_dir, "the log tree (--log-dir / $HARNESS_LOG_DIR)"),
+    )
+
+    component_checks: dict[str, Any] = {}
+    for name, path, owner, owner_name in owners:
+        _require_within(path, name=name, owner=owner, owner_name=owner_name)
+        component_checks[name] = _require_safe_components(path, name=name, owner=owner)
+
+    # Distinctness among the outputs themselves.
+    seen: dict[str, str] = {}
+    for name, path, _owner, _owner_name in owners:
+        identity = _path_identity(path)
+        if identity in seen:
+            raise _fault(
+                HALT_OUTPUT_ALIASED,
+                f"{name} and {seen[identity]} both name {identity}. The three outputs are "
+                "three different files; two names for one file would make the second "
+                "write destroy the first while every count still reconciled.",
+                output=name,
+                collides_with=seen[identity],
+                identity=identity,
+            )
+        seen[identity] = name
+
+    # Distinctness against every input. The raw tree is listed as the directory, the nine
+    # fixed artifact filenames inside it and whatever else is actually there, because an
+    # output aimed at a raw artifact would destroy a runner's own output -- the one thing
+    # in this pipeline nothing can reproduce.
+    input_identities: dict[str, str] = {
+        _path_identity(inputs.raw_dir): "--raw-dir",
+        _path_identity(inputs.runner_metadata): "--runner-metadata",
+        _path_identity(inputs.allowlist): "--allowlist",
+    }
+    for tool in ARTIFACT_ORDER:
+        artifact = inputs.raw_dir / shape.artifact_filename_for(tool)
+        input_identities.setdefault(
+            _path_identity(artifact), f"the {tool} raw artifact"
+        )
+    try:
+        present_entries = sorted(entry.name for entry in inputs.raw_dir.iterdir())
+    except OSError:
+        # A missing or unreadable raw tree is _enumerate_raw_directory's halt to raise,
+        # with its own message; nothing here pre-empts it.
+        present_entries = []
+    for entry_name in present_entries:
+        input_identities.setdefault(
+            _path_identity(inputs.raw_dir / entry_name),
+            f"the raw-tree entry {entry_name}",
+        )
+
+    for name, path, _owner, _owner_name in owners:
+        identity = _path_identity(path)
+        if identity in input_identities:
+            raise _fault(
+                HALT_OUTPUT_ALIASED,
+                f"{name} would be written to {identity}, which is {input_identities[identity]} "
+                "-- an input to this run. Writing an output over an input destroys the "
+                "evidence the dataset was derived from.",
+                output=name,
+                path=str(path),
+                collides_with=input_identities[identity],
+                identity=identity,
+            )
+
+    return {
+        "repository_root": str(repo_root),
+        "repository_root_source": repo_root_source,
+        "log_tree": str(inputs.log_dir),
+        "owners": {
+            "--findings-json": str(repo_root),
+            "--findings-csv": str(repo_root),
+            "--run-record": str(inputs.log_dir),
+        },
+        "identities": {
+            name: _path_identity(path) for name, path, _owner, _owner_name in owners
+        },
+        "input_identities_compared_against": len(input_identities),
+        "component_checks": component_checks,
+        "checks_passed": [
+            "each output resolves inside the root that owns it",
+            "the three outputs are three distinct files",
+            "no output names the raw directory, a raw artifact, the allowlist or the "
+            "runner metadata",
+            "no output target or component at or below its owner root is a symbolic link",
+        ],
+        "note": (
+            "Every check is a ConfigurationFault (exit 78) rather than a warning, and all "
+            "of them run before any artifact is read. emit.py owns the per-component lstat "
+            "walk and the exclusive no-follow staged write that follows it, so the rule has "
+            "one implementation for the dataset files and the run record alike."
+        ),
+    }
+
+
+def _log_tree_values(
+    namespace: argparse.Namespace,
+    environ: Mapping[str, str],
+) -> tuple[str | None, str | None]:
+    """Return the log tree and the runner-metadata path, by one precedence.
+
+    ``--log-dir``, else ``$HARNESS_LOG_DIR``; the metadata defaults to
+    ``<log tree>/runner-metadata.json``, and where the caller named the metadata file
+    explicitly its directory *is* the log tree, since that is where the runners write it.
+
+    Factored out because two callers need the same answer -- :func:`resolve_inputs` for the
+    inputs and :func:`_run_record_target` for the record's location before those inputs
+    exist -- and two copies of a precedence are two precedences the first time either is
+    edited.
+    """
+    log_dir_value = namespace.log_dir or _environment_value(environ, "HARNESS_LOG_DIR")
+    metadata_value = namespace.runner_metadata
+    if metadata_value is None and log_dir_value is not None:
+        metadata_value = os.path.join(log_dir_value, RUNNER_METADATA_FILENAME)
+    if log_dir_value is None and metadata_value is not None:
+        log_dir_value = os.path.dirname(os.path.abspath(metadata_value)) or None
+    return log_dir_value, metadata_value
+
+
+def _run_record_target(
+    namespace: argparse.Namespace,
+    environ: Mapping[str, str],
+) -> tuple[Path, Path]:
+    """Return where ``normalize-run.json`` is written, before the inputs are resolved.
+
+    ``main`` needs this path before :func:`resolve_inputs` runs, because the record is
+    written on **every** path out of this module including a fault inside that call.  Two
+    sources supply it and no third: ``--run-record``, or ``$HARNESS_LOG_DIR`` (equivalently
+    ``--log-dir``, or the directory of an explicitly named ``--runner-metadata``) joined
+    with the fixed filename.
+
+    There is deliberately **no working-directory fallback**.  A record written to
+    ``os.getcwd()`` lands wherever the run happened to be started, which is not the log
+    tree, is not published by the manifest, and is not where any reader looks -- so the
+    required audit evidence would be silently written somewhere nobody sees it (CWE-73).
+    Its absence is a configuration fault naming both sources instead.
+
+    The path is checked for containment in the log tree and for a symlinked component here
+    as well as in :func:`_validate_output_targets`, because this is the one output whose
+    location is needed before the full validation can run.
+
+    Returns:
+        The record's absolute path and the root that owns it -- the log tree, or the
+        record's own directory in the one case where a caller named ``--run-record``
+        explicitly and no log tree is known at all.
+
+    Raises:
+        ConfigurationFault: Where neither source supplies a location, or the location is
+            outside the log tree or has a symlinked component.
+    """
+    log_dir_value, _metadata_value = _log_tree_values(namespace, environ)
+    if namespace.run_record is not None:
+        value = namespace.run_record
+    elif log_dir_value is not None:
+        value = os.path.join(log_dir_value, RUN_RECORD_FILENAME)
+    else:
+        raise _fault(
+            HALT_MISSING_INPUT,
+            "the run record's location could not be resolved: pass --run-record, or "
+            "source harness/env.sh so $HARNESS_LOG_DIR names the log tree. There is no "
+            "working-directory fallback -- a record written relative to whatever "
+            f"directory the run started in is not {RUN_RECORD_DOCUMENT} and is not "
+            "published by the artifact manifest.",
+            missing=[
+                {"input": "--run-record", "defaulted_from": "$HARNESS_LOG_DIR/" + RUN_RECORD_FILENAME}
+            ],
+        )
+    target = _absolute(value)
+    if log_dir_value is None:
+        # Reachable only with an explicit --run-record and no log tree named anywhere;
+        # resolve_inputs will fault on the missing --log-dir immediately afterwards, and
+        # until it does the record's own directory is the only root there is to declare.
+        owner = target.parent
+    else:
+        owner = _absolute(log_dir_value)
+        _require_within(
+            target,
+            name="--run-record",
+            owner=owner,
+            owner_name="the log tree (--log-dir / $HARNESS_LOG_DIR)",
+        )
+    _require_safe_components(target, name="--run-record", owner=owner)
+    return target, owner
 
 
 def resolve_inputs(
@@ -973,14 +1977,7 @@ def resolve_inputs(
             missing.append({"input": flag, "defaulted_from": source})
         return value
 
-    log_dir_value = namespace.log_dir or _environment_value(env, "HARNESS_LOG_DIR")
-    metadata_value = namespace.runner_metadata
-    if metadata_value is None and log_dir_value is not None:
-        metadata_value = os.path.join(log_dir_value, RUNNER_METADATA_FILENAME)
-    if log_dir_value is None and metadata_value is not None:
-        # The metadata lives in the log tree, so its directory is the log tree whenever
-        # the caller named the file explicitly.
-        log_dir_value = os.path.dirname(os.path.abspath(metadata_value)) or None
+    log_dir_value, metadata_value = _log_tree_values(namespace, env)
 
     repo_root_value = _environment_value(env, "HARNESS_REPO_ROOT")
     findings_json_value = namespace.findings_json
@@ -1058,7 +2055,7 @@ def resolve_inputs(
     assert findings_csv_value is not None
     assert run_record_value is not None
 
-    return Inputs(
+    inputs = Inputs(
         raw_dir=_absolute(raw_dir_value),
         runner_metadata=_absolute(metadata_value),
         allowlist=_absolute(allowlist_value),
@@ -1067,6 +2064,13 @@ def resolve_inputs(
         findings_json=_absolute(findings_json_value),
         findings_csv=_absolute(findings_csv_value),
         run_record=_absolute(run_record_value),
+    )
+    # Every write target is adjudicated here, once, before anything is read or written:
+    # a fault in where an output would land is a fault in the invocation, and finding it
+    # after the artifacts have been parsed would only mean finding it later.
+    return dataclasses.replace(
+        inputs,
+        output_guards=MappingProxyType(_validate_output_targets(inputs, env)),
     )
 
 
@@ -1276,20 +2280,39 @@ def _counter_summary(counters: Mapping[str, int]) -> dict[str, Any]:
     return summary
 
 
+def _path_kind_counts(counters: Mapping[str, int]) -> Iterable[tuple[str, int]]:
+    """Yield ``(kind, count)`` for every path-kind counter in ``counters``.
+
+    One place selects the counters and strips the prefix, so the per-artifact tally and
+    the dataset tally cannot come to disagree about which keys are path kinds.  The kind
+    is not validated here: :meth:`paths.PathKindTally.add_many` owns that check against
+    the closed set, and duplicating it would let the two copies drift.
+    """
+    prefix_length = len(_PATH_KIND_COUNTER_PREFIX)
+    for key, count in counters.items():
+        if key.startswith(_PATH_KIND_COUNTER_PREFIX):
+            yield key[prefix_length:], count
+
+
 def _path_kind_tally(counters: Mapping[str, int]) -> paths.PathKindTally:
     """Build a :class:`normalize.paths.PathKindTally` from an adapter's counters.
 
-    Counted through the discriminator rather than beside it: ``paths.PathKindTally.add``
-    validates every kind against the closed set, so this tally cannot drift from
-    ``paths.NON_FILESYSTEM_PATH_KINDS`` the way a private counter could.
+    Counted through the discriminator rather than beside it:
+    :meth:`paths.PathKindTally.add_many` validates every kind against the closed set, so
+    this tally cannot drift from ``paths.NON_FILESYSTEM_PATH_KINDS`` the way a private
+    counter could.
+
+    The counters are already aggregated -- an adapter reports ``path_kind_tree_file: 1322``,
+    not 1,322 observations -- so the count is added in one step.  Replaying it as ``count``
+    separate ``add`` calls re-enumerated every resolution in the dataset to recompute a sum
+    that was already known, and did it twice: once here and once in
+    :func:`_merge_path_kinds`.  ``add_many`` also refuses a negative count rather than
+    clamping it to zero, which the replay silently did: a negative counter is an adapter
+    fault, and clamping it made the reported proportion wrong with nothing recording why.
     """
     tally = paths.PathKindTally()
-    for key, count in counters.items():
-        if not key.startswith(_PATH_KIND_COUNTER_PREFIX):
-            continue
-        kind = key[len(_PATH_KIND_COUNTER_PREFIX) :]
-        for _ in range(max(0, int(count))):
-            tally.add(kind)
+    for kind, count in _path_kind_counts(counters):
+        tally.add_many(kind, count)
     return tally
 
 
@@ -1297,13 +2320,14 @@ def _merge_path_kinds(
     total: paths.PathKindTally,
     counters: Mapping[str, int],
 ) -> None:
-    """Fold one artifact's path kinds into the dataset-level tally."""
-    for key, count in counters.items():
-        if not key.startswith(_PATH_KIND_COUNTER_PREFIX):
-            continue
-        kind = key[len(_PATH_KIND_COUNTER_PREFIX) :]
-        for _ in range(max(0, int(count))):
-            total.add(kind)
+    """Fold one artifact's path kinds into the dataset-level tally, in one step per kind.
+
+    The dataset tally is the sum of the per-artifact ones, so it is folded from the same
+    aggregated counters through the same validated bulk operation -- never by replaying
+    each artifact's resolutions a second time.
+    """
+    for kind, count in _path_kind_counts(counters):
+        total.add_many(kind, count)
 
 
 def _check_runner_root_evidence(
@@ -1321,29 +2345,39 @@ def _check_runner_root_evidence(
     runner's record, never by inspecting individual rows -- an individual finding whose
     coordinate falls outside the tree is a legitimate coordinate and is kept.
     """
+    # Both fields below come out of a file this module did not write, so both reach the
+    # record through paths.safe_diagnostic rather than through {value!r}: bounded, with the
+    # digest of the whole value, control characters escaped and URI userinfo redacted. A
+    # status record is provisioning-supplied evidence, and a halt quoting it is persisted.
     source = status.get("scan_root_source")
     if isinstance(source, str) and "HARNESS_SMOKE_TARGET" in source:
+        rendered_source = paths.safe_diagnostic(
+            source, context=f"{tool}.status scan_root_source"
+        )
         raise _halt(
             HALT_SMOKE_OVERRIDE_EVIDENCE,
-            f"{tool}: its status record names {source!r} as the source of the scan root, "
-            "so this artifact came from the setup-time smoke override rather than the "
-            "pinned tree. The override exists for setup-time verification only and is "
+            f"{tool}: its status record names {rendered_source} as the source of the scan "
+            "root, so this artifact came from the setup-time smoke override rather than "
+            "the pinned tree. The override exists for setup-time verification only and is "
             "never a fallback for a real scan.",
             tool=tool,
-            scan_root_source=source,
+            scan_root_source=rendered_source.as_dict(),
             recorded_scan_root=status.get("scan_root"),
             status_path=status.get("path"),
         )
     recorded = status.get("scan_root")
     if isinstance(recorded, str) and recorded and not _same_root(recorded, root):
+        rendered_recorded = paths.safe_diagnostic(
+            recorded, context=f"{tool}.status scan_root"
+        )
         raise _halt(
             HALT_WRONG_SCAN_ROOT_EVIDENCE,
-            f"{tool}: its status record says it resolved {recorded!r}, which is not the "
-            f"root this dataset is expressed against ({root!r}). Every finding it produced "
-            "would be about another tree, so this is a targeting fault rather than a "
-            "coordinate to keep.",
+            f"{tool}: its status record says it resolved {rendered_recorded}, which is not "
+            f"the root this dataset is expressed against ({root!r}). Every finding it "
+            "produced would be about another tree, so this is a targeting fault rather "
+            "than a coordinate to keep.",
             tool=tool,
-            recorded_scan_root=recorded,
+            recorded_scan_root=rendered_recorded.as_dict(),
             expected_scan_root=root,
             status_path=status.get("path"),
         )
@@ -1448,7 +2482,7 @@ def _process_present_artifact(
         # The observed structure is quoted verbatim from shape.py's own record, so the halt
         # cites one measurement rather than a second reconstruction of it. Its 'reason' is
         # renamed on the way in: this halt's reason is the halting condition, and the
-        # detection reason is which of the two shape tests failed.
+        # detection reason is which of the three shape tests failed (shape.HALT_REASONS).
         detection = dict(error.details())
         detection["detection_reason"] = detection.pop("reason", None)
         raise _halt(
@@ -1519,16 +2553,30 @@ def _process_present_artifact(
         # TrivyAdapterError, GitleaksAdapterError, CheckovAdapterError,
         # DependencyCheckAdapterError, JoernAdapterError, paths.PathPolicyError and
         # severity.SeverityPolicyError all do. None is absorbed into a rejection count.
+        #
+        # The adapter composes that error's text from the artifact -- an observed rule
+        # identifier, an observed URI, an observed section name -- and this halt is
+        # persisted into normalize-run.json and quoted into tool-status.md. So the error's
+        # message is described through paths.safe_diagnostic (type, length, digest,
+        # bounded redacted excerpt) rather than interpolated raw: a control sequence would
+        # otherwise rewrite what an operator reading the halt sees, and a URI carrying
+        # userinfo would put whatever credential the artifact held into a durable file.
+        # The exception type is named in full, because that is the actionable half and it
+        # is this repository's own vocabulary rather than the artifact's.
         outcome.parse_status = PARSE_STATUS_FAILED
+        rendered = paths.safe_diagnostic(
+            str(error), context=f"{type(error).__name__} from {decision.adapter} adapter"
+        )
         raise _halt(
             HALT_ADAPTER_CONTRACT,
             f"{tool}: its adapter refused the artifact or the arguments it was given: "
-            f"{type(error).__name__}: {error}",
+            f"{type(error).__name__}: {rendered}",
             tool=tool,
             artifact_path=str(artifact_path),
             adapter=decision.adapter,
             adapter_module=decision.adapter_module_name,
-            error=f"{type(error).__name__}: {error}",
+            error_type=type(error).__name__,
+            error=rendered.as_dict(),
         ) from error
 
     rejections_by_class: dict[str, int] = {}
@@ -1595,6 +2643,20 @@ def _process_absent_artifact(
     artifact absent with **no** stated reason halts, and a termination that produced no exit
     code does not change that: ``exit_status: timeout`` names how the process ended, it does
     not excuse the absence.
+
+    "Stated a reason" is decided by :func:`_classify_no_work` against the exact-sentence
+    table, never by the streams merely being non-empty.  That distinction is the whole of
+    this function's correctness: a stack trace, a permission error, a truncated crash
+    message and a JVM heap failure are all non-empty output, none of them is an account of
+    a tool having nothing to do, and admitting any of them would convert a failed runner
+    into a continuing ``absent`` status carrying zero rows -- invisible in a row-only
+    ``findings.json`` by construction.  So the two halts are separated by name: streams
+    with no words at all halt under :data:`HALT_ABSENT_WITHOUT_STATED_REASON`, and streams
+    whose words match no recognised statement halt under
+    :data:`HALT_ABSENT_WITHOUT_NO_WORK_STATEMENT`.  Both preserve the streams verbatim in
+    ``tool_words`` and name their paths in the halt details, because the verdict this
+    function reaches is not a substitute for the tool's own text -- a reader adjudicates
+    from that text, and a halt that quoted nothing would make them go looking for it.
     """
     outcome.runner_status = _runner_status(log_dir, tool)
     outcome.network_fetch = _network_fetch_disclosure(outcome.runner_status)
@@ -1602,15 +2664,35 @@ def _process_absent_artifact(
     # anything, so the evidence is checked here too.
     _check_runner_root_evidence(tool, outcome.runner_status, root)
     outcome.tool_words = _tool_words(log_dir, tool, with_text=True)
+    classification = _classify_no_work(tool, outcome.tool_words, outcome.runner_status)
+    outcome.tool_words["no_work_classification"] = classification
 
-    if not outcome.tool_words["stated_reason_present"]:
+    if not classification["classified"]:
+        words_present = classification["words_present"]
+        reason = (
+            HALT_ABSENT_WITHOUT_NO_WORK_STATEMENT
+            if words_present
+            else HALT_ABSENT_WITHOUT_STATED_REASON
+        )
+        message = (
+            f"{tool}: no artifact in the raw tree, and its output states no no-work "
+            "reason this pipeline recognises for it. The streams carry text and that "
+            "text is not one of the tool's documented no-work statements, so it does not "
+            "establish that the tool completed with nothing in scope to work on -- a "
+            "stack trace, a permission error or a truncated crash message is output, not "
+            "an account. Both streams are preserved verbatim in tool_words and their "
+            "paths are in 'details'; the recognised statements for this tool, if any, are "
+            "in no_work_classification."
+            if words_present
+            else f"{tool}: no artifact in the raw tree and no reason stated in its own "
+            "output. Only the tool's own words can settle whether it completed with "
+            "nothing in scope to work on or failed, so this halts rather than being "
+            "recorded as a zero. Looked for the artifact and for the tool's words at the "
+            "paths in 'details'."
+        )
         raise _halt(
-            HALT_ABSENT_WITHOUT_STATED_REASON,
-            f"{tool}: no artifact in the raw tree and no reason stated in its own output. "
-            "Only the tool's own words can settle whether it completed with nothing in "
-            "scope to work on or failed, so this halts rather than being recorded as a "
-            "zero. Looked for the artifact and for the tool's words at the paths in "
-            "'details'.",
+            reason,
+            message,
             tool=tool,
             artifact_path=outcome.artifact.get("path"),
             stderr_log=outcome.tool_words["streams"]["stderr"].get("path"),
@@ -1619,9 +2701,14 @@ def _process_absent_artifact(
             exit_code=outcome.runner_status.get("exit_code"),
             exit_status=outcome.runner_status.get("exit_status"),
             artifact_expected=outcome.artifact_expected,
+            words_present=words_present,
+            words_stream=classification["words_stream"],
+            no_work_classification=classification,
             note=(
                 "exit_status names how the process ended; it does not excuse a missing "
-                "artifact (AAP 0.8.1)."
+                "artifact (AAP 0.8.1). The absent status requires a no-work reason the "
+                "tool stated in its own words (AAP 0.5.4), matched against the exact "
+                "sentences recorded for it rather than against the presence of output."
             ),
         )
 
@@ -1631,11 +2718,28 @@ def _process_absent_artifact(
     outcome.rejected_records = 0
     outcome.notes.append(
         "Classified from the tool's own words in "
-        f"{outcome.tool_words['stated_reason_stream']}, quoted verbatim in tool_words. "
+        f"{classification['matched_stream']}, matching its recorded no-work statement "
+        f"{classification['matched_sentence']!r} and quoted verbatim in tool_words. "
         "Zero rows, and the reconciliation for this tool is the not-applicable sentinel "
         "rather than 0 = 0 + 0, which would be a passing assertion over an artifact nobody "
         "looked at."
     )
+    agreement = classification["exit_code_agrees_with_statement"]
+    if agreement is False:
+        outcome.notes.append(
+            f"The runner exited {classification['exit_code']}, which is not among the "
+            f"codes this statement has been recorded with "
+            f"({classification['matched_statement']['exit_codes']}). Recorded as a "
+            "difference: the classification rests on the tool's own words (AAP 0.5.4) "
+            "and the exit code is corroboration, so a disagreement is reported rather "
+            "than allowed to decide the case."
+        )
+    elif agreement is None:
+        outcome.notes.append(
+            "No readable exit code is recorded for this runner, so the statement's "
+            "recorded exit code could not be corroborated. The classification rests on "
+            "the tool's own words either way."
+        )
     if outcome.artifact_expected is True:
         outcome.notes.append(
             "The runner metadata records artifact_expected=true for this tool and no "
@@ -2045,6 +3149,18 @@ def _build_source_index(
 
     An index over zero files would reject every Joern record for a reason that has nothing
     to do with the artifact, so that is a configuration fault rather than a rejection count.
+
+    A *partial* index is the same fault, one degree harder to see, which is why
+    ``paths.build_source_index`` now raises on a traversal or a source-read failure rather
+    than skipping the entry.  A directory ``os.walk`` could not list, or a file whose
+    declarations could not be read, removes resolutions the index is supposed to make and
+    turns each affected record into an ``unresolvable_path`` rejection that is
+    indistinguishable from the shaded-third-party outcome this resolver produces
+    legitimately for five findings in six.  The :class:`OSError` is caught here and named
+    with the failing path under :data:`HALT_SOURCE_INDEX_INCOMPLETE`, kept separate from
+    :data:`HALT_SOURCE_INDEX_EMPTY` because the two need different corrections: an empty
+    index means the scan root is not the pinned tree, while an incomplete one means part
+    of that tree could not be read.
     """
     if "joern" not in present:
         record["source_index"] = {
@@ -2055,12 +3171,17 @@ def _build_source_index(
     try:
         index = paths.build_source_index(root)
     except OSError as error:
+        failing_path = getattr(error, "filename", None)
         raise _fault(
-            HALT_SOURCE_INDEX_EMPTY,
+            HALT_SOURCE_INDEX_INCOMPLETE,
             f"the source index over {root} could not be built: "
-            f"{type(error).__name__}: {error}",
+            f"{type(error).__name__}: {error}. Part of the tree could not be read, so "
+            "the index would claim a completeness it does not have and every class it "
+            "lost would be reported as unresolvable.",
             root=root,
             error=f"{type(error).__name__}: {error}",
+            failing_path=failing_path,
+            errno=getattr(error, "errno", None),
         ) from error
     statistics = index.statistics()
     record["source_index"] = {"built": True, "root": root, **statistics}
@@ -2088,6 +3209,19 @@ def _severity_record(tally: severity.LiteralTally) -> dict[str, Any]:
 
     The mapping policy itself lives in ``normalize/severity.py``; only its statement names
     are carried here, so no second copy of the policy text can drift from the first.
+
+    **Which entry governed each band reaches the record with the literal that carries it.**
+    AAP 0.5.4 requires that *"either way the entry used is recorded -- the label, or the
+    score with its source and version"*, and a per-record selection that is dropped when
+    rows are aggregated is a selection ``severity-map.md`` cannot state.  So the tally keys
+    on the selected entry decomposed into scalars, and each serialised literal carries
+    ``selected_label``, ``selected_score``, ``selected_source`` and ``selected_version``
+    beside its band and basis.  Two things make that flow without a mapping layer here:
+    ``severity.LiteralCount`` is a dataclass, so ``dataclasses.asdict`` carries every field
+    it gains, and ``literal_key`` publishes the field names that constitute a literal's
+    identity so a consumer reads them rather than inferring them.  ``selected_entry_policy``
+    quotes the authored contract, which lives in ``severity.py`` for the same
+    no-second-copy reason as the four mapping statements.
     """
     by_tool = tally.by_tool()
     unmapped = tally.unmapped_by_tool()
@@ -2096,6 +3230,8 @@ def _severity_record(tally: severity.LiteralTally) -> dict[str, Any]:
         "bases": list(severity.BASIS_VALUES),
         "policy_statements": [name for name, _ in severity.POLICY_STATEMENTS],
         "policy_source": "harness/lib/normalize/severity.py",
+        "literal_key": list(severity.LITERAL_KEY_FIELDS),
+        "selected_entry_policy": severity.POLICY_SELECTED_ENTRY_TALLY,
         "total_rows": tally.total_rows(),
         "tools_reported": list(by_tool),
         "tools": {
@@ -2120,10 +3256,166 @@ def _by_tool(
     return {outcome.tool: outcome.counter_summary.get(key) for outcome in outcomes}
 
 
+#: How many rows whose path names nothing on disk are quoted as examples in the record.
+#: Bounded because the count is the measurement and the examples are illustration: an
+#: unbounded list would let one misconfigured tool decide the size of the run record.
+PATHS_NOT_ON_DISK_EXAMPLE_LIMIT: int = 25
+
+#: Why a row's path was found not to name a file in the tree.  A closed vocabulary, so the
+#: figure ``run-record.md`` cites can be read as a breakdown rather than as one opaque
+#: number.
+NOT_ON_DISK_ARCHIVE_MEMBER: str = "archive-member-not-a-tree-file"
+NOT_ON_DISK_OUTSIDE_ROOT: str = "outside-root-not-stat-ed"
+NOT_ON_DISK_ABSENT_FROM_TREE: str = "absent-from-the-pinned-tree"
+NOT_ON_DISK_NOT_A_REGULAR_FILE: str = "present-but-not-a-regular-file"
+NOT_ON_DISK_REASONS: tuple[str, ...] = (
+    NOT_ON_DISK_ARCHIVE_MEMBER,
+    NOT_ON_DISK_OUTSIDE_ROOT,
+    NOT_ON_DISK_ABSENT_FROM_TREE,
+    NOT_ON_DISK_NOT_A_REGULAR_FILE,
+)
+
+
+def _not_on_disk_reason(row_path: str, root_path: Path) -> str | None:
+    """Return why ``row_path`` names no file in the tree, or ``None`` where it does.
+
+    Four outcomes, each named in :data:`NOT_ON_DISK_REASONS`, and two of them are decided
+    **without touching the filesystem** because touching it would be wrong rather than
+    merely slow:
+
+    * an **archive member** (``<container>!<member>``) names a member inside a container,
+      which is not a file in the tree however present the container is.  Stat-ing the
+      joined string would ask about a path that does not exist by construction and would
+      report the right answer for the wrong reason;
+    * a path that **escapes the root** carries ``..`` segments the SARIF errata require
+      preserved, and resolving them would reach outside the tree this dataset is expressed
+      against.  This module does not stat outside its own root, so the coordinate is
+      counted as naming no file in the tree and the record says the check was refused
+      rather than failed.
+
+    The remaining two are measured: a path inside the root is joined to it lexically --
+    never through ``Path.resolve()``, which would collapse ``..`` and follow symlinks --
+    and classified as absent, as present but not a regular file (a directory, a socket, a
+    dangling symlink), or as a file.
+
+    An ``OSError`` from the stat is reported as absent rather than raised: this is a
+    reported metric over paths a scanner supplied, and one unreadable path must not stop a
+    run whose dataset is already written and reconciled.  The reason vocabulary keeps it
+    distinguishable from a path that was simply not there.
+    """
+    if paths.split_archive_reference(row_path) is not None:
+        return NOT_ON_DISK_ARCHIVE_MEMBER
+    if paths.analyse_containment(row_path).escapes_root:
+        return NOT_ON_DISK_OUTSIDE_ROOT
+    candidate = root_path / row_path
+    try:
+        if candidate.is_file():
+            return None
+        if candidate.exists():
+            return NOT_ON_DISK_NOT_A_REGULAR_FILE
+    except OSError:
+        return NOT_ON_DISK_ABSENT_FROM_TREE
+    return NOT_ON_DISK_ABSENT_FROM_TREE
+
+
+def _paths_not_on_disk(
+    rows: Sequence[Mapping[str, Any]],
+    root: str,
+) -> dict[str, Any]:
+    """Measure the rows whose ``path`` does not name a file on disk, once, against ``root``.
+
+    AAP 0.1.1 and 0.6.1 require this figure published: *"count and report the rows whose
+    path names something that is not a file on disk"*, and ``run-record.md`` carries *"the
+    non-filesystem path count and proportion"*.  It is a different question from the
+    path-kind tally beside it, and both are needed.  The tally classifies a path by its
+    **form** -- an archive member, a coordinate outside the root -- which a resolver can
+    decide with no filesystem at all.  This asks whether the thing a row names is
+    **actually there** in the pinned tree, which only the tree can answer, and a
+    ``tree_file`` naming a file the pin does not carry is invisible to the tally.
+
+    Taken **once**, here, against the same root every path in the dataset was expressed
+    against, because a second measurement against a second root is how two documents come
+    to quote different numbers for one figure (AAP 0.6.4).
+
+    Bounded by construction rather than by row count: the distinct paths are collected
+    first and each is classified once, so a dataset in which many rows share a path costs
+    one stat per path rather than one per row. The 9,466-row dataset this run emits carries
+    fewer distinct paths than rows, and the classification is memoised across both.
+
+    Returns:
+        A mapping carrying ``count``, ``rows_examined`` (the denominator, always the real
+        row count so a zero is readable as *"none of 9,466"* rather than as an absence),
+        ``proportion``, ``by_reason``, ``by_tool``, a bounded ``examples`` list in row
+        order, ``distinct_paths_examined``, and the ``method`` and ``root`` the figure was
+        taken with.
+    """
+    root_path = Path(root)
+    verdicts: dict[str, str | None] = {}
+    by_reason: dict[str, int] = {reason: 0 for reason in NOT_ON_DISK_REASONS}
+    by_tool: dict[str, int] = {}
+    examples: list[dict[str, Any]] = []
+    count = 0
+
+    for row in rows:
+        row_path = row.get("path")
+        tool = row.get("tool")
+        if not isinstance(row_path, str):
+            # Unreachable through emit.validate_rows, which requires a non-empty str, but
+            # this is a measurement rather than a validator: it reports what it was given.
+            reason: str | None = NOT_ON_DISK_ABSENT_FROM_TREE
+        else:
+            if row_path not in verdicts:
+                verdicts[row_path] = _not_on_disk_reason(row_path, root_path)
+            reason = verdicts[row_path]
+        if reason is None:
+            continue
+        count += 1
+        by_reason[reason] = by_reason.get(reason, 0) + 1
+        key = tool if isinstance(tool, str) else "<unattributed>"
+        by_tool[key] = by_tool.get(key, 0) + 1
+        if len(examples) < PATHS_NOT_ON_DISK_EXAMPLE_LIMIT:
+            # Row order, not sorted: the dataset's order is already deterministic, and
+            # taking the first N of it keeps the examples tied to a position a reader can
+            # find in findings.json.
+            examples.append({"tool": key, "path": row_path, "reason": reason})
+
+    examined = len(rows)
+    return {
+        "count": count,
+        "rows_examined": examined,
+        "proportion": (count / examined) if examined else 0.0,
+        "by_reason": {reason: by_reason[reason] for reason in NOT_ON_DISK_REASONS},
+        "by_tool": {tool: by_tool[tool] for tool in sorted(by_tool)},
+        "examples": examples,
+        "example_limit": PATHS_NOT_ON_DISK_EXAMPLE_LIMIT,
+        "examples_truncated": count > len(examples),
+        "distinct_paths_examined": len(verdicts),
+        "root": root,
+        "method": (
+            "Each row's path is joined to the scan root lexically -- never through "
+            "Path.resolve(), which would collapse the '..' segments the SARIF 2.1.0 "
+            "errata require preserved -- and tested with Path.is_file(). An archive "
+            "member and a coordinate that escapes the root are classified without a stat: "
+            "the first names a member inside a container rather than a file in the tree, "
+            "and stat-ing the second would reach outside the root this dataset is "
+            "expressed against. Distinct paths are classified once and the verdict reused, "
+            "so the cost is one stat per distinct path rather than one per row."
+        ),
+        "note": (
+            "A row counted here is kept, never dropped (AAP 0.9.3): an external "
+            "coordinate, an archive member and a virtual reference are legitimate "
+            "coordinates. This figure is a fact about the dataset, not a judgement on any "
+            "tool, and it is distinct from the path-kind tally beside it -- that "
+            "classifies a path by its form, this asks whether the thing it names is there."
+        ),
+    }
+
+
 def _totals_record(
     outcomes: Sequence[ArtifactOutcome],
     rows: Sequence[Mapping[str, Any]],
     path_kinds: paths.PathKindTally,
+    root: str,
 ) -> dict[str, Any]:
     """Aggregate the dataset-level counts every downstream document needs.
 
@@ -2131,6 +3423,11 @@ def _totals_record(
     requires reported, plus the non-filesystem proportion AAP 0.6.1 puts in
     ``run-record.md``.  Each figure is one measurement, cited here once, so a document that
     quotes it is quoting this file rather than recomputing it.
+
+    ``root`` is taken because two of those figures are about the tree rather than about the
+    rows: :func:`_paths_not_on_disk` answers *"do these paths name files that are there"*,
+    which the form-based path-kind tally cannot, and it is measured here so that it is
+    measured exactly once, against the same root every path was expressed against.
     """
     rejections_by_class: dict[str, int] = {}
     for outcome in outcomes:
@@ -2169,6 +3466,7 @@ def _totals_record(
         "path_kinds": path_kinds.as_dict(),
         "non_filesystem_paths": path_kinds.non_filesystem,
         "non_filesystem_proportion": path_kinds.non_filesystem_proportion,
+        "paths_not_on_disk": _paths_not_on_disk(rows, root),
         "notes": [
             "A record carrying more than one location contributes one row, from its first "
             "location, and still counts once (AAP 0.5.4).",
@@ -2176,6 +3474,11 @@ def _totals_record(
             "ascending numeric identifier.",
             "Nothing is deduplicated, ranked or compared across tools: two tools reporting "
             "the same location produce two rows and no comment (AAP 0.3.2).",
+            "'path_kinds' classifies each path by its form and needs no filesystem; "
+            "'paths_not_on_disk' asks whether the thing each path names is present in the "
+            "pinned tree. Both are required (AAP 0.1.1, AAP 0.6.1) and neither substitutes "
+            "for the other: a tree_file naming a file the pin does not carry is invisible "
+            "to the first and counted by the second.",
         ],
     }
 
@@ -2270,17 +3573,47 @@ def _write_outputs(
     inputs: Inputs,
     record: dict[str, Any],
 ) -> emit.ComparisonResult:
-    """Write both files from the same rows, then prove they agree by parsing both.
+    """Publish both files from the same rows as one generation, proving they agree first.
 
-    ``emit.emit_findings`` validates the rows once, writes each file from those same rows --
-    neither derived from the other -- reads both back from disk, coerces the CSV cells to
-    the types their fields carry, and compares in order field by field.  Nothing counts
-    lines: the precedent dataset held 10,178 parsed rows over 12,762 physical lines because
-    ``message`` fields carry embedded newlines, so a line count over-reports by about a
-    quarter.
+    ``emit.publish_findings`` validates the rows once, renders each file from those same
+    rows -- neither derived from the other -- stages both in their target directories,
+    reads both staged files back from disk, coerces the CSV cells to the types their
+    fields carry, compares in order field by field, and only then moves both into place.
+    Nothing counts lines: the precedent dataset held 10,178 parsed rows over 12,762
+    physical lines because ``message`` fields carry embedded newlines, so a line count
+    over-reports by about a quarter.
+
+    The publication is all-or-nothing on purpose (AAP 0.9.4 -- the two files are one
+    dataset): a fault part way through leaves both previous deliverables exactly as they
+    were, rather than this run's ``findings.json`` beside the previous run's
+    ``findings.csv``.  Both members carry one content-derived publication identifier, and
+    it is recorded here with each member's byte size and digest so a consumer can detect a
+    mixed generation without trusting this sentence.
     """
+    boundary = inputs.output_guards.get("repository_root")
     try:
-        comparison = emit.emit_findings(rows, inputs.findings_json, inputs.findings_csv)
+        publication = emit.publish_findings(
+            rows,
+            inputs.findings_json,
+            inputs.findings_csv,
+            manifest_path=inputs.log_dir / PUBLICATION_MANIFEST_FILENAME,
+        )
+    except emit.ComparisonFailed as error:
+        # The two staged files did not agree, so neither was published and both previous
+        # deliverables are untouched.  The comparison travels on the exception, so the
+        # record carries the same measurement it would have carried on a pass.
+        record["output_comparison"] = error.comparison.as_dict()
+        raise _halt(
+            HALT_OUTPUT_COMPARISON,
+            "findings.json and findings.csv do not agree under typed re-parse, so "
+            "neither was published: "
+            + (
+                error.comparison.first_mismatch.detail
+                if error.comparison.first_mismatch is not None
+                else "no mismatch was located, which is itself a fault"
+            ),
+            comparison=error.comparison.as_dict(),
+        ) from error
     except emit.EmitError as error:
         raise _halt(
             HALT_EMIT,
@@ -2298,10 +3631,24 @@ def _write_outputs(
             findings_csv=str(inputs.findings_csv),
         ) from error
 
+    comparison = publication.comparison
+    if comparison is None:  # pragma: no cover -- publish_findings always establishes it
+        raise _halt(
+            HALT_OUTPUT_COMPARISON,
+            "the dataset was published without the typed re-parse comparison being "
+            "established, which is itself a fault",
+            publication=publication.as_dict(),
+        )
+
     record["output_comparison"] = comparison.as_dict()
     record["outputs"] = {
         "findings_json": _file_record(inputs.findings_json),
         "findings_csv": _file_record(inputs.findings_csv),
+        # The publication: one identifier both members carry, each member's byte size and
+        # sha256 as measured off the disk, and the write protocol they were published
+        # under.  Recorded rather than asserted, because "both files came from one run" is
+        # exactly the claim a reader of two git-ignored files cannot otherwise check.
+        "publication": publication.as_dict(),
         # emit.validate_rows already refused any row that broke the schema, so a write
         # that got this far proves the schema held -- but it proves it by the absence of
         # an exception, and an absence is not a number. This is the same assertion as a
@@ -2319,8 +3666,18 @@ def _write_outputs(
             "JSON null and an empty CSV field, permitted for severity_native, start_line, "
             "cwe, cve and package_coordinate only; path and severity_norm are never absent."
         ),
+        # The CSV's bytes can differ from a tool's literal text by exactly one leading
+        # character, so the rule and the number of cells it changed are disclosed here:
+        # a reader comparing findings.csv against a scanner's own output otherwise has
+        # no way to tell a neutralised cell from a tool that reported a leading
+        # apostrophe.  The count is the writer's own, taken as it rendered.
+        "csv_spreadsheet_neutralisation": publication.csv_neutralisation,
     }
-    if not comparison.passed:
+    if not comparison.passed:  # pragma: no cover -- emit refuses to publish a failed pair
+        # Unreachable while emit.publish_findings raises ComparisonFailed rather than
+        # publishing a pair that disagrees, and kept because a halt condition that
+        # depends on another module continuing to refuse is one this module states for
+        # itself as well.
         raise _halt(
             HALT_OUTPUT_COMPARISON,
             "findings.json and findings.csv do not agree under typed re-parse: "
@@ -2460,7 +3817,7 @@ def _execute(inputs: Inputs, record: dict[str, Any]) -> None:
         counts.append(artifact_counts)
 
     record["severity_literals"] = _severity_record(tally)
-    record["totals"] = _totals_record(outcomes, rows, path_kinds)
+    record["totals"] = _totals_record(outcomes, rows, path_kinds, root)
 
     stage_a, stage_b = _reconcile_before_write(counts, record)
     _write_outputs(rows, inputs, record)
@@ -2499,8 +3856,35 @@ def _new_record(argv: Sequence[str], started_at: str) -> dict[str, Any]:
             "harness/artifacts/** is git-ignored (.gitignore:31 is artifacts/), so this "
             "record is published through the per-file size-and-sha256 manifest (AAP 0.1.3) "
             "rather than by git add. It is written self-describing for that reason: every "
-            "file it names carries that file's byte size and sha256."
+            "file it names that exists on disk carries that file's byte size and its "
+            "sha256, computed over the whole file. Where an entry carries a null "
+            "measurement it also carries a null_reason saying why -- the file is absent, "
+            "the file could not be read, or the entry names no file at all -- so the "
+            "claim and the data cannot disagree. See file_measurement below."
         ),
+        "file_measurement": {
+            "fields": ["path", "present", "bytes", "sha256"],
+            "digest": "sha256, lowercase hex, over the entire file",
+            "digest_chunk_bytes": _DIGEST_CHUNK,
+            "method": (
+                "os.stat for the byte size and hashlib.sha256 over the file read in "
+                "digest_chunk_bytes chunks, taken at the moment the entry was written"
+            ),
+            "null_convention": (
+                "bytes and sha256 are null only where the file is absent, where it "
+                "exists but could not be read, or where the entry names no file; each "
+                "such entry carries a null_reason stating which"
+            ),
+            "embedded_text": (
+                "a runner stream's own words are embedded only where the artifact is "
+                "absent and the classification therefore depends on them (AAP 0.5.4), "
+                "bounded by text_excerpt_limit and flagged text_truncated when cut. "
+                "Where the words are not embedded the entry carries a text_null_reason: "
+                "the stream is still measured by size and sha256 and retained verbatim "
+                "on disk, so the bound never loses evidence silently."
+            ),
+            "text_excerpt_limit": TOOL_WORDS_EXCERPT_LIMIT,
+        },
         "started_at_utc": started_at,
         "finished_at_utc": None,
         "command": {
@@ -2553,31 +3937,84 @@ def _json_default(value: Any) -> Any:
     return repr(value)
 
 
-def _write_run_record(path: Path, record: Mapping[str, Any]) -> None:
-    """Write ``normalize-run.json``, on every path out of this module including a halt.
+class RunRecordNotPersisted(Exception):
+    """The run record could not be written and read back, so it is not evidence.
 
-    Best effort by design: a failure to write the record is reported on stderr and never
-    replaces the outcome the run already reached, because losing the reason for a halt to a
-    second fault while writing it down is the worst of the available outcomes.
+    Raised by :func:`_write_run_record` and caught only by :func:`main`, which turns it
+    into the process's outcome.  It is deliberately not a :class:`NormalizeHalt`: a halt is
+    something this module records, and this is the failure of the recording itself.
     """
+
+
+def _write_run_record(
+    path: Path, record: Mapping[str, Any], *, owner: Path | None = None
+) -> dict[str, Any]:
+    """Write ``normalize-run.json`` and verify it, on every path out of this module.
+
+    Not best effort.  ``normalize-run.json`` is required evidence -- AAP 0.6.1 names it,
+    AAP 0.9.1 requires the normalizer's run to have a structured status record in the log
+    tree, and AAP 0.1.3 publishes it by manifest because the tree is git-ignored.  A run
+    whose record was lost has produced a dataset nobody can trace, so a failure here is the
+    process's outcome rather than a line on stderr beside a success (CWE-703).
+
+    Three things happen, in this order, and all three must succeed:
+
+    1.  The record is serialised to a **staged** file through ``emit.stage_text``, which
+        refuses a symlinked target or component and opens an exclusive, no-follow
+        temporary with an unguessable name (CWE-59).
+    2.  The staged file is **read back from disk and parsed** as JSON.  Serialising without
+        re-reading proves the encoder ran, not that the bytes are on the device and are a
+        document -- and this record's own halt fields are the only account of a halt.
+    3.  Only then is it promoted into place, atomically.  A failure at any step discards
+        the staged file, leaves any previously published record untouched, and raises.
+
+    Args:
+        path: Where the record is written.
+        record: The record to serialise.
+        owner: The declared owner root the target must sit inside -- the log tree.
+            ``None`` where the caller has already bound the target (the primitive still
+            refuses a symlinked target or component), so containment is enforced once
+            rather than assumed twice.
+
+    Returns:
+        A JSON-serialisable description of what was written: the target, its byte size and
+        the row of verification that passed.
+
+    Raises:
+        RunRecordNotPersisted: Where the record could not be serialised, staged, read back,
+            parsed or promoted.  The message names the condition and the path.
+    """
+    staged: list[emit.StagedWrite] = []
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with path.open("w", encoding="utf-8", newline="\n") as handle:
-            json.dump(
-                record,
-                handle,
-                indent=1,
-                sort_keys=False,
-                ensure_ascii=False,
-                default=_json_default,
-            )
-            handle.write("\n")
-    except (OSError, TypeError, ValueError) as error:
-        print(
-            f"normalize: the run record at {path} could not be written: "
-            f"{type(error).__name__}: {error}",
-            file=sys.stderr,
+        text = json.dumps(
+            record,
+            indent=1,
+            sort_keys=False,
+            ensure_ascii=False,
+            default=_json_default,
         )
+        staged.append(emit.stage_text(path, text + "\n", boundary=owner))
+        verified = json.loads(staged[0].temporary.read_text(encoding="utf-8"))
+        if not isinstance(verified, dict):
+            raise ValueError(
+                "the staged record parsed as "
+                f"{type(verified).__name__} rather than an object"
+            )
+        emit.promote_staged(staged)
+    except (OSError, TypeError, ValueError, emit.EmitError) as error:
+        emit.discard_staged(staged)
+        raise RunRecordNotPersisted(
+            f"{RUN_RECORD_DOCUMENT} could not be written and verified at {path}: "
+            f"{type(error).__name__}: {error}"
+        ) from error
+    return {
+        "path": str(path),
+        "bytes_written": staged[0].bytes_written,
+        "verified": (
+            "the staged file was read back from disk and parsed as a JSON object before "
+            "it was promoted; promotion is an atomic rename"
+        ),
+    }
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -2585,7 +4022,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     ``0`` on success; ``1`` on a halting condition in the data; ``2`` on an argparse usage
     error; ``78`` on a configuration fault.  The run record is written on every one of those
-    paths, so a halt is diagnosable from the record rather than only from the console.
+    paths, so a halt is diagnosable from the record rather than only from the console -- and
+    **a run whose record could not be written and verified never reports success**: that
+    condition becomes the outcome, with its own exit code, because a dataset whose run
+    record was lost is a dataset nobody can trace (CWE-703).
     """
     arguments = list(sys.argv[1:] if argv is None else argv)
     parser = build_parser()
@@ -2594,13 +4034,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     record = _new_record(arguments, _utc_now())
     exit_code = EXIT_OK
     outcome = "completed"
-    run_record_path = _absolute(
-        namespace.run_record
-        or os.path.join(
-            _environment_value(os.environ, "HARNESS_LOG_DIR") or os.getcwd(),
-            RUN_RECORD_FILENAME,
+    persistence: dict[str, Any] | None = None
+
+    # Resolved before anything else, because the record is written on every path out of
+    # this function -- including a fault raised inside resolve_inputs. Two sources supply
+    # it and there is no working-directory fallback; where neither is set there is nowhere
+    # to write the required evidence, so the run says exactly that and stops.
+    try:
+        run_record_path, run_record_owner = _run_record_target(namespace, os.environ)
+    except ConfigurationFault as fault:
+        print(
+            f"normalize: configuration fault [{fault.reason}]: {fault.message}",
+            file=sys.stderr,
         )
-    )
+        print(
+            "normalize: no run record was written -- its own location could not be "
+            "resolved, and nothing was read or written by this run.",
+            file=sys.stderr,
+        )
+        return fault.exit_code
 
     try:
         inputs = resolve_inputs(namespace, os.environ)
@@ -2614,42 +4066,112 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         record["halt"] = halt.as_dict()
         print(
-            f"normalize: {outcome.replace('_', ' ')} [{halt.reason}]: {halt.message}",
+            f"normalize: {outcome.replace('_', ' ')} [{halt.reason}]: "
+            f"{halt.safe_message}",
             file=sys.stderr,
         )
     except Exception as error:  # noqa: BLE001 -- recorded, then re-reported and returned
+        # An unexpected exception is the one path nobody designed, which is exactly why it
+        # must not be the path that writes raw artifact text into a durable record. The
+        # exception's own str() is composed from whatever was being processed when it
+        # failed -- an observed key, an observed value, offending bytes -- so it is
+        # described rather than shown, and the frames (this repository's own source) are
+        # rendered separately. See _safe_exception_chain.
         exit_code = EXIT_HALT
         outcome = "unexpected_error"
+        chain = _safe_exception_chain(error)
+        rendered = paths.safe_diagnostic(
+            str(error), context=f"{type(error).__name__} message"
+        )
         record["halt"] = {
             "reason": HALT_UNEXPECTED,
-            "message": f"{type(error).__name__}: {error}",
+            "message": (
+                f"{type(error).__name__}: {rendered}"
+                if str(error)
+                else f"{type(error).__name__}: <no message>"
+            ),
             "exit_code": exit_code,
-            "details": {"traceback": traceback.format_exc()},
+            "details": {
+                "exception_chain": chain,
+                "chain_depth_limit": UNEXPECTED_ERROR_CHAIN_MAX_DEPTH,
+                "frame_limit_per_link": UNEXPECTED_ERROR_FRAME_LIMIT,
+                "note": (
+                    "The exception message is described (type, length, sha256, bounded "
+                    "redacted excerpt) rather than quoted: on an unexpected error it is "
+                    "composed from whatever artifact content was being processed, and a "
+                    "durable record must not carry that verbatim. The frames are this "
+                    "repository's own source and are quoted."
+                ),
+            },
         }
         print(
-            f"normalize: unexpected error: {type(error).__name__}: {error}\n"
-            f"{traceback.format_exc()}",
+            f"normalize: unexpected error: {type(error).__name__}: {rendered}\n"
+            + "\n".join(
+                "\n".join(link["frames"]) for link in chain if link["frames"]
+            ),
             file=sys.stderr,
         )
     finally:
         record["finished_at_utc"] = _utc_now()
         record["exit_status"] = {"code": exit_code, "outcome": outcome}
-        _write_run_record(run_record_path, record)
+        try:
+            persistence = _write_run_record(
+                run_record_path, record, owner=run_record_owner
+            )
+        except RunRecordNotPersisted as error:
+            # The one condition that can turn a completed run into a failed one at the very
+            # last step. It is reported here and it changes the outcome: reporting success
+            # beside a lost record would publish a dataset with no traceable account of how
+            # it was produced.
+            print(f"normalize: {error}", file=sys.stderr)
+            print(
+                "normalize: the run record is required evidence, so this run's outcome is "
+                "that it could not be persisted; the dataset and every count in it are "
+                "unattributable without it.",
+                file=sys.stderr,
+            )
+            if exit_code == EXIT_OK:
+                exit_code = EXIT_CONFIG
+                outcome = "run_record_not_persisted"
+            else:
+                outcome = f"{outcome}_and_run_record_not_persisted"
+            record["halt"] = {
+                "reason": HALT_RUN_RECORD_NOT_PERSISTED,
+                "message": str(error),
+                "exit_code": exit_code,
+                "details": {"run_record": str(run_record_path)},
+            }
+            record["exit_status"] = {"code": exit_code, "outcome": outcome}
 
     if exit_code == EXIT_OK:
         totals = record.get("totals") or {}
         print(
             "normalize: wrote {rows} row(s) from {present} artifact(s) "
             "({absent} absent); all three reconciliation stages and the typed re-parse "
-            "comparison passed. Run record: {record}".format(
+            "comparison passed. Run record: {record} ({bytes} bytes, read back and "
+            "parsed before it was promoted)".format(
                 rows=totals.get("rows"),
                 present=totals.get("artifacts_present"),
                 absent=totals.get("artifacts_absent"),
                 record=run_record_path,
+                bytes=None if persistence is None else persistence["bytes_written"],
             )
         )
+    elif persistence is None:
+        # The record is what a halt is diagnosed from, so its absence is stated in its own
+        # words rather than left to be inferred from the diagnostics above it.
+        print(
+            f"normalize: NO run record was persisted at {run_record_path}; the "
+            "diagnostics above are this run's only account of it.",
+            file=sys.stderr,
+        )
     else:
-        print(f"normalize: run record written to {run_record_path}", file=sys.stderr)
+        print(
+            f"normalize: run record written to {run_record_path} "
+            f"({persistence['bytes_written']} bytes, read back and parsed before it was "
+            "promoted)",
+            file=sys.stderr,
+        )
     return exit_code
 
 

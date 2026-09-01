@@ -1,0 +1,2170 @@
+{
+ "schema_version": 1,
+ "document": "harness/artifacts/logs/cpg-module-coverage.json",
+ "stage": "Stage 2 - graph",
+ "purpose": "The per-module graph coverage verdict and the evidence behind each one. One test, stated once and applied to every module; where it cannot be satisfied the module is named with no verdict rather than passed on weaker evidence.",
+ "written_at_utc": "2026-08-31T16:11:52Z",
+ "the_test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+ "what_delivery_versus_coverage_mean": "Delivery - that every staged JAR was handed to the frontend - is established by the total and injective staging manifest in cpg-input-inventory.json, not by this file. Coverage asks a different question: did THIS module's own code reach the graph, provably attributable to it. A shared package prefix cannot answer it, because every Spark module shares org.apache.spark and a prefix test lets one module vouch for a dozen absent ones.",
+ "graph": {
+  "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/cpg/spark.cpg",
+  "bytes": 605687359,
+  "sha256": "ceefe60e58308ffcfc1d93f8ed6226bf25bac85678f1a54caf826340a25542a6",
+  "identity_reverified_before_load": true
+ },
+ "presence_test_used": {
+  "test": "the witness must appear as an INTERNAL type declaration (cpg.typeDecl.isExternal(false))",
+  "why_not_mere_presence": "cpg.typeDecl carries a stub declaration for every type the processed bytecode references. This graph holds 52267 internal and 48610 external typeDecl fullNames, so a presence test over fullNames alone would accept a name no staged artifact ships. The measured instance is org.apache.spark.SparkFunSuite: present as a fullName, absent as bytecode, because the retained pre-shade streaming tests sibling references it while core's tests artifact - the only artifact that ships it - was excluded.",
+  "graph_typedecl_names_internal": 52267,
+  "graph_typedecl_names_external": 48610
+ },
+ "measurements_joined": {
+  "which_evidence_exists": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/evidence/witness-candidates.json",
+  "is_it_in_the_graph": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/evidence/cpg-verify-results.json",
+  "presence_only_supplement": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/evidence/cpg-verify-supplement.json",
+  "internal_vs_external_recheck": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/evidence/cpg-verify-internal.json",
+  "staging_manifest": "harness/artifacts/logs/cpg-input-inventory.json"
+ },
+ "totals": {
+  "producing_modules": 39,
+  "verdicts": {
+   "NOT APPLICABLE": 1,
+   "COVERED": 29,
+   "NO VERDICT OBTAINABLE": 8,
+   "COVERED BY THE WEAKER WITNESS": 1
+  }
+ },
+ "tests_artifact_exclusion_check": {
+  "expected_absent_classes": [
+   {
+    "name": "org.apache.spark.SparkFunSuite",
+    "present_as_fullname": true,
+    "present_as_internal_bytecode": false,
+    "verdict": "ABSENT as bytecode; present only as an EXTERNAL stub reference"
+   },
+   {
+    "name": "org.apache.spark.LocalSparkContext",
+    "present_as_fullname": false,
+    "present_as_internal_bytecode": false,
+    "verdict": "ABSENT as expected"
+   },
+   {
+    "name": "org.apache.spark.sql.QueryTest",
+    "present_as_fullname": false,
+    "present_as_internal_bytecode": false,
+    "verdict": "ABSENT as expected"
+   },
+   {
+    "name": "org.apache.spark.sql.test.SharedSparkSession",
+    "present_as_fullname": false,
+    "present_as_internal_bytecode": false,
+    "verdict": "ABSENT as expected"
+   },
+   {
+    "name": "org.apache.spark.deploy.master.MasterSuite",
+    "present_as_fullname": false,
+    "present_as_internal_bytecode": false,
+    "verdict": "ABSENT as expected"
+   },
+   {
+    "name": "org.apache.spark.storage.DiskStoreSuite",
+    "present_as_fullname": false,
+    "present_as_internal_bytecode": false,
+    "verdict": "ABSENT as expected"
+   }
+  ],
+  "retained_pre_shade_tests_sibling_classes": [
+   {
+    "name": "org.apache.spark.streaming.TimeSuite",
+    "present_as_internal_bytecode": true,
+    "methods_on_the_declaration": 49
+   },
+   {
+    "name": "org.apache.spark.streaming.DurationSuite",
+    "present_as_internal_bytecode": true,
+    "methods_on_the_declaration": 51
+   },
+   {
+    "name": "org.apache.spark.streaming.BasicOperationsSuite",
+    "present_as_internal_bytecode": true,
+    "methods_on_the_declaration": 250
+   },
+   {
+    "name": "org.apache.spark.streaming.CheckpointSuite",
+    "present_as_internal_bytecode": true,
+    "methods_on_the_declaration": 189
+   },
+   {
+    "name": "org.apache.spark.streaming.StateMapSuite",
+    "present_as_internal_bytecode": true,
+    "methods_on_the_declaration": 39
+   }
+  ],
+  "interpretation": "Of the six test-only classes probed, five are absent from the graph entirely and one - org.apache.spark.SparkFunSuite - is present only as an external stub reference, so no excluded test artifact's bytecode reached the graph. Separately, the ONE retained pre-shade sibling of a tests artifact (original-spark-streaming_2.13-4.1.0-SNAPSHOT-tests.jar) did put streaming's test bytecode in the graph, and that is measured here rather than assumed: five of its classes are internal declarations with real method counts. cpg-input-inventory.json staging.exclusion.retained_test_bytecode records it.",
+  "unexpected_outcomes": 0
+ },
+ "modules": {
+  "<root>": {
+   "module_path": "<root>",
+   "primary_artifact": null,
+   "primary_artifact_classes": 0,
+   "witness_kind": "none",
+   "verdict": "NOT APPLICABLE - pom-packaging project, no primary artifact by design",
+   "evidence": {
+    "why": "this is a pom-packaging project: it has no primary artifact by design, so the primary-artifact coverage test does not apply to it. The only artifact it emitted is a -tests JAR from the test-jar goal (spark-parent_2.13-4.1.0-SNAPSHOT-tests.jar, 20,371 B), and that artifact is test-classified, so the staging exclusion removes it: this project contributes NOTHING to the graph input, which of_those_in_the_graph_input records as an empty list. It is the one producing module of the 39 with no staged artifact.",
+    "artifacts_this_project_emitted": [
+     "spark-parent_2.13-4.1.0-SNAPSHOT-tests.jar"
+    ],
+    "of_those_in_the_graph_input": []
+   }
+  },
+  "common/kvstore": {
+   "module_path": "common/kvstore",
+   "primary_artifact": "spark-kvstore_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 16,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 15,
+    "witness_classes_probed": [
+     "org.apache.spark.util.kvstore.KVIndex",
+     "org.apache.spark.util.kvstore.KVStore",
+     "org.apache.spark.util.kvstore.LevelDB"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.util.kvstore.KVIndex",
+     "org.apache.spark.util.kvstore.KVStore",
+     "org.apache.spark.util.kvstore.LevelDB"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.util.kvstore.KVIndex",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 3,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/util/kvstore/KVIndex.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.util.kvstore.KVStore",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 9,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/util/kvstore/KVStore.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.util.kvstore.LevelDB",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 23,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/util/kvstore/LevelDB.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-kvstore_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-kvstore_2.13/pom.properties"
+    ]
+   }
+  },
+  "common/network-common": {
+   "module_path": "common/network-common",
+   "primary_artifact": "spark-network-common_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 735,
+   "witness_kind": "none",
+   "verdict": "NO VERDICT OBTAINABLE - no injective evidence exists for this module",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "why_no_verdict": "every class in this module's primary artifact is also shipped by at least one other module's artifact -- shaded and uber artifacts vendor them -- and its Maven descriptor is vendored the same way, so no evidence unique to this module exists in the input set. A verdict on shared evidence would let one module vouch for another (AAP 0.5.1).",
+    "weaker_evidence_observed_but_NOT_accepted_as_a_verdict": [
+     {
+      "class": "org.apache.spark.network.util.IOMode",
+      "exclusive_among_primary_artifacts": true,
+      "also_shipped_by": [
+       "common/network-yarn:spark-4.1.0-SNAPSHOT-yarn-shuffle.jar"
+      ]
+     },
+     {
+      "class": "org.apache.spark.network.shuffledb.DB",
+      "exclusive_among_primary_artifacts": true,
+      "also_shipped_by": [
+       "common/network-yarn:spark-4.1.0-SNAPSHOT-yarn-shuffle.jar"
+      ]
+     },
+     {
+      "class": "org.apache.spark.network.ssl.SSLFactory",
+      "exclusive_among_primary_artifacts": true,
+      "also_shipped_by": [
+       "common/network-yarn:spark-4.1.0-SNAPSHOT-yarn-shuffle.jar"
+      ]
+     }
+    ],
+    "weaker_evidence_probed_in_graph": [
+     {
+      "name": "org.apache.spark.network.util.IOMode",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 5,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/network/util/IOMode.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.network.shuffledb.DB",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 4,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/network/shuffledb/DB.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.network.ssl.SSLFactory",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 18,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/network/ssl/SSLFactory.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "presence_only_supplement": {
+     "classes_probed": 30,
+     "classes_present_in_graph_as_internal_declarations": 30,
+     "classes_absent_from_graph": [],
+     "descriptors_probed": [
+      "META-INF/maven/org.apache.spark/spark-network-common_2.13/pom.properties",
+      "META-INF/maven/com.google.guava/guava/pom.properties",
+      "META-INF/maven/com.google.guava/failureaccess/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "descriptors_present": [
+      "META-INF/maven/org.apache.spark/spark-network-common_2.13/pom.properties",
+      "META-INF/maven/com.google.guava/guava/pom.properties",
+      "META-INF/maven/com.google.guava/failureaccess/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "what_this_does_and_does_not_establish": "It establishes that these classes are in the graph. It does NOT establish that their presence is attributable to this module: every one of them is also shipped by another module's shaded or uber artifact, which is exactly why no injective witness exists. Presence is therefore reported as presence, never as coverage."
+    }
+   }
+  },
+  "common/network-shuffle": {
+   "module_path": "common/network-shuffle",
+   "primary_artifact": "spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 52,
+   "witness_kind": "none",
+   "verdict": "NO VERDICT OBTAINABLE - no injective evidence exists for this module",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "why_no_verdict": "every class in this module's primary artifact is also shipped by at least one other module's artifact -- shaded and uber artifacts vendor them -- and its Maven descriptor is vendored the same way, so no evidence unique to this module exists in the input set. A verdict on shared evidence would let one module vouch for another (AAP 0.5.1).",
+    "weaker_evidence_observed_but_NOT_accepted_as_a_verdict": [
+     {
+      "class": "org.apache.spark.network.shuffle.Constants",
+      "exclusive_among_primary_artifacts": true,
+      "also_shipped_by": [
+       "common/network-yarn:spark-4.1.0-SNAPSHOT-yarn-shuffle.jar"
+      ]
+     },
+     {
+      "class": "org.apache.spark.network.shuffle.DownloadFile",
+      "exclusive_among_primary_artifacts": true,
+      "also_shipped_by": [
+       "common/network-yarn:spark-4.1.0-SNAPSHOT-yarn-shuffle.jar"
+      ]
+     },
+     {
+      "class": "org.apache.spark.network.shuffle.ErrorHandler",
+      "exclusive_among_primary_artifacts": true,
+      "also_shipped_by": [
+       "common/network-yarn:spark-4.1.0-SNAPSHOT-yarn-shuffle.jar"
+      ]
+     }
+    ],
+    "weaker_evidence_probed_in_graph": [
+     {
+      "name": "org.apache.spark.network.shuffle.Constants",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 1,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/network/shuffle/Constants.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.network.shuffle.DownloadFile",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 3,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/network/shuffle/DownloadFile.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.network.shuffle.ErrorHandler",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 4,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/network/shuffle/ErrorHandler.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "presence_only_supplement": {
+     "classes_probed": 30,
+     "classes_present_in_graph_as_internal_declarations": 30,
+     "classes_absent_from_graph": [],
+     "descriptors_probed": [
+      "META-INF/maven/org.apache.spark/spark-network-shuffle_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "descriptors_present": [
+      "META-INF/maven/org.apache.spark/spark-network-shuffle_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "what_this_does_and_does_not_establish": "It establishes that these classes are in the graph. It does NOT establish that their presence is attributable to this module: every one of them is also shipped by another module's shaded or uber artifact, which is exactly why no injective witness exists. Presence is therefore reported as presence, never as coverage."
+    }
+   }
+  },
+  "common/network-yarn": {
+   "module_path": "common/network-yarn",
+   "primary_artifact": "spark-network-yarn_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 3,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 3,
+    "witness_classes_probed": [
+     "org.apache.spark.network.yarn.YarnShuffleService",
+     "org.apache.spark.network.yarn.YarnShuffleServiceMetrics",
+     "org.apache.spark.network.yarn.util.HadoopConfigProvider"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.network.yarn.YarnShuffleService",
+     "org.apache.spark.network.yarn.YarnShuffleServiceMetrics",
+     "org.apache.spark.network.yarn.util.HadoopConfigProvider"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.network.yarn.YarnShuffleService",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 18,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/network/yarn/YarnShuffleService.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.network.yarn.YarnShuffleServiceMetrics",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 6,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/network/yarn/YarnShuffleServiceMetrics.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.network.yarn.util.HadoopConfigProvider",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 4,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/network/yarn/util/HadoopConfigProvider.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-network-yarn_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-network-yarn_2.13/pom.properties"
+    ]
+   }
+  },
+  "common/sketch": {
+   "module_path": "common/sketch",
+   "primary_artifact": "spark-sketch_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 12,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 11,
+    "witness_classes_probed": [
+     "org.apache.spark.util.sketch.Utils",
+     "org.apache.spark.util.sketch.BitArray",
+     "org.apache.spark.util.sketch.Platform"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.util.sketch.Utils",
+     "org.apache.spark.util.sketch.BitArray",
+     "org.apache.spark.util.sketch.Platform"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.util.sketch.Utils",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 3,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/util/sketch/Utils.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.util.sketch.BitArray",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 14,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/util/sketch/BitArray.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.util.sketch.Platform",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 22,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/util/sketch/Platform.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-sketch_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-sketch_2.13/pom.properties"
+    ]
+   }
+  },
+  "common/tags": {
+   "module_path": "common/tags",
+   "primary_artifact": "spark-tags_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 11,
+   "witness_kind": "none",
+   "verdict": "NO VERDICT OBTAINABLE - no injective evidence exists for this module",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "why_no_verdict": "every class in this module's primary artifact is also shipped by at least one other module's artifact -- shaded and uber artifacts vendor them -- and its Maven descriptor is vendored the same way, so no evidence unique to this module exists in the input set. A verdict on shared evidence would let one module vouch for another (AAP 0.5.1).",
+    "weaker_evidence_observed_but_NOT_accepted_as_a_verdict": [],
+    "weaker_evidence_probed_in_graph": [],
+    "presence_only_supplement": {
+     "classes_probed": 11,
+     "classes_present_in_graph_as_internal_declarations": 11,
+     "classes_absent_from_graph": [],
+     "descriptors_probed": [
+      "META-INF/maven/org.apache.spark/spark-tags_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "descriptors_present": [
+      "META-INF/maven/org.apache.spark/spark-tags_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "what_this_does_and_does_not_establish": "It establishes that these classes are in the graph. It does NOT establish that their presence is attributable to this module: every one of them is also shipped by another module's shaded or uber artifact, which is exactly why no injective witness exists. Presence is therefore reported as presence, never as coverage."
+    }
+   }
+  },
+  "common/unsafe": {
+   "module_path": "common/unsafe",
+   "primary_artifact": "spark-unsafe_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 27,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 26,
+    "witness_classes_probed": [
+     "org.apache.spark.unsafe.Platform",
+     "org.apache.spark.unsafe.KVIterator",
+     "org.apache.spark.unsafe.array.LongArray"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.unsafe.Platform",
+     "org.apache.spark.unsafe.KVIterator",
+     "org.apache.spark.unsafe.array.LongArray"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.unsafe.Platform",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 29,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/unsafe/Platform.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.unsafe.KVIterator",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 5,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/unsafe/KVIterator.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.unsafe.array.LongArray",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 9,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/unsafe/array/LongArray.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-unsafe_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-unsafe_2.13/pom.properties"
+    ]
+   }
+  },
+  "common/utils": {
+   "module_path": "common/utils",
+   "primary_artifact": "spark-common-utils_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 86,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 85,
+    "witness_classes_probed": [
+     "org.apache.spark.ErrorInfo",
+     "org.apache.spark.ErrorSubInfo",
+     "org.apache.spark.util.LogUtils"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.ErrorInfo",
+     "org.apache.spark.ErrorSubInfo",
+     "org.apache.spark.util.LogUtils"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.ErrorInfo",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 30,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/ErrorInfo.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.ErrorSubInfo",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 26,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/ErrorSubInfo.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.util.LogUtils",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 1,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/util/LogUtils.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-common-utils_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-common-utils_2.13/pom.properties"
+    ]
+   }
+  },
+  "common/utils-java": {
+   "module_path": "common/utils-java",
+   "primary_artifact": "spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 35,
+   "witness_kind": "none",
+   "verdict": "NO VERDICT OBTAINABLE - no injective evidence exists for this module",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "why_no_verdict": "every class in this module's primary artifact is also shipped by at least one other module's artifact -- shaded and uber artifacts vendor them -- and its Maven descriptor is vendored the same way, so no evidence unique to this module exists in the input set. A verdict on shared evidence would let one module vouch for another (AAP 0.5.1).",
+    "weaker_evidence_observed_but_NOT_accepted_as_a_verdict": [
+     {
+      "class": "org.apache.spark.util.Pair",
+      "exclusive_among_primary_artifacts": true,
+      "also_shipped_by": [
+       "common/network-yarn:spark-4.1.0-SNAPSHOT-yarn-shuffle.jar"
+      ]
+     },
+     {
+      "class": "org.apache.spark.QueryContext",
+      "exclusive_among_primary_artifacts": true,
+      "also_shipped_by": [
+       "common/network-yarn:spark-4.1.0-SNAPSHOT-yarn-shuffle.jar"
+      ]
+     },
+     {
+      "class": "org.apache.spark.internal.MDC",
+      "exclusive_among_primary_artifacts": true,
+      "also_shipped_by": [
+       "common/network-yarn:spark-4.1.0-SNAPSHOT-yarn-shuffle.jar"
+      ]
+     }
+    ],
+    "weaker_evidence_probed_in_graph": [
+     {
+      "name": "org.apache.spark.util.Pair",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 7,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/util/Pair.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.QueryContext",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 8,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/QueryContext.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.internal.MDC",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 7,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/internal/MDC.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "presence_only_supplement": {
+     "classes_probed": 30,
+     "classes_present_in_graph_as_internal_declarations": 30,
+     "classes_absent_from_graph": [],
+     "descriptors_probed": [
+      "META-INF/maven/org.apache.spark/spark-common-utils-java_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "descriptors_present": [
+      "META-INF/maven/org.apache.spark/spark-common-utils-java_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "what_this_does_and_does_not_establish": "It establishes that these classes are in the graph. It does NOT establish that their presence is attributable to this module: every one of them is also shipped by another module's shaded or uber artifact, which is exactly why no injective witness exists. Presence is therefore reported as presence, never as coverage."
+    }
+   }
+  },
+  "common/variant": {
+   "module_path": "common/variant",
+   "primary_artifact": "spark-variant_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 8,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 7,
+    "witness_classes_probed": [
+     "org.apache.spark.types.variant.Variant",
+     "org.apache.spark.types.variant.VariantUtil",
+     "org.apache.spark.types.variant.VariantSchema"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.types.variant.Variant",
+     "org.apache.spark.types.variant.VariantUtil",
+     "org.apache.spark.types.variant.VariantSchema"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.types.variant.Variant",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 34,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/types/variant/Variant.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.types.variant.VariantUtil",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 32,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/types/variant/VariantUtil.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.types.variant.VariantSchema",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 3,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/types/variant/VariantSchema.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-variant_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-variant_2.13/pom.properties"
+    ]
+   }
+  },
+  "connector/avro": {
+   "module_path": "connector/avro",
+   "primary_artifact": "spark-avro_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 12,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 11,
+    "witness_classes_probed": [
+     "org.apache.spark.sql.avro.package",
+     "org.apache.spark.sql.v2.avro.AvroScan",
+     "org.apache.spark.sql.avro.SchemaOfAvro"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.sql.avro.package",
+     "org.apache.spark.sql.v2.avro.AvroScan",
+     "org.apache.spark.sql.avro.SchemaOfAvro"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.sql.avro.package",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 2,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/avro/package.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.v2.avro.AvroScan",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 95,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/v2/avro/AvroScan.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.avro.SchemaOfAvro",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 43,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/avro/SchemaOfAvro.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-avro_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-avro_2.13/pom.properties"
+    ]
+   }
+  },
+  "connector/kafka-0-10": {
+   "module_path": "connector/kafka-0-10",
+   "primary_artifact": "spark-streaming-kafka-0-10_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 26,
+   "witness_kind": "none",
+   "verdict": "NO VERDICT OBTAINABLE - no injective evidence exists for this module",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "why_no_verdict": "every class in this module's primary artifact is also shipped by at least one other module's artifact -- shaded and uber artifacts vendor them -- and its Maven descriptor is vendored the same way, so no evidence unique to this module exists in the input set. A verdict on shared evidence would let one module vouch for another (AAP 0.5.1).",
+    "weaker_evidence_observed_but_NOT_accepted_as_a_verdict": [],
+    "weaker_evidence_probed_in_graph": [],
+    "presence_only_supplement": {
+     "classes_probed": 26,
+     "classes_present_in_graph_as_internal_declarations": 26,
+     "classes_absent_from_graph": [],
+     "descriptors_probed": [
+      "META-INF/maven/org.apache.spark/spark-streaming-kafka-0-10_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "descriptors_present": [
+      "META-INF/maven/org.apache.spark/spark-streaming-kafka-0-10_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "what_this_does_and_does_not_establish": "It establishes that these classes are in the graph. It does NOT establish that their presence is attributable to this module: every one of them is also shipped by another module's shaded or uber artifact, which is exactly why no injective witness exists. Presence is therefore reported as presence, never as coverage."
+    }
+   }
+  },
+  "connector/kafka-0-10-assembly": {
+   "module_path": "connector/kafka-0-10-assembly",
+   "primary_artifact": "spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 3067,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 3016,
+    "witness_classes_probed": [
+     "io.jsonwebtoken.Jwe",
+     "io.jsonwebtoken.Jws",
+     "io.jsonwebtoken.Jwt"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "io.jsonwebtoken.Jwe",
+     "io.jsonwebtoken.Jws",
+     "io.jsonwebtoken.Jwt"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "io.jsonwebtoken.Jwe",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 2,
+      "file": "/tmp/jimple2cpg-2012208958048459026/io/jsonwebtoken/Jwe.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "io.jsonwebtoken.Jws",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 2,
+      "file": "/tmp/jimple2cpg-2012208958048459026/io/jsonwebtoken/Jws.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "io.jsonwebtoken.Jwt",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 5,
+      "file": "/tmp/jimple2cpg-2012208958048459026/io/jsonwebtoken/Jwt.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/io.jsonwebtoken/jjwt-api/pom.properties",
+     "META-INF/maven/io.jsonwebtoken/jjwt-impl/pom.properties",
+     "META-INF/maven/io.jsonwebtoken/jjwt-jackson/pom.properties",
+     "META-INF/maven/org.apache.spark/spark-streaming-kafka-0-10-assembly_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/io.jsonwebtoken/jjwt-api/pom.properties",
+     "META-INF/maven/io.jsonwebtoken/jjwt-impl/pom.properties",
+     "META-INF/maven/io.jsonwebtoken/jjwt-jackson/pom.properties",
+     "META-INF/maven/org.apache.spark/spark-streaming-kafka-0-10-assembly_2.13/pom.properties"
+    ]
+   }
+  },
+  "connector/kafka-0-10-sql": {
+   "module_path": "connector/kafka-0-10-sql",
+   "primary_artifact": "spark-sql-kafka-0-10_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 62,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 61,
+    "witness_classes_probed": [
+     "org.apache.spark.sql.kafka010.package",
+     "org.apache.spark.sql.kafka010.JsonUtils",
+     "org.apache.spark.sql.kafka010.KafkaSink"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.sql.kafka010.package",
+     "org.apache.spark.sql.kafka010.JsonUtils",
+     "org.apache.spark.sql.kafka010.KafkaSink"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.sql.kafka010.package",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 0,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/kafka010/package.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.kafka010.JsonUtils",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 6,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/kafka010/JsonUtils.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.kafka010.KafkaSink",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 43,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/kafka010/KafkaSink.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-sql-kafka-0-10_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-sql-kafka-0-10_2.13/pom.properties"
+    ]
+   }
+  },
+  "connector/kafka-0-10-token-provider": {
+   "module_path": "connector/kafka-0-10-token-provider",
+   "primary_artifact": "spark-token-provider-kafka-0-10_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 9,
+   "witness_kind": "none",
+   "verdict": "NO VERDICT OBTAINABLE - no injective evidence exists for this module",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "why_no_verdict": "every class in this module's primary artifact is also shipped by at least one other module's artifact -- shaded and uber artifacts vendor them -- and its Maven descriptor is vendored the same way, so no evidence unique to this module exists in the input set. A verdict on shared evidence would let one module vouch for another (AAP 0.5.1).",
+    "weaker_evidence_observed_but_NOT_accepted_as_a_verdict": [],
+    "weaker_evidence_probed_in_graph": [],
+    "presence_only_supplement": {
+     "classes_probed": 9,
+     "classes_present_in_graph_as_internal_declarations": 9,
+     "classes_absent_from_graph": [],
+     "descriptors_probed": [
+      "META-INF/maven/org.apache.spark/spark-token-provider-kafka-0-10_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "descriptors_present": [
+      "META-INF/maven/org.apache.spark/spark-token-provider-kafka-0-10_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "what_this_does_and_does_not_establish": "It establishes that these classes are in the graph. It does NOT establish that their presence is attributable to this module: every one of them is also shipped by another module's shaded or uber artifact, which is exactly why no injective witness exists. Presence is therefore reported as presence, never as coverage."
+    }
+   }
+  },
+  "connector/protobuf": {
+   "module_path": "connector/protobuf",
+   "primary_artifact": "spark-protobuf_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 223,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 223,
+    "witness_classes_probed": [
+     "org.apache.spark.sql.protobuf.package",
+     "org.apache.spark.sql.protobuf.ProtobufSerializer",
+     "org.apache.spark.sql.protobuf.utils.ProtobufUtils"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.sql.protobuf.package",
+     "org.apache.spark.sql.protobuf.ProtobufSerializer",
+     "org.apache.spark.sql.protobuf.utils.ProtobufUtils"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.sql.protobuf.package",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 0,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/protobuf/package.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.protobuf.ProtobufSerializer",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 107,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/protobuf/ProtobufSerializer.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.protobuf.utils.ProtobufUtils",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 4,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/protobuf/utils/ProtobufUtils.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-protobuf_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-protobuf_2.13/pom.properties"
+    ]
+   }
+  },
+  "core": {
+   "module_path": "core",
+   "primary_artifact": "spark-core_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 2126,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 2121,
+    "witness_classes_probed": [
+     "org.apache.spark.Success",
+     "org.apache.spark.package",
+     "org.apache.spark.CleanRDD"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.Success",
+     "org.apache.spark.package",
+     "org.apache.spark.CleanRDD"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.Success",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 9,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/Success.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.package",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 8,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/package.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.CleanRDD",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 18,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/CleanRDD.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-core_2.13/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-client/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-http/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-io/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-plus/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-proxy/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-security/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-server/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-servlet/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-servlets/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-util/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-core_2.13/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-client/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-http/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-io/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-plus/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-proxy/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-security/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-server/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-servlet/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-servlets/pom.properties",
+     "META-INF/maven/org.eclipse.jetty/jetty-util/pom.properties"
+    ]
+   }
+  },
+  "examples": {
+   "module_path": "examples",
+   "primary_artifact": "spark-examples_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 368,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 368,
+    "witness_classes_probed": [
+     "org.apache.spark.examples.JavaTC",
+     "org.apache.spark.examples.LocalLR",
+     "org.apache.spark.examples.LocalPi"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.examples.JavaTC",
+     "org.apache.spark.examples.LocalLR",
+     "org.apache.spark.examples.LocalPi"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.examples.JavaTC",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 6,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/examples/JavaTC.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.examples.LocalLR",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 8,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/examples/LocalLR.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.examples.LocalPi",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 1,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/examples/LocalPi.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-examples_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-examples_2.13/pom.properties"
+    ]
+   }
+  },
+  "graphx": {
+   "module_path": "graphx",
+   "primary_artifact": "spark-graphx_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 47,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 46,
+    "witness_classes_probed": [
+     "org.apache.spark.graphx.Edge",
+     "org.apache.spark.graphx.Graph",
+     "org.apache.spark.graphx.Pregel"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.graphx.Edge",
+     "org.apache.spark.graphx.Graph",
+     "org.apache.spark.graphx.Pregel"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.graphx.Edge",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 60,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/graphx/Edge.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.graphx.Graph",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 58,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/graphx/Graph.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.graphx.Pregel",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 4,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/graphx/Pregel.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-graphx_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-graphx_2.13/pom.properties"
+    ]
+   }
+  },
+  "launcher": {
+   "module_path": "launcher",
+   "primary_artifact": "spark-launcher_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 21,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 20,
+    "witness_classes_probed": [
+     "org.apache.spark.launcher.Main",
+     "org.apache.spark.launcher.SparkLauncher",
+     "org.apache.spark.launcher.LauncherServer"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.launcher.Main",
+     "org.apache.spark.launcher.SparkLauncher",
+     "org.apache.spark.launcher.LauncherServer"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.launcher.Main",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 5,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/launcher/Main.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.launcher.SparkLauncher",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 48,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/launcher/SparkLauncher.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.launcher.LauncherServer",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 13,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/launcher/LauncherServer.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-launcher_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-launcher_2.13/pom.properties"
+    ]
+   }
+  },
+  "mllib": {
+   "module_path": "mllib",
+   "primary_artifact": "spark-mllib_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 1347,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 1346,
+    "witness_classes_probed": [
+     "org.apache.spark.ml.Model",
+     "org.apache.spark.ml.FitEnd",
+     "org.apache.spark.ml.MLEvent"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.ml.Model",
+     "org.apache.spark.ml.FitEnd",
+     "org.apache.spark.ml.MLEvent"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.ml.Model",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 7,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/ml/Model.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.ml.FitEnd",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 19,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/ml/FitEnd.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.ml.MLEvent",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 3,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/ml/MLEvent.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-mllib_2.13/pom.properties",
+     "META-INF/maven/org.jpmml/pmml-model/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-mllib_2.13/pom.properties",
+     "META-INF/maven/org.jpmml/pmml-model/pom.properties"
+    ]
+   }
+  },
+  "mllib-local": {
+   "module_path": "mllib-local",
+   "primary_artifact": "spark-mllib-local_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 13,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 12,
+    "witness_classes_probed": [
+     "org.apache.spark.ml.impl.Utils",
+     "org.apache.spark.ml.linalg.BLAS",
+     "org.apache.spark.ml.linalg.Matrix"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.ml.impl.Utils",
+     "org.apache.spark.ml.linalg.BLAS",
+     "org.apache.spark.ml.linalg.Matrix"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.ml.impl.Utils",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 6,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/ml/impl/Utils.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.ml.linalg.BLAS",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 12,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/ml/linalg/BLAS.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.ml.linalg.Matrix",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 63,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/ml/linalg/Matrix.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-mllib-local_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-mllib-local_2.13/pom.properties"
+    ]
+   }
+  },
+  "repl": {
+   "module_path": "repl",
+   "primary_artifact": "spark-repl_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 4,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 3,
+    "witness_classes_probed": [
+     "org.apache.spark.repl.Main",
+     "org.apache.spark.repl.Signaling",
+     "org.apache.spark.repl.SparkILoop"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.repl.Main",
+     "org.apache.spark.repl.Signaling",
+     "org.apache.spark.repl.SparkILoop"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.repl.Main",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 12,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/repl/Main.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.repl.Signaling",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 2,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/repl/Signaling.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.repl.SparkILoop",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 15,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/repl/SparkILoop.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-repl_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-repl_2.13/pom.properties"
+    ]
+   }
+  },
+  "resource-managers/kubernetes/core": {
+   "module_path": "resource-managers/kubernetes/core",
+   "primary_artifact": "spark-kubernetes_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 79,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 78,
+    "witness_classes_probed": [
+     "org.apache.spark.deploy.k8s.Config",
+     "org.apache.spark.deploy.k8s.SparkPod",
+     "org.apache.spark.deploy.k8s.Constants"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.deploy.k8s.Config",
+     "org.apache.spark.deploy.k8s.SparkPod",
+     "org.apache.spark.deploy.k8s.Constants"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.deploy.k8s.Config",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 127,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/deploy/k8s/Config.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.deploy.k8s.SparkPod",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 22,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/deploy/k8s/SparkPod.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.deploy.k8s.Constants",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 77,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/deploy/k8s/Constants.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-kubernetes_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-kubernetes_2.13/pom.properties"
+    ]
+   }
+  },
+  "resource-managers/yarn": {
+   "module_path": "resource-managers/yarn",
+   "primary_artifact": "spark-yarn_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 35,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 34,
+    "witness_classes_probed": [
+     "org.apache.spark.deploy.yarn.Client",
+     "org.apache.spark.deploy.yarn.AmIpFilter",
+     "org.apache.spark.deploy.yarn.CacheEntry"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.deploy.yarn.Client",
+     "org.apache.spark.deploy.yarn.AmIpFilter",
+     "org.apache.spark.deploy.yarn.CacheEntry"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.deploy.yarn.Client",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 312,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/deploy/yarn/Client.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.deploy.yarn.AmIpFilter",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 9,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/deploy/yarn/AmIpFilter.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.deploy.yarn.CacheEntry",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 26,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/deploy/yarn/CacheEntry.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-yarn_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-yarn_2.13/pom.properties"
+    ]
+   }
+  },
+  "sql/api": {
+   "module_path": "sql/api",
+   "primary_artifact": "spark-sql-api_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 339,
+   "witness_kind": "none",
+   "verdict": "NO VERDICT OBTAINABLE - no injective evidence exists for this module",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "why_no_verdict": "every class in this module's primary artifact is also shipped by at least one other module's artifact -- shaded and uber artifacts vendor them -- and its Maven descriptor is vendored the same way, so no evidence unique to this module exists in the input set. A verdict on shared evidence would let one module vouch for another (AAP 0.5.1).",
+    "weaker_evidence_observed_but_NOT_accepted_as_a_verdict": [],
+    "weaker_evidence_probed_in_graph": [],
+    "presence_only_supplement": {
+     "classes_probed": 30,
+     "classes_present_in_graph_as_internal_declarations": 30,
+     "classes_absent_from_graph": [],
+     "descriptors_probed": [
+      "META-INF/maven/org.apache.spark/spark-sql-api_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "descriptors_present": [
+      "META-INF/maven/org.apache.spark/spark-sql-api_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "what_this_does_and_does_not_establish": "It establishes that these classes are in the graph. It does NOT establish that their presence is attributable to this module: every one of them is also shipped by another module's shaded or uber artifact, which is exactly why no injective witness exists. Presence is therefore reported as presence, never as coverage."
+    }
+   }
+  },
+  "sql/catalyst": {
+   "module_path": "sql/catalyst",
+   "primary_artifact": "spark-catalyst_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 2390,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 2389,
+    "witness_classes_probed": [
+     "org.apache.spark.sql.sources.In",
+     "org.apache.spark.sql.sources.Or",
+     "org.apache.spark.sql.sources.And"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.sql.sources.In",
+     "org.apache.spark.sql.sources.Or",
+     "org.apache.spark.sql.sources.And"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.sql.sources.In",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 33,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/sources/In.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.sources.Or",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 22,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/sources/Or.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.sources.And",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 22,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/sources/And.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-catalyst_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-catalyst_2.13/pom.properties"
+    ]
+   }
+  },
+  "sql/connect/client/jdbc": {
+   "module_path": "sql/connect/client/jdbc",
+   "primary_artifact": "spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 2,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 2,
+    "witness_classes_probed": [
+     "org.apache.spark.sql.connect.client.jdbc.SparkConnectDriver",
+     "org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.sql.connect.client.jdbc.SparkConnectDriver",
+     "org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.sql.connect.client.jdbc.SparkConnectDriver",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 2,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/connect/client/jdbc/SparkConnectDriver.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 8,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/connect/client/jdbc/NonRegisteringSparkConnectDriver.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-connect-client-jdbc_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-connect-client-jdbc_2.13/pom.properties"
+    ]
+   }
+  },
+  "sql/connect/client/jvm": {
+   "module_path": "sql/connect/client/jvm",
+   "primary_artifact": "spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 5173,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 2318,
+    "witness_classes_probed": [
+     "org.apache.spark.sql.application.ConnectRepl",
+     "org.apache.spark.sql.connect.client.AmmoniteClassFinder",
+     "org.apache.spark.sql.application.ExtendedCodeClassWrapper"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.sql.application.ConnectRepl",
+     "org.apache.spark.sql.connect.client.AmmoniteClassFinder",
+     "org.apache.spark.sql.application.ExtendedCodeClassWrapper"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.sql.application.ConnectRepl",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 1,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/application/ConnectRepl.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.connect.client.AmmoniteClassFinder",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 4,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/connect/client/AmmoniteClassFinder.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.application.ExtendedCodeClassWrapper",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 3,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/application/ExtendedCodeClassWrapper.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/com.google.flatbuffers/flatbuffers-java/pom.properties",
+     "META-INF/maven/org.apache.arrow/arrow-format/pom.properties",
+     "META-INF/maven/org.apache.arrow/arrow-memory-core/pom.properties",
+     "META-INF/maven/org.apache.arrow/arrow-memory-netty-buffer-patch/pom.properties",
+     "META-INF/maven/org.apache.arrow/arrow-memory-netty/pom.properties",
+     "META-INF/maven/org.apache.arrow/arrow-vector/pom.properties",
+     "META-INF/maven/org.apache.spark/spark-connect-client-jvm_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/com.google.flatbuffers/flatbuffers-java/pom.properties",
+     "META-INF/maven/org.apache.arrow/arrow-format/pom.properties",
+     "META-INF/maven/org.apache.arrow/arrow-memory-core/pom.properties",
+     "META-INF/maven/org.apache.arrow/arrow-memory-netty-buffer-patch/pom.properties",
+     "META-INF/maven/org.apache.arrow/arrow-memory-netty/pom.properties",
+     "META-INF/maven/org.apache.arrow/arrow-vector/pom.properties",
+     "META-INF/maven/org.apache.spark/spark-connect-client-jvm_2.13/pom.properties"
+    ]
+   }
+  },
+  "sql/connect/common": {
+   "module_path": "sql/connect/common",
+   "primary_artifact": "spark-connect-common_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 501,
+   "witness_kind": "none",
+   "verdict": "NO VERDICT OBTAINABLE - no injective evidence exists for this module",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "why_no_verdict": "every class in this module's primary artifact is also shipped by at least one other module's artifact -- shaded and uber artifacts vendor them -- and its Maven descriptor is vendored the same way, so no evidence unique to this module exists in the input set. A verdict on shared evidence would let one module vouch for another (AAP 0.5.1).",
+    "weaker_evidence_observed_but_NOT_accepted_as_a_verdict": [],
+    "weaker_evidence_probed_in_graph": [],
+    "presence_only_supplement": {
+     "classes_probed": 30,
+     "classes_present_in_graph_as_internal_declarations": 30,
+     "classes_absent_from_graph": [],
+     "descriptors_probed": [
+      "META-INF/maven/org.apache.spark/spark-connect-common_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "descriptors_present": [
+      "META-INF/maven/org.apache.spark/spark-connect-common_2.13/pom.properties",
+      "META-INF/maven/org.spark-project.spark/unused/pom.properties"
+     ],
+     "what_this_does_and_does_not_establish": "It establishes that these classes are in the graph. It does NOT establish that their presence is attributable to this module: every one of them is also shipped by another module's shaded or uber artifact, which is exactly why no injective witness exists. Presence is therefore reported as presence, never as coverage."
+    }
+   }
+  },
+  "sql/connect/server": {
+   "module_path": "sql/connect/server",
+   "primary_artifact": "spark-connect_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 2807,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 1677,
+    "witness_classes_probed": [
+     "org.apache.spark.sql.connect.ml.Method",
+     "org.apache.spark.sql.connect.ml.MLCache",
+     "org.apache.spark.sql.connect.ml.MLUtils"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.sql.connect.ml.Method",
+     "org.apache.spark.sql.connect.ml.MLCache",
+     "org.apache.spark.sql.connect.ml.MLUtils"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.sql.connect.ml.Method",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 26,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/connect/ml/Method.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.connect.ml.MLCache",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 65,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/connect/ml/MLCache.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.connect.ml.MLUtils",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 15,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/connect/ml/MLUtils.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-connect_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-connect_2.13/pom.properties"
+    ]
+   }
+  },
+  "sql/connect/shims": {
+   "module_path": "sql/connect/shims",
+   "primary_artifact": "spark-connect-shims_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 12,
+   "witness_kind": "weaker descriptor witness (module-exclusive pom.properties)",
+   "verdict": "COVERED BY THE WEAKER WITNESS - no class is exclusive to this module, so the module-exclusive Maven descriptor node is accepted and named as the weaker witness",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "why_no_class_witness": "this module ships stub classes (SparkConf, SparkContext, RDD) that core and the SQL modules also ship, so no class is exclusively its own",
+    "weaker_witness_kind": "module-exclusive META-INF/maven/**/pom.properties file node",
+    "weaker_witness_probed": [
+     "META-INF/maven/org.apache.spark/spark-connect-shims_2.13/pom.properties"
+    ],
+    "weaker_witness_present_in_graph": [
+     "META-INF/maven/org.apache.spark/spark-connect-shims_2.13/pom.properties"
+    ]
+   }
+  },
+  "sql/core": {
+   "module_path": "sql/core",
+   "primary_artifact": "spark-sql_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 1710,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 1702,
+    "witness_classes_probed": [
+     "org.apache.spark.sql.TableArg",
+     "org.apache.spark.sql.api.package",
+     "org.apache.spark.sql.jdbc.JdbcType"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.sql.TableArg",
+     "org.apache.spark.sql.api.package",
+     "org.apache.spark.sql.jdbc.JdbcType"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.sql.TableArg",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 11,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/TableArg.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.api.package",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 0,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/api/package.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.jdbc.JdbcType",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 20,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/jdbc/JdbcType.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-sql_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-sql_2.13/pom.properties"
+    ]
+   }
+  },
+  "sql/hive": {
+   "module_path": "sql/hive",
+   "primary_artifact": "spark-hive_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 71,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 70,
+    "witness_classes_probed": [
+     "org.apache.spark.sql.hive.package",
+     "org.apache.spark.sql.hive.HiveShim",
+     "org.apache.spark.sql.hive.HiveUtils"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.sql.hive.package",
+     "org.apache.spark.sql.hive.HiveShim",
+     "org.apache.spark.sql.hive.HiveUtils"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.sql.hive.package",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 0,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/hive/package.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.hive.HiveShim",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 4,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/hive/HiveShim.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.hive.HiveUtils",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 23,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/hive/HiveUtils.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-hive_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-hive_2.13/pom.properties"
+    ]
+   }
+  },
+  "sql/hive-thriftserver": {
+   "module_path": "sql/hive-thriftserver",
+   "primary_artifact": "spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 136,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 135,
+    "witness_classes_probed": [
+     "org.apache.spark.sql.hive.thriftserver.RowSetUtils",
+     "org.apache.spark.sql.hive.thriftserver.SparkSQLEnv",
+     "org.apache.spark.sql.hive.thriftserver.ui.ToolTips"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.sql.hive.thriftserver.RowSetUtils",
+     "org.apache.spark.sql.hive.thriftserver.SparkSQLEnv",
+     "org.apache.spark.sql.hive.thriftserver.ui.ToolTips"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.sql.hive.thriftserver.RowSetUtils",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 2,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/hive/thriftserver/RowSetUtils.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.hive.thriftserver.SparkSQLEnv",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 10,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/hive/thriftserver/SparkSQLEnv.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.hive.thriftserver.ui.ToolTips",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 6,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/hive/thriftserver/ui/ToolTips.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-hive-thriftserver_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-hive-thriftserver_2.13/pom.properties"
+    ]
+   }
+  },
+  "sql/pipelines": {
+   "module_path": "sql/pipelines",
+   "primary_artifact": "spark-pipelines_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 112,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 111,
+    "witness_classes_probed": [
+     "org.apache.spark.sql.pipelines.Language",
+     "org.apache.spark.sql.pipelines.graph.Flow",
+     "org.apache.spark.sql.pipelines.graph.Sink"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.sql.pipelines.Language",
+     "org.apache.spark.sql.pipelines.graph.Flow",
+     "org.apache.spark.sql.pipelines.graph.Sink"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.sql.pipelines.Language",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 0,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/pipelines/Language.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.pipelines.graph.Flow",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 8,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/pipelines/graph/Flow.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.sql.pipelines.graph.Sink",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 2,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/sql/pipelines/graph/Sink.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-pipelines_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-pipelines_2.13/pom.properties"
+    ]
+   }
+  },
+  "streaming": {
+   "module_path": "streaming",
+   "primary_artifact": "spark-streaming_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 215,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 214,
+    "witness_classes_probed": [
+     "org.apache.spark.streaming.Time",
+     "org.apache.spark.streaming.State",
+     "org.apache.spark.streaming.Minutes"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.streaming.Time",
+     "org.apache.spark.streaming.State",
+     "org.apache.spark.streaming.Minutes"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.streaming.Time",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 45,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/streaming/Time.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.streaming.State",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 11,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/streaming/State.class",
+      "basis": "internal type declaration"
+     },
+     {
+      "name": "org.apache.spark.streaming.Minutes",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 1,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/streaming/Minutes.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-streaming_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-streaming_2.13/pom.properties"
+    ]
+   }
+  },
+  "tools": {
+   "module_path": "tools",
+   "primary_artifact": "spark-tools_2.13-4.1.0-SNAPSHOT.jar",
+   "primary_artifact_classes": 2,
+   "witness_kind": "injective class witness",
+   "verdict": "COVERED - injective class witness present in the graph as an INTERNAL type declaration",
+   "evidence": {
+    "test": "a class in the module's PRIMARY artifact, absent from every other module's artifacts",
+    "injective_classes_in_the_module_primary_artifact_only": 1,
+    "witness_classes_probed": [
+     "org.apache.spark.tools.GenerateMIMAIgnore"
+    ],
+    "witness_classes_present_in_graph_as_internal_declarations": [
+     "org.apache.spark.tools.GenerateMIMAIgnore"
+    ],
+    "witness_classes_absent_from_graph": [],
+    "witness_detail": [
+     {
+      "name": "org.apache.spark.tools.GenerateMIMAIgnore",
+      "present": true,
+      "internal": true,
+      "external_only": false,
+      "methods": 2,
+      "file": "/tmp/jimple2cpg-2012208958048459026/org/apache/spark/tools/GenerateMIMAIgnore.class",
+      "basis": "internal type declaration"
+     }
+    ],
+    "module_descriptor_probed": [
+     "META-INF/maven/org.apache.spark/spark-tools_2.13/pom.properties"
+    ],
+    "module_descriptor_present": [
+     "META-INF/maven/org.apache.spark/spark-tools_2.13/pom.properties"
+    ]
+   }
+  }
+ }
+}

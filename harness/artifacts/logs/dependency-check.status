@@ -52,7 +52,9 @@ runner_baked_flag_edited=false
 invocation_happened=true
 invocation_form=direct
 invocation_arguments=none
-invocation_concurrency=one tool at a time
+invocation_concurrency=one tool at a time WITHIN THIS CLONE; global sequencing across the run FAILED - see invocation_concurrency_correction
+invocation_concurrency_superseded_value=one tool at a time
+invocation_concurrency_correction=Direct invocation, no arguments and no orchestrator are unchanged: both were established by inspection of the runner and by this lane's own record. What the superseded value additionally asserted - one tool at a time - holds only inside the clone this runner ran in (w-029_4cc49b). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-24T22:38:54Z-22:39:17Z) overlapped one other: datadog-static-analyzer, by 23.000 s - the whole of this invocation's window falls inside datadog's 22:36:12Z-22:39:55Z. AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under "Facts common to all nine", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing here was repaired: no invocation was re-run to obtain a disjoint window.
 invocations_per_run=1
 orchestrator_used=false
 orchestrator_present_in_harness_bin=false
@@ -106,6 +108,7 @@ artifact_project_name=spark-pinned-59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
 artifact_bytes_owner=harness/artifacts/logs (AAP 0.6.1); the raw tree conforms to this number
 artifact_bytes_agreement=scope_finish trailer 17097 = this file 17097 = harness/ENVIRONMENT.md line 473 17,097
 artifact_assembly=the tool wrote dependency-check-report.json into $HARNESS_LOG_DIR/dependency-check.out/ and the runner copied it to the artifact path unchanged (lines 61-63); no field was rewritten by the harness
+output_directory_retained=no - that directory was written into the log tree of the clone the runner ran in (w-029_4cc49b) and is absent from this checkout and from the size-and-sha256 manifest oss-scan-results/run-record.md section 16 publishes. The copied artifact harness/artifacts/raw/dependency-check.json is what survives, and every figure in this record comes from it or from the captured streams. Stated because a reader looking for the tool's own output directory will not find it
 artifact_status_independent_of_exit_status=true
 #
 # --- THE TWO STREAMS THIS RECORD DEPENDS ON -----------------------------------

@@ -152,7 +152,7 @@ from __future__ import annotations
 import re
 import sys
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from typing import Any
 
 __all__ = [
@@ -165,11 +165,13 @@ __all__ = [
     "CANONICAL_TOOLS",
     "CVSS_BAND_TABLE",
     "CVSS_VECTOR_PATTERN",
+    "LITERAL_KEY_FIELDS",
     "LiteralCount",
     "LiteralTally",
     "POLICY_CVSS_NONE_AS_INFO",
     "POLICY_LABEL_OVER_SCORE",
     "POLICY_SCORE_RENDERING",
+    "POLICY_SELECTED_ENTRY_TALLY",
     "POLICY_STATEMENTS",
     "POLICY_UNMAPPED_DISCLOSURE",
     "SEVERITY_NORM",
@@ -333,11 +335,17 @@ class SeverityResult:
     basis:
         One of :data:`BASIS_VALUES` -- how the band was arrived at.
     selected_entry:
-        The record of what was *used*.  Exactly two shapes occur:
+        The record of what was *used*.  Exactly two shapes occur, and the key
+        set of each is **closed** -- validation rejects any other key:
         ``{"label": "<observed literal>"}`` for a label or a SARIF level, and
         ``{"score": <float>, "source": <str | None>, "version": <str | None>}``
         for a score.  ``None`` on the unmapped and no-vocabulary paths, where
-        nothing was used to derive the band -- the band came from policy.
+        nothing was used to derive the band -- the band came from policy.  The
+        key set is closed so that the four fields :class:`LiteralTally` keys on
+        are a *complete* representation of the entry: were an unlisted key
+        permitted, two entries differing only in it would collapse into one
+        tally bucket and the provenance AAP §0.5.4 requires recorded would be
+        lost at aggregation.
     unmapped_literal:
         The disclosed literal, set if and only if :attr:`basis` is
         :data:`BASIS_UNMAPPED_LITERAL`.
@@ -345,8 +353,9 @@ class SeverityResult:
     The instance is frozen and its ``selected_entry`` is copied on construction,
     so a caller cannot mutate a result after the fact.  Instances are not
     hashable in practice because ``selected_entry`` is a ``dict``; nothing in
-    this module hashes them, and :class:`LiteralTally` keys on the
-    ``(literal, severity_norm, basis)`` triple instead.
+    this module hashes them, and :class:`LiteralTally` keys on the seven fields
+    named by :data:`LITERAL_KEY_FIELDS` instead -- the literal, the band, the
+    basis *and* the selected entry decomposed into its four scalar parts.
     """
 
     severity_native: str | None
@@ -449,13 +458,46 @@ class SeverityResult:
         )
 
 
+#: The only keys a label or SARIF-level ``selected_entry`` may carry.
+_LABEL_ENTRY_KEYS: frozenset[str] = frozenset({"label"})
+
+#: The only keys a CVSS-score ``selected_entry`` may carry.
+_SCORE_ENTRY_KEYS: frozenset[str] = frozenset({"score", "source", "version"})
+
+
 def _validate_selected_entry(basis: str, entry: Mapping[str, Any]) -> None:
-    """Check ``selected_entry`` carries one of the two documented shapes."""
+    """Check ``selected_entry`` carries one of the two documented shapes, exactly.
+
+    Both the required keys and the *permitted* keys are enforced.  Closing the
+    key set is what makes :data:`LITERAL_KEY_FIELDS` a complete representation
+    of the entry: :class:`LiteralTally` decomposes an entry into ``label``,
+    ``score``, ``source`` and ``version`` and keys on those four, so a key
+    outside the closed set would be dropped at aggregation and two selections
+    differing only in it would be counted as one.  Rejecting the key here,
+    where it is a programming fault in a caller, is stronger than hashing an
+    opaque remainder into the key: it keeps the tally's identity readable and
+    every column of it named.
+
+    The scalar types are enforced for the same reason -- a key whose value type
+    varies cannot be ordered deterministically in :meth:`LiteralTally.entries`.
+    """
     if basis in (BASIS_SARIF_LEVEL, BASIS_LABEL):
         if "label" not in entry:
             raise SeverityPolicyError(
                 f"selected_entry for basis {basis!r} must carry a 'label' key, "
                 f"got keys {sorted(entry)!r}"
+            )
+        if not isinstance(entry["label"], str):
+            raise SeverityPolicyError(
+                "selected_entry['label'] must be a str, got "
+                f"{type(entry['label']).__name__}"
+            )
+        unexpected = set(entry) - _LABEL_ENTRY_KEYS
+        if unexpected:
+            raise SeverityPolicyError(
+                f"selected_entry for basis {basis!r} may carry only "
+                f"{sorted(_LABEL_ENTRY_KEYS)!r}, got unexpected "
+                f"{sorted(unexpected)!r}"
             )
         return
     if basis == BASIS_CVSS_SCORE:
@@ -468,6 +510,20 @@ def _validate_selected_entry(basis: str, entry: Mapping[str, Any]) -> None:
             raise SeverityPolicyError(
                 "selected_entry['score'] must be a float, got "
                 f"{type(entry['score']).__name__}"
+            )
+        for optional in ("source", "version"):
+            value = entry.get(optional)
+            if value is not None and not isinstance(value, str):
+                raise SeverityPolicyError(
+                    f"selected_entry[{optional!r}] must be a str or None, got "
+                    f"{type(value).__name__}"
+                )
+        unexpected = set(entry) - _SCORE_ENTRY_KEYS
+        if unexpected:
+            raise SeverityPolicyError(
+                f"selected_entry for basis {basis!r} may carry only "
+                f"{sorted(_SCORE_ENTRY_KEYS)!r}, got unexpected "
+                f"{sorted(unexpected)!r}"
             )
         return
     raise SeverityPolicyError(
@@ -925,6 +981,135 @@ def resolve(
 # --------------------------------------------------------------------------- #
 
 
+POLICY_SELECTED_ENTRY_TALLY: str = (
+    "The entry that governed a band is part of a tallied literal's identity, "
+    "not a detail discarded when rows are aggregated. A bucket is keyed on the "
+    "observed literal, the band, the basis and the selected entry decomposed "
+    "into its four scalar parts -- the label, and a score's value, source and "
+    "version -- each carried as its own field rather than as one rendered "
+    "string. So two advisories scored 7.5 by different sources, or under "
+    "different CVSS versions, are reported as two entries naming their sources "
+    "rather than as one entry that names neither."
+)
+# Deliberately not a member of POLICY_STATEMENTS: those four are statements
+# about the *mapping* -- how a literal becomes a band -- and this one is about
+# the tally's identity, which is downstream of the mapping.  It reaches
+# severity-map.md through its own key in the normalizer's run record.
+
+
+def _optional_text_key(value: str | None) -> tuple[bool, str]:
+    """A total sort key for an optional string: present values first, then text.
+
+    ``None`` cannot be compared with ``str``, so an optional column needs a
+    two-part key rather than the bare value.  Absence sorts *after* every
+    present value, matching the existing convention that the absent literal is
+    reported below the literals.
+    """
+    return (value is None, value or "")
+
+
+def _optional_score_key(value: float | None) -> tuple[bool, float]:
+    """A total sort key for an optional score: present values first, then value.
+
+    Ascending by score, so the smallest score sorts first.  The band already
+    orders the report by severity, so ordering within one band by ascending
+    score merely has to be *stable and total*, which this is.
+    """
+    return (value is None, value if value is not None else CVSS_SCORE_MIN)
+
+
+@dataclass(frozen=True)
+class _LiteralKey:
+    """One tally bucket's identity: the literal, the band, and what was used.
+
+    Frozen, so it hashes, and every field is a scalar, so the hash and the sort
+    order are pure functions of the content.
+
+    AAP §0.5.4 requires that *"the entry used is recorded -- the label, or the
+    score with its source and version"*.  Keying on the literal alone -- or on
+    the ``(literal, band, basis)`` triple this class replaced -- satisfied that
+    requirement per record and then destroyed it per report: a score is
+    recorded in ``severity_native`` as its one-decimal rendering, so two
+    advisories scored 7.5 by different sources, or under CVSS 3.1 and 4.0,
+    produced an identical triple and collapsed into a single bucket whose
+    provenance was whichever entry happened to arrive first -- and nothing
+    downstream could tell that a collapse had happened.
+
+    The selected entry is decomposed into its four scalar parts rather than
+    stored whole for two reasons.  A ``dict`` is unhashable, so it cannot be a
+    key at all; and a *rendered* string -- ``"7.5 (NVD:cvssv3, 3.1)"`` -- would
+    make the report's columns unparseable by anything but a human, where the
+    four fields can be read, sorted and compared directly.  The decomposition
+    is complete because :func:`_validate_selected_entry` closes the key set of
+    both entry shapes.
+    """
+
+    severity_native: str | None
+    severity_norm: str
+    basis: str
+    selected_label: str | None
+    selected_score: float | None
+    selected_source: str | None
+    selected_version: str | None
+
+    @classmethod
+    def from_result(cls, result: SeverityResult) -> _LiteralKey:
+        """Decompose one :class:`SeverityResult` into its bucket identity.
+
+        A result with no selected entry -- the unmapped and no-vocabulary paths,
+        where the band came from policy rather than from anything observed --
+        yields ``None`` in all four provenance fields.  That is a distinct
+        identity from a selection whose fields happen to be absent, because the
+        basis is part of the key.
+        """
+        entry: Mapping[str, Any] = (
+            result.selected_entry if result.selected_entry is not None else {}
+        )
+        return cls(
+            severity_native=result.severity_native,
+            severity_norm=result.severity_norm,
+            basis=result.basis,
+            selected_label=entry.get("label"),
+            selected_score=entry.get("score"),
+            selected_source=entry.get("source"),
+            selected_version=entry.get("version"),
+        )
+
+    def sort_key(self) -> tuple[Any, ...]:
+        """The report order for this bucket, as a total sort key.
+
+        Band first (most severe first, following :data:`SEVERITY_NORM`), then
+        the literal with the absent literal last, then the basis, then the four
+        provenance fields in the order :data:`LITERAL_KEY_FIELDS` names them.
+        Every component is a comparable scalar or a fixed-shape tuple, so the
+        order is total: two runs over the same rows cannot order two buckets
+        differently, whatever order they were recorded in.
+
+        The first three components are exactly the order this class replaced, so
+        extending the key added entries where a collapse used to occur without
+        moving any entry that did not collapse.
+        """
+        return (
+            SEVERITY_NORM.index(self.severity_norm),
+            _optional_text_key(self.severity_native),
+            self.basis,
+            _optional_text_key(self.selected_label),
+            _optional_score_key(self.selected_score),
+            _optional_text_key(self.selected_source),
+            _optional_text_key(self.selected_version),
+        )
+
+
+#: The field names one tally bucket is keyed on, in key order.  Derived from
+#: :class:`_LiteralKey` rather than authored beside it, so the two cannot drift;
+#: :class:`LiteralCount` carries every one of them under the same name, which
+#: the self-check asserts.  A record consumer reads this to know which columns
+#: constitute a literal's identity rather than inferring it from the data.
+LITERAL_KEY_FIELDS: tuple[str, ...] = tuple(
+    field.name for field in fields(_LiteralKey)
+)
+
+
 @dataclass(frozen=True)
 class LiteralCount:
     """One observed native literal for one tool, with the rows it affected.
@@ -940,19 +1125,47 @@ class LiteralCount:
         The band those rows took.
     basis:
         The basis on which they took it, from :data:`BASIS_VALUES`.
+    selected_label:
+        The label or SARIF level that was *used*, where one was; ``None`` on
+        every other path.  Equal to ``severity_native`` on the label and
+        SARIF-level paths by construction, and carried separately so that the
+        provenance column can be read without knowing which basis implies it.
+    selected_score:
+        The full-precision score that was used, where a score was; ``None``
+        otherwise.  ``severity_native`` carries this score's one-decimal
+        rendering, so this field -- not that one -- is what a reader compares
+        when two entries differ below the first decimal place.
+    selected_source:
+        The score entry's source as the artifact spelled it, where the entry
+        named one; ``None`` where it did not, and on every non-score path.
+    selected_version:
+        The score entry's CVSS version as the artifact spelled it, on the same
+        terms.
     rows:
-        How many rows carried this literal for this tool.
+        How many rows carried this literal *and this selection* for this tool.
     unmapped:
         Whether ``basis`` is :data:`BASIS_UNMAPPED_LITERAL`.  Redundant with
         ``basis`` by construction, and present because it is the column
         ``severity-map.md`` needs to list the unmapped literals with their row
         counts.
+
+    The four ``selected_*`` fields are the decomposition described by
+    :data:`POLICY_SELECTED_ENTRY_TALLY`, carried here under the same names
+    :data:`LITERAL_KEY_FIELDS` uses so that a serialised entry states its own
+    identity.  ``cli._severity_record`` serialises these instances with
+    ``dataclasses.asdict``, so they reach the run record -- and therefore
+    ``severity-map.md`` -- without a second mapping layer that could drop a
+    column.
     """
 
     tool: str
     severity_native: str | None
     severity_norm: str
     basis: str
+    selected_label: str | None
+    selected_score: float | None
+    selected_source: str | None
+    selected_version: str | None
     rows: int
     unmapped: bool
 
@@ -960,11 +1173,19 @@ class LiteralCount:
 class LiteralTally:
     """Counts observed severity literals per tool, for ``severity-map.md``.
 
-    Entries are keyed on the ``(severity_native, severity_norm, basis)`` triple
-    rather than on the literal alone.  For a fixed policy the same literal
-    always resolves the same way, so this changes no count in practice; it means
-    that if a literal ever did resolve two ways, the readout would show two
-    entries rather than one corrupted count.
+    Entries are keyed on the seven fields :data:`LITERAL_KEY_FIELDS` names --
+    the literal, the band, the basis, and the selected entry decomposed into its
+    label, score, source and version -- rather than on the literal alone.  For a
+    fixed policy the same literal always resolves to the same band, so the first
+    three fields split nothing in practice; they mean that if a literal ever did
+    resolve two ways, the readout would show two entries rather than one
+    corrupted count.  The last four are load-bearing rather than defensive: a
+    score reaches ``severity_native`` as a one-decimal rendering, so without
+    them two advisories scored 7.5 by different sources -- or under different
+    CVSS versions -- were one bucket, and the provenance AAP §0.5.4 requires
+    recorded could not reach ``severity-map.md`` at all.
+    :data:`POLICY_SELECTED_ENTRY_TALLY` states that contract for the document to
+    quote.
 
     A tool that contributed zero rows still needs an entry, because
     ``findings.json`` and ``findings.csv`` are row-only and cannot show it.
@@ -983,7 +1204,7 @@ class LiteralTally:
 
     def __init__(self, tools: Iterable[str] | None = None) -> None:
         """Create a tally, optionally seeding it with tool identifiers."""
-        self._counts: dict[str, dict[tuple[str | None, str, str], int]] = {}
+        self._counts: dict[str, dict[_LiteralKey, int]] = {}
         if tools is not None:
             self.seed(*tools)
 
@@ -1018,6 +1239,10 @@ class LiteralTally:
     def record(self, tool: str, result: SeverityResult) -> None:
         """Count one row's severity result against one tool.
 
+        The whole result contributes to the bucket identity, including the entry
+        that was selected: :meth:`_LiteralKey.from_result` decomposes it, so
+        nothing about the result is discarded on its way into the tally.
+
         Raises
         ------
         SeverityPolicyError
@@ -1031,7 +1256,7 @@ class LiteralTally:
                 f"{type(result).__name__}"
             )
         bucket = self._counts.setdefault(key_tool, {})
-        key = (result.severity_native, result.severity_norm, result.basis)
+        key = _LiteralKey.from_result(result)
         bucket[key] = bucket.get(key, 0) + 1
 
     def tools(self) -> tuple[str, ...]:
@@ -1041,33 +1266,35 @@ class LiteralTally:
     def entries(self, tool: str) -> tuple[LiteralCount, ...]:
         """Every literal observed for ``tool``, in a stable report order.
 
-        Ordered by band (most severe first, following :data:`SEVERITY_NORM`),
-        then literals before the absent literal, then the literal text, then the
-        basis.  The order is a pure function of the content, so two runs over
-        the same rows render an identical document.
+        Ordered by :meth:`_LiteralKey.sort_key`: band (most severe first,
+        following :data:`SEVERITY_NORM`), then literals before the absent
+        literal, then the literal text, then the basis, then the four provenance
+        fields.  The order is a pure function of the content -- it reads nothing
+        but the key -- so two runs over the same rows render an identical
+        document whatever order the rows arrived in.
+
+        Each returned :class:`LiteralCount` carries its bucket's whole identity,
+        so an entry states which selection it counted rather than leaving a
+        reader to assume there was only one.
         """
         key_tool = self._validate_tool(tool)
         bucket = self._counts.get(key_tool, {})
-        counts = [
+        ordered = sorted(bucket.items(), key=lambda item: item[0].sort_key())
+        return tuple(
             LiteralCount(
                 tool=key_tool,
-                severity_native=native,
-                severity_norm=norm,
-                basis=basis,
+                severity_native=key.severity_native,
+                severity_norm=key.severity_norm,
+                basis=key.basis,
+                selected_label=key.selected_label,
+                selected_score=key.selected_score,
+                selected_source=key.selected_source,
+                selected_version=key.selected_version,
                 rows=rows,
-                unmapped=basis == BASIS_UNMAPPED_LITERAL,
+                unmapped=key.basis == BASIS_UNMAPPED_LITERAL,
             )
-            for (native, norm, basis), rows in bucket.items()
-        ]
-        counts.sort(
-            key=lambda entry: (
-                SEVERITY_NORM.index(entry.severity_norm),
-                entry.severity_native is None,
-                entry.severity_native or "",
-                entry.basis,
-            )
+            for key, rows in ordered
         )
-        return tuple(counts)
 
     def by_tool(self) -> dict[str, tuple[LiteralCount, ...]]:
         """Every tracked tool's entries, keyed by identifier in canonical order.
@@ -1570,6 +1797,140 @@ def _self_check() -> tuple[int, list[str]]:
         "an unknown tool identifier, or a non-result, must be refused",
     )
 
+    # -- The selected entry is part of a bucket's identity ------------------ #
+    #
+    # A score reaches severity_native as its one-decimal rendering, so equal
+    # renderings from different score entries are exactly the case that used to
+    # collapse.  These checks assert the collapse cannot recur.
+    check(
+        LITERAL_KEY_FIELDS
+        == (
+            "severity_native",
+            "severity_norm",
+            "basis",
+            "selected_label",
+            "selected_score",
+            "selected_source",
+            "selected_version",
+        ),
+        f"LITERAL_KEY_FIELDS has drifted: {LITERAL_KEY_FIELDS!r}",
+    )
+    count_fields = {field.name for field in fields(LiteralCount)}
+    check(
+        set(LITERAL_KEY_FIELDS) <= count_fields,
+        f"LiteralCount must carry every key field, missing "
+        f"{sorted(set(LITERAL_KEY_FIELDS) - count_fields)!r}",
+    )
+
+    provenance = LiteralTally()
+    provenance.record(
+        "dependency-check",
+        resolve(scores=[{"score": 7.5, "source": "NVD:cvssv3", "version": "3.1"}]),
+    )
+    provenance.record(
+        "dependency-check",
+        resolve(scores=[{"score": 7.5, "source": "redhat", "version": "3.1"}]),
+    )
+    provenance.record(
+        "dependency-check",
+        resolve(scores=[{"score": 7.5, "source": "redhat", "version": "3.1"}]),
+    )
+    provenance.record(
+        "dependency-check",
+        resolve(scores=[{"score": 7.5, "source": "redhat", "version": "4.0"}]),
+    )
+    score_entries = provenance.entries("dependency-check")
+    check(
+        len({entry.severity_native for entry in score_entries}) == 1
+        and len(score_entries) == 3,
+        f"three score entries rendering '7.5' must stay three entries, "
+        f"got {score_entries!r}",
+    )
+    check(
+        {
+            (entry.selected_source, entry.selected_version, entry.rows)
+            for entry in score_entries
+        }
+        == {("NVD:cvssv3", "3.1", 1), ("redhat", "3.1", 2), ("redhat", "4.0", 1)},
+        f"each entry must name its own source and version and count its own "
+        f"rows, got {score_entries!r}",
+    )
+    check(
+        all(
+            entry.selected_score == 7.5 and entry.selected_label is None
+            for entry in score_entries
+        )
+        and provenance.row_count("dependency-check") == 4,
+        f"the score path must record the score and no label, and the row total "
+        f"must be unaffected by the split, got {score_entries!r}",
+    )
+    reversed_order = LiteralTally()
+    for one_result in reversed(
+        [
+            resolve(scores=[{"score": 7.5, "source": "NVD:cvssv3", "version": "3.1"}]),
+            resolve(scores=[{"score": 7.5, "source": "redhat", "version": "3.1"}]),
+            resolve(scores=[{"score": 7.5, "source": "redhat", "version": "3.1"}]),
+            resolve(scores=[{"score": 7.5, "source": "redhat", "version": "4.0"}]),
+        ]
+    ):
+        reversed_order.record("dependency-check", one_result)
+    check(
+        reversed_order.entries("dependency-check") == score_entries,
+        "the report order must be a pure function of the content, not of the "
+        "order the rows were recorded in",
+    )
+
+    label_entry = LiteralTally()
+    label_entry.record("dependency-check", resolve(label="HIGH"))
+    label_entry.record("trivy", resolve(sarif_level="error"))
+    label_entry.record("gitleaks", SeverityResult.absent())
+    label_entry.record("checkov", SeverityResult.unmapped("VERY-BAD"))
+    check(
+        label_entry.entries("dependency-check")[0].selected_label == "HIGH"
+        and label_entry.entries("trivy")[0].selected_label == "error"
+        and all(
+            getattr(label_entry.entries(tool)[0], name) is None
+            for tool in ("dependency-check", "trivy")
+            for name in ("selected_score", "selected_source", "selected_version")
+        ),
+        "a label or level entry must record the label it used and no score",
+    )
+    check(
+        all(
+            getattr(label_entry.entries(tool)[0], name) is None
+            for tool in ("gitleaks", "checkov")
+            for name in LITERAL_KEY_FIELDS[3:]
+        ),
+        "a band that came from policy rather than from an observed entry must "
+        "record no selection at all",
+    )
+    check(
+        raises(
+            SeverityResult,
+            severity_native="HIGH",
+            severity_norm="High",
+            basis=BASIS_LABEL,
+            selected_entry={"label": "HIGH", "vector": "CVSS:3.1/AV:N"},
+        )
+        and raises(
+            SeverityResult,
+            severity_native="7.5",
+            severity_norm="High",
+            basis=BASIS_CVSS_SCORE,
+            selected_entry={"score": 7.5, "vector": "CVSS:3.1/AV:N"},
+        )
+        and raises(
+            SeverityResult,
+            severity_native="7.5",
+            severity_norm="High",
+            basis=BASIS_CVSS_SCORE,
+            selected_entry={"score": 7.5, "source": 3},
+        ),
+        "an unlisted key, or a wrongly typed one, must be refused: the four "
+        "provenance fields are a complete decomposition only while the entry's "
+        "key set is closed",
+    )
+
     # -- The authored policy statements match the code they describe -------- #
     check(
         render_score(3.200000047683716) in POLICY_SCORE_RENDERING
@@ -1585,6 +1946,15 @@ def _self_check() -> tuple[int, list[str]]:
         len(POLICY_STATEMENTS) == 4
         and all(isinstance(text, str) and text for _, text in POLICY_STATEMENTS),
         "POLICY_STATEMENTS must carry four non-empty authored strings",
+    )
+    check(
+        isinstance(POLICY_SELECTED_ENTRY_TALLY, str)
+        and POLICY_SELECTED_ENTRY_TALLY
+        and POLICY_SELECTED_ENTRY_TALLY
+        not in [text for _, text in POLICY_STATEMENTS],
+        "POLICY_SELECTED_ENTRY_TALLY must be authored, and must stay outside "
+        "POLICY_STATEMENTS: those four state the mapping, this one states the "
+        "tally's identity and is carried under its own record key",
     )
     check(
         sarif_level_table() == _SARIF_LEVEL_MAP

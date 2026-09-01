@@ -1,0 +1,16 @@
+tool            : gitleaks
+scan root       : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scope dirs      : 18
+start           : 2026-08-31T10:06:43+00:00
+ruleset         : default rule set built into gitleaks 8.30.1
+invocation      : one `gitleaks dir <one-path>` per scope directory (18 invocations)
+path base       : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src (root-relative paths; cwd is the scan root)
+redaction       : --redact=100
+merged 1 findings from 18 per-directory reports
+exit code       : 2
+elapsed seconds : 14
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/raw/gitleaks.json (561 bytes)
+end             : 2026-08-31T10:06:57+00:00

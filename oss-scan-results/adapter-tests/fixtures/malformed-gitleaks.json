@@ -1,0 +1,6 @@
+{
+  "schema_version": "example-wrapper-1",
+  "generated_at": "2026-08-24T00:00:00Z",
+  "scan_root": "example-scan-root",
+  "leaks": []
+}

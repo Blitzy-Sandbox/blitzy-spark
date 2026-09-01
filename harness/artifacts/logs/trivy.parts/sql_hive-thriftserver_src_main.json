@@ -1,0 +1,10 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.74.0"
+  },
+  "ReportID": "01a0574b-46d4-7975-be45-40ac3d180639",
+  "CreatedAt": "2026-08-31T10:09:06.260621883Z",
+  "ArtifactName": "sql/hive-thriftserver/src/main",
+  "ArtifactType": "filesystem"
+}

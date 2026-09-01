@@ -1691,4 +1691,3 @@ def adapt(
                 rows.append(outcome)
 
     return rows, rejections, counters
-

@@ -110,11 +110,18 @@ METHOD - THE FOUR PRINCIPLES THIS FILE IS HELD TO
      No exit-code convention, no documentation and no prior run's record is
      allowed to stand in for them.
   P3 Halt-and-report over silent repair (AAP 0.8.1). The runner was invoked
-     directly, with no arguments, one at a time, never through an orchestrator -
-     harness/bin/ holds exactly the nine runners and no orchestrator exists to
-     invoke. Nothing was installed, no runner and no baked flag was edited, no
-     artifact was manufactured, and the twelve globs were NOT widened to give the
-     tool something to resolve.
+     directly, with no arguments, never through an orchestrator - harness/bin/
+     holds exactly the nine runners and no orchestrator exists to invoke. It ran
+     one at a time WITHIN ITS OWN CLONE; the "one at a time" clause is CORRECTED
+     after review, which found it unqualified: AAP 0.8.1's requirement is GLOBAL,
+     and measured across the run from the nine per-tool .status records' own start
+     and finish stamps, five pairs of windows overlapped - this invocation's own
+     window overlaps checkov's by 3.609 s. Global sequencing therefore FAILED and
+     is reported rather than repaired; see oss-scan-results/tool-status.md and
+     oss-scan-results/run-record.md section 8. Nothing was measured afresh, and no
+     scanner was re-run, for this correction. Nothing was installed, no runner
+     and no baked flag was edited, no artifact was manufactured, and the twelve
+     globs were NOT widened to give the tool something to resolve.
   P4 Verbatim preservation - the governing principle. Every stream appears as
      captured, with its length and sha256 given so the reproduction can be
      checked against the capture.
@@ -327,14 +334,14 @@ STEP 5 - THE SCANNER'S OWN STDOUT STREAM, VERBATIM
 STEP 6 - THE SCANNER'S OWN STDERR STREAM, VERBATIM - THE CLASSIFYING EVIDENCE
 ================================================================================
 
-  969 bytes, 23 lines, sha256
-  ad7df520bc9f146fbb1e59e4cce07392b7f5db969bc638ced1d640c02c4cb014
+  969 bytes, 21 lines (SUPERSEDED: '23 lines' was wrong - measured 21), sha256
+  ad7df520bc9f146fbb1e59e4cce07392b7f5db969bc638ced1d640c02c4cb014 - this is CAPTURE A, the block reproduced below, NOT the committed sibling (F32)
 
   This is the whole of what the tool said, in its own words. It is the only
   admissible basis for the completion-versus-failure verdict (AAP 0.1.3), so it
-  is reproduced in full and nothing is paraphrased. Its authoritative copy is the
-  sibling deliverable harness/artifacts/logs/osv-scanner.stderr.log, whose bytes
-  and digest are the ones above.
+  is reproduced in full and nothing is paraphrased. The committed sibling stream is
+  harness/artifacts/logs/osv-scanner.stderr.log - CAPTURE B - 21 lines, 969 bytes,
+  sha256 021347c72dcd98e06b26c579164cded04c26b0eacc203aff07d5eb0487f2c401 (F32).
 
 --- BEGIN CAPTURE: osv-scanner, fd 2 --------------------------------------------
 Scanning dir common/network-common/src/main
@@ -644,9 +651,29 @@ THE CONDITIONAL CONSEQUENCE - DECIDED HERE, NOT DEFERRED
     therefore no native severity literal.
 
   Note that harness/lib/normalize/shape.py already declares an 'osv-scanner'
-  routing key deliberately, so a legitimately written artifact would have routed
-  rather than fallen into the halt path. A written artifact would have been
-  handled, not a crisis; it simply was not written.
+  routing key deliberately, so a legitimately written artifact would have been
+  DETECTED by shape rather than falling into the unknown-shape halt. Detection is
+  not routing, and the distinction matters: harness/lib/normalize/cli.py line 392
+  declares CONDITIONAL_ADAPTER_MODULES = ("osv_scanner",) and lines 1133-1149
+  raise MissingAdapterModule - reject class missing_adapter_module - because
+  harness/lib/normalize/adapters/osv_scanner.py does not exist in this checkout,
+  by the AAP 0.6.1 conditional this observed outcome decided. So the accurate
+  statement is: the shape would be recognised, and normalization would then HALT
+  with missing_adapter_module until the conditional adapter exists. It would not
+  silently emit zero rows, and it would not route to another tool's adapter. The
+  halt is the designed behaviour, not a gap - a recognised shape with no adapter
+  must stop rather than be dropped - and the four conditional deliverables
+  (adapter, fixture, expected rows, test module) are created together if and only
+  if an artifact is written.
+
+  CORRECTED after review. This paragraph previously read: 'so a legitimately
+  written artifact would have routed rather than fallen into the halt path. A
+  written artifact would have been handled, not a crisis; it simply was not
+  written.' That conflated shape detection with adapter availability, and the
+  same correction was applied to harness/artifacts/logs/osv-scanner.status,
+  oss-scan-results/tool-status.md and
+  oss-scan-results/adapter-tests/README.md. No measurement in this file changed:
+  the exit code, both streams, the digests and the verdict are as captured.
 
 ================================================================================
 THIS FILE'S OWN SIZE AND DIGEST
@@ -697,4 +724,79 @@ END OF harness/artifacts/logs/osv-scanner.stdout.log
 osv-scanner: exit 128, no artifact, COMPLETED with nothing in scope to resolve.
 Companion files from the same invocation: osv-scanner.stderr.log (the classifying
 words) and osv-scanner.status (the machine-readable trailer).
+================================================================================
+
+================================================================================
+CORRECTION PASS - APPENDED AFTER THE ORIGINAL END-OF-FILE BANNER
+finding F32 (MEDIUM, digest attribution)
+================================================================================
+
+  WHAT CHANGED IN THE TEXT ABOVE, and nothing else did. Two places in STEP 6 were
+  rewritten in place at the same line count, so no line number in this file moved,
+  and both superseded strings are quoted here verbatim:
+
+    line 330, SUPERSEDED: '  969 bytes, 23 lines, sha256'
+    lines 335-337, SUPERSEDED:
+      'is reproduced in full and nothing is paraphrased. Its authoritative copy is the
+       sibling deliverable harness/artifacts/logs/osv-scanner.stderr.log, whose bytes
+       and digest are the ones above.'
+
+  The embedded capture between the BEGIN CAPTURE and END CAPTURE markers at lines
+  339-361 is untouched, byte for byte, including its end-status line and its final
+  'No package sources found' line. No figure inside it was altered and osv-scanner
+  was not re-invoked.
+
+--------------------------------------------------------------------------------
+THE TWO DEFECTS, AND WHAT EACH FIGURE IS ACTUALLY A FIGURE OF
+--------------------------------------------------------------------------------
+
+  DEFECT 1 - the line count was wrong. '23 lines' was stated; the stream is 21.
+
+  DEFECT 2 - the digest was attributed to the wrong file. ad7df520... is the digest
+  of the capture embedded in THIS file, not of the committed sibling
+  harness/artifacts/logs/osv-scanner.stderr.log, whose digest is 021347c7....
+
+  MEASURED DURING THIS CORRECTION PASS:
+
+  $ sed -n '340,360p' harness/artifacts/logs/osv-scanner.stdout.log > <scratch>/A
+  $ wc -lc <scratch>/A
+  21 969
+  $ sha256sum <scratch>/A
+  ad7df520bc9f146fbb1e59e4cce07392b7f5db969bc638ced1d640c02c4cb014
+
+  $ wc -lc harness/artifacts/logs/osv-scanner.stderr.log
+  21 969
+  $ sha256sum harness/artifacts/logs/osv-scanner.stderr.log
+  021347c72dcd98e06b26c579164cded04c26b0eacc203aff07d5eb0487f2c401
+
+  $ diff <scratch>/A harness/artifacts/logs/osv-scanner.stderr.log
+  20c20
+  < End status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 2.103098503s elapsed, 2.103098903s wall time
+  ---
+  > End status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 296.253311ms elapsed, 296.253503ms wall time
+
+  So the two streams are the same 21 lines and the same 969 bytes and differ in
+  exactly ONE line - the tool's own internal elapsed figure - which is why their
+  digests differ. Both captures were already recorded, with their provenance, in
+  harness/artifacts/logs/osv-scanner.status lines 292-299:
+      capture_a_tool_internal_elapsed=2.103098503s   capture_a_stderr_sha256=ad7df520...
+      capture_b_tool_internal_elapsed=296.253311ms   capture_b_stderr_sha256=021347c7...
+  What was missing was the binding of each figure to the capture it belongs to, and
+  that is what this correction supplies. Both captures are kept; neither is dropped
+  in favour of the other, and no cause for the timing difference is asserted.
+
+--------------------------------------------------------------------------------
+THE CLASSIFYING VERDICT IS UNAFFECTED
+--------------------------------------------------------------------------------
+
+  The verdict rests on what the tool said, and both captures say the same thing in
+  the same words: eighteen 'Scanning dir' lines covering the eighteen allowlist
+  directories, then 'No package sources found, --help for usage information.' The
+  tool therefore COMPLETED with nothing in scope to resolve, in its own words, and
+  the run continues - AAP 0.5.4's artifact-absent-with-a-stated-reason case rather
+  than 0.9.2's halt. That classification is not weakened by this correction, and
+  neither the exit code 128 nor any count in either capture was altered.
+
+================================================================================
+END OF THE CORRECTION PASS APPENDED TO harness/artifacts/logs/osv-scanner.stdout.log
 ================================================================================

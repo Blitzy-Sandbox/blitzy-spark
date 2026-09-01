@@ -26,10 +26,11 @@
       "Misconfigurations": 2
     },
     "derived_from": {
-      "fixture": "oss-scan-results/adapter-tests/fixtures/trivy.json",
+      "fixture": "oss-scan-results/adapter-tests/fixtures/derived-trivy-features.json",
       "sha256": "baa20547c89c73bcffaacb33924da2a6ea9782db4c1b0840a50b6cb6cc648313",
-      "relationship": "Every one of the six top-level members -- SchemaVersion, Trivy, ReportID, CreatedAt, ArtifactName, ArtifactType -- is identical, and Results[0] through Results[5] are the same six elements object for object. Two elements were appended and nothing else was changed, which is what makes the cause of the halt unambiguous: the only difference between the passing artifact and this one is the two appended elements.",
-      "derivation_check": "Compare the two documents element by element over Results[0..5]; each pair is equal. The nine supported finding records and the 5 / 2 / 2 section split are therefore the positive fixture's, unchanged."
+      "relationship": "Every one of the six top-level members -- SchemaVersion, Trivy, ReportID, CreatedAt, ArtifactName, ArtifactType -- is identical to oss-scan-results/adapter-tests/fixtures/derived-trivy-features.json's, and Results[0] through Results[5] are the same six elements object for object. Two elements were appended and nothing else was changed, which is what makes the cause of the halt unambiguous: the only difference between the passing artifact and this one is the two appended elements.",
+      "derivation_check": "Compare this document with oss-scan-results/adapter-tests/fixtures/derived-trivy-features.json element by element over Results[0..5]; each pair is equal. The nine supported finding records and the 5 / 2 / 2 section split are therefore that fixture's, unchanged.",
+      "fixture_kind": "derived. The document these eight elements were built from is itself a derived feature fixture rather than the captured artifact: it carries the vulnerability, secret, multi-identifier and package-coordinate cases the raw Trivy artifact does not contain, and its own expected file (oss-scan-results/adapter-tests/expected/derived-trivy-features.rows.json) states that it is derived and what from. The captured artifact is oss-scan-results/adapter-tests/fixtures/trivy.json, a byte-for-byte copy of harness/artifacts/raw/trivy.json; it holds three misconfiguration records and no unsupported finding member at all, so it could not have supplied the six-element base this halt needs to sit on top of."
     },
     "appended_elements": [
       {
@@ -276,24 +277,30 @@
       "records_that_would_vanish": 4,
       "records_that_would_vanish_detail": "three Licenses objects at Results[6] and one ExperimentalModifiedFindings object at Results[7]"
     },
-    "derivation": "Results[0..5] are fixtures/trivy.json's six elements unchanged, and expected/trivy.rows.json states that document's outcome as nine rows and zero rejections against nine raw records. reconcile._count_trivy sums only the three supported sections, so it returns 9 for this fixture too. An implementation that skipped the unsupported sections instead of halting would therefore emit those same nine rows, reject nothing, and satisfy the reconciliation identity exactly -- while four records of real tool output left no trace anywhere in the dataset, in the counts, or in the reconciliation.",
+    "derivation": "Results[0..5] are oss-scan-results/adapter-tests/fixtures/derived-trivy-features.json's six elements unchanged, and oss-scan-results/adapter-tests/expected/derived-trivy-features.rows.json states that document's outcome as nine rows and zero rejections against nine raw records. reconcile._count_trivy sums only the three supported sections, so it returns 9 for this fixture too. An implementation that skipped the unsupported sections instead of halting would therefore emit those same nine rows, reject nothing, and satisfy the reconciliation identity exactly -- while four records of real tool output left no trace anywhere in the dataset, in the counts, or in the reconciliation.",
     "why_a_halt_and_not_a_tolerated_skip": "Because no downstream check can recover the loss. A drop that unbalances the identity is caught by the identity; a drop that is invisible to both sides of it is caught by nothing, and the artifact reports a clean, reconciled normalization of an artifact it did not fully read. AAP 0.5.4 requires the halt for precisely this reason, and an empty or silently-reduced result set is indistinguishable from a clean scan.",
-    "what_this_fixture_falsifies": "Any implementation that treats an unsupported finding section as a section to skip, a counter to increment, or a rejection to file. All three continue the run; only the halt is correct. It equally falsifies an implementation that halts on the mere presence of the members, since both are present and empty on six of the eight elements of this very fixture and on all six of the positive fixture's -- presence is ordinary, non-emptiness is the fault."
+    "what_this_fixture_falsifies": "Any implementation that treats an unsupported finding section as a section to skip, a counter to increment, or a rejection to file. All three continue the run; only the halt is correct. It equally falsifies an implementation that halts on the mere presence of the members, since both are present and empty on six of the eight elements of this very fixture and on all six of oss-scan-results/adapter-tests/fixtures/derived-trivy-features.json's -- presence is ordinary, non-emptiness is the fault."
   },
   "twin": {
     "positive_twin": {
-      "fixture": "oss-scan-results/adapter-tests/fixtures/trivy.json",
-      "expected": "oss-scan-results/adapter-tests/expected/trivy.rows.json",
+      "fixture": "oss-scan-results/adapter-tests/fixtures/derived-trivy-features.json",
+      "expected": "oss-scan-results/adapter-tests/expected/derived-trivy-features.rows.json",
       "state_of_the_two_members_there": "present and empty on every one of its six Results[] elements",
       "expectation_there": "validate_finding_sections returns None and nine rows are emitted -- the validated-empty case passing",
       "shared_input": "Results[0..5] of this fixture are that fixture's six elements object for object, so the pair differs only in the two appended elements and isolates the guard from everything else the adapter does."
     },
     "why_the_pair_is_required": "Each fixture alone is passed by a defective implementation. One that never checks the unsupported members passes the positive fixture; one that halts on their mere presence would fail it while appearing to satisfy this file. Only the two together pin the rule that validated-empty passes and non-empty halts, so neither expected file is complete without the other and each names its counterpart.",
-    "cross_reference_held_both_ways": "expected/trivy.rows.json's counts.unsupported_finding_sections already names this fixture as its non-empty twin and states that nothing in that file expects a halt and nothing in this one expects a row. This file holds the other half of that statement: rows is empty, rejections is empty, and the only outcome asserted is trivy.UnsupportedTrivySection.",
+    "cross_reference_held_both_ways": "oss-scan-results/adapter-tests/expected/derived-trivy-features.rows.json's counts.unsupported_finding_sections already names this fixture as its non-empty twin and states that nothing in that file expects a halt and nothing in this one expects a row. This file holds the other half of that statement: rows is empty, rejections is empty, and the only outcome asserted is trivy.UnsupportedTrivySection.",
     "sibling_halt_expected_file": {
       "expected": "oss-scan-results/adapter-tests/expected/near-sarif-version-only.rows.json",
       "its_exception": "shape.UnknownArtifactShape",
       "distinction": "That file's halt is raised by shape detection before any adapter is selected, so its tool, scanner_class and adapter are null and its raw count has no unit. This file's halt is raised inside an adapter that was correctly selected, over an artifact whose shape and count unit are both known. Same outcome word, different stage, different exception, and a test that accepts either for either has stopped testing anything."
+    },
+    "three_states_of_an_unsupported_member": {
+      "absent": "oss-scan-results/adapter-tests/fixtures/trivy.json -- the captured artifact carries neither Licenses nor ExperimentalModifiedFindings on any of its three elements. validate_finding_sections returns None, and oss-scan-results/adapter-tests/expected/trivy.rows.json records that as its passing case.",
+      "present_and_empty": "oss-scan-results/adapter-tests/fixtures/derived-trivy-features.json -- both members appear as empty arrays on all six elements. validate_finding_sections returns None, and oss-scan-results/adapter-tests/expected/derived-trivy-features.rows.json records that as its passing case.",
+      "non_empty": "this fixture -- Results[6] holds three Licenses objects and Results[7] holds one ExperimentalModifiedFindings object. validate_finding_sections raises trivy.UnsupportedTrivySection, and this file records that.",
+      "why_all_three_are_needed": "Absent and present-and-empty are both ordinary and must not halt; only non-emptiness may. An implementation that keys on the member's presence rather than on its contents passes the non-empty case and fails the present-and-empty one, and an implementation that never looks passes both passing cases and fails only this one. The three fixtures together admit exactly one behaviour."
     }
   },
   "prohibitions_observed": {

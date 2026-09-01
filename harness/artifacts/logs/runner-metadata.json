@@ -68,8 +68,11 @@
       },
       {
         "check": "both artifact trees exist and are empty",
-        "result": "pass",
-        "detail": "harness/artifacts/raw and harness/artifacts/logs each held 0 entries at the moment of this check. They are created by the provisioned environment file itself - harness/env.sh line 91 runs mkdir -p on HARNESS_RAW_DIR, HARNESS_LOG_DIR and HARNESS_SCRATCH_DIR - and not by this run. They are absent from a fresh clone because .gitignore line 31 is 'artifacts/' and git cannot track an empty directory."
+        "result": "halt",
+        "result_superseded_value": "pass",
+        "detail": "HALT. AAP 0.8.1 requires both trees to ALREADY exist and be EMPTY at one moment before this run writes anything, and AAP 0.9.2 halts on 'either artifact tree missing or non-empty'. Measured PRE-SOURCE, at 2026-08-24T16:59:25Z, before the record-named environment file was sourced: harness/artifacts/raw was ABSENT - ls -A harness/artifacts/raw exited 2 - and harness/artifacts/logs already held exactly ONE entry, runner-metadata.json, 108,542 bytes as it then stood, which is this very file. Both halting limbs were therefore live: a missing tree and a non-empty tree. The later reading in which both trees held 0 entries was taken AFTER harness/env.sh line 91 - mkdir -p on HARNESS_RAW_DIR, HARNESS_LOG_DIR and HARNESS_SCRATCH_DIR - had already brought raw/ into existence, which is the only reason it read as a pass; a tree this run's own sourcing created is not a tree that already existed, and a tree holding an entry is not empty whoever wrote that entry. Reported, not repaired: this run cleared neither tree and deleted nothing to obtain a pass. The trees are absent from a fresh clone because .gitignore line 31 is 'artifacts/' and git cannot track an empty directory, which is why the pre-source measurement is the load-bearing one. See this document's halts array and harness/artifacts/logs/gate-record.json check gate.artifact_trees_exist_and_empty, which records the same halt from the same two measurements.",
+        "detail_superseded_value": "harness/artifacts/raw and harness/artifacts/logs each held 0 entries at the moment of this check. They are created by the provisioned environment file itself - harness/env.sh line 91 runs mkdir -p on HARNESS_RAW_DIR, HARNESS_LOG_DIR and HARNESS_SCRATCH_DIR - and not by this run. They are absent from a fresh clone because .gitignore line 31 is 'artifacts/' and git cannot track an empty directory.",
+        "correction": "result pass -> halt and detail restated. The superseded detail reported the 0-entry reading without saying that it post-dated the environment file's own mkdir, and it claimed the trees were not created by this run when the gate's first state-mutating action is sourcing the file that creates them; on that reading the check recorded a pass for a condition AAP 0.9.2 halts on. Nothing was measured afresh for this correction: both figures used here - the pre-source probe at 2026-08-24T16:59:25Z and the single 108,542-byte logs/ entry - were already recorded in this run's evidence, and re-running the emptiness command now would describe a different moment."
       },
       {
         "check": "the smoke override is unset",
@@ -271,8 +274,22 @@
     "non_runner_helpers_note": "The harness's non-runner helpers live outside harness/bin/, in harness/lib/: scope.sh (the shared scope, logging and credential contract, sourced by all nine) and joern-scan.sc (the bounded Joern query set). Neither is a runner and neither is invoked directly.",
     "evidence": "ls -la harness/bin/ returned exactly nine regular files, all mode 755, all named run-<tool>.sh, and each maps to one canonical tool identifier in the AAP section 0.5.4 class table."
   },
-  "halts": [],
-  "halts_note": "Empty because no halting condition was observed. The conditions checked, each of which would have been recorded here rather than repaired: an entry in harness/bin/ naming a scanner absent from the class table; fewer or more than nine runners; an argument guard sitting after any scanning step; a runner resolving a tree other than SPARK_SRC; a credential unexpectedly present that an unmodifiable runner would expose; the smoke override set; either artifact tree missing or non-empty; the allowlist differing from the twelve globs.",
+  "halts": [
+    {
+      "check": "both artifact trees exist and are empty",
+      "aap_condition": "Either artifact tree missing or non-empty. AAP 0.8.1: 'Both artifact trees must already exist and be empty at the gate. This run neither creates nor clears them: a missing tree is a provisioning failure and a non-empty tree makes an earlier run's artifact indistinguishable from this one's. Either condition halts.' AAP 0.9.2 lists 'either artifact tree missing or non-empty, which is a provisioning fault rather than something this run creates or clears' among the conditions that stop the run.",
+      "measured_pre_source_at_utc": "2026-08-24T16:59:25Z",
+      "measured": "PRE-SOURCE, before the record-named environment file was sourced: harness/artifacts/raw ABSENT - ls -A harness/artifacts/raw exited 2 - and harness/artifacts/logs present holding exactly ONE entry, runner-metadata.json, 108,542 bytes as it then stood. POST-SOURCE the same command reported raw/ present with 0 entries and logs/ still holding that one entry, because harness/env.sh line 91 - mkdir -p \"$HARNESS_RAW_DIR\" \"$HARNESS_LOG_DIR\" \"$HARNESS_SCRATCH_DIR\" - had created raw/ in between.",
+      "pre_existing_logs_entry": "The single pre-existing entry in harness/artifacts/logs/ was THIS file, runner-metadata.json, at 108,542 bytes. Its provenance is this run's own gate stage (generated_at_gate 2026-08-24T16:27:55Z) and AAP 0.6.1 places it in this tree by design, but that is attribution and not emptiness: the AAP's test is emptiness, so the entry's provenance does not exempt the tree from the rule. That size is the gate-time figure and is deliberately not refreshed; this file was later corrected in the post-review pass, so its current size and digest differ and are published in the manifest oss-scan-results/run-record.md section 16 owns.",
+      "why_both_limbs_fired": "The condition has two independent halting limbs and each fired on its own. MISSING: raw/ did not exist at the gate; the only reading under which it did is one taken after this run's own sourcing of harness/env.sh created it, and a tree a run brings into existence is not a tree that already existed. NON-EMPTY: logs/ held one entry, and the rule is emptiness rather than attribution. Either limb alone halts, so the check cannot be rescued by answering only one of them.",
+      "disposition": "Reported, not repaired. This run cleared neither tree and deleted nothing - the pre-existing entry was left exactly where it was rather than removed to manufacture a pass - and it did not create either tree as a remedy. AAP 0.8.1 makes this a provisioning fault this run may neither create nor clear.",
+      "consequence": "No later stage was authorised. The gate's overall verdict is halt (harness/artifacts/logs/gate-record.json gate_verdict.overall), so Stage 1 and every stage after it began without the precondition the gate exists to establish. The work those stages performed is retained as evidence and is recorded as work done after an unmet precondition, never as a compliant stage completion.",
+      "recorded_also_in": "harness/artifacts/logs/gate-record.json - check gate.artifact_trees_exist_and_empty, its halts array and its post_run_correction block. Both documents carry ONE halt, the same condition from the same two measurements, so this is one measurement cited twice rather than two measurements (AAP 0.6.4)."
+    }
+  ],
+  "halts_note": "ONE halting condition was observed and is recorded above rather than repaired: the artifact trees were not both present and empty at a single moment before this run wrote anything. The conditions checked, each of which would have been recorded here in the same way: an entry in harness/bin/ naming a scanner absent from the class table; fewer or more than nine runners; an argument guard sitting after any scanning step; a runner resolving a tree other than SPARK_SRC; a credential unexpectedly present that an unmodifiable runner would expose; the smoke override set; either artifact tree missing or non-empty - THIS is the one that fired; the allowlist differing from the twelve globs. None of the others fired.",
+  "halts_note_superseded_value": "Empty because no halting condition was observed. The conditions checked, each of which would have been recorded here rather than repaired: an entry in harness/bin/ naming a scanner absent from the class table; fewer or more than nine runners; an argument guard sitting after any scanning step; a runner resolving a tree other than SPARK_SRC; a credential unexpectedly present that an unmodifiable runner would expose; the smoke override set; either artifact tree missing or non-empty; the allowlist differing from the twelve globs.",
+  "halts_correction": "halts [] -> one entry, and halts_note's opening rewritten so it no longer claims nothing was observed. The enumeration of the other conditions checked is kept verbatim, with the artifact-tree condition marked as the one that fired. The corrected state matches harness/artifacts/logs/gate-record.json, whose halts array carries the same single entry from the same measurements. Nothing was measured afresh for this correction: every figure in the entry above - the pre-source probe at 2026-08-24T16:59:25Z with ls exit 2, the single 108,542-byte logs/ entry, and harness/env.sh line 91 as the creator of raw/ - was already recorded in this run's evidence, and re-running the emptiness command now would describe a different moment.",
   "tools": {
     "opengrep": {
       "canonical_tool_identifier": "opengrep",
@@ -773,12 +790,12 @@
       "artifact_format": "native JSON array",
       "artifact_expected": true,
       "artifact_assignment_source_line": 26,
-      "artifact_assembly": "The 18 per-directory reports are written under $HARNESS_LOG_DIR/gitleaks.parts/ and merged into one JSON array by the runner's own python3 step at lines 66-78. The merge concatenates arrays and rewrites no field, so every record's File value is exactly as the tool emitted it.",
+      "artifact_assembly": "The 18 per-directory reports are written under $HARNESS_LOG_DIR/gitleaks.parts/ (absent from this checkout, see side_artifacts) and merged into one JSON array by the runner's own python3 step at lines 66-78. The merge concatenates arrays and rewrites no field, so every record's File value is exactly as the tool emitted it.",
       "side_artifacts": [
         "$HARNESS_LOG_DIR/gitleaks.stdout.log",
         "$HARNESS_LOG_DIR/gitleaks.stderr.log",
         "$HARNESS_LOG_DIR/gitleaks.status",
-        "$HARNESS_LOG_DIR/gitleaks.parts/ (18 per-directory reports, retained)"
+        "$HARNESS_LOG_DIR/gitleaks.parts/ (18 per-directory reports) NOT RETAINED: measured absent. It was written into the log tree of the clone the runner ran in and was not carried into this checkout, so it is absent from harness/artifacts/logs/ and absent from the size-and-sha256 manifest oss-scan-results/run-record.md section 16 publishes. Nothing in this run is measured from it. CORRECTED after review: this field previously asserted the directory was retained."
       ],
       "reach": {
         "reads_allowlist": true,
@@ -912,12 +929,12 @@
       "artifact_format": "native JSON - object form, or the multi-framework array form when more than one framework reports",
       "artifact_expected": true,
       "artifact_assignment_source_line": 21,
-      "artifact_assembly": "The tool writes results_json.json into $HARNESS_LOG_DIR/checkov.out and the runner copies it to the artifact path unchanged (lines 53-55), so no field is rewritten. Both output shapes must be detected rather than assumed; only failed_checks are findings, while passed_checks and skipped_checks are neither counted nor emitted and parsing_errors are status evidence.",
+      "artifact_assembly": "The tool writes results_json.json into $HARNESS_LOG_DIR/checkov.out (absent from this checkout, see side_artifacts) and the runner copies it to the artifact path unchanged (lines 53-55), so no field is rewritten. Both output shapes must be detected rather than assumed; only failed_checks are findings, while passed_checks and skipped_checks are neither counted nor emitted and parsing_errors are status evidence.",
       "side_artifacts": [
         "$HARNESS_LOG_DIR/checkov.stdout.log",
         "$HARNESS_LOG_DIR/checkov.stderr.log",
         "$HARNESS_LOG_DIR/checkov.status",
-        "$HARNESS_LOG_DIR/checkov.out/ (the tool's own output directory, retained)"
+        "$HARNESS_LOG_DIR/checkov.out/ (the tool's own output directory) NOT RETAINED: measured absent. It was written into the log tree of the clone the runner ran in and was not carried into this checkout, so it is absent from harness/artifacts/logs/ and absent from the size-and-sha256 manifest oss-scan-results/run-record.md section 16 publishes. Nothing in this run is measured from it. CORRECTED after review: this field previously asserted the directory was retained."
       ],
       "reach": {
         "reads_allowlist": true,
@@ -1002,7 +1019,7 @@
         "evidence": "Established from the invocation and the runner's own merge step, not from the artifact. Each per-directory report states Results[].Target relative to the single path that invocation was given and names that path in its own top-level ArtifactName; the merge at lines 78-119 prefixes every Target with its own part's ArtifactName and sets the merged ArtifactName to '.', so in the merged artifact every Target is root-relative to the scan root. harness/ENVIRONMENT.md sections 9 and 12 record the same, including that all three merged Targets were verified to be real files.",
         "record_path_field": "the enclosing Results[].Target",
         "per_record_refinement": "A section may supply its own per-record path or StartLine; those refine the enclosing Target rather than replacing the base. StartLine is present on secrets and misconfigurations and absent on vulnerabilities.",
-        "unmerged_parts_base": "The 18 retained per-directory reports under $HARNESS_LOG_DIR/trivy.parts/ are NOT root-anchored: each states Target relative to its own single path argument. Read those with per_section_target semantics, not with this scan_root base."
+        "unmerged_parts_base": "The 18 per-directory reports the runner wrote under $HARNESS_LOG_DIR/trivy.parts/ - absent from this checkout, see side_artifacts - are NOT root-anchored: each states Target relative to its own single path argument. Read those with per_section_target semantics, not with this scan_root base."
       },
       "jdk_major": null,
       "jdk_major_evidence": "No JVM. file(1) reports /opt/blitzy-tools/bin/trivy as 'ELF 64-bit LSB executable, x86-64, statically linked'; the runner exports no JAVA_HOME. The 'java DB' it consults is a vulnerability database for Java artifacts, not a Java runtime.",
@@ -1051,12 +1068,12 @@
       "artifact_format": "native JSON, SchemaVersion 2",
       "artifact_expected": true,
       "artifact_assignment_source_line": 35,
-      "artifact_assembly": "The 18 per-directory reports are written under $HARNESS_LOG_DIR/trivy.parts/ and merged at lines 78-119 into one report whose Results[] is the concatenation of every part's sections, with each Target root-anchored as described in path_base and the merged ArtifactName set to '.'. The parts are retained verbatim.",
+      "artifact_assembly": "The 18 per-directory reports are written under $HARNESS_LOG_DIR/trivy.parts/ (absent from this checkout, see side_artifacts) and merged at lines 78-119 into one report whose Results[] is the concatenation of every part's sections, with each Target root-anchored as described in path_base and the merged ArtifactName set to '.'. The runner writes the parts verbatim, without rewriting a field; it does not follow that they survive into this checkout, and side_artifacts records that they are absent from it. CORRECTED after review: this sentence previously read 'The parts are retained verbatim.'",
       "side_artifacts": [
         "$HARNESS_LOG_DIR/trivy.stdout.log",
         "$HARNESS_LOG_DIR/trivy.stderr.log",
         "$HARNESS_LOG_DIR/trivy.status",
-        "$HARNESS_LOG_DIR/trivy.parts/ (18 per-directory reports, retained verbatim)"
+        "$HARNESS_LOG_DIR/trivy.parts/ (18 per-directory reports) NOT RETAINED: measured absent. It was written into the log tree of the clone the runner ran in and was not carried into this checkout, so it is absent from harness/artifacts/logs/ and absent from the size-and-sha256 manifest oss-scan-results/run-record.md section 16 publishes. Nothing in this run is measured from it. CORRECTED after review: this field previously asserted the directory was retained."
       ],
       "reach": {
         "reads_allowlist": true,
@@ -1294,12 +1311,12 @@
       "artifact_format": "native JSON report",
       "artifact_expected": true,
       "artifact_assignment_source_line": 25,
-      "artifact_assembly": "The tool writes dependency-check-report.json into $HARNESS_LOG_DIR/dependency-check.out and the runner copies it to the artifact path unchanged (lines 61-63), so no field is rewritten.",
+      "artifact_assembly": "The tool writes dependency-check-report.json into $HARNESS_LOG_DIR/dependency-check.out (absent from this checkout, see side_artifacts) and the runner copies it to the artifact path unchanged (lines 61-63), so no field is rewritten.",
       "side_artifacts": [
         "$HARNESS_LOG_DIR/dependency-check.stdout.log",
         "$HARNESS_LOG_DIR/dependency-check.stderr.log",
         "$HARNESS_LOG_DIR/dependency-check.status",
-        "$HARNESS_LOG_DIR/dependency-check.out/ (the tool's own output directory, retained)"
+        "$HARNESS_LOG_DIR/dependency-check.out/ (the tool's own output directory) NOT RETAINED: measured absent. It was written into the log tree of the clone the runner ran in and was not carried into this checkout, so it is absent from harness/artifacts/logs/ and absent from the size-and-sha256 manifest oss-scan-results/run-record.md section 16 publishes. Nothing in this run is measured from it. CORRECTED after review: this field previously asserted the directory was retained."
       ],
       "reach": {
         "reads_allowlist": true,

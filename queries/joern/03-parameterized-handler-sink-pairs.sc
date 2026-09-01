@@ -322,7 +322,23 @@ import io.shiftleft.codepropertygraph.generated.nodes.{Call, Method}
 import io.shiftleft.semanticcpg.language.NoResolve
 
 // ===========================================================================
-// NAMED CONSTANTS - no inline literal governs behaviour anywhere below
+// NAMED CONSTANTS. No inline literal selects a node, an edge, a type, a
+// method, a call site, a handler, a sink or a route anywhere below: every
+// selector the walks, the boundary measurements, the surface sweep and the
+// predicate search use is a named constant declared in this block, so what the
+// query looks for can be read off in one place and cited in the result without
+// reading the traversal.
+//
+// Three kinds of literal do appear below, and none of them selects anything in
+// the graph. First, the lexical tokens of the two text readers - the Scala
+// string-literal scanner that extracts a sibling query's declared constants,
+// and the identity-record reader - where the literal describes the syntax of
+// the file being read. Second, the boundary and walk identifiers a record is
+// stamped with, which name a published field rather than choose a node; each is
+// a named constant or is composed from named constants. Third, the field names
+// and prose of the envelope and the prose report, which are output rather than
+// selection. The one regex the surface sweep builds is composed from a named
+// constant and the quoting suffix named beside it, never from a bare pattern.
 // ===========================================================================
 
 /** The slug. Both result filenames and the console log name derive from it. */
@@ -340,25 +356,14 @@ val CPG_ENV_VAR = "HARNESS_CPG"
 val CPG_PATH_DEFAULT = "harness/cpg/spark.cpg"
 val CPG_RECORD_PATH = "harness/artifacts/logs/cpg-frontend.log"
 
-/**
- * The identity record's LOCATION may be named explicitly, and the reason is a
- * property of this pipeline rather than a convenience. The graph is built by
- * provisioning, which is re-executed from scratch on every provisioning, while
- * CPG_RECORD_PATH above is a committed deliverable describing the graph of the
- * provisioning that wrote it. Where the host carries a graph built by a LATER
- * provisioning, the committed record describes a different file, and comparing
- * against it would halt a run whose graph is perfectly sound - or, far worse,
- * would tempt someone to weaken the comparison.
- *
- * So the comparison is never weakened and never skipped. It is pointed, when
- * needed, at the frontend's own write-time record FOR THE GRAPH ACTUALLY
- * LOADED. With this variable unset the behaviour is exactly queries 01 and 02's:
- * the repo-relative record above is the record of account. With it set, that
- * record is STILL read and its pair STILL reported, the divergence is recorded
- * with both pairs and their provenance, and a mismatch against the SELECTED
- * record still halts the run (AAP 0.8.2, 0.9.2).
- */
-val CPG_RECORD_ENV_VAR = "HARNESS_CPG_RECORD"
+// CPG_RECORD_PATH above is the ONE record of account, exactly as queries 01 and
+// 02 use it. There is deliberately no environment override for it. An override
+// would let a load be adjudicated by a record that no environment contract
+// defines and that the published reproduction command does not name, which
+// means a reader of the result could not tell which record the identity
+// comparison turned on. Where the host's graph and the committed record
+// disagree, that is a finding to report - and it halts this run - rather than a
+// condition to route around from inside the query.
 
 /** The repository root, and the environment variable that names it. */
 val REPO_ROOT_ENV_VAR = "HARNESS_REPO_ROOT"
@@ -366,6 +371,76 @@ val REPO_ROOT_ENV_VAR = "HARNESS_REPO_ROOT"
 /** The sibling probe queries this one reports a duplicate-formulation verdict against. */
 val SIBLING_CALLGRAPH_QUERY = "01-callgraph-unguarded-driver-launch"
 val SIBLING_DATAFLOW_QUERY = "02-dataflow-unguarded-driver-launch"
+val SIBLING_QUERY_IDS = List(SIBLING_CALLGRAPH_QUERY, SIBLING_DATAFLOW_QUERY)
+
+/** Where a query source lives, repo-relative. This query reads its OWN source
+ *  from here to digest it, and its siblings' to compare formulations. */
+val QUERY_SOURCE_DIR = "queries/joern"
+
+// ------------------------------------------------------ reproducing this run
+/**
+ * The COMPLETE command this query is reproduced by - every element it genuinely
+ * needs and nothing it does not. Each element earns its place:
+ *
+ *   - the working directory is outside the repository because joern eagerly
+ *     creates ./workspace in its own working directory and exposes no flag to
+ *     move it, and nothing named workspace is ignored by the repository's root
+ *     .gitignore;
+ *   - HARNESS_REPO_ROOT is REQUIRED by that choice: with the working directory
+ *     outside the repository, it is the only thing that tells the query where
+ *     the graph, the identity record, the results directory and the log
+ *     directory are;
+ *   - JAVA_HOME selects the JDK major the pinned Joern release documents;
+ *   - JAVA_TOOL_OPTIONS is what actually raises the heap, because joern
+ *     --script forks a child JVM and does not forward -J-Xmx to it;
+ *   - stdin is closed because joern's REPL blocks on an open one.
+ *
+ * No other environment variable changes what this query loads or what it
+ * publishes: the graph path may be overridden by $HARNESS_CPG, and where it is
+ * not, the repo-relative default is used and reported. There is no override for
+ * the identity record - the record of account is the repo-relative one, so a
+ * load is never adjudicated by a record the published command does not name.
+ */
+val REPRODUCTION_COMMAND =
+  "cd <a scratch directory outside the repository> && " +
+    REPO_ROOT_ENV_VAR + "=<the repository root> JAVA_HOME=\"$JAVA_HOME_21\" " +
+    "JAVA_TOOL_OPTIONS=-Xmx64g SL_LOGGING_LEVEL=WARN joern --script " +
+    "<the repository root>/" + QUERY_SOURCE_DIR + "/" + QUERY_ID +
+    ".sc -J-Xmx64g < /dev/null"
+
+// ------------------------------------------------ JVM argument reporting
+/**
+ * The heap this query runs at is evidence and is logged. The JVM's argument
+ * list is not evidence of anything this query reports, and it is a disclosure
+ * channel: a -D property carries whatever the invoker put in it, and these
+ * console streams are preserved verbatim as evidence, so a token or a password
+ * passed on a command line would be published along with them.
+ *
+ * So the policy is a whitelist, not a filter: only an argument whose key is one
+ * of the memory and stack flags below is logged as written, and every other
+ * argument is reduced to its key with the value replaced by a fixed token. The
+ * number reduced is reported, so the reduction is visible rather than silent.
+ */
+val JVM_ARG_VALUE_WHITELIST_PREFIXES = List(
+  "-Xms",
+  "-Xmx",
+  "-Xmn",
+  "-Xss",
+  "-XX:MaxMetaspaceSize",
+  "-XX:MetaspaceSize",
+  "-XX:MaxDirectMemorySize",
+  "-XX:MaxRAMPercentage",
+  "-XX:ThreadStackSize")
+val JVM_ARG_REDACTION_TOKEN = "<redacted>"
+val JVM_ARG_KEY_VALUE_SEPARATORS = List("=", ":")
+val JVM_ARG_REDACTION_POLICY =
+  "a whitelist: an argument whose key is one of the memory or stack flags the query " +
+    "names is logged as written, because the heap it establishes is the evidence. Every " +
+    "other argument is reduced to its key and its value replaced by " +
+    JVM_ARG_REDACTION_TOKEN + ", and an argument carrying no key/value separator is a " +
+    "key with no value and is logged as the key it is. No value this query has not " +
+    "whitelisted reaches any log, status field or published record, and the count of " +
+    "reduced arguments is reported so the reduction cannot pass unnoticed"
 
 // --------------------------------------------------------------- the bounds
 /** Maximum call-graph hops walked from an entry point, per pair. */
@@ -373,9 +448,20 @@ val MAX_CALL_DEPTH = 12
 /** Maximum distinct routes retained PER PAIR. Never a shared budget: one pair
  *  filling a shared budget would silently truncate the other. */
 val MAX_ROUTES_PER_PAIR = 64
-/** Per-entry-point step cap: method expansions, not edges. */
+/**
+ * Per-entry-point step cap: method expansions, not edges. Enforced at the scope
+ * its name states - the counter is reset at EACH entry point, so one entry point
+ * cannot spend another's allowance - and the peak reached at any single entry
+ * point is reported per walk beside the walk's own total.
+ */
 val MAX_EXPANSIONS_PER_ENTRY = 200000
-/** Per-pair step cap across all of that pair's walks: call sites considered. */
+/**
+ * Per-pair step cap across all of that pair's walks: call sites considered.
+ * Enforced at the scope its name states - ONE counter per pair, shared by both
+ * of that pair's walks - so the published figure is the pair's spend rather than
+ * either walk's. It is never shared BETWEEN pairs: one pair filling a shared
+ * budget would silently truncate the other.
+ */
 val MAX_STEPS_PER_PAIR = 400000
 /** Total-returns cap across every record kind this query emits. */
 val MAX_TOTAL_RETURNS = 256
@@ -383,6 +469,22 @@ val MAX_TOTAL_RETURNS = 256
 val MAX_ENTRY_POINTS_PER_PAIR = 16
 /** Cap on the indexed call-name sweeps used to find sink and message call sites. */
 val MAX_CALL_SCAN = 200000
+/**
+ * Cap on the indexed type-declaration sweep used to measure each route surface
+ * prefix. A prefix sweep with no cap would be the one unbounded traversal in the
+ * query, so it carries a named bound like every other traversal here, and the
+ * flag saying whether it was reached is measured and published beside it.
+ */
+val MAX_TYPE_SCAN = 200000
+/**
+ * The suffix appended to a regex-QUOTED surface prefix to turn it into a prefix
+ * match for the type-declaration sweep. Named because it governs behaviour: it
+ * is what makes the sweep match a prefix rather than an exact full name, and a
+ * reader checking what the sweep selects should find it here rather than inside
+ * the traversal. The prefix itself is quoted first, so a dot in a package name
+ * cannot widen the match.
+ */
+val TYPE_PREFIX_REGEX_SUFFIX = ".*"
 /**
  * A call site whose resolved callee set is wider than this is recorded as a
  * dynamic-dispatch FAN-OUT site. Expanding, say, scala.Function1.apply models
@@ -536,28 +638,167 @@ val ROUTE_SURFACE_TYPE_PREFIXES = List(
   "org.apache.spark.deploy.worker.DriverRunner")
 // -------------------------------------------------- end of the predicate surface
 // The block above, from the `the predicate surface` banner to this comment, is
-// BYTE-IDENTICAL to the corresponding block of
+// intended to be the same text as the corresponding block of
 // queries/joern/01-callgraph-unguarded-driver-launch.sc and of
-// queries/joern/02-dataflow-unguarded-driver-launch.sc. It has to be: the three
-// queries' spurious counts are only comparable if the definition of "spurious"
-// is the same text, and the duplicate-formulation verdict below rests on that
-// comparability. A divergence here would silently invalidate all three. It is
-// carried verbatim rather than adapted, which is why ROUTE_SURFACE_TYPE_PREFIXES
-// keeps its three entries even though pair two's handler type is not among them:
+// queries/joern/02-dataflow-unguarded-driver-launch.sc, and that is not asserted
+// here: stage J MEASURES it. The four predicate constants are named in the
+// formulation identity block below, the comparison reads each sibling source's
+// own literals by those names, and the outcome is published per sibling as
+// predicate_selector_literals_identical. The reason the sameness matters is that
+// the three queries' spurious counts are only comparable while the definition of
+// "spurious" is the same text; a divergence is therefore a measured, published
+// fact rather than a claim a reader has to take on trust. The block is carried
+// verbatim rather than adapted, which is why ROUTE_SURFACE_TYPE_PREFIXES keeps
+// its three entries even though pair two's handler type is not among them:
 // stage I reports the shared surface AND each pair's own, and the difference
 // between the two is a reported finding rather than an edit to this block.
+
+/**
+ * The INTERMEDIATE route hop, declared here rather than inside the block above
+ * because that block is carried verbatim across all three queries and is not
+ * edited to add anything.
+ *
+ * Both pairs' routes run handler -> RPC -> Worker -> DriverRunner -> launch: the
+ * Worker is the component that receives the launch message and constructs and
+ * starts the runner that hosts the sink. A route surface that named only the
+ * handler and the sink host would therefore leave one hop of the route
+ * unsearched, and a "no predicate on the route" statement drawn from it would be
+ * a statement about part of the route while reading as one about all of it.
+ * Including the Worker makes the predicate evidence cover the whole route
+ * surface. Whether that changes any count is MEASURED below and published per
+ * surface prefix, never assumed either way.
+ */
+val ROUTE_HOP_SURFACE_TYPE_PREFIXES = List(
+  "org.apache.spark.deploy.worker.Worker")
+/** The intermediate hop's source file, at the pinned commit. */
+val ROUTE_HOP_WORKER_SOURCE_FILE =
+  "core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala"
+/** Its length at the pin, so a reader can see which revision the anchors index. */
+val ROUTE_HOP_WORKER_SOURCE_FILE_LINES = 1046
+/**
+ * The hop's own anchors at the pin, ascending by line so the order is a fixed
+ * function of the content. These are SOURCE facts, checked line by line in the
+ * pinned clone; the graph measurements that stand on them are taken separately
+ * and are reported as measurements.
+ */
+val ROUTE_HOP_WORKER_ANCHORS = List(
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":523 override def receive declares the handler that " +
+    "receives the launch message",
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":687 case LaunchDriver(driverId, driverDesc, " +
+    "resources_) matches it",
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":689 constructs the DriverRunner that hosts the sink",
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":701 calls driver.start(), the hop into the sink host",
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":736 override def receiveAndReply, the second handler " +
+    "on the same type and not on this route")
+/**
+ * Every reference to the anchored predicate type in the intermediate hop's file
+ * at the pin. None of them invokes any of the five named selectors, which is the
+ * source-level counterpart of the graph measurement, and they are listed for the
+ * same reason the other route files' references are: a held reference is not an
+ * invocation, and the distinction has to be visible rather than implied.
+ */
+val ROUTE_HOP_WORKER_PREDICATE_REFERENCES = List(
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":33 imports SecurityManager",
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":61 declares val securityMgr: SecurityManager",
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":195 passes securityMgr on as an argument",
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":698 passes securityMgr on as an argument to the " +
+    "DriverRunner constructed at :689",
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":1018 constructs a SecurityManager",
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":1019 passes it on as an argument",
+  ROUTE_HOP_WORKER_SOURCE_FILE + ":1022 passes it on as an argument")
+
+// ------------------------------------------- the formulation identity block
+/**
+ * What makes this query's FORMULATION what it is, declared in one place and
+ * under names that all three queries of the probe share, so that the
+ * duplicate-formulation comparison in stage J extracts the SIBLING sources'
+ * own declarations by those same names and applies one shared predicate to
+ * both directions. Two consequences, and both are the point:
+ *
+ *   - the verdict this envelope states against a sibling and the verdict that
+ *     sibling states against this query are computed from the same inputs by
+ *     the same predicate, so the relation is symmetric BY CONSTRUCTION rather
+ *     than by one envelope transcribing the other's conclusion. A transcription
+ *     can drift from what it transcribes; this cannot;
+ *   - nothing about a sibling is written down here. A sibling's edge kinds,
+ *     pair set, bound, selector literals and API list are read out of its
+ *     source at run time, so a sibling that changes its formulation changes
+ *     this verdict rather than silently contradicting it.
+ *
+ * One scope limitation, stated here and published in the envelope rather than
+ * left for a reader to find: the entry-selector constant names below are pair
+ * ONE's. This query addresses two pairs, and the second pair's selectors are
+ * published in full in the pairs block of the envelope; they are not part of
+ * the selector comparison, whose scope is the pair the two queries share.
+ * FORMULATION_PAIR_IDS is what expresses the additional pair, and it is the
+ * difference in that list that makes a duplication SCOPED rather than total.
+ *
+ * FORMULATION_BOUND_VALUE repeats the bound as a bare literal because the
+ * comparison reads the sibling's value out of its TEXT and must read this
+ * query's the same way. It is asserted against MAX_CALL_DEPTH at run time, so
+ * the repetition cannot drift unnoticed.
+ */
+val FORMULATION_EDGE_KINDS = List("CALL")
+val FORMULATION_END_NODE_KINDS = List("METHOD")
+val FORMULATION_PAIR_IDS = List("pair-one", "pair-two")
+val FORMULATION_BOUND_NAME = "MAX_CALL_DEPTH"
+val FORMULATION_BOUND_KIND = "call-graph hops expanded from an entry point"
+val FORMULATION_BOUND_VALUE = 12
+val FORMULATION_TRAVERSAL_SEMANTICS =
+  "reachability over CALL edges, selecting whole METHOD nodes as its ends, run " +
+    "through one reusable pair structure invoked once per declared handler/sink pair"
+/** The constants that select pair one's entry points, the shared sink and the
+ *  predicate set, named rather than repeated: the comparison extracts each
+ *  source's own literals by these names and compares literal TEXT with literal
+ *  text, so no unescaping step can make two equal selectors look different. */
+val FORMULATION_ENTRY_SELECTOR_CONSTANT_NAMES = List(
+  "PAIR_ONE_HANDLER_TYPE",
+  "PAIR_ONE_HANDLER_METHOD",
+  "PAIR_ONE_HANDLER_SYNTHETIC_TYPE_REGEX",
+  "HANDLER_SYNTHETIC_METHOD")
+val FORMULATION_SINK_SELECTOR_CONSTANT_NAMES = List(
+  "SINK_CALLEE_REGEX",
+  "SINK_CALL_NAME",
+  "SINK_HOST_TYPE_REGEX")
+val FORMULATION_PREDICATE_CONSTANT_NAMES = List(
+  "PREDICATE_TYPE",
+  "PREDICATE_NAME_REGEX",
+  "PREDICATE_SETTER_SUFFIX",
+  "PREDICATE_NAMED_FIVE")
+val FORMULATION_API_CONSTRUCTS_CONSTANT_NAME = "JOERN_API_CONSTRUCTS"
+/** The scope limitation above, in the form the envelope publishes it. */
+val FORMULATION_SELECTOR_SCOPE_LIMITATION =
+  "the entry-selector literals compared are pair one's, the pair this query and the " +
+    "call-graph query share. This query's second pair is expressed through " +
+    "FORMULATION_PAIR_IDS, and its selectors are published in full in the pairs block " +
+    "of this envelope rather than folded into the comparison. The consequence is stated " +
+    "rather than hidden: two queries declaring the same pair id set but different " +
+    "selectors for a pair other than the compared one would not be distinguished by " +
+    "the selector component alone, and a reader checking that case reads the pairs " +
+    "block"
 
 // ------------------------------------------------------------- effort measures
 /**
  * Effort measure 1 - query revisions committed. Convention: the number of git
  * commits touching THIS .sc path, from its first appearance to the end of the
- * probe. This run introduces the file in a single commit, so the value is 1.
- * The convention is stated so the number is interpretable rather than bare.
+ * probe. The value is MEASURED from the repository's own history at run time
+ * (stage A) and published together with the commit list, never written down
+ * here: a hard-coded revision count is a figure that stops being true the next
+ * time the file is committed.
  */
-val QUERY_REVISIONS_COMMITTED = 1
 val QUERY_REVISIONS_CONVENTION =
   "commits touching queries/joern/" + QUERY_ID +
-    ".sc from its first appearance to the end of the probe"
+    ".sc from its first appearance to the end of the probe, counted at run time " +
+    "from the repository's own history. The commit that publishes these result " +
+    "files is necessarily NOT among them: it cannot exist while the run that " +
+    "writes them is still in progress"
+/** How the revision count is measured. The command is named rather than
+ *  inlined, it is given a bound so a stuck child cannot stall the probe, and
+ *  its output is validated against the shape a commit identifier has. */
+val GIT_EXECUTABLE = "git"
+val GIT_WAIT_SECONDS = 30L
+val GIT_COMMIT_SHA_REGEX = """^[0-9a-f]{40}$"""
+val GIT_OUTPUT_LINES_REPORTED = 4
 
 /**
  * Effort measure 2 - the distinct Joern API constructs this query uses, listed
@@ -600,141 +841,21 @@ val JOERN_API_CONSTRUCTS = List(
   "importCpg",
   "switchWorkspace")
 
-/**
- * Query 01's published construct list, transcribed from
- * queries/joern/results/01-callgraph-unguarded-driver-launch.json so that the
- * overlap and the difference between the two queries can be COMPUTED in stage J.
- * It is evidence for the duplicate-formulation verdict, not an input to any
- * traversal, and it is labelled as transcribed rather than measured wherever it
- * is used.
- */
-val SIBLING_CALLGRAPH_API_CONSTRUCTS = List(
-  "Call.code",
-  "Call.dispatchType",
-  "Call.lineNumber",
-  "Call.method",
-  "Call.methodFullName",
-  "Call.name",
-  "Call.order",
-  "Method.callIn",
-  "Method.callOut",
-  "Method.fullName",
-  "Method.lineNumber",
-  "Method.name",
-  "Method.typeDecl",
-  "NoResolve.getCalledMethodsAsTraversal",
-  "Steps.fullName",
-  "Steps.fullNameExact",
-  "Steps.l",
-  "Steps.nameExact",
-  "Steps.size",
-  "Steps.take",
-  "TypeDecl.fullName",
-  "TypeDecl.method",
-  "cpg.call",
-  "cpg.file",
-  "cpg.method",
-  "cpg.typeDecl",
-  "importCpg",
-  "switchWorkspace")
-
-/**
- * Query 02's published construct list, transcribed from
- * queries/joern/results/02-dataflow-unguarded-driver-launch.json for the same
- * purpose. The dataflow-engine members in it are the ones this query does not
- * use at all, and that difference is the auditable corroboration for the
- * verdict against 02 in stage J.
- */
-val SIBLING_DATAFLOW_API_CONSTRUCTS = List(
-  "AstNode.code",
-  "AstNode.label",
-  "AstNode.lineNumber",
-  "Call.argument",
-  "Call.dispatchType",
-  "Call.lineNumber",
-  "Call.method",
-  "Call.methodFullName",
-  "Call.name",
-  "Call.receiver",
-  "CfgNode.method",
-  "EngineConfig.maxCallDepth",
-  "EngineContext.config",
-  "EngineContext.copy",
-  "EngineContext.semantics",
-  "Method.call",
-  "Method.callIn",
-  "Method.fullName",
-  "Method.lineNumber",
-  "Method.name",
-  "Method.parameter",
-  "Method.typeDecl",
-  "MethodParameterIn.index",
-  "MethodParameterIn.method",
-  "MethodParameterIn.name",
-  "MethodParameterIn.typeFullName",
-  "Path.elements",
-  "Steps.fullName",
-  "Steps.fullNameExact",
-  "Steps.l",
-  "Steps.nameExact",
-  "Steps.size",
-  "Steps.take",
-  "Traversal.reachableByFlows",
-  "TypeDecl.fullName",
-  "TypeDecl.method",
-  "cpg.call",
-  "cpg.file",
-  "cpg.method",
-  "cpg.typeDecl",
-  "importCpg",
-  "switchWorkspace")
-
-/**
- * Query 01's published figures for the pair BOTH it and this query address,
- * transcribed from its envelope so that stage J can COMPARE rather than assume.
- * Transcribed, never measured here, and labelled as such wherever used.
+/*
+ * DELIBERATELY ABSENT: the sibling queries' published API construct lists, their
+ * published figures, and the verdicts their envelopes state against this query.
  *
- * One caveat travels with them and is reported: query 01 measured these against
- * the graph of the provisioning that ran it, and this query measures its own
- * against the graph on this host. Structural facts - which entry points a
- * selector resolves to, which method hosts the launch, which hops are not call
- * edges - are expected to agree across both; a count that differs is reported as
- * a difference with both values rather than reconciled.
+ * Every one of those was a TRANSCRIPTION of a sibling's RESULT, and a
+ * transcription can drift from the file it was copied out of without anything
+ * detecting it - which is precisely the integrity defect this query is not
+ * allowed to carry. They are replaced in stage K by a comparison of the two
+ * SOURCES: each sibling's declared formulation identity block is read out of its
+ * own .sc file at run time, under names all three queries share, and one shared
+ * predicate is applied to both sides. Both directions therefore evaluate
+ * identical inputs through identical code, so the relation is symmetric BY
+ * CONSTRUCTION rather than by a copied verdict, and a sibling's own numbers are
+ * never restated here at all.
  */
-val SIBLING_CALLGRAPH_ENTRY_POINTS = List(
-  "org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:" +
-    "java.lang.Object(java.lang.Object,scala.Function1)",
-  "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(" +
-    "org.apache.spark.rpc.RpcCallContext)")
-val SIBLING_CALLGRAPH_DISTINCT_ROUTES = 0
-val SIBLING_CALLGRAPH_BOUND_VALUE = 12
-val SIBLING_CALLGRAPH_BOUNDARIES_NOT_CROSSED = List(
-  "B1-rpc",
-  "B2-thread",
-  "B4-partial-function")
-/** Query 02's published figures, transcribed for the same purpose. */
-val SIBLING_DATAFLOW_DISTINCT_ROUTES = 0
-val SIBLING_DATAFLOW_BOUND_VALUE = 6
-
-/**
- * What each sibling published as ITS duplicate-formulation verdict against THIS
- * query, transcribed from their envelopes as they now stand and never guessed.
- *
- * Query 01 records the SAME SCOPED verdict this query records against it -
- * `duplicate_formulation_on_pair_one` - aggregating to `partial_duplicate` at
- * its top level, and its entry states both scopes: that as wholes the two are
- * not duplicates, because this query covers a second pair it does not address,
- * and that on pair one the two formulations coincide. Query 02 records
- * `not_duplicate`. The relation is pairwise and SYMMETRIC, so each verdict here
- * must equal the one the sibling publishes: it is one measurement cited twice
- * rather than two measurements, and a disagreement between the two directions
- * would be a defect rather than a finding. These constants are what make that
- * check possible from inside this query, and each is transcribed from the
- * sibling envelope committed alongside this file.
- */
-val SIBLING_CALLGRAPH_VERDICT_AGAINST_THIS = "duplicate_formulation_on_pair_one"
-val SIBLING_CALLGRAPH_AGGREGATE_VERDICT = "partial_duplicate"
-val SIBLING_DATAFLOW_VERDICT_AGAINST_THIS = "not_duplicate"
 
 /**
  * Effort measure 3 - parameterizability. THIS FILE OWNS IT. It is not a
@@ -821,10 +942,708 @@ def jrawArr(indent: Int, items: Seq[String]): String = {
  *  otherwise be tempting to add up: an object cannot be summed by accident. */
 def jbyPair(indent: Int, entries: Seq[(String, String)]): String = jobj(indent, entries)
 
+// ------------------------------------------------- JVM argument redaction
+/** True when this argument's KEY is one of the whitelisted memory or stack
+ *  flags, which is the only case in which its value may be logged. */
+def jvmArgumentValueIsWhitelisted(arg: String): Boolean =
+  JVM_ARG_VALUE_WHITELIST_PREFIXES.exists(p => arg == p || arg.startsWith(p))
+
+/**
+ * Reduce one JVM argument to what may be published.
+ *
+ *   - a whitelisted memory or stack flag is returned unchanged, because the
+ *     heap it establishes is the evidence this query reports;
+ *   - anything with a key/value separator keeps its key and loses its value:
+ *     `-Dsome.property=<value>` becomes `-Dsome.property=<redacted>`, so the
+ *     presence of the property is still visible while a token, a password or a
+ *     connection string passed in it cannot reach a preserved log;
+ *   - an argument with no separator is a key with no value and is returned as
+ *     the key it is.
+ *
+ * The first separator wins, so a value that itself contains one is redacted
+ * whole rather than partly.
+ */
+def redactJvmArgument(arg: String): String =
+  if (jvmArgumentValueIsWhitelisted(arg)) arg
+  else {
+    val cuts = JVM_ARG_KEY_VALUE_SEPARATORS.map(s => arg.indexOf(s)).filter(_ > 0)
+    if (cuts.isEmpty) arg
+    else arg.substring(0, cuts.min + 1) + JVM_ARG_REDACTION_TOKEN
+  }
+
 // -------------------------------------------------------------- file helpers
-def writeUtf8(p: Path, content: String): Unit = {
-  Option(p.getParent).foreach(Files.createDirectories(_))
-  Files.write(p, content.getBytes(StandardCharsets.UTF_8))
+/**
+ * PUBLICATION. Every file this query writes - the JSON envelope, the prose
+ * report and the console log - is a member of one evidence set, and the three
+ * hazards a naive write runs into are all closed here rather than in each call
+ * site:
+ *
+ *   - a symlink planted at the target, or at the directory holding it, makes a
+ *     direct write land wherever the link points. So a target's parent is
+ *     required to be a real directory that is not itself a link, the target
+ *     itself is refused if it is a link, and the parent's RESOLVED path is
+ *     required to still be inside the resolved repository root;
+ *   - a predictable temporary name is a race: a second writer, or an attacker
+ *     who can create files in the directory, can occupy the name between the
+ *     check and the write. So the temporary carries 16 random bytes from a
+ *     SecureRandom, is created in the SAME directory as its target (so the
+ *     final move is a rename within one filesystem and therefore atomic),
+ *     EXCLUSIVELY with CREATE_NEW so an existing name fails rather than being
+ *     reused, and with NOFOLLOW_LINKS so it can never be written through a
+ *     link;
+ *   - a member-by-member publication leaves a mixed generation behind when it
+ *     fails half way. So every member is written, flushed and fsynced as a
+ *     staged temporary FIRST, and only once every member of the set is on disk
+ *     are they moved onto their targets. A failure before that point leaves
+ *     every target holding its previous generation, and the staged temporaries
+ *     are removed.
+ *
+ * Staging every member before the first rename closes the window BEFORE the
+ * renames, and it is necessary, but it is not sufficient: N renames are N
+ * atomic operations rather than one, so a fault between the first and the last
+ * still leaves a mixed generation on disk, and nothing already written can be
+ * undone. POSIX offers no way to make N renames one operation. What it does
+ * offer is a commit record, and that is what closes the remaining window:
+ *
+ *   - a COMPLETION MANIFEST is staged after every content member has been
+ *     staged and measured, carrying each member's target path, byte size and
+ *     sha256 and a member-set identifier derived from those digests. It is
+ *     renamed LAST, after every content member is in place. So the manifest's
+ *     presence is the completion signal: absent, or disagreeing with a member
+ *     on disk, means the set on disk is not one generation, and a consumer can
+ *     see that without knowing what the previous generation was;
+ *   - the manifest is REQUIRED BY THE PRODUCER ITSELF as the first consumer:
+ *     immediately after publishing, every member named in it is re-measured
+ *     from the disk and required to equal what it records, and the run stops if
+ *     any does not. A manifest nothing checks is decoration.
+ *
+ * The member-set identifier is derived from MEMBER BYTES, deliberately, and is
+ * distinct from `publicationId`, which is derived from the query, its source
+ * and the graph. The latter answers "which run produced this"; only the former
+ * can answer "is this set complete and self-consistent", because an identifier
+ * computed before the members exist cannot depend on them.
+ */
+/** Shortest absolute path the determinism check searches the rendered envelope
+ *  for. A two- or three-character prefix matches ordinary prose, so a path
+ *  below this length is declared unsearched rather than producing a hit nobody
+ *  can act on. */
+val ABSOLUTE_PATH_SEARCH_MIN_LENGTH = 6
+
+val PUBLICATION_TEMP_PREFIX = ".publish-"
+val PUBLICATION_TEMP_SUFFIX = ".tmp"
+val PUBLICATION_TEMP_RANDOM_BYTES = 16
+val PUBLICATION_TEMP_MAX_ATTEMPTS = 32
+
+/** Read-back chunk for verifying a staged or published member. The digest is
+ *  streamed so peak memory does not track the member's size. */
+val PUBLICATION_VERIFY_CHUNK_BYTES = 1048576
+
+/** Schema name the completion manifest carries, so a consumer can recognise it
+ *  by content rather than by filename. */
+val PUBLICATION_MANIFEST_SCHEMA = "joern-probe-publication/1.0.0"
+
+/** Role recorded for the manifest itself, which is the only member the manifest
+ *  does not record a digest for: it cannot contain its own digest. */
+val PUBLICATION_MANIFEST_ROLE = "completion_manifest"
+
+/** The resolved repository root, set in stage A and consulted by every write. */
+var repoRootRealPath: Option[Path] = None
+
+/** Where the completion manifest publishes, set in stage A beside the console
+ *  log. `None` before stage A has resolved the output paths, in which case a
+ *  publication runs without a manifest and SAYS SO rather than pretending to
+ *  have one - the only such publication is the early-abort console log, which
+ *  is a single member and therefore has no mixed-generation window to close. */
+var manifestTargetPath: Option[Path] = None
+
+/** The publication identifier, held where the publication machinery can reach it.
+ *  It is computed in the main body once the graph's identity is known, and the
+ *  completion manifest carries it so a consumer can refuse a complete-looking
+ *  manifest that belongs to another generation of the same query. */
+var publicationIdOfRecord: Option[String] = None
+
+/** THIS QUERY'S DECLARED PUBLICATION SCHEMA - the exact member set a complete
+ *  generation of this query consists of, stated as a constant rather than read
+ *  back from whatever happened to be staged.
+ *
+ *  This is what makes the manifest check non-circular. Verifying a manifest
+ *  against the members that were just staged asks "does this describe what I
+ *  wrote", which a one-member record left by a failed three-member publication
+ *  answers yes to. Verifying it against the schema asks "is this a complete
+ *  generation of this query", which only the full set answers yes to. */
+val DECLARED_MEMBER_ROLES: List[String] =
+  List(s"$QUERY_ID.json", s"$QUERY_ID.md", s"probe-$QUERY_ID.log")
+
+val DECLARED_MEMBER_PATHS: Map[String, String] = Map(
+  s"$QUERY_ID.json" -> s"$RESULTS_DIR/$QUERY_ID.json",
+  s"$QUERY_ID.md" -> s"$RESULTS_DIR/$QUERY_ID.md",
+  s"probe-$QUERY_ID.log" -> s"$LOG_DIR/probe-$QUERY_ID.log")
+
+val publicationRandom = new java.security.SecureRandom()
+
+final case class StagedMember(
+  target: Path,
+  temp: Path,
+  byteSize: Int,
+  sha256: String)
+
+val stagedMembers = scala.collection.mutable.ArrayBuffer.empty[StagedMember]
+
+/** Set once a MULTI-MEMBER publication has begun renaming, and cleared only when
+ *  that publication's completion manifest is in place and verified. While it is
+ *  true the set on disk may be a mixed generation, and the failure path must not
+ *  publish a manifest that would describe a complete set of fewer members. */
+var mixedGenerationRisk = false
+
+/** The last publication's member-set identifier and manifest path, for the
+ *  envelope and the report to cite. Set by publishStagedMembers. */
+var lastPublicationMemberSetId: Option[String] = None
+var lastPublicationManifest: Option[String] = None
+
+/**
+ * Validate where a member is about to be published and return the parent
+ * directory's real path. Refuses rather than repairs: a link at the target or
+ * at its parent, or a parent that resolves outside the repository root, stops
+ * the run instead of writing somewhere the record does not name.
+ */
+def publicationParentOf(target: Path): Path = {
+  val parent = Option(target.getParent).getOrElse(
+    abortRun(s"a publication target must name a parent directory: $target"))
+  val absolute = parent.toAbsolutePath.normalize()
+
+  // EVERY component is checked, not only the last one. Checking the immediate
+  // parent and then calling toRealPath() accepted an ancestor link silently:
+  // toRealPath FOLLOWS links, so a link two levels up resolved to a directory
+  // that was still inside the repository root and the containment test passed.
+  // The walk below refuses any component that is a link, whether or not the
+  // redirection stays inside the root.
+  //
+  // And each missing component is created ONE AT A TIME, with the component
+  // re-checked immediately after creation. createDirectories(parent) ran BEFORE
+  // any of these checks, so a missing descendant under a linked ancestor was
+  // created at the redirected destination and only then refused - the write was
+  // prevented, but the directory had already been made in the wrong place.
+  var walked: Path = absolute.getRoot
+  if (walked == null) {
+    abortRun(s"a publication target must be absolute: $target")
+  }
+  var componentIndex = 0
+  while (componentIndex < absolute.getNameCount) {
+    walked = walked.resolve(absolute.getName(componentIndex))
+    componentIndex += 1
+    if (!Files.exists(walked, LinkOption.NOFOLLOW_LINKS)) {
+      try Files.createDirectory(walked)
+      catch {
+        case _: java.nio.file.FileAlreadyExistsException => ()
+      }
+    }
+    if (Files.isSymbolicLink(walked)) {
+      abortRun(s"refusing to publish through a symbolic link: $walked, on the path " +
+        s"to $target, is a link. A write through it lands wherever the link points " +
+        "rather than at the path this run records, and every component of the path " +
+        "is checked rather than only the immediate parent")
+    }
+    if (!Files.isDirectory(walked, LinkOption.NOFOLLOW_LINKS)) {
+      abortRun(s"a component of a publication target's path is not a directory: $walked")
+    }
+  }
+  if (Files.isSymbolicLink(target)) {
+    abortRun(s"refusing to publish onto a symbolic link: $target is a link, and " +
+      "writing through it would modify its target rather than this path")
+  }
+  // No component is a link, so this cannot differ from `absolute` - it is
+  // computed anyway, and required to agree, because the assertion is cheap and
+  // its failure would mean a component was replaced during the walk.
+  val realParent = absolute.toRealPath()
+  if (realParent != absolute) {
+    abortRun(s"refusing to publish to $target: its parent $absolute resolves to " +
+      s"$realParent even though no component measured as a link, which means a " +
+      "component was replaced while the path was being validated")
+  }
+  repoRootRealPath.foreach { root =>
+    if (!realParent.startsWith(root)) {
+      abortRun(s"refusing to publish outside the repository root: $target resolves " +
+        s"into $realParent, which is not inside $root. A link on the path is the " +
+        "usual cause")
+    }
+  }
+  realParent
+}
+
+/**
+ * Stream a file's byte size and sha256 back off the disk, opened NOFOLLOW so a
+ * link swapped in after the write is refused rather than measured.
+ *
+ * This is what makes "the bytes on disk are the bytes that were validated" a
+ * measurement rather than an assumption: the digest recorded for a member is
+ * taken from the file, never from the string that was handed to the writer.
+ */
+def measureFileNoFollow(p: Path): (Int, String) = {
+  val channel = java.nio.channels.FileChannel.open(
+    p, java.nio.file.StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)
+  try {
+    val digest = MessageDigest.getInstance("SHA-256")
+    val buffer = java.nio.ByteBuffer.allocate(PUBLICATION_VERIFY_CHUNK_BYTES)
+    var total = 0L
+    var read = channel.read(buffer)
+    while (read > 0) {
+      buffer.flip()
+      digest.update(buffer)
+      buffer.clear()
+      total += read
+      read = channel.read(buffer)
+    }
+    (total.toInt, digest.digest().map("%02x".format(_)).mkString)
+  } finally channel.close()
+}
+
+/**
+ * Write one member to a private temporary beside its target, fsync it, and
+ * remember it. Nothing is visible at the target until the whole set publishes.
+ */
+def stageMember(target: Path, content: String): StagedMember = {
+  val realParent = publicationParentOf(target)
+  val bytes = content.getBytes(StandardCharsets.UTF_8)
+  var channel: java.nio.channels.FileChannel = null
+  var temp: Path = null
+  var attempts = 0
+  while (channel == null) {
+    attempts += 1
+    if (attempts > PUBLICATION_TEMP_MAX_ATTEMPTS) {
+      abortRun(s"could not create a private temporary beside $target after " +
+        s"$PUBLICATION_TEMP_MAX_ATTEMPTS attempts")
+    }
+    val suffix = new Array[Byte](PUBLICATION_TEMP_RANDOM_BYTES)
+    publicationRandom.nextBytes(suffix)
+    val candidate = realParent.resolve(
+      PUBLICATION_TEMP_PREFIX + target.getFileName.toString + "." +
+        suffix.map("%02x".format(_)).mkString + PUBLICATION_TEMP_SUFFIX)
+    try {
+      channel = java.nio.channels.FileChannel.open(
+        candidate,
+        java.nio.file.StandardOpenOption.CREATE_NEW,
+        java.nio.file.StandardOpenOption.WRITE,
+        LinkOption.NOFOLLOW_LINKS)
+      temp = candidate
+    } catch {
+      case _: java.nio.file.FileAlreadyExistsException => channel = null
+    }
+  }
+  try {
+    // FileChannel.write is documented to write "a sequence of bytes", not
+    // necessarily all of them: a single call can return a short count. The
+    // unlooped call this replaced would then have staged a truncated member
+    // whose recorded digest was computed from the full byte array, so the
+    // member and its digest would have disagreed with nothing detecting it.
+    val buffer = java.nio.ByteBuffer.wrap(bytes)
+    while (buffer.hasRemaining) {
+      val written = channel.write(buffer)
+      if (written <= 0 && buffer.hasRemaining) {
+        abortRun(s"the staged temporary $temp stopped accepting bytes with " +
+          s"${buffer.remaining} of ${bytes.length} still to write")
+      }
+    }
+    channel.force(true)
+  } catch {
+    // The member is not in `stagedMembers` yet, so discardStagedMembers would
+    // never reach this temporary: a write or force that throws here would have
+    // left a `.publish-*.tmp` sibling behind forever. It is removed on the way
+    // out, and the original throwable is re-raised rather than replaced.
+    case t: Throwable =>
+      try Files.deleteIfExists(temp)
+      catch { case _: Throwable => () }
+      throw t
+  } finally channel.close()
+
+  // The staged bytes are read BACK off the disk and required to equal what was
+  // intended. Recording the digest of the in-memory array asserted what the
+  // writer meant to write; this measures what is actually there, which is what
+  // the manifest publishes and what a reader will hash.
+  val intendedDigest = sha256OfBytes(bytes)
+  val (stagedSize, stagedDigest) = measureFileNoFollow(temp)
+  if (stagedSize != bytes.length || stagedDigest != intendedDigest) {
+    try Files.deleteIfExists(temp) catch { case _: Throwable => () }
+    abortRun(s"the staged temporary for $target does not hold the bytes that were " +
+      s"written: measured $stagedSize bytes / sha256 $stagedDigest against an " +
+      s"intended ${bytes.length} bytes / sha256 $intendedDigest. Nothing is published")
+  }
+  val member = StagedMember(target, temp, stagedSize, stagedDigest)
+  stagedMembers += member
+  member
+}
+
+/** Remove every staged temporary. Called when a set will not be published, so
+ *  a failure leaves neither a mixed generation nor litter behind. */
+def discardStagedMembers(): Unit = {
+  stagedMembers.toList.foreach { m =>
+    try Files.deleteIfExists(m.temp)
+    catch {
+      case t: Throwable =>
+        System.err.println(s"could not remove the staged temporary ${m.temp}: " +
+          s"${t.getMessage}")
+    }
+  }
+  stagedMembers.clear()
+}
+
+/** fsync each directory so a rename in it survives a crash. */
+def fsyncPublicationDirs(dirs: List[Path]): Unit = dirs.foreach { dir =>
+  // FATAL, deliberately. An earlier form recorded a failure and continued, on the
+  // reasoning that directory fsync is unsupported on some filesystems. That
+  // reasoning is about portability and the consequence is about correctness: the
+  // manifest's presence is supposed to mean "every member named here is in place
+  // AND durable there", and continuing past a failed sync renames the commit
+  // record while that is not established. So a filesystem that cannot establish
+  // it does not get a commit record from this query - it gets a halt, with the
+  // content renames already done and NO manifest, which is the state a consumer
+  // is built to detect. Every directory this run publishes into was verified to
+  // support it before this was made fatal.
+  try {
+    val ch = java.nio.channels.FileChannel.open(
+      dir, java.nio.file.StandardOpenOption.READ)
+    try ch.force(true) finally ch.close()
+  } catch {
+    case t: Throwable =>
+      val note = s"could not fsync the publication directory $dir: ${t.getMessage}"
+      System.err.println(note)
+      consoleLines += s"[publication] $note"
+      abortRun(s"$note. Durability of the renames in that directory is therefore " +
+        "not established, so no completion manifest is published for this set: a " +
+        "manifest asserting members a crash could lose is worse than none")
+  }
+}
+
+/**
+ * Require a completion manifest at `path` and every member it names, by reading
+ * the manifest's PUBLISHED BYTES back and re-measuring each member from disk.
+ * Returns the member count it verified.
+ *
+ * The producer is the first consumer, and it runs the check a later consumer
+ * would run rather than a cheaper one it happens to be able to run: the manifest
+ * is parsed from disk, its member_set_id is RECOMPUTED from the digests it
+ * lists, and each member is re-measured. Recomputing the identifier is what
+ * catches a manifest whose per-member digest was edited to match a changed
+ * member - re-measuring alone would pass that.
+ */
+def requirePublicationManifest(
+  path: Path,
+  expectedRoles: List[String] = Nil,
+  expectedPaths: Map[String, String] = Map.empty,
+  expectedPublicationId: Option[String] = None
+): Int = {
+  if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+    abortRun(s"the completion manifest $path is absent or is not a regular file, so " +
+      "the published set cannot be established as one generation. A publication that " +
+      "failed between its renames leaves exactly this state")
+  }
+  val text = new String(
+    java.nio.file.Files.readAllBytes(path), StandardCharsets.UTF_8)
+  if (!text.contains(PUBLICATION_MANIFEST_SCHEMA)) {
+    abortRun(s"$path does not carry the $PUBLICATION_MANIFEST_SCHEMA schema, so it is " +
+      "not a completion manifest for this publication")
+  }
+  // The manifest is written by completionManifestContent above, so its shape is
+  // known exactly and a full JSON parser is not needed to read it back: each
+  // member contributes one "role"/"path"/"bytes"/"sha256" quadruple in that
+  // order. The scan is confined to the text from the "members" key onward, so no
+  // envelope key and no prose value above it can contribute a match - an earlier
+  // form scanned the whole document and dropped the first "path" match on the
+  // belief that the manifest's own path was one, which it is not: the manifest
+  // names itself under "document". That dropped a real member and made a
+  // well-formed three-member manifest read as two.
+  val membersAt = text.indexOf("\"members\"")
+  if (membersAt < 0) {
+    abortRun(s"the completion manifest $path carries no members array, so it " +
+      "describes no publication")
+  }
+  val membersText = text.substring(membersAt)
+  val pathRe = """"path"\s*:\s*"([^"]+)"""".r
+  val bytesRe = """"bytes"\s*:\s*(\d+)""".r
+  val shaRe = """"sha256"\s*:\s*"([0-9a-f]{64})"""".r
+  val roleRe = """"role"\s*:\s*"([^"]+)"""".r
+  val declaredCount = """"member_count"\s*:\s*(\d+)""".r
+    .findFirstMatchIn(text).map(_.group(1).toInt).getOrElse(
+      abortRun(s"the completion manifest $path declares no member_count"))
+  val declaredSetId = """"member_set_id"\s*:\s*"([0-9a-f]{32})"""".r
+    .findFirstMatchIn(text).map(_.group(1)).getOrElse(
+      abortRun(s"the completion manifest $path declares no member_set_id"))
+  val paths = pathRe.findAllMatchIn(membersText).map(_.group(1)).toList
+  val roles = roleRe.findAllMatchIn(membersText).map(_.group(1)).toList
+  val sizes = bytesRe.findAllMatchIn(membersText).map(_.group(1).toInt).toList
+  val shas = shaRe.findAllMatchIn(membersText).map(_.group(1)).toList
+  if (paths.size != declaredCount || roles.size != declaredCount ||
+    sizes.size != declaredCount || shas.size != declaredCount) {
+    abortRun(s"the completion manifest $path declares $declaredCount member(s) but " +
+      s"holds ${paths.size} path(s), ${roles.size} role(s), ${sizes.size} size(s) and " +
+      s"${shas.size} digest(s). It is malformed and nothing may rely on it")
+  }
+  if (roles.distinct.size != roles.size) {
+    abortRun(s"the completion manifest $path repeats a member role: " +
+      s"${roles.mkString(", ")}. A role names one member of one publication")
+  }
+  val root = repoRootRealPath
+  paths.zip(sizes).zip(shas).foreach { case ((rel, size), sha) =>
+    val abs = root.map(_.resolve(rel)).getOrElse(Path.of(rel))
+    if (!Files.isRegularFile(abs, LinkOption.NOFOLLOW_LINKS)) {
+      abortRun(s"the completion manifest $path names $rel, which is not a regular " +
+        "file. The published set is incomplete")
+    }
+    val (actualSize, actualSha) = measureFileNoFollow(abs)
+    if (actualSize != size || actualSha != sha) {
+      abortRun(s"$rel holds $actualSize bytes / sha256 $actualSha, not the $size " +
+        s"bytes / sha256 $sha the completion manifest $path records. The set is not " +
+        "one generation")
+    }
+  }
+  val recomputed = sha256OfBytes(
+    roles.zip(shas).map { case (r, s) => s"$r\u0000$s" }.mkString("\n")
+      .getBytes(StandardCharsets.UTF_8)).take(32)
+  if (recomputed != declaredSetId) {
+    abortRun(s"the completion manifest $path records member_set_id $declaredSetId but " +
+      s"its own member digests yield $recomputed, so the manifest and the set it " +
+      "describes disagree")
+  }
+
+  // THE EXACT SCHEMA, where the caller states it. Counts, unique roles and member
+  // digests establish that the manifest is internally consistent and matches the
+  // files on disk; they do NOT establish that it describes THIS publication. A
+  // one-member record left by a failed three-member generation satisfies every
+  // check above, and so does a complete manifest for a different query. Only the
+  // expected role set, the expected paths and the publication identity refuse
+  // those, which is why a consumer that knows its schema passes it in.
+  if (expectedRoles.nonEmpty) {
+    val missing = expectedRoles.filterNot(roles.contains)
+    val extra = roles.filterNot(expectedRoles.contains)
+    if (missing.nonEmpty || extra.nonEmpty || roles.size != expectedRoles.size) {
+      abortRun(s"the completion manifest $path names roles ${roles.sorted.mkString(", ")} " +
+        s"where this publication requires ${expectedRoles.sorted.mkString(", ")}" +
+        (if (missing.nonEmpty) s"; missing ${missing.mkString(", ")}" else "") +
+        (if (extra.nonEmpty) s"; unexpected ${extra.mkString(", ")}" else "") +
+        ". A manifest naming fewer members than the schema requires is exactly what " +
+        "a publication that failed between its renames leaves behind, and it is " +
+        "internally consistent, so only the expected role set refuses it")
+    }
+  }
+  if (expectedPaths.nonEmpty) {
+    roles.zip(paths).foreach { case (role, rel) =>
+      // `rel` is what completionManifestContent wrote: the repository-relative
+      // path where the repository root resolved, and the bare filename where it
+      // did not. Both are accepted, because the fallback is the writer's
+      // documented behaviour rather than a defect - what is refused is a path
+      // that is neither, which is a record describing some other file.
+      val acceptable = expectedPaths.get(role)
+        .map(w => Set(w, w.substring(w.lastIndexOf('/') + 1)))
+      acceptable match {
+        case Some(allowed) if !allowed.contains(rel) =>
+          val wanted = expectedPaths(role)
+          abortRun(s"the completion manifest $path records $rel for role $role where " +
+            s"this consumer expects $wanted. The record describes files other than " +
+            "the ones this publication wrote")
+        case None if expectedRoles.nonEmpty =>
+          abortRun(s"the completion manifest $path carries role $role, which this " +
+            "publication's schema does not define")
+        case _ => ()
+      }
+    }
+  }
+  expectedPublicationId.foreach { wanted =>
+    val declaredPub = """"publication_id"\s*:\s*"([0-9a-f]{64})"""".r
+      .findFirstMatchIn(text).map(_.group(1))
+    if (!declaredPub.contains(wanted)) {
+      abortRun(s"the completion manifest $path records publication_id " +
+        s"${declaredPub.getOrElse("none")}, not the $wanted this publication " +
+        "computed, so it describes another generation")
+    }
+  }
+  declaredCount
+}
+
+/** Minimal JSON string escaping for the completion manifest, which carries only
+ *  paths, hex digests and ASCII role names - but escapes anyway, so a path
+ *  containing a quote or a backslash cannot produce an unparseable manifest. */
+def manifestJsonString(value: String): String = {
+  val out = new StringBuilder("\"")
+  value.foreach {
+    case '"'  => out.append("\\\"")
+    case '\\' => out.append("\\\\")
+    case '\n' => out.append("\\n")
+    case '\r' => out.append("\\r")
+    case '\t' => out.append("\\t")
+    case c if c < ' ' => out.append("\\u%04x".format(c.toInt))
+    case c    => out.append(c)
+  }
+  out.append("\"").toString
+}
+
+/**
+ * The member-set identifier: sha256 over each content member's target filename
+ * and digest, in published order, truncated to 32 hex characters.
+ *
+ * Derived from MEMBER BYTES, which is the property `publicationId` cannot have:
+ * that one is computed from the query, its source and the graph before any
+ * member exists, so it identifies the run and can say nothing about whether the
+ * set on disk is complete. This one changes if any member's bytes change, if a
+ * member is missing, or if the members came from two different generations.
+ */
+def memberSetIdentifier(members: List[StagedMember]): String = {
+  val material = members
+    .map(m => s"${m.target.getFileName}\u0000${m.sha256}")
+    .mkString("\n")
+  sha256OfBytes(material.getBytes(StandardCharsets.UTF_8)).take(32)
+}
+
+/** The completion manifest's bytes, describing every content member. */
+def completionManifestContent(
+    members: List[StagedMember], manifestTarget: Path): String = {
+  val setId = memberSetIdentifier(members)
+  val root = repoRootRealPath
+  def rel(p: Path): String =
+    root.filter(r => p.startsWith(r)).map(r => r.relativize(p).toString)
+      .getOrElse(p.getFileName.toString)
+  val memberJson = members.map { m =>
+    "    {\n" +
+      s"      ${manifestJsonString("role")}: ${manifestJsonString(m.target.getFileName.toString)},\n" +
+      s"      ${manifestJsonString("path")}: ${manifestJsonString(rel(m.target))},\n" +
+      s"      ${manifestJsonString("bytes")}: ${m.byteSize},\n" +
+      s"      ${manifestJsonString("sha256")}: ${manifestJsonString(m.sha256)}\n" +
+      "    }"
+  }.mkString(",\n")
+  "{\n" +
+    s"  ${manifestJsonString("schema")}: ${manifestJsonString(PUBLICATION_MANIFEST_SCHEMA)},\n" +
+    s"  ${manifestJsonString("document")}: ${manifestJsonString(rel(manifestTarget))},\n" +
+    s"  ${manifestJsonString("query_id")}: ${manifestJsonString(QUERY_ID)},\n" +
+    s"  ${manifestJsonString("member_set_id")}: ${manifestJsonString(setId)},\n" +
+    s"  ${manifestJsonString("member_set_id_derivation")}: ${manifestJsonString(
+      "sha256 over each content member's target filename and sha256, NUL-separated " +
+      "within a member and newline-separated between members, in published order, " +
+      "truncated to 32 hex characters. Derived from member BYTES, so it changes if " +
+      "any member changes, is missing, or came from another generation")},\n" +
+    s"  ${manifestJsonString("member_count")}: ${members.size},\n" +
+    s"  ${manifestJsonString("publication_id")}: ${manifestJsonString(
+      publicationIdOfRecord.getOrElse("not established when this manifest was written"))},\n" +
+    s"  ${manifestJsonString("commit_protocol")}: ${manifestJsonString(
+      "Every content member is staged, fsynced and measured from the disk; this " +
+      "manifest is staged after all of them; every content member is then renamed " +
+      "onto its target; and this manifest is renamed LAST. Its presence is " +
+      "therefore the completion signal for the set, and a member on disk " +
+      "disagreeing with the digest recorded here means the set is not one " +
+      "generation")},\n" +
+    s"  ${manifestJsonString("required_by_consumers")}: ${manifestJsonString(
+      "REQUIRED. The producer re-measures every member named here immediately " +
+      "after publishing and stops the run on any disagreement, so a manifest that " +
+      "nothing checks cannot occur. A downstream consumer must do the same before " +
+      "treating the set as one generation")},\n" +
+    s"  ${manifestJsonString("self_digest")}: ${manifestJsonString(
+      "absent by construction: a manifest cannot carry its own digest. Its own " +
+      "identity is published in the run record's per-file manifest")},\n" +
+    s"  ${manifestJsonString("members")}: [\n$memberJson\n  ]\n" +
+    "}\n"
+}
+
+/**
+ * Move every staged member onto its target atomically, publish the completion
+ * manifest LAST, then fsync each parent directory and verify the published set
+ * against the manifest.
+ *
+ * The order is the whole point. Staging everything before the first rename
+ * closes the window before the renames; the manifest closes the window BETWEEN
+ * them, which no amount of staging can. Until the manifest is in place the set
+ * on disk is not claimed to be a generation, and after it is in place every
+ * member it names has been re-measured from the disk and required to agree.
+ */
+def publishStagedMembers(writeManifest: Boolean = true): List[StagedMember] = {
+  val contentMembers = stagedMembers.toList
+  if (contentMembers.size > 1) mixedGenerationRisk = true
+  // A manifest is written ONLY for a set that is this query's COMPLETE declared
+  // generation. That is stronger than the risk flag it replaces as the decisive
+  // test: the flag was raised when a multi-member publication began, so a failure
+  // BEFORE that point still left the flag down and the failure handler free to
+  // write a valid one-log manifest over the previous generation's three-member
+  // record. Comparing against DECLARED_MEMBER_ROLES cannot be fooled that way -
+  // a one-member set is not the declared set whatever the flag says.
+  val stagedRoles = contentMembers.map(_.target.getFileName.toString)
+  val isCompleteGeneration =
+    stagedRoles.sorted == DECLARED_MEMBER_ROLES.sorted
+  val manifestMember = manifestTargetPath match {
+    case Some(manifestTarget)
+      if contentMembers.nonEmpty && writeManifest && isCompleteGeneration =>
+      // Staged through the same machinery, so it gets the same component
+      // validation, the same exclusive no-follow temporary, the same looped
+      // write and the same read-back verification as every other member.
+      Some(stageMember(
+        manifestTarget, completionManifestContent(contentMembers, manifestTarget)))
+    case _ => None
+  }
+
+  contentMembers.foreach { m =>
+    Files.move(m.temp, m.target, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+  }
+
+  // The CONTENT renames are made durable BEFORE the manifest rename, not after
+  // both. Ordering matters to the one reader that matters - a reader after a
+  // crash. Renaming the manifest first and syncing everything afterwards can
+  // persist the commit record while a content rename is still only in the page
+  // cache, so recovery would find a manifest asserting members that are not
+  // there. Syncing content first makes the manifest's presence imply theirs.
+  fsyncPublicationDirs(contentMembers.map(_.target.getParent).distinct)
+
+  // LAST. Everything the manifest describes is already at its published path
+  // AND durable there.
+  manifestMember.foreach { m =>
+    Files.move(m.temp, m.target, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+    fsyncPublicationDirs(List(m.target.getParent))
+  }
+
+  val members = contentMembers ++ manifestMember.toList
+  stagedMembers.clear()
+
+  // THE PRODUCER IS THE FIRST CONSUMER. Every member the manifest names is
+  // re-measured from its published path and required to equal the digest the
+  // manifest records. A manifest nothing verifies is decoration.
+  manifestMember match {
+    case Some(m) =>
+      // The manifest's own BYTES are re-read from the published path and its
+      // recorded members are re-measured from theirs. Comparing the staged
+      // in-memory values would verify what this process believed it wrote; the
+      // point of a commit record is to be checkable by something that was not
+      // here, so it is checked the way such a reader would check it.
+      val required = requirePublicationManifest(
+        m.target, DECLARED_MEMBER_ROLES, DECLARED_MEMBER_PATHS, publicationIdOfRecord)
+      if (required != contentMembers.size) {
+        abortRun(s"the completion manifest ${m.target} names $required member(s) but " +
+          s"${contentMembers.size} were published. The set on disk is not one generation")
+      }
+      val setId = memberSetIdentifier(contentMembers)
+      lastPublicationMemberSetId = Some(setId)
+      lastPublicationManifest = Some(m.target.getFileName.toString)
+      mixedGenerationRisk = false
+      println(s"completion manifest published last: ${m.target} " +
+        s"(member_set_id $setId, $required member(s) re-read from disk and verified)")
+    case None =>
+      lastPublicationMemberSetId = None
+      lastPublicationManifest = None
+      if (!writeManifest || !isCompleteGeneration) {
+        System.err.println("the console log was published WITHOUT a completion " +
+          "manifest, deliberately: a multi-member publication had already begun " +
+          "renaming when it failed, and writing a one-member manifest over that set " +
+          "would assert a complete generation of one file while the other members " +
+          "sit at whichever generation the failure left them in. Leaving the manifest " +
+          "absent, or stale from the previous generation, is what lets a consumer " +
+          "detect the incomplete set: a stale manifest names these same paths with " +
+          "the PREVIOUS generation's digests, so re-measuring them fails it, and " +
+          "where no content member was renamed at all the previous generation is " +
+          "still internally consistent and accepting it is correct")
+      } else if (contentMembers.size > 1) {
+        // Never reached on the paths this query takes - the only manifest-less
+        // publication is the single-member early-abort console log - but stated
+        // rather than assumed, because a multi-member set with no commit record
+        // is the exact hazard the manifest exists to close.
+        System.err.println(s"published ${contentMembers.size} members with no " +
+          "completion manifest: the output paths were not resolved, so a consumer " +
+          "cannot establish that the set is one generation")
+      }
+  }
+  members
 }
 
 /** Streaming sha256 so a 500 MB graph is never held in memory. */
@@ -840,6 +1659,161 @@ def sha256Of(p: Path): String = {
     }
   } finally in.close()
   md.digest().map("%02x".format(_)).mkString
+}
+
+/** sha256 of bytes already in memory - the members this query publishes, and
+ *  the derivation of the publication identifier. */
+def sha256OfBytes(bytes: Array[Byte]): String =
+  MessageDigest.getInstance("SHA-256").digest(bytes).map("%02x".format(_)).mkString
+
+/** Occurrences of a literal token in a text. Used to MEASURE the absence of the
+ *  alternative loader from this query's own source rather than assert it. */
+def occurrencesOf(text: String, token: String): Int = {
+  var count = 0
+  var at = text.indexOf(token)
+  while (at >= 0) {
+    count += 1
+    at = text.indexOf(token, at + token.length)
+  }
+  count
+}
+
+// ------------------------------------------- reading a query source as data
+// The duplicate-formulation comparison in stage J is a statement about two
+// SOURCES, so it reads them as data. These three helpers are the whole of that
+// reading: they find a top-level `val NAME` declaration, and return the literal
+// text it is built from. Literal TEXT is what is compared, never a runtime
+// string, so an escape sequence written the same way in two sources compares
+// equal without either side being unescaped first.
+
+/** The text of a top-level `val NAME` declaration: its own line, plus every
+ *  following line that is indented (a continuation) and non-blank. `None` when
+ *  the source declares no such val. */
+def declarationTextOf(text: String, name: String): Option[String] = {
+  val header = ("(?m)^val " + java.util.regex.Pattern.quote(name) + "(?![A-Za-z0-9_])").r
+  header.findFirstMatchIn(text).map { m =>
+    val rest = text.substring(m.start)
+    val lines = rest.split("\n", -1)
+    val out = scala.collection.mutable.ArrayBuffer(lines.head)
+    var i = 1
+    var running = true
+    while (running && i < lines.length) {
+      val line = lines(i)
+      if (line.isEmpty || !line.head.isWhitespace) running = false
+      else {
+        out += line
+        i += 1
+      }
+    }
+    out.mkString("\n")
+  }
+}
+
+/** Every string literal in a fragment of Scala source, in order, as written -
+ *  triple-quoted literals contribute their body, ordinary ones keep their
+ *  escape sequences exactly as the source spells them. */
+def stringLiteralsIn(fragment: String): List[String] = {
+  val out = scala.collection.mutable.ArrayBuffer.empty[String]
+  var i = 0
+  while (i < fragment.length) {
+    if (fragment.startsWith("\"\"\"", i)) {
+      val end = fragment.indexOf("\"\"\"", i + 3)
+      if (end < 0) i = fragment.length
+      else {
+        out += fragment.substring(i + 3, end)
+        i = end + 3
+      }
+    } else if (fragment.charAt(i) == '"') {
+      val sb = new StringBuilder
+      var j = i + 1
+      var closed = false
+      while (!closed && j < fragment.length) {
+        val c = fragment.charAt(j)
+        if (c == '\\' && j + 1 < fragment.length) {
+          sb.append(c).append(fragment.charAt(j + 1))
+          j += 2
+        } else if (c == '"') {
+          closed = true
+          j += 1
+        } else {
+          sb.append(c)
+          j += 1
+        }
+      }
+      out += sb.toString
+      i = j
+    } else i += 1
+  }
+  out.toList
+}
+
+/** The string literals a named declaration is built from: one entry for a
+ *  single literal, one per element for a List of literals, and the pieces in
+ *  order for a concatenation. `None` when the declaration is absent. */
+def declaredLiteralsOf(text: String, name: String): Option[List[String]] =
+  declarationTextOf(text, name).map(stringLiteralsIn)
+
+/** The first integer literal in a named declaration. */
+def declaredIntOf(text: String, name: String): Option[Long] =
+  declarationTextOf(text, name).flatMap(d => """(-?\d+)""".r.findFirstIn(d).map(_.toLong))
+
+// ----------------------------------------------- the revision count, measured
+/**
+ * The commits touching one repository-relative path, newest first, read from
+ * the repository's own history rather than written down. Returns whether the
+ * measurement was established, a note that says why when it was not, and the
+ * commit identifiers themselves so the count is auditable from the list.
+ *
+ * Three properties make this safe to run from inside a probe: the child gets no
+ * shell, its stdin is closed immediately so it can never wait for input, and
+ * the wait is bounded - a child that has not exited within the bound is
+ * destroyed and the measurement is reported as not established rather than
+ * being guessed at. Git's output for one path is a few dozen bytes per commit,
+ * comfortably inside the pipe buffer; a path with more history than fits would
+ * block before exiting and so be reported as not established, never
+ * under-counted.
+ */
+def gitRevisionsOf(root: Path, repoRelativePath: String): (Boolean, String, List[String]) = {
+  val argv = new java.util.ArrayList[String]()
+  List(GIT_EXECUTABLE, "-C", root.toString, "log", "--format=%H", "--", repoRelativePath)
+    .foreach(argv.add)
+  try {
+    val builder = new java.lang.ProcessBuilder(argv)
+    builder.redirectErrorStream(true)
+    val proc = builder.start()
+    proc.getOutputStream.close()
+    val exited = proc.waitFor(GIT_WAIT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+    if (!exited) {
+      proc.destroyForcibly()
+      (false,
+        s"not established: $GIT_EXECUTABLE did not exit within $GIT_WAIT_SECONDS " +
+          "seconds and was destroyed; a count is not guessed at when the measurement " +
+          "did not complete",
+        Nil)
+    } else {
+      val out = new String(proc.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+      val code = proc.exitValue()
+      if (code != 0) {
+        val quoted = out.linesIterator.map(_.trim).filter(_.nonEmpty)
+          .take(GIT_OUTPUT_LINES_REPORTED).mkString(" / ")
+        (false,
+          s"not established: $GIT_EXECUTABLE exited $code for $repoRelativePath" +
+            (if (quoted.isEmpty) "" else s", saying: $quoted"),
+          Nil)
+      } else {
+        val commits = out.linesIterator.map(_.trim)
+          .filter(_.matches(GIT_COMMIT_SHA_REGEX)).toList
+        (true,
+          "measured from the repository's own history at run time, newest first",
+          commits)
+      }
+    }
+  } catch {
+    case t: Throwable =>
+      (false,
+        s"not established: ${t.getClass.getName}: ${t.getMessage}",
+        Nil)
+  }
 }
 
 /**
@@ -871,19 +1845,39 @@ def identityPairOf(recordPath: Path, label: String): (Long, String) = {
   (sizes.head.toLong, shas.head)
 }
 
-/** Write the console log wherever the run got to - success or failure. */
+/**
+ * Write the console log wherever the run got to - success or failure - through
+ * the same staging machinery as every other member.
+ *
+ * On the FAILURE path the console log is the only member that publishes: any
+ * envelope or report already staged is discarded first, so the previous
+ * generation of those two files is left intact rather than half replaced. On
+ * the success path the console log is staged last, as the third member of the
+ * set, because its content names the other two.
+ */
 var logTargetPath: Option[Path] = None
+var publicationCompleted = false
 def flushConsoleLog(): Unit =
-  logTargetPath.foreach { p =>
+  if (!publicationCompleted) logTargetPath.foreach { p =>
     try {
-      writeUtf8(p, consoleLines.mkString("", "\n", "\n"))
+      discardStagedMembers()
+      stageMember(p, consoleLines.mkString("", "\n", "\n"))
+      // A manifest is written here ONLY if no multi-member publication had begun
+      // renaming. Writing one otherwise would replace a three-member commit
+      // record with a valid one-member record, and a generic consumer checking
+      // that manifest would then find a complete, self-consistent set of one
+      // file - the omitted envelope and report invisible to it. That is the
+      // failure the manifest exists to make visible, so it must not be papered
+      // over by the failure handler itself.
+      publishStagedMembers(writeManifest = !mixedGenerationRisk)
+      publicationCompleted = true
       println(s"console log written: $p")
     } catch {
       case t: Throwable =>
+        discardStagedMembers()
         System.err.println(s"could not write the console log to $p: ${t.getMessage}")
     }
   }
-
 
 // ===========================================================================
 // THE QUERY. Everything below runs inside one try so that a failure names its
@@ -918,7 +1912,15 @@ try {
       "repository root")
   }
   logTargetPath = Some(repoRoot.resolve(LOG_DIR).resolve(s"probe-$QUERY_ID.log"))
+  manifestTargetPath =
+    Some(repoRoot.resolve(LOG_DIR).resolve(s"probe-$QUERY_ID.publication.json"))
+  log(s"completion manifest       : ${manifestTargetPath.get}")
   log(s"console log target        : ${logTargetPath.get}")
+  // The real path of the publication root, resolved once. Every member this
+  // query publishes must land inside it, and the check is made against the
+  // REAL path so a symlinked component cannot place a member elsewhere.
+  repoRootRealPath = Some(repoRoot.toRealPath())
+  log(s"publication root (real)   : ${repoRootRealPath.get}")
 
   val jdkMajor = System.getProperty("java.specification.version")
   val jvmVersion = System.getProperty("java.vm.version")
@@ -932,8 +1934,21 @@ try {
   log(s"heap actually used (bytes): $heapMaxBytes")
   log(f"heap actually used (GiB)  : ${heapMaxBytes.toDouble / (1024L * 1024L * 1024L)}%.3f")
   log(s"heap floor (bytes)        : $HEAP_FLOOR_BYTES")
-  log(s"script JVM input args     : " +
-    (if (jvmInputArgs.isEmpty) "<none>" else jvmInputArgs.mkString(" ")))
+  // CWE-532. The JVM's raw input arguments are NOT logged: a -D property can
+  // carry a token or a password, and these console streams are preserved
+  // verbatim as evidence. Only a whitelisted memory or stack flag is logged as
+  // written - the heap it establishes is the evidence this record needs - and
+  // every other argument is reduced to its key with its value replaced by a
+  // fixed token. The count reduced is reported, so the reduction is visible.
+  val jvmArgsKept = jvmInputArgs.filter(jvmArgumentValueIsWhitelisted)
+  val jvmArgsRedacted = jvmInputArgs.filterNot(jvmArgumentValueIsWhitelisted)
+  log(s"JVM memory/stack args     : " +
+    (if (jvmArgsKept.isEmpty) "<none>" else jvmArgsKept.mkString(" ")))
+  log(s"JVM other args (reduced)  : " +
+    (if (jvmArgsRedacted.isEmpty) "<none>"
+     else jvmArgsRedacted.map(redactJvmArgument).mkString(" ")))
+  log(s"JVM args kept / reduced   : ${jvmArgsKept.size} logged as written, " +
+    s"${jvmArgsRedacted.size} reduced to their keys, ${jvmInputArgs.size} observed")
   log("Joern exposes no --version flag and its REPL blocks on an open stdin, so its")
   log("version is read from the startup banner on the console stream, not from a flag.")
 
@@ -951,6 +1966,88 @@ try {
       "one - and this query traverses two pairs, so it would be silent twice")
   }
   log("heap floor                : PASS (measured, not requested)")
+
+  // ------------------------- the source of record, digested -----------------
+  // The file that wrote a result must be identifiable FROM that result, or a
+  // result and the source it claims to come from can drift apart with nothing
+  // recording it. So this query reads its own source at run time, digests it,
+  // and stamps that digest into every member it publishes. Three checks make
+  // the digest mean what it says:
+  //
+  //   - the file read must declare THIS query's id, so a digest of some other
+  //     file cannot be published as this one's;
+  //   - the alternative loader's absence is MEASURED in that text rather than
+  //     asserted, with the token assembled at run time so this check does not
+  //     itself put the token in the source it is checking;
+  //   - the declared formulation bound is compared against the bound the
+  //     traversal actually runs at, so the declaration cannot drift from
+  //     behaviour.
+  val sourceRepoRelative = s"$QUERY_SOURCE_DIR/$QUERY_ID.sc"
+  val sourcePath = repoRoot.resolve(sourceRepoRelative)
+  if (!Files.isRegularFile(sourcePath)) {
+    abortRun(s"this query's own source is not a regular file at $sourcePath. The " +
+      "digest that ties every published member to the source that wrote it cannot be " +
+      "computed, so nothing is published")
+  }
+  val sourceBytes = Files.readAllBytes(sourcePath)
+  val sourceText = new String(sourceBytes, StandardCharsets.UTF_8)
+  val sourceSha256 = sha256OfBytes(sourceBytes)
+  val sourceByteSize = sourceBytes.length.toLong
+  val selfIdentification = "val QUERY_ID = \"" + QUERY_ID + "\""
+  if (!sourceText.contains(selfIdentification)) {
+    abortRun(s"the file read at $sourceRepoRelative does not declare $selfIdentification, " +
+      "so it is not this query's source and its digest must not be published as one")
+  }
+  val alternativeLoaderToken = "import" + "Code"
+  val alternativeLoaderOccurrences = occurrencesOf(sourceText, alternativeLoaderToken)
+  if (alternativeLoaderOccurrences > 0) {
+    abortRun(s"the alternative loader appears $alternativeLoaderOccurrences time(s) in " +
+      s"$sourceRepoRelative. The probe loads with importCpg ONLY, and the token's " +
+      "absence from every committed query source is a checked contract rather than a " +
+      "convention")
+  }
+  val declaredBoundValue = declaredIntOf(sourceText, "FORMULATION_BOUND_VALUE")
+  if (!declaredBoundValue.contains(MAX_CALL_DEPTH.toLong)) {
+    abortRun("the formulation identity block declares FORMULATION_BOUND_VALUE=" +
+      declaredBoundValue.map(_.toString).getOrElse("<absent>") + " while the traversal " +
+      s"runs at $FORMULATION_BOUND_NAME=$MAX_CALL_DEPTH. The declared block is what the " +
+      "duplicate-formulation comparison reads, so a declaration that has drifted from " +
+      "the behaviour it describes would make that comparison wrong")
+  }
+  log(s"query source              : $sourceRepoRelative")
+  log(s"query source bytes        : $sourceByteSize")
+  log(s"query source sha256       : $sourceSha256")
+  log(s"alternative loader        : absent (measured: $alternativeLoaderOccurrences " +
+    "occurrences in the source text)")
+  log(s"declared bound            : $FORMULATION_BOUND_NAME=" +
+    s"${declaredBoundValue.map(_.toString).getOrElse("<absent>")} (agrees with the " +
+    "traversal)")
+  // The per-pair step budget must sit ABOVE the per-entry expansion cap times
+  // the per-pair entry-point cap, so that a pair's own budget can never
+  // pre-empt an entry point's allowance before that allowance is spent. The
+  // relation is asserted rather than left as a coincidence of three literals.
+  if (MAX_STEPS_PER_PAIR < MAX_EXPANSIONS_PER_ENTRY) {
+    abortRun(s"MAX_STEPS_PER_PAIR=$MAX_STEPS_PER_PAIR is below " +
+      s"MAX_EXPANSIONS_PER_ENTRY ($MAX_EXPANSIONS_PER_ENTRY). The two scopes are " +
+      "published separately and the pair budget is documented as sitting above the " +
+      "per-entry cap, so a pair budget below it would silently pre-empt the per-entry " +
+      "cap it is meant to sit above")
+  }
+  log(s"step scopes               : per entry point $MAX_EXPANSIONS_PER_ENTRY " +
+    s"expansions, per pair $MAX_STEPS_PER_PAIR call sites, " +
+    s"$MAX_ENTRY_POINTS_PER_PAIR entry points per pair")
+
+  // Effort measure 1, measured rather than declared: the commits touching this
+  // source. The list is published beside the count so the number is auditable.
+  val (revisionsEstablished, revisionsNote, revisionCommits) =
+    gitRevisionsOf(repoRoot, sourceRepoRelative)
+  log(s"query revisions committed : " +
+    (if (revisionsEstablished) revisionCommits.size.toString else "not established") +
+    s" ($revisionsNote)")
+  if (revisionsEstablished && revisionCommits.nonEmpty) {
+    log(s"query revision commits    : ${revisionCommits.mkString(", ")}")
+  }
+
 
   // -------------------------------------------------------------------------
   stage("B-graph-path: the two names for the graph")
@@ -998,24 +2095,14 @@ try {
   log(s"size WITH following       : $sizeFollow  (the measurement of record)")
   log(s"sha256 of the target      : $shaObserved")
 
-  // The record of account, and - when they are not the same file - the
-  // repo-relative record as well. Both pairs are reported either way.
-  val recordDefaultPath = repoRoot.resolve(CPG_RECORD_PATH).toAbsolutePath.normalize
-  val recordEnvValue = sys.env.get(CPG_RECORD_ENV_VAR).filter(_.nonEmpty)
-  val recordSelectedPath = recordEnvValue
-    .map(v => Paths.get(v).toAbsolutePath.normalize)
-    .getOrElse(recordDefaultPath)
-  val recordSelectedSource =
-    if (recordEnvValue.isDefined) CPG_RECORD_ENV_VAR
-    else s"repo-relative default $CPG_RECORD_PATH"
-  val recordsAreOneFile = recordSelectedPath == recordDefaultPath
-  log(s"identity record source    : $recordSelectedSource")
-  log(s"identity record (of account): $recordSelectedPath")
-  log(s"identity record (repo-relative): $recordDefaultPath" +
-    (if (recordsAreOneFile) "  (the same file)" else "  (a different file)"))
-
-  val (recordedSize, recordedSha) = identityPairOf(recordSelectedPath, "selected")
+  // The one record of account: the repo-relative record the query names in its
+  // own source and in its published reproduction command. There is no override,
+  // so the record a reader can read is exactly the record this comparison turned
+  // on.
+  val recordPath = repoRoot.resolve(CPG_RECORD_PATH).toAbsolutePath.normalize
+  val (recordedSize, recordedSha) = identityPairOf(recordPath, "repo-relative")
   log(s"recorded at write time    : bytes=$recordedSize sha256=$recordedSha")
+  log(s"recorded in               : $CPG_RECORD_PATH")
 
   val sizeMatches = sizeFollow == recordedSize
   val shaMatches = shaObserved == recordedSha
@@ -1024,20 +2111,9 @@ try {
   if (!(sizeMatches && shaMatches)) {
     abortRun("graph identity mismatch: observed bytes=" + sizeFollow + " sha256=" +
       shaObserved + " against recorded bytes=" + recordedSize + " sha256=" + recordedSha +
-      " in " + recordSelectedPath + ". A load against different bytes than the record " +
+      " in " + CPG_RECORD_PATH + ". A load against different bytes than the record " +
       "describes produces conclusions about a graph nobody has")
   }
-
-  // The repo-relative record is read even when it is not the record of account,
-  // so that a divergence is REPORTED with both pairs and their provenance rather
-  // than left implicit. It is not used to adjudicate the load: it describes
-  // whichever graph the provisioning that wrote it produced, and this run's
-  // subject is the graph on this host.
-  val (defaultRecordedSize, defaultRecordedSha) =
-    if (recordsAreOneFile) (recordedSize, recordedSha)
-    else identityPairOf(recordDefaultPath, "repo-relative")
-  val defaultRecordAgrees =
-    defaultRecordedSize == sizeFollow && defaultRecordedSha == shaObserved
 
   // ------------------------- portable labels for the written artefacts ------
   // The envelope and the prose report are held to byte-identity: an unchanged
@@ -1060,34 +2136,8 @@ try {
   val cpgResolvedLabel = portableLabel(cpgResolved,
     "a host-shared read-only file outside the repository root, reached by following " +
       "the symlink")
-  val recordSelectedLabel =
-    if (recordsAreOneFile) CPG_RECORD_PATH
-    else portableLabel(recordSelectedPath,
-      "a provisioning record outside the repository root, named by $" +
-        CPG_RECORD_ENV_VAR)
   log(s"graph path label          : $cpgNamedLabel")
   log(s"resolved target label     : $cpgResolvedLabel")
-  log(s"identity record label     : $recordSelectedLabel")
-
-  val identityDivergenceNote =
-    if (recordsAreOneFile)
-      "none: the record of account IS the repo-relative record " + CPG_RECORD_PATH +
-        ", and the graph loaded matches the pair it states"
-    else if (defaultRecordAgrees)
-      "none: the record of account is " + recordSelectedLabel + " and the repo-relative " +
-        "record " + CPG_RECORD_PATH + " states the same pair"
-    else
-      "the repo-relative record " + CPG_RECORD_PATH + " states bytes=" +
-        defaultRecordedSize + " sha256=" + defaultRecordedSha + ", which is NOT the " +
-        "graph on this host (bytes=" + sizeFollow + " sha256=" + shaObserved + "). That " +
-        "record is a committed deliverable describing the graph of the provisioning " +
-        "that wrote it; the record of account for THIS load is " + recordSelectedLabel +
-        ", the frontend's own write-time record for the graph actually loaded, and the " +
-        "load was verified against it. Both pairs are recorded with their provenance " +
-        "and neither is discarded"
-  log(s"repo-relative record pair : bytes=$defaultRecordedSize sha256=$defaultRecordedSha")
-  log(s"repo-relative record agrees: $defaultRecordAgrees")
-  log(s"identity divergence       : $identityDivergenceNote")
 
   // Both names for the graph must resolve to the bytes just measured.
   val aapNameExists = Files.exists(cpgAapNamed, LinkOption.NOFOLLOW_LINKS)
@@ -1209,7 +2259,10 @@ try {
     sinkSourceFile = SINK_SOURCE_FILE,
     sinkSourceLine = SINK_SOURCE_LINE,
     messageHops = List(messageHopLaunchDriver),
-    routeSurfaceTypePrefixes = (PAIR_ONE_HANDLER_TYPE :: SINK_SURFACE_TYPE_PREFIXES).distinct)
+    // Handler, the intermediate Worker hop, then the sink host: the WHOLE route
+    // surface, so the predicate evidence below is not silently scoped to its ends.
+    routeSurfaceTypePrefixes = (PAIR_ONE_HANDLER_TYPE ::
+      (ROUTE_HOP_SURFACE_TYPE_PREFIXES ::: SINK_SURFACE_TYPE_PREFIXES)).distinct)
 
   val pairTwo = HandlerSinkPair(
     id = PAIR_TWO_ID,
@@ -1232,8 +2285,11 @@ try {
     // Master handler it reaches makes. Pair two therefore carries one more hop
     // than pair one, which is exactly why its boundary count is five to four.
     messageHops = List(messageHopRequestSubmitDriver, messageHopLaunchDriver),
+    // Pair two's route runs through pair one's handler as well, and then through
+    // the same intermediate Worker hop to the same sink host.
     routeSurfaceTypePrefixes =
-      (PAIR_TWO_HANDLER_TYPE :: PAIR_ONE_HANDLER_TYPE :: SINK_SURFACE_TYPE_PREFIXES).distinct)
+      (PAIR_TWO_HANDLER_TYPE :: PAIR_ONE_HANDLER_TYPE ::
+        (ROUTE_HOP_SURFACE_TYPE_PREFIXES ::: SINK_SURFACE_TYPE_PREFIXES)).distinct)
 
   /**
    * The declared iteration order. Every per-pair collection below is built by
@@ -1611,6 +2667,77 @@ try {
     }
   }
   /**
+   * Per SURFACE PREFIX rather than per pair, so every prefix on either pair's
+   * route surface reports the SAME two measured fields and no prefix's zero is
+   * indistinguishable from a prefix that is not in the graph at all.
+   *
+   * The reach fields are why this exists. "No predicate call site on the Worker
+   * hop" is only evidence if the Worker is in the graph to be searched: a zero
+   * drawn from an absent surface would be unfalsifiable, and it would read
+   * exactly like a searched surface that came back clean. So the type-declaration
+   * and method counts on each prefix are measured and published beside the
+   * call-site count, and a prefix the graph carries NO declaration for aborts the
+   * run rather than contributing a zero nobody can falsify. A prefix present with
+   * no methods does not abort - it is a different and visible state, published as
+   * such under surfaces_present_with_no_methods.
+   */
+  final case class SurfacePrefixEvidence(
+      prefix: String,
+      typeDeclsInTheGraph: Int,
+      methodsInTheGraph: Int,
+      predicateCallSites: Int,
+      onPairs: List[String])
+
+  val allSurfacePrefixes =
+    (ROUTE_SURFACE_TYPE_PREFIXES ::: PAIRS.flatMap(_.routeSurfaceTypePrefixes)).distinct.sorted
+  var surfaceTypeScanTruncated = false
+  val surfacePrefixEvidence: List[SurfacePrefixEvidence] = allSurfacePrefixes.map { pref =>
+    // An indexed prefix sweep, bounded and reported: the prefix is regex-quoted
+    // so a dot in a package name cannot widen the match, and the type-declaration
+    // side is what onSurface itself keys on, so this measurement and the surface
+    // predicate exactly agree on what "on this prefix" means.
+    val declsOnIt = cpg.typeDecl
+      .fullName(java.util.regex.Pattern.quote(pref) + TYPE_PREFIX_REGEX_SUFFIX)
+      .take(MAX_TYPE_SCAN)
+      .l
+    if (declsOnIt.size >= MAX_TYPE_SCAN) surfaceTypeScanTruncated = true
+    val methodsOnIt = declsOnIt.flatMap(_.method.l).map(_.fullName).distinct.size
+    val callsOnIt =
+      predicateCallSites.count(c => owningTypes(c.method).exists(_.startsWith(pref)))
+    SurfacePrefixEvidence(
+      prefix = pref,
+      typeDeclsInTheGraph = declsOnIt.size,
+      methodsInTheGraph = methodsOnIt,
+      predicateCallSites = callsOnIt,
+      onPairs = PAIRS.filter(_.routeSurfaceTypePrefixes.contains(pref)).map(_.id))
+  }
+  surfacePrefixEvidence.foreach { e =>
+    log(f"  surface prefix ${e.prefix}%-58s type_decls=${e.typeDeclsInTheGraph}%5d " +
+      f"methods=${e.methodsInTheGraph}%6d predicate_call_sites=${e.predicateCallSites}%4d " +
+      f"pairs=${if (e.onPairs.isEmpty) "shared-list-only" else e.onPairs.mkString("+")}")
+  }
+  log(s"surface type-declaration sweep truncated at $MAX_TYPE_SCAN: " +
+    s"$surfaceTypeScanTruncated")
+  val surfacePrefixesAbsentFromTheGraph =
+    surfacePrefixEvidence.filter(_.typeDeclsInTheGraph == 0).map(_.prefix)
+  if (surfacePrefixesAbsentFromTheGraph.nonEmpty) {
+    abortRun("a declared route surface prefix has NO type declaration in the graph: " +
+      surfacePrefixesAbsentFromTheGraph.mkString(", ") + ". A predicate search over a " +
+      "surface the graph does not carry returns zero for a reason that has nothing to do " +
+      "with the route, and that zero would be indistinguishable from a searched surface " +
+      "that came back clean, so the run stops rather than publishing it.")
+  }
+  val surfacePrefixesPresentWithNoMethods =
+    surfacePrefixEvidence.filter(e => e.typeDeclsInTheGraph > 0 && e.methodsInTheGraph == 0)
+      .map(_.prefix)
+  log(s"route surface prefixes measured: ${surfacePrefixEvidence.size}, every one present " +
+    s"in the graph, present-but-method-less " +
+    (if (surfacePrefixesPresentWithNoMethods.isEmpty) "none"
+     else surfacePrefixesPresentWithNoMethods.mkString(", ")) +
+    s", total predicate call sites on them " +
+    s"${surfacePrefixEvidence.map(_.predicateCallSites).sum}")
+
+  /**
    * A measured property of the SHARED prefix list, reported rather than fixed by
    * editing the byte-identical block: pair two's handler type is the class the
    * method is declared in, and it does not start with any prefix in that list.
@@ -1645,12 +2772,82 @@ try {
       callSitesConsidered: Int,
       fanOutSitesEncountered: Int,
       fanOutSitesNotFollowed: Int,
+      maxExpansionsAtOneEntry: Int,
       maxDepthUsed: Int,
       depthBoundReached: Boolean,
-      expansionBudgetExhausted: Boolean,
-      stepCapReached: Boolean,
+      entryExpansionCapReached: Boolean,
+      pairStepBudgetExhausted: Boolean,
       routeCapReached: Boolean,
       routes: List[RouteRecord])
+
+  /**
+   * One route's complete ordered hop sequence rendered as a single ordering key.
+   * It is the last component of the route sort, which is what makes that sort
+   * TOTAL: two routes sharing their pair, walk, endpoints and hop count still
+   * differ here unless every hop is identical, and a route identical in every
+   * hop has already been removed by the deduplication that precedes the sort.
+   */
+  def hopSequenceKey(r: RouteRecord): String =
+    r.hops.map(h => s"${h.fromMethod}|${h.callSite}|${h.callSiteLine}|${h.toMethod}")
+      .mkString(">>")
+
+  /**
+   * One pair's step budget, shared by both of that pair's walks. It exists
+   * because MAX_STEPS_PER_PAIR is documented as a PER-PAIR cap: a counter local
+   * to a walk would enforce it per walk instead, and the published label would
+   * then name a scope the implementation does not hold. One instance is created
+   * per pair and handed to each of its walks; nothing is shared between pairs.
+   */
+  final class PairStepBudget {
+    var used: Int = 0
+    var exhausted: Boolean = false
+    /** Routes retained across BOTH of this pair's walks.
+     *
+     *  MAX_ROUTES_PER_PAIR names a per-pair cap and is published as one, but it
+     *  was checked against a collection local to each walk while two walks run
+     *  per pair - so the effective retention was up to 64 PER WALK, twice the
+     *  published cap, and `route_cap_reached` could stay false with 128 routes
+     *  retained. The count lives here for the same reason `used` does: the
+     *  budget object is the one thing both walks of a pair share and nothing
+     *  shares between pairs.
+     */
+    var routesRetained: Int = 0
+    var routeCapReached: Boolean = false
+  }
+
+  /**
+   * Render an `exists` aggregate in words that match the quantifier.
+   *
+   * `exists` true means true in AT LEAST ONE member; `exists` FALSE means false
+   * in EVERY member, not "false in at least one". The earlier wording said
+   * "in AT LEAST ONE" unconditionally, which read correctly for true and
+   * inverted the meaning for false.
+   */
+  def existsPhrase(values: List[Boolean]): String =
+    if (values.exists(identity))
+      s"true in AT LEAST ONE of this pair's ${values.size} walks"
+    else
+      s"false in EVERY one of this pair's ${values.size} walks"
+
+  /** Retain one route against the PER-PAIR cap, reporting whether it may be. */
+  def pairRouteAvailable(b: PairStepBudget): Boolean =
+    if (b.routesRetained >= MAX_ROUTES_PER_PAIR) { b.routeCapReached = true; false }
+    else { b.routesRetained += 1; true }
+
+  /**
+   * Consume one pair step if the cap allows it, and report whether it did.
+   *
+   * This is called INSIDE the counted loop - once per call site - rather than
+   * only before the enclosing method expansion. Checking the cap only at the
+   * outer level let a single method overshoot MAX_STEPS_PER_PAIR by up to its
+   * own call-site count, because `used` was incremented per call site with no
+   * check between increments; and a traversal that happened to finish on that
+   * overshoot left `exhausted` false while the cap had in fact been passed. So
+   * the published `pair_step_budget_exhausted` flag would have understated a
+   * truncation, which is the one direction a bound must never be wrong in.
+   */
+  def pairStepAvailable(b: PairStepBudget): Boolean =
+    if (b.used >= MAX_STEPS_PER_PAIR) { b.exhausted = true; false } else true
 
   /**
    * One bounded breadth-first walk over CALL edges, for ONE pair. Every bound it
@@ -1658,21 +2855,33 @@ try {
    * pair: nothing here is shared with the other pair's budget, so one pair
    * cannot silently truncate the other.
    */
-  def walk(s: PairSelection, walkId: String, followFanOut: Boolean): WalkResult = {
+  def walk(
+      s: PairSelection,
+      walkId: String,
+      followFanOut: Boolean,
+      pairSteps: PairStepBudget): WalkResult = {
     val p = s.pair
     var methodsVisited = 0
-    var expansions = 0
+    // Two expansion counters at two scopes, because two different things are
+    // being bounded and reported. entryExpansions is reset at EACH entry point
+    // and is what MAX_EXPANSIONS_PER_ENTRY caps; walkExpansions accumulates
+    // across the walk and is reported as the walk's total, capping nothing.
+    var entryExpansions = 0
+    var walkExpansions = 0
+    var maxExpansionsAtOneEntry = 0
     var callSitesConsidered = 0
     var fanOutEncountered = 0
     var fanOutNotFollowed = 0
     var maxDepthUsed = 0
     var depthBoundReached = false
-    var budgetExhausted = false
-    var stepCapReached = false
+    var entryExpansionCapReached = false
     var routeCapReached = false
     val routes = scala.collection.mutable.ArrayBuffer.empty[RouteRecord]
 
     s.entryGroupsTraversed.foreach { case (entryName, entryNodes) =>
+      // The per-entry-point allowance, reset here so the cap is enforced at the
+      // scope its name and its published label both state.
+      entryExpansions = 0
       val visited = scala.collection.mutable.HashSet[String](entryName)
       val parent = scala.collection.mutable.HashMap.empty[String, Hop]
       var frontier: List[(String, List[Method])] = List(entryName -> entryNodes)
@@ -1685,16 +2894,20 @@ try {
         while (i < ordered.size && !stop) {
           val (fromName, fromNodes) = ordered(i)
           i += 1
-          if (expansions >= MAX_EXPANSIONS_PER_ENTRY) {
-            budgetExhausted = true
+          if (entryExpansions >= MAX_EXPANSIONS_PER_ENTRY) {
+            entryExpansionCapReached = true
             stop = true
-          } else if (callSitesConsidered >= MAX_STEPS_PER_PAIR) {
-            stepCapReached = true
+          } else if (pairSteps.used >= MAX_STEPS_PER_PAIR) {
+            pairSteps.exhausted = true
             stop = true
           } else {
-            expansions += 1
-            callSitesOf(fromNodes).foreach { c =>
+            entryExpansions += 1
+            walkExpansions += 1
+            if (entryExpansions > maxExpansionsAtOneEntry)
+              maxExpansionsAtOneEntry = entryExpansions
+            callSitesOf(fromNodes).foreach { c => if (pairStepAvailable(pairSteps)) {
               callSitesConsidered += 1
+              pairSteps.used += 1
               val callees = calleesOf(c)
               val distinctNames = callees.map(_.fullName).distinct
               val isFanOut = distinctNames.size > FANOUT_CALLEE_THRESHOLD
@@ -1712,7 +2925,7 @@ try {
                     if (s.sinkHostNames.contains(toName) &&
                       !routes.exists(r => r.walkId == walkId && r.entryPoint == entryName &&
                         r.sinkHost == toName)) {
-                      if (routes.size >= MAX_ROUTES_PER_PAIR) routeCapReached = true
+                      if (!pairRouteAvailable(pairSteps)) routeCapReached = true
                       else {
                         // Reconstruct the shortest route from the parent map.
                         val chain = scala.collection.mutable.ListBuffer.empty[Hop]
@@ -1729,7 +2942,12 @@ try {
                     }
                 }
               }
-            }
+            } }
+            // The per-call-site guard above sets `exhausted` the moment the cap
+            // is reached; this is what turns that into termination, so the walk
+            // stops on the cap rather than running to the end of the frontier
+            // with the flag already set.
+            if (pairSteps.exhausted) stop = true
           }
         }
         frontier = nextByName.toList
@@ -1739,13 +2957,14 @@ try {
       }
       methodsVisited += visited.size
       log(f"  walk ${p.id}%-9s $walkId%-18s entry=$entryName visited=${visited.size}%8d " +
-        f"depth=$depth%2d expansions=$expansions%8d")
+        f"depth=$depth%2d entry_expansions=$entryExpansions%8d " +
+        f"pair_steps=${pairSteps.used}%8d")
     }
 
-    WalkResult(p.id, walkId, followFanOut, s.entryPointsTraversed, expansions,
+    WalkResult(p.id, walkId, followFanOut, s.entryPointsTraversed, walkExpansions,
       methodsVisited, callSitesConsidered, fanOutEncountered, fanOutNotFollowed,
-      maxDepthUsed, depthBoundReached, budgetExhausted, stepCapReached, routeCapReached,
-      routes.toList)
+      maxExpansionsAtOneEntry, maxDepthUsed, depthBoundReached, entryExpansionCapReached,
+      pairSteps.exhausted, routeCapReached, routes.toList)
   }
 
   val WALK_A_ID = "A-follows-fan-out"
@@ -1765,30 +2984,48 @@ try {
 
   val traversals: List[PairTraversal] = selections.map { s =>
     val p = s.pair
+    // ONE step budget per pair, handed to both of that pair's walks, because
+    // MAX_STEPS_PER_PAIR is a per-pair cap. Nothing is shared between pairs.
+    val pairSteps = new PairStepBudget
     val nanosA = System.nanoTime()
-    val walkA = walk(s, WALK_A_ID, followFanOut = true)
+    val walkA = walk(s, WALK_A_ID, followFanOut = true, pairSteps)
     log(s"pair ${p.id}: walk $WALK_A_ID elapsed_ms=${elapsedMs(nanosA)}")
     val nanosB = System.nanoTime()
-    val walkB = walk(s, WALK_B_ID, followFanOut = false)
+    val walkB = walk(s, WALK_B_ID, followFanOut = false, pairSteps)
     log(s"pair ${p.id}: walk $WALK_B_ID elapsed_ms=${elapsedMs(nanosB)}")
     val walks = List(walkA, walkB)
+    log(s"pair ${p.id}: pair step budget used ${pairSteps.used} of " +
+      s"$MAX_STEPS_PER_PAIR across both walks, exhausted=${pairSteps.exhausted}")
     walks.foreach { w =>
       log(s"pair ${p.id}: walk ${w.walkId}: routes=${w.routes.size} " +
         s"expansions=${w.expansions} call_sites=${w.callSitesConsidered} " +
         s"fanout_seen=${w.fanOutSitesEncountered} " +
         s"fanout_not_followed=${w.fanOutSitesNotFollowed} max_depth=${w.maxDepthUsed} " +
         s"depth_bound_reached=${w.depthBoundReached} " +
-        s"budget_exhausted=${w.expansionBudgetExhausted} " +
-        s"step_cap_reached=${w.stepCapReached} " +
+        s"max_expansions_at_one_entry=${w.maxExpansionsAtOneEntry} " +
+        s"entry_expansion_cap_reached=${w.entryExpansionCapReached} " +
+        s"pair_step_budget_exhausted=${w.pairStepBudgetExhausted} " +
         s"route_cap_reached=${w.routeCapReached}")
     }
+    // Deduplicated on the full hop sequence, and then sorted on the COMPLETE
+    // published tuple - pair id, walk id, endpoints, hop count and the whole
+    // ordered hop sequence rendered as one key. The hop sequence is the last
+    // component precisely so that two routes sharing their endpoints and their
+    // hop count still have a defined order: no two records can share the whole
+    // key, so the order is TOTAL rather than merely stable.
     val distinct = walks
       .flatMap(_.routes)
-      .distinctBy(r => (r.entryPoint, r.sinkHost,
-        r.hops.map(h => (h.fromMethod, h.callSite, h.toMethod))))
-      .sortBy(r => (r.entryPoint, r.sinkHost, r.hops.size))
+      // Deduplicated on hopSequenceKey rather than on a hand-rolled triple, so
+      // the identity a route is collapsed on is exactly the identity the sort
+      // key below and the published record use. The triple this replaced
+      // omitted callSiteLine, so two routes crossing the same caller/callee
+      // pair at two different source lines collapsed into one before the sort
+      // saw them, while the comment above claimed the full hop sequence.
+      .distinctBy(r => (r.entryPoint, r.sinkHost, hopSequenceKey(r)))
+      .sortBy(r => (r.pairId, r.walkId, r.entryPoint, r.sinkHost, r.hops.size,
+        hopSequenceKey(r)))
     val boundReached = walks.exists(w =>
-      w.depthBoundReached || w.expansionBudgetExhausted || w.stepCapReached ||
+      w.depthBoundReached || w.entryExpansionCapReached || w.pairStepBudgetExhausted ||
         w.routeCapReached)
     log(s"pair ${p.id}: distinct routes (its own two walks, deduplicated): " +
       s"${distinct.size}")
@@ -2171,37 +3408,27 @@ try {
   // -------------------------------------------------------------------------
   // The question this query raises and must answer: instantiated on PAIR ONE, is
   // this the same formulation as query 01 (call-graph), the same as query 02
-  // (dataflow), or a third? It is answered from measured or checkable properties
-  // rather than asserted, and if it IS one of them restated then that is said
-  // plainly - a legitimate probe finding, not a defect to hide.
+  // (dataflow), or a third? It is answered by COMPARING THE TWO SOURCES rather
+  // than by restating either sibling's published numbers, and if this query IS
+  // one of them restated at some scope then that is said plainly - a legitimate
+  // probe finding, not a defect to hide.
   val apiConstructsHere = JOERN_API_CONSTRUCTS.distinct.sorted
-  val apiConstructs01 = SIBLING_CALLGRAPH_API_CONSTRUCTS.distinct.sorted
-  val apiConstructs02 = SIBLING_DATAFLOW_API_CONSTRUCTS.distinct.sorted
-  val apiOnlyHereVs01 = apiConstructsHere.filterNot(apiConstructs01.contains)
-  val apiOnlyIn01 = apiConstructs01.filterNot(apiConstructsHere.contains)
-  val apiSharedWith01 = apiConstructsHere.filter(apiConstructs01.contains)
-  val apiOnlyHereVs02 = apiConstructsHere.filterNot(apiConstructs02.contains)
-  val apiOnlyIn02 = apiConstructs02.filterNot(apiConstructsHere.contains)
-  val apiSharedWith02 = apiConstructsHere.filter(apiConstructs02.contains)
   log(s"API constructs here       : ${apiConstructsHere.size}")
-  log(s"API constructs in 01      : ${apiConstructs01.size} (transcribed from its envelope)")
-  log(s"API constructs in 02      : ${apiConstructs02.size} (transcribed from its envelope)")
-  log(s"only here vs 01           : ${apiOnlyHereVs01.mkString(", ")}")
-  log(s"only in 01                : ${apiOnlyIn01.mkString(", ")}")
-  log(s"shared with 01            : ${apiSharedWith01.size}")
-  log(s"only here vs 02           : ${apiOnlyHereVs02.mkString(", ")}")
-  log(s"only in 02                : ${apiOnlyIn02.mkString(", ")}")
-  log(s"shared with 02            : ${apiSharedWith02.size}")
 
   /** Query 01 numbered the four hops it measured B1..B4. This query names them
    *  after the hop, and the same hop must be comparable across the two, so the
-   *  translation is declared rather than left to a reader. */
+   *  translation is declared rather than left to a reader. It is a naming map,
+   *  not a transcribed measurement: no verdict is drawn from it. */
   val BOUNDARY_ID_TO_SIBLING_01 = Map(
     "B-rpc-" + MESSAGE_HOP_LAUNCH_DRIVER_ID -> "B1-rpc",
     "B-thread" -> "B2-thread",
     "B-interface" -> "B3-interface",
     "B-partial-function-" + PAIR_ONE_ID -> "B4-partial-function")
 
+  // Pair one's own figures, MEASURED here against this host's graph. They are
+  // published as this query's measurements and are not compared against any
+  // sibling's published number: a sibling measured its own against the graph of
+  // its own run, and this query does not re-measure that.
   val pairOneTraversal = traversals.head
   val pairOneSelection = selections.head
   val pairOneBoundaryIds = boundaryIdsByPair(PAIR_ONE_ID)
@@ -2209,97 +3436,399 @@ try {
     .filter(id => !boundaryStore(id).crossedByACallEdge)
     .flatMap(id => BOUNDARY_ID_TO_SIBLING_01.get(id))
     .sorted
-  val sibling01NotCrossed = SIBLING_CALLGRAPH_BOUNDARIES_NOT_CROSSED.sorted
-  val boundaryVerdictsAgreeWith01 = pairOneNotCrossedHere == sibling01NotCrossed
-  val entryPointsAgreeWith01 =
-    pairOneSelection.entryGroups.map(_._1).sorted == SIBLING_CALLGRAPH_ENTRY_POINTS.sorted
-  val routeCountAgreesWith01 =
-    pairOneTraversal.distinctRoutes.size == SIBLING_CALLGRAPH_DISTINCT_ROUTES
-  val boundValueAgreesWith01 = MAX_CALL_DEPTH == SIBLING_CALLGRAPH_BOUND_VALUE
-  val apiSetsIdenticalTo01 = apiOnlyHereVs01.isEmpty && apiOnlyIn01.isEmpty
-  log(s"pair-one entry points agree with 01 (transcribed): $entryPointsAgreeWith01")
-  log(s"pair-one distinct-route count agrees with 01     : $routeCountAgreesWith01 " +
-    s"(here ${pairOneTraversal.distinctRoutes.size}, 01 published " +
-    s"$SIBLING_CALLGRAPH_DISTINCT_ROUTES)")
-  log(s"bound value agrees with 01                       : $boundValueAgreesWith01 " +
-    s"(here $MAX_CALL_DEPTH, 01 published $SIBLING_CALLGRAPH_BOUND_VALUE)")
-  log(s"pair-one boundary verdicts agree with 01         : $boundaryVerdictsAgreeWith01 " +
-    s"(here ${pairOneNotCrossedHere.mkString(", ")}; 01 ${sibling01NotCrossed.mkString(", ")})")
-  log(s"API construct sets identical to 01               : $apiSetsIdenticalTo01")
+  log(s"pair-one entry points     : ${pairOneSelection.entryGroups.size}")
+  log(s"pair-one distinct routes  : ${pairOneTraversal.distinctRoutes.size}")
+  log(s"pair-one boundaries not crossed (in 01's numbering): " +
+    pairOneNotCrossedHere.mkString(", "))
 
-  val sameFormulationAsO1OnPairOne =
-    apiSetsIdenticalTo01 && boundValueAgreesWith01 && entryPointsAgreeWith01 &&
-      boundaryVerdictsAgreeWith01
-  val duplicateVerdictAgainst01 =
-    if (sameFormulationAsO1OnPairOne) "duplicate_formulation_on_pair_one"
-    else "not_duplicate"
-  val duplicateBasisAgainst01 =
-    (if (sameFormulationAsO1OnPairOne)
-      "SAID PLAINLY: instantiated on pair one this query IS query 01's formulation " +
-        "restated in parameterized form, and the evidence is measured rather than " +
-        "asserted - the same edge kind (CALL edges only, no data edge and no flow " +
-        "engine), the same entry-point resolution (the synthetic partial-function " +
-        "method together with the source-level method), the same sink constraint, the " +
-        "same bound value " + MAX_CALL_DEPTH.toString + ", the same two walk modes, and " +
-        "an API construct list whose set difference against query 01's published list " +
-        "is empty in BOTH directions. On this run the two also agree on pair one's " +
-        "entry-point set, on its distinct-route count and on the four boundary verdicts " +
-        "after the declared id translation. "
+  // ----------- the duplicate-formulation comparison, over the SOURCES -------
+  // Whether two queries are the same formulation is a property of the two
+  // QUERIES, not of either run's numbers, so it is answered from the two
+  // sources' declared formulation identity blocks - read at run time, extracted
+  // by one shared extractor, compared as literal text. Nothing about a sibling
+  // is written down in this file, and both directions of every comparison are
+  // computed from the same inputs by the same predicate, which is what makes
+  // the relation symmetric by construction instead of by transcription.
+  val DUPLICATE_STATUS_NOT_ESTABLISHED = "not_established"
+  val DUPLICATE_STATUS_NOT_DUPLICATE = "not_duplicate"
+  val DUPLICATE_STATUS_DUPLICATE = "duplicate_formulation"
+  val DUPLICATE_STATUS_SCOPED_PREFIX = "duplicate_formulation_on_"
+  val AGGREGATE_DUPLICATE = "duplicate"
+  val AGGREGATE_PARTIAL = "partial_duplicate"
+
+  final case class Formulation(
+      queryId: String,
+      sourceRepoRelative: String,
+      established: Boolean,
+      note: String,
+      sourceSha256: String,
+      sourceByteSize: Long,
+      edgeKinds: List[String],
+      endNodeKinds: List[String],
+      pairIds: List[String],
+      boundName: String,
+      boundKind: String,
+      boundValue: Long,
+      traversalSemantics: String,
+      entrySelectorNames: List[String],
+      entrySelectorLiterals: List[String],
+      sinkSelectorLiterals: List[String],
+      predicateLiterals: List[String],
+      apiConstructs: List[String])
+
+  /** One query's declared formulation identity, read out of its own source.
+   *  This query's own is read the same way, through this same function, so no
+   *  side of any comparison below is privileged. */
+  def formulationOf(qid: String): Formulation = {
+    val rel = s"$QUERY_SOURCE_DIR/$qid.sc"
+    val blank = Formulation(qid, rel, false, "", "", 0L, Nil, Nil, Nil, "", "", 0L, "",
+      Nil, Nil, Nil, Nil, Nil)
+    val p = repoRoot.resolve(rel)
+    if (!Files.isRegularFile(p)) {
+      blank.copy(note = s"not established: no query source is present at $rel, and a " +
+        "verdict is not inferred from a file this run could not read")
+    } else {
+      val bytes = Files.readAllBytes(p)
+      val text = new String(bytes, StandardCharsets.UTF_8)
+      val edge = declaredLiteralsOf(text, "FORMULATION_EDGE_KINDS")
+      val ends = declaredLiteralsOf(text, "FORMULATION_END_NODE_KINDS")
+      val pairs = declaredLiteralsOf(text, "FORMULATION_PAIR_IDS")
+      val boundName = declaredLiteralsOf(text, "FORMULATION_BOUND_NAME").map(_.mkString)
+      val boundKind = declaredLiteralsOf(text, "FORMULATION_BOUND_KIND").map(_.mkString)
+      val boundValue = declaredIntOf(text, "FORMULATION_BOUND_VALUE")
+      val semantics =
+        declaredLiteralsOf(text, "FORMULATION_TRAVERSAL_SEMANTICS").map(_.mkString)
+      val entryNames =
+        declaredLiteralsOf(text, "FORMULATION_ENTRY_SELECTOR_CONSTANT_NAMES")
+      val sinkNames = declaredLiteralsOf(text, "FORMULATION_SINK_SELECTOR_CONSTANT_NAMES")
+      val predNames = declaredLiteralsOf(text, "FORMULATION_PREDICATE_CONSTANT_NAMES")
+      // Two steps, and deliberately so: the source under inspection names the
+      // constant holding its own API construct list, and that name is then
+      // resolved in the SAME source. Using this query's own name for it would
+      // read a sibling's list through this file's vocabulary and would report
+      // an empty list as a difference wherever a sibling named it something
+      // else.
+      val apiPointer =
+        declaredLiteralsOf(text, "FORMULATION_API_CONSTRUCTS_CONSTANT_NAME")
+          .map(_.mkString)
+      val apiList = apiPointer.flatMap(n => declaredLiteralsOf(text, n))
+      val missing = List(
+        "FORMULATION_EDGE_KINDS" -> edge.isEmpty,
+        "FORMULATION_END_NODE_KINDS" -> ends.isEmpty,
+        "FORMULATION_PAIR_IDS" -> pairs.isEmpty,
+        "FORMULATION_BOUND_NAME" -> boundName.isEmpty,
+        "FORMULATION_BOUND_KIND" -> boundKind.isEmpty,
+        "FORMULATION_BOUND_VALUE" -> boundValue.isEmpty,
+        "FORMULATION_TRAVERSAL_SEMANTICS" -> semantics.isEmpty,
+        "FORMULATION_ENTRY_SELECTOR_CONSTANT_NAMES" -> entryNames.isEmpty,
+        "FORMULATION_SINK_SELECTOR_CONSTANT_NAMES" -> sinkNames.isEmpty,
+        "FORMULATION_PREDICATE_CONSTANT_NAMES" -> predNames.isEmpty,
+        "FORMULATION_API_CONSTRUCTS_CONSTANT_NAME" -> apiPointer.isEmpty,
+        (apiPointer.getOrElse(FORMULATION_API_CONSTRUCTS_CONSTANT_NAME) +
+          " (the API construct list the source above names)") -> apiList.isEmpty)
+        .collect { case (n, true) => n }
+      if (missing.nonEmpty) {
+        blank.copy(note = s"not established: $rel declares no " + missing.mkString(", ") +
+          ", so its formulation identity cannot be read and no verdict is inferred")
+      } else {
+        /** The literals a named list of constant names resolves to, in the
+         *  order the names are declared in. An absent constant is named in
+         *  place rather than dropped, so a comparison can never silently
+         *  succeed on a short list. */
+        def literalsFor(names: List[String]): List[String] =
+          names.map(n =>
+            declaredLiteralsOf(text, n).map(_.mkString)
+              .getOrElse(s"<not declared in $rel: $n>"))
+        Formulation(
+          queryId = qid,
+          sourceRepoRelative = rel,
+          established = true,
+          note = "measured from the source text at run time",
+          sourceSha256 = sha256OfBytes(bytes),
+          sourceByteSize = bytes.length.toLong,
+          edgeKinds = edge.get,
+          endNodeKinds = ends.get,
+          pairIds = pairs.get,
+          boundName = boundName.get,
+          boundKind = boundKind.get,
+          boundValue = boundValue.get,
+          traversalSemantics = semantics.get,
+          entrySelectorNames = entryNames.get,
+          entrySelectorLiterals = literalsFor(entryNames.get),
+          sinkSelectorLiterals = literalsFor(sinkNames.get),
+          predicateLiterals = literalsFor(predNames.get),
+          apiConstructs = apiList.get.distinct.sorted)
+      }
+    }
+  }
+
+  final case class Relation(
+      theirs: Formulation,
+      status: String,
+      scope: String,
+      basis: String,
+      sharedPairs: List[String],
+      sameEdgeKinds: Boolean,
+      sameEndNodeKinds: Boolean,
+      sameEntrySelectors: Boolean,
+      sameSinkSelectors: Boolean,
+      samePredicateSelectors: Boolean,
+      sameBoundKind: Boolean,
+      sameBoundValue: Boolean,
+      apiOnlyHere: List[String],
+      apiOnlyThere: List[String],
+      apiShared: List[String],
+      coversEveryPair: Boolean)
+
+  /** THE shared predicate. Two formulations are the same formulation, at the
+   *  scope of the pairs they both address, when every component below agrees;
+   *  the predicate set is deliberately NOT a component, because it defines the
+   *  term "spurious" rather than the traversal, and it is reported separately. */
+  def relate(mine: Formulation, theirs: Formulation): Relation = {
+    if (!theirs.established) {
+      Relation(theirs, DUPLICATE_STATUS_NOT_ESTABLISHED, "none",
+        "no verdict is inferred: " + theirs.note, Nil,
+        false, false, false, false, false, false, false, Nil, Nil, Nil, false)
+    } else {
+      val shared = mine.pairIds.filter(theirs.pairIds.contains)
+      val sameEdge = mine.edgeKinds == theirs.edgeKinds
+      val sameEnds = mine.endNodeKinds == theirs.endNodeKinds
+      val sameEntry = mine.entrySelectorLiterals == theirs.entrySelectorLiterals
+      val sameSink = mine.sinkSelectorLiterals == theirs.sinkSelectorLiterals
+      val samePred = mine.predicateLiterals == theirs.predicateLiterals
+      val sameBoundKind = mine.boundKind == theirs.boundKind
+      val sameBoundValue = mine.boundValue == theirs.boundValue
+      val onlyHere = mine.apiConstructs.filterNot(theirs.apiConstructs.contains)
+      val onlyThere = theirs.apiConstructs.filterNot(mine.apiConstructs.contains)
+      val shareds = mine.apiConstructs.filter(theirs.apiConstructs.contains)
+      val apiIdentical = onlyHere.isEmpty && onlyThere.isEmpty
+      val components = List(
+        sameEdge -> ("the edge kinds traversed (" + mine.edgeKinds.mkString(", ") + ")"),
+        sameEnds -> ("the node kinds selected as a route's ends (" +
+          mine.endNodeKinds.mkString(", ") + ")"),
+        shared.nonEmpty -> "at least one handler/sink pair in common",
+        sameEntry -> "the entry-point selector literals, byte for byte",
+        sameSink -> "the sink selector literals, byte for byte",
+        (sameBoundKind && sameBoundValue) -> ("the bound, as the same kind of quantity " +
+          "at the same value (" + mine.boundValue + " " + mine.boundKind + ")"),
+        apiIdentical -> ("the Joern API construct sets, whose set difference is empty " +
+          "in BOTH directions"))
+      val agreed = components.filter(_._1).map(_._2)
+      val differed = components.filterNot(_._1).map(_._2)
+      val duplicate = differed.isEmpty
+      val coversAll =
+        duplicate && shared.size == mine.pairIds.size && shared.size == theirs.pairIds.size
+      val status =
+        if (!duplicate) DUPLICATE_STATUS_NOT_DUPLICATE
+        else if (coversAll) DUPLICATE_STATUS_DUPLICATE
+        else DUPLICATE_STATUS_SCOPED_PREFIX + shared.mkString("_and_")
+      // The scope note names, in BOTH directions, the pairs the other query addresses
+      // and this one does not AND the pairs this query addresses and the other does not.
+      // Enumerating only one direction renders an empty list whenever the asymmetry runs
+      // the other way, which is a published sentence that states nothing.
+      val onlyTheirPairs = theirs.pairIds.filterNot(shared.contains)
+      val onlyMyPairs = mine.pairIds.filterNot(shared.contains)
+      val scope =
+        if (!duplicate) "none"
+        else if (coversAll) "every handler/sink pair either query addresses"
+        else {
+          val asymmetries = List(
+            if (onlyTheirPairs.nonEmpty)
+              Some(theirs.queryId + " additionally addresses " +
+                onlyTheirPairs.mkString(", ") + ", which this query does not")
+            else None,
+            if (onlyMyPairs.nonEmpty)
+              Some("this query additionally addresses " + onlyMyPairs.mkString(", ") +
+                ", which " + theirs.queryId + " does not")
+            else None).flatten
+          shared.mkString(", ") + " only; " + asymmetries.mkString("; and ")
+        }
+      val basis =
+        if (duplicate)
+          "every component of the formulation identity agrees" +
+            (if (coversAll) "" else " at the scope named above") + ": " +
+            agreed.mkString("; ") + ". The comparison is over the two SOURCES' own " +
+            "declarations, so it is a property of the two formulations rather than of " +
+            "either run's numbers"
+        else
+          "the formulations differ on " + differed.mkString("; ") +
+            (if (agreed.isEmpty) "" else ", while agreeing on " + agreed.mkString("; ")) +
+            ". Neither traversal establishes the other's conclusion, so the two " +
+            "results are reported side by side and never summed"
+      Relation(theirs, status, scope, basis, shared, sameEdge, sameEnds, sameEntry,
+        sameSink, samePred, sameBoundKind, sameBoundValue, onlyHere, onlyThere, shareds,
+        coversAll)
+    }
+  }
+
+  val myFormulation = formulationOf(QUERY_ID)
+  if (!myFormulation.established) {
+    abortRun("this query's own formulation identity block could not be read from its " +
+      s"own source: ${myFormulation.note}. The duplicate-formulation verdict is " +
+      "computed from that block, so publishing one without it would be publishing a " +
+      "guess")
+  }
+  if (myFormulation.sourceSha256 != sourceSha256) {
+    abortRun("the source read for the formulation identity block digests to " +
+      s"${myFormulation.sourceSha256} while the source digested in stage A digests to " +
+      s"$sourceSha256; the file changed under the run, so nothing is published")
+  }
+  val relations = SIBLING_QUERY_IDS.map(qid => relate(myFormulation, formulationOf(qid)))
+  val relationsEstablished = relations.filter(_.status != DUPLICATE_STATUS_NOT_ESTABLISHED)
+  val relationsNotEstablished =
+    relations.filter(_.status == DUPLICATE_STATUS_NOT_ESTABLISHED)
+  val duplicateFormulationAggregate =
+    if (relationsEstablished.exists(_.status == DUPLICATE_STATUS_DUPLICATE))
+      AGGREGATE_DUPLICATE
+    else if (relationsEstablished.exists(_.status.startsWith(DUPLICATE_STATUS_SCOPED_PREFIX)))
+      AGGREGATE_PARTIAL
+    else if (relationsEstablished.isEmpty) DUPLICATE_STATUS_NOT_ESTABLISHED
+    else DUPLICATE_STATUS_NOT_DUPLICATE
+  val duplicateFormulationAggregation =
+    "the top-level verdict aggregates the per-query entries below and names the " +
+      "strongest relation any one of them carries: " +
+      relations.map(r => r.status + " against " + r.theirs.queryId).mkString(", ") +
+      ". " + (duplicateFormulationAggregate match {
+        case AGGREGATE_DUPLICATE =>
+          "One entry is a duplicate over every pair either query addresses, so the " +
+            "aggregate is a duplicate outright"
+        case AGGREGATE_PARTIAL =>
+          "One entry is a duplicate at a scope NARROWER than the whole pair set, which " +
+            "makes the aggregate partial rather than absent. The scope is stated in " +
+            "that entry rather than hidden in this label"
+        case DUPLICATE_STATUS_NOT_ESTABLISHED =>
+          "No sibling source could be read, so no relation was established and the " +
+            "aggregate says so rather than defaulting to an absence"
+        case _ =>
+          "No entry carries a duplicate relation at any scope, so the aggregate is an " +
+            "absence rather than a partial"
+      }) + (if (relationsNotEstablished.isEmpty) ""
+            else ". " + relationsNotEstablished.size + " of " + relations.size +
+              " entries could not be established and are named as such rather than " +
+              "counted as absences") +
+      ". It was NOT inferred from the file names differing"
+  val duplicateFormulationRelation =
+    "a SYMMETRIC pairwise relation: the verdict this envelope states against a query " +
+      "is the same verdict that query's envelope states against this one. It is one " +
+      "measurement cited twice rather than two measurements, and here it is symmetric " +
+      "BY CONSTRUCTION rather than by transcription - every entry below is computed by " +
+      "applying ONE shared predicate to the two queries' own declared formulation " +
+      "identity blocks, read out of the two SOURCE files at run time under names all " +
+      "three queries share. Both directions therefore evaluate identical inputs " +
+      "through identical code, so a disagreement between them is not expressible; a " +
+      "transcribed verdict could disagree with the envelope it was copied from, which " +
+      "is exactly what this replaces"
+  log(s"duplicate formulation     : $duplicateFormulationAggregate " +
+    relations.map(r => s"(${r.theirs.queryId}: ${r.status})").mkString(" "))
+  relations.foreach { r =>
+    log(s"  vs ${r.theirs.queryId}: source sha256 ${
+      if (r.theirs.established) r.theirs.sourceSha256 else "not read"
+    }, api only here ${r.apiOnlyHere.size}, only there ${r.apiOnlyThere.size}, " +
+      s"shared ${r.apiShared.size}")
+  }
+
+  /**
+   * The scalar's prose companion, COMPUTED from the relations rather than
+   * asserted, and keeping the key the committed envelope carried. It names the
+   * scope of any duplication explicitly, because a partial verdict whose scope is
+   * hidden in a label is not interpretable.
+   */
+  val duplicateFormulationSummary = {
+    val scoped =
+      relations.filter(_.status.startsWith(DUPLICATE_STATUS_SCOPED_PREFIX))
+    val outright = relations.filter(_.status == DUPLICATE_STATUS_DUPLICATE)
+    val absent = relations.filter(_.status == DUPLICATE_STATUS_NOT_DUPLICATE)
+    val unread = relations.filter(_.status == DUPLICATE_STATUS_NOT_ESTABLISHED)
+    (if (outright.nonEmpty)
+      "A duplicate of " + outright.map(_.theirs.queryId).mkString(" and ") +
+        " over every pair either query addresses"
+     else if (scoped.nonEmpty)
+      "A duplicate of " + scoped.map(r => r.theirs.queryId + " on " +
+        r.sharedPairs.mkString(" and ")).mkString("; ") +
+        ", not a duplicate as a whole"
+     else if (absent.nonEmpty && unread.isEmpty)
+      "Not a duplicate of either sibling in any instantiation"
      else
-      "instantiated on pair one this query differs from query 01 on at least one " +
-        "checkable property: API set identical=" + apiSetsIdenticalTo01.toString +
-        ", bound value equal=" + boundValueAgreesWith01.toString + ", entry points " +
-        "equal=" + entryPointsAgreeWith01.toString + ", boundary verdicts equal=" +
-        boundaryVerdictsAgreeWith01.toString + ". ") +
-      "WHAT IS NOT A DUPLICATE: the query as a whole. It takes the handler/sink pair as " +
-      "a parameter and is invoked on a SECOND pair (" + PAIR_TWO_ID + ", " +
-      PAIR_TWO_HANDLER_TYPE + "." + PAIR_TWO_HANDLER_METHOD + ") that query 01 does not " +
-      "address at all, it measures " +
-      boundaryIdsByPair(PAIR_TWO_ID).size.toString + " boundaries on that pair against " +
-      boundaryIdsByPair(PAIR_ONE_ID).size.toString + " on pair one, and it models one " +
-      "hop query 01 never reaches - the servlet's own message send, whose producer and " +
-      "consumer ends are measured in stage I. RECONCILED WITH WHAT QUERY 01 PUBLISHED: " +
-      "its envelope records '" + SIBLING_CALLGRAPH_VERDICT_AGAINST_THIS + "' against this " +
-      "query, aggregating to '" + SIBLING_CALLGRAPH_AGGREGATE_VERDICT + "' at its top " +
-      "level, and it states both scopes there too - that as wholes the two are not " +
-      "duplicates, because this query takes the pair as a parameter and covers a second " +
-      "pair it does not address, and that on pair one the two formulations coincide. The " +
-      "verdict published from each side is therefore the SAME verdict at the same scope, " +
-      "which is what the symmetry of this pairwise relation requires: one measurement " +
-      "cited twice rather than two measurements, and a disagreement between the two " +
-      "directions would be a defect rather than a finding. Neither query's returns are " +
-      "added to the other's anywhere: they are reported side by side, per pair, and " +
-      "NEVER SUMMED."
-  val duplicateVerdictAgainst02 = "not_duplicate"
-  val duplicateBasisAgainst02 =
-    "A different formulation over different edges and different nodes. Query 02 " +
-      "traverses reaching-definition (data) edges through the OSS dataflow layer and " +
-      "selects PARAMETER and EXPRESSION nodes as its ends; this query traverses CALL " +
-      "edges and selects whole METHODS, and it loads no flow engine at all. Auditable " +
-      "corroboration, computed here as a set difference against query 02's published " +
-      "list rather than eyeballed: " + apiOnlyIn02.size.toString + " of query 02's " +
-      apiConstructs02.size.toString + " API constructs do not appear in this query's " +
-      "list (" + apiOnlyIn02.mkString(", ") + "), and " + apiOnlyHereVs02.size.toString +
-      " of this query's do not appear in query 02's (" + apiOnlyHereVs02.mkString(", ") +
-      "). The two also carry different bounds - this query's bound value is " +
-      MAX_CALL_DEPTH.toString + " call-graph hops, query 02 published " +
-      SIBLING_DATAFLOW_BOUND_VALUE.toString + " for its own flow-call depth - so the two " +
-      "numbers are not even the same kind of quantity. Their returns are likewise never " +
-      "summed."
-  val duplicateFormulationScalar =
-    if (sameFormulationAsO1OnPairOne) "partial_duplicate" else "not_duplicate"
-  val duplicateFormulationSummary =
-    (if (sameFormulationAsO1OnPairOne)
-      "A duplicate of query 01's formulation ON PAIR ONE, not a duplicate as a whole, " +
-        "and not a duplicate of query 02 in any instantiation"
-     else
-      "Not a duplicate of either sibling in any instantiation") +
-      ". The scope of the duplication is stated rather than hidden: it is exactly the " +
-      "pair-one instantiation, and it is what makes the parameterized form's second " +
-      "instantiation the part that is new."
-  log(s"duplicate vs 01           : $duplicateVerdictAgainst01")
-  log(s"duplicate vs 02           : $duplicateVerdictAgainst02")
-  log(s"duplicate_formulation     : $duplicateFormulationScalar")
+      "No relation could be established against " +
+        unread.map(_.theirs.queryId).mkString(" and ")) +
+      (if (absent.nonEmpty && scoped.nonEmpty)
+        ", and not a duplicate of " + absent.map(_.theirs.queryId).mkString(" or ") +
+          " in any instantiation"
+       else "") +
+      ". The scope of any duplication is stated rather than hidden: where it is one " +
+      "pair only, the parameterized form's remaining instantiation" +
+      (if (myFormulation.pairIds.size > 1) "s are" else " is") +
+      " the part that is new. Every clause here is computed from the per-query entries " +
+      "below, so it cannot disagree with them."
+  }
+
+  val duplicateFormulationJson = jrawArr(4, relations.map { r =>
+    jobj(6, List(
+      "against" -> jstr(r.theirs.queryId),
+      "status" -> jstr(r.status),
+      "scope_of_the_duplication" -> jstr(r.scope),
+      "basis" -> jstr(r.basis),
+      "evidence_relied_on" -> jstrArr(List(
+        "the two sources' declared formulation identity blocks, read at run time",
+        "the entry-point and sink selector literals each source declares, compared as " +
+          "literal text",
+        "the bound each source declares, as a named quantity and a value",
+        "the Joern API construct list each source declares, differenced in both " +
+          "directions")),
+      "sibling_source" -> jstr(r.theirs.sourceRepoRelative),
+      "sibling_source_sha256" ->
+        jstr(if (r.theirs.established) r.theirs.sourceSha256 else "not established"),
+      "sibling_source_byte_size" -> jnum(r.theirs.sourceByteSize),
+      "sibling_source_read_note" -> jstr(r.theirs.note),
+      "same_target_pair" -> jbool(r.sharedPairs.nonEmpty),
+      "pair_ids_here" -> jstrArr(myFormulation.pairIds),
+      "pair_ids_there" -> jstrArr(r.theirs.pairIds),
+      "pair_ids_shared" -> jstrArr(r.sharedPairs),
+      "same_edge_kinds" -> jbool(r.sameEdgeKinds),
+      "edge_kinds_here" -> jstrArr(myFormulation.edgeKinds),
+      "edge_kinds_there" -> jstrArr(r.theirs.edgeKinds),
+      "same_end_node_kinds" -> jbool(r.sameEndNodeKinds),
+      "end_node_kinds_here" -> jstrArr(myFormulation.endNodeKinds),
+      "end_node_kinds_there" -> jstrArr(r.theirs.endNodeKinds),
+      "same_entry_point_granularity" -> jbool(r.sameEntrySelectors),
+      "entry_selector_constant_names_here" ->
+        jstrArr(myFormulation.entrySelectorNames),
+      "entry_selector_constant_names_there" -> jstrArr(r.theirs.entrySelectorNames),
+      "entry_selector_literals_here" -> jstrArr(myFormulation.entrySelectorLiterals),
+      "entry_selector_literals_there" -> jstrArr(r.theirs.entrySelectorLiterals),
+      "same_sink_selector_literals" -> jbool(r.sameSinkSelectors),
+      "predicate_selector_literals_identical" -> jbool(r.samePredicateSelectors),
+      "predicate_selector_note" -> jstr("the predicate set defines the term " +
+        "\"spurious\" rather than the traversal, so it is not a component of the " +
+        "formulation predicate; it is compared and reported here because the two " +
+        "queries' spurious counts are only comparable while the definition is the " +
+        "same text"),
+      "bound_name_here" -> jstr(myFormulation.boundName),
+      "bound_name_there" -> jstr(r.theirs.boundName),
+      "bound_kind_here" -> jstr(myFormulation.boundKind),
+      "bound_kind_there" -> jstr(r.theirs.boundKind),
+      "bound_value_here" -> jnum(myFormulation.boundValue),
+      "bound_value_there" -> jnum(r.theirs.boundValue),
+      "bound_values_are_the_same_kind_of_quantity" -> jbool(r.sameBoundKind),
+      "bound_values_agree" -> jbool(r.sameBoundValue),
+      "traversal_semantics_here" -> jstr(myFormulation.traversalSemantics),
+      "traversal_semantics_there" -> jstr(r.theirs.traversalSemantics),
+      "api_constructs_only_here" -> jstrArr(r.apiOnlyHere),
+      "api_constructs_only_there" -> jstrArr(r.apiOnlyThere),
+      "api_constructs_shared" -> jnum(r.apiShared.size.toLong),
+      "api_construct_set_difference_both_directions_empty" ->
+        jbool(r.apiOnlyHere.isEmpty && r.apiOnlyThere.isEmpty),
+      "can_differ_for_some_input" ->
+        jbool(r.status != DUPLICATE_STATUS_DUPLICATE),
+      "one_expressible_as_the_other" ->
+        jbool(r.status == DUPLICATE_STATUS_DUPLICATE ||
+          r.status.startsWith(DUPLICATE_STATUS_SCOPED_PREFIX)),
+      "verdict_computed_not_transcribed" -> jbool(true),
+      "verdict_symmetry_basis" -> jstr("one shared predicate over the two sources' own " +
+        "declarations; the sibling's envelope is not read, so there is nothing to " +
+        "transcribe and nothing that can drift"),
+      "results_summed" -> jbool(false)))
+  })
 
 
   // -------------------------------------------------------------------------
@@ -2359,18 +3888,26 @@ try {
   def boundsReachedFor(s: PairSelection, t: PairTraversal): List[(String, Boolean)] = List(
     "MAX_CALL_DEPTH" -> t.walks.exists(_.depthBoundReached),
     "MAX_ROUTES_PER_PAIR" -> t.walks.exists(_.routeCapReached),
-    "MAX_EXPANSIONS_PER_ENTRY" -> t.walks.exists(_.expansionBudgetExhausted),
-    "MAX_STEPS_PER_PAIR" -> t.walks.exists(_.stepCapReached),
+    "MAX_EXPANSIONS_PER_ENTRY" -> t.walks.exists(_.entryExpansionCapReached),
+    "MAX_STEPS_PER_PAIR" -> t.walks.exists(_.pairStepBudgetExhausted),
     "MAX_TOTAL_RETURNS" -> totalReturnsCapReached,
     "MAX_ENTRY_POINTS_PER_PAIR" -> (s.entryPointsTruncated > 0),
     "MAX_CALL_SCAN" -> s.sinkScanTruncated,
+    "MAX_TYPE_SCAN" -> surfaceTypeScanTruncated,
     "FANOUT_CALLEE_THRESHOLD" -> t.walks.exists(_.fanOutSitesEncountered > 0))
 
   def boundsBasisFor(s: PairSelection, t: PairTraversal): List[(String, String)] = {
     def yn(b: Boolean) = if (b) "reached" else "not reached"
     val deepest = if (t.walks.isEmpty) 0 else t.walks.map(_.maxDepthUsed).max
-    val widestExpansion = if (t.walks.isEmpty) 0 else t.walks.map(_.expansions).max
-    val widestSteps = if (t.walks.isEmpty) 0 else t.walks.map(_.callSitesConsidered).max
+    // The figure cited against a cap must be measured at the cap's OWN scope.
+    // MAX_EXPANSIONS_PER_ENTRY is per entry point, so the figure is the peak any
+    // single entry point reached; MAX_STEPS_PER_PAIR is per pair, so the figure
+    // is the pair's total across both walks rather than either walk's own count.
+    val peakEntryExpansions =
+      if (t.walks.isEmpty) 0 else t.walks.map(_.maxExpansionsAtOneEntry).max
+    val pairStepsUsed = t.walks.map(_.callSitesConsidered).sum
+    val walkExpansionTotals =
+      t.walks.map(w => s"${w.walkId}=${w.expansions}").mkString(", ")
     val routesPerWalk = t.walks.map(w => s"${w.walkId}=${w.routes.size}").mkString(", ")
     val fanOutPerWalk =
       t.walks.map(w => s"${w.walkId}=${w.fanOutSitesEncountered}").mkString(", ")
@@ -2379,18 +3916,28 @@ try {
         s"depth_bound_reached is ${t.walks.exists(_.depthBoundReached)} across this " +
         s"pair's walks and the deepest walk used $deepest of $MAX_CALL_DEPTH hops"),
       "MAX_ROUTES_PER_PAIR" -> (s"${yn(t.walks.exists(_.routeCapReached))}: " +
-        s"route_cap_reached is ${t.walks.exists(_.routeCapReached)} in every walk, with " +
+        s"route_cap_reached is ${existsPhrase(t.walks.map(_.routeCapReached))} - the " +
+        s"quantifier is `exists`, and the per-walk values are " +
+        s"${t.walks.map(w => s"${w.walkId}=${w.routeCapReached}").mkString(", ")} - with " +
         s"routes returned per walk $routesPerWalk against a per-pair cap of " +
-        s"$MAX_ROUTES_PER_PAIR - a cap that is never shared between pairs, because one " +
-        "pair filling a shared budget would silently truncate the other"),
+        s"$MAX_ROUTES_PER_PAIR enforced on ONE counter shared by both of this pair's " +
+        "walks, never shared between pairs, because one pair filling another's budget " +
+        "would silently truncate it"),
       "MAX_EXPANSIONS_PER_ENTRY" ->
-        (s"${yn(t.walks.exists(_.expansionBudgetExhausted))}: " +
-          s"expansion_budget_exhausted is ${t.walks.exists(_.expansionBudgetExhausted)} " +
-          s"in every walk, the highest method-expansion count being $widestExpansion of " +
-          s"$MAX_EXPANSIONS_PER_ENTRY"),
-      "MAX_STEPS_PER_PAIR" -> (s"${yn(t.walks.exists(_.stepCapReached))}: " +
-        s"step_cap_reached is ${t.walks.exists(_.stepCapReached)} in every walk, the " +
-        s"highest call-site count being $widestSteps of $MAX_STEPS_PER_PAIR"),
+        (s"${yn(t.walks.exists(_.entryExpansionCapReached))}: " +
+          s"entry_expansion_cap_reached is " +
+          s"${existsPhrase(t.walks.map(_.entryExpansionCapReached))} - the quantifier " +
+          s"is `exists`, and the per-walk values are " +
+          s"${t.walks.map(w => s"${w.walkId}=${w.entryExpansionCapReached}").mkString(", ")}" +
+          s". The counter is " +
+          s"reset at each entry point, so the figure measured against this cap is the " +
+          s"peak any ONE entry point reached, $peakEntryExpansions of " +
+          s"$MAX_EXPANSIONS_PER_ENTRY. Each walk's total across all of its entry points " +
+          s"is reported separately and caps nothing: $walkExpansionTotals"),
+      "MAX_STEPS_PER_PAIR" -> (s"${yn(t.walks.exists(_.pairStepBudgetExhausted))}: " +
+        s"pair_step_budget_exhausted is ${t.walks.exists(_.pairStepBudgetExhausted)}. " +
+        s"Both of this pair's walks draw on ONE budget, so the figure measured against " +
+        s"this cap is the pair's total, $pairStepsUsed of $MAX_STEPS_PER_PAIR"),
       "MAX_TOTAL_RETURNS" -> (s"${yn(totalReturnsCapReached)}: $returnedRecordCount " +
         s"record(s) emitted by the query against a cap of $MAX_TOTAL_RETURNS. This is a " +
         "query-level cap, so this entry is the same measurement in both pairs' " +
@@ -2402,6 +3949,12 @@ try {
       "MAX_CALL_SCAN" -> (s"${yn(s.sinkScanTruncated)}: ${s.sinkCallsScanned} call(s) " +
         s"named ${s.pair.sinkCallName} scanned of $MAX_CALL_SCAN, and the sweep reported " +
         s"truncated=${s.sinkScanTruncated}"),
+      "MAX_TYPE_SCAN" -> (s"${yn(surfaceTypeScanTruncated)}: the route-surface prefix " +
+        s"sweep took at most $MAX_TYPE_SCAN type declarations per prefix over " +
+        s"${surfacePrefixEvidence.size} prefixes, the widest being " +
+        s"${if (surfacePrefixEvidence.isEmpty) 0 else surfacePrefixEvidence.map(_.typeDeclsInTheGraph).max}. " +
+        "This is a query-level cap, so this entry is the same measurement in both " +
+        "pairs' objects rather than a second one"),
       "FANOUT_CALLEE_THRESHOLD" ->
         ((if (t.walks.exists(_.fanOutSitesEncountered > 0))
           "exceeded, which is what \"reached\" means for a threshold rather than a cap"
@@ -2422,10 +3975,11 @@ try {
     "call_sites_considered" -> jnum(w.callSitesConsidered.toLong),
     "fan_out_sites_encountered" -> jnum(w.fanOutSitesEncountered.toLong),
     "fan_out_sites_not_followed" -> jnum(w.fanOutSitesNotFollowed.toLong),
+    "max_expansions_at_one_entry_point" -> jnum(w.maxExpansionsAtOneEntry.toLong),
     "max_depth_used" -> jnum(w.maxDepthUsed.toLong),
     "depth_bound_reached" -> jbool(w.depthBoundReached),
-    "expansion_budget_exhausted" -> jbool(w.expansionBudgetExhausted),
-    "step_cap_reached" -> jbool(w.stepCapReached),
+    "entry_expansion_cap_reached" -> jbool(w.entryExpansionCapReached),
+    "pair_step_budget_exhausted" -> jbool(w.pairStepBudgetExhausted),
     "route_cap_reached" -> jbool(w.routeCapReached),
     "routes_returned" -> jnum(w.routes.size.toLong)))
 
@@ -2612,71 +4166,31 @@ try {
         "result from a real invocation satisfies the measure; a skipped invocation " +
         "would not, and a malformed pair aborts the run rather than being passed over")))
 
-  val duplicateFormulationJson = jrawArr(4, List(
-    jobj(6, List(
-      "against" -> jstr(SIBLING_CALLGRAPH_QUERY),
-      "status" -> jstr(duplicateVerdictAgainst01),
-      "scope_of_the_duplication" ->
-        jstr(if (sameFormulationAsO1OnPairOne) PAIR_ONE_ID + " only" else "none"),
-      "basis" -> jstr(duplicateBasisAgainst01),
-      "evidence" -> jobj(8, List(
-        "api_construct_sets_identical" -> jbool(apiSetsIdenticalTo01),
-        "api_constructs_only_here" -> jstrArr(apiOnlyHereVs01),
-        "api_constructs_only_in_the_sibling" -> jstrArr(apiOnlyIn01),
-        "api_constructs_shared" -> jnum(apiSharedWith01.size.toLong),
-        "bound_value_here" -> jnum(MAX_CALL_DEPTH.toLong),
-        "bound_value_published_by_the_sibling" ->
-          jnum(SIBLING_CALLGRAPH_BOUND_VALUE.toLong),
-        "bound_values_agree" -> jbool(boundValueAgreesWith01),
-        "pair_one_entry_points_here" -> jstrArr(pairOneSelection.entryGroups.map(_._1)),
-        "entry_points_published_by_the_sibling_transcribed" ->
-          jstrArr(SIBLING_CALLGRAPH_ENTRY_POINTS),
-        "entry_point_sets_agree" -> jbool(entryPointsAgreeWith01),
-        "pair_one_distinct_routes_here" ->
-          jnum(pairOneTraversal.distinctRoutes.size.toLong),
-        "distinct_routes_published_by_the_sibling_transcribed" ->
-          jnum(SIBLING_CALLGRAPH_DISTINCT_ROUTES.toLong),
-        "distinct_route_counts_agree" -> jbool(routeCountAgreesWith01),
-        "pair_one_boundaries_not_crossed_translated_to_the_sibling_ids" ->
-          jstrArr(pairOneNotCrossedHere),
-        "boundaries_not_crossed_published_by_the_sibling_transcribed" ->
-          jstrArr(sibling01NotCrossed),
-        "boundary_verdicts_agree" -> jbool(boundaryVerdictsAgreeWith01),
-        "boundary_id_translation" -> jstrArr(BOUNDARY_ID_TO_SIBLING_01.toList.sorted
-          .map { case (mine, theirs) => mine + " -> " + theirs }),
-        "sibling_published_verdict_against_this_query_transcribed" ->
-          jstr(SIBLING_CALLGRAPH_VERDICT_AGAINST_THIS),
-        "sibling_aggregate_verdict_transcribed" ->
-          jstr(SIBLING_CALLGRAPH_AGGREGATE_VERDICT),
-        "verdicts_agree_in_both_directions" -> jbool(
-          duplicateVerdictAgainst01 == SIBLING_CALLGRAPH_VERDICT_AGAINST_THIS),
-        "verdict_symmetry_note" -> jstr("the relation is pairwise and symmetric, so the " +
-          "verdict stated here against " + SIBLING_CALLGRAPH_QUERY + " and the verdict " +
-          "that query states against this one are one measurement cited twice. Both " +
-          "scopes - the pair-one duplication and the whole-query difference - are named " +
-          "in both envelopes, so neither reads as a contradiction of the other"),
-        "sibling_figures_are_transcribed_not_measured_here" -> jbool(true),
-        "sibling_figures_were_measured_against_the_graph_of_its_own_run" -> jbool(true))))),
-    jobj(6, List(
-      "against" -> jstr(SIBLING_DATAFLOW_QUERY),
-      "status" -> jstr(duplicateVerdictAgainst02),
-      "scope_of_the_duplication" -> jstr("none"),
-      "basis" -> jstr(duplicateBasisAgainst02),
-      "evidence" -> jobj(8, List(
-        "api_constructs_only_here" -> jstrArr(apiOnlyHereVs02),
-        "api_constructs_only_in_the_sibling" -> jstrArr(apiOnlyIn02),
-        "api_constructs_shared" -> jnum(apiSharedWith02.size.toLong),
-        "bound_value_here" -> jnum(MAX_CALL_DEPTH.toLong),
-        "bound_value_published_by_the_sibling" -> jnum(SIBLING_DATAFLOW_BOUND_VALUE.toLong),
-        "bound_values_are_the_same_kind_of_quantity" -> jbool(false),
-        "distinct_routes_published_by_the_sibling_transcribed" ->
-          jnum(SIBLING_DATAFLOW_DISTINCT_ROUTES.toLong),
-        "flow_engine_loaded_here" -> jbool(false),
-        "sibling_published_verdict_against_this_query_transcribed" ->
-          jstr(SIBLING_DATAFLOW_VERDICT_AGAINST_THIS),
-        "verdicts_agree_in_both_directions" -> jbool(
-          duplicateVerdictAgainst02 == SIBLING_DATAFLOW_VERDICT_AGAINST_THIS),
-        "sibling_figures_are_transcribed_not_measured_here" -> jbool(true)))))))
+  /**
+   * Pair one's own measured figures, published so a reader can compare them
+   * against query 01's published figures THEMSELVES rather than against a copy
+   * of them made inside this file. That is the whole change: the comparison is
+   * still available, but the sibling's numbers are read from the sibling's own
+   * result file by whoever wants to compare, and nothing here can drift from it.
+   */
+  val pairOneMeasuredJson = jobj(2, List(
+    "pair_id" -> jstr(PAIR_ONE_ID),
+    "entry_points_here" -> jstrArr(pairOneSelection.entryGroups.map(_._1)),
+    "distinct_routes_here" -> jnum(pairOneTraversal.distinctRoutes.size.toLong),
+    "bound_value_here" -> jnum(MAX_CALL_DEPTH.toLong),
+    "boundaries_not_crossed_here_in_the_sibling_numbering" ->
+      jstrArr(pairOneNotCrossedHere),
+    "boundary_id_translation" -> jstrArr(BOUNDARY_ID_TO_SIBLING_01.toList.sorted
+      .map { case (mine, theirs) => mine + " -> " + theirs }),
+    "boundary_id_translation_role" -> jstr("a declared NAMING map so the same hop is " +
+      "identifiable across the two queries. No verdict is drawn from it, and no " +
+      "sibling measurement is restated beside it"),
+    "comparison_scope" -> jstr("these are THIS run's measurements against THIS host's " +
+      "graph. A sibling measured its own against the graph of its own run, so a " +
+      "cross-run comparison of counts is a reader's to make from the two result files " +
+      "and is deliberately not made here - which is also why no sibling figure is " +
+      "copied into this file to make it")))
+
 
 
   // -------------------------------------------------------------------------
@@ -2686,6 +4200,20 @@ try {
   Files.createDirectories(resultsDir)
   val jsonPath = resultsDir.resolve(s"$QUERY_ID.json")
   val mdPath = resultsDir.resolve(s"$QUERY_ID.md")
+
+  /**
+   * One identifier shared by every member of this publication, so a consumer
+   * holding two members can tell whether they came from one generation. It is
+   * DERIVED rather than drawn from a clock: a nanotime component would
+   * distinguish generations and would also break the byte-identity contract this
+   * envelope states, because an unchanged source over an unchanged graph would
+   * then emit different bytes every run.
+   */
+  val publicationId = sha256OfBytes(
+    List(QUERY_ID, sourceSha256, shaObserved, sizeFollow.toString,
+      methodCount.toString).mkString("\n").getBytes(StandardCharsets.UTF_8))
+  log(s"publication id            : $publicationId")
+  publicationIdOfRecord = Some(publicationId)
 
   def byPairNum(f: (PairSelection, PairTraversal, PairSpurious) => Long): String =
     jbyPair(2, PAIRS.indices.toList.map(i =>
@@ -2742,14 +4270,80 @@ try {
     SINK_SOURCE_FILE + ":27 imports SecurityManager",
     SINK_SOURCE_FILE + ":56 declares val securityManager: SecurityManager",
     SINK_SOURCE_FILE + ":194 passes securityManager on as an argument")
+      .:::(ROUTE_HOP_WORKER_PREDICATE_REFERENCES).sorted
+  // Every file on the route, not only its two ends: the intermediate Worker hop
+  // is what receives the launch message and starts the sink's host, so a search
+  // that skipped it would leave one hop of the route unsearched while the field
+  // name said "route files".
   val predicateRouteFilesSearched = List(
     PAIR_ONE_HANDLER_SOURCE_FILE,
     PAIR_TWO_HANDLER_SOURCE_FILE,
+    ROUTE_HOP_WORKER_SOURCE_FILE,
     SINK_SOURCE_FILE).sorted
 
-  val envelope = jobj(0, List(
+  val envelopeCoreFields: List[(String, String)] = List(
     "query_id" -> jstr(QUERY_ID),
     "query_source" -> jstr(s"queries/joern/$QUERY_ID.sc"),
+    "source_integrity" -> jobj(2, List(
+      "query_source" -> jstr(sourceRepoRelative),
+      "query_source_sha256" -> jstr(sourceSha256),
+      "query_source_byte_size" -> jnum(sourceByteSize),
+      "digested_at" -> jstr("run time, by the running script, from the file at the " +
+        "path above"),
+      "self_identification_checked" -> jbool(true),
+      "self_identification_basis" -> jstr("the file digested must declare this query's " +
+        "own id; a digest of any other file is refused rather than published"),
+      "loader" -> jstr("importCpg"),
+      "alternative_loader_occurrences_in_the_source" ->
+        jnum(alternativeLoaderOccurrences.toLong),
+      "alternative_loader_absence_is_measured" -> jbool(true),
+      "contract" -> jstr("every member of this publication - this envelope, the prose " +
+        "report and the console log - carries this digest, so a member can be checked " +
+        "against the source that wrote it rather than assumed to come from it. A result " +
+        "whose digest does not match the source beside it was not written by that " +
+        "source, and that is a defect in the result rather than a matter of opinion"))),
+    "publication" -> jobj(2, List(
+      "publication_id" -> jstr(publicationId),
+      "members" -> jstrArr(List(
+        RESULTS_DIR + "/" + QUERY_ID + ".json",
+        RESULTS_DIR + "/" + QUERY_ID + ".md",
+        LOG_DIR + "/probe-" + QUERY_ID + ".log")),
+      "derivation" -> jstr("sha256 over the query id, the query source's sha256, the " +
+        "graph's sha256, the graph's byte size and the graph's method count, joined by " +
+        "newlines. Deterministic by construction: two publications sharing this " +
+        "identifier came from the same source over the same graph"),
+      "why_not_a_timestamp" -> jstr("a wall-clock or nanotime component would " +
+        "distinguish generations and would also break the byte-identity contract " +
+        "stated under determinism, because an unchanged source over an unchanged graph " +
+        "would then emit different bytes every run"),
+      "atomicity" -> jstr("every member is written to a private temporary in the " +
+        "target's own directory, created exclusively and without following links, " +
+        "flushed and fsynced, measured by reading the staged bytes back, and only " +
+        "then moved onto its final name; the moves happen after every member has been " +
+        "staged, so a failure part-way leaves the previous generation in place rather " +
+        "than a mixed one. That closes the window BEFORE the renames; the window " +
+        "BETWEEN them is closed by the completion manifest below"),
+      "marker_location" -> jstr("in the members themselves AND in a completion " +
+        "manifest published last. The identifier two members carry lets a consumer " +
+        "compare them; the manifest is what makes an INCOMPLETE set detectable, " +
+        "which comparing two members that are both present cannot do"),
+      "completion_manifest" -> jstr(LOG_DIR + "/probe-" + QUERY_ID + ".publication.json"),
+      "completion_manifest_role" -> jstr("the commit record for this member set. It " +
+        "carries each content member's path, byte size and sha256 and a member_set_id " +
+        "derived from those digests, and it is renamed AFTER every content member is " +
+        "in place, so its presence is the completion signal. Absent, or disagreeing " +
+        "with a member on disk, means the set on disk is not one generation"),
+      "completion_manifest_verified_by_producer" -> jbool(true),
+      "member_set_id" -> lastPublicationMemberSetId.map(jstr).getOrElse(
+        jstr("published with the manifest after this envelope's bytes were fixed, so " +
+          "the value is in the manifest rather than here: an envelope cannot carry an " +
+          "identifier derived from its own digest")),
+      "member_set_id_versus_publication_id" -> jstr("publication_id is derived from " +
+        "the query, its source and the graph, before any member exists, so it " +
+        "identifies the RUN and can say nothing about whether the set on disk is " +
+        "complete. member_set_id is derived from MEMBER BYTES, which is what makes it " +
+        "a completion record. Both are published, and neither substitutes for the " +
+        "other"))),
     "formulation" -> jstr("bounded call-graph reachability over CALL edges, PARAMETERIZED " +
       "over handler/sink pairs and instantiated on two named pairs in one run: the " +
       "standalone Master's driver-submission handler, and the REST submit servlet's " +
@@ -2872,6 +4466,7 @@ try {
       "MAX_TOTAL_RETURNS" -> jnum(MAX_TOTAL_RETURNS.toLong),
       "MAX_ENTRY_POINTS_PER_PAIR" -> jnum(MAX_ENTRY_POINTS_PER_PAIR.toLong),
       "MAX_CALL_SCAN" -> jnum(MAX_CALL_SCAN.toLong),
+      "MAX_TYPE_SCAN" -> jnum(MAX_TYPE_SCAN.toLong),
       "FANOUT_CALLEE_THRESHOLD" -> jnum(FANOUT_CALLEE_THRESHOLD.toLong))),
     "bounds_meaning" -> jobj(2, List(
       "MAX_CALL_DEPTH" -> jstr("maximum call-graph hops walked from an entry point, " +
@@ -2880,15 +4475,25 @@ try {
         "shared budget, because one pair filling a shared budget would silently truncate " +
         "the other"),
       "MAX_EXPANSIONS_PER_ENTRY" -> jstr("the per-entry-point step cap, counted in " +
-        "method expansions rather than in edges"),
+        "method expansions rather than in edges, and ENFORCED at that scope: the " +
+        "counter is reset at each entry point, so the figure compared against this " +
+        "value is the peak any one entry point reached, published per walk as " +
+        "max_expansions_at_one_entry_point. Each walk's total across all of its entry " +
+        "points is published separately as method_expansions and caps nothing"),
       "MAX_STEPS_PER_PAIR" -> jstr("the per-pair step cap across all of that pair's " +
-        "walks, counted in call sites considered"),
+        "walks, counted in call sites considered, and ENFORCED at that scope: both of " +
+        "a pair's walks draw on ONE budget, so the figure compared against this value " +
+        "is the pair's total rather than either walk's own count, and the flag " +
+        "pair_step_budget_exhausted is the pair's. It is never shared BETWEEN pairs"),
       "MAX_TOTAL_RETURNS" -> jstr("the total-returns cap across every record kind this " +
         "query emits; a QUERY-level cap rather than a per-pair one"),
       "MAX_ENTRY_POINTS_PER_PAIR" -> jstr("maximum entry points traversed per pair; the " +
         "remainder are counted as truncated rather than dropped silently"),
       "MAX_CALL_SCAN" -> jstr("cap on the indexed call-name sweeps used to find the sink " +
         "and message call sites"),
+      "MAX_TYPE_SCAN" -> jstr("cap on the indexed type-declaration sweep that measures " +
+        "each route surface prefix's reach in the graph; a QUERY-level cap rather than a " +
+        "per-pair one"),
       "FANOUT_CALLEE_THRESHOLD" -> jstr("a THRESHOLD rather than a cap: a call site " +
         "whose resolved callee set is wider than this is recorded as a dynamic-dispatch " +
         "fan-out site, and walk " + WALK_B_ID + " records it without expanding it"))),
@@ -2943,12 +4548,10 @@ try {
         "would additionally vary between two checkouts of one branch and so could not be " +
         "part of a deterministic envelope"),
       "resolved_target_path_literal_lives_in" -> jstr(LOG_DIR + "/probe-" + QUERY_ID +
-        ".log, the console stream this invocation wrote, and the frontend record named " +
-        "by $" + CPG_RECORD_ENV_VAR + ". Console records are not held to byte-identity " +
-        "and may carry a host path; this envelope is, and does not. Where a " +
-        "field-by-field table in that log compares a path literal, it is comparing an " +
-        "earlier revision of this envelope that carried one, and the identity comparison " +
-        "turns on the size and digest pair below rather than on any literal"),
+        ".log, the console stream this invocation wrote. Console records are not held " +
+        "to byte-identity and may carry a host path; this envelope is, and does not. " +
+        "The identity comparison turns on the size and digest pair below rather than " +
+        "on any path literal"),
       "measurement_semantics" -> jstr("symlink-FOLLOWING. The named path is a small " +
         "symlink, so measuring the link itself records a few dozen bytes rather than the " +
         "graph: byte_size_without_following is recorded only to be discarded"),
@@ -2956,13 +4559,15 @@ try {
       "byte_size_following_the_link" -> jnum(sizeFollow),
       "byte_size_without_following" -> jnum(sizeNoFollow),
       "sha256" -> jstr(shaObserved),
-      "identity_record_of_account" -> jstr(recordSelectedLabel),
-      "identity_record_source" -> jstr(recordSelectedSource),
-      "identity_record_of_account_role" -> jstr("the frontend's own write-time record " +
-        "FOR THE GRAPH ACTUALLY LOADED, which computed its pair with the same " +
-        "symlink-following semantics; this envelope cites that measurement rather than " +
-        "establishing a second one. The comparison is made immediately before the load " +
-        "and a mismatch halts the run rather than being weakened or skipped"),
+      "identity_record" -> jstr(CPG_RECORD_PATH),
+      "identity_record_source" -> jstr("named in this query's own source and in its " +
+        "published reproduction command; there is no environment override for it, so " +
+        "the record a reader can read is exactly the record this comparison turned on"),
+      "identity_record_role" -> jstr("the declared owner of this pair, which computed " +
+        "it at write time with the same symlink-following semantics; this envelope " +
+        "cites that measurement rather than establishing a second one. The comparison " +
+        "is made immediately before the load and a mismatch halts the run rather than " +
+        "being weakened or skipped"),
       "identity_recorded_byte_size" -> jnum(recordedSize),
       "identity_recorded_sha256" -> jstr(recordedSha),
       "identity_comparison_result" -> jstr(
@@ -2972,11 +4577,12 @@ try {
         else "mismatch - unreachable in a written envelope, because a mismatch halts " +
           "the run before anything is written"),
       "identity_reverified_before_load" -> jbool(true),
-      "identity_record_repo_relative" -> jstr(CPG_RECORD_PATH),
-      "identity_record_repo_relative_byte_size" -> jnum(defaultRecordedSize),
-      "identity_record_repo_relative_sha256" -> jstr(defaultRecordedSha),
-      "identity_record_repo_relative_agrees" -> jbool(defaultRecordAgrees),
-      "identity_divergence" -> jstr(identityDivergenceNote),
+      "identity_record_override_exists" -> jbool(false),
+      "identity_record_override_note" -> jstr("this query reads no environment " +
+        "variable that could point the identity comparison at another record. An " +
+        "override would let a load be adjudicated by a record no environment contract " +
+        "defines and the reproduction command does not name; where the host's graph and " +
+        "this record disagree, the run halts and the disagreement is reported"),
       "aap_named_path_reconciliation" -> jstr(aapNameReconciliation),
       "methods" -> jnum(methodCount.toLong),
       "type_declarations" -> jnum(typeDeclCount.toLong),
@@ -2986,8 +4592,11 @@ try {
       "jdk_major_numeric" -> jnum(jdkMajor.toLong),
       "jdk_major_required" -> jstr(REQUIRED_JDK_MAJOR),
       "jvm_version" -> jstr(jvmVersion),
-      "jvm_input_args_observed" -> jstr(
-        if (jvmInputArgs.isEmpty) "<none>" else jvmInputArgs.mkString(" ")),
+      "jvm_arguments_observed_count" -> jnum(jvmInputArgs.size.toLong),
+      "jvm_arguments_kept" -> jstrArr(jvmArgsKept),
+      "jvm_arguments_redacted_count" -> jnum(jvmArgsRedacted.size.toLong),
+      "jvm_arguments_redacted_keys" -> jstrArr(jvmArgsRedacted.map(redactJvmArgument)),
+      "jvm_arguments_redaction_policy" -> jstr(JVM_ARG_REDACTION_POLICY),
       "heap_actually_used_bytes" -> jnum(heapMaxBytes),
       "heap_actually_used_gib" -> jnum(heapMaxBytes / (1024L * 1024L * 1024L)),
       "heap_floor_bytes" -> jnum(HEAP_FLOOR_BYTES),
@@ -3012,15 +4621,25 @@ try {
       "loader" -> jstr("importCpg into a switched workspace; the frontend-then-importCpg " +
         "route is mandated because the alternative spawns a second JVM at the same heap"),
       "loader_is_importcpg_only" -> jbool(true),
-      "loader_import_code_absent_from_the_source" -> jbool(true),
+      "loader_alternative_absent_from_the_source" ->
+        jbool(alternativeLoaderOccurrences == 0),
+      "loader_alternative_absence_basis" -> jstr("MEASURED, not asserted: this query " +
+        "reads its own source file at run time and counts occurrences of the alternative " +
+        "loader's name, assembled at run time so the search term is not itself a literal " +
+        "occurrence. The count observed was " + alternativeLoaderOccurrences.toString +
+        ", and any count above zero halts the run before anything is written, so the " +
+        "true value is the only one an envelope can carry"),
       "workspace" -> jstr(WORKSPACE_PATH),
       "heap_bound_jvm_position" -> jstr("the Stage 5 probe, one of the four heap-bound " +
         "JVM invocations this run records separately (frontend build, importCpg " +
         "verification load, Stage 3 Joern runner, this probe)"),
-      "command" -> jstr("cd <scratch outside the repository> && " +
-        "HARNESS_REPO_ROOT=<repo> JAVA_HOME=\"$JAVA_HOME_21\" " +
-        "JAVA_TOOL_OPTIONS=\"-Xmx64g\" SL_LOGGING_LEVEL=WARN joern --script " +
-        "<repo>/queries/joern/" + QUERY_ID + ".sc -J-Xmx64g < /dev/null"),
+      "command" -> jstr(REPRODUCTION_COMMAND),
+      "command_completeness" -> jstr("the command above is COMPLETE: every environment " +
+        "value this query reads appears in it, and it reads no other. In particular " +
+        "there is no variable that selects the identity record - the record of account " +
+        "is the repo-relative path published above - so a reader running this command " +
+        "reproduces the run this envelope describes rather than a differently " +
+        "adjudicated one"),
       "parameters_passed_on_the_command_line" -> jstr("none: the pairs are declared as " +
         "named constants in the query source and both are invoked in a single run, so " +
         "the invocation is reproducible from this command alone"))),
@@ -3070,6 +4689,33 @@ try {
       "final_full_names" -> jstrArr(predicateFullNames),
       "call_sites_graph_wide" -> jnum(predicateCallSites.size.toLong),
       "distinct_callers_graph_wide" -> jnum(predicateCallerNames.size.toLong),
+      "intermediate_route_hop_surface_type_prefixes" ->
+        jstrArr(ROUTE_HOP_SURFACE_TYPE_PREFIXES),
+      "intermediate_route_hop_rationale" -> jstr("both pairs' routes run handler -> RPC " +
+        "-> Worker -> DriverRunner -> launch, so the Worker is a hop of the route and not " +
+        "an end of it. It is on each pair's route surface for that reason: a surface " +
+        "naming only the handler and the sink host would leave one hop unsearched while " +
+        "the resulting statement read as one about the whole route"),
+      "intermediate_route_hop_source_file" -> jstr(ROUTE_HOP_WORKER_SOURCE_FILE),
+      "intermediate_route_hop_source_file_lines_at_the_pin" ->
+        jnum(ROUTE_HOP_WORKER_SOURCE_FILE_LINES.toLong),
+      "intermediate_route_hop_anchors" -> jstrArr(ROUTE_HOP_WORKER_ANCHORS),
+      "route_surface_prefix_evidence" -> jrawArr(4, surfacePrefixEvidence.map(e =>
+        jobj(6, List(
+          "prefix" -> jstr(e.prefix),
+          "type_declarations_in_the_graph" -> jnum(e.typeDeclsInTheGraph.toLong),
+          "methods_in_the_graph" -> jnum(e.methodsInTheGraph.toLong),
+          "predicate_call_sites_on_it" -> jnum(e.predicateCallSites.toLong),
+          "on_pairs" -> jstrArr(e.onPairs))))),
+      "route_surface_prefix_evidence_convention" -> jstr("one entry per prefix on either " +
+        "pair's route surface or on the shared list, reporting THE SAME fields for every " +
+        "prefix including the intermediate hop. The reach fields are what make a zero " +
+        "call-site count falsifiable: a zero over a surface the graph does not carry " +
+        "would read exactly like a searched surface that came back clean, so a prefix " +
+        "with no type declaration aborts the run instead of contributing one"),
+      "route_surface_prefixes_present_with_no_methods" ->
+        jstrArr(surfacePrefixesPresentWithNoMethods),
+      "route_surface_type_declaration_sweep_truncated" -> jbool(surfaceTypeScanTruncated),
       "shared_route_surface_type_prefixes" -> jstrArr(ROUTE_SURFACE_TYPE_PREFIXES),
       "call_sites_on_the_shared_route_surface" ->
         jnum(predicateCallSitesOnSharedSurface.size.toLong),
@@ -3085,8 +4731,10 @@ try {
         jstrArr(predicateCallSitesInsideItsOwnType),
       "route_files_searched_for_the_five" -> jstrArr(predicateRouteFilesSearched),
       "route_files_occurrences_of_the_five" -> jstr("none: searching all five names " +
-        "across the three route files at the pin returns nothing in any of them, which " +
-        "is the source-level counterpart of the graph measurement above"),
+        "across the " + predicateRouteFilesSearched.size.toString + " route files at the " +
+        "pin - the two handlers, the intermediate Worker hop and the sink host - returns " +
+        "nothing in any of them, which is the source-level counterpart of the graph " +
+        "measurement above"),
       "reference_is_not_invocation" -> jstr("a held reference is not an invocation. " +
         "Every mention of the anchored type on the route surface is a reference of one " +
         "of the kinds listed next, and none of them invokes any of the five, which is " +
@@ -3111,15 +4759,31 @@ try {
       p.id -> jstrArr(boundaryIdsByPair(p.id)
         .filter(id => !boundaryStore(id).crossedByACallEdge)))),
     "shared_hops_are_one_measurement_cited_by_both_pairs" -> jbool(true),
-    "duplicate_formulation" -> jstr(duplicateFormulationScalar),
+    "duplicate_formulation" -> jstr(duplicateFormulationAggregate),
     "duplicate_formulation_summary" -> jstr(duplicateFormulationSummary),
+    "duplicate_formulation_aggregation" -> jstr(duplicateFormulationAggregation),
+    "duplicate_formulation_relation" -> jstr(duplicateFormulationRelation),
     "duplicate_formulation_detail" -> duplicateFormulationJson,
-    "effort_query_revisions_committed" -> jnum(QUERY_REVISIONS_COMMITTED.toLong),
+    "duplicate_formulation_pair_one_measured_here" -> pairOneMeasuredJson,
+    "effort_query_revisions_committed" ->
+      (if (revisionsEstablished) jnum(revisionCommits.size.toLong) else "null"),
+    "effort_query_revisions_established" -> jbool(revisionsEstablished),
+    "effort_query_revisions_measurement" -> jstr(revisionsNote),
+    "effort_query_revisions_commits" -> jstrArr(revisionCommits),
     "effort_query_revisions_convention" -> jstr(QUERY_REVISIONS_CONVENTION),
     "effort_joern_api_constructs" -> jstrArr(JOERN_API_CONSTRUCTS),
     "effort_joern_api_construct_count" -> jnum(JOERN_API_CONSTRUCTS.distinct.size.toLong),
-    "effort_joern_api_constructs_not_used_by_01" -> jstrArr(apiOnlyHereVs01),
-    "effort_joern_api_constructs_not_used_by_02" -> jstrArr(apiOnlyHereVs02),
+    "effort_joern_api_constructs_not_used_by_01" -> jstrArr(
+      relations.find(_.theirs.queryId == SIBLING_CALLGRAPH_QUERY)
+        .map(_.apiOnlyHere).getOrElse(Nil)),
+    "effort_joern_api_constructs_not_used_by_02" -> jstrArr(
+      relations.find(_.theirs.queryId == SIBLING_DATAFLOW_QUERY)
+        .map(_.apiOnlyHere).getOrElse(Nil)),
+    "effort_joern_api_constructs_difference_basis" -> jstr("each list is the set " +
+      "difference computed at run time between this query's declared construct list and " +
+      "that sibling's own declared list, read out of the sibling's SOURCE file. Where a " +
+      "sibling source could not be read the list is empty and the relation entry above " +
+      "says so, so an empty list is never a silent claim of identity"),
     "effort_parameterizability" -> jstr(parameterizabilityVerdict),
     "parameterizability" -> parameterizabilityJson,
     "total_returns_cap_reached" -> jbool(totalReturnsCapReached),
@@ -3127,9 +4791,13 @@ try {
       "the fixed boundary-identifier order this query declares - " +
       boundaries.map(_.id).mkString(", ") + " - and each names the pair or pairs citing " +
       "it; route records follow, grouped by pair IN THE DECLARED PAIR ORDER (" +
-      PAIRS.map(_.id).mkString(", ") + ") and ordered WITHIN a pair by (walk_id, entry " +
-      "point, sink host, hop sequence). No two records share the key, so the order is " +
-      "total rather than merely stable, and the whole sequence is then truncated to " +
+      PAIRS.map(_.id).mkString(", ") + ") and ordered WITHIN a pair by the COMPLETE " +
+      "published tuple (pair id, walk id, entry point, sink host, hop count, then the " +
+      "whole ordered hop sequence rendered as one key). The hop sequence is last " +
+      "precisely so two routes sharing their endpoints and their hop count still have a " +
+      "defined order, and a route identical in every hop has already been removed by " +
+      "the deduplication that precedes the sort. No two records share the key, so the " +
+      "order is total rather than merely stable, and the whole sequence is truncated to " +
       "MAX_TOTAL_RETURNS. Grouping by pair is an ordering, never an aggregation: no " +
       "record and no count is shared between the two pairs' groups"),
     "collection_order" -> jstr("every other collection carries an explicit order too. " +
@@ -3146,12 +4814,85 @@ try {
       "lists follow the declared boundary-identifier order, the bounds objects follow " +
       "the declaration order of the named constants in the source, and each pair's walk " +
       "list follows the declared walk-mode order. Every one of these is a fixed function " +
-      "of the inputs, so no collection depends on an iteration order"),
-    "determinism" -> jobj(2, List(
-      "byte_identity_contract" -> jstr("an unchanged query source over an unchanged " +
-        "graph emits byte-identical bytes, from any checkout. Every collection carries " +
-        "an explicit total order, the serialization uses a fixed key order and a fixed " +
-        "layout, and the file ends in a single trailing newline"),
+      "of the inputs, so no collection depends on an iteration order"))
+
+  val provenanceJson = jobj(2, List(
+      "measured_values_cited_from" -> jstr(LOG_DIR + "/probe-" + QUERY_ID + ".log"),
+      "measured_values_note" -> jstr("every count, status, flag, walk figure, selector " +
+        "figure and graph figure in this envelope is this invocation's own measurement, " +
+        "and the console stream is the same measurement written a second time. One " +
+        "measurement cited twice, never two measurements, so a disagreement between this " +
+        "envelope and that stream would be a defect in this envelope"),
+      "graph_identity_owner" -> jstr(CPG_RECORD_PATH + " is the one record of account, " +
+        "read from its repository-relative path with no environment variable able to " +
+        "select another. It states exactly one identity pair, and that pair is what this " +
+        "query re-measured the resolved target against before loading it; the pair it " +
+        "observed is published beside it so the comparison is checkable rather than " +
+        "asserted"),
+      "query_source" -> jstr("queries/joern/" + QUERY_ID + ".sc"),
+      "bound_constants_defined_by" -> jstr("the query source, as named vals; no inline " +
+        "literal governs behaviour and no bound value is chosen in this envelope"),
+      "sibling_figures" -> jstr("NONE is transcribed. No figure published by " +
+        SIBLING_CALLGRAPH_QUERY + " or " + SIBLING_DATAFLOW_QUERY + " is copied into " +
+        "this file or restated in this envelope. What this query reads of a sibling is " +
+        "its SOURCE - the declared formulation identity block, read at run time under " +
+        "names all three queries share - and the duplicate-formulation relation is " +
+        "computed from that by one shared predicate. A sibling's counts were measured " +
+        "against the graph of its own run and stay in its own result files, where a " +
+        "reader comparing them reads the measurement itself rather than a copy that " +
+        "could drift from it"),
+      "query_source_sha256" -> jstr(sourceSha256),
+      "publication_id" -> jstr(publicationId),
+      "line_numbers_verified_against" -> jstr("the pinned tree at " +
+        "59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, exported as SPARK_SRC. Every source " +
+        "line cited here is that tree's, not this checkout's, which differ on " +
+        "core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala"),
+      "graph_path_expression" -> jstr("the graph path fields are expressed by " +
+        "environment-variable name and by repository-relative form, so this envelope " +
+        "carries no value that varies between two checkouts of one branch"),
+      "contributes_dataset_rows" -> jbool(false),
+      "dataset_separation" -> jstr("nothing here is written into harness/artifacts/raw/ " +
+        "and nothing is folded into oss-scan-results/findings.json. This tree is the " +
+        "deliberate second appearance of this tool, as the subject of the capability " +
+        "probe rather than as one of the scanned runners, and folding it in would " +
+        "corrupt both that tool's row count and the dataset total")))
+
+  val envelopeWithoutDeterminism = jobj(0, envelopeCoreFields ++ List(
+    "provenance" -> provenanceJson,
+    "records" -> jrawArr(2, recordJson)))
+  // MEASURED, not asserted: every absolute path this run resolved is searched for
+  // in the rendered envelope, and only the determinism block - which carries the
+  // LABELS of any hit rather than the paths - stays outside the searched text, so
+  // reporting a hit cannot itself emit one.
+  val absolutePathsSearchedFor: List[(String, String)] = (List(
+    "the repository root" -> repoRoot.toString,
+    "the graph's named path" -> cpgNamed.toString,
+    "the graph's resolved target" -> cpgResolved.toString,
+    "the results directory" -> resultsDir.toString,
+    "this envelope's own path" -> jsonPath.toString,
+    "the prose report's path" -> mdPath.toString) ++
+    repoRootRealPath.map("the resolved repository root" -> _.toString).toList ++
+    logTargetPath.map("the console log's path" -> _.toString).toList ++
+    Option(System.getProperty("java.io.tmpdir"))
+      .map("the JVM temporary directory" -> _).toList ++
+    Option(System.getProperty("user.home")).map("the JVM home directory" -> _).toList)
+    .filter { case (_, v) => v != null && v.length >= ABSOLUTE_PATH_SEARCH_MIN_LENGTH }
+    .distinct
+  val absolutePathsFound = absolutePathsSearchedFor
+    .filter { case (_, v) => envelopeWithoutDeterminism.contains(v) }
+    .map(_._1).distinct.sorted
+  log(s"absolute host paths       : ${absolutePathsFound.size} of " +
+    s"${absolutePathsSearchedFor.size} searched-for paths occur in the envelope" +
+    (if (absolutePathsFound.isEmpty) "" else ": " + absolutePathsFound.mkString(", ")))
+
+  val determinismJson = jobj(2, List(
+      "byte_identity_contract" -> jstr("an unchanged query source, run over an " +
+        "unchanged graph with an unchanged commit history for that source path, emits " +
+        "byte-identical bytes from any checkout. Commit history is part of the contract " +
+        "because the revision count above is measured from git rather than written " +
+        "down, so a new commit on this path legitimately changes one field. Every " +
+        "collection carries an explicit total order, the serialization uses a fixed key " +
+        "order and a fixed layout, and the file ends in a single trailing newline"),
       "pair_iteration_order_is_fixed" -> jbool(true),
       "pair_iteration_order_basis" -> jstr("the pairs are declared as a List in the " +
         "source and are selected, walked, classified, recorded and reported by index in " +
@@ -3169,49 +4910,40 @@ try {
         "workspace instance names")),
       "elapsed_times_live_in" -> jstr(LOG_DIR + "/probe-" + QUERY_ID + ".log, a console " +
         "stream that is deliberately not held to byte-identity"),
-      "absolute_host_paths_emitted" -> jbool(false),
+      "absolute_host_paths_emitted" -> jbool(absolutePathsFound.nonEmpty),
+      "absolute_host_paths_measurement" -> jstr("MEASURED, not asserted: the " +
+        absolutePathsSearchedFor.size + " absolute paths this run resolved were each " +
+        "searched for in the rendered envelope, and what is reported is the outcome of " +
+        "that search. Only this determinism block is outside the searched text, and it " +
+        "carries the LABELS of any path found rather than the paths themselves, so " +
+        "reporting a hit cannot itself emit one. A path shorter than " +
+        ABSOLUTE_PATH_SEARCH_MIN_LENGTH + " characters is not searched for, because a " +
+        "very short prefix matches ordinary prose"),
+      "absolute_host_path_labels_found" -> jstrArr(absolutePathsFound),
       "trailing_newline" -> jbool(true),
+      "publication_id" -> jstr(publicationId),
+      "reproduction_command" -> jstr(REPRODUCTION_COMMAND),
+      "mixed_generation_detection" -> jstr("every member of this publication carries " +
+        "the same publication identifier and the same query source sha256. A consumer " +
+        "holding two members whose identifiers differ is holding two generations, and " +
+        "that is detectable from the members themselves rather than from a separate " +
+        "marker file"),
       "reproduction_check_method" -> jstr("invoke this source again over the same graph " +
         "from an isolated repository root and compare the two envelopes byte for byte, " +
         "including the pair order and the record grouping. The isolation matters: the " +
         "console log is written to a fixed repository-relative path, so a re-run inside " +
         "a checkout would overwrite the record of the invocation it is being compared " +
         "against. Two roots also test the property the path fields exist to have - that " +
-        "no field varies with the checkout"))),
-    "provenance" -> jobj(2, List(
-      "measured_values_cited_from" -> jstr(LOG_DIR + "/probe-" + QUERY_ID + ".log"),
-      "measured_values_note" -> jstr("every count, status, flag, walk figure, selector " +
-        "figure and graph figure in this envelope is this invocation's own measurement, " +
-        "and the console stream is the same measurement written a second time. One " +
-        "measurement cited twice, never two measurements, so a disagreement between this " +
-        "envelope and that stream would be a defect in this envelope"),
-      "graph_identity_owner" -> jstr(CPG_RECORD_PATH + " for the repository-relative " +
-        "record, and the record of account named above for the graph actually loaded; " +
-        "both pairs are published and neither is discarded"),
-      "query_source" -> jstr("queries/joern/" + QUERY_ID + ".sc"),
-      "bound_constants_defined_by" -> jstr("the query source, as named vals; no inline " +
-        "literal governs behaviour and no bound value is chosen in this envelope"),
-      "sibling_figures" -> jstr("every figure attributed to " +
-        SIBLING_CALLGRAPH_QUERY + " or " + SIBLING_DATAFLOW_QUERY + " is TRANSCRIBED " +
-        "from that query's published envelope and is never re-measured here; each was " +
-        "measured against the graph of its own run"),
-      "line_numbers_verified_against" -> jstr("the pinned tree at " +
-        "59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, exported as SPARK_SRC. Every source " +
-        "line cited here is that tree's, not this checkout's, which differ on " +
-        "core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala"),
-      "graph_path_expression" -> jstr("the graph path fields are expressed by " +
-        "environment-variable name and by repository-relative form, so this envelope " +
-        "carries no value that varies between two checkouts of one branch"),
-      "contributes_dataset_rows" -> jbool(false),
-      "dataset_separation" -> jstr("nothing here is written into harness/artifacts/raw/ " +
-        "and nothing is folded into oss-scan-results/findings.json. This tree is the " +
-        "deliberate second appearance of this tool, as the subject of the capability " +
-        "probe rather than as one of the scanned runners, and folding it in would " +
-        "corrupt both that tool's row count and the dataset total"))),
+        "no field varies with the checkout")))
+
+  val envelope = jobj(0, envelopeCoreFields ++ List(
+    "determinism" -> determinismJson,
+    "provenance" -> provenanceJson,
     "records" -> jrawArr(2, recordJson))) + "\n"
 
-  writeUtf8(jsonPath, envelope)
-  log(s"envelope written          : $jsonPath (${envelope.length} chars)")
+
+  stageMember(jsonPath, envelope)
+  log(s"envelope staged           : $jsonPath (${envelope.length} chars)")
 
 
   // ---------------------------- the prose report ----------------------------
@@ -3238,7 +4970,10 @@ try {
   md0("")
   md0("| | |")
   md0("| --- | --- |")
-  md0(s"| Query source | `queries/joern/$QUERY_ID.sc` |")
+  md0(s"| Query source | `$sourceRepoRelative` |")
+  md0(s"| Query source sha256 | `$sourceSha256` |")
+  md0(s"| Query source byte size | $sourceByteSize |")
+  md0(s"| Publication id | `$publicationId` |")
   md0(s"| Envelope | `$RESULTS_DIR/$QUERY_ID.json` |")
   md0(s"| Console log | `$LOG_DIR/probe-$QUERY_ID.log` |")
   md0(s"| Loader | `importCpg` into a switched workspace (`$WORKSPACE_PATH`) |")
@@ -3246,7 +4981,7 @@ try {
   md0(s"| Heap actually used | $heapMaxBytes bytes (floor $HEAP_FLOOR_BYTES) |")
   md0(s"| Graph | $sizeFollow bytes, sha256 `$shaObserved` |")
   md0(s"| Graph identity re-verified before the load | yes, against " +
-    s"`${recordSelectedPath.getFileName}` (source: $recordSelectedSource) |")
+    s"`$CPG_RECORD_PATH` |")
   md0(s"| Graph methods / typeDecls / files | $methodCount / $typeDeclCount / $fileCount |")
   md0("| Compile status | compiled |")
   md0("| Run status | completed |")
@@ -3255,7 +4990,23 @@ try {
   md0(s"| Records returned | $returnedRecordCount (${boundaries.size} boundary " +
     "measurement(s) plus per-pair route records) |")
   md0(s"| Parameterizability | **$parameterizabilityVerdict** |")
-  md0(s"| Duplicate formulation | **$duplicateFormulationScalar** |")
+  md0(s"| Duplicate formulation | **$duplicateFormulationAggregate** |")
+  md0("")
+  md0("## Which source wrote this report")
+  md0("")
+  md0(s"This report was written by `$sourceRepoRelative`, whose bytes digest to")
+  md0(s"`$sourceSha256` ($sourceByteSize bytes). The script read its own file at run time")
+  md0("and digested it, so the digest above is a measurement of the writer rather than a")
+  md0("label attached to it. The same digest appears in the envelope under")
+  md0("`source_integrity.query_source_sha256` and in the console log, and all three")
+  md0(s"members of this publication carry the identifier `$publicationId`.")
+  md0("")
+  md0("That is what makes the relationship between a source and its results checkable")
+  md0("rather than assumed: digest the `.sc` file and compare. A result whose digest does")
+  md0("not match the source beside it was not written by that source, and no amount of")
+  md0("agreement in the prose changes that. The three members are published together -")
+  md0("each staged, fsynced and only then moved onto its final name - so a reader never")
+  md0("sees one member from this generation beside another from a previous one.")
   md0("")
   md0("## The result, per pair")
   md0("")
@@ -3334,11 +5085,13 @@ try {
     md0(s"- **walks** (its own two, never combined with the other pair's):")
     t.walks.foreach { w =>
       md0(s"  - `${w.walkId}`: follows fan-out ${w.followsFanOut}, expansions " +
-        s"${w.expansions}, call sites ${w.callSitesConsidered}, fan-out seen " +
-        s"${w.fanOutSitesEncountered}, fan-out not followed ${w.fanOutSitesNotFollowed}, " +
-        s"max depth ${w.maxDepthUsed}, depth bound reached ${w.depthBoundReached}, " +
-        s"expansion budget exhausted ${w.expansionBudgetExhausted}, step cap reached " +
-        s"${w.stepCapReached}, route cap reached ${w.routeCapReached}, routes " +
+        s"${w.expansions} across all of its entry points with " +
+        s"${w.maxExpansionsAtOneEntry} the peak at any ONE entry point, call sites " +
+        s"${w.callSitesConsidered}, fan-out seen ${w.fanOutSitesEncountered}, fan-out " +
+        s"not followed ${w.fanOutSitesNotFollowed}, max depth ${w.maxDepthUsed}, depth " +
+        s"bound reached ${w.depthBoundReached}, per-entry expansion cap reached " +
+        s"${w.entryExpansionCapReached}, pair step budget exhausted " +
+        s"${w.pairStepBudgetExhausted}, route cap reached ${w.routeCapReached}, routes " +
         s"${w.routes.size}")
     }
     md0(s"- **route surface for its own expected-spurious basis**: " +
@@ -3361,16 +5114,22 @@ try {
       val bits = List(
         if (w.depthBoundReached)
           Some(s"the frontier was still non-empty at depth $MAX_CALL_DEPTH") else None,
-        if (w.expansionBudgetExhausted)
-          Some("the per-entry expansion budget was exhausted") else None,
-        if (w.stepCapReached) Some("the per-pair step cap was reached") else None,
+        if (w.entryExpansionCapReached)
+          Some("the per-entry-point expansion cap was reached at some entry point")
+        else None,
+        if (w.pairStepBudgetExhausted)
+          Some("the pair's shared step budget was exhausted") else None,
         if (w.routeCapReached) Some("the per-pair route cap was reached") else None).flatten
       md0(s"  - walk `${w.walkId}`: " +
         (if (bits.isEmpty) "no bound was reached; the walk ran to exhaustion"
          else bits.mkString("; ")) +
-        s". Expansion budget used ${w.expansions} of $MAX_EXPANSIONS_PER_ENTRY per entry " +
-        s"point; call sites considered ${w.callSitesConsidered} of $MAX_STEPS_PER_PAIR " +
-        s"for the pair; routes returned ${w.routes.size} of $MAX_ROUTES_PER_PAIR.")
+        s". Each figure is measured at its cap's own scope: the peak expansion count at " +
+        s"any ONE entry point was ${w.maxExpansionsAtOneEntry} of " +
+        s"$MAX_EXPANSIONS_PER_ENTRY, the counter being reset at each entry point, and " +
+        s"the walk's total across all of its entry points was ${w.expansions}, which " +
+        s"caps nothing; this walk contributed ${w.callSitesConsidered} call sites to " +
+        s"the ONE step budget of $MAX_STEPS_PER_PAIR that both of the pair's walks draw " +
+        s"on; routes returned ${w.routes.size} of $MAX_ROUTES_PER_PAIR.")
     }
   }
   md0("")
@@ -3389,6 +5148,7 @@ try {
   md0(s"| MAX_TOTAL_RETURNS | $MAX_TOTAL_RETURNS |")
   md0(s"| MAX_ENTRY_POINTS_PER_PAIR | $MAX_ENTRY_POINTS_PER_PAIR |")
   md0(s"| MAX_CALL_SCAN | $MAX_CALL_SCAN |")
+  md0(s"| MAX_TYPE_SCAN | $MAX_TYPE_SCAN |")
   md0(s"| FANOUT_CALLEE_THRESHOLD | $FANOUT_CALLEE_THRESHOLD |")
   md0("")
   md0("## The boundaries, per pair")
@@ -3505,11 +5265,13 @@ try {
   md0(s"`${PAIR_ONE_HANDLER_SOURCE_FILE}:411`'s `if (state != RecoveryState.ALIVE)` is a")
   md0("**recovery-state** check and is deliberately not in this set.")
   md0("")
-  md0("The selector block in this query's source is **byte-identical** to the")
-  md0(s"corresponding block of `queries/joern/$SIBLING_CALLGRAPH_QUERY.sc` and")
-  md0(s"`queries/joern/$SIBLING_DATAFLOW_QUERY.sc`. It has to be: three spurious")
-  md0("counts are only comparable if the definition of the term is the same text in all")
-  md0("three files.")
+  md0("Whether the four selector constants in this query's source carry the same literal")
+  md0(s"text as those of `queries/joern/$SIBLING_CALLGRAPH_QUERY.sc` and")
+  md0(s"`queries/joern/$SIBLING_DATAFLOW_QUERY.sc` is **measured** at run time rather")
+  md0("than asserted here, by reading each sibling source and comparing literal to")
+  md0("literal; the outcome is published per sibling as `predicate_selector_literals`")
+  md0("`_identical`. It matters because three spurious counts are only comparable while")
+  md0("the definition of the term is the same text in all three files.")
   md0("")
   md0("### How the bytecode-level selector was constrained")
   md0("")
@@ -3548,8 +5310,43 @@ try {
        "declared in is not always the headline class of the file it lives in."))
   md0("The shared list is kept exactly as it stands so all three queries' spurious counts")
   md0("remain comparable, and each pair additionally carries its **own** route surface,")
-  md0("derived from its own handler and sink types, which is what makes that pair's")
-  md0("expected-spurious basis correct. Both counts are published.")
+  md0("derived from its own handler, the intermediate hop and its sink types, which is")
+  md0("what makes that pair's expected-spurious basis correct. Both counts are published.")
+  md0("")
+  md0("### The intermediate route hop")
+  md0("")
+  md0("Both pairs' routes run handler -> RPC -> **Worker** -> DriverRunner -> launch, so")
+  md0("the Worker is a *hop* of the route rather than an end of it, and it is on each")
+  md0("pair's own route surface for that reason. A surface naming only the handler and the")
+  md0("sink host would leave one hop of the route unsearched while the resulting statement")
+  md0("read as one about the whole route. Its anchors at the pin:")
+  md0("")
+  ROUTE_HOP_WORKER_ANCHORS.foreach(a => md0(s"- `$a`"))
+  md0("")
+  md0(s"`$ROUTE_HOP_WORKER_SOURCE_FILE` is " +
+    s"$ROUTE_HOP_WORKER_SOURCE_FILE_LINES lines at the pin, and it is one of the " +
+    s"${predicateRouteFilesSearched.size} route files searched for the five names.")
+  md0("")
+  md0("Every prefix on either pair's surface reports the **same** fields, the intermediate")
+  md0("hop included. The reach columns are what make a zero falsifiable: a zero over a")
+  md0("surface the graph does not carry would read exactly like a searched surface that")
+  md0("came back clean, so a prefix with no type declaration stops the run instead of")
+  md0("contributing one.")
+  md0("")
+  md0("| surface prefix | type decls | methods | predicate call sites | on pairs |")
+  md0("| --- | --- | --- | --- | --- |")
+  surfacePrefixEvidence.foreach { e =>
+    md0(s"| `${e.prefix}` | ${e.typeDeclsInTheGraph} | ${e.methodsInTheGraph} | " +
+      s"${e.predicateCallSites} | " +
+      (if (e.onPairs.isEmpty) "shared list only" else e.onPairs.mkString(", ")) + " |")
+  }
+  md0("")
+  md0(s"The sweep behind those reach columns is bounded by `MAX_TYPE_SCAN` = " +
+    s"$MAX_TYPE_SCAN type declarations per prefix and reported truncated = " +
+    s"**$surfaceTypeScanTruncated**." +
+    (if (surfacePrefixesPresentWithNoMethods.isEmpty) ""
+     else " Present in the graph but carrying no methods: " +
+       surfacePrefixesPresentWithNoMethods.map(x => s"`$x`").mkString(", ") + "."))
   md0("")
   md0("## Whether an expected-spurious route was absent")
   md0("")
@@ -3601,39 +5398,83 @@ try {
   md0("")
   md0("## Whether this formulation duplicates another query's")
   md0("")
-  md0(s"`duplicate_formulation` = **$duplicateFormulationScalar**. $duplicateFormulationSummary")
+  md0(s"`duplicate_formulation` = **$duplicateFormulationAggregate**. " +
+    duplicateFormulationSummary)
   md0("")
-  md0(s"### Against `$SIBLING_CALLGRAPH_QUERY`: **$duplicateVerdictAgainst01**")
+  md0(s"Aggregation: $duplicateFormulationAggregation")
   md0("")
-  md0(duplicateBasisAgainst01)
+  md0(s"Relation: $duplicateFormulationRelation")
   md0("")
-  md0("| property | here (measured) | query 01 (transcribed from its envelope) | agree |")
-  md0("| --- | --- | --- | --- |")
-  md0(s"| API construct count | ${apiConstructsHere.size} | ${apiConstructs01.size} | " +
-    s"$apiSetsIdenticalTo01 |")
-  md0(s"| bound value | $MAX_CALL_DEPTH | $SIBLING_CALLGRAPH_BOUND_VALUE | " +
-    s"$boundValueAgreesWith01 |")
-  md0(s"| pair-one entry points | ${pairOneSelection.entryGroups.size} | " +
-    s"${SIBLING_CALLGRAPH_ENTRY_POINTS.size} | $entryPointsAgreeWith01 |")
-  md0(s"| pair-one distinct routes | ${pairOneTraversal.distinctRoutes.size} | " +
-    s"$SIBLING_CALLGRAPH_DISTINCT_ROUTES | $routeCountAgreesWith01 |")
-  md0(s"| boundaries not crossed | ${pairOneNotCrossedHere.mkString(", ")} | " +
-    s"${sibling01NotCrossed.mkString(", ")} | $boundaryVerdictsAgreeWith01 |")
+  md0("The comparison reads each sibling's **source**, not its published result. Every")
+  md0("entry below is produced by applying one shared predicate to the two queries' own")
+  md0("declared formulation identity blocks, so both directions of the relation evaluate")
+  md0("identical inputs through identical code and a disagreement between them is not")
+  md0("expressible. No sibling figure is transcribed into this file, which is what makes")
+  md0("the verdict incapable of drifting from the file it describes.")
   md0("")
-  md0("The sibling's figures are **transcribed** from its published envelope, never")
-  md0("re-measured here, and they were measured against the graph of its own run. The")
-  md0("boundary ids are translated by the mapping declared in the query source: " +
+  relations.foreach { r =>
+    md0(s"### Against `${r.theirs.queryId}`: **${r.status}**")
+    md0("")
+    md0(s"- scope: ${r.scope}")
+    md0(s"- basis: ${r.basis}")
+    md0(s"- sibling source: `${r.theirs.sourceRepoRelative}`, sha256 " +
+      (if (r.theirs.established) s"`${r.theirs.sourceSha256}`, " +
+        s"${r.theirs.sourceByteSize} bytes"
+       else "not read") + s"; read note: ${r.theirs.note}")
+    if (r.theirs.established) {
+      md0(s"- pair ids here: ${myFormulation.pairIds.mkString(", ")}; there: " +
+        s"${r.theirs.pairIds.mkString(", ")}; shared: " +
+        (if (r.sharedPairs.isEmpty) "none" else r.sharedPairs.mkString(", ")))
+      md0(s"- edge kinds: here ${myFormulation.edgeKinds.mkString(", ")}, there " +
+        s"${r.theirs.edgeKinds.mkString(", ")} (same = ${r.sameEdgeKinds})")
+      md0(s"- end node kinds: here ${myFormulation.endNodeKinds.mkString(", ")}, there " +
+        s"${r.theirs.endNodeKinds.mkString(", ")} (same = ${r.sameEndNodeKinds})")
+      md0(s"- bound: here `${myFormulation.boundName}` = ${myFormulation.boundValue} " +
+        s"(${myFormulation.boundKind}); there `${r.theirs.boundName}` = " +
+        s"${r.theirs.boundValue} (${r.theirs.boundKind}); same kind = " +
+        s"${r.sameBoundKind}, same value = ${r.sameBoundValue}")
+      md0(s"- entry selector literals identical: ${r.sameEntrySelectors}; sink selector " +
+        s"literals identical: ${r.sameSinkSelectors}")
+      md0(s"- predicate selector literals identical: ${r.samePredicateSelectors} " +
+        "(reported, not a component of the formulation predicate: the predicate set " +
+        "defines the word \"spurious\" rather than the traversal)")
+      md0(s"- API constructs: ${r.apiShared.size} shared, ${r.apiOnlyHere.size} only " +
+        s"here, ${r.apiOnlyThere.size} only there")
+    }
+    md0("")
+  }
+  md0(s"$FORMULATION_SELECTOR_SCOPE_LIMITATION")
+  md0("")
+  md0("Pair one's figures **measured here**, published so a reader can compare them")
+  md0("against query 01's own published figures rather than against a copy of them made")
+  md0(s"inside this file: ${pairOneSelection.entryGroups.size} entry point(s), " +
+    s"${pairOneTraversal.distinctRoutes.size} distinct route(s), bound value " +
+    s"$MAX_CALL_DEPTH, boundaries not crossed " +
+    (if (pairOneNotCrossedHere.isEmpty) "none"
+     else pairOneNotCrossedHere.map(b => s"`$b`").mkString(", ")) +
+    " in query 01's numbering, under the naming map " +
     BOUNDARY_ID_TO_SIBLING_01.toList.sorted
       .map { case (mine, theirs) => s"`$mine` -> `$theirs`" }.mkString(", ") + ".")
-  md0("")
-  md0(s"### Against `$SIBLING_DATAFLOW_QUERY`: **$duplicateVerdictAgainst02**")
-  md0("")
-  md0(duplicateBasisAgainst02)
+  md0("A cross-run comparison of *counts* is a reader's to make from the two result")
+  md0("files: each query measured its own against the graph of its own run.")
   md0("")
   md0("## The three effort measures")
   md0("")
-  md0(s"1. **Query revisions committed: $QUERY_REVISIONS_COMMITTED.** Convention: " +
-    QUERY_REVISIONS_CONVENTION + ". This run introduces the file in a single commit.")
+  md0(s"1. **Query revisions committed: " +
+    (if (revisionsEstablished) revisionCommits.size.toString else "not established") +
+    ".** Convention: " + QUERY_REVISIONS_CONVENTION + ".")
+  md0(s"   Measurement: $revisionsNote.")
+  if (revisionsEstablished) {
+    md0("   The commits counted, newest first, so the number is auditable rather than")
+    md0("   asserted:")
+    md0("")
+    revisionCommits.foreach(c => md0(s"   - `$c`"))
+    md0("")
+  } else {
+    md0("   The count is published as `null` rather than as a number, because a measure")
+    md0("   this run could not establish is not a measure it may assert.")
+    md0("")
+  }
   md0(s"2. **Distinct Joern API constructs used: " +
     s"${JOERN_API_CONSTRUCTS.distinct.size}.** Listed explicitly and deduplicated so the")
   md0("   count is auditable from the list rather than asserted; every entry appears")
@@ -3641,12 +5482,12 @@ try {
   md0("")
   JOERN_API_CONSTRUCTS.foreach(c => md0(s"   - `$c`"))
   md0("")
-  md0(s"   Constructs used here that query 01 does not publish: " +
-    (if (apiOnlyHereVs01.isEmpty) "none"
-     else apiOnlyHereVs01.map(c => s"`$c`").mkString(", ")) + ". Constructs used here " +
-    "that query 02 does not publish: " +
-    (if (apiOnlyHereVs02.isEmpty) "none"
-     else apiOnlyHereVs02.map(c => s"`$c`").mkString(", ")) + ".")
+  relations.foreach { r =>
+    md0(s"   Constructs declared here that `${r.theirs.queryId}` does not declare: " +
+      (if (!r.theirs.established) "not established - " + r.theirs.note
+       else if (r.apiOnlyHere.isEmpty) "none"
+       else r.apiOnlyHere.map(c => s"`$c`").mkString(", ")) + ".")
+  }
   md0("")
   md0(s"3. **Parameterizability: $parameterizabilityVerdict.** This file owns the measure.")
   md0(s"   It $PARAMETERIZABILITY_PASS_CONDITION.")
@@ -3728,29 +5569,31 @@ try {
   md0("  a property of the checkout rather than of the measurement, and the size-and-digest")
   md0(s"  pair above is what the identity comparison turns on. The literals are in")
   md0(s"  `$LOG_DIR/probe-$QUERY_ID.log`, a console stream not held to byte-identity")
-  md0(s"- record of account: `$recordSelectedLabel` (source: $recordSelectedSource), which")
-  md0(s"  states bytes $recordedSize and sha256 `$recordedSha` - re-verified immediately")
-  md0("  before the load, and a mismatch would have halted the run")
-  md0(s"- repo-relative record `$CPG_RECORD_PATH` states bytes $defaultRecordedSize and")
-  md0(s"  sha256 `$defaultRecordedSha`; agrees with the graph loaded: " +
-    s"**$defaultRecordAgrees**")
-  md0(s"- divergence: $identityDivergenceNote")
+  md0(s"- record of account: `$CPG_RECORD_PATH`, which states bytes $recordedSize and")
+  md0(s"  sha256 `$recordedSha` - re-verified immediately before the load, and a")
+  md0("  mismatch would have halted the run")
+  md0("- there is **no environment override** for that record. This query reads no")
+  md0("  variable that could point the comparison at a different one, so the record a")
+  md0("  reader can read is exactly the record the comparison turned on. Where the")
+  md0("  host's graph and this record disagree, the run halts and the disagreement is")
+  md0("  reported rather than routed around")
   md0(s"- the AAP-named path `$CPG_PATH_DEFAULT`: $aapNameReconciliation")
   md0("")
   md0("## Reproducing this")
   md0("")
   md0("```")
-  md0("cd <a scratch directory outside the repository>")
-  md0("HARNESS_REPO_ROOT=<repo> JAVA_HOME=\"$JAVA_HOME_21\" \\")
-  md0("  JAVA_TOOL_OPTIONS=\"-Xmx64g\" SL_LOGGING_LEVEL=WARN \\")
-  md0(s"  joern --script <repo>/queries/joern/$QUERY_ID.sc -J-Xmx64g < /dev/null")
+  md0(REPRODUCTION_COMMAND)
   md0("```")
   md0("")
-  md0("Both pairs are declared as named constants in the query source and both are")
-  md0("invoked by that one command, so no per-pair parameter has to be passed on the")
-  md0("command line and the second pair's invocation is reproducible from this record")
-  md0("alone. Where the record of account above is not the repo-relative one, the")
-  md0(s"variable `$CPG_RECORD_ENV_VAR` names it, and its value is the path printed above.")
+  md0("That is the **whole** command: the repository root, the JDK, the heap override,")
+  md0("the log level and the script path. Both pairs are declared as named constants in")
+  md0("the query source and both are invoked by that one command, so no per-pair")
+  md0("parameter has to be passed on the command line and the second pair's invocation")
+  md0("is reproducible from this record alone. This query reads no other environment")
+  md0("variable that changes what it loads or what it publishes, and in particular there")
+  md0(s"is no override for the identity record - the record of account is")
+  md0(s"`$CPG_RECORD_PATH`, so a load can never be adjudicated by a record this command")
+  md0("does not name.")
   md0("")
   md0("`joern --script` forks a child JVM and does not forward `-J-Xmx` to it, so")
   md0("`JAVA_TOOL_OPTIONS` is the override that actually raises the heap the query runs")
@@ -3758,8 +5601,16 @@ try {
   md0("heap is permitted and reported, lowering one is not.")
   md0("")
 
-  writeUtf8(mdPath, md.mkString("", "\n", "\n"))
-  log(s"prose report written      : $mdPath (${md.size} lines)")
+  // Trailing blank entries are dropped before joining: a report ending on an
+  // empty line produced a blank line before the final newline, which
+  // `git diff --check` reports as whitespace at EOF. The content is
+  // unchanged; only the trailing padding goes.
+  val reportLines = md.toList.reverse.dropWhile(_.trim.isEmpty).reverse
+  val reportMember = stageMember(mdPath, reportLines.mkString("", "\n", "\n"))
+  log(s"prose report staged       : $mdPath (${md.size} lines, " +
+    s"${reportMember.byteSize} bytes, sha256 ${reportMember.sha256})")
+  log(s"publication members staged: ${stagedMembers.size} of 3 " +
+    "(the console log is staged last, because it names the other two)")
 
   // -------------------------------------------------------------------------
   stage("N-result: the result region, emitted only now that every stage passed")
@@ -3791,20 +5642,39 @@ try {
     s"and never added to $SIBLING_CALLGRAPH_QUERY's or $SIBLING_DATAFLOW_QUERY's returns")
   log(s"bound_value               : $MAX_CALL_DEPTH")
   log(s"bound_reached_any         : ${traversals.exists(_.boundReached)}")
-  log(s"duplicate_formulation     : $duplicateFormulationScalar")
-  log(s"  vs $SIBLING_CALLGRAPH_QUERY: $duplicateVerdictAgainst01")
-  log(s"  vs $SIBLING_DATAFLOW_QUERY : $duplicateVerdictAgainst02")
+  log(s"duplicate_formulation     : $duplicateFormulationAggregate")
+  relations.foreach { r =>
+    log(s"  vs ${r.theirs.queryId}: ${r.status} (scope: ${r.scope})")
+  }
   log(s"joern_api_constructs      : ${JOERN_API_CONSTRUCTS.distinct.size}")
-  log(s"query_revisions_committed : $QUERY_REVISIONS_COMMITTED")
+  log(s"query_revisions_committed : " +
+    (if (revisionsEstablished) revisionCommits.size.toString else "not established") +
+    s" ($revisionsNote)")
   log(s"parameterizability        : $parameterizabilityVerdict " +
     s"(second pair ${secondPair.id} invoked: " +
     s"${secondTraversal.invoked && secondPairWalksRan})")
   log(s"graph                     : $sizeFollow bytes sha256=$shaObserved")
-  log(s"graph_identity_record     : $recordSelectedPath ($recordSelectedSource)")
+  log(s"graph_identity_record     : $CPG_RECORD_PATH (no override exists)")
+  log(s"query_source_sha256       : $sourceSha256")
+  log(s"publication_id            : $publicationId")
   log(s"envelope                  : $jsonPath")
   log(s"prose report              : $mdPath")
   log(MARKER_RESULT_END)
   log(MARKER_OK)
+
+  // The publication, all three members at once. The two staged members are on
+  // disk and fsynced; the console log is staged now, as the last member, because
+  // its content names the other two - and only then is anything moved onto a
+  // published path. A failure anywhere above this line leaves all three targets
+  // holding their previous generation rather than a mixed one.
+  logTargetPath.foreach { p =>
+    stageMember(p, consoleLines.mkString("", "\n", "\n"))
+    val published = publishStagedMembers()
+    publicationCompleted = true
+    println(s"publication $publicationId published ${published.size} member(s):")
+    published.foreach(m =>
+      println(s"  ${m.target} (${m.byteSize} bytes, sha256 ${m.sha256})"))
+  }
   flushConsoleLog()
 
 } catch {

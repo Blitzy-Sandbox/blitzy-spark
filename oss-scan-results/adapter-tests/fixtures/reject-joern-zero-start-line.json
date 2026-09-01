@@ -1,0 +1,61 @@
+{
+  "tool": "joern",
+  "cpg_path": "/opt/blitzy-harness/cpg/spark.cpg",
+  "generated_at": "2026-08-24T22:58:56Z",
+  "cpg_methods": 1397339,
+  "cpg_typedecls": 119691,
+  "source_index_size": 6759,
+  "declaration_index_size": 15230,
+  "queries": [
+   {"id": "joern.process-launch-site", "count": 3},
+   {"id": "joern.java-deserialization-site", "count": 1},
+   {"id": "joern.reflective-class-load", "count": 4},
+   {"id": "joern.weak-hash-algorithm", "count": 1},
+   {"id": "joern.rpc-handler-reaches-process-launch", "count": 2}
+  ],
+  "findings": [
+   {
+    "rule_id": "joern.rpc-handler-reaches-process-launch",
+    "message": "rpc handler reaches driver launch in bytecode",
+    "path": "core/src/main/scala/org/apache/spark/deploy/master/Master.scala",
+    "start_line": 417,
+    "method_full_name": "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+    "class_file": "org/apache/spark/deploy/master/Master.class",
+    "path_resolution": "source-index-filename"
+   },
+   {
+    "rule_id": "joern.process-launch-site",
+    "message": "external process launch reachable in bytecode",
+    "path": "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala",
+    "start_line": 240,
+    "method_full_name": "org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)",
+    "class_file": "org/apache/spark/deploy/worker/DriverRunner.class",
+    "path_resolution": "source-index-filename"
+   },
+   {
+    "rule_id": "joern.process-launch-site",
+    "message": "external process launch reachable in bytecode",
+    "path": "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala",
+    "method_full_name": "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()",
+    "class_file": "org/apache/spark/deploy/worker/ProcessBuilderLike$$anon$3.class",
+    "path_resolution": "source-index-declaration"
+   },
+   {
+    "rule_id": "joern.reflective-class-load",
+    "message": "reflective class loading (Class.forName)",
+    "start_line": null,
+    "method_full_name": "org.apache.spark.deploy.master.MasterSuite.$anonfun$new$29:void()",
+    "class_file": "org/apache/spark/deploy/master/MasterSuite.class",
+    "path_resolution": "unresolved-bytecode-only"
+   },
+   {
+    "rule_id": "joern.rpc-handler-reaches-process-launch",
+    "message": "rpc handler reaches driver launch in bytecode",
+    "path": "core/src/main/scala/org/apache/spark/deploy/master/Master.scala",
+    "start_line": 0,
+    "method_full_name": "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)",
+    "class_file": "org/apache/spark/deploy/master/Master.class",
+    "path_resolution": "source-index-filename"
+   }
+  ]
+}

@@ -660,8 +660,8 @@ active on Spark's own Scala.**
       establish must be named rather than omitted - not as a substitute for the
       mandated A/B, and not as a pass.
 
-  D5  A byte-count discrepancy in the ON arm's own record, reported and NOT
-      edited, since that file is another deliverable and not this one's to fix.
+  D5  A byte-count discrepancy in the ON arm's own record, reported and - AS OF
+      THIS FILE'S WRITING - not edited (SUPERSEDED: see the F39 pass appended).
 
       taint-ab-on.log states '[stdout] APPENDIX A, verbatim (1387 bytes)'. Its
       embedded APPENDIX A block measures 1474 bytes, and this arm's own console
@@ -1057,4 +1057,208 @@ APPENDIX F - ENGINE CAPABILITY - the taint and output options, verbatim from `op
 END OF harness/artifacts/logs/taint-ab-off.log
 Generated from captured command output; every figure above has a capture file
 behind it. Companion arm: harness/artifacts/logs/taint-ab-on.{log,sarif}.
+================================================================================
+
+================================================================================
+CORRECTION PASS - APPENDED AFTER THE ORIGINAL END-OF-FILE BANNER
+findings F6 (CRITICAL, taint verification) and F39 (LOW, byte accounting)
+================================================================================
+
+  Everything above this banner is the file as the run wrote it. Nothing above was
+  removed and no measurement above was altered; the only lines above that changed
+  are the two lines of PHASE 5 D5 (lines 663-664), whose DISPOSITION had gone
+  stale, and they were rewritten in place at the same line count so no line
+  number in this file moved. The superseded wording is quoted verbatim below.
+
+  Both corrections below were established by re-measuring this file's own bytes
+  and its companion's, in the working checkout, and by re-reading the engine's
+  own help output. No scanner was invoked to scan anything, no arm was re-run,
+  and neither .sarif was touched.
+
+--------------------------------------------------------------------------------
+F6 - THE A/B PAIR: FAILED HALT-CLASS PASS CONDITION, CONFIRMED BY RE-MEASUREMENT
+--------------------------------------------------------------------------------
+
+  THE PASS CONDITION, in the AAP's own terms (0.5.1, restated as a Stage 2 pass
+  condition in 0.9.1): 'the Opengrep A/B produces one traced line-72 finding with
+  taint on and none with it off, from two invocations differing only in that
+  setting, written outside raw/'.
+
+  WHAT IS MEASURED. Re-taken in this checkout during this correction pass:
+
+  $ cmp harness/artifacts/logs/taint-ab-on.sarif harness/artifacts/logs/taint-ab-off.sarif
+  [result]  byte-identical, exit 0
+
+  $ wc -c harness/artifacts/logs/taint-ab-{on,off}.sarif
+  4753 harness/artifacts/logs/taint-ab-on.sarif
+  4753 harness/artifacts/logs/taint-ab-off.sarif
+
+  $ sha256sum harness/artifacts/logs/taint-ab-{on,off}.sarif
+  7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778  taint-ab-on.sarif
+  7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778  taint-ab-off.sarif
+
+  $ python3 - (json.load over each artifact)
+  taint-ab-on.sarif  results: 1   startLine: [72]   codeFlows per result: [1]
+  taint-ab-off.sarif results: 1   startLine: [72]   codeFlows per result: [1]
+
+  This arm - the OFF arm, the control - was required to produce ZERO. It produced
+  one traced finding at line 72, and its artifact is the same 4753 bytes as the ON
+  arm's. The condition's OFF half therefore does not hold, exactly as PHASE 2
+  (lines 99-120) and PHASE 4 (lines 466-469) already state.
+
+  TAINT WAS THE SOLE DIFFERENCE - re-verified rather than restated. The two argv
+  vectors this run recorded were diffed again during this pass:
+
+  $ diff <(sed -n '788,803p' taint-ab-on.log) <(sed -n '769,785p' taint-ab-on.log)
+  5a6
+  > --taint-intrafile
+  7c8
+  < /tmp/blitzy-harness-scratch/22/taint-ab/control-off.sarif
+  ---
+  > .../harness/artifacts/logs/taint-ab-on.sarif
+
+  Exactly two differences: the taint flag, and the write destination - which two
+  arms cannot share and which the byte-identical outputs prove did not affect the
+  analysis. Every analysis-affecting token is identical: the rule, the ruleset,
+  the working directory, --dataflow-traces, --timeout 120, --timeout-threshold 0,
+  --max-target-bytes 20000000, --x-ignore-semgrepignore-files,
+  --disable-version-check and the single target file.
+
+  THE MECHANICAL REASON, STATED PRECISELY - TWO LIMBS, BOTH FROM THE ENGINE AND
+  THE SUBJECT RATHER THAN FROM SPECULATION:
+
+  1. THE ENGINE EXPOSES NO TAINT-DISABLING SWITCH AT ALL. Opengrep 1.27.1's
+     complete taint-option set is two entries, and both ENABLE behaviour:
+       --guarded-taint-signatures   (help line 192; REQUIRES --experimental)
+       --taint-intrafile            (help line 445; enables intra-file
+                                     inter-procedural taint)
+     There is no --no-taint and no taint-off mode. The --pro, --pro-intrafile and
+     --pro-path-sensitive family would change the engine rather than disable
+     taint, and it requires the proprietary Semgrep Pro Engine, which is
+     unlicensed and deliberately unused here (AAP 0.3.2).
+     Evidence: APPENDIX F of this file (lines 1005-1054), quoted verbatim from
+     `opengrep scan --help` as captured by this run - 558 lines, 22619 bytes, the
+     taint-option list at lines 1052-1054 carrying exactly those two entries; and
+     the same help output was re-read on this host during this correction pass:
+
+     $ opengrep scan --help > <scratch>/opengrep_help.txt 2><scratch>/opengrep_help.err
+     exit=0
+     $ wc -lc <scratch>/opengrep_help.txt
+     558 22619
+     $ grep -n -i taint <scratch>/opengrep_help.txt
+     192:       --guarded-taint-signatures
+     193:           Attach branch-condition guards to taint effects and evaluate them
+     445:       --taint-intrafile
+     446:           Enable intra-file inter-procedural taint analysis. Supported
+
+     The re-read agrees with this file's captured APPENDIX F down to the line
+     count, the byte count and the two help-line numbers, and it returns no
+     disabling switch. Printing the help text performs no scan and writes nothing
+     into either artifact tree.
+     CONSEQUENCE: this arm is necessarily INTRAPROCEDURAL TAINT, not a taint-free
+     control. A taint-free arm is not constructible at this pin, so no invocation
+     of this engine can produce the zero the pass condition asks for on a subject
+     whose flow the default intraprocedural analysis already reaches.
+
+  2. ON THIS SUBJECT FILE THE FLOW NEVER CROSSES A METHOD BOUNDARY, so the one
+     thing --taint-intrafile adds has nothing to contribute. The rule's source is
+     the parameter of `def put(blockId: BlockId)` at DiskStore.scala line 64 and
+     its sink is the interpolated string at line 72; both trace steps this run
+     captured sit at line 72. Intra-file INTER-procedural taint is therefore inert
+     here, which is why the flag changed nothing down to the byte.
+
+  TAKEN TOGETHER: the pair cannot discriminate on the mandated subject file, for
+  a reason internal to the engine and the subject rather than to the invocation.
+
+  CLASSIFICATION: the AAP 0.9.1 Stage 2 pass condition is NOT met, and AAP 0.9.2's
+  'a failed taint A/B' is engaged. This is a HALT-CLASS FAILURE. It is recorded and
+  NOT repaired: no rule, file, line or flag was changed to obtain the expected
+  answer, no arm was re-run, and the discriminating measurement on a DIFFERENT
+  file (PHASE 5 D4) remains inherited, unanchored and explicitly not a substitute
+  for the mandated A/B.
+
+  NEITHER LOG CLAIMS THE PROOF SUCCEEDED - audited during this pass. Both files
+  were searched for any success claim ('proven', 'proof', 'PASS', 'capability
+  established'). What the search returns is: this file's PHASE 2 lines 99-120 and
+  PHASE 4 lines 466-469, both stating the failure; and in taint-ab-on.log its
+  STATUS lines 94-101, PHASE 5 D1 lines 444-468, line 454's 'nothing downstream
+  should read the ON arm's single traced finding as a proven contrast, because
+  there is no contrast', and line 150's statement of method ('taint is proven by
+  an A/B RESULT, never by a configuration flag'). No line in either file asserts
+  that the taint proof succeeded, and this correction adds none.
+
+--------------------------------------------------------------------------------
+F39 - BYTE ACCOUNTING: THIS FILE'S OWN FIGURES, AND THE STALE D5 DISPOSITION
+--------------------------------------------------------------------------------
+
+  THIS FILE'S OWN TWO APPENDIX FIGURES WERE ALREADY CORRECT, re-measured here
+  from the exact emitted bytes it carries:
+
+  $ sed -n '802,828p' harness/artifacts/logs/taint-ab-off.log | wc -c
+  1475          <- APPENDIX A, this arm's stdout as reproduced here; the file
+                   states 1475 at line 418 and again at line 800. Agrees.
+
+  $ sed -n '838,852p' harness/artifacts/logs/taint-ab-off.log | wc -c
+  582           <- APPENDIX B, this arm's stderr as reproduced here; the file
+                   states 582 at line 419 and again at line 836. Agrees.
+
+  So nothing in this file's own byte accounting needed correcting. What needed
+  correcting is the DISPOSITION recorded in PHASE 5 D5, which said the companion
+  file's wrong figure had been reported and left unedited.
+
+  THE SUPERSEDED WORDING, quoted verbatim from lines 663-664 as this run wrote
+  them:
+      'D5  A byte-count discrepancy in the ON arm's own record, reported and NOT
+           edited, since that file is another deliverable and not this one's to fix.'
+
+  WHY IT NO LONGER HOLDS: on code review finding F39 the companion file WAS
+  corrected. taint-ab-on.log lines 348-349 now read
+
+      [stdout]  APPENDIX A, verbatim (1387 bytes - SUPERSEDED AND WRONG; measured 1474: see F39)
+      [stderr]  APPENDIX B, verbatim (450 bytes - SUPERSEDED AND WRONG; measured 582: see F39)
+
+  and that file carries its own appended correction pass stating the corrected
+  figures and the method. D5's MEASUREMENTS are untouched and still hold - 1387
+  stated, 1474 embedded, 1475 stream, the difference being exactly one trailing
+  blank line - and D5's quotation of the ON arm's line 348 is a quotation of that
+  line as it stood when this file was written, which is why it was not rewritten.
+
+  THE SECOND WRONG FIGURE, WHICH D5 DID NOT COVER. D5 reported only the stdout
+  discrepancy. The ON arm's stderr figure was wrong in the same way and is
+  corrected in that file on the same finding:
+      stated 450 bytes; measured 582 bytes
+  $ diff <(sed -n '689,703p' taint-ab-on.log) <(sed -n '838,852p' taint-ab-off.log)
+  [no output - byte-identical, 582 bytes each]
+  This arm's independent capture of the same stream is therefore the corroborating
+  measurement for the corrected 582, exactly as it is for the corrected 1474.
+
+  CORRECTED FIGURES ACROSS THE PAIR, and what each one is a figure OF:
+      ON arm stdout stream                  : 1475 bytes (this file's independent
+                                              capture, line 418)
+      ON arm stdout, as embedded in that file: 1474 bytes (one trailing blank
+                                              line short of the stream)
+      ON arm stderr stream                  : 582 bytes
+      ON arm stderr, as embedded in that file: 582 bytes (equal to the stream)
+      OFF arm stdout stream and embedding   : 1475 bytes (agree; stated correctly)
+      OFF arm stderr stream and embedding   : 582 bytes  (agree; stated correctly)
+
+  The superseded figures 1387 and 450 correspond to nothing either file carries -
+  neither the streams nor the embedded blocks. They are wrong rather than merely
+  stale, and they are kept visible in the companion file rather than deleted. The
+  original scratch captures they were presumably taken from
+  (/tmp/blitzy-harness-scratch/22/taint-ab/) no longer exist - re-checked during
+  this pass, the directory is absent - so the embedded appendices and this arm's
+  independent capture are the surviving evidence.
+
+  CONSEQUENCE FOR THE A/B OUTCOME: none. The outcome turns on finding counts,
+  finding lines and artifact digests, all of which are unchanged and all of which
+  were re-measured above. The consequence is to the record's self-consistency,
+  which is why it is corrected here rather than absorbed.
+
+  WHAT THIS PASS DID NOT DO: it did not re-run either arm, did not alter any
+  captured stream, digest, timestamp or count, did not touch either .sarif, and
+  did not convert the failed contrast into a pass.
+
+================================================================================
+END OF THE CORRECTION PASS APPENDED TO harness/artifacts/logs/taint-ab-off.log
 ================================================================================

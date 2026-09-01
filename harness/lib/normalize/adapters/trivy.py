@@ -264,8 +264,10 @@ class TrivyAdapterError(ValueError):
     reconcile cleanly while reporting a malformed artifact as a clean scan -- and an
     empty result set is indistinguishable from a clean scan, which is the failure mode
     the mandated shape-routing negative test exists to prevent.  A ``Results`` key
-    that is **absent or null** is a different thing entirely and is not an error: an
-    empty Trivy report is ordinary.
+    that is **null** is a different thing entirely and is not an error: an empty Trivy
+    report is ordinary.  A ``Results`` key that is **absent** is likewise not an error
+    here, and cannot arrive through routing at all -- ``shape.py``'s Trivy envelope
+    requires the key -- so it is reachable only from a direct call.
     """
 
 
@@ -685,9 +687,11 @@ COUNTER_RESULTS_WITHOUT_SUPPORTED_SECTION: Final[str] = (
     "results_without_supported_section"
 )
 
-#: Set to 1 where the document carries no ``Results`` member or a null one: a
+#: Set to 1 where the document carries a null ``Results`` member, or none at all: a
 #: legitimate empty report, recorded so "nothing to normalize" is visible as an
-#: observation rather than inferred from a zero row count.
+#: observation rather than inferred from a zero row count.  Through routing only the
+#: null form reaches here -- ``shape.py``'s Trivy envelope requires the key to be
+#: present -- so a 1 from an absent key means the adapter was called directly.
 COUNTER_RESULTS_ABSENT: Final[str] = "results_absent_or_null"
 
 #: Non-empty ``Packages``/``CustomResources`` arrays observed.  Object arrays that are
@@ -1838,10 +1842,20 @@ def _validated_document(doc: Any) -> Mapping[str, Any]:
     malformed artifact as a clean scan, and an empty result set is indistinguishable from
     a clean scan.
 
-    ``Results`` **absent or null** is explicitly not an error.  Trivy legitimately emits a
-    report with nothing to say, ``shape.py`` states that a ``trivy.json`` carrying no
-    ``Results`` key still routes here, and AAP 0.5.4 makes an empty report ordinary.  The
-    absence is counted rather than raised, so it is visible in ``normalize-run.json``.
+    ``Results`` **null**, and ``Results`` absent, are explicitly not errors here.  Trivy
+    legitimately emits a report with nothing to say and AAP 0.5.4 makes an empty report
+    ordinary, so the emptiness is counted rather than raised and is visible in
+    ``normalize-run.json``.  The two arrive by different routes, which is worth stating
+    because the difference is not this function's to enforce: ``shape.py`` requires a
+    ``trivy.json`` to carry the ``Results`` key -- as an array or ``null`` -- so an
+    artifact with the key **absent** halts at the router under
+    ``REASON_NATIVE_SHAPE_UNRECOGNIZED`` and never reaches this adapter, while a ``null``
+    ``Results`` satisfies that envelope and does.  The absent case is still handled rather
+    than assumed away, because this function is called directly by
+    ``oss-scan-results/adapter-tests/test_trivy_adapter.py`` and duplicating the router's
+    refusal here would report one condition under two vocabularies -- a caller who did
+    bypass routing would get an ``AdapterError`` where the run record already has a shape
+    halt for the same bytes.
 
     ``SchemaVersion`` is not checked.  The provisioned artifact carries ``2``, but the
     field is not part of any contract this pipeline was given, and refusing a report over
@@ -2264,4 +2278,3 @@ def adapt(
             counters[COUNTER_RESULTS_WITHOUT_SUPPORTED_SECTION] += 1
 
     return rows, rejections, counters
-

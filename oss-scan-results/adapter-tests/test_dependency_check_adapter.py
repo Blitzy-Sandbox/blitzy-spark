@@ -88,7 +88,7 @@ The CVSS v3.1 qualitative scale (specification document section 5,
 emitted under this dataset's own label **``Info``** -- a mapping this dataset defines and
 **not** a CVSS label.  The other four labels and all four boundaries are the standard's, and
 all nine boundary values are asserted below.  An advisory commonly carries several scores
-from different sources -- the positive fixture's first record carries three CVSS blocks
+from different sources -- the derived feature fixture's first record carries three CVSS blocks
 spanning Critical, Medium and Low at once -- which is precisely why *which* entry was
 selected must be recorded, and why this file asserts ``SeverityResult.basis`` and
 ``SeverityResult.selected_entry`` rather than the band alone.
@@ -119,12 +119,31 @@ Derived documents, and why they exist
 -------------------------------------
 Three behaviours the AAP requires asserted are not reached by any committed fixture, and
 each expected file names the gap and prescribes the cover: level 3 of the coordinate
-precedence (every record in the positive fixture has a ``name`` that is its own rule
+precedence (every record in the derived feature fixture has a ``name`` that is its own rule
 identifier or is CVE-shaped, and both are refused as package names); a path that relativizes
 outside the root as a plain file rather than as an archive member; and the ``no_vocabulary``
 and ``unmapped_literal`` severity bases.  They are covered by documents **authored as
-literals in this module**, never by editing a fixture: a committed fixture is an unmodified
-capture and stays byte-identical, which this module re-checks by sha256.
+literals in this module**, never by editing a fixture: a committed fixture is either a
+capture or an explicitly declared derived document, and either way stays byte-identical,
+which this module re-checks by sha256.
+
+Fixture provenance, and one requirement recorded as failed
+----------------------------------------------------------
+``fixtures/dependency-check.json`` is a **capture**: a byte-for-byte copy of the whole raw
+artifact ``harness/artifacts/raw/dependency-check.json``, same byte count and same sha256,
+asserted against that file directly by :class:`RawArtifactProvenanceTest` rather than
+against a digest this tree owns both sides of.  That artifact carries 32 dependencies, **zero
+vulnerability records and zero package objects**, and one vulnerability record is this
+shape's count unit -- so the capture produces **zero rows**, which
+:class:`CapturedFixtureTest` asserts.
+
+AAP 0.6.2's captured-positive-mapping requirement therefore **cannot be satisfied** for this
+adapter, and ``expected/dependency-check.rows.json`` records it as **failed**, with the
+measurement that makes it failed, rather than declaring an exception or a waiver.  Positive
+mapping is exercised instead by ``fixtures/derived-dependency-check-features.json``, which is
+declared **derived** in its own expected file and is never presented as captured output.
+Every feature test below -- the coordinate levels, the severity precedence, the
+relativization, the identifier selection -- runs against that derived fixture.
 
 How the negative fixtures are read
 ----------------------------------
@@ -174,6 +193,7 @@ Standard library only, no ``pytest``, and runnable from any working directory::
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
 import sys
@@ -270,13 +290,27 @@ RECORDED_INVOCATIONS_PER_RUN = 1
 # counts, counters and rejections.  Nothing here decides routing: shape detection is
 # shape.py's and is asserted by test_shape_routing_negative.py.
 # --------------------------------------------------------------------------------------
-POSITIVE_FIXTURE = "dependency-check"
+#: The CAPTURED fixture: a byte-for-byte copy of the whole raw artifact
+#: harness/artifacts/raw/dependency-check.json.  It carries 32 dependencies, no
+#: vulnerabilities key on any of them and therefore ZERO records, so it produces zero rows.
+#: That is the honest consequence of capturing this tool's own output, and
+#: expected/dependency-check.rows.json records AAP 0.6.2's captured-positive-mapping
+#: requirement as FAILED for this adapter rather than declaring an exception to it.
+CAPTURED_FIXTURE = "dependency-check"
+
+#: The DERIVED feature fixture, declared derived in its own expected file.  It is where the
+#: twelve-field mapping, the path relativization, the four coordinate levels and the
+#: label-over-score precedence are exercised, because the capture above cannot exercise a
+#: single field of the row builder.  It is authored from the raw artifact's report shape and
+#: is never presented as captured output.
+DERIVED_FEATURES_FIXTURE = "derived-dependency-check-features"
 
 #: One entry per rejection condition this adapter can produce and for which this tree
 #: carries a fixture.  The class each is expected to yield is read from its expectation
 #: rather than from its slug -- the first entry is exactly why (its filePath is emptied, so
 #: its class is absent_path and not the unresolvable_path the slug reads like).
 REJECT_FIXTURES = (
+    "reject-dependency-check-absent-path",
     "reject-dependency-check-unresolvable-path",
     "reject-dependency-check-missing-rule-id",
     "reject-dependency-check-missing-message",
@@ -285,13 +319,50 @@ REJECT_FIXTURES = (
 )
 
 #: Every committed fixture this module reads, in a stable order.
-ALL_FIXTURES = (POSITIVE_FIXTURE,) + REJECT_FIXTURES
+ALL_FIXTURES = (CAPTURED_FIXTURE, DERIVED_FEATURES_FIXTURE) + REJECT_FIXTURES
+
+#: The fixture whose rejection is supplied by the caller's METADATA rather than by anything
+#: wrong with a record.  ``unresolvable_path`` is the one path-family class this adapter
+#: cannot reach from record content, because the recorded ``path_base.kind`` of
+#: ``filesystem_absolute`` always supplies a base.  The class is reachable from the metadata,
+#: and AAP 0.9.4 requires a committed fixture for every condition an exercised adapter can
+#: produce, so this document carries six SOUND records and is evaluated under a
+#: ``ToolPathBase`` whose kind is ``none``.  The variant is constructed by
+#: :meth:`Environment.base_of_kind`, never by editing
+#: ``harness/artifacts/logs/runner-metadata.json``.
+#:
+#: It is deliberately **not** in :data:`ALL_FIXTURES`: the loops over that tuple adapt under
+#: the recorded base and compare against the expectation's top-level rows and counters, which
+#: for this file describe the variant.  :class:`MetadataVariantFixtureTests` owns it, and
+#: :data:`EVERY_COMMITTED_FIXTURE` is what the file-property loops iterate.
+METADATA_VARIANT_FIXTURES = ("reject-dependency-check-unresolvable-path-missing-base",)
+
+#: Every fixture this module reads, whichever base its expectation is stated against.  Used
+#: only by assertions about the *files* -- presence, digest, parseability -- never by one that
+#: adapts a document under an assumed base.
+EVERY_COMMITTED_FIXTURE = ALL_FIXTURES + METADATA_VARIANT_FIXTURES
+
+#: The raw artifact the captured fixture is a copy of.  Read directly by
+#: :class:`RawArtifactProvenanceTest`, which is what makes the capture claim a measurement
+#: against the tool's own output rather than a digest this tree owns both sides of.
+RAW_ARTIFACT = REPO_ROOT / "harness" / "artifacts" / "raw" / "dependency-check.json"
 
 #: sha256 of each committed fixture as this module found it.  Re-checked by
-#: :class:`FixtureIntegrityTest`: a fixture is an unmodified capture, and a test that
-#: silently normalized one would be asserting against a shape the tool never emitted.
+#: :class:`FixtureIntegrityTest`.  The captured fixture's digest is additionally asserted
+#: equal to the raw artifact's own digest by :class:`RawArtifactProvenanceTest`, so the
+#: capture claim is not proved by a number this tree owns both sides of; a fixture that was
+#: silently normalized would be asserting against a shape the tool never emitted.
 FIXTURE_SHA256 = {
+    "reject-dependency-check-absent-path": (
+        "cef4785fa3afbe45a741d7b08fa4468e697ce1da0fb44562c4a6fa83a9e5cfd8"
+    ),
+    "reject-dependency-check-unresolvable-path-missing-base": (
+        "5971433127538d8c5653a6bdab66c0731e00c73042c2372080967b417663d6c3"
+    ),
     "dependency-check": (
+        "ebe98aed11973718591f8c7490eedde86f97bf4fb2047a059e499be50e02c3b9"
+    ),
+    "derived-dependency-check-features": (
         "53fb2fa91725148f1b33df951f95e8ee01ef98ec62bebb10b73bd541bf10de68"
     ),
     "reject-dependency-check-unresolvable-path": (
@@ -407,9 +478,11 @@ def expected_path(name: str) -> Path:
 def load_fixture(name: str) -> dict:
     """Parse a committed fixture.
 
-    Read-only, and never written back: a fixture is an unmodified capture of the tool's own
-    output, and its bytes are what make the positive mapping a statement about the shape the
-    tool emits rather than about the shape someone believed it emits.
+    Read-only, and never written back.  ``dependency-check.json`` is an unmodified capture of
+    the tool's own output and its bytes are what make a statement about this shape a statement
+    about what the tool emits; ``derived-dependency-check-features.json`` is a declared
+    derived document, and its bytes are what keep the derivation reviewable rather than
+    regenerated per run.
     """
     return json.loads(fixture_path(name).read_text(encoding="utf-8"))
 
@@ -1005,23 +1078,32 @@ class ContractTest(AdapterTestCase):
             scan_root=FIXTURE_ROOT,
         )
         with self.assertRaises(dependency_check.DependencyCheckAdapterError):
-            self.env.adapt(load_fixture(POSITIVE_FIXTURE), tool_base=foreign)
+            self.env.adapt(load_fixture(DERIVED_FEATURES_FIXTURE), tool_base=foreign)
         with self.assertRaises(dependency_check.DependencyCheckAdapterError):
-            self.env.adapt(load_fixture(POSITIVE_FIXTURE), tool="trivy")
+            self.env.adapt(load_fixture(DERIVED_FEATURES_FIXTURE), tool="trivy")
 
 
 class FixtureIntegrityTest(AdapterTestCase):
-    """The committed fixtures and expectations are unmodified captures, and stay that way.
+    """The committed fixtures and expectations are unchanged, and stay that way.
 
     A positive fixture is *"an unmodified excerpt captured from the tool's own output, because
     a hand-written fixture tests the adapter against the shape you believed the tool emits
-    rather than the shape it emits"* (AAP 0.6.2).  This module therefore never writes to
-    either directory, and re-checks by digest that it has not.
+    rather than the shape it emits"* (AAP 0.6.2).  ``fixtures/dependency-check.json`` is that
+    capture and is asserted against the raw artifact by
+    :class:`RawArtifactProvenanceTest`; ``fixtures/derived-dependency-check-features.json`` is
+    declared derived in its own expected file and is asserted **not** to be the raw artifact.
+    This module therefore never writes to either directory, and re-checks by digest that it
+    has not.
     """
 
     def test_every_fixture_and_expectation_is_present(self) -> None:
-        """All six fixtures and all six expectations exist, and parse."""
-        for name in ALL_FIXTURES:
+        """Every committed fixture and its expectation exists, and parses.
+
+        :data:`EVERY_COMMITTED_FIXTURE` rather than :data:`ALL_FIXTURES`, so the
+        metadata-variant document is held to the same presence check as the rest: presence is
+        a property of the file, not of the base its expectation is stated against.
+        """
+        for name in EVERY_COMMITTED_FIXTURE:
             self.assertTrue(fixture_path(name).exists(), f"{name}.json is missing")
             self.assertTrue(expected_path(name).exists(), f"{name}.rows.json is missing")
             self.assertIsInstance(load_fixture(name), dict)
@@ -1033,8 +1115,9 @@ class FixtureIntegrityTest(AdapterTestCase):
             self.assertEqual(
                 sha256_of(fixture_path(name)),
                 digest,
-                f"{name}.json has changed: a fixture is an unmodified capture, so a "
-                "difference is a finding to diagnose rather than a digest to update",
+                f"{name}.json has changed: a fixture is a capture or a declared "
+                "derived document and is never edited in place, so a difference is a "
+                "finding to diagnose rather than a digest to update",
             )
 
     def test_every_expectation_states_the_root_its_rows_are_stated_against(self) -> None:
@@ -1064,6 +1147,279 @@ class FixtureIntegrityTest(AdapterTestCase):
             )
 
 
+class RawArtifactProvenanceTest(AdapterTestCase):
+    """The capture claim is measured against ``harness/artifacts/raw/dependency-check.json``.
+
+    A digest recorded in this tree and re-checked against this tree proves only
+    self-consistency: it cannot tell a capture from an authored document that has not changed
+    since it was authored.  So this class opens the raw artifact itself -- the bytes the
+    runner wrote, committed under ``harness/artifacts/raw/`` and never modified by this module
+    -- and asserts the relationship each committed fixture claims:
+
+    * ``fixtures/dependency-check.json`` **is** the raw artifact: same bytes, same sha256,
+      equal parsed documents, and no member the raw artifact lacks;
+    * the raw artifact carries **zero** vulnerability records and **zero** package objects, so
+      the failure of AAP 0.6.2's captured-positive-mapping requirement recorded in
+      ``expected/dependency-check.rows.json`` is a measured claim rather than a statement in
+      prose;
+    * ``fixtures/derived-dependency-check-features.json`` is **declared derived** in its own
+      expected file and is **not** the raw artifact.
+
+    The artifact is required present rather than skipped over: a missing raw artifact would
+    make every provenance claim in this tree unfalsifiable, so its absence fails here with the
+    path named.
+    """
+
+    def test_the_raw_artifact_this_capture_came_from_is_present(self) -> None:
+        """The raw artifact exists and parses, and its absence is a failure rather than a skip."""
+        self.assertTrue(
+            RAW_ARTIFACT.is_file(),
+            f"the raw artifact is missing: {RAW_ARTIFACT.relative_to(REPO_ROOT)} must be "
+            "present for any provenance claim in this tree to be checkable, and a skipped "
+            "provenance check is indistinguishable from a passing one",
+        )
+        raw = json.loads(RAW_ARTIFACT.read_text(encoding="utf-8"))
+        self.assertIsInstance(raw, dict)
+        self.assertEqual(
+            sorted(raw),
+            ["dependencies", "projectInfo", "reportSchema", "scanInfo"],
+            "the raw artifact's top-level members are the report shape this adapter reads",
+        )
+
+    def test_the_captured_fixture_is_the_raw_artifact_byte_for_byte(self) -> None:
+        """Bytes, sha256 and parsed document all equal the raw artifact's.
+
+        Byte equality is asserted first and digest equality second: the digest is the value
+        the expected file and :data:`FIXTURE_SHA256` record, so asserting it against the raw
+        artifact's own digest is what ties both records to the tool's output rather than to
+        each other.
+        """
+        raw_bytes = RAW_ARTIFACT.read_bytes()
+        fixture_bytes = fixture_path(CAPTURED_FIXTURE).read_bytes()
+        self.assertEqual(
+            len(fixture_bytes),
+            len(raw_bytes),
+            "the captured fixture is the whole artifact, so its byte count is the raw "
+            "artifact's",
+        )
+        self.assertEqual(
+            fixture_bytes,
+            raw_bytes,
+            "fixtures/dependency-check.json must be the raw artifact byte for byte; a "
+            "difference is a finding to diagnose rather than a fixture to relabel",
+        )
+        digest = hashlib.sha256(raw_bytes).hexdigest()
+        self.assertEqual(sha256_of(fixture_path(CAPTURED_FIXTURE)), digest)
+        self.assertEqual(FIXTURE_SHA256[CAPTURED_FIXTURE], digest)
+        recorded = load_expected(CAPTURED_FIXTURE)["fixture"]
+        self.assertEqual(recorded["sha256"], digest)
+        self.assertEqual(recorded["bytes"], len(raw_bytes))
+        self.assertEqual(
+            recorded["captured_from"], "harness/artifacts/raw/dependency-check.json"
+        )
+        # Parsed equality as well as byte equality: byte equality already implies it, and
+        # asserting both means a future fixture reformatted rather than rewritten still fails
+        # the byte assertion while this one names what did and did not survive.
+        self.assertEqual(load_fixture(CAPTURED_FIXTURE), json.loads(raw_bytes.decode()))
+
+    def test_the_captured_fixture_introduces_no_member_the_raw_artifact_lacks(self) -> None:
+        """No key at any depth appears in the fixture that the raw artifact does not carry."""
+        raw = json.loads(RAW_ARTIFACT.read_text(encoding="utf-8"))
+        fixture = load_fixture(CAPTURED_FIXTURE)
+        self.assertEqual(sorted(fixture), sorted(raw))
+        self.assertEqual(len(fixture["dependencies"]), len(raw["dependencies"]))
+        for index, (mine, theirs) in enumerate(
+            zip(fixture["dependencies"], raw["dependencies"])
+        ):
+            with self.subTest(dependency=index):
+                self.assertEqual(sorted(mine), sorted(theirs))
+                self.assertEqual(
+                    json.dumps(mine, sort_keys=True),
+                    json.dumps(theirs, sort_keys=True),
+                    f"dependency {index} differs from the raw artifact's",
+                )
+        for member in ("reportSchema", "scanInfo", "projectInfo"):
+            with self.subTest(member=member):
+                self.assertEqual(
+                    json.dumps(fixture[member], sort_keys=True),
+                    json.dumps(raw[member], sort_keys=True),
+                )
+
+    def test_the_raw_artifact_carries_no_vulnerability_and_no_package_record(self) -> None:
+        """The measurement behind the recorded capture failure, taken from the raw artifact.
+
+        Counted over the raw file rather than over the fixture, so the number that makes AAP
+        0.6.2 unsatisfiable here is read from the tool's own output.  Both readings are
+        asserted -- the record count and the package-object count -- because a shape with
+        packages but no vulnerabilities would still be a zero-row capture and a different
+        finding.
+        """
+        raw = json.loads(RAW_ARTIFACT.read_text(encoding="utf-8"))
+        dependencies = raw["dependencies"]
+        vulnerabilities = sum(
+            len(entry.get("vulnerabilities") or ()) for entry in dependencies
+        )
+        packages = sum(len(entry.get("packages") or ()) for entry in dependencies)
+        self.assertEqual(len(dependencies), 32)
+        self.assertEqual(
+            vulnerabilities,
+            0,
+            "the recorded failure of the captured-positive-mapping requirement rests on "
+            "this being zero",
+        )
+        self.assertEqual(packages, 0)
+        self.assertEqual(
+            count_records(raw),
+            0,
+            "the independent traversal agrees: no record, on the same count unit",
+        )
+        recorded = load_expected(CAPTURED_FIXTURE)[
+            "aap_captured_positive_mapping_requirement"
+        ]
+        self.assertEqual(recorded["status"], "FAILED")
+        self.assertEqual(recorded["measured_evidence"]["raw_dependencies"], 32)
+        self.assertEqual(recorded["measured_evidence"]["raw_vulnerability_records"], 0)
+        self.assertEqual(recorded["measured_evidence"]["raw_package_objects"], 0)
+        self.assertEqual(recorded["measured_evidence"]["rows_the_capture_produces"], 0)
+        self.assertEqual(recorded["measured_evidence"]["raw_artifact_bytes"], 17097)
+        self.assertEqual(
+            recorded["measured_evidence"]["raw_artifact_sha256"],
+            hashlib.sha256(RAW_ARTIFACT.read_bytes()).hexdigest(),
+        )
+
+    def test_the_derived_fixture_is_declared_derived_and_is_not_the_raw_artifact(
+        self,
+    ) -> None:
+        """The derived fixture declares its provenance and cannot be mistaken for the capture.
+
+        Three assertions, because a derived fixture wrongly labelled a capture is exactly the
+        false-positive test this class exists to prevent: the expected file says DERIVED, it
+        names what it was derived from, and the bytes differ from the raw artifact's.
+        """
+        recorded = load_expected(DERIVED_FEATURES_FIXTURE)["fixture"]
+        self.assertEqual(
+            recorded["path"],
+            "oss-scan-results/adapter-tests/fixtures/"
+            "derived-dependency-check-features.json",
+        )
+        self.assertTrue(
+            recorded["provenance"].startswith("DERIVED"),
+            "the derived fixture must declare itself derived in its expected file",
+        )
+        self.assertIn("harness/artifacts/raw/dependency-check.json", recorded["derived_from"])
+        self.assertTrue(recorded["cases_this_fixture_exists_to_exercise"])
+        self.assertNotIn(
+            "captured_from",
+            recorded,
+            "a derived fixture must not claim a capture provenance",
+        )
+        derived_bytes = fixture_path(DERIVED_FEATURES_FIXTURE).read_bytes()
+        raw_bytes = RAW_ARTIFACT.read_bytes()
+        self.assertNotEqual(derived_bytes, raw_bytes)
+        self.assertNotEqual(
+            hashlib.sha256(derived_bytes).hexdigest(),
+            hashlib.sha256(raw_bytes).hexdigest(),
+        )
+        self.assertEqual(
+            FIXTURE_SHA256[DERIVED_FEATURES_FIXTURE],
+            hashlib.sha256(derived_bytes).hexdigest(),
+        )
+
+
+class CapturedFixtureTest(AdapterTestCase):
+    """The capture produces zero rows, and every number that follows from that.
+
+    This is the other half of the recorded failure: it is not enough to say in an expected
+    file that the capture exercises no field of the row builder -- the run has to show it.
+    So the capture is adapted and asserted to emit no row, reject nothing, and move exactly
+    two counters, with the reconciliation identity holding at zero and the parse status
+    ``clean`` rather than ``partial``.
+    """
+
+    def test_the_capture_emits_no_row_and_rejects_nothing(self) -> None:
+        """Zero records in, zero rows and zero rejections out, and that is not an error."""
+        adapted = self.env.adapt_fixture(CAPTURED_FIXTURE)
+        expectation = load_expected(CAPTURED_FIXTURE)
+        self.assertEqual(adapted.rows, [])
+        self.assertEqual(adapted.rejections, [])
+        self.assertEqual(expectation["rows"], [])
+        self.assertEqual(expectation["counts"]["rows"], 0)
+        self.assertEqual(expectation["counts"]["rejections"], 0)
+        self.assertEqual(expectation["counts"]["rejections_by_class"], {})
+        self.assertEqual(adapted.tally.row_count(TOOL), 0)
+
+    def test_the_reconciliation_identity_holds_at_zero(self) -> None:
+        """``0 == 0 + 0`` from two independently arrived-at numbers, not from one.
+
+        And zero is asserted to be a *record* count rather than an absent artifact: AAP 0.5.4
+        reserves ``not applicable -- artifact absent`` for a tool that wrote nothing, and this
+        tool wrote a parsable artifact that contains nothing.
+        """
+        adapted = self.env.adapt_fixture(CAPTURED_FIXTURE)
+        raw = count_records(load_fixture(CAPTURED_FIXTURE))
+        expectation = load_expected(CAPTURED_FIXTURE)
+        self.assertEqual(raw, 0)
+        self.assertEqual(raw, expectation["counts"]["raw_finding_records"])
+        self.assertEqual(raw, len(adapted.rows) + len(adapted.rejections))
+        self.assertTrue(fixture_path(CAPTURED_FIXTURE).is_file())
+        self.assertIn("not applicable", expectation["counts"]["zero_is_not_absent"])
+
+    def test_only_the_two_dependency_counters_move(self) -> None:
+        """All thirty-three counters, so a measured zero is distinguishable from a stray count.
+
+        ``dependencies`` reaches 32 and ``dependencies_without_vulnerabilities_array`` reaches
+        32 -- the loop counts each entry and continues past it -- while every other counter
+        stays at zero because the row builder is never entered.  Asserted against the
+        expectation's whole counter block rather than against the two keys alone: a counter
+        that moved without a row would otherwise be invisible.
+        """
+        adapted = self.env.adapt_fixture(CAPTURED_FIXTURE)
+        expectation = load_expected(CAPTURED_FIXTURE)
+        self.assert_counters(adapted.counters, expectation["counters"], CAPTURED_FIXTURE)
+        self.assertEqual(adapted.counters["dependencies"], 32)
+        self.assertEqual(
+            adapted.counters["dependencies_without_vulnerabilities_array"], 32
+        )
+        moved = {
+            key: value for key, value in adapted.counters.items() if value != 0
+        }
+        self.assertEqual(
+            sorted(moved),
+            ["dependencies", "dependencies_without_vulnerabilities_array"],
+            "no other counter may move for an artifact that produced no row",
+        )
+
+    def test_the_expected_file_records_the_requirement_as_failed_in_its_own_words(
+        self,
+    ) -> None:
+        """The recorded failure is stated as a failure, not as an exception or a waiver.
+
+        Asserted on the text, because the wording is the deliverable here: a reader of
+        ``expected/dependency-check.rows.json`` must find the requirement named, its status
+        ``FAILED``, the measurement that makes it failed, and where positive mapping is
+        exercised instead -- and must not find it described as satisfied by substitution.
+        """
+        expectation = load_expected(CAPTURED_FIXTURE)
+        recorded = expectation["aap_captured_positive_mapping_requirement"]
+        self.assertEqual(recorded["status"], "FAILED")
+        self.assertIn("AAP 0.6.2", recorded["requirement"])
+        statement = recorded["statement"]
+        self.assertIn("CANNOT be satisfied", statement)
+        self.assertIn("FAILED", statement)
+        self.assertIn("ZERO vulnerability records", statement)
+        self.assertIn("not an exception", statement)
+        self.assertIn("not a waiver", statement)
+        self.assertIn(
+            "derived-dependency-check-features.json",
+            recorded["where_positive_mapping_is_exercised_instead"],
+        )
+        self.assertIn("failed requirement", recorded["not_an_exception"])
+        self.assertIn("acceptable substitute", recorded["not_an_exception"])
+        # And the same statement is carried in the file's own description, so a reader who
+        # opens it at the top rather than at this block still meets the failure.
+        self.assertIn("CANNOT be satisfied", expectation["description"])
+
+
 class PathResolutionTest(AdapterTestCase):
     """Every ``path`` is expressed against the ``SPARK_SRC`` root, and none is ever absolute.
 
@@ -1082,7 +1438,7 @@ class PathResolutionTest(AdapterTestCase):
         anywhere in the eighteen in-scope directories**, and the realistic surface this tool
         sees is the 40 vendored front-end bundles (30 ``.js`` and 10 ``.css``).
         """
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         by_rule = {row["rule_id"]: row for row in adapted.rows}
         row = by_rule["jquery.cookies 2.2.0 unsafe cookie value deserialization"]
         self.assertEqual(row["path"], IN_SCOPE_BUNDLE)
@@ -1264,7 +1620,7 @@ class PathResolutionTest(AdapterTestCase):
         does.  The three files asserted here are the three that actually exist inside the pin
         and outside the globs.
         """
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         out_of_glob = [row for row in adapted.rows if not row["in_scope"]]
         self.assertEqual(len(out_of_glob), 4, "three lockfiles, one of them twice")
         for row in out_of_glob:
@@ -1392,7 +1748,7 @@ class PackageCoordinatePrecedenceTest(AdapterTestCase):
     dependency-oriented shape rather than a null field.
 
     This adapter is the folder's reference implementation of that precedence, which is why
-    every level is exercised here rather than only the ones a captured artifact happens to
+    every level is exercised here rather than only the ones the artifact happens to
     reach.
     """
 
@@ -1413,7 +1769,7 @@ class PackageCoordinatePrecedenceTest(AdapterTestCase):
 
         The level that proves the precedence is *ordered* rather than opportunistic: an
         implementation scanning ``packages[]`` before the record would emit level (b)'s value
-        and every other row would still look right.  The captured fixture carries the same
+        and every other row would still look right.  The derived feature fixture carries the same
         case -- a record ``purl`` alongside a package object that also holds one.
         """
         doc, record, element = precedence_case()
@@ -1437,16 +1793,16 @@ class PackageCoordinatePrecedenceTest(AdapterTestCase):
         ):
             self.assertEqual(adapted.counters[other], 0, f"{other} must not move")
 
-        # Captured evidence for the same level, from the tool's own output.
-        captured = self.env.adapt_fixture(POSITIVE_FIXTURE)
-        by_rule = {row["rule_id"]: row for row in captured.rows}
+        # Fixture evidence for the same level, from the derived feature fixture.
+        features = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
+        by_rule = {row["rule_id"]: row for row in features.rows}
         self.assertEqual(
             by_rule["CVE-2020-28458"]["package_coordinate"],
             "pkg:npm/datatables.net@1.13.11",
             "the record's own purl, although its package object carries "
             "pkg:javascript/datatables@1.13.11",
         )
-        self.assertEqual(captured.counters["package_coordinate_from_record_package_url"], 1)
+        self.assertEqual(features.counters["package_coordinate_from_record_package_url"], 1)
 
     def test_level_b_package_object_package_url_when_the_record_carries_none(self) -> None:
         """Level (b) is chosen once (a) is withheld, with (c) and (d) still available."""
@@ -1467,10 +1823,10 @@ class PackageCoordinatePrecedenceTest(AdapterTestCase):
         )
         self.assertEqual(adapted.counters["package_coordinate_from_record_package_url"], 0)
 
-        # The level that carries the captured artifact: six of its eight rows.
-        captured = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        # The level that carries the derived feature fixture: six of its eight rows.
+        features = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         self.assertEqual(
-            captured.counters["package_coordinate_from_package_object_package_url"], 6
+            features.counters["package_coordinate_from_package_object_package_url"], 6
         )
 
     def test_level_c_record_fields_with_the_ecosystem_lower_cased(self) -> None:
@@ -1481,7 +1837,7 @@ class PackageCoordinatePrecedenceTest(AdapterTestCase):
         a different package.  The literal here is mixed-case (``PyPI``) precisely so a dropped
         fold fails this assertion instead of passing unnoticed.
 
-        No row of the captured fixture reaches this level, and not because the fixture avoids
+        No row of the derived feature fixture reaches this level, and not because it avoids
         it: a Dependency-Check vulnerability's ``name`` is the advisory identifier, so a name
         equal to the record's own rule identifier or CVE-shaped is refused as a package name,
         and every record in that artifact is one or the other.  Both refusals are asserted
@@ -1537,17 +1893,17 @@ class PackageCoordinatePrecedenceTest(AdapterTestCase):
                 "offers nothing and no level below it does either",
             )
         self.assertEqual(
-            self.env.adapt_fixture(POSITIVE_FIXTURE).counters[
+            self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE).counters[
                 "package_coordinate_from_record_fields"
             ],
             0,
-            "which is why no row of the captured artifact is formed at level (c)",
+            "which is why no row of the derived feature fixture is formed at level (c)",
         )
 
     def test_level_d_package_object_fields_when_no_level_above_offers_one(self) -> None:
         """Level (d) forms the triple from the enclosing package's fields, ecosystem folded.
 
-        Reached in the captured artifact by exactly one row, for two stated reasons: its
+        Reached in the derived feature fixture by exactly one row, for two stated reasons: its
         package object's ``id`` is a CPE, which is not a package URL and is never coerced into
         one, so level (b) offers nothing; and its ``name`` is its own rule identifier, so
         level (c) is refused.
@@ -1572,15 +1928,15 @@ class PackageCoordinatePrecedenceTest(AdapterTestCase):
             adapted.counters["package_coordinate_from_package_object_fields"], 1
         )
 
-        captured = self.env.adapt_fixture(POSITIVE_FIXTURE)
-        by_rule = {row["rule_id"]: row for row in captured.rows}
+        features = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
+        by_rule = {row["rule_id"]: row for row in features.rows}
         self.assertEqual(
             by_rule["sonatype-2021-0163"]["package_coordinate"],
             "javascript:d3-flame-graph@4.1.3",
             "the ecosystem 'JavaScript' lower-cased, the name and version as observed",
         )
         self.assertEqual(
-            captured.counters["package_coordinate_from_package_object_fields"], 1
+            features.counters["package_coordinate_from_package_object_fields"], 1
         )
 
     def test_a_within_level_tie_takes_the_lexicographically_smallest(self) -> None:
@@ -1624,11 +1980,11 @@ class PackageCoordinatePrecedenceTest(AdapterTestCase):
             adapted.counters["package_coordinate_multiple_candidates_at_level"], 1
         )
 
-        # Captured evidence: the tool's own output carries the same disagreement, with the
+        # Fixture evidence: the derived feature fixture carries the same disagreement, with the
         # npm entry first and marked LOW confidence and the javascript entry second and HIGH,
         # so neither array order nor the confidence field decides it.
-        captured = self.env.adapt_fixture(POSITIVE_FIXTURE)
-        by_rule = {row["rule_id"]: row for row in captured.rows}
+        features = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
+        by_rule = {row["rule_id"]: row for row in features.rows}
         self.assertEqual(
             by_rule["jquery.cookies 2.2.0 unsafe cookie value deserialization"][
                 "package_coordinate"
@@ -1641,7 +1997,7 @@ class PackageCoordinatePrecedenceTest(AdapterTestCase):
             "'j' precedes 'n', and the npm entry is the one the producer put first",
         )
         self.assertEqual(
-            captured.counters["package_coordinate_multiple_candidates_at_level"], 1
+            features.counters["package_coordinate_multiple_candidates_at_level"], 1
         )
 
     def test_no_formable_coordinate_is_a_counted_rejection_and_never_a_null_field(self) -> None:
@@ -1729,7 +2085,7 @@ class SeverityTest(AdapterTestCase):
     recorded -- the label, or the score with its source and version."*  So every assertion
     here reads ``SeverityResult.basis`` and ``SeverityResult.selected_entry`` and not the band
     alone: a band with no recorded selection is a band nobody can check, and an advisory
-    routinely carries several scores from different sources -- the captured artifact's first
+    routinely carries several scores from different sources -- the derived fixture's first
     record carries three CVSS blocks spanning Critical, Medium and Low at once.
 
     The seam these assertions use is the adapter's own public
@@ -1743,11 +2099,11 @@ class SeverityTest(AdapterTestCase):
     def test_a_mapped_label_governs_over_every_coexisting_score(self) -> None:
         """A mapped label wins whatever the scores say, and the label is what is recorded.
 
-        The captured record asserted first is the reference disagreement and a wide one: a
+        The fixture record asserted first is the reference disagreement and a wide one: a
         ``LOW`` label beside ``cvssv3`` 9.1 (Critical), ``cvssv2`` 4.3 (Medium) and ``cvssv4``
         2.3 (Low).  An implementation reading ``cvssv3`` -- the usual choice -- emits Critical.
         """
-        fixture = load_fixture(POSITIVE_FIXTURE)
+        fixture = load_fixture(DERIVED_FEATURES_FIXTURE)
         record = fixture["dependencies"][0]["vulnerabilities"][0]
         self.assertEqual(record["name"], "CVE-2024-6531", "the record this asserts about")
         candidates = dependency_check.score_candidates(record)
@@ -1761,7 +2117,7 @@ class SeverityTest(AdapterTestCase):
         self.assertEqual(result.severity_native, "LOW")
         self.assertEqual(result.severity_norm, "Low")
 
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         by_rule = {row["rule_id"]: row for row in adapted.rows}
         self.assertEqual(by_rule["CVE-2024-6531"]["severity_native"], "LOW")
         self.assertEqual(by_rule["CVE-2024-6531"]["severity_norm"], "Low")
@@ -1810,13 +2166,13 @@ class SeverityTest(AdapterTestCase):
     def test_with_no_mapped_label_a_score_governs_and_the_entry_is_recorded(self) -> None:
         """The selected score entry is recorded with its source and its version.
 
-        The captured record carries no ``severity`` member at all and two CVSS blocks, so the
+        The fixture record carries no ``severity`` member at all and two CVSS blocks, so the
         candidates are consulted and ``cvssv3`` is selected over ``cvssv2`` by the documented
         order -- highest CVSS version first, version ``3.1`` above version ``2.0``.  Neither
         half of the recorded source is invented: a block named ``cvssv3`` is a version-3
         entry, and the record's own ``source`` is the provenance of the scores under it.
         """
-        fixture = load_fixture(POSITIVE_FIXTURE)
+        fixture = load_fixture(DERIVED_FEATURES_FIXTURE)
         record = fixture["dependencies"][5]["vulnerabilities"][1]
         self.assertEqual(record["name"], "CVE-2020-11022")
         self.assertNotIn("severity", record, "the record carries no label to govern")
@@ -1836,7 +2192,7 @@ class SeverityTest(AdapterTestCase):
             "and the adapter agrees no literal was present",
         )
 
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         by_rule = {row["rule_id"]: row for row in adapted.rows}
         self.assertEqual(by_rule["CVE-2020-11022"]["severity_native"], "7.5")
         self.assertEqual(by_rule["CVE-2020-11022"]["severity_norm"], "High")
@@ -1855,10 +2211,10 @@ class SeverityTest(AdapterTestCase):
         its score is highest.  Recording the entry is what makes that visible at all -- both
         readings produce a band, and only one of them names the entry that produced it.
         """
-        fixture = load_fixture(POSITIVE_FIXTURE)
-        captured = fixture["dependencies"][0]["vulnerabilities"][0]
+        fixture = load_fixture(DERIVED_FEATURES_FIXTURE)
+        fixture_record = fixture["dependencies"][0]["vulnerabilities"][0]
         unlabelled = {
-            key: value for key, value in captured.items() if key != "severity"
+            key: value for key, value in fixture_record.items() if key != "severity"
         }
         candidates = dependency_check.score_candidates(unlabelled)
         self.assertEqual(
@@ -1942,9 +2298,9 @@ class SeverityTest(AdapterTestCase):
         than invented here, because this module asserts the authored policy and does not
         author a rounding rule of its own.
         """
-        expectation = load_expected(POSITIVE_FIXTURE)
+        expectation = load_expected(DERIVED_FEATURES_FIXTURE)
         expected_by_rule = {row["rule_id"]: row for row in expectation["rows"]}
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         observed_by_rule = {row["rule_id"]: row for row in adapted.rows}
 
         for rule_id, measured, band in (
@@ -1952,7 +2308,7 @@ class SeverityTest(AdapterTestCase):
             ("sonatype-2022-6438", MEASURED_FLOAT_MEDIUM, "Medium"),
         ):
             with self.subTest(rule_id=rule_id):
-                fixture_record = self._captured_record(rule_id)
+                fixture_record = self._fixture_record(rule_id)
                 self.assertEqual(
                     fixture_record["severity"],
                     measured,
@@ -2017,7 +2373,7 @@ class SeverityTest(AdapterTestCase):
         ``severity-map.md`` reports observed literals with per-literal row counts and
         upper-casing here would misreport a literal the tool never wrote.
         """
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         by_rule = {row["rule_id"]: row for row in adapted.rows}
         row = by_rule["jquery.cookies 2.2.0 unsafe cookie value deserialization"]
         self.assertEqual(row["severity_native"], "moderate", "as the artifact spelled it")
@@ -2090,11 +2446,11 @@ class SeverityTest(AdapterTestCase):
                 self.assertEqual(unmapped[0].rows, 2, "with the rows it affected")
                 self.assertTrue(unmapped[0].unmapped)
 
-        # The captured artifact carries no unmapped literal, and that is stated rather than
+        # The derived feature fixture carries no unmapped literal, and that is stated rather than
         # left as an untested zero: every literal in it is a mapped label or a bandable number.
-        captured = self.env.adapt_fixture(POSITIVE_FIXTURE)
-        self.assertEqual(captured.counters["severity_basis_unmapped_literal"], 0)
-        self.assertEqual(captured.tally.unmapped_by_tool()[TOOL], ())
+        features = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
+        self.assertEqual(features.counters["severity_basis_unmapped_literal"], 0)
+        self.assertEqual(features.tally.unmapped_by_tool()[TOOL], ())
 
     def test_a_record_with_no_severity_vocabulary_states_the_absence(self) -> None:
         """A null ``severity`` and no score: ``severity_native`` absent, ``severity_norm`` Info.
@@ -2132,7 +2488,7 @@ class SeverityTest(AdapterTestCase):
 
         ``severity_norm`` is not among the five fields absence is permitted in, and
         ``severity.py`` enforces the invariant on every construction of its result -- so this
-        asserts it holds through the adapter for real captured output as well as for the
+        asserts it holds through the adapter for every committed fixture as well as for the
         absent-vocabulary and unmapped-literal paths, which are the two that band from policy.
         """
         for name in ALL_FIXTURES:
@@ -2158,14 +2514,14 @@ class SeverityTest(AdapterTestCase):
                 )
                 self.assertIn(adapted.one_row["severity_norm"], severity.SEVERITY_NORM)
 
-    def test_every_row_of_the_captured_artifact_agrees_with_its_recorded_basis(self) -> None:
+    def test_every_row_of_the_derived_fixture_agrees_with_its_recorded_basis(self) -> None:
         """The basis counters decompose the rows exactly, so no row banded unaccountably.
 
         Their sum is the row count by construction, which makes the decomposition one
         measurement split rather than a second count -- the property AAP 0.6.4 requires of a
         number appearing twice.
         """
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         by_basis = sum(
             adapted.counters[f"severity_basis_{basis}"] for basis in severity.BASIS_VALUES
         )
@@ -2184,17 +2540,18 @@ class SeverityTest(AdapterTestCase):
 
     # -- helper ---------------------------------------------------------------------- #
 
-    def _captured_record(self, rule_id: str) -> dict:
-        """Return the captured vulnerability whose ``name`` is ``rule_id``.
+    def _fixture_record(self, rule_id: str) -> dict:
+        """Return the derived fixture's vulnerability whose ``name`` is ``rule_id``.
 
-        Read from the fixture rather than reconstructed, so an assertion about a measured
-        literal is made against the bytes the tool wrote.
+        Read from the committed fixture rather than reconstructed, so an assertion about a
+        literal is made against the bytes the fixture carries rather than against a value
+        restated in the test.
         """
-        for element in load_fixture(POSITIVE_FIXTURE)["dependencies"]:
+        for element in load_fixture(DERIVED_FEATURES_FIXTURE)["dependencies"]:
             for record in element.get("vulnerabilities") or ():
                 if isinstance(record, dict) and record.get("name") == rule_id:
                     return record
-        raise AssertionError(f"no captured record named {rule_id!r}")
+        raise AssertionError(f"no fixture record named {rule_id!r}")
 
 
 def count_records(doc: dict) -> int:
@@ -2220,9 +2577,14 @@ def count_records(doc: dict) -> int:
 
 
 class PositiveMappingTest(AdapterTestCase):
-    """The captured positive fixture, asserted field by field against its hand-verified rows.
+    """The derived feature fixture, asserted field by field against its hand-verified rows.
 
-    The positive fixture is an unmodified capture of the tool's own output, and the expectation
+    This is where positive mapping is exercised, because the capture cannot exercise it: the
+    raw artifact carries no vulnerability record, so ``fixtures/dependency-check.json``
+    produces zero rows and AAP 0.6.2's captured-positive-mapping requirement is recorded as
+    failed in ``expected/dependency-check.rows.json``.  The fixture read here is declared
+    **derived** in ``expected/derived-dependency-check-features.rows.json``, and the
+    expectation
     beside it was derived by reading that output and the authored contracts -- never by running
     the adapter and recording what it printed.  So this class is the one place the two meet, and
     a disagreement is a finding to diagnose rather than a file to overwrite.
@@ -2230,11 +2592,11 @@ class PositiveMappingTest(AdapterTestCase):
 
     def test_the_row_count_matches_the_expectation_exactly(self) -> None:
         """Eight records, eight rows, no rejection -- and the identity holds."""
-        expectation = load_expected(POSITIVE_FIXTURE)
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        expectation = load_expected(DERIVED_FEATURES_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         self.assertEqual(len(adapted.rows), expectation["counts"]["rows"])
         self.assertEqual(len(adapted.rejections), expectation["counts"]["rejections"])
-        raw = count_records(load_fixture(POSITIVE_FIXTURE))
+        raw = count_records(load_fixture(DERIVED_FEATURES_FIXTURE))
         self.assertEqual(
             raw,
             expectation["counts"]["raw_finding_records"],
@@ -2256,22 +2618,22 @@ class PositiveMappingTest(AdapterTestCase):
         order and, within each, ``vulnerabilities[]`` in order, which is the order both output
         files use.
         """
-        expectation = load_expected(POSITIVE_FIXTURE)
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        expectation = load_expected(DERIVED_FEATURES_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         self.assertEqual(len(adapted.rows), len(expectation["rows"]))
         for index, (observed, expected) in enumerate(
             zip(adapted.rows, expectation["rows"])
         ):
             with self.subTest(row_index=index, rule_id=expected["rule_id"]):
                 self.assert_row_matches(observed, expected, f"row {index}")
-        self.assert_no_absolute_paths(adapted.rows, "the positive fixture")
+        self.assert_no_absolute_paths(adapted.rows, "the derived feature fixture")
 
     def test_every_counter_matches_the_expectation(self) -> None:
         """All thirty-three counters, including the four the AAP reports per tool."""
-        expectation = load_expected(POSITIVE_FIXTURE)
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        expectation = load_expected(DERIVED_FEATURES_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         self.assert_counters(
-            adapted.counters, expectation["counters"], "the positive fixture"
+            adapted.counters, expectation["counters"], "the derived feature fixture"
         )
         self.assertEqual(len(expectation["counters"]), len(dependency_check.COUNTER_KEYS))
 
@@ -2293,17 +2655,17 @@ class PositiveMappingTest(AdapterTestCase):
     def test_the_dependency_carrying_no_vulnerabilities_key_contributes_nothing(self) -> None:
         """A clean dependency is neither a row nor a rejection -- it is the ordinary shape.
 
-        The captured fixture's eighth dependency is the one manifest-shaped file in scope,
+        The derived fixture's eighth dependency is the one manifest-shaped file in scope,
         ``core/src/main/resources/org/apache/spark/ui/static/package.json``, and it carries no
         ``vulnerabilities`` member at all.  Emitting a row per dependency would inflate every
         count in the dataset, so the absence is counted rather than passed over in silence.
         """
-        fixture = load_fixture(POSITIVE_FIXTURE)
+        fixture = load_fixture(DERIVED_FEATURES_FIXTURE)
         clean = fixture["dependencies"][7]
         self.assertTrue(clean["filePath"].endswith(IN_SCOPE_MANIFEST))
         self.assertNotIn("vulnerabilities", clean)
 
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         self.assertEqual(adapted.counters["dependencies"], 8)
         self.assertEqual(adapted.counters["dependencies_without_vulnerabilities_array"], 1)
         self.assertEqual(adapted.counters["dependencies_skipped_non_mapping"], 0)
@@ -2341,9 +2703,9 @@ class IdentifierAndLineTest(AdapterTestCase):
         Dependency-Check also reports non-CVE advisory identifiers -- a GHSA identifier, a
         Sonatype identifier, a RetireJS description -- and those belong in ``rule_id`` alone,
         so a name matching nothing yields ``None`` rather than being copied across.  Both
-        directions are asserted, on captured rows and on derived ones.
+        directions are asserted, on committed-fixture rows and on documents authored here.
         """
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         by_rule = {row["rule_id"]: row for row in adapted.rows}
         self.assertEqual(by_rule["CVE-2024-6531"]["cve"], "CVE-2024-6531", "CVE-shaped")
         self.assertIsNone(
@@ -2404,25 +2766,26 @@ class IdentifierAndLineTest(AdapterTestCase):
         self.assertEqual(adapted.one_row["cve"], numerically_first)
         self.assertEqual(adapted.counters["multi_valued_cve_records"], 1)
         self.assertEqual(
-            self.env.adapt_fixture(POSITIVE_FIXTURE).counters["multi_valued_cve_records"],
+            self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE).counters["multi_valued_cve_records"],
             0,
-            "no captured name carries more than one, which is why the derived case exists",
+            "no name in the committed fixture carries more than one, which is why the "
+            "authored case exists",
         )
 
     def test_cwe_selection_is_by_ascending_numeric_identifier(self) -> None:
         """One ``cwe`` per row, the lowest numeric identifier, with the multi-valued count.
 
-        The captured record carries ``["CWE-1321", "CWE-915"]``, where numeric and
+        The fixture record carries ``["CWE-1321", "CWE-915"]``, where numeric and
         lexicographic order disagree -- 915 is the lower number while ``CWE-1321`` is the
         earlier text, and it is also the one the producer put first.  So this single assertion
         separates the stated ordering from both a string sort and a take-the-first reading.
         """
         self.assertLess("CWE-1321", "CWE-915", "as text, the higher number sorts first")
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         by_rule = {row["rule_id"]: row for row in adapted.rows}
         self.assertEqual(by_rule["CVE-2020-28458"]["cwe"], "CWE-915")
         self.assertEqual(
-            self._captured_cwes("CVE-2020-28458"),
+            self._fixture_cwes("CVE-2020-28458"),
             ["CWE-1321", "CWE-915"],
             "the producer order the fixture carries",
         )
@@ -2440,9 +2803,9 @@ class IdentifierAndLineTest(AdapterTestCase):
         counted rather than turned into a fabricated ``CWE-noinfo``, which is why a reader
         seeing ``cwe: null`` on that row can tell policy from a defect.
         """
-        adapted = self.env.adapt_fixture(POSITIVE_FIXTURE)
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         by_rule = {row["rule_id"]: row for row in adapted.rows}
-        self.assertEqual(self._captured_cwes("CVE-2024-49761"), ["NVD-CWE-noinfo"])
+        self.assertEqual(self._fixture_cwes("CVE-2024-49761"), ["NVD-CWE-noinfo"])
         self.assertIsNone(by_rule["CVE-2024-49761"]["cwe"])
         self.assertEqual(adapted.counters["cwe_entries_without_identifier"], 1)
         self.assertEqual(adapted.counters["cwe_absent"], 2)
@@ -2474,8 +2837,9 @@ class IdentifierAndLineTest(AdapterTestCase):
         """``relatedDependencies`` is the one multi-location shape, and the row takes the primary.
 
         AAP 0.5.4: the row takes the first location, the record still counts once, and the
-        number of records carrying more than one is reported per tool.  No captured dependency
-        carries the array, so the case is derived -- and the captured zero is asserted too, so
+        number of records carrying more than one is reported per tool.  No dependency in the
+        committed fixture carries the array, so the case is authored -- and the fixture's zero
+        is asserted too, so
         the counter is shown to move only when the shape is present.
         """
         related = self.env.derived_absolute("dev/package-lock.json")
@@ -2497,18 +2861,18 @@ class IdentifierAndLineTest(AdapterTestCase):
         self.assertEqual(len(adapted.rows), 1, "the record still counts once")
         self.assertEqual(adapted.counters["multi_location_records"], 1)
         self.assertEqual(
-            self.env.adapt_fixture(POSITIVE_FIXTURE).counters["multi_location_records"],
+            self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE).counters["multi_location_records"],
             0,
-            "no captured dependency carries the array",
+            "no dependency in the committed fixture carries the array",
         )
 
-    def _captured_cwes(self, rule_id: str) -> list:
-        """Return the ``cwes`` array the captured record whose ``name`` is ``rule_id`` carries."""
-        for element in load_fixture(POSITIVE_FIXTURE)["dependencies"]:
+    def _fixture_cwes(self, rule_id: str) -> list:
+        """Return the ``cwes`` array the fixture record whose ``name`` is ``rule_id`` carries."""
+        for element in load_fixture(DERIVED_FEATURES_FIXTURE)["dependencies"]:
             for record in element.get("vulnerabilities") or ():
                 if isinstance(record, dict) and record.get("name") == rule_id:
                     return list(record.get("cwes") or ())
-        raise AssertionError(f"no captured record named {rule_id!r}")
+        raise AssertionError(f"no fixture record named {rule_id!r}")
 
 
 class NegativeFixtureTest(AdapterTestCase):
@@ -2834,6 +3198,480 @@ class NegativeFixtureTest(AdapterTestCase):
             self.assertNotIn(reject_class, observed)
 
 
+class MetadataVariantFixtureTests(AdapterTestCase):
+    """The committed fixture for ``unresolvable_path``, evaluated under a metadata variant.
+
+    This class is the fixture-backed coverage AAP 0.9.4 requires for the one path-family
+    rejection class this adapter cannot reach from any record's content.  The reason it cannot
+    is the recorded ``path_base.kind`` of ``filesystem_absolute``, which always supplies a base
+    -- established branch by branch in
+    ``expected/reject-dependency-check-unresolvable-path.rows.json``'s
+    ``why_unresolvable_path_is_unreachable_for_this_adapter``, and not re-derived here.
+
+    So the fixture carries **no defective record at all**: six sound dependencies whose
+    ``filePath`` values are ordinary, and the condition lives in the metadata the fixture is
+    evaluated against.  Two properties follow, and both are asserted below.
+
+    * Under the variant -- a ``ToolPathBase`` whose kind is ``none`` -- every record is
+      rejected at step 4 under ``unresolvable_path``, sharing one detail and distinguished by
+      six identities.  These are the expectation's **top-level** rows, counts, counters and
+      rejections.
+    * Under the base ``harness/artifacts/logs/runner-metadata.json`` actually records, the same
+      six records become six rows and there is no rejection.  These are the expectation's
+      ``contrast_under_the_recorded_base`` block.
+
+    The pair is what makes the claim checkable: every ``filePath`` in the artifact is absolute
+    under the very root a fall-back resolver would have defaulted to, so an implementation that
+    treated an unestablished base as "use the scan root" would emit the contrast block's six
+    rows under the variant too, and nothing downstream could tell them from correctly resolved
+    rows.
+
+    The variant is constructed by :meth:`Environment.base_of_kind`, which writes a minimal
+    metadata document inside this module's own temporary directory.
+    ``harness/artifacts/logs/runner-metadata.json`` is never edited: it is the gate's record of
+    the provisioning as it was found, and editing its ``path_base`` to make a class reachable
+    would falsify a record this run is required to preserve (AAP 0.3.2, AAP 0.8.1).
+    """
+
+    #: The one fixture this class owns.
+    FIXTURE = METADATA_VARIANT_FIXTURES[0]
+
+    #: The six identity keys ``_adapt_vulnerability`` and ``resolve_recorded_path`` build
+    #: between them, in the order they are set: four before step 1, ``name`` after step 2, and
+    #: ``reported_path`` by the resolver's ``setdefault``.
+    IDENTITY_KEYS = (
+        "dependency_index",
+        "vulnerability_index",
+        "fileName",
+        "filePath",
+        "name",
+        "reported_path",
+    )
+
+    def setUp(self) -> None:
+        """Load the fixture and its expectation fresh, and build the variant base."""
+        self.document = load_fixture(self.FIXTURE)
+        self.expected = load_expected(self.FIXTURE)
+        self.variant_base = self.env.base_of_kind(paths.PATH_BASE_KIND_NONE)
+
+    # -- the fixture itself ---------------------------------------------------------- #
+
+    def test_the_fixture_carries_no_defective_record(self) -> None:
+        """Every record is sound: an object with a usable name, description and filePath.
+
+        The guard predicates are re-implemented here from the adapter's contract rather than
+        imported from it, so this asserts the fixture's shape independently of the code whose
+        behaviour the rest of the class measures.  A fixture with a defective record would
+        confound the two causes and could not establish that the class turns on the metadata.
+        """
+        dependencies = self.document["dependencies"]
+        self.assertEqual(len(dependencies), self.expected["fixture"]["dependencies"])
+        self.assertEqual(self.expected["fixture"]["defective_records"], 0)
+
+        records = 0
+        for index, dep in enumerate(dependencies):
+            self.assertIsInstance(dep, dict, f"/dependencies/{index} is a mapping")
+            for record_index, record in enumerate(dep.get("vulnerabilities") or []):
+                records += 1
+                where = f"/dependencies/{index}/vulnerabilities/{record_index}"
+                self.assertIsInstance(record, dict, f"{where} is a mapping")
+                for field in ("name", "description"):
+                    value = record.get(field)
+                    self.assertIsInstance(value, str, f"{where}/{field} is a string")
+                    self.assertTrue(value.strip(), f"{where}/{field} is not blank")
+                file_path = dep.get("filePath")
+                self.assertIsInstance(file_path, str, f"{where}: filePath is a string")
+                self.assertTrue(file_path.strip(), f"{where}: filePath is not blank")
+        self.assertEqual(records, self.expected["fixture"]["vulnerability_records"])
+        self.assertEqual(records, self.expected["counts"]["raw_finding_records"])
+
+    def test_the_fixture_agrees_with_its_recorded_digest_and_size(self) -> None:
+        """The expectation's ``fixture`` block describes the file on disk, byte for byte."""
+        block = self.expected["fixture"]
+        path = fixture_path(self.FIXTURE)
+        raw = path.read_bytes()
+        self.assertEqual(block["path"], f"oss-scan-results/adapter-tests/{path.parent.name}/"
+                         f"{path.name}")
+        self.assertEqual(block["bytes"], len(raw))
+        self.assertEqual(block["lines"], raw.count(b"\n"))
+        self.assertEqual(block["sha256"], sha256_of(path))
+        self.assertEqual(block["sha256"], FIXTURE_SHA256[self.FIXTURE])
+        self.assertNotIn(b"\r", raw, "LF only, per the recorded line_ending")
+
+    def test_the_fixture_is_the_sibling_minus_its_one_defective_dependency(self) -> None:
+        """Seven of the sibling's eight dependencies, carried unchanged and in order.
+
+        The derivation the expectation states, asserted against both files rather than taken on
+        trust.  The excluded element is the sibling's blank-``filePath`` dependency, and the
+        reason it had to go is branch precedence: ``absent_path`` is tested before
+        ``PATH_BASE_KIND_NONE``, so that record would be classified ``absent_path`` even under
+        this variant and would put two classes in a fixture whose subject is one.
+        """
+        sibling = load_fixture("reject-dependency-check-unresolvable-path")
+        carried = (0, 1, 3, 4, 5, 6, 7)
+        self.assertEqual(len(sibling["dependencies"]), 8)
+        self.assertEqual(len(self.document["dependencies"]), len(carried))
+
+        canonical = lambda value: json.dumps(  # noqa: E731 - a local comparison spelling
+            value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
+        for new_index, old_index in enumerate(carried):
+            self.assertEqual(
+                canonical(self.document["dependencies"][new_index]),
+                canonical(sibling["dependencies"][old_index]),
+                f"/dependencies/{new_index} is the sibling's /dependencies/{old_index}",
+            )
+        for key in ("reportSchema", "scanInfo", "projectInfo"):
+            self.assertEqual(
+                canonical(self.document[key]),
+                canonical(sibling[key]),
+                f"{key} is byte-identical to the sibling's",
+            )
+
+        excluded = sibling["dependencies"][2]
+        self.assertEqual(excluded["filePath"], "")
+        self.assertEqual(len(excluded["vulnerabilities"]), 2)
+        self.assertNotIn(
+            "",
+            [dep["filePath"] for dep in self.document["dependencies"]],
+            "no dependency here carries the blank filePath that reaches absent_path first",
+        )
+
+    # -- the variant it is evaluated under ------------------------------------------- #
+
+    def test_the_variant_base_supplies_no_base_and_differs_only_in_its_kind(self) -> None:
+        """The variant differs from the recorded base in one field: its kind.
+
+        Asserted so the outcome below is attributable to that one difference.  ``base_value``
+        follows from the kind -- :meth:`Environment._metadata_document` writes null for
+        ``none`` -- and ``record_path_field`` is carried over unchanged.
+        """
+        self.assertEqual(self.variant_base.kind, paths.PATH_BASE_KIND_NONE)
+        self.assertEqual(self.variant_base.kind, self.expected["resolution_context"]
+                         ["metadata_variant"]["kind"])
+        self.assertIsNone(self.variant_base.base_value)
+        self.assertFalse(self.variant_base.has_explicit_base)
+        self.assertIsNone(self.variant_base.base_for_relative())
+        self.assertEqual(self.variant_base.record_path_field, RECORDED_RECORD_PATH_FIELD)
+
+        recorded = self.env.fixture_base
+        self.assertEqual(recorded.kind, RECORDED_PATH_BASE_KIND)
+        self.assertTrue(recorded.has_explicit_base)
+        self.assertEqual(recorded.record_path_field, self.variant_base.record_path_field)
+        self.assertNotEqual(recorded.kind, self.variant_base.kind)
+
+    def test_the_expectation_states_the_variant_it_is_evaluated_under(self) -> None:
+        """``resolution_context`` names the variant rather than the recorded base.
+
+        The narrowed form of :meth:`FixtureIntegrityTest.
+        test_every_expectation_states_the_root_its_rows_are_stated_against`, which excludes this
+        fixture precisely because its context states the variant.  The exclusion narrows a
+        check rather than dropping one, and this is where the narrowing is discharged.
+        """
+        context = self.expected["resolution_context"]
+        self.assertEqual(context["root"], FIXTURE_ROOT)
+        self.assertEqual(context["evaluated_under"], "a metadata variant, not the recorded "
+                         "metadata")
+
+        variant = context["metadata_variant"]
+        self.assertEqual(variant["kind"], paths.PATH_BASE_KIND_NONE)
+        self.assertIsNone(variant["base_value"])
+        self.assertFalse(variant["has_explicit_base"])
+
+        recorded = context["recorded_metadata_for_this_tool"]
+        self.assertEqual(recorded["kind"], RECORDED_PATH_BASE_KIND)
+        self.assertEqual(recorded["base_value"], FIXTURE_ROOT)
+        self.assertTrue(recorded["has_explicit_base"])
+        self.assertEqual(recorded["record_path_field"], RECORDED_RECORD_PATH_FIELD)
+
+    def test_the_expectation_names_the_class_by_its_paths_literal(self) -> None:
+        """``rejection_class.expected_class`` is the literal ``paths.REJECT_UNRESOLVABLE_PATH``."""
+        self.assertEqual(
+            self.expected["rejection_class"]["expected_class"],
+            paths.REJECT_UNRESOLVABLE_PATH,
+        )
+        self.assert_reject_class_is_real(
+            self.expected["rejection_class"]["expected_class"]
+        )
+        self.assertIn(paths.REJECT_UNRESOLVABLE_PATH, PRODUCIBLE_REJECT_CLASSES)
+
+    # -- the outcome under the variant ------------------------------------------------ #
+
+    def test_the_fixture_produces_its_recorded_outcome_under_the_variant(self) -> None:
+        """Zero rows, six rejections, one class, and the thirty-three counters as recorded."""
+        adapted = self.env.adapt(
+            self.document, root=FIXTURE_ROOT, tool_base=self.variant_base
+        )
+        counts = self.expected["counts"]
+
+        self.assertEqual(adapted.rows, [])
+        self.assertEqual(adapted.rows, self.expected["rows"])
+        self.assertEqual(len(adapted.rejections), counts["rejections"])
+        self.assertEqual(len(adapted.rejections), len(self.expected["rejections"]))
+        self.assertEqual(
+            set(adapted.reject_classes), {paths.REJECT_UNRESOLVABLE_PATH}
+        )
+        self.assert_counters(adapted.counters, self.expected["counters"], self.FIXTURE)
+        self.assertEqual(count_records(self.document), counts["raw_finding_records"])
+        self.assertEqual(
+            counts["raw_finding_records"], len(adapted.rows) + len(adapted.rejections)
+        )
+        self.assertEqual(counts["reconciliation_arithmetic"], "6 == 0 + 6")
+
+    def test_every_rejection_matches_its_recorded_detail_and_identity(self) -> None:
+        """Each rejection is asserted against its own entry, in traversal order.
+
+        The identities differ, so a reordering fails the comparison rather than passing it
+        silently -- which is what makes zipping them positionally a check rather than an
+        assumption.
+        """
+        adapted = self.env.adapt(
+            self.document, root=FIXTURE_ROOT, tool_base=self.variant_base
+        )
+        self.assertEqual(len(adapted.rejections), len(self.expected["rejections"]))
+        for observed, expectation in zip(adapted.rejections, self.expected["rejections"]):
+            where = expectation["record_pointer"]
+            self.assert_reject_class_is_real(expectation["reject_class"])
+            self.assertEqual(observed.reject_class, expectation["reject_class"], where)
+            self.assertEqual(observed.tool, TOOL, where)
+            self.assertEqual(observed.detail, expectation["expected_detail"], where)
+            identity = dict(observed.record_identity)
+            self.assertEqual(identity, expectation["expected_record_identity"], where)
+            self.assertEqual(
+                list(identity), expectation["expected_record_identity_keys"], where
+            )
+            self.assertEqual(list(identity), list(self.IDENTITY_KEYS), where)
+
+    def test_the_six_rejections_share_one_detail_and_quote_the_metadata_kind(self) -> None:
+        """One detail for six records, because the detail names the metadata condition.
+
+        The condition is one condition shared by the whole artifact, so the prose cannot
+        distinguish the records and the identities must.  Both halves are asserted: exactly one
+        distinct detail, and six distinct identities.
+        """
+        adapted = self.env.adapt(
+            self.document, root=FIXTURE_ROOT, tool_base=self.variant_base
+        )
+        details = {rejection.detail for rejection in adapted.rejections}
+        self.assertEqual(len(details), 1, f"one shared detail, observed {len(details)}")
+        detail = details.pop()
+        self.assertIn("path_base.kind 'none'", detail)
+        self.assertIn(f"{TOOL!r}", detail)
+        self.assertIn("rather than fall back", detail)
+
+        identities = [
+            json.dumps(dict(rejection.record_identity), sort_keys=True)
+            for rejection in adapted.rejections
+        ]
+        self.assertEqual(
+            len(set(identities)), len(adapted.rejections), "six distinct identities"
+        )
+
+    def test_an_archive_record_keeps_the_raw_and_the_prepared_path_apart(self) -> None:
+        """``filePath`` carries the concatenated value and ``reported_path`` the prepared one.
+
+        The sharpest checkable property in this fixture, and one only a rejection can show: a
+        row discards the intermediate form, so the divergence is visible nowhere else.
+        ``prepare_file_path`` runs before the resolver, so the ``!`` is inserted even though
+        nothing is resolved -- which is also why ``archive_references_split`` stays 0 while the
+        preparation demonstrably happened.
+        """
+        adapted = self.env.adapt(
+            self.document, root=FIXTURE_ROOT, tool_base=self.variant_base
+        )
+        diverged = 0
+        for rejection, expectation in zip(adapted.rejections, self.expected["rejections"]):
+            identity = dict(rejection.record_identity)
+            raw = identity["filePath"]
+            prepared = identity["reported_path"]
+            self.assertEqual(
+                prepared,
+                dependency_check.prepare_file_path(raw).value,
+                f"{expectation['record_pointer']}: reported_path is the prepared value",
+            )
+            self.assertEqual(
+                prepared != raw,
+                expectation["reported_path_differs_from_file_path"],
+                f"{expectation['record_pointer']}: divergence flag",
+            )
+            if prepared != raw:
+                diverged += 1
+                self.assertNotIn("!", raw, "the artifact's own value carries no separator")
+                self.assertEqual(prepared.count("!"), 1, "exactly one separator, inserted")
+        self.assertEqual(diverged, 2, "the two archive records, and only those")
+        self.assertEqual(adapted.counters["archive_references_split"], 0)
+
+    def test_the_rejected_records_move_no_row_side_counter(self) -> None:
+        """Only the two traversal-shape counters are non-zero, and nothing is tallied.
+
+        The structural claim of the whole fixture: a rejection at step 4 never reaches the
+        severity, cwe, cve, coordinate, path-kind or scope tallies.  Asserted over the counter
+        mapping as a whole rather than over a chosen few, so a newly added row-side counter is
+        covered without this test being edited.
+        """
+        adapted = self.env.adapt(
+            self.document, root=FIXTURE_ROOT, tool_base=self.variant_base
+        )
+        traversal = {"dependencies", "dependencies_without_vulnerabilities_array"}
+        for key, value in adapted.counters.items():
+            if key in traversal:
+                self.assertGreater(value, 0, f"counter {key!r} describes the traversal")
+            else:
+                self.assertEqual(
+                    value, 0, f"counter {key!r} moved for a record that produced no row"
+                )
+        self.assertEqual(adapted.counters["dependencies"], 7)
+        self.assertEqual(adapted.counters["dependencies_without_vulnerabilities_array"], 1)
+        self.assertEqual(
+            adapted.tally.entries(TOOL),
+            (),
+            "no severity literal is contributed by a rejected record",
+        )
+        self.assertEqual(adapted.tally.row_count(TOOL), 0)
+        self.assertEqual(adapted.tally.unmapped_by_tool()[TOOL], ())
+
+    def test_the_outcome_does_not_depend_on_the_root_it_is_given(self) -> None:
+        """The ``none`` branch returns before the root is used, so the root cannot change it.
+
+        The expectation states the outcome is root-independent; this is that statement's check.
+        The identities quote the artifact's own ``filePath`` values, which are properties of the
+        document rather than of the root, so they must be identical too.
+        """
+        first = self.env.adapt(
+            self.document, root=FIXTURE_ROOT, tool_base=self.variant_base
+        )
+        second = self.env.adapt(
+            self.document, root=self.env.derived_root, tool_base=self.variant_base
+        )
+        self.assertEqual(second.rows, [])
+        self.assertEqual(
+            [rejection.reject_class for rejection in first.rejections],
+            [rejection.reject_class for rejection in second.rejections],
+        )
+        self.assertEqual(
+            [rejection.detail for rejection in first.rejections],
+            [rejection.detail for rejection in second.rejections],
+        )
+        self.assertEqual(
+            [dict(rejection.record_identity) for rejection in first.rejections],
+            [dict(rejection.record_identity) for rejection in second.rejections],
+        )
+        self.assertEqual(first.counters, second.counters)
+
+    # -- the contrast that makes the claim checkable --------------------------------- #
+
+    def test_the_same_fixture_yields_six_rows_under_the_recorded_base(self) -> None:
+        """The contrast block, asserted field for field over all twelve fields of six rows."""
+        contrast = self.expected["contrast_under_the_recorded_base"]
+        adapted = self.env.adapt_fixture(self.FIXTURE)
+
+        self.assertEqual(adapted.rejections, [])
+        self.assertEqual(contrast["rejections"], 0)
+        self.assertEqual(len(adapted.rows), contrast["rows"])
+        self.assertEqual(len(adapted.rows), len(contrast["the_rows"]))
+        for index, (observed, expectation) in enumerate(
+            zip(adapted.rows, contrast["the_rows"])
+        ):
+            self.assert_row_matches(observed, expectation, f"{self.FIXTURE} row {index}")
+        self.assert_no_absolute_paths(adapted.rows, self.FIXTURE)
+        self.assert_counters(adapted.counters, contrast["counters"], f"{self.FIXTURE} contrast")
+        self.assertEqual(
+            count_records(self.document), len(adapted.rows) + len(adapted.rejections)
+        )
+        self.assertEqual(contrast["reconciliation_arithmetic"], "6 == 6 + 0")
+
+    def test_the_contrast_precondition_is_the_recorded_base_read_not_constructed(self) -> None:
+        """The contrast is stated for the base the runner record actually holds.
+
+        ``Environment.fixture_base`` is loaded through ``paths.tool_path_base`` from a metadata
+        document whose ``path_base`` mirrors ``runner-metadata.json``'s, so the precondition the
+        expectation names is the one the assertion above ran under.
+        """
+        precondition = self.expected["contrast_under_the_recorded_base"]["precondition"]
+        base = precondition["tool_path_base"]
+        self.assertEqual(base["kind"], self.env.fixture_base.kind)
+        self.assertEqual(base["kind"], RECORDED_PATH_BASE_KIND)
+        self.assertEqual(base["base_value"], FIXTURE_ROOT)
+        self.assertTrue(base["has_explicit_base"])
+        self.assertEqual(base["record_path_field"], RECORDED_RECORD_PATH_FIELD)
+        self.assertEqual(precondition["root"], FIXTURE_ROOT)
+
+    def test_the_two_branches_differ_in_every_row_side_counter(self) -> None:
+        """Seventeen counters move under the recorded base and none under the variant.
+
+        The contrast reduced to its arithmetic: the two counters that agree are the
+        traversal-shape pair, and their agreement is what establishes that the traversal itself
+        is unaffected by the metadata.  Everything else differs, which is what a metadata-only
+        condition has to look like.
+        """
+        variant = self.env.adapt(
+            self.document, root=FIXTURE_ROOT, tool_base=self.variant_base
+        ).counters
+        recorded = self.env.adapt_fixture(self.FIXTURE).counters
+
+        agreeing = {key for key in recorded if recorded[key] == variant[key]}
+        differing = {key for key in recorded if recorded[key] != variant[key]}
+        self.assertEqual(differing, {key for key in recorded if recorded[key] > 0}
+                         - {"dependencies", "dependencies_without_vulnerabilities_array"})
+        self.assertEqual(len(differing), 17, sorted(differing))
+        self.assertIn("dependencies", agreeing)
+        self.assertIn("dependencies_without_vulnerabilities_array", agreeing)
+        for key in differing:
+            self.assertEqual(variant[key], 0, f"{key} is 0 under the variant")
+            self.assertGreater(recorded[key], 0, f"{key} moves under the recorded base")
+
+    def test_the_contrast_derivations_name_the_records_they_describe(self) -> None:
+        """Each contrast derivation is checkable against the fixture rather than against a run.
+
+        Six derivations, one per row, each naming its record pointer, its dependency's own
+        ``fileName`` and ``isVirtual``, its record's ``source``, its ``cwes`` array where it
+        has one, and -- for an in-scope row -- a glob that is a real member of the allowlist.
+        """
+        contrast = self.expected["contrast_under_the_recorded_base"]
+        derivations = contrast["the_row_derivations"]
+        self.assertEqual(
+            [entry["row_index"] for entry in derivations], list(range(len(contrast["the_rows"])))
+        )
+        for entry in derivations:
+            index = entry["row_index"]
+            dep = self.document["dependencies"][index]
+            record = dep["vulnerabilities"][0]
+            self.assertEqual(
+                entry["record_pointer"], f"/dependencies/{index}/vulnerabilities/0"
+            )
+            self.assertEqual(entry["dependency_pointer"], f"/dependencies/{index}")
+            self.assertEqual(entry["dependency_file_name"], dep["fileName"])
+            self.assertEqual(entry["dependency_is_virtual"], dep["isVirtual"])
+            self.assertEqual(entry["record_source"], record["source"])
+            if entry.get("cwe_source"):
+                self.assertEqual(entry["cwe_source"]["entries"], record["cwes"])
+            row = contrast["the_rows"][index]
+            if entry["matched_allowlist_glob"] is None:
+                self.assertFalse(row["in_scope"], f"row {index}: no glob, so out of scope")
+                self.assertIsNotNone(entry["out_of_scope_reason"], f"row {index}")
+            else:
+                self.assertIn(entry["matched_allowlist_glob"], self.env.globs, f"row {index}")
+                self.assertTrue(row["in_scope"], f"row {index}: a glob matched")
+
+    def test_the_dependency_contributing_no_record_is_the_one_the_fixture_carries(self) -> None:
+        """The seventh dependency carries no ``vulnerabilities`` key, under either branch."""
+        entry = self.expected["dependencies_contributing_no_record"][0]
+        index = entry["dependency_index"]
+        dep = self.document["dependencies"][index]
+        self.assertEqual(entry["dependency_pointer"], f"/dependencies/{index}")
+        self.assertEqual(entry["dependency_file_name"], dep["fileName"])
+        self.assertNotIn("vulnerabilities", dep)
+        self.assertEqual(entry["also_carries_no_packages_array"], "packages" not in dep)
+        self.assertEqual(
+            self.expected["counters"]["dependencies_without_vulnerabilities_array"], 1
+        )
+        self.assertEqual(
+            self.expected["contrast_under_the_recorded_base"]["counters"][
+                "dependencies_without_vulnerabilities_array"
+            ],
+            1,
+        )
+
 class CallerFaultTest(AdapterTestCase):
     """A defective *call* is raised; a defective *record* is counted.  The two never merge.
 
@@ -2867,7 +3705,7 @@ class CallerFaultTest(AdapterTestCase):
         artifact, which is far harder to notice than an error at the call.
         """
         with self.assertRaises(dependency_check.DependencyCheckAdapterError):
-            self.env.adapt(load_fixture(POSITIVE_FIXTURE), root="relative/root")
+            self.env.adapt(load_fixture(DERIVED_FEATURES_FIXTURE), root="relative/root")
 
     def test_a_tally_that_cannot_record_is_refused(self) -> None:
         """Every emitted row's literal must reach ``severity-map.md``, so the tally is required.
@@ -2880,7 +3718,7 @@ class CallerFaultTest(AdapterTestCase):
             with self.subTest(tally=type(tally).__name__):
                 with self.assertRaises(dependency_check.DependencyCheckAdapterError):
                     dependency_check.adapt(
-                        load_fixture(POSITIVE_FIXTURE),
+                        load_fixture(DERIVED_FEATURES_FIXTURE),
                         tool=TOOL,
                         root=FIXTURE_ROOT,
                         tool_base=self.env.fixture_base,
@@ -2896,12 +3734,12 @@ class CallerFaultTest(AdapterTestCase):
         exhausted by it is not.
         """
         adapted = self.env.adapt(
-            load_fixture(POSITIVE_FIXTURE),
+            load_fixture(DERIVED_FEATURES_FIXTURE),
             root=FIXTURE_ROOT,
             tool_base=self.env.fixture_base,
         )
         generator_adapted = dependency_check.adapt(
-            load_fixture(POSITIVE_FIXTURE),
+            load_fixture(DERIVED_FEATURES_FIXTURE),
             tool=TOOL,
             root=FIXTURE_ROOT,
             tool_base=self.env.fixture_base,
@@ -2915,6 +3753,336 @@ class CallerFaultTest(AdapterTestCase):
             "as a generator",
         )
 
+
+class SelectedEntryProvenanceTest(AdapterTestCase):
+    """The entry that governed a band survives aggregation into the tally.
+
+    AAP 0.5.4 requires that *"either way the entry used is recorded -- the label, or the score
+    with its source and version"*, and the class above asserts that per record.  This class
+    asserts the other half: that the recorded selection is still there once rows are counted
+    per literal, which is the only form in which it reaches ``severity-map.md``.
+
+    The hazard is specific to this adapter's shape and is why these assertions live here.  A
+    score reaches ``severity_native`` as its **one-decimal rendering**, so an advisory scored
+    7.5 by the NVD and an advisory scored 7.5 by a distributor produce the same literal, the
+    same band and the same basis.  A tally keyed on those three alone counted them as one
+    entry, and the entry's provenance was then whichever record happened to arrive first --
+    with nothing in the readout to show that a collapse had occurred.  Dependency-Check is
+    the tool that makes this routine rather than hypothetical: the captured fixture's first
+    record alone carries three CVSS blocks from three sources.
+
+    Everything here is asserted through the adapter's own row-building seam wherever a row
+    can carry it, so the tally being asserted is the one the row builder fed.
+    """
+
+    #: Two derived records whose CVSS entries differ *only* in the source that supplied
+    #: them, both scoring 7.5 and therefore both rendering the literal ``"7.5"``.  Neither
+    #: carries a ``severity`` label, so the score route governs (AAP 0.5.4's precedence).
+    SAME_SCORE_DIFFERENT_SOURCES = (("NVD", 7.5), ("REDHAT", 7.5))
+
+    def _derived_score_document(
+        self, blocks: tuple[tuple[str, object], ...], *, version: str | None = None
+    ) -> dict:
+        """Return a document with one dependency per ``(source, baseScore)`` pair.
+
+        Each record carries a single ``cvssv3`` block and no ``severity`` label, so the band
+        comes from the score and the recorded selection names the block's source.  Where
+        ``version`` is given it is written into the block, which is the precision the
+        artifact's own value keeps (``score_candidates`` supplies the major version only
+        where the block states none).
+        """
+        dependencies = []
+        for source, base_score in blocks:
+            block: dict = {"baseScore": base_score}
+            if version is not None:
+                block["version"] = version
+            dependencies.append(
+                dependency(
+                    file_path=self.env.derived_absolute(IN_SCOPE_BUNDLE),
+                    packages=[package_object(id="pkg:npm/example-package@1.0.0")],
+                    vulnerabilities=[
+                        vulnerability(source=source, cvssv3=block)
+                    ],
+                )
+            )
+        return document(*dependencies)
+
+    # -- 1: the collapse this fixes -------------------------------------------------- #
+
+    def test_two_scores_rendering_one_literal_stay_two_entries_naming_their_sources(
+        self,
+    ) -> None:
+        """Equal renderings from different sources are two entries, each naming its source.
+
+        The premise is asserted first, because the test is only about a collapse if the three
+        columns a collapse used to key on really are identical: both rows carry
+        ``severity_native`` ``"7.5"``, band ``High`` and basis ``cvss_score``.
+        """
+        adapted = self.env.adapt_derived(
+            self._derived_score_document(self.SAME_SCORE_DIFFERENT_SOURCES)
+        )
+        self.assertEqual(len(adapted.rows), 2, "both records are rows")
+        self.assertEqual(
+            {row["severity_native"] for row in adapted.rows},
+            {"7.5"},
+            "the premise: one rendered literal for both rows",
+        )
+        self.assertEqual({row["severity_norm"] for row in adapted.rows}, {"High"})
+        self.assertEqual(adapted.counters["severity_basis_cvss_score"], 2)
+
+        entries = adapted.tally.entries(TOOL)
+        self.assertEqual(
+            len(entries),
+            2,
+            f"two selections must be two entries, got {entries!r}",
+        )
+        self.assertEqual(
+            {(entry.selected_source, entry.selected_version, entry.rows) for entry in entries},
+            {("NVD:cvssv3", "3", 1), ("REDHAT:cvssv3", "3", 1)},
+            "each entry names the source and version of the entry it counted",
+        )
+        self.assertEqual(
+            [entry.selected_score for entry in entries],
+            [7.5, 7.5],
+            "the full-precision score is carried beside the rendered literal",
+        )
+        self.assertEqual(
+            adapted.tally.row_count(TOOL), 2, "the split changes no row total"
+        )
+        self.assertEqual(
+            adapted.tally.band_counts(TOOL)["High"],
+            2,
+            "and no band total either",
+        )
+
+    # -- 2: the same distinction one level finer: the CVSS version ------------------- #
+
+    def test_two_scores_from_one_source_under_two_versions_stay_two_entries(self) -> None:
+        """A version difference alone splits the entry, which is what makes it reportable.
+
+        ``severity_native`` cannot express it -- both render ``"7.5"`` -- and the source is
+        the same string, so the version is the only column that distinguishes a CVSS 3.0
+        assessment from a CVSS 3.1 one.
+        """
+        first = self.env.adapt_derived(
+            self._derived_score_document((("NVD", 7.5),), version="3.0")
+        )
+        second = self.env.adapt_derived(
+            self._derived_score_document((("NVD", 7.5),), version="3.1")
+        )
+        merged = severity.LiteralTally.with_all_tools()
+        for source_tally in (first.tally, second.tally):
+            for entry in source_tally.entries(TOOL):
+                self.assertEqual(entry.rows, 1)
+        # Feed one tally from both documents through the adapter's own seam, so the merge is
+        # the adapter's rather than this test's arithmetic.
+        for blocks_version in ("3.0", "3.1"):
+            rows, _, _ = dependency_check.adapt(
+                self._derived_score_document((("NVD", 7.5),), version=blocks_version),
+                tool=TOOL,
+                root=self.env.derived_root,
+                tool_base=self.env.derived_base,
+                allowlist=self.env.globs,
+                tally=merged,
+            )
+            self.assertEqual(len(rows), 1)
+        entries = merged.entries(TOOL)
+        self.assertEqual(len(entries), 2, f"one entry per version, got {entries!r}")
+        self.assertEqual(
+            [entry.selected_version for entry in entries],
+            ["3.0", "3.1"],
+            "ordered by the version, deterministically",
+        )
+        self.assertEqual({entry.severity_native for entry in entries}, {"7.5"})
+        self.assertEqual({entry.selected_source for entry in entries}, {"NVD:cvssv3"})
+
+    # -- 3: the split is exact, not eager ------------------------------------------- #
+
+    def test_one_selection_recorded_twice_is_one_entry_counting_two_rows(self) -> None:
+        """Two records with the *same* selection stay one entry, so nothing over-splits.
+
+        Extending the key would be worthless if it fragmented every literal: the per-literal
+        row counts ``severity-map.md`` reports would then be counts of nothing in particular.
+        """
+        adapted = self.env.adapt_derived(
+            self._derived_score_document((("NVD", 7.5), ("NVD", 7.5)))
+        )
+        self.assertEqual(len(adapted.rows), 2)
+        entries = adapted.tally.entries(TOOL)
+        self.assertEqual(len(entries), 1, f"one selection, one entry, got {entries!r}")
+        self.assertEqual(entries[0].rows, 2, "counting both rows")
+        self.assertEqual(entries[0].selected_source, "NVD:cvssv3")
+
+    # -- 4: the label path records the label, and no score -------------------------- #
+
+    def test_a_label_entry_records_the_label_and_leaves_the_score_columns_absent(
+        self,
+    ) -> None:
+        """The record whose ``LOW`` label beat three scores records the label alone.
+
+        The three ineligible scores must not leak into the provenance columns: a reader would
+        otherwise be told a score governed a band the label decided.
+
+        Driven from the DERIVED feature fixture rather than from the capture. The committed
+        capture is the whole artifact byte for byte, and the artifact holds no vulnerability
+        at all -- it emits no row and therefore tallies no severity literal, which is
+        asserted in its own right elsewhere in this module. The label-over-score precedence
+        this test is about needs a record that carries both, so it is asserted against the
+        document that declares itself derived for exactly that reason.
+        """
+        adapted = self.env.adapt_fixture(DERIVED_FEATURES_FIXTURE)
+        entries = {entry.severity_native: entry for entry in adapted.tally.entries(TOOL)}
+        self.assertIn("LOW", entries, "the captured label literal is tallied as written")
+        entry = entries["LOW"]
+        self.assertEqual(entry.basis, severity.BASIS_LABEL)
+        self.assertEqual(entry.selected_label, "LOW", "the label that was used")
+        self.assertIsNone(entry.selected_score)
+        self.assertIsNone(entry.selected_source)
+        self.assertIsNone(entry.selected_version)
+
+    # -- 5: a band that came from policy records no selection ----------------------- #
+
+    def test_a_band_from_policy_rather_than_from_an_entry_records_no_selection(self) -> None:
+        """The ``no_vocabulary`` and ``unmapped_literal`` paths carry all four columns absent.
+
+        Nothing was *used* on either path -- the band came from this dataset's policy -- so
+        recording a selection would state a provenance that does not exist.  Both bases are
+        reached through the adapter, on derived records, because no committed fixture reaches
+        them and the expectation files say so.
+        """
+        for label, expected_basis, expected_literal in (
+            (None, severity.BASIS_NO_VOCABULARY, None),
+            ("catastrophic", severity.BASIS_UNMAPPED_LITERAL, "catastrophic"),
+        ):
+            with self.subTest(basis=expected_basis):
+                adapted = self.env.adapt_derived(
+                    document(
+                        dependency(
+                            file_path=self.env.derived_absolute(IN_SCOPE_BUNDLE),
+                            packages=[
+                                package_object(id="pkg:npm/example-package@1.0.0")
+                            ],
+                            vulnerabilities=[vulnerability(severity=label)],
+                        )
+                    )
+                )
+                self.assertEqual(len(adapted.rows), 1)
+                entries = adapted.tally.entries(TOOL)
+                self.assertEqual(len(entries), 1)
+                entry = entries[0]
+                self.assertEqual(entry.basis, expected_basis)
+                self.assertEqual(entry.severity_native, expected_literal)
+                self.assertEqual(entry.severity_norm, "Info")
+                for column in severity.LITERAL_KEY_FIELDS[3:]:
+                    self.assertIsNone(
+                        getattr(entry, column),
+                        f"{column} must be absent when nothing was used",
+                    )
+
+    # -- 6: the report order is a pure function of the content ---------------------- #
+
+    def test_the_entry_order_does_not_depend_on_the_order_rows_arrived(self) -> None:
+        """Two tallies fed the same selections in opposite orders read identically.
+
+        ``severity-map.md`` is regenerated from this readout, so an order that depended on
+        arrival would make the document differ between two runs over the same rows.
+        """
+        forward = self.env.adapt_derived(
+            self._derived_score_document((("NVD", 7.5), ("REDHAT", 7.5), ("ACME", 2.0)))
+        )
+        backward = self.env.adapt_derived(
+            self._derived_score_document((("ACME", 2.0), ("REDHAT", 7.5), ("NVD", 7.5)))
+        )
+        self.assertEqual(len(forward.rows), 3)
+        self.assertEqual(
+            forward.tally.entries(TOOL),
+            backward.tally.entries(TOOL),
+            "the same three selections must read identically whatever order they arrived in",
+        )
+        self.assertEqual(
+            [entry.severity_norm for entry in forward.tally.entries(TOOL)],
+            ["High", "High", "Low"],
+            "band first, most severe first, as SEVERITY_NORM orders them",
+        )
+
+    # -- 7: the columns reach the serialised record ---------------------------------- #
+
+    def test_every_key_field_is_a_serialisable_column_of_the_entry(self) -> None:
+        """``dataclasses.asdict`` carries all seven key fields, which is how ``cli.py`` records them.
+
+        ``cli._severity_record`` serialises each entry with ``dataclasses.asdict`` and writes
+        the result into ``normalize-run.json``, from which ``severity-map.md`` is written.  So
+        a field that is not a dataclass field of :class:`severity.LiteralCount`, or is not
+        JSON-serialisable, cannot reach either document -- and the provenance would be lost at
+        the last step rather than at the tally.
+        """
+        adapted = self.env.adapt_derived(
+            self._derived_score_document(self.SAME_SCORE_DIFFERENT_SOURCES)
+        )
+        entries = adapted.tally.entries(TOOL)
+        self.assertEqual(len(entries), 2)
+        for entry in entries:
+            with self.subTest(source=entry.selected_source):
+                as_dict = dataclasses.asdict(entry)
+                for field_name in severity.LITERAL_KEY_FIELDS:
+                    self.assertIn(
+                        field_name,
+                        as_dict,
+                        "every field the tally keys on must be a serialised column",
+                    )
+                self.assertEqual(
+                    json.loads(json.dumps(as_dict, sort_keys=True)),
+                    as_dict,
+                    "and must survive a JSON round trip unchanged",
+                )
+        self.assertEqual(
+            severity.LITERAL_KEY_FIELDS,
+            (
+                "severity_native",
+                "severity_norm",
+                "basis",
+                "selected_label",
+                "selected_score",
+                "selected_source",
+                "selected_version",
+            ),
+            "the published key field list, asserted against the imported tuple",
+        )
+
+    # -- 8: the entry's key set is closed, which is what makes the split complete ---- #
+
+    def test_a_selection_carrying_an_unlisted_key_is_refused_at_construction(self) -> None:
+        """A key outside the closed set is a caller fault, not a column silently dropped.
+
+        The four provenance columns are a *complete* decomposition of a selected entry only
+        while the entry can carry nothing else.  Were an unlisted key permitted, two
+        selections differing only in it would key identically and the collapse this class
+        exists to prevent would be reachable again by a different route.
+        """
+        for basis, entry in (
+            (severity.BASIS_LABEL, {"label": "LOW", "vector": "CVSS:3.1/AV:N/AC:L"}),
+            (severity.BASIS_CVSS_SCORE, {"score": 7.5, "vector": "CVSS:3.1/AV:N/AC:L"}),
+            (severity.BASIS_CVSS_SCORE, {"score": 7.5, "source": 3}),
+        ):
+            with self.subTest(basis=basis, keys=sorted(entry)):
+                with self.assertRaises(severity.SeverityPolicyError):
+                    severity.SeverityResult(
+                        severity_native="7.5",
+                        severity_norm="High",
+                        basis=basis,
+                        selected_entry=entry,
+                    )
+        # The documented shapes are accepted, so the check above is a closed set rather than
+        # a refusal of everything.
+        self.assertEqual(
+            severity.SeverityResult(
+                severity_native="7.5",
+                severity_norm="High",
+                basis=severity.BASIS_CVSS_SCORE,
+                selected_entry={"score": 7.5, "source": "NVD:cvssv3", "version": "3.1"},
+            ).selected_entry,
+            {"score": 7.5, "source": "NVD:cvssv3", "version": "3.1"},
+        )
 
 if __name__ == "__main__":  # pragma: no cover - convenience for a direct run
     unittest.main(verbosity=2)

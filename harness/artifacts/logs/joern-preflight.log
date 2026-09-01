@@ -1,0 +1,43 @@
+====================================================================================
+STAGE 3 PRE-LOAD GRAPH IDENTITY CHECK
+====================================================================================
+
+  Refuses to invoke the Stage 3 Joern runner unless the graph on disk is
+  byte-for-byte the graph this run wrote. The runner resolves and PRINTS its
+  input without comparing it, and harness/lib/joern-scan.sc calls importCpg and
+  then counts, so a mismatch would otherwise reach the engine. A mismatch here
+  exits 77, and harness/lib/run-joern-gated.sh -- the only committed
+  execution path for Stage 3 -- has no branch that reaches the runner after a
+  non-zero gate, so the runner is never invoked.
+
+  Gate source             : harness/lib/preflight_graph_identity.py
+  Binding caller          : harness/lib/run-joern-gated.sh
+  Checked at (UTC)        : 2026-09-01T03:48:29Z
+  Clone index             : 0
+  Write-time record       : harness/artifacts/logs/cpg-frontend.log
+  HARNESS_CPG in env      : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/cpg/spark.cpg
+
+  Recorded size           : 791,927,027 bytes
+  Recorded sha256         : a7cb249207436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45
+
+  Every subject, each resolved and re-measured in its own right:
+
+    harness/cpg/spark.cpg
+      role      : the runner's actual input ($HARNESS_CPG as env.sh resolves it); also AAP 0.6.1 named path (harness/cpg/spark.cpg)
+      symlink to: ../artifacts/cpg/spark.cpg
+      realpath  : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/cpg/spark.cpg
+      size      : 791,927,027 bytes   MATCH
+      sha256    : a7cb249207436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45   MATCH
+      link size : 26 bytes (the link itself, not its target -- recorded only to discard it)
+
+    harness/artifacts/cpg/spark.cpg
+      role      : the graph this run wrote (harness/artifacts/cpg/spark.cpg)
+      realpath  : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/cpg/spark.cpg
+      size      : 791,927,027 bytes   MATCH
+      sha256    : a7cb249207436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45   MATCH
+
+  All 2 subject(s) resolve to one file: yes
+
+====================================================================================
+VERDICT: PASS
+====================================================================================

@@ -75,20 +75,31 @@ the only thing that needs resolving.
 
 The precedence between them is fixed, and it is not "prefer the collector":
 
-1. **this run's own unique class-to-source resolution governs.**  The collector reached
-   its answer with ``setdefault`` -- first wins in walk order -- and AAP 0.5.4 requires
-   the resolution be taken *"only where it is unique"*;
+1. **this run's own unique class-to-source resolution is the only thing that produces a
+   row's path.**  The collector reached its answer with ``setdefault`` -- first wins in
+   walk order -- and AAP 0.5.4 requires the resolution be taken *"only where it is
+   unique"*;
 2. an **ambiguous** class key is a rejection and is **never** overridden by the
    collector's path.  That is gap 2 below, and overriding it would reinstate exactly
    the silent guess the AAP forbids;
-3. where this run can resolve **nothing** and the collector did supply a root-relative
-   ``path``, that path is emitted as-is with the basis saying so and a corroboration
-   note recording that this run's own index could not corroborate it.  A stated
-   coordinate is a fact about the artifact, not an inference;
+3. where this run can resolve **nothing** -- unresolvable, absent, or the collector's
+   ``<unknown>`` sentinel -- the record is a **counted rejection**, and a
+   collector-supplied ``path`` does **not** rescue it.  AAP 0.5.4 closes the sentence
+   the other three clauses open: the adapter *"takes the resolution only where it is
+   unique, and rejects the ambiguous **and the unresolvable**"*.  A collector path is
+   the same first-wins guess in the unresolvable case as in the ambiguous one -- the
+   only difference is that nothing competed with it, which is not evidence that it is
+   right -- so it is *refused*, counted under
+   :data:`COUNTER_COLLECTOR_PATH_REFUSED`, and reaches no row.  There is exactly one
+   route from a coordinate to a ``path`` field, and it is clause 1;
 4. where the two both resolve and **disagree**, the row keeps this run's resolution and
    the disagreement is recorded in ``corroboration`` and counted.  AAP 0.5.3's posture
    on Checkov applies unchanged: record a mismatch rather than silently preferring one,
    and never suppress the row.
+
+So the collector's ``path`` has exactly two destinations and neither is a dataset field:
+it **corroborates** a successful unique resolution (clause 4's comparison), and it
+**enriches the record of a rejection** as a refused candidate (clause 3's counter).
 
 ``path_resolution`` -- the collector's own explanation, one of
 ``source-index-filename``, ``source-index-declaration`` or
@@ -97,8 +108,9 @@ collector explanation for an unmappable bytecode path is retained in the rejecti
 record, not in a dataset field."*  It reaches no row, and the twelve-field row set makes
 that structural.
 
-``path`` is never absent from a row (AAP 0.8.2), so an unresolvable coordinate with no
-collector path is a **counted rejection** rather than a row with a null path.
+``path`` is never absent from a row (AAP 0.8.2), so an unresolvable coordinate is a
+**counted rejection** rather than a row with a null path -- and rather than a row with
+the collector's unverified path standing in for one.
 
 The two collector gaps, closed here
 -----------------------------------
@@ -184,10 +196,16 @@ silently while every individual assertion still passed:
   neither published nor used -- a plausible substitute for the independent count is how
   the requirement for one would quietly be lost.
 
-A ``findings`` value that is absent, empty or not an array contributes nothing and is
-**not** an error, which is how ``reconcile._count_joern`` reads it too (``_length`` over
-a non-array yields zero, and a ``str`` is never an array).  Document order is
-preserved, since both output files use it and ``emit.py`` compares them row by row.
+An **empty** ``findings`` array contributes nothing and is **not** an error -- it is a
+query set that matched nothing -- which is how ``reconcile._count_joern`` reads it too
+(``_length`` over an empty array yields zero).  An **absent** or **non-array**
+``findings`` value is a different thing: ``shape.NATIVE_SIGNATURES["joern"]`` requires
+the array, so ``shape.route`` halts on such a document under
+``shape.REASON_NATIVE_SIGNATURE_MISMATCH`` and it never reaches this module in a run.
+This adapter's zero-contribution reading of it is kept as the second line of defence
+for a direct caller, and it is what keeps the identity exact wherever it *is* reached.
+Document order is preserved, since both output files use it and ``emit.py`` compares
+them row by row.
 
 Position in the normalizer
 --------------------------
@@ -249,7 +267,7 @@ scanning outcome for this adapter to classify.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from os import fspath
 from typing import Any, Final
 
@@ -263,6 +281,7 @@ __all__ = [
     "COLLECTOR_PATH_FIELD",
     "COLLECTOR_UNKNOWN_CLASS",
     "COUNTER_KEYS",
+    "REFUSED_COLLECTOR_PATH_KEY",
     "FIELDS",
     "FINDINGS_KEY",
     "JoernAdapterError",
@@ -397,9 +416,18 @@ START_LINE_FIELDS: Final[tuple[str, ...]] = ("start_line", "line")
 CLASS_COORDINATE_FIELDS: Final[tuple[str, ...]] = ("class", "class_file")
 
 #: The collector's own already-``$SPARK_SRC``-relative answer, where it supplies one.
-#: Emitted as-is; see this module's docstring for the precedence against a class
-#: resolution of this run's own.
+#: Read as evidence only -- corroboration for a successful unique resolution, and a
+#: refused candidate beside a rejection.  It is never a row's path; see this module's
+#: docstring for the precedence against a class resolution of this run's own.
 COLLECTOR_PATH_FIELD: Final[str] = "path"
+
+#: The ``record_identity`` key under which a **refused** collector path is retained on a
+#: rejection.  The refusal has to be visible per record and not only in a per-artifact
+#: counter: a rejection whose collector offered an answer and a rejection whose collector
+#: offered nothing are different facts about the artifact, and AAP 0.5.4 keeps such
+#: context *"in the rejection record, not in a dataset field"*.  It joins ``file`` and
+#: the other context members already retained there, and it reaches no row.
+REFUSED_COLLECTOR_PATH_KEY: Final[str] = "refused_collector_path"
 
 #: The collector's explanation of how it resolved -- or failed to resolve -- a class.
 #: Retained in a rejection's detail and in **no** dataset field (AAP 0.5.4).
@@ -524,12 +552,15 @@ COUNTER_SEVERITY_FROM_RECORD_LABEL: Final[str] = "severity_from_record_label"
 COUNTER_SEVERITY_ABSENT: Final[str] = "severity_absent"
 
 #: How the path was arrived at.  ``resolution_from_class`` is this run's own unique
-#: class-to-source resolution; ``collector_path_used`` is a collector-supplied
-#: root-relative path emitted as-is because this run could resolve nothing;
+#: class-to-source resolution, and it is the **only** route to a row's path;
+#: ``collector_path_refused`` counts the rejected records for which the collector *did*
+#: supply a usable root-relative path that was refused rather than substituted -- the
+#: number that makes the refusal visible, since a refused fallback and a collector that
+#: supplied nothing look identical in a rejection count;
 #: ``collector_path_disagreed`` counts the records where both resolved and differed --
 #: the row keeps this run's answer and the disagreement is recorded, never suppressed.
 COUNTER_RESOLUTION_FROM_CLASS: Final[str] = "resolution_from_class"
-COUNTER_COLLECTOR_PATH_USED: Final[str] = "collector_path_used"
+COUNTER_COLLECTOR_PATH_REFUSED: Final[str] = "collector_path_refused"
 COUNTER_COLLECTOR_PATH_DISAGREED: Final[str] = "collector_path_disagreed"
 COUNTER_COLLECTOR_PATH_CORROBORATED: Final[str] = "collector_path_corroborated"
 
@@ -580,7 +611,7 @@ _AUTHORED_COUNTER_KEYS: Final[tuple[str, ...]] = (
     COUNTER_SEVERITY_FROM_RECORD_LABEL,
     COUNTER_SEVERITY_ABSENT,
     COUNTER_RESOLUTION_FROM_CLASS,
-    COUNTER_COLLECTOR_PATH_USED,
+    COUNTER_COLLECTOR_PATH_REFUSED,
     COUNTER_COLLECTOR_PATH_DISAGREED,
     COUNTER_COLLECTOR_PATH_CORROBORATED,
     COUNTER_COLLECTOR_EXPLANATION_PRESENT,
@@ -659,10 +690,17 @@ def _is_json_array(value: Any) -> bool:
 def _json_array(value: Any) -> Sequence[Any]:
     """Return ``value`` where it is a JSON array, else an empty sequence.
 
-    An absent, empty or non-array ``findings`` contributes nothing and is not an error,
-    which is exactly how ``reconcile._count_joern`` reads it -- ``_length`` over a
-    non-array yields zero.  The two agreeing on zero is what keeps the identity exact
-    for a document that carries no findings at all.
+    Used for ``findings`` and for the envelope's ``queries``.  An empty array
+    contributes nothing and is not an error, which is exactly how
+    ``reconcile._count_joern`` reads it -- ``_length`` over an empty array yields zero,
+    and the two agreeing on zero is what keeps the identity exact for an artifact that
+    carries no findings at all.
+
+    The same reading for an *absent* or *non-array* value is defence in depth rather
+    than a live path for ``findings``: ``shape.route`` halts on a ``joern.json`` whose
+    ``findings`` is missing or not an array, so only a direct caller can reach it here.
+    It stays a live path for ``queries``, which is envelope metadata the signature
+    deliberately does not require.
     """
     return value if _is_json_array(value) else ()
 
@@ -936,27 +974,42 @@ def _collector_path(
     corroboration: str | None,
     record_identity: Mapping[str, Any],
 ) -> paths.ResolvedPath | paths.Rejection | None:
-    """Return the collector's already-root-relative path, or the rejection it earns.
+    """Read the collector's already-root-relative path as **evidence**, never as a row.
 
-    ``None`` where the collector supplied no path at all, which is the ordinary case for
-    this provisioning -- ``harness/lib/joern-scan.sc`` writes no ``path`` member -- and
-    which leaves the caller's own rejection standing.
+    Three return values, and none of them is a path a row may carry:
 
-    **The path is emitted as-is.**  It is *already* ``$SPARK_SRC``-relative (the
-    collector's own resolved answer), so it is neither relativized again nor joined onto
-    the root: doing either would produce a doubled path or an absolute one.  This is
-    also why ``paths.resolve_recorded_path`` is deliberately not called -- it raises for
-    a ``bytecode_class`` base precisely to stop a bytecode coordinate reaching the
-    filesystem resolver, and its relative branch would join this value onto a base.
+    * ``None`` where the collector supplied no path at all, which is the ordinary case
+      for this provisioning -- ``harness/lib/joern-scan.sc`` writes no ``path`` member;
+    * a :class:`~normalize.paths.ResolvedPath` where it supplied a usable one.  The
+      caller uses it for exactly two things: **comparing** it against this run's own
+      unique resolution (corroborated, or disagreed and recorded), and **counting** it
+      as a refused candidate beside a rejection under
+      :data:`COUNTER_COLLECTOR_PATH_REFUSED`;
+    * a :class:`~normalize.paths.Rejection` where the ``path`` member itself is
+      unreadable -- a non-string value, or a string that is not a legal emitted path.
 
-    What *is* checked is that the value is a legal emitted path.  ``assert_relative_path``
+    **The value is not a fallback.**  AAP 0.5.4 has the adapter reject the unresolvable,
+    and the collector's answer is the same ``setdefault`` first-wins guess whether or not
+    anything competed with it; substituting it for a failed resolution would put a path
+    in the dataset that this run cannot corroborate, spelled exactly like one it can.
+    There is one route from a coordinate to a ``path`` field --
+    :func:`normalize.paths.resolve_bytecode_class` returning a unique answer -- and this
+    function is not it.
+
+    The value is **not** relativized again and **not** joined onto the root, because it
+    is *already* ``$SPARK_SRC``-relative: doing either would produce a doubled path or an
+    absolute one, and the comparison against this run's answer would then never agree.
+    This is also why ``paths.resolve_recorded_path`` is deliberately not called -- it
+    raises for a ``bytecode_class`` base precisely to stop a bytecode coordinate reaching
+    the filesystem resolver, and its relative branch would join this value onto a base.
+
+    What *is* checked is that the value is a legal relative path. ``assert_relative_path``
     -- which every :class:`~normalize.paths.ResolvedPath` runs on construction -- refuses
     an absolute path, a Windows drive prefix, a URI form and a second ``!`` separator, so
-    a collector that ever wrote an absolute path here is a counted rejection rather than
-    an absolute value in the dataset (AAP 0.8.2: *"No absolute path is ever emitted"*).
-    The kind is read off the serialized form by ``paths.path_kind_for``, so an archive
-    member or an outside-the-root coordinate is discriminated by the string that actually
-    reaches the dataset.
+    a collector that wrote an absolute path here is a counted rejection rather than a
+    silently accepted comparison subject.  The kind is read off the serialized form by
+    ``paths.path_kind_for``, so a comparison is made against the same discriminator the
+    dataset uses.
     """
     raw = record.get(COLLECTOR_PATH_FIELD)
     if raw is None:
@@ -1004,6 +1057,73 @@ class _PathOutcome:
     counters_to_bump: tuple[str, ...] = ()
 
 
+def _refuse_collector_path(
+    rejection: paths.Rejection,
+    record: Mapping[str, Any],
+    *,
+    record_identity: Mapping[str, Any],
+) -> tuple[paths.Rejection, tuple[str, ...]]:
+    """Refuse the collector's path beside a rejection, and record that it was refused.
+
+    Called on **every** rejection the path step produces -- ambiguous, unresolvable,
+    absent and malformed alike -- because uniformity is the point: AAP 0.5.4 has the
+    adapter *"reject the ambiguous and the unresolvable"*, so there is no failure class
+    for which the collector's first-wins answer becomes a row.
+
+    Three outcomes, each with its own reason for existing:
+
+    * the collector supplied **nothing** (the ordinary case for this provisioning): the
+      rejection stands untouched and no counter moves;
+    * the collector supplied a **usable** path: the rejection stands, the path is
+      retained under :data:`REFUSED_COLLECTOR_PATH_KEY` in the rejection's
+      ``record_identity``, and :data:`COUNTER_COLLECTOR_PATH_REFUSED` moves.  Both
+      matter separately -- the counter is how a reader sees that refusals happened at
+      all, and the identity key is how they find the specific record and the specific
+      value that was refused.  Without them, a refused fallback and a collector that
+      offered nothing are indistinguishable in a rejection count;
+    * the collector's ``path`` member is itself **unreadable**: the primary rejection's
+      class stands and the collector's own fault is appended to its ``detail``.  The
+      class is not replaced, because the record's classification follows the adapter's
+      fixed order -- shape, rule identifier, message, path, start_line -- and within the
+      path step this run's failed class resolution is the primary reason; a defective
+      collateral member is a second clause of the same reason, not a different one.
+
+    The ``detail`` is otherwise left exactly as ``paths.py`` built it.  A detail that
+    grows a clause for every piece of collateral evidence stops being comparable across
+    runs and across fixtures, and it is the sub-reason for the *class* -- reading a
+    refused candidate as part of that reason would misstate why the record was rejected.
+    """
+    collector = _collector_path(
+        record,
+        corroboration=None,
+        record_identity=record_identity,
+    )
+    if collector is None:
+        return rejection, ()
+    if isinstance(collector, paths.Rejection):
+        return (
+            replace(
+                rejection,
+                detail=(
+                    f"{rejection.detail}; and the collector's own "
+                    f"{COLLECTOR_PATH_FIELD} member could not be read either "
+                    f"({collector.detail})"
+                ),
+            ),
+            (),
+        )
+    return (
+        replace(
+            rejection,
+            record_identity={
+                **dict(rejection.record_identity),
+                REFUSED_COLLECTOR_PATH_KEY: collector.path,
+            },
+        ),
+        (COUNTER_COLLECTOR_PATH_REFUSED,),
+    )
+
+
 def _resolve_path(
     record: Mapping[str, Any],
     *,
@@ -1015,22 +1135,27 @@ def _resolve_path(
 ) -> _PathOutcome:
     """Resolve one finding's coordinate, closing both collector gaps.
 
-    The precedence this module's docstring fixes, implemented once:
+    The precedence this module's docstring fixes, implemented once.  **Exactly one
+    branch produces a path**, and every other branch produces a counted rejection:
 
-    1. **this run's own class-to-source resolution governs.**  The class coordinate is
-       handed to :func:`normalize.paths.resolve_bytecode_class`, which keys both the
-       filename and the declaration schemes over ``src/main`` **and** ``src/test`` (gap
-       1) and succeeds only where the union of candidates is exactly one distinct path
-       (gap 2).  The declaration scheme is not optional: ``RangePartitioner`` is declared
-       in ``Partitioner.scala``, so a filename-only index loses it silently;
-    2. an **ambiguous** key is returned as the rejection ``paths.py`` built, with every
-       competing candidate already named in its detail.  It is **never** overridden by
-       the collector's path -- doing so would reinstate the ``setdefault`` first-wins
-       guess AAP 0.1.3 forbids;
-    3. **unresolvable, absent or malformed**: the collector's own root-relative answer is
-       used where it supplied one, emitted as-is and marked as uncorroborated; otherwise
-       ``paths.py``'s rejection stands, with the collector's explanation appended to its
-       detail;
+    1. **this run's own unique class-to-source resolution is the only route to a path.**
+       The class coordinate is handed to
+       :func:`normalize.paths.resolve_bytecode_class`, which keys both the filename and
+       the declaration schemes over ``src/main`` **and** ``src/test`` (gap 1) and
+       succeeds only where the union of candidates is exactly one distinct path (gap 2).
+       The declaration scheme is not optional: ``RangePartitioner`` is declared in
+       ``Partitioner.scala``, so a filename-only index loses it silently;
+    2. the collector's ``<unknown>`` sentinel names the absence of a type declaration
+       rather than a class, so it is an ``absent_path`` rejection with the sentinel
+       named -- never a lookup, and never a substitution;
+    3. **any** rejection ``paths.py`` returns -- ambiguous, unresolvable, absent or
+       malformed -- stands as the record's outcome.  The collector's own path is read by
+       :func:`_refuse_collector_path` as evidence, retained on the rejection and
+       counted, and **refused**.  Using it would reinstate the ``setdefault`` first-wins
+       guess AAP 0.1.3 forbids, and it would do so *most* often precisely where this run
+       knows least: an ambiguity at least proves two candidates exist, while an
+       unresolvable class means this run's index over both source trees found none, so
+       there is nothing at all against which the collector's answer could be checked;
     4. where both resolved and **disagree**, this run's answer is kept and the
        disagreement is recorded in ``corroboration``.  The row is never suppressed
        (AAP 0.5.3's posture on a Checkov mismatch, applied unchanged).
@@ -1056,49 +1181,31 @@ def _resolve_path(
     # the sentinel named.  Keying an index on the literal would turn a stated absence
     # into an ordinary lookup miss and lose why the record failed.
     if isinstance(read.value, str) and read.value.strip() == COLLECTOR_UNKNOWN_CLASS:
-        fallback = _collector_path(
-            record,
-            corroboration=(
-                "the collector reported the sentinel "
-                f"{COLLECTOR_UNKNOWN_CLASS!r} for {read.field}, so this run resolved "
-                f"no class of its own and the collector's {COLLECTOR_PATH_FIELD} was "
-                "taken as reported"
+        sentinel_rejection = paths.make_rejection(
+            paths.REJECT_ABSENT_PATH,
+            TOOL,
+            _with_explanation(
+                f"the finding's {read.field} is the collector's "
+                f"{COLLECTOR_UNKNOWN_CLASS!r} sentinel, written where a method has "
+                "no enclosing type declaration, so it names no class to resolve; "
+                "the metadata records "
+                f"{tool_base.record_path_field_to_ignore or 'file'} as the field to "
+                "ignore, so no coordinate remains",
+                explanation,
             ),
-            record_identity=identity,
+            **identity,
         )
-        if isinstance(fallback, paths.ResolvedPath):
-            return _PathOutcome(
-                resolved=fallback,
-                rejection=None,
-                counters_to_bump=(
-                    *coordinate_counters,
-                    COUNTER_UNKNOWN_CLASS_SENTINEL,
-                    COUNTER_COLLECTOR_PATH_USED,
-                ),
-            )
-        if isinstance(fallback, paths.Rejection):
-            return _PathOutcome(
-                resolved=None,
-                rejection=fallback,
-                counters_to_bump=(*coordinate_counters, COUNTER_UNKNOWN_CLASS_SENTINEL),
-            )
+        rejection, refusal_counters = _refuse_collector_path(
+            sentinel_rejection, record, record_identity=identity
+        )
         return _PathOutcome(
             resolved=None,
-            rejection=paths.make_rejection(
-                paths.REJECT_ABSENT_PATH,
-                TOOL,
-                _with_explanation(
-                    f"the finding's {read.field} is the collector's "
-                    f"{COLLECTOR_UNKNOWN_CLASS!r} sentinel, written where a method has "
-                    "no enclosing type declaration, so it names no class to resolve; "
-                    "the metadata records "
-                    f"{tool_base.record_path_field_to_ignore or 'file'} as the field to "
-                    "ignore, so no coordinate remains",
-                    explanation,
-                ),
-                **identity,
+            rejection=rejection,
+            counters_to_bump=(
+                *coordinate_counters,
+                COUNTER_UNKNOWN_CLASS_SENTINEL,
+                *refusal_counters,
             ),
-            counters_to_bump=(*coordinate_counters, COUNTER_UNKNOWN_CLASS_SENTINEL),
         )
 
     resolved = paths.resolve_bytecode_class(
@@ -1161,41 +1268,19 @@ def _resolve_path(
             ),
         )
 
-    # A rejection.  An ambiguity is final: the collector's first-won answer is exactly
-    # what must not be used to break the tie (gap 2).
-    if resolved.reject_class == paths.REJECT_AMBIGUOUS_SOURCE_RESOLUTION:
-        return _PathOutcome(
-            resolved=None,
-            rejection=resolved,
-            counters_to_bump=coordinate_counters,
-        )
-
-    fallback = _collector_path(
-        record,
-        corroboration=(
-            "taken from the collector's own already-root-relative path: this run's "
-            "resolution over src/main and src/test produced no unique candidate for "
-            "the class, so the reported coordinate is emitted as reported and is "
-            "uncorroborated by this run's source index"
-        ),
-        record_identity=identity,
+    # A rejection, of whichever class ``paths.py`` named -- ambiguous, unresolvable,
+    # absent or malformed.  All four are treated identically here, and that uniformity
+    # *is* the fix: the collector's own path is read as evidence and refused, never
+    # substituted, so there is no class of failure for which a first-wins guess reaches
+    # the dataset.  An ambiguity was already final (gap 2); AAP 0.5.4 makes the
+    # unresolvable final in the same sentence.
+    rejection, refusal_counters = _refuse_collector_path(
+        resolved, record, record_identity=identity
     )
-    if isinstance(fallback, paths.ResolvedPath):
-        return _PathOutcome(
-            resolved=fallback,
-            rejection=None,
-            counters_to_bump=(*coordinate_counters, COUNTER_COLLECTOR_PATH_USED),
-        )
-    if isinstance(fallback, paths.Rejection):
-        return _PathOutcome(
-            resolved=None,
-            rejection=fallback,
-            counters_to_bump=coordinate_counters,
-        )
     return _PathOutcome(
         resolved=None,
-        rejection=resolved,
-        counters_to_bump=coordinate_counters,
+        rejection=rejection,
+        counters_to_bump=(*coordinate_counters, *refusal_counters),
     )
 
 
@@ -1373,18 +1458,25 @@ def _validated_tally(tally: Any) -> Any:
 def _validated_document(doc: Any) -> Mapping[str, Any]:
     """Return ``doc`` where it is the envelope this adapter can walk, else raise.
 
-    One requirement: an object top level.  ``findings`` is deliberately **not**
-    required, because an envelope carrying none is a legitimate artifact -- a query set
-    that matched nothing -- and ``reconcile._count_joern`` reads its absence as zero
-    records rather than as an error, so raising here would disagree with the counting
-    traversal.
+    One requirement here: an object top level.  The ``findings`` **array** is required
+    one layer up rather than in this function -- ``shape.NATIVE_SIGNATURES["joern"]``
+    makes ``joern.json`` an object carrying a ``findings`` array, and ``shape.route``
+    halts under ``shape.REASON_NATIVE_SIGNATURE_MISMATCH`` on ``{}``,
+    ``{"findings": null}`` or a ``findings`` that is not an array (AAP 0.5.4: an
+    artifact matching neither the SARIF shape nor a known native shape is a halt rather
+    than a best-effort parse; AAP 0.9.2 lists it among the conditions that stop the
+    run).  An **empty** ``findings`` array stays legitimate at both layers: it is a
+    query set that matched nothing, and ``reconcile._count_joern`` reads it as zero
+    records rather than as an error.
 
-    The shape is not re-detected.  ``shape.py`` owns detection as the single authority
-    on it (SARIF is ``version == "2.1.0"`` together with a ``runs`` array; everything
-    else written by a known runner is native), and a second copy of that test here could
-    disagree with the first, which is worse than not testing it twice.  AAP 0.5.4 makes
-    an artifact matching no known shape a halt, and ``shape.py`` is where that halt
-    lives.
+    So a document reaching here from ``cli.py`` has already been established to carry
+    the array, and the tolerance below -- an object with no readable ``findings``
+    yielding zero rows, zero rejections and a zero record count -- is unreachable in a
+    run.  It is kept, unchanged, as the second line of defence for a direct caller: an
+    adapter test, or a later consumer that calls this module without routing first.  It
+    is deliberately *not* strengthened into a second copy of the signature test, because
+    a second copy could disagree with the first, which is worse than not testing it
+    twice.  ``shape.py`` owns shape; this module owns per-record attribution.
 
     Raising rather than returning zero rows for a non-object is the point: an empty
     result set is indistinguishable from a clean scan, which is the failure mode the
@@ -1776,9 +1868,12 @@ def adapt(
     _record_index_shape(index, index_supplied, counters)
 
     # findings[] in document order: one finding is one record, and one record yields
-    # exactly one row or one rejection.  An absent, empty or non-array findings value
-    # contributes nothing and is not an error, which is how reconcile._count_joern reads
-    # it too -- so the two agree on zero for an artifact that carries no findings.
+    # exactly one row or one rejection.  An empty findings array contributes nothing and
+    # is not an error, which is how reconcile._count_joern reads it too -- so the two
+    # agree on zero for an artifact that carries no findings.  An absent or non-array
+    # findings value cannot arrive from cli.py at all: shape.route halts on it under
+    # REASON_NATIVE_SIGNATURE_MISMATCH, and the zero-contribution reading below survives
+    # only for a direct caller.
     for finding_index, raw_finding in enumerate(_json_array(document.get(FINDINGS_KEY))):
         outcome = _adapt_finding(
             raw_finding,

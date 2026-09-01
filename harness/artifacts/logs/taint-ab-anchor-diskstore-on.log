@@ -1,0 +1,36 @@
+arm             : on (taint analysis inter-procedural within the file: --taint-intrafile)
+the one variable: --taint-intrafile present
+engine          : 1.27.1 (/opt/blitzy-tools/bin/opengrep)
+rule            : /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml
+rule id(s)      : tainted-sql-string 
+rule mode       : taint
+ruleset         : /opt/blitzy-harness/rules/opengrep-rules (commit f1d2b562b414783763fd02a6ed2736eaed622efa)
+subject file    : core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+scan root       : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src
+cwd             : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src
+command         : opengrep scan --config <rule> --taint-intrafile --sarif --sarif-output taint-ab-anchor-diskstore-on.sarif --dataflow-traces --timeout 120 --timeout-threshold 0 --max-target-bytes 20000000 --x-ignore-semgrepignore-files --disable-version-check core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+exit code       : 0
+elapsed seconds : 3
+sarif           : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs/taint-ab-anchor-diskstore-on.sarif (4753 bytes)
+sarif sha256    : 7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778
+
+--- findings, from the arm's own SARIF ---
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=core/src/main/scala/org/apache/spark/storage/DiskStore.scala line=72 level=None codeFlows=1 dataflow_steps=2
+  findings: 1
+
+--- the arm's own stderr summary ---
+[00.10][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 1 file tracked by git with 1 Code rule:
+  Scanning 1 file.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+
+Ran 1 rule on 1 file: 1 finding.

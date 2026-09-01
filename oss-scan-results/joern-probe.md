@@ -82,10 +82,16 @@ nothing of its own:
 
 The query sources are `queries/joern/01-callgraph-unguarded-driver-launch.sc`,
 `queries/joern/02-dataflow-unguarded-driver-launch.sc` and
-`queries/joern/03-parameterized-handler-sink-pairs.sc`; the console evidence is
-`harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log`,
-`harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log` and
-`harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log`.
+`queries/joern/03-parameterized-handler-sink-pairs.sc`. The console evidence is
+`harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log` and
+`harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log`, each the
+stream of an invocation that ran to completion and emitted its result region. For
+query 02 there is no such stream: the console of the invocation that produced its
+figures is **not preserved on this branch**, and
+`harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log` is a
+**later** invocation of the same source that halted in the identity stage before
+any load — cited throughout this report as a failed reproduction and
+graph-identity check, never as the source of query 02's counts.
 
 Each of the six result files states, in its own words, that this document must
 **cite its measurements rather than re-measure them**. That is the
@@ -139,9 +145,19 @@ record of account for the bytes it was about to read, and each comparison matche
 
 | Query | Graph, symlink-followed | sha256 | Verified against | Result |
 | --- | --- | --- | --- | --- |
-| 01 | 541,255,894 bytes | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | `harness/artifacts/logs/cpg-frontend.log`, which owns that pair | match on both values |
-| 02 | 541,255,894 bytes | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | `harness/artifacts/logs/cpg-frontend.log`, which owns that pair | match on both values |
+| 01 | 541,255,894 bytes | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | `harness/artifacts/logs/cpg-frontend.log`, which carried that pair at the time of the load | match on both values |
+| 02 | 541,255,894 bytes | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | `harness/artifacts/logs/cpg-frontend.log`, which carried that pair at the time of the load | match on both values |
 | 03 | 548,118,435 bytes | `f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53` | the record of account named by `$HARNESS_CPG_RECORD`, the frontend's own write-time record for the graph actually loaded | match on both values |
+
+**Where that pair is recorded now.** `cpg-frontend.log` has since been replaced by
+this run's own frontend invocation over the complete 191-artifact input set — the
+invocation that failed in serialization, divergence **D1** in
+`oss-scan-results/run-record.md` §13 — so the only identity it now records is that
+invocation's rejected partial write. The 541,255,894 / `26d327cc…` pair these two
+loads verified against is carried by `harness/artifacts/logs/cpg-verify.log`, which
+re-measured it after both of its own loads, and by `run-record.md` §5. What each
+load here verified against, and that each comparison matched, is unchanged: it is a
+fact about the load, recorded when the load happened.
 
 Both names for the graph — the plan's `harness/cpg/spark.cpg` and the
 environment's exported variable — resolve to the same file for every one of the
@@ -555,7 +571,12 @@ Result files:
 `queries/joern/results/02-dataflow-unguarded-driver-launch.json` and
 `queries/joern/results/02-dataflow-unguarded-driver-launch.md`.
 Source: `queries/joern/02-dataflow-unguarded-driver-launch.sc`.
-Console: `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log`.
+Console: the producing invocation's stream is **not preserved on this branch**;
+`harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log` is a
+**later** invocation of the same source that halted in the identity stage before
+any load, cited here only as a failed reproduction and graph-identity check. Every
+figure in this section is cited from that query's envelope, which holds the
+producing invocation's own measurements.
 
 **Formulation.** Bounded **dataflow** over reaching-definition edges through the
 OSS dataflow layer, over the **same** handler/sink pair as query 01 — a different
@@ -802,14 +823,39 @@ count is a count of *committed revisions of the file*, not of the drafting behin
 it — which is why a value of 1 means "introduced in a single commit" rather than
 "written without iteration".
 
-| Query | `.sc` file | Revisions committed |
-| --- | --- | --- |
-| 01 | `queries/joern/01-callgraph-unguarded-driver-launch.sc` | 1 |
-| 02 | `queries/joern/02-dataflow-unguarded-driver-launch.sc` | 1 |
-| 03 | `queries/joern/03-parameterized-handler-sink-pairs.sc` | 1 |
+**The window is part of the number.** A commit made *after* the probe falls
+outside it and is not counted — which includes the post-review correction that
+carried query 03's measure from the 1 it first published to the 2 measured here. A
+later reader whose `git log --follow` over query 03's source shows three commits
+therefore reconciles against this window rather than against a bare number.
+
+**That exclusion reaches all three sources, not only query 03's.** The same
+post-review correction rewrote the reproduction-command emission in
+`queries/joern/01-callgraph-unguarded-driver-launch.sc` and
+`queries/joern/02-dataflow-unguarded-driver-launch.sc` — the non-parsing
+`cd <a scratch directory outside the repository>` form they emitted, replaced by
+the quoted-variable form their records now publish. Those commits are after the
+probe, so queries 01 and 02 remain at **1** on this convention while a later
+`git log --follow` over either source shows **two** commits. The count published
+for each query is therefore always read with this window attached, and every
+figure in the table below is a count taken inside it.
+
+| Query | `.sc` file | Revisions committed | The commits counted |
+| --- | --- | --- | --- |
+| 01 | `queries/joern/01-callgraph-unguarded-driver-launch.sc` | 1 | `1ac5915ed15`, which introduced it |
+| 02 | `queries/joern/02-dataflow-unguarded-driver-launch.sc` | 1 | `675f691eca9`, which introduced it |
+| 03 | `queries/joern/03-parameterized-handler-sink-pairs.sc` | 2 | `20a56482274` introduced it, `1072fd2334f` revised it |
+
+The three figures are **per query and are never added**: no probe-wide revision
+total is published here or in any envelope, because a sum across three files
+answers a question no query asks.
 
 Each figure is the value that query's own envelope publishes, under that query's
-own statement of the same convention.
+own statement of the same convention. Query 03's retained console stream,
+`harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log`, was written
+by the source revision that precedes that correction, so its EFFORT MEASURE 1
+lines print the stale 1; the value of record is the one the query source declares
+and the envelope publishes.
 
 ### 2. Distinct Joern API constructs used
 
@@ -967,7 +1013,8 @@ and reading them as measurements would overstate what the probe established:
   internal bound.
 - **The graph-identity divergence between the two records is recorded, not
   resolved.** Queries 01 and 02 loaded 541,255,894 bytes / `26d327cc…`, verified
-  against `harness/artifacts/logs/cpg-frontend.log`; query 03 loaded 548,118,435
+  against `harness/artifacts/logs/cpg-frontend.log` as it then stood — the pair now
+  carried by `cpg-verify.log` and `run-record.md` §5; query 03 loaded 548,118,435
   bytes / `f8c71562…`, verified against the record of account for the graph it
   actually read. Both pairs are kept with their provenance and neither is
   discarded. The graph is a host-shared read-only file this run neither rebuilds
@@ -985,10 +1032,15 @@ and reading them as measurements would overstate what the probe established:
 | The probe-wide union of 46 API constructs and its 24 / 18 / 4 decomposition | computed here from the three published lists, as `01`'s and `02`'s prose results direct |
 | Pinned source line numbers, and the `+11` offset caveat on `Worker.scala` in the working checkout | the pinned tree at `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d`, and the caveat as published in envelope 01's route surface |
 
-Console evidence for each query is
-`harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log`,
-`harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log` and
-`harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log`. Both
-artifact trees are git-ignored and are published by manifest with per-file byte
-size and sha256 in `oss-scan-results/run-record.md`, which indexes this report but
-does not substitute for it: the per-query probe results are owned here.
+Console evidence is
+`harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log` for query
+01 and `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log` for
+query 03, each a completed invocation's own stream; query 03's predates the
+post-review correction of its revision count, so its EFFORT MEASURE 1 lines print
+the superseded 1 rather than the 2 published above. For query 02 no producing
+stream is retained — `harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log`
+is the later invocation that halted on graph identity — so query 02's figures are
+cited from its envelope alone. Both artifact trees are git-ignored and are published
+by manifest with per-file byte size and sha256 in `oss-scan-results/run-record.md`,
+which indexes this report but does not substitute for it: the per-query probe results
+are owned here.

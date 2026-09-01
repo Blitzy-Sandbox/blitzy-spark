@@ -52,8 +52,22 @@ also in a file on disk.
 From the repository root, the whole tree:
 
 ```bash
-python3 -m unittest discover -s oss-scan-results/adapter-tests -v
+python3 -m unittest discover -s oss-scan-results/adapter-tests -p 'test_*.py' -v
 ```
+
+That is the command `harness/artifacts/logs/adapter-tests-run.json` records, in every
+argument. The one difference is the executable: the record names the resolved interpreter
+`/usr/bin/python3`, because it records what actually ran, while this file writes `python3`
+so the command works wherever the base interpreter sits on `PATH`. The two are the same
+invocation after executable resolution, not the same string — and the record carries that
+absolute path and the interpreter's version separately, which is what makes the
+substitution checkable rather than assumed.
+
+The `-p 'test_*.py'` is part of the command rather than a decoration. It happens to be
+`unittest`'s default pattern, so omitting it selects the same 10 modules today — but
+the documented arguments and the recorded ones must be the same arguments, or a reader
+reproducing the run is reproducing something slightly different from what was measured,
+and would not know it.
 
 One module at a time — the form each per-module measurement in the run record was taken
 with:
@@ -90,11 +104,18 @@ without anything being installed.
 ### The run record
 
 `harness/artifacts/logs/adapter-tests-run.json` carries the exact command line, the
-interpreter's absolute path and version, a per-module outcome, **a separate entry for
-every one of the 38 negative fixtures**, and the exit status. It records exit status 0
-over 577 tests and 12,955 subtests with zero failures, errors and skips, and its
-per-module test counts sum to exactly that 577 — so a module that had silently stopped
-contributing tests would show up as an arithmetic mismatch rather than as a passing run.
+interpreter's absolute path and version, **an outcome for every test that executed**, a
+per-module outcome, **a separate entry for every one of the 72 negative fixtures**, and
+the exit status. It records exit status 0 over 1,134 tests and 27,087 subtests with zero
+failures, errors and skips; its per-module test counts sum to exactly that 1,134, and its
+per-test outcome inventory holds exactly 1,134 entries — so a module that had silently
+stopped contributing tests would show up as three disagreeing numbers rather than as a
+passing run.
+
+Each entry in that inventory is a fully qualified `<module>.<class>.<method>` identifier
+— the identifier `python3 -m unittest <id>` re-runs — with its status. An aggregate could
+not do that work: it cannot say *which* test produced a verdict, so a method that stopped
+running would still reconcile against a total.
 
 A failed adapter fixture, rejection or reconciliation test **halts the run** (AAP
 §0.9.2). It is not a warning: the normalizer's correctness claim rests on this suite, so
@@ -110,37 +131,81 @@ byte-size and sha256 manifest that `oss-scan-results/run-record.md` owns.
 
 ## 3. Fixture provenance
 
-`fixtures/` holds 52 files and `expected/` holds 52, one expected file per fixture in
-both directions. They divide into **38 negative fixtures, 9 positive fixtures** (eight
-captured, one derived) **and 5 shape, halt and reconciliation fixtures** — the
-accounting is exact, and every one of the 52 is claimed by some module's fixture
-inventory rather than sitting untested.
+`fixtures/` holds 103 files and `expected/` holds 103, one expected file per fixture in
+both directions. They divide into **8 captured positive fixtures**, **7 declared-derived
+feature fixtures**, **72 negative fixtures**, **6 structural-halt fixtures**, **5
+malformed-known-filename fixtures**, **3 shape-detection fixtures** and **2 others** —
+8 captured + 7 derived + 6 halt + 5 malformed + 3 shape + 2 other + 72 negative = 103. The accounting is exact and every one of the 103 is claimed by some
+module's fixture inventory rather than sitting untested.
 
-### 3.1 Positive fixtures and the artifact each was captured from
+Attribution was measured rather than assumed: **102 of the 103 were named by at least one
+executed subTest**, and the one that was not —
+`reject-dependency-check-unresolvable-path-missing-base` — is driven by
+`MetadataVariantFixtureTests` from a class attribute rather than from a loop variable, so
+no subTest carries its stem. `harness/artifacts/logs/adapter-tests-run.json` records that
+exception with the owning class and how many of its tests executed, rather than rounding
+it into the claim.
 
-One row per adapter exercised, three of them for the single shared SARIF adapter:
+### 3.1 Captured positive fixtures, and what was taken from each artifact
 
-| Fixture | Captured from | Adapter under test |
-| --- | --- | --- |
-| `fixtures/opengrep.sarif` | `harness/artifacts/raw/opengrep.sarif` | `adapters/sarif.py` |
-| `fixtures/semgrep.sarif` | `harness/artifacts/raw/semgrep.sarif` | `adapters/sarif.py` |
-| `fixtures/datadog-static-analyzer.sarif` | `harness/artifacts/raw/datadog-static-analyzer.sarif` | `adapters/sarif.py` |
-| `fixtures/trivy.json` | `harness/artifacts/raw/trivy.json` | `adapters/trivy.py` |
-| `fixtures/gitleaks.json` | `harness/artifacts/raw/gitleaks.json` | `adapters/gitleaks.py` |
-| `fixtures/checkov.json` | `harness/artifacts/raw/checkov.json` | `adapters/checkov.py` |
-| `fixtures/dependency-check.json` | `harness/artifacts/raw/dependency-check.json` | `adapters/dependency_check.py` |
-| `fixtures/joern.json` | `harness/artifacts/raw/joern.json` | `adapters/joern.py` |
+One row per adapter exercised, three of them for the single shared SARIF adapter. Each is
+asserted **against the artifact itself** by that module's provenance class, which opens
+the file under `harness/artifacts/raw/` and compares records and envelope; a comparison
+against a digest this tree owns would establish self-consistency and nothing about
+provenance.
 
-`fixtures/checkov.json` captured the **object form** — a single report object carrying
-`check_type`, `results` and `summary`. That is the shape this run's artifact was written
-in, and it is one of two mutually exclusive top-level shapes the tool can emit, so the
-other one has to be exercised too: `fixtures/checkov-alt-shape.json` is the ninth
-positive fixture, is the **multi-framework array form**, and is derived rather than
-captured. §3.3 lists it with the other derived fixtures.
+| Fixture | Captured from | What was taken | Adapter under test |
+| --- | --- | --- | --- |
+| `fixtures/opengrep.sarif` | `harness/artifacts/raw/opengrep.sarif` | 8 whole results and the 7 rules they resolve through, behind the artifact's envelope with its complete **51-entry** `toolExecutionNotifications` array and no `originalUriBaseIds` | `adapters/sarif.py` |
+| `fixtures/semgrep.sarif` | `harness/artifacts/raw/semgrep.sarif` | 9 whole results, the 9 rules they resolve through, the complete **179-entry** notification array, and no `originalUriBaseIds` — the producer emits none | `adapters/sarif.py` |
+| `fixtures/datadog-static-analyzer.sarif` | `harness/artifacts/raw/datadog-static-analyzer.sarif` | 7 whole results keeping their own absolute `ruleIndex`, and therefore the **full 1,093-rule and 568-artifact arrays**; no `$schema`, because the artifact has none | `adapters/sarif.py` |
+| `fixtures/trivy.json` | `harness/artifacts/raw/trivy.json` | the **whole artifact**, byte for byte: 3 `Results` elements, 3 misconfiguration records, no `Vulnerabilities`, no `Secrets` | `adapters/trivy.py` |
+| `fixtures/gitleaks.json` | `harness/artifacts/raw/gitleaks.json` | the **whole artifact**, byte for byte: a bare array with one element, redacted by the tool itself | `adapters/gitleaks.py` |
+| `fixtures/checkov.json` | `harness/artifacts/raw/checkov.json` | the **whole artifact**, byte for byte: the object form, `results` carrying only `failed_checks` with 6 records, and the tool's own `summary` | `adapters/checkov.py` |
+| `fixtures/dependency-check.json` | `harness/artifacts/raw/dependency-check.json` | the **whole artifact**, byte for byte: 32 dependencies, **zero** vulnerability records, **zero** package objects — so **zero rows** | `adapters/dependency_check.py` |
+| `fixtures/joern.json` | `harness/artifacts/raw/joern.json` | 14 whole findings in artifact order, spanning all six query ids and both outcomes the artifact really produces, behind the artifact's own envelope | `adapters/joern.py` |
+
+For the four whole-artifact captures the fixture's sha256 **equals** the artifact's, which
+is the strongest provenance available and is what those modules assert.
+
+**One requirement cannot be satisfied, and is recorded as failed rather than excepted.**
+AAP §0.6.2 requires a captured positive fixture that exercises the adapter's positive
+field mapping. `harness/artifacts/raw/dependency-check.json` is the whole of that tool's
+output for this run and contains no vulnerability record, and one vulnerability record is
+that shape's count unit — so no excerpt of it can exercise any field of a row builder,
+and the captured fixture carries zero rows. `expected/dependency-check.rows.json` states
+that requirement as **FAILED**, with the measurement that makes it failed, and
+`test_dependency_check_adapter.py` asserts the measurement rather than the prose. Positive
+mapping for that adapter is exercised on `fixtures/derived-dependency-check-features.json`,
+which is declared derived. That is the requirement recorded as unmet — not a waiver, and
+not a derived fixture relabelled to make it read as met.
+
+`fixtures/checkov.json` is the **object form**, which is the shape this run's artifact was
+written in. It is one of two mutually exclusive top-level shapes the tool can emit, so the
+other has to be exercised too: `fixtures/checkov-alt-shape.json` is the multi-framework
+array form, **derived by shape transformation alone** from that capture, and §3.3 lists it
+with the other derived fixtures.
 
 `harness/artifacts/raw/` holds one artifact per tool that wrote one and nothing else
 ever. There is no ninth artifact and no `osv-scanner.json`; §8 states that decision, its
 ground and what would change if the observed outcome were ever different.
+
+### 3.1.1 Declared-derived feature fixtures
+
+Seven fixtures carry the cases the tools' own artifacts do not contain. Each is declared
+derived in its own expected file, and each module's provenance class asserts that
+declaration and that the file is **not** an excerpt of any artifact — so a derived
+document can never be read as captured output.
+
+| Fixture | What it exercises that no capture can |
+| --- | --- |
+| `fixtures/derived-semgrep-features.sarif` | an authored `originalUriBaseIds` base map and a chained walk; a multi-CVE tag ordering |
+| `fixtures/derived-datadog-static-analyzer-features.sarif` | rule resolution through `ruleIndex` against a subset rules array |
+| `fixtures/derived-trivy-features.json` | the `Vulnerabilities` and `Secrets` sections, package coordinates, and `scanner_class` varying row by row |
+| `fixtures/derived-gitleaks-features.json` | rule, path and scope variety across six records |
+| `fixtures/derived-checkov-features.json` | the `passed_checks`, `skipped_checks` and `parsing_errors` buckets, which must produce no row |
+| `fixtures/derived-dependency-check-features.json` | vulnerability records at all: the coordinate-candidate precedence, the label-over-score precedence, absolute-path relativization |
+| `fixtures/derived-joern-features.json` | a finding resolving into a `src/test` tree, retained with `in_scope: false` — measured: 0 of the artifact's 692 findings names a Suite or Test class, so the case cannot be captured |
 
 ### 3.2 The two kinds of fixture, and why each is the kind it is
 
@@ -160,6 +225,19 @@ its fixtures are present, parse, and are unchanged by sha256 across the run, so 
 assertion cannot pass over a fixture that silently failed to parse or was quietly
 adjusted.
 
+That last check is **change-detection, not provenance**: a fixture compared with a digest
+this tree computed from that same fixture is self-consistent by construction. Provenance
+is a separate assertion, and each module now carries it — `RawArtifactProvenanceTests` in
+the SARIF, Gitleaks, Checkov, Dependency-Check and Joern modules and
+`CapturedFixtureProvenanceTest` in the Trivy module. Each opens the corresponding artifact
+under `harness/artifacts/raw/`, compares every retained record under a canonical
+serialization in artifact order, checks the envelope member by member — including the
+notification arrays, the rule and artifact arrays, and the **absence** of members the
+artifact does not have — and fails with the artifact's path named if the artifact is
+missing. None of them skips: the run record reports `skipped=0` as a property of this
+suite, and a skipped provenance test would be indistinguishable from a passing one in a
+total.
+
 **Negative fixtures are derived from the positive ones**, one per rejection condition
 its adapter can produce, and **their presence does not depend on this run's artifacts
 happening to contain the case**: a rejection path with no test is a rejection path
@@ -177,8 +255,11 @@ positive fixture and each exists for a reason a captured artifact could not serv
 
 | Fixture | What it is | Why it is not a capture |
 | --- | --- | --- |
-| `fixtures/checkov-alt-shape.json` | Checkov's other top-level shape: an array of report objects, here two | **Shape-transformed only** — the same records rearranged into the multi-framework form, so the identical rows in the identical order can be required of both shapes. Which shape a real artifact carries is decided by its content, so only one of the two can ever be captured on a given run |
+| `fixtures/checkov-alt-shape.json` | Checkov's other top-level shape: an array of report objects, here two | **Shape-transformed only** — the captured document's six `failed_checks`, in the same order, as whole unedited objects, rearranged into the multi-framework form so the identical rows in the identical order can be required of both shapes. `SourceDocumentEqualityTests` compares the two committed `failed_checks` documents directly, before any adapter runs, so an edit to a field the adapter ignores cannot pass unnoticed. Which shape a real artifact carries is decided by its content, so only one of the two can ever be captured on a given run |
 | `fixtures/halt-trivy-unsupported-section.json` | A Trivy report carrying a non-empty finding section outside the three supported ones | Drives the structural **halt** rather than a row or a rejection — hence the different `halt-` prefix. A captured artifact validated its unsupported sections empty, so it cannot exercise the branch that stops the run |
+| `fixtures/halt-trivy-unknown-section.json` | A member outside the known `Result` fields holding a non-empty array of objects | An unrecognised finding section, treated as one rather than dropped. The artifact carries no such member, so only an authored document reaches the branch |
+| `fixtures/halt-trivy-section-not-an-array.json` | A supported section present as something other than an array or null | The branch that exists precisely to stop malformed output reconciling as a clean scan: `reconcile` would count it as zero records and the identity would balance |
+| `fixtures/halt-trivy-declared-findings-unheld.json` | A `MisconfSummary` declaring failures that no supported section holds | Real tool output with nowhere to have come from. The captured artifact's summaries agree with its sections, so the condition cannot be captured |
 | `fixtures/near-sarif-version-only.json` | Satisfies the `version` half of the SARIF test and fails the `runs` half | The detector's test is a conjunction, and a real artifact satisfies both halves or neither. Only an authored near-miss can fail exactly one |
 | `fixtures/near-sarif-runs-only.json` | Satisfies the `runs` half and fails the `version` half | The mirror of the above. Neither fixture alone pins the conjunction; both are needed |
 | `fixtures/unknown-shape.json` | A document matching neither SARIF nor any known native shape | The halt path for an unrecognised artifact has no captured instance by construction — every artifact this run produced matched a known shape |
@@ -204,7 +285,7 @@ adapter.
 
 | Condition (AAP §0.5.4) | `sarif` | `trivy` | `gitleaks` | `checkov` | `dependency-check` | `joern` |
 | --- | --- | --- | --- | --- | --- | --- |
-| An unresolvable or absent path | `unresolvable-path`; `absent_path` <sup>a</sup> | `unresolvable-path`; `absent_path` not claimed <sup>n</sup> | `unresolvable-path` (asserts `absent_path`); `unresolvable_path` <sup>b</sup> | `unresolvable-path`; `absent_path` <sup>c</sup> | `unresolvable-path` (asserts `absent_path`); `unresolvable_path` <sup>d</sup> | `unresolvable-path`; `absent_path` <sup>e</sup> |
+| An unresolvable or absent path | `unresolvable-path`; `absent_path` <sup>a</sup> | `unresolvable-path`; `absent-path` | `unresolvable-path` (asserts `absent_path`); `unresolvable_path` <sup>b</sup> | `unresolvable-path`, `unresolvable-path-uri-anchor`; `absent-path` | `unresolvable-path`, `unresolvable-path-missing-base`; `absent-path` | `unresolvable-path`; `absent_path` <sup>e</sup> |
 | A cyclic, over-deep or invalid `uriBaseId` chain | `uribaseid-cycle`, `uribaseid-overdepth`, `uribaseid-missing-base` †, `uribaseid-relative-no-absolute-ancestor` † → `unresolvable_path`; `uribaseid-invalid-uri` → `invalid_uri` | Cannot arise: no SARIF base map is walked on this route | Cannot arise: `File` is a filesystem path, not a URI, so there is no chain to walk, cycle or exceed | Cannot arise: the tool emits no `uri`, no `uriBaseId` and no base map, so there is no reference to parse | Cannot arise: `filePath` is a filesystem path and this route parses no SARIF bases | Cannot arise: this shape carries no URI and no base map |
 | An ambiguous bytecode-to-source resolution | Cannot arise: no bytecode input to resolve | Cannot arise: this adapter resolves reported paths, never bytecode | Cannot arise: no bytecode input, so no class identifier can resolve two ways | Cannot arise: a configuration-file report carries no bytecode class | Cannot arise: this route resolves a reported filesystem path, not bytecode | `ambiguous-path` — sole owner of the class |
 | A missing rule identifier | `missing-rule-id` | `missing-rule-id` | `missing-rule-id` | `missing-rule-id` | `missing-rule-id` | `missing-rule-id` |
@@ -226,12 +307,12 @@ record:
 
 Three further notes the table cannot carry:
 
-- <sup>n</sup> `trivy` / `absent_path` is the one class no fixture in this tree claims. A Trivy record's path comes from its enclosing `Results[].Target`, and the shape in which it goes missing in this corpus is the unresolvable one rather than the absent one. `test_trivy_adapter.py` states plainly that the class remains a member of the closed vocabulary and is **not claimed** by that module — an unexercised path named as such rather than passed over.
+- <sup>n</sup> `trivy` / `absent_path` used to be the one class no fixture in this tree claimed, on the ground that the shape in which a Trivy path goes missing is the unresolvable one rather than the absent one. That was wrong: a missing, `null` or blank enclosing `Results[].Target` reaches the absent branch, so the class was producible and unexercised. `fixtures/reject-trivy-absent-path.json` now drives it — derived from the capture by emptying one `Target` and changing nothing else — and `RejectionClassPartitionTest` asserts the complete **producible / unreachable** partition over the closed ten-member vocabulary in both directions, so a reachable class cannot again be recorded as unexercised without a test disagreeing.
 - † The two two-branch fixtures are driven under **both** metadata states. With an explicit recorded base for the tool, `uribaseid-missing-base` resolves to a row through the documented degenerate-base fallback; without one it is a counted `unresolvable_path` rejection. `uribaseid-relative-no-absolute-ancestor` rejects under **both** branches, and the contrast between the two fixtures is what shows the fallback is scoped to eligible walk outcomes rather than applied to anything that failed to resolve.
 - ‡ The unattributable-section fixture is driven through the adapter's public seam rather than through `adapt()`, because `adapt()`'s iteration is section-bound by construction and cannot produce that condition. That is a property of the adapter's design, recorded here rather than worked around silently.
 
-Fixture counts follow from the table: 10 negative fixtures for `sarif`, 7 for `trivy`,
-5 for `gitleaks`, 5 for `checkov`, 5 for `dependency-check` and 6 for `joern` — 38 in
+Fixture counts follow from the table: 10 negative fixtures for `sarif`, 8 for `trivy`,
+5 for `gitleaks`, 5 for `checkov`, 5 for `dependency-check` and 6 for `joern` — 39 in
 all, each with its own hand-verified expected file.
 
 Two fixture names are worth reading carefully, because the stem names the AAP
@@ -243,22 +324,30 @@ way a path goes missing in those two shapes is by not being there at all. Their
 
 ## 5. What each test module asserts
 
-Eight modules. Each was also run on its own, so the test count beside it is that
-module's own measurement rather than a share of the aggregate; all eight counts are
-recorded in `harness/artifacts/logs/adapter-tests-run.json`.
+10 modules. Each was also run on its own, so the test count beside it is that
+module's own measurement rather than a share of the aggregate; all 10 counts are
+recorded in `harness/artifacts/logs/adapter-tests-run.json`, and they sum to the
+suite's 1,134.
 
 | Module | Subject | Tests |
 | --- | --- | --- |
-| `test_sarif_adapter.py` | `adapters/sarif.py` | 98 |
-| `test_trivy_adapter.py` | `adapters/trivy.py` | 81 |
-| `test_gitleaks_adapter.py` | `adapters/gitleaks.py` | 75 |
-| `test_checkov_adapter.py` | `adapters/checkov.py` | 100 |
-| `test_dependency_check_adapter.py` | `adapters/dependency_check.py` | 62 |
-| `test_joern_adapter.py` | `adapters/joern.py` | 74 |
-| `test_shape_routing_negative.py` | `shape.py` | 40 |
-| `test_reconciliation.py` | `reconcile.py` | 47 |
+| `test_sarif_adapter.py` | `adapters/sarif.py` | 108 |
+| `test_trivy_adapter.py` | `adapters/trivy.py` | 194 |
+| `test_gitleaks_adapter.py` | `adapters/gitleaks.py` | 93 |
+| `test_checkov_adapter.py` | `adapters/checkov.py` | 127 |
+| `test_dependency_check_adapter.py` | `adapters/dependency_check.py` | 96 |
+| `test_joern_adapter.py` | `adapters/joern.py` | 117 |
+| `test_shape_routing_negative.py` | `shape.py` | 112 |
+| `test_reconciliation.py` | `reconcile.py` | 162 |
+| `test_cli_writers.py` | `cli.py` — the composition, its option surface and the output-ownership guard | 59 |
+| `test_emit_publication.py` | `emit.py` — the staged all-or-nothing publication of the dataset pair | 66 |
 
-One property is common to all eight and is stated once: every rejection class is
+The last two subject the modules that carry no adapter of their own: `cli.py`'s
+composition and its refusal to write outside the log directory it owns, and `emit.py`'s
+publication protocol — the staged write, the typed re-parse of both written files, and
+the boundary that refuses a `start_line` below 1.
+
+One property is common to all 10 and is stated once: every rejection class is
 asserted **by name** against a member of `normalize.paths.REJECT_CLASSES` read from the
 module, every row is compared over the twelve fields **iterated from `emit.FIELDS`**
 rather than spot-checked, and each module's fixture-inventory class runs first, because
@@ -301,8 +390,11 @@ The one shared adapter serves all three SARIF producers, so this module carries 
 - **`scanner_class` derives from the section array the record was read from, never from
   record content**, and it is asserted per row rather than in aggregate — this is the one
   adapter whose `scanner_class` varies row by row.
-- **A non-empty unsupported finding section halts** rather than being dropped, asserted
-  by its exact exception type. The reason it must be a halt rather than a warning is that
+- **Every one of the four structural halts `trivy.HALT_REASONS` declares** is asserted
+  behaviourally, one committed fixture each, with the reason, section, `result_index` and
+  structure diagnostics checked rather than merely that something raised — and the closed
+  tuple is iterated, so a fifth reason cannot arrive untested. A non-empty unsupported
+  finding section halts rather than being dropped, asserted by its exact exception type. The reason it must be a halt rather than a warning is that
   a silently dropped section is absent from *both* sides of the reconciliation identity:
   the count unit never saw it, so the identity balances exactly while real tool output
   leaves no trace in the dataset, in the counters or in the reconciliation. The module
@@ -346,9 +438,12 @@ The one shared adapter serves all three SARIF producers, so this module carries 
   *whichever target matched* and a strip-and-join against the tree root names a directory
   that does not exist even once the slash is handled correctly. An anchor field is what
   disambiguates it.
-- **`passed_checks` and `skipped_checks` produce no rows**, asserted from a fixture that
-  actually contains passed checks and a skipped check; only failures are findings.
-  `parsing_errors` are status evidence rather than findings.
+- **`passed_checks` and `skipped_checks` produce no rows**, asserted from
+  `fixtures/derived-checkov-features.json`, which actually contains three passed checks, a
+  skipped check and a parsing error; only failures are findings. `parsing_errors` are
+  status evidence rather than findings. The captured artifact carries none of those
+  buckets, so it establishes the other half of the rule instead: an **absent** bucket
+  reads as zero rather than raising.
 - The count unit is the **union** of `results.failed_checks[]` across every report object,
   in either shape; and a record defective in two ways takes the **first** class in a fixed
   order, so a class is reproducible rather than incidental to which check ran first.
@@ -380,7 +475,10 @@ The one shared adapter serves all three SARIF producers, so this module carries 
   name bytecode compiled from a test tree.
 - **A test-JAR finding is retained with `in_scope: false`**, asserted on a **named row** —
   its path, its `in_scope` value and its presence — because a dropped test-tree row and a
-  retained one are indistinguishable in a row count.
+  retained one are indistinguishable in a row count. It is asserted on
+  `fixtures/derived-joern-features.json` rather than on the capture, and that is measured
+  rather than preferred: 0 of the artifact's 692 findings names a Suite or Test class, so
+  no capture of it can carry the case.
 - **An ambiguous resolution is a counted rejection, and the boundary against retention is
   kept sharp.** Ambiguity is asserted twice: positively, that exactly the expected
   rejections arrive under the named class; and negatively, that **no** colliding candidate
@@ -442,7 +540,7 @@ that detection is **content-based, not filename-based**.
 ## 6. Expected files
 
 `expected/<fixture-stem>.rows.json` accompanies each fixture, one to one in both
-directions, 52 and 52.
+directions, 103 and 103.
 
 For a **positive** fixture it carries the exact twelve-field rows the fixture must
 produce, **hand-verified and asserted field by field** — never generated by running the

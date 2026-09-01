@@ -1,0 +1,37 @@
+arm             : on (taint analysis inter-procedural within the file: --taint-intrafile)
+the one variable: --taint-intrafile present
+engine          : 1.27.1 (/opt/blitzy-tools/bin/opengrep)
+rule            : /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml
+rule id(s)      : tainted-sql-string 
+rule mode       : taint
+ruleset         : /opt/blitzy-harness/rules/opengrep-rules (commit f1d2b562b414783763fd02a6ed2736eaed622efa)
+subject file    : sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+scan root       : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src
+cwd             : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src
+command         : opengrep scan --config <rule> --taint-intrafile --sarif --sarif-output taint-ab-on.sarif --dataflow-traces --timeout 120 --timeout-threshold 0 --max-target-bytes 20000000 --x-ignore-semgrepignore-files --disable-version-check sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+exit code       : 0
+elapsed seconds : 4
+sarif           : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs/taint-ab-on.sarif (10021 bytes)
+sarif sha256    : 1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24
+
+--- findings, from the arm's own SARIF ---
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala line=828 level=None codeFlows=1 dataflow_steps=5
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala line=834 level=None codeFlows=1 dataflow_steps=5
+  findings: 2
+
+--- the arm's own stderr summary ---
+[00.11][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 1 file tracked by git with 1 Code rule:
+  Scanning 1 file.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+
+Ran 1 rule on 1 file: 2 findings.

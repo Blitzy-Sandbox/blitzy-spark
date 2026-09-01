@@ -78,6 +78,12 @@ scanner_class_varies_per_record=no
 #   per-tool attribution. harness/bin/ holds exactly the nine runners and no
 #   orchestrator, so none was available to use and none was used.
 #
+#   The one-at-a-time clause holds within this clone only. Global sequencing
+#   across the run FAILED and is corrected in the
+#   runner_invoked_one_at_a_time_correction field below; this invocation's own
+#   window overlapped no other tool's, so the failure is a property of the run
+#   rather than of this invocation.
+#
 #   The argument guard was established by inspection rather than by a probe: a
 #   blind probe against a defective runner could perform a real scan and
 #   contaminate the artifact tree. The guard is the first executable statement
@@ -89,7 +95,10 @@ runner_path=harness/bin/run-joern.sh
 runner_path_absolute_as_invoked=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/bin/run-joern.sh
 runner_invocation_form=direct
 runner_arguments_passed=none
-runner_invoked_one_at_a_time=yes
+runner_invoked_one_at_a_time_within_clone=yes
+global_sequencing_satisfied=no
+runner_invoked_one_at_a_time_superseded_value=yes
+runner_invoked_one_at_a_time_correction=The superseded value stated one-at-a-time without naming a scope, and no per-clone record has standing to state it globally - that is the fault being corrected here. One tool at a time holds only inside the clone this runner ran in (w-031_2e6517). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-24T22:41:02Z-22:58:56Z) overlapped NO other tool's window - it stands alone - so this invocation's own window is disjoint and the correction is made because the superseded value asserted a global property this invocation cannot establish, not because this window overlapped anything. AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - and five pairs of other tools' windows do overlap, so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under "Facts common to all nine", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing was measured afresh for this correction and nothing was repaired: no scanner was re-run, no window was re-measured, and the two fields above are read off the records already written.
 runner_invoked_through_orchestrator=no
 orchestrator_present_in_harness_bin=no
 argument_guard_lines=harness/bin/run-joern.sh lines 19-22

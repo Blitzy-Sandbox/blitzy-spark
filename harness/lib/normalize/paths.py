@@ -174,6 +174,37 @@ for "probably fine", and every one has a negative fixture under
 ``oss-scan-results/adapter-tests/`` whether or not this run's artifacts contain the
 case -- so the names are stable and greppable.
 
+Every persisted diagnostic goes through one renderer, also here
+--------------------------------------------------------------
+A rejection's ``detail`` and ``record_identity`` are composed from
+artifact-supplied strings, and a rejection is *recorded* -- into
+``harness/artifacts/logs/normalize-run.json``, and from there quoted into
+``tool-status.md``.  Rejecting a record therefore does not stop its content
+reaching a durable file, so two hazards have to be closed at the point of
+persistence: a terminal control sequence rewrites what a human reading the log
+sees, and a URI carrying userinfo (``https://user:token@host/x``) puts whatever
+credential the artifact happened to contain into the record.
+
+:func:`sanitise_diagnostic` makes a composed sentence inert while keeping it
+readable -- userinfo redacted, control characters rendered as ``<U+XXXX>``, length
+bounded at :data:`DIAGNOSTIC_TEXT_LIMIT`.  :func:`safe_diagnostic` *describes* a raw
+value instead of showing it -- type, length, sha256, bounded excerpt, structural
+context -- and is what a site uses where it would otherwise interpolate
+``{value!r}``.  :func:`sanitise_persisted` recurses the same treatment through a
+mapping or a list.  ``\\n`` and ``\\t`` are deliberately **not** escaped: this
+dataset carries messages with embedded newlines by design (AAP 0.5.4) and escaping
+them would rewrite legitimate evidence, while ESC -- the actual injection vector --
+is escaped.
+
+The renderer lives in this module because AAP 0.6.4 fixes that an adapter depends
+only on ``paths`` and ``severity``, and every adapter already imports this one.  It
+is applied at the *persistence boundary* (:meth:`Rejection.as_dict`) rather than at
+each of the ~60 sites that compose a detail: per-site sanitising is unenforceable,
+and it would rewrite the hand-verified ``detail`` strings in every
+``expected/*.rows.json`` for no security gain.  The in-memory attributes are left
+exactly as the adapter composed them, so an assertion on ``rejection.detail`` still
+reads what the adapter said.
+
 Two recorded divergences from the description this module was specified against
 -------------------------------------------------------------------------------
 Both are recorded rather than repaired, per the AAP's authority rule.
@@ -207,6 +238,7 @@ from __future__ import annotations
 
 import fnmatch
 import glob as _glob
+import hashlib
 import json
 import os
 import re
@@ -215,7 +247,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from types import MappingProxyType
-from typing import Any, Final
+from typing import Any, Final, NoReturn
 from urllib.parse import unquote, urlsplit
 
 # --------------------------------------------------------------------------- #
@@ -347,6 +379,370 @@ def is_reject_class(value: object) -> bool:
     return isinstance(value, str) and value in _REJECT_CLASS_SET
 
 
+# --------------------------------------------------------------------------- #
+# Safe diagnostics -- the one renderer every persisted diagnostic goes through
+#
+# Every string an adapter reports about a record is artifact-supplied: a rule
+# identifier, a message, a URI, a class name.  Those strings are composed into
+# rejection details and halt messages, and those are *persisted* -- into
+# ``harness/artifacts/logs/normalize-run.json``, and from there quoted into
+# ``tool-status.md``.  Two hazards follow, and neither is hypothetical for a
+# scanner reading a repository that anyone may open a pull request against:
+#
+#   * a terminal control sequence in a diagnostic rewrites what a human reading
+#     the log sees, and a NUL or a C1 byte can truncate or confuse a downstream
+#     consumer of the record;
+#   * a URI carrying userinfo -- ``https://user:token@host/x`` -- puts a
+#     credential the artifact happened to contain into a durable record, and a
+#     rejected record is still recorded, so rejecting it is not protection.
+#
+# So there is exactly one renderer, here, and it has two entry points because
+# there are two jobs.  :func:`sanitise_diagnostic` keeps a composed *sentence*
+# readable while making it inert; :func:`safe_diagnostic` *describes* a raw value
+# -- its type, its length, its digest and a bounded excerpt -- rather than showing
+# it, which is what a site that would otherwise interpolate ``{value!r}`` uses.
+#
+# It lives in this module because AAP 0.6.4 fixes that an adapter depends only on
+# ``paths`` and ``severity``, and every adapter already imports this one.  A new
+# module would have to be imported by six adapters and by ``cli``; ``shape.py`` is
+# a leaf that imports nothing from the package and keeps its own bounded
+# rendering, which is a deliberate duplication of a small guard rather than a
+# second policy.
+# --------------------------------------------------------------------------- #
+
+#: How much of a composed diagnostic *sentence* is carried into a record. Chosen
+#: above every detail this pipeline has been observed to produce -- the longest
+#: measured was 376 characters, a Joern unresolvable-path explanation -- so the
+#: bound catches an artifact-driven blow-up and truncates nothing authored.
+DIAGNOSTIC_TEXT_LIMIT: Final[int] = 2_000
+
+#: How much of a single artifact-supplied *value* is excerpted when it is
+#: described rather than shown. Deliberately small: the excerpt is there to make a
+#: value recognisable, and the digest beside it is what identifies it exactly.
+DIAGNOSTIC_VALUE_LIMIT: Final[int] = 512
+
+#: What replaces a URI's userinfo component. A marker rather than a deletion, so
+#: the record states that something was removed instead of quietly reading as a
+#: URI that never had credentials in it.
+USERINFO_REDACTION: Final[str] = "<redacted-userinfo>"
+
+# `scheme://userinfo@` -- the only place a URI may carry a credential (RFC 3986
+# section 3.2.1). Anchored on the scheme and the authority marker, so an ordinary
+# `name@domain` in prose, a `git@host:path` SSH shorthand and a severity source
+# such as `nvd@nist.gov` are all left exactly as the artifact wrote them: those
+# are not credentials, and redacting them would remove evidence for nothing.
+_URI_USERINFO_RE: Final[re.Pattern[str]] = re.compile(
+    r"([A-Za-z][A-Za-z0-9+.\-]*://)([^/?#\s@]+)@"
+)
+
+# The characters escaped on their way into a record. Every C0 control except tab
+# and newline, DEL, and the whole C1 range. Tab and newline are exempt because
+# this dataset carries messages with embedded newlines by design (AAP 0.5.4) and
+# escaping them would rewrite legitimate evidence; ESC -- the actual terminal
+# injection vector -- is not exempt.
+_DIAGNOSTIC_KEEP_CONTROLS: Final[frozenset[str]] = frozenset({"\t", "\n"})
+
+
+def _is_escapable_control(char: str) -> bool:
+    """Whether ``char`` must be escaped before it reaches a log or a record."""
+    if char in _DIAGNOSTIC_KEEP_CONTROLS:
+        return False
+    code = ord(char)
+    return code < 0x20 or code == 0x7F or 0x80 <= code <= 0x9F
+
+
+def _escape_controls(text: str) -> tuple[str, int]:
+    """Return ``text`` with every escapable control replaced, and how many there were.
+
+    The replacement is ``<U+XXXX>`` rather than a backslash escape, deliberately.
+    A backslash form would be ambiguous with a literal backslash sequence the
+    artifact itself carried, and resolving that ambiguity would mean escaping
+    backslashes too -- which would rewrite every Windows path in every diagnostic
+    for no gain. ``<U+001B>`` cannot be mistaken for anything a terminal acts on,
+    and a literal ``<U+001B>`` in artifact text is inert.
+    """
+    if not any(_is_escapable_control(char) for char in text):
+        return text, 0
+    escaped: list[str] = []
+    count = 0
+    for char in text:
+        if _is_escapable_control(char):
+            escaped.append(f"<U+{ord(char):04X}>")
+            count += 1
+        else:
+            escaped.append(char)
+    return "".join(escaped), count
+
+
+def _redact_userinfo(text: str) -> tuple[str, int]:
+    """Return ``text`` with every URI userinfo component replaced, and the count."""
+    redactions = 0
+
+    def replace(match: re.Match[str]) -> str:
+        nonlocal redactions
+        redactions += 1
+        return f"{match.group(1)}{USERINFO_REDACTION}@"
+
+    return _URI_USERINFO_RE.sub(replace, text), redactions
+
+
+def _text_digest(text: str) -> str:
+    """Return the sha256 of ``text`` as UTF-8, so a truncated excerpt is still identified."""
+    return hashlib.sha256(text.encode("utf-8", errors="surrogatepass")).hexdigest()
+
+
+@dataclass(frozen=True)
+class DiagnosticText:
+    """One composed diagnostic sentence, made safe to persist, with what changed.
+
+    Attributes
+    ----------
+    text:
+        The sentence as it may be recorded: userinfo redacted, escapable control
+        characters escaped, and bounded where a bound was asked for.
+    original_length:
+        The character length of the sentence as composed, before anything.
+    sha256:
+        The digest of the sentence as composed. Present whether or not anything
+        changed, so a reader can tie a truncated or redacted rendering back to the
+        exact text it came from.
+    truncated:
+        Whether the bound cut the rendering.
+    controls_escaped:
+        How many control characters were escaped.
+    userinfo_redactions:
+        How many URI userinfo components were redacted.
+
+    ``changed`` is false for the overwhelming majority of diagnostics -- ordinary
+    prose about an ordinary path -- and that is what keeps the run record stable
+    between runs: a sentence that needed nothing is recorded exactly as composed.
+    """
+
+    text: str
+    original_length: int
+    sha256: str
+    truncated: bool = False
+    controls_escaped: int = 0
+    userinfo_redactions: int = 0
+
+    @property
+    def changed(self) -> bool:
+        """Whether the safe rendering differs from the sentence as composed."""
+        return bool(
+            self.truncated or self.controls_escaped or self.userinfo_redactions
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return what was done, for a record that carries the rendering beside it."""
+        return {
+            "original_length": self.original_length,
+            "sha256": self.sha256,
+            "truncated": self.truncated,
+            "controls_escaped": self.controls_escaped,
+            "userinfo_redactions": self.userinfo_redactions,
+        }
+
+
+def sanitise_diagnostic(
+    text: str, *, limit: int | None = DIAGNOSTIC_TEXT_LIMIT
+) -> DiagnosticText:
+    """Make one composed diagnostic sentence safe to persist, keeping it readable.
+
+    Unlike :func:`safe_diagnostic` this keeps the text: a rejection detail's whole
+    job is to be read, and describing it instead of showing it would leave the
+    record unusable. What it removes is the part that is dangerous rather than
+    informative -- a control sequence, a credential -- and it bounds the length so
+    an artifact cannot decide how large this pipeline's record is.
+
+    Args:
+        text: The composed sentence.
+        limit: The maximum rendered length, or ``None`` for no bound. ``None`` is
+            for a value whose size is already governed by a documented limit of
+            its own -- a runner's stream excerpt, for instance, which AAP 0.5.4
+            requires quoted verbatim and which ``cli.py`` bounds itself.
+
+    Returns:
+        A :class:`DiagnosticText` carrying the safe rendering and what changed.
+
+    Raises:
+        PathPolicyError: Where ``text`` is not a ``str`` or ``limit`` is not a
+            positive ``int`` or ``None``. Both are programming faults in a caller.
+    """
+    if not isinstance(text, str):
+        raise PathPolicyError(
+            f"a diagnostic must be a str; observed {type(text).__name__}"
+        )
+    if limit is not None and (not isinstance(limit, int) or isinstance(limit, bool)):
+        raise PathPolicyError(
+            f"limit must be an int or None; observed {type(limit).__name__}"
+        )
+    if limit is not None and limit < 1:
+        raise PathPolicyError(f"limit must be positive; observed {limit!r}")
+
+    original_length = len(text)
+    digest = _text_digest(text)
+    # Redact first, then escape: redaction matches on the URI's own syntax, and an
+    # escaped control inside the authority would hide the '@' the pattern anchors
+    # on. Truncation is last so it applies to what would actually be written.
+    redacted, userinfo_redactions = _redact_userinfo(text)
+    escaped, controls_escaped = _escape_controls(redacted)
+    truncated = limit is not None and len(escaped) > limit
+    if truncated:
+        assert limit is not None  # narrowed by `truncated`
+        escaped = (
+            f"{escaped[:limit]}... [truncated at {limit} of {original_length} "
+            f"characters; sha256 {digest[:16]}]"
+        )
+    return DiagnosticText(
+        text=escaped,
+        original_length=original_length,
+        sha256=digest,
+        truncated=truncated,
+        controls_escaped=controls_escaped,
+        userinfo_redactions=userinfo_redactions,
+    )
+
+
+@dataclass(frozen=True)
+class SafeDiagnostic:
+    """One artifact-supplied value, described rather than shown.
+
+    Attributes
+    ----------
+    value_type:
+        The value's Python type name -- often the whole diagnosis, since a field
+        carrying a ``dict`` where a ``str`` was required is a shape fault.
+    context:
+        Which field or structure the value came from, supplied by the caller. This
+        is the structural context that makes the rendering actionable: a length
+        and a digest with no idea where they came from are not.
+    character_length:
+        The value's length as text, before the excerpt was taken.
+    sha256:
+        The digest of the whole value as text. Two records carrying the same
+        oversized value are recognisable as the same value from this alone.
+    excerpt:
+        A bounded, redacted, control-escaped prefix -- enough to recognise the
+        value, never enough to be a copy of it.
+    truncated, controls_escaped, userinfo_redactions:
+        What the excerpt did to the value, on the same terms as
+        :class:`DiagnosticText`.
+    """
+
+    value_type: str
+    context: str | None
+    character_length: int
+    sha256: str
+    excerpt: str
+    truncated: bool = False
+    controls_escaped: int = 0
+    userinfo_redactions: int = 0
+
+    def __str__(self) -> str:
+        """Render as one line, for interpolation where ``{value!r}`` used to be.
+
+        The order is type, context, length, digest, excerpt -- structure first,
+        content last -- so a reader who stops at the first clause still knows what
+        kind of fault this is.
+        """
+        where = f" from {self.context}" if self.context else ""
+        return (
+            f"{self.value_type}{where} (length {self.character_length}, "
+            f"sha256 {self.sha256[:16]}, excerpt {self.excerpt!r}"
+            f"{', truncated' if self.truncated else ''})"
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return the description as a mapping, for a halt's structured details."""
+        return {
+            "value_type": self.value_type,
+            "context": self.context,
+            "character_length": self.character_length,
+            "sha256": self.sha256,
+            "excerpt": self.excerpt,
+            "truncated": self.truncated,
+            "controls_escaped": self.controls_escaped,
+            "userinfo_redactions": self.userinfo_redactions,
+        }
+
+
+def safe_diagnostic(
+    value: Any, *, context: str | None = None, limit: int = DIAGNOSTIC_VALUE_LIMIT
+) -> SafeDiagnostic:
+    """Describe one artifact-supplied value safely, for a diagnostic that persists.
+
+    This is what a site uses where it would otherwise write ``{value!r}``. A
+    ``repr`` is unbounded, carries control characters through untouched, and will
+    happily put a credential-bearing URI into a durable record; it also tells a
+    reader nothing about a value too large to read.
+
+    A non-string is rendered from its ``repr`` rather than refused, because the
+    values that reach here are exactly the ones whose type was wrong. The type name
+    is reported separately, so ``dict from locations[0].physicalLocation`` reads as
+    the shape fault it is.
+
+    Args:
+        value: The value, as it came out of the artifact.
+        context: Where it came from -- a field path, a member name -- so the
+            description locates the fault as well as characterising it.
+        limit: The excerpt bound.
+
+    Returns:
+        A :class:`SafeDiagnostic`; ``str()`` of it is the one-line rendering.
+
+    Raises:
+        PathPolicyError: Where ``limit`` is not a positive ``int``.
+    """
+    if not isinstance(limit, int) or isinstance(limit, bool) or limit < 1:
+        raise PathPolicyError(f"limit must be a positive int; observed {limit!r}")
+    if context is not None and not isinstance(context, str):
+        raise PathPolicyError(
+            f"context must be a str or None; observed {type(context).__name__}"
+        )
+    text = value if isinstance(value, str) else repr(value)
+    rendered = sanitise_diagnostic(text, limit=limit)
+    return SafeDiagnostic(
+        value_type=type(value).__name__,
+        context=context,
+        character_length=len(text),
+        sha256=rendered.sha256,
+        excerpt=rendered.text,
+        truncated=rendered.truncated,
+        controls_escaped=rendered.controls_escaped,
+        userinfo_redactions=rendered.userinfo_redactions,
+    )
+
+
+def sanitise_persisted(value: Any, *, limit: int | None = DIAGNOSTIC_VALUE_LIMIT) -> Any:
+    """Return ``value`` safe to serialise, recursing through mappings and sequences.
+
+    The persistence boundary's own helper: :meth:`Rejection.as_dict` and
+    ``cli.py``'s halt record pass whole structures through it, so a value added to
+    a detail mapping later is covered without anyone having to remember to wrap it.
+    A string is sanitised; a mapping and a list are rebuilt with their members
+    sanitised; every other JSON scalar is returned unchanged, because an ``int``, a
+    ``bool`` and ``None`` carry no control characters and no credential.
+
+    Keys are sanitised too. An artifact-supplied value can reach a key -- a counter
+    keyed by an observed section name, for instance -- and a control character in a
+    JSON key is exactly as hostile to a reader as one in a value.
+    """
+    if isinstance(value, str):
+        return sanitise_diagnostic(value, limit=limit).text
+    if isinstance(value, Mapping):
+        return {
+            (
+                sanitise_diagnostic(key, limit=limit).text
+                if isinstance(key, str)
+                else key
+            ): sanitise_persisted(item, limit=limit)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [sanitise_persisted(item, limit=limit) for item in value]
+    return value
+
+
 @dataclass(frozen=True)
 class Rejection:
     """One rejected record, counted under a named class and never inferred into a row.
@@ -408,13 +804,44 @@ class Rejection:
         )
 
     def as_dict(self) -> dict[str, Any]:
-        """Return a plain, JSON-serialisable dict of this rejection."""
-        return {
+        """Return a plain, JSON-serialisable dict of this rejection, safe to persist.
+
+        This is the persistence boundary for every rejection: ``cli.py`` calls it
+        once per rejection and the result goes into ``normalize-run.json``, which is
+        then quoted into ``tool-status.md``.  So the sanitising happens *here*, and
+        nowhere else:
+
+        * ``detail`` and every string in ``record_identity`` are put through
+          :func:`sanitise_diagnostic` -- URI userinfo redacted, control characters
+          escaped, length bounded.  Both are composed from artifact-supplied values
+          (a rule identifier, a message, a URI, a class name), and a rejected record
+          is still a *recorded* record, so rejecting it is not protection.
+        * The in-memory attributes are left exactly as the adapter composed them.
+          An assertion on ``rejection.detail`` therefore reads what the adapter said,
+          while the durable record reads what is safe to keep.
+        * ``diagnostics`` appears **only where something was changed**.  An ordinary
+          detail about an ordinary path is recorded byte-for-byte as composed and
+          carries no extra key, which is what keeps the run record stable between
+          runs over unchanged artifacts; a detail that was redacted or truncated
+          says so, with the original length and the digest of the whole text.
+
+        The alternative -- sanitising at each of the ~60 sites that compose a detail
+        -- was refused twice over: it is unenforceable (the next site added forgets),
+        and it would rewrite the hand-verified ``detail`` strings in every
+        ``expected/*.rows.json`` for no security gain, since those details are benign.
+        """
+        rendered = sanitise_diagnostic(self.detail, limit=DIAGNOSTIC_TEXT_LIMIT)
+        record: dict[str, Any] = {
             "reject_class": self.reject_class,
             "tool": self.tool,
-            "detail": self.detail,
-            "record_identity": dict(self.record_identity),
+            "detail": rendered.text,
+            "record_identity": sanitise_persisted(
+                dict(self.record_identity), limit=DIAGNOSTIC_VALUE_LIMIT
+            ),
         }
+        if rendered.changed:
+            record["diagnostics"] = rendered.as_dict()
+        return record
 
 
 def make_rejection(
@@ -443,14 +870,22 @@ def make_rejection(
 # Path kinds -- the discriminator cli.py tallies (AAP 0.6.1)
 # --------------------------------------------------------------------------- #
 
-#: A path naming a location inside the scan root.  Whether the file exists on disk
-#: is a separate question this module does not answer unless asked: AAP 0.6.1 has
-#: ``run-record.md`` report "the rows whose path names something that is not a file
-#: on disk", and that count is taken by the caller against the same root.
+#: A path naming a location inside the scan root.  Whether the file exists on disk is a
+#: separate question, and this module deliberately does not answer it: every function here
+#: is required to work on a parsed fixture with no live filesystem beyond the pinned root,
+#: so a resolver that stat-ed would not be testable that way.  AAP 0.6.1 has
+#: ``run-record.md`` report "the rows whose path names something that is not a file on
+#: disk", and ``cli._paths_not_on_disk`` takes that count -- once, over the emitted rows,
+#: against the same root -- and publishes it in ``normalize-run.json`` under
+#: ``totals.paths_not_on_disk``.  It is a different measurement from the path-kind tally
+#: below, which classifies a path by its *form*; a ``tree_file`` naming a file the pin does
+#: not carry is invisible to the tally and counted there.
 PATH_KIND_TREE_FILE: Final[str] = "tree_file"
 
-#: A path that relativizes to a location outside the scan root, and therefore
-#: carries ``../`` segments -- preserved, never normalized away.
+#: A path that names a location outside the scan root, and therefore carries ``../``
+#: segments -- preserved, never normalized away.  The ``..`` need not be at the front:
+#: the discriminator is the running segment depth going below zero *anywhere*, which
+#: :func:`analyse_containment` computes and :func:`path_kind_for` reads.
 PATH_KIND_OUTSIDE_ROOT: Final[str] = "outside_root"
 
 #: An archive member: ``<container-relative-to-root>!<member-path>``.
@@ -752,7 +1187,7 @@ def in_scope(
 ) -> bool:
     """Return the ``in_scope`` field for ``path`` -- and nothing else.
 
-    Three rules, applied in this order:
+    Four rules, applied in this order:
 
     1. a **non-filesystem coordinate** (an archive member, or a location outside the
        root) is never in scope; AAP 0.5.4: *"Every such row takes ``in_scope:
@@ -760,19 +1195,38 @@ def in_scope(
        first matters: an archive member such as
        ``core/src/main/x.jar!org/apache/Foo.class`` would otherwise match
        ``core/src/main/**`` on its segments alone;
-    2. a path containing the literal ``src/test`` is out of scope, and this
-       **overrides** a positive glob match;
-    3. otherwise the path is in scope exactly where it matches one of ``globs``.
+    2. a coordinate that **leaves the root** at any segment is never in scope, tested
+       here through :func:`analyse_containment` rather than trusted from ``kind``.
+       This is not redundant with rule 1: ``kind`` is an argument, so a caller that
+       defaulted it -- or that resolved the path before the running-depth walk existed
+       -- would otherwise get ``True`` for ``core/src/main/../../../../etc/passwd``,
+       which matches ``core/src/main/**`` on its segments while naming a location four
+       levels above the tree.  Deciding it here as well means the two disagree nowhere;
+    3. a path containing the literal ``src/test`` is out of scope, and this
+       **overrides** a positive glob match.  Both spellings are tested -- the reported
+       one and the canonical shadow -- so ``sql/core/src/main/../test/X.scala``, whose
+       reported spelling carries ``src/main`` and whose shadow carries ``src/test``,
+       is excluded on the shadow;
+    4. otherwise the path is in scope exactly where it matches one of ``globs``.  The
+       reported spelling is matched first, and the canonical shadow only where it is a
+       different string and the reported spelling did not match.  That order makes the
+       rule **monotone**: it can add a match a first-segment reading missed -- for
+       ``a/../core/src/main/X.scala``, which lexically names a file under
+       ``core/src/main`` -- and can never take one away, so no path without a ``..``
+       or an interior ``.`` is decided differently than before.
 
     ``in_scope`` is decided by the allowlist alone (AAP 0.6.4).  A row from a
     directory a runner reached but the allowlist does not cover -- the pin's 47
     out-of-scope ``pom.xml`` files and three lockfiles among them -- takes
-    ``in_scope: false`` and is kept.  This function never drops anything.
+    ``in_scope: false`` and is kept.  This function never drops anything, and it never
+    changes the string that reaches the dataset: the canonical shadow is a
+    classification device, computed here and emitted nowhere, because the SARIF 2.1.0
+    errata forbid normalizing ``..`` out of a reported path.
 
     Raises
     ------
     PathPolicyError
-        If ``kind`` is not one of :data:`PATH_KINDS`.
+        If ``kind`` is not one of :data:`PATH_KINDS`, or if ``path`` is not a string.
     """
     if kind not in _PATH_KIND_SET:
         raise PathPolicyError(
@@ -780,10 +1234,18 @@ def in_scope(
         )
     if is_non_filesystem_kind(kind):
         return False
-    normalised = normalise_reported_path(path)
-    if SRC_TEST_MARKER in normalised:
+    analysis = analyse_containment(path)
+    if analysis.escapes_root:
         return False
-    return matches_any_glob(normalised, globs) is not None
+    if SRC_TEST_MARKER in analysis.reported_path:
+        return False
+    if SRC_TEST_MARKER in analysis.canonical_path:
+        return False
+    if matches_any_glob(analysis.reported_path, globs) is not None:
+        return True
+    if analysis.canonical_differs:
+        return matches_any_glob(analysis.canonical_path, globs) is not None
+    return False
 
 
 @dataclass(frozen=True)
@@ -791,8 +1253,38 @@ class ScopeDecision:
     """Why a path is or is not in scope, for the tables that have to explain it.
 
     :func:`in_scope` answers the dataset's question with a boolean; this answers a
-    reader's question with the reason.  Both consult the same three rules, so the two
-    can never disagree.
+    reader's question with the reason.  Both consult the same four rules in the same
+    order, and both take their containment verdict from the same
+    :func:`analyse_containment` walk, so the two can never disagree.
+
+    Attributes
+    ----------
+    path:
+        The normalised reported spelling -- byte-identical to the emitted ``path``.
+    in_scope:
+        The verdict, identical to what :func:`in_scope` returns for the same
+        arguments.
+    matched_glob:
+        The first allowlist glob that matched, or ``None``.
+    excluded_by_src_test:
+        Whether the literal ``src/test`` appeared in *either* spelling.
+    excluded_as_non_filesystem:
+        Whether ``kind`` is an archive member or an outside-root coordinate.
+    kind:
+        The path kind the caller resolved.
+    excluded_as_escaping_root:
+        Whether the running-depth walk found the coordinate leaving the root at some
+        segment.  Recorded separately from ``excluded_as_non_filesystem`` because the
+        two are different findings about one path: the first is what the *string*
+        shows, the second is what the caller's resolver *classified*, and a reader
+        chasing a misclassification needs to see which of them fired.
+    matched_spelling:
+        ``"reported"`` where the reported spelling matched, ``"canonical"`` where
+        only the canonical shadow did, ``None`` where nothing matched.  This is the
+        provenance for a glob match a first-segment reading would have missed.
+    canonical_path:
+        The canonical shadow, always recorded so a reader can see for themselves that
+        it equals ``path`` for every ordinary path.
     """
 
     path: str
@@ -801,6 +1293,9 @@ class ScopeDecision:
     excluded_by_src_test: bool
     excluded_as_non_filesystem: bool
     kind: str
+    excluded_as_escaping_root: bool = False
+    matched_spelling: str | None = None
+    canonical_path: str | None = None
 
     def reason(self) -> str:
         """Return a one-line explanation of this decision."""
@@ -809,12 +1304,24 @@ class ScopeDecision:
                 f"out of scope: a {self.kind} coordinate is never in scope, "
                 "regardless of any glob it happens to match on its segments"
             )
+        if self.excluded_as_escaping_root:
+            return (
+                "out of scope: the coordinate's running segment depth goes below the "
+                "root, so it names a location outside the scanned tree however its "
+                "leading segments read"
+            )
         if self.excluded_by_src_test:
             return (
                 "out of scope: the path contains the literal 'src/test', which "
                 "overrides any positive glob match"
             )
         if self.matched_glob is not None:
+            if self.matched_spelling == "canonical":
+                return (
+                    f"in scope: matched the allowlist glob {self.matched_glob!r} on "
+                    f"the canonical shadow {self.canonical_path!r}, which the reported "
+                    "spelling did not match"
+                )
             return f"in scope: matched the allowlist glob {self.matched_glob!r}"
         return "out of scope: the path matches none of the allowlist globs"
 
@@ -825,22 +1332,47 @@ def scope_decision(
     *,
     kind: str = PATH_KIND_TREE_FILE,
 ) -> ScopeDecision:
-    """Return the :class:`ScopeDecision` for ``path`` under ``globs``."""
+    """Return the :class:`ScopeDecision` for ``path`` under ``globs``.
+
+    The glob search mirrors :func:`in_scope` exactly: the reported spelling first, the
+    canonical shadow only where it is a different string and the reported spelling did
+    not match, and which of the two matched is recorded rather than left implicit.
+    """
     if kind not in _PATH_KIND_SET:
         raise PathPolicyError(
             f"unknown path kind {kind!r}; the closed set is {', '.join(PATH_KINDS)}"
         )
-    normalised = normalise_reported_path(path)
+    analysis = analyse_containment(path)
+    normalised = analysis.reported_path
     non_filesystem = is_non_filesystem_kind(kind)
-    src_test = SRC_TEST_MARKER in normalised
-    matched = None if non_filesystem else matches_any_glob(normalised, globs)
+    src_test = (
+        SRC_TEST_MARKER in normalised or SRC_TEST_MARKER in analysis.canonical_path
+    )
+    matched: str | None = None
+    matched_spelling: str | None = None
+    if not non_filesystem and not analysis.escapes_root:
+        matched = matches_any_glob(normalised, globs)
+        if matched is not None:
+            matched_spelling = "reported"
+        elif analysis.canonical_differs:
+            matched = matches_any_glob(analysis.canonical_path, globs)
+            if matched is not None:
+                matched_spelling = "canonical"
     return ScopeDecision(
         path=normalised,
-        in_scope=(not non_filesystem) and (not src_test) and matched is not None,
+        in_scope=(
+            (not non_filesystem)
+            and (not analysis.escapes_root)
+            and (not src_test)
+            and matched is not None
+        ),
         matched_glob=matched,
         excluded_by_src_test=src_test,
         excluded_as_non_filesystem=non_filesystem,
         kind=kind,
+        excluded_as_escaping_root=analysis.escapes_root,
+        matched_spelling=matched_spelling,
+        canonical_path=analysis.canonical_path,
     )
 
 
@@ -1126,17 +1658,267 @@ def relativize_to_root(candidate: str, root: str) -> str:
     return "/".join(parts)
 
 
+# --------------------------------------------------------------------------- #
+# Containment -- the one running-depth walk the discriminator and in_scope share
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class ContainmentAnalysis:
+    """Whether a reported path names a location inside the root, and where it left it.
+
+    The question ``..`` makes hard is *containment*, and it cannot be answered by
+    looking at the first segment.  ``core/src/main/../../../../etc/passwd`` carries no
+    leading ``..`` at all, yet it names a location four levels above the root, and a
+    first-segment test both classifies it ``tree_file`` and lets it match the
+    allowlist glob ``core/src/main/**`` on its segments alone -- an out-of-tree
+    coordinate reported as an in-scope file in the scanned tree.  This analysis
+    replaces that test with a segment-wise walk that notices the escape wherever it
+    happens.
+
+    Two spellings, and the distinction between them is the whole design:
+
+    ``reported_path``
+        The path exactly as it will reach the dataset's ``path`` field -- the
+        :func:`normalise_reported_path` spelling, with **every** ``..`` preserved.
+        The SARIF 2.1.0 errata (the section 3.10.2 amendment) forbid a consumer
+        normalizing ``..`` out of a path, so this string is never rewritten and this
+        analysis never changes what is emitted.  AAP 0.5.4 likewise has a container
+        outside the root *"expressed with ``../`` segments preserved rather than
+        normalized"*.
+    ``canonical_path``
+        The *canonical shadow*: the same coordinate with each ``..`` cancelled
+        against the concrete segment before it, computed for classification only and
+        emitted nowhere.  It is what makes ``a/../core/src/main/X.scala`` -- a path
+        whose reported spelling matches no glob but which lexically names a file
+        under ``core/src/main`` -- answer the scope question truthfully instead of
+        falling out of scope on its spelling.
+
+    Boundedness is explicit, because AAP 0.5.4 requires it and because the obvious
+    alternative is unbounded: ``Path.resolve()`` and ``os.path.realpath`` touch the
+    filesystem and follow symlink chains whose length is not a property of the input
+    at all, and ``os.path.normpath`` collapses the ``..`` the errata protect.  This
+    walk is one left-to-right pass over the segments, no recursion, no filesystem
+    access and no symlink following, so its work is exactly ``segments_walked`` steps
+    and its stack never exceeds that many entries.
+
+    Attributes
+    ----------
+    reported_path:
+        The normalised reported spelling, byte-identical to the emitted ``path``.
+    segments:
+        ``reported_path``'s non-empty segments -- of the container alone for an
+        archive reference, since that is the component whose depth decides.
+    canonical_path:
+        The canonical shadow.  For an archive reference,
+        ``<canonical-container>!<member>``.  ``"."`` where the shadow is the root
+        itself.
+    canonical_segments:
+        The shadow's segments.  A leading run of ``..`` survives here: cancelling
+        what is not there would claim containment the coordinate does not have.
+    escapes_root:
+        Whether the running depth went below zero at any segment.  Equivalently
+        ``minimum_depth < 0``; both are recorded so a reader can check one against
+        the other.
+    escaping_segment_index:
+        The index of the first segment at which the depth went negative, or ``None``.
+        Named rather than merely counted so a rejection detail or a
+        ``run-record.md`` note can say *where* the coordinate left the tree.
+    minimum_depth:
+        The lowest running depth reached.  ``-1`` for the worked example above, whose
+        three concrete segments are spent by the third of its four ``..``.
+    final_depth:
+        The depth after the last segment.  A path can end back inside the root
+        having left it on the way (``a/../../b/c``), which is why the minimum
+        rather than the final value decides.
+    segments_walked:
+        The number of segments the walk consumed -- the analysis's whole cost, and
+        the bound on it.
+    container, member:
+        The two halves of an archive reference, or ``None`` for a plain path.  The
+        member's own ``..`` cannot move the coordinate relative to the *scan root*
+        (it moves within the archive), so only the container is walked.
+    """
+
+    reported_path: str
+    segments: tuple[str, ...]
+    canonical_path: str
+    canonical_segments: tuple[str, ...]
+    escapes_root: bool
+    escaping_segment_index: int | None
+    minimum_depth: int
+    final_depth: int
+    segments_walked: int
+    container: str | None
+    member: str | None
+
+    @property
+    def is_archive_reference(self) -> bool:
+        """Whether the analysed value carried the archive separator."""
+        return self.member is not None
+
+    @property
+    def canonical_differs(self) -> bool:
+        """Whether the canonical shadow is a different string from the reported one.
+
+        A caller matching both spellings uses this to skip the second match where
+        there is nothing to gain, and a reader uses it to see at a glance that the
+        overwhelming majority of paths -- every one carrying no ``..`` and no
+        interior ``.`` -- have exactly one spelling.
+        """
+        return self.canonical_path != self.reported_path
+
+    def as_dict(self) -> dict[str, Any]:
+        """Return the analysis as a plain, JSON-serialisable dict in a fixed order."""
+        return {
+            "reported_path": self.reported_path,
+            "canonical_path": self.canonical_path,
+            "escapes_root": self.escapes_root,
+            "escaping_segment_index": self.escaping_segment_index,
+            "minimum_depth": self.minimum_depth,
+            "final_depth": self.final_depth,
+            "segments_walked": self.segments_walked,
+            "container": self.container,
+            "member": self.member,
+        }
+
+
+def analyse_containment(value: str) -> ContainmentAnalysis:
+    """Walk ``value``'s segments and report whether it stays inside the root.
+
+    The walk keeps two things at once and neither is derivable from the other
+    afterwards: a signed running **depth**, which answers containment, and a
+    **canonical stack**, which answers "what does this coordinate actually name".
+
+    Per segment:
+
+    * ``.`` moves nothing.  It is skipped for both depth and shadow, and it is
+      *not* removed from ``reported_path`` -- :func:`normalise_reported_path` drops
+      only a leading ``.`` and this function changes no spelling at all.
+    * ``..`` decrements the depth and pops the concrete segment before it.  Where
+      the stack holds no concrete segment to pop, the ``..`` is *kept* in the
+      shadow, so ``a/../../b`` shadows to ``../b`` rather than to ``b``: cancelling
+      a ``..`` against nothing would manufacture containment.
+    * anything else increments the depth and is pushed.
+
+    The depth going below zero at **any** index is the escape, recorded with that
+    index.  The final depth is reported too, because a coordinate can return inside
+    the root after leaving it and the finding this replaces was precisely a test
+    that looked in one place instead of every place.
+
+    An archive reference is split at its first ``!`` by
+    :func:`split_archive_reference` and the **container** is walked: a member's
+    ``..`` moves within the archive, not relative to the scan root.  The shadow is
+    re-serialized as ``<canonical-container>!<member>`` so the two spellings stay
+    comparable.
+
+    Examples
+    --------
+    >>> analyse_containment("core/src/main/scala/A.scala").escapes_root
+    False
+    >>> analyse_containment("core/src/main/../../../../etc/passwd").escapes_root
+    True
+    >>> analyse_containment("core/src/main/../../../../etc/passwd").minimum_depth
+    -1
+    >>> analyse_containment("core/src/main/scala/../java/A.java").escapes_root
+    False
+    >>> analyse_containment("core/src/main/scala/../java/A.java").canonical_path
+    'core/src/main/java/A.java'
+    >>> analyse_containment("../x.jar!org/apache/Foo.class").escapes_root
+    True
+
+    Raises
+    ------
+    PathPolicyError
+        If ``value`` is not a string, from :func:`normalise_reported_path`.  A
+        non-string coordinate is a malformed record, and the caller turns the raised
+        error into a counted rejection rather than guessing a classification.
+    """
+    reported_path = normalise_reported_path(value)
+    split = split_archive_reference(reported_path)
+    if split is None:
+        container: str | None = None
+        member: str | None = None
+        analysed = reported_path
+    else:
+        raw_container, raw_member = split
+        container = normalise_reported_path(raw_container)
+        member = normalise_reported_path(raw_member).lstrip("/")
+        analysed = container
+
+    segments = tuple(segment for segment in analysed.split("/") if segment)
+
+    depth = 0
+    minimum_depth = 0
+    escaping_segment_index: int | None = None
+    stack: list[str] = []
+    for index, segment in enumerate(segments):
+        if segment == ".":
+            continue
+        if segment == "..":
+            depth -= 1
+            if depth < minimum_depth:
+                minimum_depth = depth
+            if depth < 0 and escaping_segment_index is None:
+                escaping_segment_index = index
+            if stack and stack[-1] != "..":
+                stack.pop()
+            else:
+                stack.append("..")
+            continue
+        depth += 1
+        stack.append(segment)
+
+    canonical_segments = tuple(stack)
+    canonical_body = "/".join(canonical_segments) if canonical_segments else "."
+    if member is None:
+        canonical_path = canonical_body
+    else:
+        canonical_path = f"{canonical_body}{ARCHIVE_SEPARATOR}{member}"
+
+    return ContainmentAnalysis(
+        reported_path=reported_path,
+        segments=segments,
+        canonical_path=canonical_path,
+        canonical_segments=canonical_segments,
+        escapes_root=escaping_segment_index is not None,
+        escaping_segment_index=escaping_segment_index,
+        minimum_depth=minimum_depth,
+        final_depth=depth,
+        segments_walked=len(segments),
+        container=container,
+        member=member,
+    )
+
+
 def path_kind_for(relative_path: str) -> str:
     """Return :data:`PATH_KIND_ARCHIVE_MEMBER`, ``OUTSIDE_ROOT`` or ``TREE_FILE``.
 
     The discriminator is read off the serialized form, so it cannot disagree with
     the string that reaches the dataset: an ``!`` makes it an archive member, a
-    leading ``..`` segment makes it outside the root, and anything else names a
-    location inside the tree.
+    coordinate whose running depth goes below zero at any segment makes it outside
+    the root, and anything else names a location inside the tree.
+
+    The archive test comes **first** and stays first.  A member inside a container
+    that is itself outside the root is classified ``archive_member`` rather than
+    ``outside_root`` -- both are non-filesystem coordinates and both take
+    ``in_scope: false``, so the choice moves which counter increments and nothing
+    else, and ``archive_member`` is the more specific truth.
+    :meth:`ContainmentAnalysis.escapes_root` still reports the container's escape for
+    any caller that needs it, which is why the two are computed by one walk.
+
+    The escape test is :func:`analyse_containment`, not a test of the first segment.
+    A first-segment test answered the containment question in one place instead of
+    every place: ``core/src/main/../../../../etc/passwd`` carries no leading ``..``,
+    so it was classified ``tree_file`` and then matched ``core/src/main/**`` on its
+    segments -- a path four levels above the root reported as an in-scope file.  The
+    emitted spelling is untouched by the change; only the kind, and the ``in_scope``
+    verdict that follows from it, differ.
     """
-    if ARCHIVE_SEPARATOR in relative_path:
+    analysis = analyse_containment(relative_path)
+    if analysis.is_archive_reference:
         return PATH_KIND_ARCHIVE_MEMBER
-    if split_segments(relative_path)[:1] == ("..",):
+    if analysis.escapes_root:
         return PATH_KIND_OUTSIDE_ROOT
     return PATH_KIND_TREE_FILE
 
@@ -1329,6 +2111,47 @@ class PathKindTally:
                 f"unknown path kind {kind!r}; the closed set is {', '.join(PATH_KINDS)}"
             )
         self.counts[kind] = self.counts.get(kind, 0) + 1
+
+    def add_many(self, kind: str, count: int) -> None:
+        """Count ``count`` resolutions of ``kind`` in one validated step.
+
+        The counts an adapter reports are already aggregated: each returns a
+        ``path_kind_<kind>`` counter carrying a number, not a stream of observations.
+        Replaying that number as ``count`` separate :meth:`add` calls -- which is what
+        ``for _ in range(count): tally.add(kind)`` does -- re-enumerates every one of the
+        dataset's resolutions, twice over: once to build the per-artifact tally and once
+        to fold it into the dataset tally.  At 9,466 rows that is ~18,900 method calls
+        and 18,900 dict lookups to compute a sum that was already known.
+
+        The validation is not weakened to buy that: the kind is checked against the same
+        closed set :meth:`add` checks it against, and the count must be a non-negative
+        ``int``.  A negative count is refused rather than clamped, because a tally that
+        can go backwards can be brought back to a plausible-looking total by two
+        opposite mistakes, and the reported proportion would then be wrong with nothing
+        recording it.  ``bool`` is refused explicitly: it is an ``int`` subclass, and
+        ``add_many(kind, True)`` reads as a flag rather than as a count of one.
+
+        A count of ``0`` is accepted and is a no-op, which keeps a caller free to fold a
+        complete ``by_kind`` mapping in without filtering it first.
+        """
+        if kind not in _PATH_KIND_SET:
+            raise PathPolicyError(
+                f"unknown path kind {kind!r}; the closed set is {', '.join(PATH_KINDS)}"
+            )
+        if isinstance(count, bool) or not isinstance(count, int):
+            raise PathPolicyError(
+                f"a path-kind count must be an int; observed {type(count).__name__} "
+                f"({count!r})"
+            )
+        if count < 0:
+            raise PathPolicyError(
+                f"a path-kind count must not be negative; observed {count!r} for "
+                f"{kind!r}. A tally that can go backwards can be balanced by two "
+                "opposite mistakes."
+            )
+        if count == 0:
+            return
+        self.counts[kind] = self.counts.get(kind, 0) + count
 
     @property
     def total(self) -> int:
@@ -2255,7 +3078,9 @@ def _resolve_relative_against_base(
 
     The one place a relative reference becomes a row's ``path``, so the kind is read
     off the serialized result rather than guessed from the input: an ``!`` makes it an
-    archive member, a leading ``..`` makes it outside the root.
+    archive member, and a running segment depth that goes below zero anywhere makes it
+    outside the root -- ``path_kind_for`` walks the whole coordinate, so a ``..`` that
+    a base joined into the middle of the path is caught exactly like a leading one.
     """
     joined = posix_join(base, value)
     relative = relativize_to_root(joined, root)
@@ -3441,6 +4266,20 @@ def build_source_index(
     ``read_declarations=False`` builds ``by_filename`` only, for a caller that wants
     the cheap index; the resulting :class:`SourceIndex` records that it did, so a
     reader of a rejection count knows which index produced it.
+
+    **A traversal that could not read part of the tree raises rather than returning a
+    smaller index.**  ``os.walk`` swallows every error by default: an unreadable
+    directory is skipped and the walk continues, so an index missing a whole module
+    looks exactly like an index over a tree that never contained it.  Every Joern
+    record whose class lives under the skipped directory then becomes an
+    ``unresolvable_path`` rejection, and the resulting count is both wrong and
+    indistinguishable from a correct one -- the shaded-third-party outcome this
+    resolver produces legitimately for five findings in six.  A count nobody can
+    reproduce is a condition this pipeline halts on (AAP 0.9.2), so ``onerror`` is
+    wired to re-raise: the :class:`OSError` reaches ``cli._build_source_index``, which
+    turns it into a named configuration fault carrying the failing path.  There is no
+    tolerance mode, deliberately -- a tolerated skip would have to be recorded
+    somewhere a reader looks, and the only place that reliably is is the halt.
     """
     root_path = Path(os.fspath(root))
     wanted_extensions = tuple(extensions)
@@ -3449,7 +4288,9 @@ def build_source_index(
     by_decl: dict[str, list[str]] = {}
     files_indexed = 0
 
-    for directory, subdirectories, filenames in os.walk(root_path):
+    for directory, subdirectories, filenames in os.walk(
+        root_path, onerror=_raise_traversal_error
+    ):
         subdirectories[:] = [
             name for name in subdirectories if name not in SOURCE_INDEX_SKIP_DIRECTORIES
         ]
@@ -3495,6 +4336,24 @@ def build_source_index(
     )
 
 
+def _raise_traversal_error(error: OSError) -> NoReturn:
+    """Re-raise a directory-traversal failure instead of letting ``os.walk`` drop it.
+
+    ``os.walk``'s default ``onerror`` is ``None``, which means *ignore*: the entry that
+    could not be listed is omitted and the walk reports success.  This function is
+    passed as ``onerror`` so the failure propagates with the ``filename`` the operating
+    system attached to it, which is the one piece of information a reader needs to act
+    -- ``cli._build_source_index`` catches :class:`OSError` and raises a named
+    configuration fault whose message carries it.
+
+    The error is re-raised unchanged rather than wrapped.  Its type (``PermissionError``
+    against ``FileNotFoundError``, say) is what tells a reader whether the tree is
+    misconfigured or the process is under-privileged, and a wrapper would have to
+    reproduce both that type and the ``errno`` to say as much.
+    """
+    raise error
+
+
 def _append_unique(index: dict[str, list[str]], key: str, value: str) -> None:
     """Append ``value`` under ``key`` unless already present.
 
@@ -3510,17 +4369,24 @@ def _append_unique(index: dict[str, list[str]], key: str, value: str) -> None:
 def _declared_type_names(path: str, pattern: re.Pattern[str]) -> tuple[str, ...]:
     """Return the top-level type names declared in the file at ``path``.
 
-    A read failure yields no declarations rather than propagating: a source file this
-    process cannot read contributes nothing to the index, which costs a resolution
-    (visible as a counted ``unresolvable_path`` rejection) rather than aborting the
-    whole normalization over one unreadable file.  Decoding errors are replaced for
-    the same reason -- a declaration line is ASCII even where a comment elsewhere in
-    the file is not.
+    **A read failure propagates.**  It used to be swallowed and reported as *no
+    declarations*, which is the same silence as a file that genuinely declares nothing:
+    the declaration scheme is the only route to eighteen of the pinned run's hundred and
+    seven Joern resolutions -- ``ProcessBuilderLike`` in ``DriverRunner.scala``,
+    ``RangePartitioner`` in ``Partitioner.scala`` -- so a file dropped this way removes
+    resolutions the index is supposed to make and converts each affected record into an
+    ``unresolvable_path`` rejection that reads as an ordinary shaded-class outcome.  The
+    count is then unreproducible, and AAP 0.9.2 halts on a condition that makes a count
+    unreproducible rather than recording a number nobody can check.  The
+    :class:`OSError` carries the offending filename and reaches
+    ``cli._build_source_index``, which names it in a configuration fault.
+
+    Decoding errors are still replaced rather than raised, and that is not the same
+    decision: a declaration line is ASCII even where a comment elsewhere in the file is
+    not, so replacement loses nothing the pattern could have matched, whereas an
+    unreadable file loses every declaration it holds.
     """
-    try:
-        text = Path(path).read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return ()
+    text = Path(path).read_text(encoding="utf-8", errors="replace")
     return tuple(dict.fromkeys(pattern.findall(text)))
 
 
@@ -3562,9 +4428,14 @@ def resolve_bytecode_class(
     ``collector_explanation`` is the collector's own account of a resolution it could
     not make -- ``unresolved-bytecode-only`` and its siblings.  AAP 0.5.4 has such an
     explanation *"retained in the rejection record, never in a dataset field"*, so it
-    is appended to the rejection's detail and reaches no row.  This provisioning's
-    collector emits no such field, so the parameter is usually ``None``; it is
-    honoured because the historical shape carries one.
+    is appended to the rejection's detail and reaches no row.  **Every** rejection route
+    composes it -- the absent, blank and non-string identifier routes included: a route
+    that dropped it would lose the collector's own account of the failure exactly where a
+    reader of ``tool-status.md`` looks for it, while the rejection still counted.  The
+    composition runs through :func:`_with_collector_explanation`, which returns the detail
+    unchanged where no explanation was supplied, so a record carrying none reads exactly
+    as it did before.  This provisioning's collector emits no such field, so the parameter
+    is usually ``None``; it is honoured because the historical shape carries one.
     """
     identity = dict(record_identity or {})
     identity.setdefault("class", identifier)
@@ -3573,10 +4444,11 @@ def resolve_bytecode_class(
         return Rejection(
             reject_class=REJECT_ABSENT_PATH,
             tool=tool,
-            detail=(
+            detail=_with_collector_explanation(
                 "the finding carries no class identifier, and the runner metadata "
                 "records the file field as the one to ignore, so no coordinate remains "
-                "to resolve"
+                "to resolve",
+                collector_explanation,
             ),
             record_identity=identity,
         )
@@ -3584,9 +4456,10 @@ def resolve_bytecode_class(
         return Rejection(
             reject_class=REJECT_MALFORMED_RECORD,
             tool=tool,
-            detail=(
+            detail=_with_collector_explanation(
                 f"the finding's class identifier is a {type(identifier).__name__}, not a "
-                "string"
+                "string",
+                collector_explanation,
             ),
             record_identity=identity,
         )
@@ -3695,6 +4568,15 @@ __all__ = [
     "is_reject_class",
     "Rejection",
     "make_rejection",
+    # Safe diagnostics -- the one renderer for every persisted diagnostic
+    "DIAGNOSTIC_TEXT_LIMIT",
+    "DIAGNOSTIC_VALUE_LIMIT",
+    "USERINFO_REDACTION",
+    "DiagnosticText",
+    "SafeDiagnostic",
+    "sanitise_diagnostic",
+    "safe_diagnostic",
+    "sanitise_persisted",
     # Path kinds and provenance
     "PATH_KIND_TREE_FILE",
     "PATH_KIND_OUTSIDE_ROOT",
@@ -3752,6 +4634,8 @@ __all__ = [
     "posix_join",
     "is_absolute_path",
     "relativize_to_root",
+    "ContainmentAnalysis",
+    "analyse_containment",
     "path_kind_for",
     "assert_relative_path",
     "split_archive_reference",
@@ -3824,4 +4708,3 @@ __all__ = [
     "build_source_index",
     "resolve_bytecode_class",
 ]
-

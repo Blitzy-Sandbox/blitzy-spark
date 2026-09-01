@@ -7,10 +7,7 @@ code-property graph built from the pinned tree's bytecode.
 This report is **observational**. It judges no finding - not real, not important,
 not a false positive, not a duplicate - and makes no comparison between tools. It
 contributes no row to `oss-scan-results/findings.json` and writes nothing into
-`harness/artifacts/raw/`. This probe tree is Joern's deliberate **second**
-appearance in the run - the Stage 3 runner is the first - and folding either
-appearance into the other's numbers would corrupt both that tool's count and the
-dataset total, which is why nothing here becomes a dataset row.
+`harness/artifacts/raw/`.
 
 The slug `03-parameterized-handler-sink-pairs` is the **identifier** the plan assigns this query, and the
 slugs `01-callgraph-unguarded-driver-launch` and
@@ -22,44 +19,40 @@ any Spark component or of any Spark configuration.
 | | |
 | --- | --- |
 | Query source | `queries/joern/03-parameterized-handler-sink-pairs.sc` |
+| Query source sha256 | `685f33f8b27b626778b79e1900095d28b29c90a17ed1a9dd785485285174b5f9` |
+| Query source byte size | 321780 |
+| Publication id | `6c485411000bfd44a0af18af73cb5367b991dd20fff509d28274260207ae0bd2` |
 | Envelope | `queries/joern/results/03-parameterized-handler-sink-pairs.json` |
 | Console log | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log` |
 | Loader | `importCpg` into a switched workspace (`queries/joern/.workspace`) |
-| JDK major | 21, the required major (JVM `21.0.12.1+1-LTS`) |
-| Heap actually used | 68719476736 bytes = 64 GiB (floor 68719476736 = 64 GiB; at or above the floor) |
-| Heap-bound JVM position | the Stage 5 probe, one of 4 - the frontend build, the `importCpg` verification load, the Stage 3 Joern runner, then this probe |
-| Graph | `$HARNESS_CPG` (repository-relative `harness/cpg/spark.cpg`), symlink-followed: 548118435 bytes, sha256 `f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53` |
-| Graph identity re-verified before the load | yes, against the record of account named by `$HARNESS_CPG_RECORD`, which owns that pair for the graph actually loaded |
-| Graph methods / typeDecls / files | 1399866 / 119920 / 45037 |
+| JDK major | 21 |
+| Heap actually used | 68719476736 bytes (floor 68719476736) |
+| Graph | 541309809 bytes, sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` |
+| Graph identity re-verified before the load | yes, against `harness/artifacts/logs/cpg-frontend.log` |
+| Graph methods / typeDecls / files | 1396899 / 119721 / 45037 |
 | Compile status | compiled |
 | Run status | completed |
 | Pairs declared / invoked | 2 / 2 |
 | Pair iteration order | `pair-one`, `pair-two` |
 | Records returned | 6 (6 boundary measurement(s) plus per-pair route records) |
-| Distinct routes | `pair-one` 0, `pair-two` 0 - reported side by side, never summed |
-| Spurious routes | `pair-one` 0, `pair-two` 0 - under the five-selector definition below |
 | Parameterizability | **passed** |
 | Duplicate formulation | **partial_duplicate** |
 
-The query reached the graph through **`importCpg` and nothing else**. That is a
-textual property of the committed sources as well as a behavioural one about this
-run: the alternative loader - the one that compiles source afresh and, on Joern's
-own documented behaviour, spawns a second JVM at the same heap - is invoked in
-**none** of the three committed query sources under `queries/joern/`, and the
-absence was checked by searching those files rather than inferred from what this
-run happened to do.
+## Which source wrote this report
 
-**This report measures nothing.** Every figure in it is **read from**
-`queries/joern/results/03-parameterized-handler-sink-pairs.json`, which in turn
-cites the run that measured them; the handful of node counts and graph line
-numbers that envelope does not itself carry are cited from
-`harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log`, the same
-console stream the envelope names as the source of its own measured values.
-Nothing here is a second measurement: where a count appears both here and in that
-envelope it is one measurement cited twice, and if the two ever disagreed the
-envelope would be right and this file wrong. Source **line numbers** are a
-different kind of fact - they are quoted from the pinned tree at
-`59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` and were each re-verified there.
+This report was written by `queries/joern/03-parameterized-handler-sink-pairs.sc`, whose bytes digest to
+`685f33f8b27b626778b79e1900095d28b29c90a17ed1a9dd785485285174b5f9` (321780 bytes). The script read its own file at run time
+and digested it, so the digest above is a measurement of the writer rather than a
+label attached to it. The same digest appears in the envelope under
+`source_integrity.query_source_sha256` and in the console log, and all three
+members of this publication carry the identifier `6c485411000bfd44a0af18af73cb5367b991dd20fff509d28274260207ae0bd2`.
+
+That is what makes the relationship between a source and its results checkable
+rather than assumed: digest the `.sc` file and compare. A result whose digest does
+not match the source beside it was not written by that source, and no amount of
+agreement in the prose changes that. The three members are published together -
+each staged, fsynced and only then moved onto its final name - so a reader never
+sees one member from this generation beside another from a previous one.
 
 ## The result, per pair
 
@@ -92,9 +85,9 @@ across queries.
     loosened, removed or re-run unbounded to produce a non-empty result. The
     4 boundaries below are the measured reason.
 - **walks** (its own two, never combined with the other pair's):
-  - `A-follows-fan-out`: follows fan-out true, expansions 19551, call sites 21476, fan-out seen 48, fan-out not followed 0, max depth 12, depth bound reached true, expansion budget exhausted false, step cap reached false, route cap reached false, routes 0
-  - `B-fan-out-recorded`: follows fan-out false, expansions 2350, call sites 4383, fan-out seen 31, fan-out not followed 31, max depth 12, depth bound reached true, expansion budget exhausted false, step cap reached false, route cap reached false, routes 0
-- **route surface for its own expected-spurious basis**: `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`; predicate call sites on it: 0
+  - `A-follows-fan-out`: follows fan-out true, expansions 25009 across all of its entry points with 25006 the peak at any ONE entry point, call sites 33565, fan-out seen 86, fan-out not followed 0, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0
+  - `B-fan-out-recorded`: follows fan-out false, expansions 5598 across all of its entry points with 5595 the peak at any ONE entry point, call sites 11575, fan-out seen 55, fan-out not followed 55, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0
+- **route surface for its own expected-spurious basis**: `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.Worker`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`; predicate call sites on it: 0
 
 ### Pair `pair-two` - the REST submit servlet's handleSubmit to the SAME privileged process launch on the DriverRunner surface
 
@@ -119,45 +112,9 @@ across queries.
     loosened, removed or re-run unbounded to produce a non-empty result. The
     5 boundaries below are the measured reason.
 - **walks** (its own two, never combined with the other pair's):
-  - `A-follows-fan-out`: follows fan-out true, expansions 10029, call sites 8949, fan-out seen 25, fan-out not followed 0, max depth 12, depth bound reached true, expansion budget exhausted false, step cap reached false, route cap reached false, routes 0
-  - `B-fan-out-recorded`: follows fan-out false, expansions 732, call sites 1230, fan-out seen 12, fan-out not followed 12, max depth 12, depth bound reached true, expansion budget exhausted false, step cap reached false, route cap reached false, routes 0
-- **route surface for its own expected-spurious basis**: `org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet`, `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`; predicate call sites on it: 0
-
-### Pair `pair-two`'s enclosing type, and why naming it is load-bearing
-
-`handleSubmit` at `core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:268`
-is **not** a member of `StandaloneRestServer`. That file declares **seven**
-classes at the pin, and the handler belongs to the last of them:
-
-| declared class | line at the pin |
-| --- | --- |
-| `StandaloneRestServer` | 56 |
-| `StandaloneKillRequestServlet` | 81 |
-| `StandaloneKillAllRequestServlet` | 99 |
-| `StandaloneStatusRequestServlet` | 116 |
-| `StandaloneClearRequestServlet` | 138 |
-| `StandaloneReadyzRequestServlet` | 155 |
-| `StandaloneSubmitRequestServlet` | 171 |
-
-`handleSubmit` is declared in **`StandaloneSubmitRequestServlet`** - bytecode type
-`org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet`. `StandaloneRestServer`
-merely instantiates it, at `:64-65`, as `submitRequestServlet`. So this report
-names the handler's enclosing type as `StandaloneSubmitRequestServlet` while
-citing the **file** as `StandaloneRestServer.scala`: the plan's own label for the
-pair is the file's name, and both names are recorded rather than one being
-silently substituted for the other.
-
-The consequence is measured rather than hypothetical, and it is the reason the
-type is stated at all. A selector anchored on the **type name**
-`StandaloneRestServer` matches nothing here - the method is not declared on that
-type - so such a selector would have returned an empty entry-point set, and a
-zero from that mistake would be **indistinguishable** from a zero that is a
-genuine capability boundary. Stating the type is what lets a reader tell those two
-apart: the entry-point count for this pair is 1 discovered and 1 traversed, so the
-selection resolved and the zero route count below is a property of the traversal
-rather than of a mis-anchored selector. The same distinction is why the shared
-route-surface prefix list is reported as **not** covering this handler type: see
-"The shared route surface, and each pair's own" below.
+  - `A-follows-fan-out`: follows fan-out true, expansions 10146 across all of its entry points with 10146 the peak at any ONE entry point, call sites 9038, fan-out seen 29, fan-out not followed 0, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0
+  - `B-fan-out-recorded`: follows fan-out false, expansions 764 across all of its entry points with 764 the peak at any ONE entry point, call sites 1247, fan-out seen 15, fan-out not followed 15, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0
+- **route surface for its own expected-spurious basis**: `org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet`, `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.Worker`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`; predicate call sites on it: 0
 
 ## Whether the bound was reached
 
@@ -167,11 +124,11 @@ named bound; none runs unbounded, and no bound is shared between the pairs, so o
 pair cannot consume the other's budget.
 
 - pair `pair-one`: `bound_reached` = **true**
-  - walk `A-follows-fan-out`: the frontier was still non-empty at depth 12. Expansion budget used 19551 of 200000 per entry point; call sites considered 21476 of 400000 for the pair; routes returned 0 of 64.
-  - walk `B-fan-out-recorded`: the frontier was still non-empty at depth 12. Expansion budget used 2350 of 200000 per entry point; call sites considered 4383 of 400000 for the pair; routes returned 0 of 64.
+  - walk `A-follows-fan-out`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 25006 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 25009, which caps nothing; this walk contributed 33565 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
+  - walk `B-fan-out-recorded`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 5595 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 5598, which caps nothing; this walk contributed 11575 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
 - pair `pair-two`: `bound_reached` = **true**
-  - walk `A-follows-fan-out`: the frontier was still non-empty at depth 12. Expansion budget used 10029 of 200000 per entry point; call sites considered 8949 of 400000 for the pair; routes returned 0 of 64.
-  - walk `B-fan-out-recorded`: the frontier was still non-empty at depth 12. Expansion budget used 732 of 200000 per entry point; call sites considered 1230 of 400000 for the pair; routes returned 0 of 64.
+  - walk `A-follows-fan-out`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 10146 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 10146, which caps nothing; this walk contributed 9038 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
+  - walk `B-fan-out-recorded`: the frontier was still non-empty at depth 12. Each figure is measured at its cap's own scope: the peak expansion count at any ONE entry point was 764 of 200000, the counter being reset at each entry point, and the walk's total across all of its entry points was 764, which caps nothing; this walk contributed 1247 call sites to the ONE step budget of 400000 that both of the pair's walks draw on; routes returned 0 of 64.
 
 A depth bound reached with a non-empty frontier says only that the walk stopped
 expanding, so on its own it would leave open whether a deeper walk would reach a
@@ -179,81 +136,17 @@ sink host. What settles that here is the boundary measurement below rather than 
 bound: the hops that break these routes are not CALL edges at all, and no increase
 in depth introduces an edge that does not exist.
 
-Every named bound carries a value **and** a reached flag, and the flag is reported
-separately for each pair in the declared pair order. No flag is aggregated across
-the two.
-
-| bound | value | what it bounds | reached, `pair-one` | reached, `pair-two` |
-| --- | --- | --- | --- | --- |
-| MAX_CALL_DEPTH | 12 | maximum call-graph hops walked from an entry point, applied per pair | **true** | **true** |
-| MAX_ROUTES_PER_PAIR | 64 | maximum distinct routes retained per pair; never a shared budget | false | false |
-| MAX_EXPANSIONS_PER_ENTRY | 200000 | the per-entry-point step cap, counted in method expansions | false | false |
-| MAX_STEPS_PER_PAIR | 400000 | the per-pair step cap across that pair's walks, counted in call sites considered | false | false |
-| MAX_TOTAL_RETURNS | 256 | the total-returns cap across every record kind; a query-level cap | false | false |
-| MAX_ENTRY_POINTS_PER_PAIR | 16 | maximum entry points traversed per pair; the remainder counted as truncated | false | false |
-| MAX_CALL_SCAN | 200000 | cap on the indexed call-name sweeps that find the sink and message call sites | false | false |
-| FANOUT_CALLEE_THRESHOLD | 32 | a threshold, not a cap: a call site with a wider resolved callee set is recorded as fan-out | **true** | **true** |
-
-Two of those rows need their reading stated, or the flags mislead.
-`FANOUT_CALLEE_THRESHOLD` is a **threshold rather than a cap**, so "reached" there
-means *exceeded* - fan-out sites were encountered - and it is **not** a truncation
-of either traversal. `MAX_TOTAL_RETURNS` is a **query-level** cap, so its entry is
-the same measurement appearing in both pairs' columns: one measurement cited
-twice, never two measurements.
-
-The measurement each flag was read from, per pair:
-
-- pair `pair-one`
-  - `MAX_CALL_DEPTH` **reached**: `depth_bound_reached` is true across this pair's walks and the deepest walk used 12 of 12 hops
-  - `MAX_ROUTES_PER_PAIR` not reached: `route_cap_reached` false in every walk, routes returned `A-follows-fan-out`=0 and `B-fan-out-recorded`=0 against a per-pair cap of 64
-  - `MAX_EXPANSIONS_PER_ENTRY` not reached: `expansion_budget_exhausted` false in every walk, the highest method-expansion count 19551 of 200000
-  - `MAX_STEPS_PER_PAIR` not reached: `step_cap_reached` false in every walk, the highest call-site count 21476 of 400000
-  - `MAX_TOTAL_RETURNS` not reached: 6 records emitted by the query against a cap of 256
-  - `MAX_ENTRY_POINTS_PER_PAIR` not reached: 2 discovered, 2 traversed, 0 truncated, against a per-pair cap of 16
-  - `MAX_CALL_SCAN` not reached: 1234 calls named `start` scanned of 200000, sweep truncated false
-  - `FANOUT_CALLEE_THRESHOLD` exceeded: fan-out sites encountered `A-follows-fan-out`=48, `B-fan-out-recorded`=31, a site counting as fan-out when its resolved callee set exceeds 32 distinct methods
-- pair `pair-two`
-  - `MAX_CALL_DEPTH` **reached**: `depth_bound_reached` is true across this pair's walks and the deepest walk used 12 of 12 hops
-  - `MAX_ROUTES_PER_PAIR` not reached: `route_cap_reached` false in every walk, routes returned `A-follows-fan-out`=0 and `B-fan-out-recorded`=0 against a per-pair cap of 64
-  - `MAX_EXPANSIONS_PER_ENTRY` not reached: `expansion_budget_exhausted` false in every walk, the highest method-expansion count 10029 of 200000
-  - `MAX_STEPS_PER_PAIR` not reached: `step_cap_reached` false in every walk, the highest call-site count 8949 of 400000
-  - `MAX_TOTAL_RETURNS` not reached: the same query-level measurement - 6 records against a cap of 256
-  - `MAX_ENTRY_POINTS_PER_PAIR` not reached: 1 discovered, 1 traversed, 0 truncated, against a per-pair cap of 16
-  - `MAX_CALL_SCAN` not reached: 1234 calls named `start` scanned of 200000, sweep truncated false
-  - `FANOUT_CALLEE_THRESHOLD` exceeded: fan-out sites encountered `A-follows-fan-out`=25, `B-fan-out-recorded`=12, on the same 32-callee threshold
-
-The per-pair caps are per pair by design: one pair filling a shared budget would
-silently truncate the other, and a truncated traversal that passed for a complete
-one is the one failure mode a bound is there to make visible.
-
-## The chain the traversal can follow, for context
-
-Every line below is the **pinned tree's**, re-verified against `$SPARK_SRC` at
-`59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d`. The point of stating it is that
-neither pair's empty result is the traversal failing to move at all: inside
-`core/src/main/scala/org/apache/spark/deploy/master/Master.scala` the call chain is
-ordinary static calls, and a call-graph formulation follows it without difficulty.
-Both pairs traverse this same stretch - pair two reaches it only after the
-message-send hop its own handler opens with.
-
-`:409` `override def receiveAndReply` -> `:410` `case RequestSubmitDriver(description)`
--> `:411` the recovery-state check -> `:415` the branch taken when the state is
-`ALIVE` -> `:417` `val driver = createDriver(description)` (definition at `:1356`)
-and `:421` `schedule()` -> `:944` `private def schedule()` -> `:967` and `:986`
-`launchDriver(worker, driver)` (each inside a `canLaunchDriver` check, that method
-declared at `:923` and called at `:964` and `:983`) -> `:1363`
-`private def launchDriver` -> `:1367` the message send.
-
-A second path arrives at the same place: `:1121` `private def relaunchDriver`
-reaches the same `createDriver` at `:1130`.
-
-So **at least three call hops** separate that handler from the message send -
-`receiveAndReply` to `schedule` to `launchDriver` to the send - which is why the
-depth bound of 12 is load-bearing rather than decorative for both pairs: a bound
-of one or two would have stopped either walk before the send on arithmetic alone,
-and the empty results would then have been an artefact of the bound rather than a
-measurement of the graph. The walks stop where they do for the reasons below
-instead.
+| bound | value |
+| --- | --- |
+| MAX_CALL_DEPTH | 12 |
+| MAX_ROUTES_PER_PAIR | 64 |
+| MAX_EXPANSIONS_PER_ENTRY | 200000 |
+| MAX_STEPS_PER_PAIR | 400000 |
+| MAX_TOTAL_RETURNS | 256 |
+| MAX_ENTRY_POINTS_PER_PAIR | 16 |
+| MAX_CALL_SCAN | 200000 |
+| MAX_TYPE_SCAN | 200000 |
+| FANOUT_CALLEE_THRESHOLD | 32 |
 
 ## The boundaries, per pair
 
@@ -392,42 +285,6 @@ past the pair it was written against.
 
 ## The predicate set, and the source types it came from
 
-Two kinds of predicate are in play and they must not be run together. The
-**selection** predicates are what the parameterized body applies to find its ends,
-and they are exactly the part the pair parameterizes. The **spurious** predicate
-set is what classifies a returned route, and it is exactly the part the pair does
-*not* parameterize. Both are named below, with the source-level construct each was
-derived from.
-
-### The selection predicates the one body applied, per pair
-
-The same traversal body was driven by two parameter sets. No traversal in this
-query names a handler or a sink itself: every selector it applies comes out of the
-pair it was handed, which is what makes the second instantiation an invocation of
-the same code rather than a second query.
-
-| selection predicate | derived from | `pair-one` | `pair-two` |
-| --- | --- | --- | --- |
-| handler enclosing type, matched exactly | the `class`/`object` the handler method is declared in | `org.apache.spark.deploy.master.Master` (`Master.scala:409` declares the method) | `org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet` (declared `StandaloneRestServer.scala:171`) |
-| handler method name | the `def` at the pinned handler line | `receiveAndReply` (`Master.scala:409`) | `handleSubmit` (`StandaloneRestServer.scala:268`) |
-| handler synthetic type regex | the synthetic class Scala 2.13 emits for a `PartialFunction` literal | `^org\.apache\.spark\.deploy\.master\.Master\$\$anonfun\$receiveAndReply\$\d+$` | `^org\.apache\.spark\.deploy\.rest\.StandaloneSubmitRequestServlet\$\$anonfun\$handleSubmit\$\d+$` |
-| handler synthetic method name | the `applyOrElse` member of that synthetic class | `applyOrElse` | `applyOrElse` |
-| body witness, used to decide which arm carries the body | a call the handler's own body makes | `createDriver` (called `Master.scala:417`) | `DeployMessages$RequestSubmitDriver.<init>` (constructed `StandaloneRestServer.scala:277`) |
-| base declaration to exclude | the abstract or overridden declaration on a supertype | none declared for this pair | `org.apache.spark.deploy.rest.SubmitRequestServlet` |
-| sink callee regex | the abstract `def start(): Process` (`DriverRunner.scala:270`) and the JDK method it delegates to | `^(java\.lang\.ProcessBuilder\.start\|org\.apache\.spark\.deploy\.worker\.ProcessBuilderLike\.start).*` | the same |
-| sink call name | the call at the pinned sink line | `start` (`DriverRunner.scala:240`) | the same |
-| sink host type regex | the types hosting that call - the class and the trait | `^org\.apache\.spark\.deploy\.worker\.(DriverRunner\|ProcessBuilderLike).*` | the same |
-| message hop ids | the `case class` message types on the route | `LaunchDriver` | `RequestSubmitDriver`, `LaunchDriver` |
-| route surface type prefixes | the types the route passes through | `Master`, `DriverRunner`, `ProcessBuilderLike` | those three plus `StandaloneSubmitRequestServlet` |
-| pair label | prose, carried through to every record | "the standalone Master's driver-submission handler to the privileged process launch on the DriverRunner surface" | "the REST submit servlet's handleSubmit to the SAME privileged process launch on the DriverRunner surface" |
-
-The two pairs differ in the handler and in the message hops; they **share** the
-sink triple, which is why the sink's own measurements are one measurement cited by
-both. The exact literal values, as supplied, are listed again under
-parameterizability below so the measure can be checked without reading this table.
-
-### The spurious predicate set: exactly five Boolean methods
-
 The mechanical definition: a route is spurious **only** where it passes an
 authorization or ACL predicate before reaching the sink. The predicate set is
 exactly these five Boolean methods, and their source is
@@ -445,30 +302,13 @@ exactly these five Boolean methods, and their source is
 `core/src/main/scala/org/apache/spark/deploy/master/Master.scala:411`'s `if (state != RecoveryState.ALIVE)` is a
 **recovery-state** check and is deliberately not in this set.
 
-The selector block in this query's source is **byte-identical** to the
-corresponding block of `queries/joern/01-callgraph-unguarded-driver-launch.sc` and
-`queries/joern/02-dataflow-unguarded-driver-launch.sc`. It has to be: three spurious
-counts are only comparable if the definition of the term is the same text in all
-three files.
-
-### The set is exactly five, was not widened, and is identical across both pairs
-
-Two auth-adjacent Boolean methods on the very same anchored type are deliberately
-**not** selectors: `isEncryptionEnabled()` at
-`core/src/main/scala/org/apache/spark/SecurityManager.scala:280` and
-`isSslRpcEnabled()` at `:295`. Neither is an authorization or ACL predicate, and
-adding either would change what the word "spurious" counts here.
-
-The point specific to a parameterized query is the second half of that sentence.
-**The parameterization varies the handler and the sink, never the predicate set.**
-The same five selectors, the same type anchor and the same `_$eq` exclusion were
-applied to both pairs; the predicate set is not among the parameters at all. Had
-parameterization varied the selector set per pair, the two pairs' spurious counts
-would mean different things and could not be read side by side - which is the one
-way a parameterization could silently change the measurement rather than the
-target. It did not: the set is identical across `pair-one` and `pair-two`, and
-byte-identical to the other two queries' as well, which is what keeps all of the
-probe's spurious counts comparable with one another.
+Whether the four selector constants in this query's source carry the same literal
+text as those of `queries/joern/01-callgraph-unguarded-driver-launch.sc` and
+`queries/joern/02-dataflow-unguarded-driver-launch.sc` is **measured** at run time rather
+than asserted here, by reading each sibling source and comparing literal to
+literal; the outcome is published per sibling as `predicate_selector_literals`
+`_identical`. It matters because three spurious counts are only comparable while
+the definition of the term is the same text in all three files.
 
 ### How the bytecode-level selector was constrained
 
@@ -485,46 +325,47 @@ reported so it is auditable rather than asserted:
 
 The final set is asserted against the graph, not against the source.
 
-### The over-match hazards the anchor and the exact five exclude
-
-The type anchor alone does not exclude these. Every one is a method **on the
-anchored type** whose name the broad pattern reaches, and it is the intersection
-with the five exact names that removes each of them. Naming them is what makes the
-selector's precision checkable rather than asserted - all lines are the pinned
-tree's, in `core/src/main/scala/org/apache/spark/SecurityManager.scala`:
-
-| excluded method | source line at the pin |
-| --- | --- |
-| `setViewAcls` | 123 |
-| `setViewAcls` (the second overload) | 128 |
-| `setViewAclsGroups` | 136 |
-| `getViewAcls` | 144 |
-| `getViewAclsGroups` | 152 |
-| `setModifyAcls` | 164 |
-| `setModifyAclsGroups` | 173 |
-| `getModifyAcls` | 182 |
-| `getModifyAclsGroups` | 190 |
-| `setAdminAcls` | 202 |
-| `setAdminAclsGroups` | 211 |
-| `setAcls` | 216 |
-
-Twelve declarations excluded by name, plus the compiler-generated setter
-`aclsOn_$eq` excluded by suffix and the getter `aclsOn` excluded as non-predicate
-residue. Every one of the fourteen is a setter or a getter over ACL configuration
-by its own declaration, and none of them is one of the five names the definition
-uses. Counting a call to one of them as "the route passed a predicate" would have
-inflated this query's spurious count - on **both** pairs, since the same block
-applies to both - with call sites the definition does not cover. That is a
-statement about the selector, not about the code it selects over.
-
 ### The shared route surface, and each pair's own
 
 The byte-identical block also carries `ROUTE_SURFACE_TYPE_PREFIXES` = `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.rest.StandaloneRestServer`, `org.apache.spark.deploy.worker.DriverRunner`.
 Measured here rather than assumed: the handler type(s) `org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet` are **not** covered by any of those prefixes, because the type a method is declared in is not always the headline class of the file it lives in.
 The shared list is kept exactly as it stands so all three queries' spurious counts
 remain comparable, and each pair additionally carries its **own** route surface,
-derived from its own handler and sink types, which is what makes that pair's
-expected-spurious basis correct. Both counts are published.
+derived from its own handler, the intermediate hop and its sink types, which is
+what makes that pair's expected-spurious basis correct. Both counts are published.
+
+### The intermediate route hop
+
+Both pairs' routes run handler -> RPC -> **Worker** -> DriverRunner -> launch, so
+the Worker is a *hop* of the route rather than an end of it, and it is on each
+pair's own route surface for that reason. A surface naming only the handler and the
+sink host would leave one hop of the route unsearched while the resulting statement
+read as one about the whole route. Its anchors at the pin:
+
+- `core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala:523 override def receive declares the handler that receives the launch message`
+- `core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala:687 case LaunchDriver(driverId, driverDesc, resources_) matches it`
+- `core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala:689 constructs the DriverRunner that hosts the sink`
+- `core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala:701 calls driver.start(), the hop into the sink host`
+- `core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala:736 override def receiveAndReply, the second handler on the same type and not on this route`
+
+`core/src/main/scala/org/apache/spark/deploy/worker/Worker.scala` is 1046 lines at the pin, and it is one of the 4 route files searched for the five names.
+
+Every prefix on either pair's surface reports the **same** fields, the intermediate
+hop included. The reach columns are what make a zero falsifiable: a zero over a
+surface the graph does not carry would read exactly like a searched surface that
+came back clean, so a prefix with no type declaration stops the run instead of
+contributing one.
+
+| surface prefix | type decls | methods | predicate call sites | on pairs |
+| --- | --- | --- | --- | --- |
+| `org.apache.spark.deploy.master.Master` | 217 | 607 | 0 | pair-one, pair-two |
+| `org.apache.spark.deploy.rest.StandaloneRestServer` | 2 | 13 | 0 | shared list only |
+| `org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet` | 25 | 32 | 0 | pair-two |
+| `org.apache.spark.deploy.worker.DriverRunner` | 21 | 93 | 0 | pair-one, pair-two |
+| `org.apache.spark.deploy.worker.ProcessBuilderLike` | 6 | 9 | 0 | pair-one, pair-two |
+| `org.apache.spark.deploy.worker.Worker` | 156 | 475 | 0 | pair-one, pair-two |
+
+The sweep behind those reach columns is bounded by `MAX_TYPE_SCAN` = 200000 type declarations per prefix and reported truncated = **false**.
 
 ## Whether an expected-spurious route was absent
 
@@ -537,7 +378,7 @@ named selectors.
 Measured against the graph: 18 call sites of the five
 predicates exist graph-wide, in 18 distinct calling
 methods, and **0** of them sit on this
-pair's own route surface (`org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`).
+pair's own route surface (`org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.Worker`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`).
 The predicate set exists and is invoked elsewhere in the program; it is not
 invoked anywhere on this pair's route, so no route of this pair could have
 passed one.
@@ -551,7 +392,7 @@ named selectors.
 Measured against the graph: 18 call sites of the five
 predicates exist graph-wide, in 18 distinct calling
 methods, and **0** of them sit on this
-pair's own route surface (`org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet`, `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`).
+pair's own route surface (`org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet`, `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.Worker`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`).
 The predicate set exists and is invoked elsewhere in the program; it is not
 invoked anywhere on this pair's route, so no route of this pair could have
 passed one.
@@ -561,74 +402,10 @@ because it is what makes that pair's basis structural: in the pinned tree the fi
 `core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala` is matched by **none** of the
 five named selectors and carries no reference to the predicate type at all. Its
 only `permission` occurrence is the Apache licence boilerplate at line 14, and a
-case-insensitive search additionally returns lines 209, 233 and 251, none of which
-is a selector match at all - the matched literal there is `aCl` inside
-`extraClassPath` / `driverExtraClassPath`, a substring coincidence rather than a
-predicate. That is a statement about which of these selectors match that file, and
-nothing more.
-
-### The zero is scoped to the route surfaces, not to the program
-
-An unscoped "zero call sites" claim would simply be false. `aclsEnabled()` **is
-invoked** inside the anchored type's own source file, at
-`core/src/main/scala/org/apache/spark/SecurityManager.scala:249`, at `:265` and at
-`:407` inside the private `isUserInACL` declared at `:402`; and 18 call sites of
-the five exist graph-wide across 18 distinct calling methods. The zeros above hold
-for the two pairs' own route surfaces and for nothing wider.
-
-The source-level counterpart of that graph measurement was checked directly:
-searching all five names across the three route files at the pin -
-`core/src/main/scala/org/apache/spark/deploy/master/Master.scala`,
-`core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala` and
-`core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala` - returns
-**nothing in any of the three**. The two measurements agree, and they are two
-views of the same fact rather than two facts.
-
-### Reference is not invocation
-
-The route surface does mention the predicate type; every such mention is a
-reference of a kind that invokes none of the five. Holding, importing,
-constructing or passing a value on is not **invoking** a method on it, which is
-why the verb throughout this report is *invoked*:
-
-| pinned location | what it is |
-| --- | --- |
-| `core/src/main/scala/org/apache/spark/deploy/master/Master.scala:28` | imports `SecurityManager` |
-| `core/src/main/scala/org/apache/spark/deploy/master/Master.scala:53` | declares `val securityMgr: SecurityManager` |
-| `core/src/main/scala/org/apache/spark/deploy/master/Master.scala:139` | reads the companion constant `SecurityManager.SPARK_AUTH_SECRET_CONF` |
-| `core/src/main/scala/org/apache/spark/deploy/master/Master.scala:1429` | constructs a `SecurityManager` |
-| `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:27` | imports `SecurityManager` |
-| `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:56` | declares `val securityManager: SecurityManager` |
-| `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:194` | passes `securityManager` on as an argument to the command builder |
-
-`core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala`
-contributes no row to that table, because at the pin it carries **no reference to
-the predicate type at all** - not an import, not a field, not a constant read.
-That is the detail specific to `pair-two`, and it is what makes that pair's basis
-structural rather than a property of this query's filtering.
-
-### What the definition does not evaluate
-
-The mechanical definition evaluates **only** those five predicates, and it applies
-unchanged to **both** pairs. Any other conditional on either route is outside it
-and is **not assessed** by it. Concretely:
-
-- on `pair-one`,
-  `core/src/main/scala/org/apache/spark/deploy/master/Master.scala:411`
-  `if (state != RecoveryState.ALIVE)` guards the branch that reaches `createDriver`
-  at `:417`. It is a recovery-state check, it is not one of the five, and it is
-  therefore neither counted as a predicate nor reported as one.
-- on `pair-two`, whatever request validation `handleSubmit`'s own
-  `requestMessage match` performs - the method declared at
-  `core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:268`,
-  its match opening at `:272` - is likewise outside the definition and
-  **unassessed** here.
-
-So a spurious count of 0 means exactly and only what the definition says, and it
-does **not** mean that either route carries no conditional. Reading it that way
-would attribute to this query a claim it does not make - and on `pair-two` in
-particular, where the count is also 0, it would attribute to this query a claim
-about a submission path that this query neither makes nor is able to make.
+case-insensitive search additionally returns lines 209, 233 and 251, which are
+false positives - the matched literal is `aCl` inside `extraClassPath` /
+`driverExtraClassPath`. That is a statement about which of these selectors match
+that file, and nothing more.
 
 ### What this section does not say
 
@@ -642,65 +419,66 @@ count is zero there are no returns to classify at all.
 
 ## Whether this formulation duplicates another query's
 
-`duplicate_formulation` = **partial_duplicate**. A duplicate of query 01's formulation ON PAIR ONE, not a duplicate as a whole, and not a duplicate of query 02 in any instantiation. The scope of the duplication is stated rather than hidden: it is exactly the pair-one instantiation, and it is what makes the parameterized form's second instantiation the part that is new.
+`duplicate_formulation` = **partial_duplicate**. A duplicate of 01-callgraph-unguarded-driver-launch on pair-one, not a duplicate as a whole, and not a duplicate of 02-dataflow-unguarded-driver-launch in any instantiation. The scope of any duplication is stated rather than hidden: where it is one pair only, the parameterized form's remaining instantiations are the part that is new. Every clause here is computed from the per-query entries below, so it cannot disagree with them.
 
-The question is live rather than rhetorical, and it is worth saying why. This
-query's **`pair-one` is the same handler/sink pair both sibling queries address**,
-so two readings are available and they are not the same verdict: *a third
-formulation of pair one*, or *a parameterized restatement of query 01's
-formulation*. The verdicts below distinguish them explicitly, and they are grounded
-in four things measured rather than eyeballed - the **traversal semantics** (which
-edge kind is walked and whether a flow engine is loaded), the **source and sink
-node sets** (whole methods against parameters and expressions, and the entry-point
-resolution each uses), the **deduplicated API-construct lists** compared as a set
-difference in both directions, and whether the **route sets coincide**. Those are
-the grounds used; nothing here rests on the file names differing.
+Aggregation: the top-level verdict aggregates the per-query entries below and names the strongest relation any one of them carries: duplicate_formulation_on_pair-one against 01-callgraph-unguarded-driver-launch, not_duplicate against 02-dataflow-unguarded-driver-launch. One entry is a duplicate at a scope NARROWER than the whole pair set, which makes the aggregate partial rather than absent. The scope is stated in that entry rather than hidden in this label. It was NOT inferred from the file names differing
 
-**`pair-two` is not compared for duplication at all**, because no other query in
-the probe addresses that pair. There is nothing to compare it against, and an
-absence of comparison is recorded as exactly that rather than as a verdict of
-difference.
+Relation: a SYMMETRIC pairwise relation: the verdict this envelope states against a query is the same verdict that query's envelope states against this one. It is one measurement cited twice rather than two measurements, and here it is symmetric BY CONSTRUCTION rather than by transcription - every entry below is computed by applying ONE shared predicate to the two queries' own declared formulation identity blocks, read out of the two SOURCE files at run time under names all three queries share. Both directions therefore evaluate identical inputs through identical code, so a disagreement between them is not expressible; a transcribed verdict could disagree with the envelope it was copied from, which is exactly what this replaces
 
-### Against `01-callgraph-unguarded-driver-launch`: **duplicate_formulation_on_pair_one**
+The comparison reads each sibling's **source**, not its published result. Every
+entry below is produced by applying one shared predicate to the two queries' own
+declared formulation identity blocks, so both directions of the relation evaluate
+identical inputs through identical code and a disagreement between them is not
+expressible. No sibling figure is transcribed into this file, which is what makes
+the verdict incapable of drifting from the file it describes.
 
-SAID PLAINLY: instantiated on pair one this query IS query 01's formulation restated in parameterized form, and the evidence is measured rather than asserted - the same edge kind (CALL edges only, no data edge and no flow engine), the same entry-point resolution (the synthetic partial-function method together with the source-level method), the same sink constraint, the same bound value 12, the same two walk modes, and an API construct list whose set difference against query 01's published list is empty in BOTH directions. On this run the two also agree on pair one's entry-point set, on its distinct-route count and on the four boundary verdicts after the declared id translation. WHAT IS NOT A DUPLICATE: the query as a whole. It takes the handler/sink pair as a parameter and is invoked on a SECOND pair (pair-two, org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit) that query 01 does not address at all, it measures 5 boundaries on that pair against 4 on pair one, and it models one hop query 01 never reaches - the servlet's own message send, whose producer and consumer ends are measured in stage I. RECONCILED WITH WHAT QUERY 01 PUBLISHED: its envelope records 'duplicate_formulation_on_pair_one' against this query, aggregating to 'partial_duplicate' at its top level, and it states both scopes there too - that as wholes the two are not duplicates, because this query takes the pair as a parameter and covers a second pair it does not address, and that on pair one the two formulations coincide. The verdict published from each side is therefore the SAME verdict at the same scope, which is what the symmetry of this pairwise relation requires: one measurement cited twice rather than two measurements, and a disagreement between the two directions would be a defect rather than a finding. Neither query's returns are added to the other's anywhere: they are reported side by side, per pair, and NEVER SUMMED.
+### Against `01-callgraph-unguarded-driver-launch`: **duplicate_formulation_on_pair-one**
 
-| property | here (measured) | query 01 (transcribed from its envelope) | agree |
-| --- | --- | --- | --- |
-| API construct count | 28 | 28 | true |
-| bound value | 12 | 12 | true |
-| pair-one entry points | 2 | 2 | true |
-| pair-one distinct routes | 0 | 0 | true |
-| boundaries not crossed | B1-rpc, B2-thread, B4-partial-function | B1-rpc, B2-thread, B4-partial-function | true |
-
-The sibling's figures are **transcribed** from its published envelope, never
-re-measured here, and they were measured against the graph of its own run. The
-boundary ids are translated by the mapping declared in the query source: `B-interface` -> `B3-interface`, `B-partial-function-pair-one` -> `B4-partial-function`, `B-rpc-LaunchDriver` -> `B1-rpc`, `B-thread` -> `B2-thread`.
+- scope: pair-one only; this query additionally addresses pair-two, which 01-callgraph-unguarded-driver-launch does not
+- basis: every component of the formulation identity agrees at the scope named above: the edge kinds traversed (CALL); the node kinds selected as a route's ends (METHOD); at least one handler/sink pair in common; the entry-point selector literals, byte for byte; the sink selector literals, byte for byte; the bound, as the same kind of quantity at the same value (12 call-graph hops expanded from an entry point); the Joern API construct sets, whose set difference is empty in BOTH directions. The comparison is over the two SOURCES' own declarations, so it is a property of the two formulations rather than of either run's numbers
+- sibling source: `queries/joern/01-callgraph-unguarded-driver-launch.sc`, sha256 `dc7ca0fb9f8d7809afcc31602d48d568fd78bf8136a99df55ae6c1e9f6b4180b`, 213224 bytes; read note: measured from the source text at run time
+- pair ids here: pair-one, pair-two; there: pair-one; shared: pair-one
+- edge kinds: here CALL, there CALL (same = true)
+- end node kinds: here METHOD, there METHOD (same = true)
+- bound: here `MAX_CALL_DEPTH` = 12 (call-graph hops expanded from an entry point); there `MAX_CALL_DEPTH` = 12 (call-graph hops expanded from an entry point); same kind = true, same value = true
+- entry selector literals identical: true; sink selector literals identical: true
+- predicate selector literals identical: true (reported, not a component of the formulation predicate: the predicate set defines the word "spurious" rather than the traversal)
+- API constructs: 28 shared, 0 only here, 0 only there
 
 ### Against `02-dataflow-unguarded-driver-launch`: **not_duplicate**
 
-A different formulation over different edges and different nodes. Query 02 traverses reaching-definition (data) edges through the OSS dataflow layer and selects PARAMETER and EXPRESSION nodes as its ends; this query traverses CALL edges and selects whole METHODS, and it loads no flow engine at all. Auditable corroboration, computed here as a set difference against query 02's published list rather than eyeballed: 18 of query 02's 42 API constructs do not appear in this query's list (AstNode.code, AstNode.label, AstNode.lineNumber, Call.argument, Call.receiver, CfgNode.method, EngineConfig.maxCallDepth, EngineContext.config, EngineContext.copy, EngineContext.semantics, Method.call, Method.parameter, MethodParameterIn.index, MethodParameterIn.method, MethodParameterIn.name, MethodParameterIn.typeFullName, Path.elements, Traversal.reachableByFlows), and 4 of this query's do not appear in query 02's (Call.code, Call.order, Method.callOut, NoResolve.getCalledMethodsAsTraversal). The two also carry different bounds - this query's bound value is 12 call-graph hops, query 02 published 6 for its own flow-call depth - so the two numbers are not even the same kind of quantity. Their returns are likewise never summed.
+- scope: none
+- basis: the formulations differ on the edge kinds traversed (CALL); the node kinds selected as a route's ends (METHOD); the bound, as the same kind of quantity at the same value (12 call-graph hops expanded from an entry point); the Joern API construct sets, whose set difference is empty in BOTH directions, while agreeing on at least one handler/sink pair in common; the entry-point selector literals, byte for byte; the sink selector literals, byte for byte. Neither traversal establishes the other's conclusion, so the two results are reported side by side and never summed
+- sibling source: `queries/joern/02-dataflow-unguarded-driver-launch.sc`, sha256 `546003c5b35a5b1e866a0928b362ab9016fc366d1e4305c3b4d1191e557996de`, 267884 bytes; read note: measured from the source text at run time
+- pair ids here: pair-one, pair-two; there: pair-one; shared: pair-one
+- edge kinds: here CALL, there REACHING_DEF (same = false)
+- end node kinds: here METHOD, there METHOD_PARAMETER_IN, EXPRESSION (same = false)
+- bound: here `MAX_CALL_DEPTH` = 12 (call-graph hops expanded from an entry point); there `MAX_FLOW_CALL_DEPTH` = 6 (call boundaries the backward data-flow search may expand); same kind = false, same value = false
+- entry selector literals identical: true; sink selector literals identical: true
+- predicate selector literals identical: true (reported, not a component of the formulation predicate: the predicate set defines the word "spurious" rather than the traversal)
+- API constructs: 24 shared, 4 only here, 18 only there
 
-### The relation is symmetric, and both directions were checked
+the entry-selector literals compared are pair one's, the pair this query and the call-graph query share. This query's second pair is expressed through FORMULATION_PAIR_IDS, and its selectors are published in full in the pairs block of this envelope rather than folded into the comparison. The consequence is stated rather than hidden: two queries declaring the same pair id set but different selectors for a pair other than the compared one would not be distinguished by the selector component alone, and a reader checking that case reads the pairs block
 
-A duplicate-formulation verdict is a **symmetric pairwise relation**: the verdict
-stated here against a sibling is the same verdict that sibling states against this
-query, at the same scope. Both directions were read rather than assumed.
-
-| relation | published here | published by the sibling | agree |
-| --- | --- | --- | --- |
-| 03 ↔ `01-callgraph-unguarded-driver-launch` | `duplicate_formulation_on_pair_one` | `duplicate_formulation_on_pair_one`, aggregating to `partial_duplicate` at its top level | true |
-| 03 ↔ `02-dataflow-unguarded-driver-launch` | `not_duplicate` | `not_duplicate`, aggregating to `not_duplicate` at its top level | true |
-
-Both scopes - the pair-one duplication and the whole-query difference - are named
-in both envelopes, so neither reads as a contradiction of the other. One
-measurement cited twice; a disagreement between the two directions would be a
-defect rather than a finding. And no query's returns are added to another's
-anywhere: the figures sit side by side, per pair, and are never summed.
+Pair one's figures **measured here**, published so a reader can compare them
+against query 01's own published figures rather than against a copy of them made
+inside this file: 2 entry point(s), 0 distinct route(s), bound value 12, boundaries not crossed `B1-rpc`, `B2-thread`, `B4-partial-function` in query 01's numbering, under the naming map `B-interface` -> `B3-interface`, `B-partial-function-pair-one` -> `B4-partial-function`, `B-rpc-LaunchDriver` -> `B1-rpc`, `B-thread` -> `B2-thread`.
+A cross-run comparison of *counts* is a reader's to make from the two result
+files: each query measured its own against the graph of its own run.
 
 ## The three effort measures
 
-1. **Query revisions committed: 1.** Convention: commits touching queries/joern/03-parameterized-handler-sink-pairs.sc from its first appearance to the end of the probe. This run introduces the file in a single commit.
+1. **Query revisions committed: 5.** Convention: commits touching queries/joern/03-parameterized-handler-sink-pairs.sc from its first appearance to the end of the probe, counted at run time from the repository's own history. The commit that publishes these result files is necessarily NOT among them: it cannot exist while the run that writes them is still in progress.
+   Measurement: measured from the repository's own history at run time, newest first.
+   The commits counted, newest first, so the number is auditable rather than
+   asserted:
+
+   - `b166213252d852cd409f3982dafcaf1cc2b04330`
+   - `56d4bf10a02adb0e44b2bf59f77e9a2402965979`
+   - `b562bca85a5e4a1986607b023650a6e5dcd3476b`
+   - `1072fd2334fc1a1b54b62119e086920e951ac209`
+   - `20a56482274ab6c5f53b45f0488d2fa37012e03f`
+
 2. **Distinct Joern API constructs used: 28.** Listed explicitly and deduplicated so the
    count is auditable from the list rather than asserted; every entry appears
    literally in the query source:
@@ -734,55 +512,14 @@ anywhere: the figures sit side by side, per pair, and are never summed.
    - `importCpg`
    - `switchWorkspace`
 
-   Constructs used here that query 01 does not publish: none. Constructs used here that query 02 does not publish: `Call.code`, `Call.order`, `Method.callOut`, `NoResolve.getCalledMethodsAsTraversal`.
+   Constructs declared here that `01-callgraph-unguarded-driver-launch` does not declare: none.
+   Constructs declared here that `02-dataflow-unguarded-driver-launch` does not declare: `Call.code`, `Call.order`, `Method.callOut`, `NoResolve.getCalledMethodsAsTraversal`.
 
 3. **Parameterizability: passed.** This file owns the measure.
    It passes ONLY where the parameterized query is actually invoked on the second named pair and that invocation's result is captured in this query's result files and console log; an empty result from a real invocation satisfies it, a skipped invocation does not, and a parameter list that merely exists does not.
 
    - first pair `pair-one`: invoked; entry points traversed 2 of 2; distinct routes 0; spurious 0; boundaries measured or cited 4
-   - second pair `pair-two` (`org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit` at `core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:268` to the launch at `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240`, both at the pin): invoked; entry points traversed 1 of 1; walks run A-follows-fan-out and B-fan-out-recorded; call sites considered A-follows-fan-out=8949, B-fan-out-recorded=1230; distinct routes 0; spurious 0; boundaries measured or cited 5 (B-rpc-RequestSubmitDriver, B-rpc-LaunchDriver, B-thread, B-interface, B-partial-function-pair-two)
-
-   **The exact parameter values supplied**, so a reader can see one query body
-   driven by two different inputs rather than two queries written. Every literal
-   below was handed to the same traversal; the query source itself names no
-   handler and no sink.
-
-   `pair-one`:
-
-   - `handler_type` = `org.apache.spark.deploy.master.Master`
-   - `handler_method` = `receiveAndReply`
-   - `handler_synthetic_type_regex` = `^org\.apache\.spark\.deploy\.master\.Master\$\$anonfun\$receiveAndReply\$\d+$`
-   - `handler_synthetic_method` = `applyOrElse`
-   - `handler_body_witness` = `createDriver`
-   - `handler_base_type` = none declared for this pair
-   - `handler_source_file_at_the_pin` = `core/src/main/scala/org/apache/spark/deploy/master/Master.scala`, `handler_source_line_at_the_pin` = 409
-   - `sink_callee_regex` = `^(java\.lang\.ProcessBuilder\.start|org\.apache\.spark\.deploy\.worker\.ProcessBuilderLike\.start).*`
-   - `sink_call_name` = `start`
-   - `sink_host_type_regex` = `^org\.apache\.spark\.deploy\.worker\.(DriverRunner|ProcessBuilderLike).*`
-   - `sink_source_file_at_the_pin` = `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala`, `sink_source_line_at_the_pin` = 240
-   - `message_hop_ids` = `LaunchDriver`
-   - `route_surface_type_prefixes` = `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`
-   - `pair_label` = "the standalone Master's driver-submission handler to the privileged process launch on the DriverRunner surface"
-
-   `pair-two`:
-
-   - `handler_type` = `org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet`
-   - `handler_method` = `handleSubmit`
-   - `handler_synthetic_type_regex` = `^org\.apache\.spark\.deploy\.rest\.StandaloneSubmitRequestServlet\$\$anonfun\$handleSubmit\$\d+$`
-   - `handler_synthetic_method` = `applyOrElse`
-   - `handler_body_witness` = `DeployMessages$RequestSubmitDriver.<init>`
-   - `handler_base_type` = `org.apache.spark.deploy.rest.SubmitRequestServlet`
-   - `handler_source_file_at_the_pin` = `core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala`, `handler_source_line_at_the_pin` = 268
-   - `sink_callee_regex`, `sink_call_name`, `sink_host_type_regex`, `sink_source_file_at_the_pin` and `sink_source_line_at_the_pin`: the **same** five values as `pair-one`
-   - `message_hop_ids` = `RequestSubmitDriver`, `LaunchDriver`
-   - `route_surface_type_prefixes` = `org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet`, `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`
-   - `pair_label` = "the REST submit servlet's handleSubmit to the SAME privileged process launch on the DriverRunner surface"
-
-   What differs between the two parameter sets is the handler, its base
-   declaration, its body witness and its message hops; what is identical is the
-   sink triple, and - stated again because it is the property that keeps the two
-   spurious counts readable side by side - the five-selector predicate set, which
-   is **not a parameter at all**.
+   - second pair `pair-two` (`org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit` at `core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:268` to the launch at `core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240`, both at the pin): invoked; entry points traversed 1 of 1; walks run A-follows-fan-out and B-fan-out-recorded; call sites considered A-follows-fan-out=9038, B-fan-out-recorded=1247; distinct routes 0; spurious 0; boundaries measured or cited 5 (B-rpc-RequestSubmitDriver, B-rpc-LaunchDriver, B-thread, B-interface, B-partial-function-pair-two)
 
    The verdict rests on the second pair's invocation having actually run in this
    same run, and on its result being captured here, in the envelope and in the
@@ -791,23 +528,6 @@ anywhere: the figures sit side by side, per pair, and are never summed.
    count are all published above. An empty result from a real invocation
    satisfies the measure; a skipped invocation would not, and a malformed pair
    aborts the run rather than being passed over.
-
-   **The verdict, stated explicitly: passed** - on the basis of the captured
-   second-pair invocation recorded in
-   `queries/joern/results/03-parameterized-handler-sink-pairs.json`, whose
-   `parameterizability` block names both pairs, both invocations and both
-   outcomes, and whose `pairs` array carries `pair-two`'s own selection, walk
-   counters and boundary measurements.
-
-   **A zero-record outcome on `pair-two` still satisfies this measure**, and it
-   did not weaken this verdict. The measure asks whether the query is
-   *parameterizable* - whether the second named pair was really supplied to the
-   same body and its result captured - not whether that pair is *connected* over
-   this graph by this formulation. The two are reported separately for exactly
-   that reason, and neither should be read as the other in either direction: a
-   non-empty result would not have made the measure pass any harder, and the empty
-   one does not make it fail. `pair-two`'s zero distinct routes is a capability
-   finding about the traversal, published in its own per-pair object above.
 
    The handler surface this parameterization draws on is ample rather than exactly
    the two cases it was written against, and that is measured in the pinned tree:
@@ -856,7 +576,7 @@ anywhere: the figures sit side by side, per pair, and are never summed.
 ## The graph this query loaded, and its identity
 
 - named path `$HARNESS_CPG` (repository-relative `harness/cpg/spark.cpg`), a symlink
-- resolved target: a host-shared read-only file outside the repository root, reached by following the symlink, **548118435** bytes, sha256 `f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53`
+- resolved target: a host-shared read-only file outside the repository root, reached by following the symlink, **541309809** bytes, sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`
 - the link itself measures 33 bytes; that figure is recorded only to be
   discarded, because measuring the link rather than its target is the mistake this
   check exists to avoid
@@ -864,52 +584,33 @@ anywhere: the figures sit side by side, per pair, and are never summed.
   a property of the checkout rather than of the measurement, and the size-and-digest
   pair above is what the identity comparison turns on. The literals are in
   `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log`, a console stream not held to byte-identity
-- record of account: `a provisioning record outside the repository root, named by $HARNESS_CPG_RECORD` (source: HARNESS_CPG_RECORD), which
-  states bytes 548118435 and sha256 `f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53` - re-verified immediately
-  before the load, and a mismatch would have halted the run
-- repo-relative record `harness/artifacts/logs/cpg-frontend.log` states bytes 541255894 and
-  sha256 `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`; agrees with the graph loaded: **false**
-- divergence: the repo-relative record harness/artifacts/logs/cpg-frontend.log states bytes=541255894 sha256=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc, which is NOT the graph on this host (bytes=548118435 sha256=f8c715624b1b91c9cbb1a88931c11e2d2f18ec3f56d908af57415651f5d22c53). That record is a committed deliverable describing the graph of the provisioning that wrote it; the record of account for THIS load is a provisioning record outside the repository root, named by $HARNESS_CPG_RECORD, the frontend's own write-time record for the graph actually loaded, and the load was verified against it. Both pairs are recorded with their provenance and neither is discarded
+- record of account: `harness/artifacts/logs/cpg-frontend.log`, which states bytes 541309809 and
+  sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` - re-verified immediately before the load, and a
+  mismatch would have halted the run
+- there is **no environment override** for that record. This query reads no
+  variable that could point the comparison at a different one, so the record a
+  reader can read is exactly the record the comparison turned on. Where the
+  host's graph and this record disagree, the run halts and the disagreement is
+  reported rather than routed around
 - the AAP-named path `harness/cpg/spark.cpg`: same file (equal resolved target)
-
-## Determinism of this report
-
-An unchanged query source over an unchanged graph must produce a byte-identical
-file, so this document carries no wall-clock timestamp, no elapsed time, no
-process identifier, no host name, no host-specific scratch or workspace path and
-no absolute host path. The only paths it names are repository-relative, relative to
-the `$SPARK_SRC` root, or environment-variable names. Those excluded quantities are
-real and are not being hidden - they live in
-`harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log`, a console
-stream deliberately **not** held to byte-identity.
-
-The requirement specific to a parameterized query is **pair order**, and it is
-fixed: `pair-one` first, then `pair-two`, everywhere in this report, in the
-envelope's per-pair objects and in the record grouping. The order is not incidental
-- the pairs are declared as a `List` in the query source and are selected, walked,
-classified, recorded and reported by index in that order, and no stage iterates a
-map or a set of pairs. A pair order taken from an unspecified iteration would
-reorder the per-pair sections between two runs and break byte-identity while
-changing no measurement, which is precisely the kind of difference a reader would
-have no way to attribute.
 
 ## Reproducing this
 
 ```
-cd <a scratch directory outside the repository>
-HARNESS_REPO_ROOT=<repo> JAVA_HOME="$JAVA_HOME_21" \
-  JAVA_TOOL_OPTIONS="-Xmx64g" SL_LOGGING_LEVEL=WARN \
-  joern --script <repo>/queries/joern/03-parameterized-handler-sink-pairs.sc -J-Xmx64g < /dev/null
+cd <a scratch directory outside the repository> && HARNESS_REPO_ROOT=<the repository root> JAVA_HOME="$JAVA_HOME_21" JAVA_TOOL_OPTIONS=-Xmx64g SL_LOGGING_LEVEL=WARN joern --script <the repository root>/queries/joern/03-parameterized-handler-sink-pairs.sc -J-Xmx64g < /dev/null
 ```
 
-Both pairs are declared as named constants in the query source and both are
-invoked by that one command, so no per-pair parameter has to be passed on the
-command line and the second pair's invocation is reproducible from this record
-alone. Where the record of account above is not the repo-relative one, the
-variable `HARNESS_CPG_RECORD` names it, and its value is the path printed above.
+That is the **whole** command: the repository root, the JDK, the heap override,
+the log level and the script path. Both pairs are declared as named constants in
+the query source and both are invoked by that one command, so no per-pair
+parameter has to be passed on the command line and the second pair's invocation
+is reproducible from this record alone. This query reads no other environment
+variable that changes what it loads or what it publishes, and in particular there
+is no override for the identity record - the record of account is
+`harness/artifacts/logs/cpg-frontend.log`, so a load can never be adjudicated by a record this command
+does not name.
 
 `joern --script` forks a child JVM and does not forward `-J-Xmx` to it, so
 `JAVA_TOOL_OPTIONS` is the override that actually raises the heap the query runs
 at. The query measures the heap it received and stops below the floor: raising a
 heap is permitted and reported, lowering one is not.
-

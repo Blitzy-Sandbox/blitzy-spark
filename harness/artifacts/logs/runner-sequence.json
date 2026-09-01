@@ -1,0 +1,168 @@
+{
+ "schema_version": 1,
+ "document": "harness/artifacts/logs/runner-sequence.json",
+ "stage": "Stage 3 - the nine runners",
+ "purpose": "The interval each runner occupied, so 'one at a time, exactly once each, in one lane' is checkable rather than asserted (review findings F9, F10, F11). The predecessor's status files carried overlapping intervals across five tools and evidence of more than one clone; both are measurable here.",
+ "written_at_utc": "2026-08-31T16:14:39Z",
+ "lane": {
+  "clone": "blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001",
+  "clone_index": 1,
+  "scan_root": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src",
+  "orchestrator_used": false,
+  "invocation": "each runner called directly as ./harness/bin/run-<tool>.sh with no arguments"
+ },
+ "sequence": [
+  {
+   "sequence_index": 1,
+   "tool": "opengrep",
+   "started_at": "2026-08-31T09:39:43+00:00",
+   "finished_at": "2026-08-31T09:57:44+00:00",
+   "started_epoch": 1788169183,
+   "finished_epoch": 1788170264,
+   "runner_exit_code": 0,
+   "invocation": "./harness/bin/run-opengrep.sh (no arguments)"
+  },
+  {
+   "sequence_index": 2,
+   "tool": "semgrep",
+   "started_at": "2026-08-31T09:57:44+00:00",
+   "finished_at": "2026-08-31T10:05:46+00:00",
+   "started_epoch": 1788170264,
+   "finished_epoch": 1788170746,
+   "runner_exit_code": 0,
+   "invocation": "./harness/bin/run-semgrep.sh (no arguments)"
+  },
+  {
+   "sequence_index": 3,
+   "tool": "datadog-static-analyzer",
+   "started_at": "2026-08-31T10:05:46+00:00",
+   "finished_at": "2026-08-31T10:06:43+00:00",
+   "started_epoch": 1788170746,
+   "finished_epoch": 1788170803,
+   "runner_exit_code": 0,
+   "invocation": "./harness/bin/run-datadog-static-analyzer.sh (no arguments)"
+  },
+  {
+   "sequence_index": 4,
+   "tool": "gitleaks",
+   "started_at": "2026-08-31T10:06:43+00:00",
+   "finished_at": "2026-08-31T10:06:57+00:00",
+   "started_epoch": 1788170803,
+   "finished_epoch": 1788170817,
+   "runner_exit_code": 2,
+   "invocation": "./harness/bin/run-gitleaks.sh (no arguments)"
+  },
+  {
+   "sequence_index": 5,
+   "tool": "checkov",
+   "started_at": "2026-08-31T10:06:57+00:00",
+   "finished_at": "2026-08-31T10:08:40+00:00",
+   "started_epoch": 1788170817,
+   "finished_epoch": 1788170920,
+   "runner_exit_code": 1,
+   "invocation": "./harness/bin/run-checkov.sh (no arguments)"
+  },
+  {
+   "sequence_index": 6,
+   "tool": "trivy",
+   "started_at": "2026-08-31T10:08:40+00:00",
+   "finished_at": "2026-08-31T10:09:07+00:00",
+   "started_epoch": 1788170920,
+   "finished_epoch": 1788170947,
+   "runner_exit_code": 0,
+   "invocation": "./harness/bin/run-trivy.sh (no arguments)"
+  },
+  {
+   "sequence_index": 7,
+   "tool": "osv-scanner",
+   "started_at": "2026-08-31T10:09:07+00:00",
+   "finished_at": "2026-08-31T10:09:09+00:00",
+   "started_epoch": 1788170947,
+   "finished_epoch": 1788170949,
+   "runner_exit_code": 128,
+   "invocation": "./harness/bin/run-osv-scanner.sh (no arguments)"
+  },
+  {
+   "sequence_index": 8,
+   "tool": "dependency-check",
+   "started_at": "2026-08-31T10:09:09+00:00",
+   "finished_at": "2026-08-31T10:09:20+00:00",
+   "started_epoch": 1788170949,
+   "finished_epoch": 1788170960,
+   "runner_exit_code": 0,
+   "invocation": "./harness/bin/run-dependency-check.sh (no arguments)"
+  },
+  {
+   "sequence_index": 9,
+   "tool": "joern",
+   "started_at": "2026-08-31T10:09:20+00:00",
+   "finished_at": "2026-08-31T10:31:13+00:00",
+   "started_epoch": 1788170960,
+   "finished_epoch": 1788172273,
+   "runner_exit_code": 0,
+   "invocation": "./harness/bin/run-joern.sh (no arguments)"
+  }
+ ],
+ "serialization": {
+  "runners_recorded": 9,
+  "distinct_tools": 9,
+  "each_tool_exactly_once": true,
+  "inter_runner_gaps_seconds": [
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0,
+   0
+  ],
+  "overlapping_intervals": [],
+  "no_two_runners_live_at_once": true,
+  "total_wall_seconds": 3090,
+  "first_start": "2026-08-31T09:39:43+00:00",
+  "last_finish": "2026-08-31T10:31:13+00:00",
+  "additional_live_check": {
+   "what": "Before EVERY start, /proc was scanned for any process executing a runner of THIS clone, and the start was aborted if one was found. The structural serialisation of the driving loop is not the evidence; this is.",
+   "script": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/no_concurrent_runner.py",
+   "scope": "Scoped to this clone's own path: sibling clones on this host legitimately run their own runners at the same time, and their doing so is not an overlap in this lane.",
+   "passes_observed": 9,
+   "expected_passes": 9,
+   "aborts": 0
+  }
+ },
+ "evidence": {
+  "driver_console": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/evidence/run-scanners.console.log",
+  "per_tool_status_files": [
+   "harness/artifacts/logs/opengrep.status",
+   "harness/artifacts/logs/semgrep.status",
+   "harness/artifacts/logs/datadog-static-analyzer.status",
+   "harness/artifacts/logs/gitleaks.status",
+   "harness/artifacts/logs/checkov.status",
+   "harness/artifacts/logs/trivy.status",
+   "harness/artifacts/logs/osv-scanner.status",
+   "harness/artifacts/logs/dependency-check.status",
+   "harness/artifacts/logs/joern.status"
+  ],
+  "per_tool_streams": [
+   "harness/artifacts/logs/opengrep.stdout.log",
+   "harness/artifacts/logs/opengrep.stderr.log",
+   "harness/artifacts/logs/semgrep.stdout.log",
+   "harness/artifacts/logs/semgrep.stderr.log",
+   "harness/artifacts/logs/datadog-static-analyzer.stdout.log",
+   "harness/artifacts/logs/datadog-static-analyzer.stderr.log",
+   "harness/artifacts/logs/gitleaks.stdout.log",
+   "harness/artifacts/logs/gitleaks.stderr.log",
+   "harness/artifacts/logs/checkov.stdout.log",
+   "harness/artifacts/logs/checkov.stderr.log",
+   "harness/artifacts/logs/trivy.stdout.log",
+   "harness/artifacts/logs/trivy.stderr.log",
+   "harness/artifacts/logs/osv-scanner.stdout.log",
+   "harness/artifacts/logs/osv-scanner.stderr.log",
+   "harness/artifacts/logs/dependency-check.stdout.log",
+   "harness/artifacts/logs/dependency-check.stderr.log",
+   "harness/artifacts/logs/joern.stdout.log",
+   "harness/artifacts/logs/joern.stderr.log"
+  ]
+ }
+}

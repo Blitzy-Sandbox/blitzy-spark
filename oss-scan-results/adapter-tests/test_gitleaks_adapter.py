@@ -275,16 +275,79 @@ TOOL = "gitleaks"
 #: The ``scanner_class`` fixed for this tool by AAP 0.5.4's class table.
 EXPECTED_SCANNER_CLASS = "secret"
 
-#: The captured positive fixture, and the negative fixture per rejection condition.
+#: The captured positive fixture: ``harness/artifacts/raw/gitleaks.json`` **byte for byte**.
+#:
+#: The artifact is 561 bytes and holds exactly one record, so no excerpting was needed
+#: and this fixture is the whole file -- which makes its sha256 equal to the artifact's,
+#: the strongest provenance available (AAP 0.6.2). :class:`RawArtifactProvenanceTests`
+#: asserts that against the artifact itself rather than against a digest this tree owns.
 POSITIVE_FIXTURE = "gitleaks"
+
+#: The derived feature fixture, and the reason it exists as a separate file.
+#:
+#: One record cannot reach four rule identifiers, five path shapes, an out-of-scope row
+#: or a sweep over more than one record's sensitive values. Those cases are not deleted:
+#: they are exercised here, against a fixture whose expected file **declares itself
+#: derived**, records what it was derived from and names each case it exists for. Keeping
+#: them inside the positive fixture would have meant authoring five records into a file
+#: claimed to be unmodified captured output, which is the claim AAP 0.6.2 does not permit
+#: to be approximate.
+FEATURE_FIXTURE = "derived-gitleaks-features"
+DERIVED_FIXTURES = (FEATURE_FIXTURE,)
+
+#: The captured fixture and the derived one together: every fixture whose records all
+#: become rows. Used wherever an assertion needs more than one record to be worth making.
+MAPPING_FIXTURES = (POSITIVE_FIXTURE, *DERIVED_FIXTURES)
+
+#: One negative fixture per rejection condition, then the fixtures that reach an
+#: already-covered class by a different route.
+#:
+#: ``Description`` can be missing, null, empty or whitespace-only and all four take
+#: ``missing_message``; ``StartLine`` can be a boolean, zero or negative and all three take
+#: ``non_integer_start_line``. A corpus with one fixture per class cannot show that the
+#: adapter treats those routes alike, so each committed route has its own document and each
+#: is driven through the same field-by-field comparison as the others.
 NEGATIVE_FIXTURES = (
     "reject-gitleaks-unresolvable-path",
     "reject-gitleaks-missing-rule-id",
     "reject-gitleaks-missing-message",
     "reject-gitleaks-non-integer-start-line",
     "reject-gitleaks-malformed-record",
+    "reject-gitleaks-absent-path",
+    "reject-gitleaks-null-message",
+    "reject-gitleaks-empty-message",
+    "reject-gitleaks-whitespace-message",
+    "reject-gitleaks-boolean-start-line",
+    "reject-gitleaks-zero-start-line",
+    "reject-gitleaks-negative-start-line",
 )
-ALL_FIXTURES = (POSITIVE_FIXTURE, *NEGATIVE_FIXTURES)
+ALL_FIXTURES = (*MAPPING_FIXTURES, *NEGATIVE_FIXTURES)
+
+#: The runner's own artifact, which the captured fixture must be.
+#:
+#: Read by :class:`RawArtifactProvenanceTests` and by nothing else. Never written: AAP
+#: 0.8.1 keeps ``harness/artifacts/raw/`` runner-only, so this module opens it read-only
+#: and the fixtures are compared *to* it rather than the other way round.
+RAW_ARTIFACT_PATH = REPO_ROOT / "harness" / "artifacts" / "raw" / "gitleaks.json"
+
+#: The negative fixtures whose rejection is supplied by the caller's metadata rather
+#: than by anything wrong with a record, and which therefore produce rows rather than
+#: rejections under the recorded base.
+#:
+#: They are deliberately **not** in :data:`NEGATIVE_FIXTURES`: every test driven by that
+#: tuple adapts under the recorded base and compares against the expectation's top-level
+#: rows, and these expectations' top-level rows are the outcome under the variant their
+#: ``resolution_context`` names.  :class:`MetadataVariantFixtureTests` drives them under
+#: that variant instead, and asserts the recorded-base contrast the same files record.
+METADATA_VARIANT_FIXTURES = ("reject-gitleaks-unresolvable-path-missing-base",)
+
+#: Every fixture committed for this adapter, whichever context it is asserted under.
+#:
+#: The inventory and byte-level hygiene checks use this rather than
+#: :data:`ALL_FIXTURES`, because presence, shape, digest, element count and the absence
+#: of a credential-shaped string are properties of a file and not of the context it is
+#: adapted in.
+EVERY_COMMITTED_FIXTURE = (*ALL_FIXTURES, *METADATA_VARIANT_FIXTURES)
 
 #: The record keys whose values are sensitive by nature and must never reach a field.
 #:
@@ -889,7 +952,7 @@ class FixtureInventoryTests(unittest.TestCase):
 
     def test_every_fixture_is_a_non_empty_bare_array(self) -> None:
         """The shape is a bare top-level JSON array of findings (AAP 0.5.4)."""
-        for stem in ALL_FIXTURES:
+        for stem in EVERY_COMMITTED_FIXTURE:
             with self.subTest(fixture=stem):
                 self.assertTrue(fixture_path(stem).is_file())
                 document = load_fixture(stem)
@@ -898,7 +961,7 @@ class FixtureInventoryTests(unittest.TestCase):
 
     def test_every_expectation_is_present_and_names_this_tool(self) -> None:
         """Each expectation exists, parses, and fixes this tool and its class."""
-        for stem in ALL_FIXTURES:
+        for stem in EVERY_COMMITTED_FIXTURE:
             with self.subTest(expected=stem):
                 self.assertTrue(expected_path(stem).is_file())
                 expected = load_expected(stem)
@@ -912,20 +975,38 @@ class FixtureInventoryTests(unittest.TestCase):
     def test_fixture_digest_matches_the_expectation_that_was_derived_from_it(self) -> None:
         """The fixture is byte-for-byte the one its expectation was hand-derived from.
 
-        Each expectation records the fixture's sha256 precisely so that a later edit is
-        visible. An edited fixture means the expected values have to be re-derived, not
-        that the recorded digest should be updated to match -- and either way the
-        divergence must fail loudly here rather than shift what every other assertion
-        in this file is comparing.
+        Each expectation records the fixture's sha256 and byte size precisely so that a
+        later edit is visible. An edited fixture means the expected values have to be
+        re-derived, not that the recorded digest should be updated to match -- and either
+        way the divergence must fail loudly here rather than shift what every other
+        assertion in this file is comparing.
+
+        What this test does **not** establish is provenance. The digest it compares against
+        is one this tree owns, so a fixture and its expected file can agree perfectly about
+        a document the tool never emitted. Provenance is
+        :class:`RawArtifactProvenanceTests`, which opens ``harness/artifacts/raw/`` and
+        compares the captured fixture with the runner's own artifact; the two assertions
+        are complementary and neither substitutes for the other.
         """
-        for stem in ALL_FIXTURES:
+        for stem in EVERY_COMMITTED_FIXTURE:
             with self.subTest(fixture=stem):
-                expected = load_expected(stem)
+                expected = load_expected(stem)["fixture"]
+                path = fixture_path(stem)
                 self.assertEqual(
-                    sha256_of(fixture_path(stem)),
-                    expected["fixture"]["sha256"],
+                    expected["path"],
+                    f"oss-scan-results/adapter-tests/fixtures/{stem}.json",
+                    f"{stem}.rows.json must name the fixture it describes",
+                )
+                self.assertEqual(
+                    sha256_of(path),
+                    expected["sha256"],
                     f"{stem}.json differs from the fixture "
                     f"{stem}.rows.json was derived from",
+                )
+                self.assertEqual(
+                    path.stat().st_size,
+                    expected["bytes"],
+                    f"{stem}.json is not the byte size {stem}.rows.json records",
                 )
 
     def test_element_count_matches_the_recorded_record_count(self) -> None:
@@ -935,7 +1016,7 @@ class FixtureInventoryTests(unittest.TestCase):
         is a property of the document rather than of the adapter, so it is checkable
         here without adapting anything.
         """
-        for stem in ALL_FIXTURES:
+        for stem in EVERY_COMMITTED_FIXTURE:
             with self.subTest(fixture=stem):
                 expected = load_expected(stem)
                 self.assertEqual(
@@ -958,6 +1039,312 @@ class FixtureInventoryTests(unittest.TestCase):
         )
         document = paths.load_runner_metadata(RECORDED_METADATA_PATH)
         self.assertIn(TOOL, paths.metadata_tools(document))
+
+
+class RawArtifactProvenanceTests(unittest.TestCase):
+    """The captured fixture *is* the runner's artifact, asserted against the artifact.
+
+    Every other provenance claim in this tree is checkable only against a digest the tree
+    itself owns -- the expected file records the fixture's sha256, and
+    :meth:`FixtureInventoryTests.test_fixture_digest_matches_the_expectation_that_was_derived_from_it`
+    compares the two. That proves self-consistency and nothing about provenance: a fixture
+    and its expected file can agree perfectly about a document the tool never emitted. So
+    this class opens ``harness/artifacts/raw/gitleaks.json`` and compares the fixture with
+    it.
+
+    What "byte for byte" means for a JSON record
+    --------------------------------------------
+    Two levels are asserted, and the distinction matters. At **file** level the comparison
+    is literal: this artifact needed no excerpting, so the fixture's byte size and sha256
+    must equal the artifact's -- the same bytes, not a faithful selection. At **record**
+    level the operative meaning is canonical equality: two JSON objects are the same record
+    when ``json.dumps(obj, sort_keys=True)`` agrees, which compares every key and every
+    value and is insensitive only to key order and to insignificant whitespace. That is the
+    right granularity for a fixture that legitimately reformats an excerpt, and it is
+    asserted here alongside the stronger file-level equality so a future fixture that *did*
+    excerpt would still be held to the record-level claim.
+
+    Nothing here writes. ``harness/artifacts/raw/`` is runner-only (AAP 0.8.1), so the
+    artifact is opened read-only and the fixtures are compared to it.
+    """
+
+    #: The record keys the artifact's element carries. Restated so the envelope check is a
+    #: comparison against a named set rather than against whatever the fixture happens to
+    #: hold; the fixture may not introduce a key outside it.
+    ARTIFACT_RECORD_KEYS = frozenset(
+        {
+            "RuleID",
+            "Description",
+            "StartLine",
+            "EndLine",
+            "StartColumn",
+            "EndColumn",
+            "Match",
+            "Secret",
+            "File",
+            "SymlinkFile",
+            "Commit",
+            "Entropy",
+            "Author",
+            "Email",
+            "Date",
+            "Message",
+            "Tags",
+            "Fingerprint",
+        }
+    )
+
+    @staticmethod
+    def canonical(record: object) -> str:
+        """Return one record's canonical form -- the operative meaning of identical."""
+        return json.dumps(record, sort_keys=True)
+
+    def raw_document(self) -> list:
+        """Return the runner's artifact, failing by name if it is not there.
+
+        An explicit failure rather than a skip. ``adapter-tests-run.json`` reports the
+        suite's skipped count as a property of the run, so a provenance assertion that
+        skipped itself when the evidence was missing would be indistinguishable from one
+        that passed -- which is the exact failure mode this class exists to close.
+        """
+        self.assertTrue(
+            RAW_ARTIFACT_PATH.is_file(),
+            f"{RAW_ARTIFACT_PATH} is missing. The captured fixture's provenance is "
+            "asserted against the runner's own artifact, so its absence is a failure "
+            "rather than a reason to skip: without it, nothing here establishes that "
+            f"fixtures/{POSITIVE_FIXTURE}.json is output this tool produced.",
+        )
+        document = json.loads(RAW_ARTIFACT_PATH.read_text(encoding="utf-8"))
+        self.assertIsInstance(
+            document, list, "the artifact's top level is a bare array of findings"
+        )
+        self.assertGreater(
+            len(document), 0, "an artifact with no record could not source a positive fixture"
+        )
+        return document
+
+    def test_the_captured_fixture_is_the_artifact_byte_for_byte(self) -> None:
+        """Byte size and sha256, both equal to the artifact's.
+
+        The whole artifact was captured, so this is the strongest form the claim can take.
+        Byte size is asserted beside the digest because a size mismatch names the problem
+        immediately, while two digests differ opaquely.
+        """
+        self.raw_document()
+        fixture = fixture_path(POSITIVE_FIXTURE)
+        self.assertEqual(
+            fixture.stat().st_size,
+            RAW_ARTIFACT_PATH.stat().st_size,
+            f"fixtures/{POSITIVE_FIXTURE}.json must be {RAW_ARTIFACT_PATH} byte for byte",
+        )
+        self.assertEqual(
+            sha256_of(fixture),
+            sha256_of(RAW_ARTIFACT_PATH),
+            f"fixtures/{POSITIVE_FIXTURE}.json must have the artifact's sha256",
+        )
+
+    def test_the_expected_file_records_the_artifacts_digest_and_says_so(self) -> None:
+        """The expectation's fixture block states the equality it is entitled to state.
+
+        The digest recorded there has to be the artifact's, and the claim has to be made
+        explicitly -- otherwise a reader cannot tell a captured fixture from a derived one
+        by reading the expected file, which is the confusion this finding was about.
+        """
+        self.raw_document()
+        recorded = load_expected(POSITIVE_FIXTURE)["fixture"]
+        self.assertEqual(recorded["excerpt_of"], "harness/artifacts/raw/gitleaks.json")
+        self.assertEqual(recorded["sha256"], sha256_of(RAW_ARTIFACT_PATH))
+        self.assertEqual(recorded["raw_artifact_sha256"], sha256_of(RAW_ARTIFACT_PATH))
+        self.assertEqual(recorded["bytes"], RAW_ARTIFACT_PATH.stat().st_size)
+        self.assertEqual(recorded["raw_artifact_bytes"], RAW_ARTIFACT_PATH.stat().st_size)
+        self.assertIs(recorded["sha256_equals_the_raw_artifact"], True)
+        self.assertEqual(recorded["derived_elements"], 0)
+        self.assertEqual(
+            recorded["captured_verbatim_elements"], len(self.raw_document())
+        )
+
+    def test_every_captured_record_is_identical_to_the_artifacts(self) -> None:
+        """Record for record, in order, under canonical comparison.
+
+        Asserted per element rather than as two lists so a failure names the index, and
+        asserted in order because the row order both output files use is the artifact's
+        order: a fixture carrying the same records shuffled would map correctly and still
+        misrepresent what the tool emitted.
+        """
+        artifact = self.raw_document()
+        fixture = load_fixture(POSITIVE_FIXTURE)
+        self.assertEqual(
+            len(fixture), len(artifact), "the fixture is the whole artifact, so element for element"
+        )
+        for index, (captured, original) in enumerate(zip(fixture, artifact)):
+            with self.subTest(element=index):
+                self.assertEqual(
+                    self.canonical(captured),
+                    self.canonical(original),
+                    f"element {index} differs from the artifact's",
+                )
+                self.assertEqual(
+                    list(captured),
+                    list(original),
+                    f"element {index}: key order is preserved too, which is stronger "
+                    "than canonical equality and true of this fixture",
+                )
+
+    def test_the_container_and_record_envelopes_match(self) -> None:
+        """The bare-array container, and no record key the artifact lacks.
+
+        Gitleaks' enclosing structure is the top-level array itself -- there is no run
+        object, no envelope and no metadata to preserve -- so preserving it means being an
+        array of the artifact's records. The record-key check is the other half: a fixture
+        may not introduce a field, because an adapter that read it would be reading
+        something no artifact carries.
+        """
+        artifact = self.raw_document()
+        fixture = load_fixture(POSITIVE_FIXTURE)
+        self.assertIsInstance(fixture, list)
+        self.assertEqual(type(fixture), type(artifact))
+        for index, record in enumerate(fixture):
+            with self.subTest(element=index):
+                self.assertIsInstance(record, dict)
+                self.assertEqual(set(record), self.ARTIFACT_RECORD_KEYS)
+        for index, record in enumerate(artifact):
+            with self.subTest(artifact_element=index):
+                self.assertEqual(set(record), self.ARTIFACT_RECORD_KEYS)
+
+    def test_the_fixture_introduces_no_member_the_artifact_lacks(self) -> None:
+        """Across every element, the fixture's key union is the artifact's.
+
+        Stated as a set relation over the whole document as well as per record, because a
+        fixture with several elements could keep each record's key set legal while the
+        union grew -- and the union is what an adapter can reach.
+        """
+        artifact = self.raw_document()
+        fixture = load_fixture(POSITIVE_FIXTURE)
+        artifact_keys: set = set()
+        for record in artifact:
+            artifact_keys |= set(record)
+        fixture_keys: set = set()
+        for record in fixture:
+            fixture_keys |= set(record)
+        self.assertEqual(fixture_keys - artifact_keys, set())
+        self.assertEqual(fixture_keys, artifact_keys)
+
+    def test_each_derived_fixture_is_declared_derived_and_is_not_the_artifact(self) -> None:
+        """A derived fixture says so, and is demonstrably not the capture.
+
+        Both halves are needed. The declaration is what a reader relies on; the inequality
+        is what stops the declaration from being decoration. A derived fixture that had
+        silently become identical to the artifact would leave the feature cases it exists
+        for with no home while every other assertion in this module still passed.
+        """
+        artifact_digest = sha256_of(RAW_ARTIFACT_PATH)
+        artifact_size = RAW_ARTIFACT_PATH.stat().st_size
+        artifact_elements = len(self.raw_document())
+        for stem in DERIVED_FIXTURES:
+            with self.subTest(fixture=stem):
+                recorded = load_expected(stem)["fixture"]
+                self.assertEqual(recorded["provenance"], "derived")
+                self.assertIn("provenance_statement", recorded)
+                self.assertTrue(recorded["derived_from"], "what it was derived from is named")
+                self.assertTrue(
+                    recorded["feature_cases_this_fixture_exists_to_exercise"],
+                    "a derived fixture states the cases it exists to exercise",
+                )
+                self.assertNotIn(
+                    "excerpt_of",
+                    recorded,
+                    "a derived fixture makes no captured-excerpt claim",
+                )
+
+                path = fixture_path(stem)
+                self.assertNotEqual(sha256_of(path), artifact_digest)
+                self.assertNotEqual(path.stat().st_size, artifact_size)
+                self.assertGreater(len(load_fixture(stem)), artifact_elements)
+
+                against = recorded["not_identical_to_the_raw_artifact"]
+                self.assertEqual(against["raw_artifact_sha256"], artifact_digest)
+                self.assertEqual(against["raw_artifact_bytes"], artifact_size)
+                self.assertEqual(against["raw_artifact_elements"], artifact_elements)
+
+
+class DerivedFeatureFixtureTests(GitleaksAdapterTestCase):
+    """The derived fixture really carries the variety its expected file claims for it.
+
+    This is what makes moving the authored records out of the capture a relocation rather
+    than a loss. Each assertion below is measured from the document, so a derived fixture
+    trimmed back to something the capture already covers fails here instead of quietly
+    reducing what the module tests.
+    """
+
+    def test_it_carries_more_records_than_the_capture(self) -> None:
+        """More than one record, which several assertions in this module need."""
+        self.assertGreater(len(load_fixture(FEATURE_FIXTURE)), len(load_fixture(POSITIVE_FIXTURE)))
+        self.assertGreater(len(load_fixture(FEATURE_FIXTURE)), 1)
+
+    def test_it_carries_several_distinct_rule_identifiers(self) -> None:
+        """``rule_id`` is demonstrably read from the record rather than fixed.
+
+        The capture reports one rule, so against it alone a constant would pass. Here four
+        distinct identifiers reach four distinct ``rule_id`` values in row order.
+        """
+        document = load_fixture(FEATURE_FIXTURE)
+        adapted = self.adapt(document)
+        recorded = {record["RuleID"] for record in document}
+        self.assertGreater(len(recorded), 1)
+        self.assertEqual({row["rule_id"] for row in adapted.rows}, recorded)
+
+    def test_it_carries_the_path_shapes_the_capture_cannot(self) -> None:
+        """Five path forms, each resolved and each matched against the allowlist.
+
+        Named individually rather than counted: a Scala main source, a Python test module
+        with no ``src/test`` segment, a Dockerfile reachable only through a mid-path
+        ``**``, the one in-scope manifest, and a lockfile outside the twelve globs.
+        """
+        adapted = self.adapt_fixture(FEATURE_FIXTURE)
+        emitted = [row["path"] for row in adapted.rows]
+        for required in (
+            "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+            "python/pyspark/ml/tests/test_evaluation.py",
+            "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+            "core/src/main/resources/org/apache/spark/ui/static/package.json",
+            "dev/package-lock.json",
+        ):
+            with self.subTest(path=required):
+                self.assertIn(required, emitted)
+
+    def test_it_carries_both_scope_outcomes(self) -> None:
+        """Both ``in_scope`` values occur, so neither counter is zero by construction.
+
+        The out-of-scope row is kept and counted, never dropped (AAP 0.9.3), and the
+        capture cannot show that: its one record is in scope.
+        """
+        adapted = self.adapt_fixture(FEATURE_FIXTURE)
+        self.assertGreater(adapted.counters["rows_in_scope"], 0)
+        self.assertGreater(adapted.counters["rows_out_of_scope"], 0)
+        self.assertEqual(
+            adapted.counters["rows_in_scope"] + adapted.counters["rows_out_of_scope"],
+            len(adapted.rows),
+        )
+        self.assertEqual(adapted.rejections, [])
+
+    def test_it_carries_more_sensitive_values_than_the_capture(self) -> None:
+        """The no-secret sweep has more to search for here than in the capture.
+
+        The sweep's strength is the number of distinct values it searches every field for.
+        Asserted as a comparison so the derived fixture cannot be reduced to the capture's
+        three values without failing.
+        """
+        self.assertGreater(
+            len(sensitive_values(load_fixture(FEATURE_FIXTURE))),
+            len(sensitive_values(load_fixture(POSITIVE_FIXTURE))),
+        )
+        self.assertEqual(
+            sweep_rows_for_values(
+                self.adapt_fixture(FEATURE_FIXTURE).rows,
+                sensitive_values(load_fixture(FEATURE_FIXTURE)),
+            ),
+            [],
+        )
 
 
 
@@ -1609,20 +1996,21 @@ class NoSecretValueTests(GitleaksAdapterTestCase):
         the positive fixture becomes a row, so rows and records correspond one to one
         here -- which is what lets the comparison be per record rather than per set.
         """
-        document = load_fixture(POSITIVE_FIXTURE)
-        adapted = self.adapt(document)
-        self.assertEqual(len(adapted.rows), len(document))
+        for stem in MAPPING_FIXTURES:
+            document = load_fixture(stem)
+            adapted = self.adapt(document)
+            self.assertEqual(len(adapted.rows), len(document))
 
-        for index, (row, record) in enumerate(zip(adapted.rows, document)):
-            with self.subTest(row=index):
-                self.assertEqual(row["message"], record["Description"].strip())
-                for key in ("Secret", "Match"):
-                    value = record.get(key)
-                    if not isinstance(value, str) or not value.strip():
-                        continue
-                    with self.subTest(key=key):
-                        self.assertNotEqual(row["message"], value)
-                        self.assertNotIn(value, row["message"])
+            for index, (row, record) in enumerate(zip(adapted.rows, document)):
+                with self.subTest(fixture=stem, row=index):
+                    self.assertEqual(row["message"], record["Description"].strip())
+                    for key in ("Secret", "Match"):
+                        value = record.get(key)
+                        if not isinstance(value, str) or not value.strip():
+                            continue
+                        with self.subTest(key=key):
+                            self.assertNotEqual(row["message"], value)
+                            self.assertNotIn(value, row["message"])
 
     def test_the_structural_sweep_finds_nothing_in_any_row(self) -> None:
         """Assertion 11. No field of any row carries any sensitive value.
@@ -1767,7 +2155,7 @@ class NoSecretValueTests(GitleaksAdapterTestCase):
         The membership test is written with ``assertFalse`` rather than ``assertNotIn``
         so that a failure names the marker and the file instead of printing the file.
         """
-        for stem in ALL_FIXTURES:
+        for stem in EVERY_COMMITTED_FIXTURE:
             text = fixture_path(stem).read_text(encoding="utf-8")
             for marker in LIVE_CREDENTIAL_MARKERS:
                 with self.subTest(fixture=stem, marker=marker):
@@ -1795,7 +2183,7 @@ class NoSecretValueTests(GitleaksAdapterTestCase):
         """
         source = Path(__file__).read_text(encoding="utf-8")
         considered = 0
-        for stem in ALL_FIXTURES:
+        for stem in EVERY_COMMITTED_FIXTURE:
             for value in sensitive_values(load_fixture(stem)):
                 considered += 1
                 with self.subTest(fixture=stem):
@@ -1860,19 +2248,21 @@ class NoSecretValueTests(GitleaksAdapterTestCase):
         could be relaxed. Asserted against ``gitleaks.SOURCE_FIELDS`` rather than a list
         retyped here.
         """
-        document = load_fixture(POSITIVE_FIXTURE)
-        adapted = self.adapt(document)
-        for index, (row, record) in enumerate(zip(adapted.rows, document)):
-            with self.subTest(row=index):
-                self.assertEqual(row["rule_id"], record["RuleID"].strip())
-                self.assertEqual(row["message"], record["Description"].strip())
-                self.assertEqual(row["start_line"], record["StartLine"])
-                self.assertEqual(row["path"], record["File"])
-                self.assertEqual(row["tool"], TOOL)
-                self.assertEqual(row["scanner_class"], EXPECTED_SCANNER_CLASS)
-                self.assertIsNone(row["severity_native"])
-                self.assertEqual(row["severity_norm"], "Info")
-                self.assertIsInstance(row["in_scope"], bool)
+        for stem in MAPPING_FIXTURES:
+            document = load_fixture(stem)
+            adapted = self.adapt(document)
+            self.assertEqual(len(adapted.rows), len(document))
+            for index, (row, record) in enumerate(zip(adapted.rows, document)):
+                with self.subTest(fixture=stem, row=index):
+                    self.assertEqual(row["rule_id"], record["RuleID"].strip())
+                    self.assertEqual(row["message"], record["Description"].strip())
+                    self.assertEqual(row["start_line"], record["StartLine"])
+                    self.assertEqual(row["path"], record["File"])
+                    self.assertEqual(row["tool"], TOOL)
+                    self.assertEqual(row["scanner_class"], EXPECTED_SCANNER_CLASS)
+                    self.assertIsNone(row["severity_native"])
+                    self.assertEqual(row["severity_norm"], "Info")
+                    self.assertIsInstance(row["in_scope"], bool)
 
 
 
@@ -1896,12 +2286,14 @@ class PositiveMappingTests(GitleaksAdapterTestCase):
 
     def test_row_count_matches_exactly(self) -> None:
         """Assertion 14, first half. As many rows as the expectation fixes, and no more."""
-        expected = load_expected(POSITIVE_FIXTURE)
-        adapted = self.adapt_fixture(POSITIVE_FIXTURE)
-        self.assertEqual(len(adapted.rows), len(expected["rows"]))
-        self.assertEqual(len(adapted.rows), expected["counts"]["rows"])
-        self.assertEqual(adapted.rejections, [])
-        self.assertEqual(expected["counts"]["rejections"], 0)
+        for stem in MAPPING_FIXTURES:
+            with self.subTest(fixture=stem):
+                expected = load_expected(stem)
+                adapted = self.adapt_fixture(stem)
+                self.assertEqual(len(adapted.rows), len(expected["rows"]))
+                self.assertEqual(len(adapted.rows), expected["counts"]["rows"])
+                self.assertEqual(adapted.rejections, [])
+                self.assertEqual(expected["counts"]["rejections"], 0)
 
     def test_every_field_of_every_row_matches_the_expectation(self) -> None:
         """Assertion 14, second half. All twelve fields of every row, in order.
@@ -1910,18 +2302,22 @@ class PositiveMappingTests(GitleaksAdapterTestCase):
         under a subtest naming the row index and the field, so a single wrong value is
         reported as that value rather than as an unequal pair of dicts.
         """
-        expected = load_expected(POSITIVE_FIXTURE)
-        adapted = self.adapt_fixture(POSITIVE_FIXTURE)
-        self.assertEqual(len(adapted.rows), len(expected["rows"]))
-        for index, (row, want) in enumerate(zip(adapted.rows, expected["rows"])):
-            for field in emit.FIELDS:
-                with self.subTest(row=index, field=field):
-                    self.assertEqual(row[field], want[field])
+        for stem in MAPPING_FIXTURES:
+            expected = load_expected(stem)
+            adapted = self.adapt_fixture(stem)
+            self.assertEqual(len(adapted.rows), len(expected["rows"]))
+            for index, (row, want) in enumerate(zip(adapted.rows, expected["rows"])):
+                for field in emit.FIELDS:
+                    with self.subTest(fixture=stem, row=index, field=field):
+                        self.assertEqual(row[field], want[field])
 
     def test_every_row_carries_exactly_the_twelve_fields_in_order(self) -> None:
         """No thirteenth field, no missing field, and the order the emitter iterates."""
-        adapted = self.adapt_fixture(POSITIVE_FIXTURE)
-        self.assertRowsHaveTheTwelveFields(adapted.rows)
+        for stem in MAPPING_FIXTURES:
+            with self.subTest(fixture=stem):
+                adapted = self.adapt_fixture(stem)
+                self.assertGreater(len(adapted.rows), 0)
+                self.assertRowsHaveTheTwelveFields(adapted.rows)
 
     def test_tool_and_scanner_class_on_every_row(self) -> None:
         """Assertion 15. Both are constants, and neither is derived from record content.
@@ -1945,14 +2341,15 @@ class PositiveMappingTests(GitleaksAdapterTestCase):
         ``isinstance(True, int)`` true, so a type check alone would accept ``True`` as
         line one -- and a line number that came from a boolean is not a line number.
         """
-        document = load_fixture(POSITIVE_FIXTURE)
-        adapted = self.adapt(document)
-        for index, (row, record) in enumerate(zip(adapted.rows, document)):
-            with self.subTest(row=index):
-                self.assertIsInstance(row["start_line"], int)
-                self.assertNotIsInstance(row["start_line"], bool)
-                self.assertEqual(row["start_line"], record["StartLine"])
-                self.assertGreaterEqual(row["start_line"], 1)
+        for stem in MAPPING_FIXTURES:
+            document = load_fixture(stem)
+            adapted = self.adapt(document)
+            for index, (row, record) in enumerate(zip(adapted.rows, document)):
+                with self.subTest(fixture=stem, row=index):
+                    self.assertIsInstance(row["start_line"], int)
+                    self.assertNotIsInstance(row["start_line"], bool)
+                    self.assertEqual(row["start_line"], record["StartLine"])
+                    self.assertGreaterEqual(row["start_line"], 1)
 
     def test_a_permitted_absent_start_line_becomes_a_row(self) -> None:
         """An absent ``StartLine`` is a permitted absence, not a rejection.
@@ -2003,11 +2400,23 @@ class PositiveMappingTests(GitleaksAdapterTestCase):
         here would make an expectation in any other order assert something the pipeline
         does not promise.
         """
-        document = load_fixture(POSITIVE_FIXTURE)
-        adapted = self.adapt(document)
+        for stem in MAPPING_FIXTURES:
+            with self.subTest(fixture=stem):
+                document = load_fixture(stem)
+                adapted = self.adapt(document)
+                self.assertEqual(
+                    [row["path"] for row in adapted.rows],
+                    [record["File"] for record in document],
+                )
+        # A one-record document cannot show an ordering fault, so the claim rests on the
+        # derived fixture: it carries several records and its File values are distinct, so
+        # any reordering changes the sequence compared above.
+        derived = load_fixture(FEATURE_FIXTURE)
+        self.assertGreater(len(derived), 1)
         self.assertEqual(
-            [row["path"] for row in adapted.rows],
-            [record["File"] for record in document],
+            len({record["File"] for record in derived}),
+            len(derived),
+            "the ordering assertion needs distinct paths to be falsifiable",
         )
 
     def test_two_identical_records_produce_two_rows(self) -> None:
@@ -2033,12 +2442,14 @@ class PositiveMappingTests(GitleaksAdapterTestCase):
         non-absent ``severity_norm`` are asserted as measurements rather than inferred
         from nothing having gone wrong.
         """
-        adapted = self.adapt_fixture(POSITIVE_FIXTURE)
-        validated = emit.validate_rows(adapted.rows)
-        self.assertEqual(len(validated), len(adapted.rows))
-        summary = emit.validation_summary(adapted.rows)
-        self.assertIsInstance(summary, dict)
-        self.assertTrue(summary)
+        for stem in MAPPING_FIXTURES:
+            with self.subTest(fixture=stem):
+                adapted = self.adapt_fixture(stem)
+                validated = emit.validate_rows(adapted.rows)
+                self.assertEqual(len(validated), len(adapted.rows))
+                summary = emit.validation_summary(adapted.rows)
+                self.assertIsInstance(summary, dict)
+                self.assertTrue(summary)
 
 
 # --------------------------------------------------------------------------------- #
@@ -2200,18 +2611,21 @@ class RejectionTests(GitleaksAdapterTestCase):
                 self.assertEqual(adapted.counters["severity_absent"], len(adapted.rows))
 
     def test_unresolvable_path_is_produced_where_the_metadata_supplies_no_base(self) -> None:
-        """The sixth producible class, exercised from the metadata rather than a fixture.
+        """The sixth producible class, from one synthetic record and one metadata variant.
 
-        No committed artifact reaches ``unresolvable_path``: every record in every
-        fixture is resolved or rejected as ``absent_path``. The class is reachable
-        because a recorded base kind can establish no base at all, and the document's
-        own instruction for that case is to reject rather than fall back -- defaulting to
-        the scan root would produce a plausible path for a record whose base nobody
-        established.
+        No record's *content* reaches ``unresolvable_path`` for this tool: under the
+        recorded base every record is resolved or rejected as ``absent_path``. The class
+        is reachable because a recorded base kind can establish no base at all, and the
+        document's own instruction for that case is to reject rather than fall back --
+        defaulting to the scan root would produce a plausible path for a record whose
+        base nobody established.
 
-        AAP 0.9.4 requires an assertion for every condition an adapter can produce
-        whether or not this run's artifacts contained the case, which is why this is
-        asserted here instead of being left to a fixture that cannot carry it.
+        AAP 0.9.4's committed-fixture obligation for this condition is discharged by
+        ``reject-gitleaks-unresolvable-path-missing-base.json`` and
+        :class:`MetadataVariantFixtureTests`, which drive the same branch from a file
+        under the same variant. This remains as the narrowest statement of the branch --
+        one record, one base, one class -- and as the shortest thing to read when the
+        branch changes.
         """
         base = self.environment.recorded_base(
             kind=paths.PATH_BASE_KIND_NONE,
@@ -2248,6 +2662,13 @@ class RejectionTests(GitleaksAdapterTestCase):
         no_base = self.environment.recorded_base(
             kind=paths.PATH_BASE_KIND_NONE, base_value=None
         )
+        # The metadata-variant fixtures are committed artifacts for the one class no
+        # record's content can reach, so the union is taken from them rather than from
+        # the synthetic record alone; the synthetic record follows, so this passes on
+        # the branch as well as on the file.
+        for stem in METADATA_VARIANT_FIXTURES:
+            for rejection in self.adapt_fixture(stem, tool_base=no_base).rejections:
+                observed.add(rejection.reject_class)
         for rejection in self.adapt([synthetic_record()], tool_base=no_base).rejections:
             observed.add(rejection.reject_class)
 
@@ -2344,6 +2765,252 @@ class RejectionTests(GitleaksAdapterTestCase):
                 self.assertEqual(
                     serialised["record_identity"], dict(rejection.record_identity)
                 )
+
+
+# --------------------------------------------------------------------------------- #
+# The committed fixture whose rejection class comes from the metadata rather than from
+# any record. AAP 0.9.4 requires a committed fixture and an assertion per producible
+# condition, and unresolvable_path is the one condition of this adapter's six that no
+# record can reach on its own.
+# --------------------------------------------------------------------------------- #
+
+
+class MetadataVariantFixtureTests(GitleaksAdapterTestCase):
+    """``unresolvable_path``, from a committed fixture under a stated metadata variant.
+
+    The fixture carries four entirely well-formed records. Under the base this
+    provisioning records they become four rows; under a base whose kind is ``none`` they
+    become four rejections. Nothing about any record differs between the two, so the
+    class is attributable to the metadata alone -- which is what
+    :data:`METADATA_VARIANT_FIXTURES` exists to express and why these fixtures are not
+    driven by the tests that adapt under the recorded base.
+
+    Both branches are asserted from the expectation's own blocks: the top-level
+    ``rows``, ``counts``, ``counters`` and ``rejections`` under the variant its
+    ``resolution_context.metadata_variant`` names, and
+    ``contrast_under_the_recorded_base`` under the recorded base. Asserting only the
+    first would leave the claim that the difference is the metadata's untested, since a
+    resolver that defaulted an absent base to the scan root would emit rows whose every
+    value looked correct.
+    """
+
+    def variant_base(self) -> paths.ToolPathBase:
+        """The base of kind ``none`` these fixtures are evaluated under.
+
+        Built through :meth:`Environment.recorded_base`, so it reaches the adapter by
+        the same loader production uses. ``harness/artifacts/logs/runner-metadata.json``
+        is never edited to reach this branch: it is the gate's record of the
+        provisioning as it was found (AAP 0.8.1).
+        """
+        base = self.environment.recorded_base(
+            kind=paths.PATH_BASE_KIND_NONE,
+            base_value=None,
+            invocations_per_run=1,
+        )
+        self.assertFalse(
+            base.has_explicit_base,
+            "a base of kind 'none' with no value must not report an explicit base",
+        )
+        return base
+
+    def test_the_inventory_is_non_empty_and_paired(self) -> None:
+        """Each metadata-variant fixture has an expectation naming its variant.
+
+        A guard, so nothing below passes over an empty loop, and so an expectation that
+        forgot to state its variant fails here by name rather than as a ``KeyError``
+        inside an assertion about rows.
+        """
+        self.assertGreater(len(METADATA_VARIANT_FIXTURES), 0)
+        for stem in METADATA_VARIANT_FIXTURES:
+            with self.subTest(fixture=stem):
+                self.assertTrue(fixture_path(stem).is_file())
+                expected = load_expected(stem)
+                variant = expected["resolution_context"]["metadata_variant"]
+                self.assertEqual(variant["kind"], paths.PATH_BASE_KIND_NONE)
+                self.assertIsNone(variant["base_value"])
+                self.assertFalse(variant["has_explicit_base"])
+                self.assertIn("contrast_under_the_recorded_base", expected)
+                self.assertNotIn(
+                    stem,
+                    NEGATIVE_FIXTURES,
+                    "a metadata-variant fixture must not also be driven by the tests "
+                    "that adapt under the recorded base; its expectation's top-level "
+                    "rows are the outcome under its variant",
+                )
+
+    def test_each_fixture_produces_its_recorded_rejections_under_its_variant(self) -> None:
+        """The whole negative contract under the stated variant, driven by the file.
+
+        Rows, rejection count, each class by name, each detail verbatim, each record
+        identity and its key set, and every counter -- all read from the expectation
+        rather than restated here.
+        """
+        for stem in METADATA_VARIANT_FIXTURES:
+            with self.subTest(fixture=stem):
+                expected = load_expected(stem)
+                adapted = self.adapt_fixture(stem, tool_base=self.variant_base())
+
+                self.assertEqual(adapted.rows, [])
+                self.assertEqual(len(adapted.rows), expected["counts"]["rows"])
+                self.assertEqual(
+                    len(adapted.rejections), expected["counts"]["rejections"]
+                )
+                self.assertEqual(adapted.rows, expected["rows"])
+                self.assertEqual(adapted.counters, expected["counters"])
+
+                for index, (rejection, want) in enumerate(
+                    zip(adapted.rejections, expected["rejections"])
+                ):
+                    with self.subTest(rejection=index, pointer=want["record_pointer"]):
+                        self.assertEqual(rejection.reject_class, want["reject_class"])
+                        self.assertEqual(
+                            rejection.reject_class, paths.REJECT_UNRESOLVABLE_PATH
+                        )
+                        self.assertIn(rejection.reject_class, paths.REJECT_CLASSES)
+                        self.assertIn(
+                            rejection.reject_class, gitleaks.REJECT_CLASSES_PRODUCED
+                        )
+                        self.assertEqual(rejection.tool, TOOL)
+                        self.assertEqual(rejection.detail, want["expected_detail"])
+                        self.assertEqual(
+                            dict(rejection.record_identity),
+                            want["expected_record_identity"],
+                        )
+                        self.assertEqual(
+                            sorted(rejection.record_identity),
+                            sorted(want["expected_record_identity_keys"]),
+                        )
+
+    def test_the_identities_distinguish_the_records_the_detail_cannot(self) -> None:
+        """One shared detail, four distinct identities.
+
+        The detail names the metadata condition, so it is the same on every rejection --
+        which means the record identity is the only thing that says *which* record was
+        rejected. A test asserting the detail alone would pass against an adapter that
+        had lost track of which record it was classifying.
+        """
+        for stem in METADATA_VARIANT_FIXTURES:
+            with self.subTest(fixture=stem):
+                adapted = self.adapt_fixture(stem, tool_base=self.variant_base())
+                self.assertEqual(
+                    len({rejection.detail for rejection in adapted.rejections}),
+                    1,
+                    "the detail names the metadata condition, which is one condition",
+                )
+                identities = [
+                    json.dumps(dict(rejection.record_identity), sort_keys=True)
+                    for rejection in adapted.rejections
+                ]
+                self.assertEqual(
+                    len(set(identities)),
+                    len(adapted.rejections),
+                    "every rejection must identify its own record",
+                )
+                document = load_fixture(stem)
+                self.assertEqual(len(adapted.rejections), len(document))
+                for index, (rejection, record) in enumerate(
+                    zip(adapted.rejections, document)
+                ):
+                    with self.subTest(record=index):
+                        identity = dict(rejection.record_identity)
+                        self.assertEqual(identity["RuleID"], record["RuleID"])
+                        self.assertEqual(identity["StartLine"], record["StartLine"])
+                        self.assertEqual(identity["File"], record["File"])
+                        self.assertEqual(identity["reported_path"], record["File"])
+
+    def test_the_reconciliation_identity_holds_under_both_branches(self) -> None:
+        """``records walked == rows + rejections``, with zero rows on one side.
+
+        The boundary case worth a fixture: an adapter that returned nothing at all would
+        satisfy "zero rows" and break the identity, and only counting the rejections
+        catches it.
+        """
+        for stem in METADATA_VARIANT_FIXTURES:
+            expected = load_expected(stem)
+            records = expected["counts"]["raw_finding_records"]
+            for label, base in (
+                ("variant", self.variant_base()),
+                ("recorded", self.environment.scan_root_base()),
+            ):
+                with self.subTest(fixture=stem, branch=label):
+                    adapted = self.adapt_fixture(stem, tool_base=base)
+                    self.assertEqual(adapted.record_count, records)
+                    self.assertEqual(adapted.outcome_count, records)
+
+    def test_no_rejected_record_contributes_a_severity_literal_or_a_counter(self) -> None:
+        """Zero rows means zero tally entries and every counter at zero.
+
+        ``severity_absent`` is the one a reader is most likely to expect to be non-zero:
+        it counts rows whose severity is absent, not records without a severity field.
+        """
+        for stem in METADATA_VARIANT_FIXTURES:
+            with self.subTest(fixture=stem):
+                adapted = self.adapt_fixture(stem, tool_base=self.variant_base())
+                self.assertEqual(adapted.tally.row_count(TOOL), 0)
+                self.assertEqual(
+                    sorted(adapted.counters), sorted(gitleaks.COUNTER_KEYS)
+                )
+                for key, value in adapted.counters.items():
+                    with self.subTest(counter=key):
+                        self.assertEqual(value, 0)
+
+    def test_the_recorded_base_contrast_is_what_the_expectation_records(self) -> None:
+        """The other branch: the same four records become rows, and every value matches.
+
+        This is the half that makes the variant a variant. Every path in the fixture is
+        already root-relative, so an implementation that defaulted an absent base to the
+        scan root would produce exactly these rows under the variant too and every value
+        in them would look right -- the class would be the only difference. Asserting
+        both branches is what detects that.
+        """
+        for stem in METADATA_VARIANT_FIXTURES:
+            with self.subTest(fixture=stem):
+                expected = load_expected(stem)
+                contrast = expected["contrast_under_the_recorded_base"]
+                self.assertEqual(
+                    contrast["precondition"]["tool_path_base"]["kind"],
+                    paths.PATH_BASE_KIND_SCAN_ROOT,
+                )
+                adapted = self.adapt_fixture(stem)
+
+                self.assertEqual(len(adapted.rows), contrast["rows"])
+                self.assertEqual(len(adapted.rejections), contrast["rejections"])
+                self.assertEqual(adapted.rejections, [])
+                self.assertEqual(adapted.counters, contrast["counters"])
+                self.assertRowsHaveTheTwelveFields(adapted.rows)
+                for index, (row, want) in enumerate(
+                    zip(adapted.rows, contrast["the_rows"])
+                ):
+                    for field in emit.FIELDS:
+                        with self.subTest(row=index, field=field):
+                            self.assertEqual(row[field], want[field])
+
+    def test_the_two_branches_differ_only_in_the_class_they_reach(self) -> None:
+        """The same document, two bases, and the difference attributed to the base.
+
+        Derived rather than restated: the paths the recorded branch emits are compared
+        with the ``reported_path`` the variant branch records for the same record, and
+        they are equal on every record. So the variant branch had everything it needed
+        to produce the recorded branch's path and refused to, which is the behaviour AAP
+        0.5.4 requires of a base that was never established.
+        """
+        for stem in METADATA_VARIANT_FIXTURES:
+            with self.subTest(fixture=stem):
+                recorded = self.adapt_fixture(stem)
+                variant = self.adapt_fixture(stem, tool_base=self.variant_base())
+                self.assertEqual(len(recorded.rows), len(variant.rejections))
+                for index, (row, rejection) in enumerate(
+                    zip(recorded.rows, variant.rejections)
+                ):
+                    with self.subTest(record=index):
+                        self.assertEqual(
+                            row["path"],
+                            dict(rejection.record_identity)["reported_path"],
+                            "the rejected record's reported path is the one the "
+                            "recorded branch resolves, so the variant branch refused a "
+                            "path it could have produced",
+                        )
+                        self.assertNotIn("path", dict(rejection.record_identity))
 
 
 # --------------------------------------------------------------------------------- #

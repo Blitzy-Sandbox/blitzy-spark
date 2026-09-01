@@ -26,8 +26,8 @@
       "/2",
       "/5"
     ],
-    "derived_from": "oss-scan-results/adapter-tests/fixtures/gitleaks.json",
-    "derivation": "A negative fixture is derived from the captured one rather than being an excerpt of it, so the provenance is stated as a derivation. Two of the seven elements are byte-identical to elements of the positive fixture -- /0 to its /1 and /2 to its /3 -- compared field by field including key order. The other five are synthesized in the tool's own eighteen-key shape and key order: /5 pairs a description the positive fixture carries with a file it also carries, and the four defective elements each defeat the description in a different way.",
+    "derived_from": "oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json",
+    "derivation": "A negative fixture is derived from the captured one rather than being an excerpt of it, so the provenance is stated as a derivation. Two of the seven elements are byte-identical to elements of the declared-derived oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json -- /0 to its /1 and /2 to its /3 -- compared field by field including key order. The other five are synthesized in the tool's own eighteen-key shape and key order: /5 pairs a description that derived fixture carries with a file it also carries, and the four defective elements each defeat the description in a different way.",
     "captured_provenance": "No element here equals the raw artifact's sole record: harness/artifacts/raw/gitleaks.json holds exactly one finding, this provisioning's single leak, and it is not among these seven. The recorded sha256 above is what makes a later edit to the fixture visible: these values are re-derived when the fixture changes, never adjusted to keep a test green.",
     "defective_element_count_divergence_disclosed": "This file's own specification described the fixture as carrying one defective element and stated a rejection count of 1. The fixture as committed carries four, and four is what is recorded, for the reason the whole folder rests on: an expected file states what the fixture holds, not what a plan expected it to hold. The specification's own list of valid elements names three paths, which is exactly the three surviving rows below, so the divergence is in the count of defective elements alone. Nothing about the condition changes: all four defective elements earn the same single class, and a fixture covering four sub-forms of it asserts strictly more than one covering a single form.",
     "fixture_is_never_edited_to_suit_these_rows": true,
@@ -261,7 +261,7 @@
         "within_file": true
       }
     ],
-    "external_control": "Element /1 was compared key by key against element /2 of the positive fixture, oss-scan-results/adapter-tests/fixtures/gitleaks.json, and they differ in exactly three of the eighteen keys: Description, absent here and present there, and Match and Secret, which the adapter never reads. That positive element is emitted as row 2 of expected/gitleaks.rows.json. So the same record with its description intact becomes a row, and the description is the only difference that matters -- the control is external, in a file this one does not depend on for its own values.",
+    "external_control": "Element /1 was compared key by key against element /2 of the declared-derived oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json, and they differ in exactly three of the eighteen keys: Description, absent here and present there, and Match and Secret, which the adapter never reads. That element is emitted as row 2 of expected/derived-gitleaks-features.rows.json. So the same record with its description intact becomes a row, and the description is the only difference that matters -- the control is external, in a file this one does not depend on for its own values.",
     "internal_controls": "Two of the remaining three defective elements have a same-rule, same-file counterpart inside this fixture that does become a row: /6 against /2 (both github-pat in the Kubernetes Dockerfile) and /3 against /0 (both generic-api-key in DiskStore.scala), each differing in its position, its entropy and its placeholder keys as two findings in one file naturally would. /4 has no same-rule counterpart and is attributable by the classification order alone, which is sufficient: nothing but the description can reject at step 3.",
     "no_other_condition_is_in_play": "None of the adapter's other five rejection classes could claim any of these four records. Each is an object, so not malformed_record; each has a non-empty string RuleID, so not missing_rule_id; each File is non-empty and resolves, so neither absent_path nor unresolvable_path; and each StartLine is a positive integer, so not non_integer_start_line.",
     "later_steps_are_never_reached": "The description is step 3 of the adapter's fixed five-step order -- shape, rule identifier, message, path, start_line. Rejecting at step 3 means these records' File values are never resolved, their StartLine values are never examined, their SymlinkFile values are never tested for a second location, and no severity result is ever built for them. Several counter values below follow from that and are not miscounts: see counters_note.",
@@ -288,7 +288,7 @@
       {
         "case": "a record whose path resolves outside the twelve authoritative globs",
         "expected": "a kept row with in_scope false, counted under rows_out_of_scope",
-        "evidence": "Out of scope means kept and marked, never rejected (AAP 0.9.3). No element here resolves outside the globs, so rows_out_of_scope is 0; the positive sibling covers that case with a lockfile outside the twelve roots.",
+        "evidence": "Out of scope means kept and marked, never rejected (AAP 0.9.3). No element here resolves outside the globs, so rows_out_of_scope is 0; the declared-derived sibling expected/derived-gitleaks-features.rows.json covers that case with a lockfile outside the twelve roots.",
         "present_in_this_fixture": false
       },
       {
@@ -390,13 +390,13 @@
     "agreement_check_disclosed": "After these values were derived and written, the adapter was invoked over this fixture once and its rows, rejections and counters compared to what is recorded here; agreement was complete, including each rejection class, each detail string and each record_identity mapping. That is disclosed in the same spirit as the corroboration below: it followed derivation, it could only ever have surfaced a disagreement to diagnose, and it contributed no value to this file."
   },
   "corroboration": {
-    "source": "oss-scan-results/adapter-tests/expected/gitleaks.rows.json",
+    "source": "oss-scan-results/adapter-tests/expected/derived-gitleaks-features.rows.json",
     "records_compared": 2,
     "fields_compared_per_record": 12,
     "agreement": "complete",
-    "note": "Two of the three surviving rows have counterparts in the positive sibling, because their fixture elements are byte-identical to elements of the positive fixture: this file's row 0 is that file's row 1, and row 1 is its row 3. All twenty-four field comparisons agree. Recorded after the fact rather than as the source of these values, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply.",
-    "the_third_row_is_partially_corroborated": "Row 2 comes from a synthesized element, so it has no byte-identical counterpart. Two of its values are still corroborated independently: its message is the same description literal the positive sibling's rows 0 and 1 carry, and its path is the same path that sibling's row 2 carries with the same glob and the same measured line count. Its rule identifier and its line number are its own, and are checkable only by reading the fixture.",
-    "rejected_records_have_no_counterpart": "The four defective elements appear in no captured artifact and in no other expected file, and they contribute no dataset row, so nothing corroborates them and nothing needs to: each is checkable by reading the fixture against adapters/gitleaks.py's classification order. Element /1 is the one exception in part -- the positive fixture holds the same record with its description present, which is what makes it the external control under attribution.",
+    "note": "Two of the three surviving rows have counterparts in the declared-derived sibling expected/derived-gitleaks-features.rows.json, because their fixture elements are byte-identical to elements of oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json: this file's row 0 is that file's row 1, and row 1 is its row 3. All twenty-four field comparisons agree. Recorded after the fact rather than as the source of these values, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply.",
+    "the_third_row_is_partially_corroborated": "Row 2 comes from a synthesized element, so it has no byte-identical counterpart. Two of its values are still corroborated independently: its message is the same description literal expected/derived-gitleaks-features.rows.json's rows 0 and 1 carry, and its path is the same path that sibling's row 2 carries with the same glob and the same measured line count. Its rule identifier and its line number are its own, and are checkable only by reading the fixture.",
+    "rejected_records_have_no_counterpart": "The four defective elements appear in no captured artifact and in no other expected file, and they contribute no dataset row, so nothing corroborates them and nothing needs to: each is checkable by reading the fixture against adapters/gitleaks.py's classification order. Element /1 is the one exception in part -- oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json holds the same record with its description present, which is what makes it the external control under attribution.",
     "dataset_counterpart": "None of the three rows appears in oss-scan-results/findings.json. The committed dataset carries exactly one gitleaks row, for a file none of these elements names, so the dataset corroborates nothing here -- which is expected of a derived fixture and is stated rather than left as a gap a reader might read as a discrepancy."
   },
   "rows": [
@@ -447,7 +447,7 @@
     {
       "row_index": 0,
       "record_pointer": "/0",
-      "source": "derived -- byte-identical to element /1 of oss-scan-results/adapter-tests/fixtures/gitleaks.json, compared field by field including key order",
+      "source": "derived -- byte-identical to element /1 of oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json, compared field by field including key order",
       "rule_id_source": "/0/RuleID",
       "rule_id_route": "the record's own RuleID, the only route this shape offers",
       "message_source": "/0/Description",
@@ -477,12 +477,12 @@
       "file_exists_at_the_pin": true,
       "file_line_count_at_the_pin": 380,
       "start_line_within_file": true,
-      "anchor_note": "The taint A/B subject file, and the same 380-line count the positive sibling records for it. start_line 241 is well inside the file. Element /3, which is rejected, names line 72 of this same file -- the line the A/B rule fires on -- so this row and that rejection share a file and differ only in what the description key holds."
+      "anchor_note": "The taint A/B subject file, and the same 380-line count expected/derived-gitleaks-features.rows.json records for it. start_line 241 is well inside the file. Element /3, which is rejected, names line 72 of this same file -- the line the A/B rule fires on -- so this row and that rejection share a file and differ only in what the description key holds."
     },
     {
       "row_index": 1,
       "record_pointer": "/2",
-      "source": "derived -- byte-identical to element /3 of oss-scan-results/adapter-tests/fixtures/gitleaks.json, compared field by field including key order",
+      "source": "derived -- byte-identical to element /3 of oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json, compared field by field including key order",
       "rule_id_source": "/2/RuleID",
       "rule_id_route": "the record's own RuleID, the only route this shape offers",
       "message_source": "/2/Description",
@@ -518,7 +518,7 @@
     {
       "row_index": 2,
       "record_pointer": "/5",
-      "source": "synthesized -- no byte-identical counterpart in the positive fixture. It pairs the generic-api-key description that fixture's elements /0 and /1 carry with the file its element /2 names, at a line of its own.",
+      "source": "synthesized -- no byte-identical counterpart in the declared-derived oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json. It pairs the generic-api-key description that fixture's elements /0 and /1 carry with the file its element /2 names, at a line of its own.",
       "rule_id_source": "/5/RuleID",
       "rule_id_route": "the record's own RuleID, the only route this shape offers",
       "message_source": "/5/Description",
@@ -549,7 +549,7 @@
       "file_line_count_at_the_pin": 391,
       "start_line_within_file": true,
       "anchor_note": "A Python test module, and in scope: it is one of the 832 test modules under python/pyspark/** that carry no src/test path segment, so the literal exclusion does not reach it and in_scope is true. Its test-ness is expressed as a tests/ directory and a test_ filename rather than as a Maven src/test tree. No test of any language is executed by this run -- the module is read by a scanner exactly as any other in-scope source is.",
-      "file_line_count_measurement": "Measured at the pinned tree, whose HEAD was verified equal to the pinned SHA before measuring: 391 by wc -l, by counting newline bytes and by len(bytes.splitlines()), the file ending in a newline. The positive sibling and the missing-rule-id sibling both record 391 for the same file.",
+      "file_line_count_measurement": "Measured at the pinned tree, whose HEAD was verified equal to the pinned SHA before measuring: 391 by wc -l, by counting newline bytes and by len(bytes.splitlines()), the file ending in a newline. expected/derived-gitleaks-features.rows.json and the missing-rule-id sibling both record 391 for the same file.",
       "file_line_count_divergence_disclosed": "This file's own specification stated 384 lines for this path. 384 is the count in the working checkout, which sits at the branch tip; the pinned tree's copy of the same path is 391, and the two files differ. The pinned count is the one recorded, for two reasons: every path in this dataset is relative to the pinned root, so the pin is the tree these line counts describe; and a count appearing in two documents must be one measurement cited twice, so 384 here would contradict both siblings. No field of row 2 changes either way -- start_line 29 is inside the file under both readings -- so this is a disclosed divergence in a stated line count and not a difference in any expected value."
     }
   ],
@@ -585,7 +585,7 @@
       "contributes_no_row": true,
       "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, so no entry from it reaches severity-map.md. That document reports literals against the rows the dataset contains, and this record contributes none.",
       "contributes_no_counter": "It increments none of the fifteen counters. Every counter this adapter keys is incremented after step 3 has passed, so a step-3 rejection touches none of them.",
-      "external_control": "Element /2 of the positive fixture is this same record with its Description present and different Match and Secret values, and it is emitted as row 2 of expected/gitleaks.rows.json. See attribution.",
+      "external_control": "Element /2 of the declared-derived oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json is this same record with its Description present and different Match and Secret values, and it is emitted as row 2 of expected/derived-gitleaks-features.rows.json. See attribution.",
       "not_produced_by_another_fixture": "The other four reject-gitleaks-* fixtures own the other conditions -- malformed-record, missing-rule-id, non-integer-start-line and unresolvable-path, the last carrying an element whose File is the empty string, which is the absent_path class. This fixture re-covers none of them, and each of them still has its own work to do."
     },
     {
@@ -714,7 +714,7 @@
     {
       "behaviour": "a kept row with in_scope false, and the rows_out_of_scope counter",
       "why_absent": "all three emitted paths match a glob, so rows_out_of_scope is 0",
-      "cover_with": "the positive sibling expected/gitleaks.rows.json, whose sixth row is a lockfile outside the twelve globs kept with in_scope false"
+      "cover_with": "the declared-derived sibling expected/derived-gitleaks-features.rows.json, whose sixth row is a lockfile outside the twelve globs kept with in_scope false"
     },
     {
       "behaviour": "multi_location_records -- a record naming a second filesystem location through a non-empty SymlinkFile",

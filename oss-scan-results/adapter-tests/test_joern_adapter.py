@@ -44,11 +44,35 @@ The count unit
 ``findings[]``: one element is one record (AAP 0.5.4).  ``queries[].count`` in the
 documented shape and ``queries[].returned`` in this provisioning's shape are the
 collector's **own** per-query tallies and are neither the raw count nor a substitute for
-it.  Every committed fixture keeps the two numbers different -- the positive fixture
-excerpts eleven of the raw artifact's findings while carrying its ``queries`` array
-unchanged, so the tallies sum to 692 against eleven records -- which is what makes the
+it.  Every committed fixture keeps the two numbers different -- the captured fixture
+excerpts fourteen of the raw artifact's findings while carrying its ``queries`` array
+unchanged, so the tallies sum to 692 against fourteen records -- which is what makes the
 assertion non-vacuous: an implementation counting the tallies would produce 692 against
-eleven rows and fail loudly rather than agree silently.
+eleven rows and three rejections and fail loudly rather than agree silently.
+
+Fixture provenance, and the one requirement a capture of this artifact cannot carry
+----------------------------------------------------------------------------------
+``fixtures/joern.json`` is a **capture**: fourteen whole elements of
+``harness/artifacts/raw/joern.json``'s ``findings`` array, taken verbatim in raw document
+order, behind that artifact's own envelope byte for byte.  Nothing in it is authored,
+re-spelled or adjusted, and :class:`RawArtifactProvenanceTest` proves it by opening the raw
+artifact and comparing record for record -- not by comparing the fixture with a digest
+stored beside it, which would prove only that the fixture agrees with itself.  The capture
+covers both outcomes the artifact really produces: eleven findings resolve uniquely to a
+``src/main`` source file and become rows, and three name a third-party class shaded into
+Spark's JARs, which resolves to nothing and is a counted ``unresolvable_path`` rejection.
+Its parse status is therefore ``partial``, which is what this artifact honestly is.
+
+One AAP requirement cannot be met by any capture of this artifact: a finding resolving into
+a ``src/test`` tree, retained with ``in_scope: false``.  The raw artifact carries **no**
+test-tree class -- 0 of its 692 findings names a class whose simple name carries ``Suite``
+or ``Test``, and the committed dataset holds 107 joern rows and not one with a ``src/test``
+path, both asserted here rather than asserted in prose -- because the runbook excludes every
+``-tests`` JAR from the graph input.  So that case lives on ``fixtures/derived-joern-features
+.json``, which **declares itself derived** in its expected file: ten of its records are
+verbatim raw members and one is authored.  The requirement is neither waived nor quietly
+satisfied by a fixture claiming to be something it is not; the split is what keeps the
+capture's claim true and the requirement asserted.
 
 Hermetic by construction
 ------------------------
@@ -96,8 +120,15 @@ is named with its reason rather than left as an untested gap:
   table.
 
 ``absent_path`` is reachable -- through a coordinate that is absent, blank or the
-collector's ``<unknown>`` sentinel -- and is asserted here on synthetic documents, since
-no committed fixture carries one.
+collector's ``<unknown>`` sentinel -- and is covered by the committed fixture
+``reject-joern-absent-path.json``, which carries all six spellings of it beside three
+well-formed neighbours.  The production artifact exercises the condition zero times, since
+this provisioning's collector named a class on every finding it wrote, which is exactly the
+case AAP 0.9.4's *"whether or not this run's own artifacts contained that case"* clause
+exists for.  The synthetic documents in :class:`UniqueResolutionOnlyTest` remain as
+supplemental assertions over shapes the fixture does not carry -- a provisioned-shape
+record whose only coordinate is the ignored ``file`` member being the sharpest -- rather
+than as that condition's coverage.
 
 Prohibitions this module observes
 ---------------------------------
@@ -111,8 +142,11 @@ Cantina or any scanner.  No finding is judged real, important, a false positive 
 duplicate, and nothing is deduplicated.  No secret value appears in any literal, message
 or docstring, this tree being committed to git.  No fixture is mutated and nothing under
 ``harness/lib/normalize/`` is edited: a defect there is reported, never repaired here.
-``harness/lib/joern_collect.py`` is never imported -- the collector is provisioned rather
-than version-controlled, and this module asserts against its **artifact contract** alone.
+``harness/lib/joern_collect.py`` -- the collector contract the adapter under test consumes
+-- is never imported *here*, and this module asserts against the **artifact contract**
+alone: every case below is a document handed to the adapter rather than a call into the
+contract, so what is verified is the adapter's reading of a shape rather than the contract
+agreeing with itself.
 Nothing here loads a code-property graph, so the forbidden second-JVM loader appears
 nowhere in this file; ``importCpg`` is the probe's only sanctioned loader and the probe
 owns it.
@@ -287,6 +321,19 @@ SCAFFOLD = (
         "sql/connect/common/src/main/scala/org/apache/spark/sql/connect/common/UdfPacket.scala",
         ("UdfPacket",),
     ),
+    # Partitioner.scala declares RangePartitioner alongside five siblings, and no file is
+    # named after it: the third declaration-only resolution the captured fixture reaches.
+    (
+        "core/src/main/scala/org/apache/spark/Partitioner.scala",
+        (
+            "Partitioner",
+            "HashPartitioner",
+            "PartitionIdPassthrough",
+            "KeyGroupedPartitioner",
+            "ConstantPartitioner",
+            "RangePartitioner",
+        ),
+    ),
     (
         "common/network-yarn/src/main/java/org/apache/spark/network/yarn/YarnShuffleService.java",
         ("YarnShuffleService",),
@@ -357,24 +404,67 @@ SCAFFOLD = (
 #: shaded into Spark's JARs that the unresolvable fixture reports.
 UNRESOLVABLE_CLASS_KEY = "org/sparkproject/guava/hash/MessageDigestHashFunction"
 
-#: The committed positive fixture, in this provisioning's collector shape.
-POSITIVE_FIXTURE = "joern.json"
+#: The **captured** fixture: a verbatim excerpt of ``harness/artifacts/raw/joern.json`` in
+#: this provisioning's collector shape.  Fourteen whole findings and the raw envelope, with
+#: nothing authored, re-spelled or adjusted (AAP 0.6.2).
+CAPTURED_FIXTURE = "joern"
+
+#: The **derived** fixture, declared as derived in its own expected file.  It exists for the
+#: one AAP-required case a capture of this artifact cannot supply -- a finding resolving into
+#: a ``src/test`` tree, retained with ``in_scope: false`` -- because the raw artifact carries
+#: no test-tree class at all.  Authoring that record into the capture would have made the
+#: capture claim false; dropping the case would have left an AAP requirement unasserted.
+DERIVED_FEATURES_FIXTURE = "derived-joern-features"
+
+#: The raw artifact the captured fixture is an excerpt of.  Opened read-only, and only to
+#: prove the capture: a fixture compared with a digest stored beside it proves nothing but
+#: its own self-consistency.
+RAW_ARTIFACT = REPO_ROOT / "harness" / "artifacts" / "raw" / "joern.json"
+
+#: The raw ``findings[]`` indexes the captured fixture holds, in raw document order.  Stated
+#: here as well as in the expected file so the two are cross-checked rather than one being
+#: taken on faith.
+CAPTURED_FINDING_INDEXES = (0, 10, 14, 15, 16, 95, 97, 238, 371, 655, 656, 669, 681, 691)
+
+#: The raw indexes whose records the *derived* fixture also carries verbatim, in the order it
+#: carries them.  Its remaining record -- index 7, the ``MasterSuite`` finding -- is authored
+#: and appears in the raw artifact under no index at all.
+DERIVED_CAPTURED_FINDING_INDEXES = (10, 14, 15, 16, 95, 238, 371, 656, 669, 681)
+
+#: The position of the authored record in the derived fixture.
+DERIVED_AUTHORED_FINDING_INDEX = 7
 
 #: One negative fixture per rejection condition this adapter can produce (AAP 0.6.2), with
 #: the class each is expected to produce.  The class is restated from paths.py's constants
 #: rather than as a bare string, so a typo cannot invent a class the vocabulary lacks; the
-#: expected file's own recorded class name is asserted against it as well.
+#: expected file's own recorded class name is asserted against it as well.  The order is
+#: the order in which the adapter reaches each condition: an absent coordinate is decided
+#: before the source index is consulted at all, an unresolvable or ambiguous one by what
+#: that lookup returned, and the remaining four at the rule, message and start_line steps.
 NEGATIVE_FIXTURES = (
+    ("reject-joern-absent-path", paths.REJECT_ABSENT_PATH),
     ("reject-joern-unresolvable-path", paths.REJECT_UNRESOLVABLE_PATH),
     ("reject-joern-ambiguous-path", paths.REJECT_AMBIGUOUS_SOURCE_RESOLUTION),
     ("reject-joern-missing-rule-id", paths.REJECT_MISSING_RULE_ID),
     ("reject-joern-missing-message", paths.REJECT_MISSING_MESSAGE),
     ("reject-joern-non-integer-start-line", paths.REJECT_NON_INTEGER_START_LINE),
     ("reject-joern-malformed-record", paths.REJECT_MALFORMED_RECORD),
+    ("reject-joern-collector-path-refused", paths.REJECT_ABSENT_PATH),
+    ("reject-joern-ambiguous-path-by-declaration", paths.REJECT_AMBIGUOUS_SOURCE_RESOLUTION),
+    ("reject-joern-ambiguous-path-across-test-trees", paths.REJECT_AMBIGUOUS_SOURCE_RESOLUTION),
+    ("reject-joern-zero-start-line", paths.REJECT_NON_INTEGER_START_LINE),
+    ("reject-joern-negative-start-line", paths.REJECT_NON_INTEGER_START_LINE),
+    ("reject-joern-boolean-start-line", paths.REJECT_NON_INTEGER_START_LINE),
 )
 
-#: Every committed joern fixture, positive first.
-ALL_FIXTURE_STEMS = ("joern",) + tuple(stem for stem, _ in NEGATIVE_FIXTURES)
+#: Every committed joern fixture: the capture, then the derived features fixture, then the
+#: six negatives.  Every inventory, digest and cross-file assertion in this module iterates
+#: this tuple, so a fixture added beside them without an entry here fails the inventory test
+#: rather than going unread.
+ALL_FIXTURE_STEMS = (
+    CAPTURED_FIXTURE,
+    DERIVED_FEATURES_FIXTURE,
+) + tuple(stem for stem, _ in NEGATIVE_FIXTURES)
 
 #: The three rejection classes this shape cannot produce, each with the reason.  Asserted
 #: absent from every fixture's rejections, so "cannot happen" is a measured claim.
@@ -505,6 +595,50 @@ def per_query_tally_sum(document: object) -> int:
     return total
 
 
+def canonical(value: object) -> str:
+    """Return a key-order-independent rendering of a parsed JSON value.
+
+    Two records are the same record when this string is the same for both.  Comparing the
+    parsed objects directly would be equivalent for dictionaries, but the canonical string
+    is what a failure message can print and what makes the comparison explicit about
+    ignoring key order and nothing else -- no whitespace normalisation, no numeric
+    coercion, no field dropped.
+    """
+    return json.dumps(value, sort_keys=True)
+
+
+def finding_indexes_for_rows(expected: dict) -> tuple[int, ...]:
+    """Return the fixture ``findings[]`` index each expected row was derived from.
+
+    Read from each ``row_derivations`` entry's ``finding_pointer``, in row order.  A row is
+    not always the record at the same ordinal: where a fixture's records include some that
+    reject, the row at index *i* comes from a later finding than *i*.  Anything that needs
+    to compare a row with the record behind it goes through this rather than zipping the two
+    sequences, which would silently pair a row with the wrong record the moment a fixture
+    contains a rejection.
+
+    The pointer is parsed strictly: a malformed one raises rather than being skipped, so an
+    expected file that stopped naming its records fails loudly.
+    """
+    prefix = "/findings/"
+    indexes: list[int] = []
+    for position, derivation in enumerate(expected["row_derivations"]):
+        pointer = derivation["finding_pointer"]
+        if not isinstance(pointer, str) or not pointer.startswith(prefix):
+            raise AssertionError(
+                f"row_derivations[{position}].finding_pointer must be a JSON pointer of "
+                f"the form {prefix}<index>; observed {pointer!r}"
+            )
+        digits = pointer[len(prefix):]
+        if not digits.isdigit():
+            raise AssertionError(
+                f"row_derivations[{position}].finding_pointer names no integer index: "
+                f"{pointer!r}"
+            )
+        indexes.append(int(digits))
+    return tuple(indexes)
+
+
 # --------------------------------------------------------------------------------------
 # The hermetic environment: a scan root with both source trees, an allowlist and runner
 # metadata.  All three are real files inside one temporary directory, and both
@@ -561,8 +695,9 @@ class Environment:
         """Create one scaffold file: a provenance comment and one declaration per type.
 
         ``//`` comments and a bare ``class X {}`` are valid in both Scala and Java, and
-        both are what ``paths._DECLARATION_PATTERNS`` matches per language.  The file is a
-        key for the source index, not a copy of Spark's source.
+        both are what the collector contract's declaration patterns -- reached through
+        ``paths.build_source_index`` -- match per language.  The file is a key for the
+        source index, not a copy of Spark's source.
         """
         target = self.root_path / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -796,8 +931,8 @@ class CollectorArtifactContractTest(HermeticRootTestCase):
         """
         self.assertEqual(joern.SCANNER_CLASS, SCANNER_CLASS)
         self.assertEqual(joern.TOOL, TOOL)
-        adapted = self.adapt_fixture("joern")
-        self.assertTrue(adapted.rows, "the positive fixture must produce rows")
+        adapted = self.adapt_fixture(CAPTURED_FIXTURE)
+        self.assertTrue(adapted.rows, "the captured fixture must produce rows")
         for index, row in enumerate(adapted.rows):
             with self.subTest(row=index):
                 self.assertEqual(row["tool"], TOOL)
@@ -827,13 +962,13 @@ class CollectorArtifactContractTest(HermeticRootTestCase):
     def test_count_unit_is_findings_not_the_per_query_tallies(self) -> None:
         """The reconciliation unit is ``len(findings)``, never the collector's own tallies.
 
-        Asserted on a fixture where the two numbers **differ**: the positive fixture
-        excerpts eleven of the raw artifact's findings while carrying its ``queries`` array
+        Asserted on a fixture where the two numbers **differ**: the captured fixture
+        excerpts fourteen of the raw artifact's findings while carrying its ``queries`` array
         unchanged, so the tallies sum to 692.  Without that divergence an implementation
         using the wrong number would satisfy the identity and the assertion would test
         nothing (AAP 0.5.4).
         """
-        adapted = self.adapt_fixture("joern")
+        adapted = self.adapt_fixture(CAPTURED_FIXTURE)
         tallies = per_query_tally_sum(adapted.document)
         self.assertNotEqual(
             tallies,
@@ -841,7 +976,7 @@ class CollectorArtifactContractTest(HermeticRootTestCase):
             "the fixture must keep the per-query tallies and the record count different, "
             "or this assertion is vacuous",
         )
-        self.assertEqual(adapted.raw_records, 11)
+        self.assertEqual(adapted.raw_records, 14)
         self.assertEqual(tallies, 692)
         self.assertEqual(
             len(adapted.rows) + len(adapted.rejections),
@@ -860,7 +995,7 @@ class CollectorArtifactContractTest(HermeticRootTestCase):
         A plausible substitute published by the traversal that builds the rows is how the
         requirement for an independent count would quietly be lost (AAP 0.5.4).
         """
-        adapted = self.adapt_fixture("joern")
+        adapted = self.adapt_fixture(CAPTURED_FIXTURE)
         for key in ("findings", "records", "raw", "returned", "queries_returned"):
             self.assertNotIn(key, adapted.counters)
         forbidden = {
@@ -985,14 +1120,17 @@ class CollectorArtifactContractTest(HermeticRootTestCase):
                 for index, finding in enumerate(document["findings"]):
                     if isinstance(finding, dict):
                         self.assertNotIn("severity", finding, f"record {index}")
-        provisioned = load_fixture("joern")
-        self.assertTrue(
-            all(
-                isinstance(finding, dict) and "severity" in finding
-                for finding in provisioned["findings"]
-            ),
-            "every record of this provisioning's shape states its query's severity",
-        )
+        for stem in (CAPTURED_FIXTURE, DERIVED_FEATURES_FIXTURE):
+            with self.subTest(fixture=stem):
+                provisioned = load_fixture(stem)
+                self.assertTrue(
+                    all(
+                        isinstance(finding, dict) and "severity" in finding
+                        for finding in provisioned["findings"]
+                    ),
+                    "every record of this provisioning's shape states its query's "
+                    "severity",
+                )
 
     def test_the_envelope_produces_no_rows(self) -> None:
         """Envelope members are metadata: they reach counters, never the dataset.
@@ -1031,35 +1169,355 @@ class CollectorArtifactContractTest(HermeticRootTestCase):
 
 
 # --------------------------------------------------------------------------------------
-# The positive fixture, field by field
+# Fixture provenance, asserted against the raw artifact rather than against a digest
+# stored beside the fixture
 # --------------------------------------------------------------------------------------
 
 
-class PositiveFixtureTest(HermeticRootTestCase):
+class RawArtifactProvenanceTest(unittest.TestCase):
+    """The captured fixture really is an excerpt of ``harness/artifacts/raw/joern.json``.
+
+    Every other provenance claim in this tree is a claim about a file compared with a digest
+    recorded in the file beside it, which establishes only that the two agree with each
+    other.  This class opens the raw artifact the run actually produced and compares record
+    for record, which is the only comparison that can distinguish a capture from a
+    convincing hand-written document.
+
+    Nothing here adapts anything, so it needs no hermetic root: it reads two committed JSON
+    documents and compares them.  The raw artifact is opened **read-only** -- AAP 0.3.2
+    forbids modifying it, and this module writes nothing outside a temporary directory in any
+    case.  A missing raw artifact is an explicit failure naming the path rather than a skip:
+    a skipped provenance check reads as a pass in every summary that matters.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Read the raw artifact once, failing loudly and by name if it is not there."""
+        if not RAW_ARTIFACT.is_file():
+            raise AssertionError(
+                "the raw Joern artifact is missing, so the captured fixture's provenance "
+                f"cannot be established: expected a file at {RAW_ARTIFACT}. This is a "
+                "failure rather than a skip: AAP 0.6.2 requires the positive fixture to be "
+                "an unmodified captured excerpt, and an unverifiable capture claim is "
+                "indistinguishable from a false one."
+            )
+        cls.raw = read_json(RAW_ARTIFACT)
+        if not isinstance(cls.raw, dict):
+            raise AssertionError(
+                f"{RAW_ARTIFACT} must be a JSON object carrying a findings array; observed "
+                f"{type(cls.raw).__name__}"
+            )
+        cls.raw_findings = cls.raw.get("findings")
+        if not isinstance(cls.raw_findings, list):
+            raise AssertionError(
+                f"{RAW_ARTIFACT} carries no findings array, so no record can be captured "
+                "from it"
+            )
+
+    def test_the_raw_artifact_carries_the_records_and_envelope_this_capture_claims(
+        self,
+    ) -> None:
+        """The raw artifact holds 692 findings and the envelope members the fixture copies."""
+        self.assertEqual(len(self.raw_findings), 692)
+        for member in ("tool", "tool_version", "cpg", "graph", "query_set", "queries"):
+            with self.subTest(member=member):
+                self.assertIn(member, self.raw)
+        self.assertEqual(self.raw["tool"], TOOL)
+        expected_fixture = load_expected(CAPTURED_FIXTURE)["fixture"]
+        self.assertEqual(expected_fixture["captured_from_findings"], 692)
+        self.assertEqual(
+            expected_fixture["captured_from"], "harness/artifacts/raw/joern.json"
+        )
+        self.assertEqual(
+            expected_fixture["captured_from_bytes"], RAW_ARTIFACT.stat().st_size
+        )
+        self.assertEqual(
+            expected_fixture["captured_from_sha256"], sha256_of(RAW_ARTIFACT)
+        )
+
+    def test_every_captured_finding_is_the_raw_object_in_raw_document_order(self) -> None:
+        """Each fixture finding is identical to the raw finding at its recorded index.
+
+        Compared under :func:`canonical`, so key order cannot make two different records
+        look alike and cannot make one record look different from itself.  The indexes are
+        asserted to be strictly increasing as well, which is what "in raw document order"
+        means: a capture that reordered the tool's records would be a re-arrangement rather
+        than an excerpt.
+        """
+        fixture = load_fixture(CAPTURED_FIXTURE)
+        findings = fixture["findings"]
+        self.assertEqual(len(findings), len(CAPTURED_FINDING_INDEXES))
+        self.assertEqual(
+            list(CAPTURED_FINDING_INDEXES),
+            sorted(set(CAPTURED_FINDING_INDEXES)),
+            "the captured indexes must be distinct and ascending",
+        )
+        for position, raw_index in enumerate(CAPTURED_FINDING_INDEXES):
+            with self.subTest(position=position, raw_index=raw_index):
+                self.assertLess(raw_index, len(self.raw_findings))
+                self.assertEqual(
+                    canonical(findings[position]),
+                    canonical(self.raw_findings[raw_index]),
+                    f"fixture findings[{position}] is not the raw artifact's "
+                    f"findings[{raw_index}]",
+                )
+        recorded = load_expected(CAPTURED_FIXTURE)["fixture"]["captured_finding_indexes"]
+        self.assertEqual(tuple(recorded), CAPTURED_FINDING_INDEXES)
+
+    def test_every_envelope_member_equals_the_raw_artifact_s(self) -> None:
+        """The envelope is the raw artifact's, byte for byte, and nothing was added to it.
+
+        The key sequence is compared as a sequence, so a member appended or reordered fails.
+        ``findings`` is the only member whose value differs, and it differs by being an
+        excerpt.
+        """
+        fixture = load_fixture(CAPTURED_FIXTURE)
+        self.assertEqual(list(fixture), list(self.raw))
+        for member in ("tool", "tool_version", "cpg", "graph", "query_set", "queries"):
+            with self.subTest(member=member):
+                self.assertEqual(
+                    canonical(fixture[member]),
+                    canonical(self.raw[member]),
+                    f"envelope member {member!r} differs from the raw artifact's",
+                )
+        self.assertNotEqual(
+            canonical(fixture["findings"]), canonical(self.raw["findings"])
+        )
+
+    def test_the_capture_introduces_no_member_the_raw_artifact_lacks(self) -> None:
+        """No finding member, at any depth, that the raw record did not carry.
+
+        The comparison above would already catch it, but this states the property directly:
+        an excerpt adds nothing.  Asserted over the member names of every fixture record
+        against the member names of the raw record it came from.
+        """
+        fixture = load_fixture(CAPTURED_FIXTURE)
+        for position, raw_index in enumerate(CAPTURED_FINDING_INDEXES):
+            with self.subTest(position=position):
+                produced = fixture["findings"][position]
+                source = self.raw_findings[raw_index]
+                self.assertEqual(set(produced), set(source))
+                for member, value in produced.items():
+                    with self.subTest(member=member):
+                        self.assertEqual(canonical(value), canonical(source[member]))
+
+    def test_the_fixture_digest_and_size_are_the_file_s_own(self) -> None:
+        """The expected file's recorded digest and size are measured from the file itself.
+
+        A digest recorded in the expected file is only evidence once something measures the
+        file it names; this is that measurement, and the record above is what ties the file
+        to the raw artifact.
+        """
+        fixture_path = FIXTURES_DIR / f"{CAPTURED_FIXTURE}.json"
+        recorded = load_expected(CAPTURED_FIXTURE)["fixture"]
+        self.assertEqual(sha256_of(fixture_path), recorded["sha256"])
+        self.assertEqual(fixture_path.stat().st_size, recorded["bytes"])
+        self.assertNotEqual(
+            sha256_of(fixture_path),
+            sha256_of(RAW_ARTIFACT),
+            "an excerpt is smaller than the artifact it is taken from, so the two digests "
+            "must differ -- equality here would mean the whole artifact was committed as a "
+            "fixture",
+        )
+
+    def test_the_raw_artifact_carries_no_test_tree_class(self) -> None:
+        """The measured basis for exercising the ``src/test`` retention on a derived fixture.
+
+        AAP 0.5.4 requires a finding resolving into ``src/test`` to be retained with
+        ``in_scope: false``.  No capture of this artifact can carry that case, and this is
+        the measurement that makes the statement in the expected file a fact rather than an
+        assertion in prose: not one of the 692 findings names a class whose simple name
+        carries ``Suite`` or ``Test``, because the runbook excludes every ``-tests`` JAR from
+        the graph input.
+        """
+        offending = [
+            finding["class"]
+            for finding in self.raw_findings
+            if isinstance(finding, dict)
+            and isinstance(finding.get("class"), str)
+            and any(
+                marker in finding["class"].rsplit(".", 1)[-1]
+                for marker in ("Suite", "Test")
+            )
+        ]
+        self.assertEqual(
+            offending,
+            [],
+            "the raw artifact was expected to carry no test-tree class; if it now does, the "
+            "src/test retention belongs on the captured fixture and the derived fixture's "
+            "reason for existing has changed",
+        )
+        evidence = load_expected(CAPTURED_FIXTURE)["aap_requirement_coverage"][
+            "src_test_resolution_retained"
+        ]["measured_evidence"]
+        self.assertEqual(
+            evidence["raw_findings_whose_class_simple_name_carries_Suite_or_Test"],
+            len(offending),
+        )
+
+    def test_the_derived_fixture_is_declared_derived_and_is_not_the_raw_artifact(
+        self,
+    ) -> None:
+        """The derived fixture says it is derived, and is provably not a capture of the whole.
+
+        Its ten verbatim records are asserted against the raw artifact as well, because
+        "derived" is a statement about the document rather than a licence for its individual
+        records to be invented: the one authored record is named, and every other record is
+        the tool's own.
+        """
+        derived_path = FIXTURES_DIR / f"{DERIVED_FEATURES_FIXTURE}.json"
+        self.assertTrue(derived_path.is_file(), str(derived_path))
+        self.assertNotEqual(sha256_of(derived_path), sha256_of(RAW_ARTIFACT))
+        self.assertNotEqual(derived_path.stat().st_size, RAW_ARTIFACT.stat().st_size)
+
+        expected_fixture = load_expected(DERIVED_FEATURES_FIXTURE)["fixture"]
+        self.assertTrue(expected_fixture["provenance"].startswith("DERIVED."))
+        self.assertNotIn("captured_from", expected_fixture)
+        self.assertEqual(sha256_of(derived_path), expected_fixture["sha256"])
+        self.assertEqual(derived_path.stat().st_size, expected_fixture["bytes"])
+
+        derived = load_fixture(DERIVED_FEATURES_FIXTURE)
+        findings = derived["findings"]
+        positions = [
+            position
+            for position in range(len(findings))
+            if position != DERIVED_AUTHORED_FINDING_INDEX
+        ]
+        self.assertEqual(len(positions), len(DERIVED_CAPTURED_FINDING_INDEXES))
+        for position, raw_index in zip(positions, DERIVED_CAPTURED_FINDING_INDEXES):
+            with self.subTest(position=position, raw_index=raw_index):
+                self.assertEqual(
+                    canonical(findings[position]),
+                    canonical(self.raw_findings[raw_index]),
+                )
+        authored = canonical(findings[DERIVED_AUTHORED_FINDING_INDEX])
+        self.assertNotIn(
+            authored,
+            {canonical(finding) for finding in self.raw_findings},
+            "the record the derived fixture declares authored must appear in the raw "
+            "artifact under no index at all, or the declaration is wrong",
+        )
+        for member in ("tool", "tool_version", "cpg", "graph", "query_set", "queries"):
+            with self.subTest(member=member):
+                self.assertEqual(canonical(derived[member]), canonical(self.raw[member]))
+
+
+# --------------------------------------------------------------------------------------
+# The captured fixture, field by field
+# --------------------------------------------------------------------------------------
+
+
+class CapturedFixtureTest(HermeticRootTestCase):
     """``fixtures/joern.json`` against ``expected/joern.rows.json``, field by field.
 
-    The fixture is captured output rather than a hand-written approximation of it: ten of
-    its eleven findings are byte-identical members of the raw artifact's 692, and the
-    envelope and the whole ``queries`` array are byte-identical too.  AAP 0.6.2 gives the
-    reason -- *"a hand-written fixture tests the adapter against the shape you believed the
-    tool emits rather than the shape it emits."*  The eleventh, the ``MasterSuite`` record,
-    is derived, because the captured output cannot supply a test-tree finding: the runbook
-    excludes every ``-tests`` JAR from the graph input, so no test-tree class reached the
-    graph this artifact was queried from.  Nothing is asserted about its call site; the
-    record is derived and no finding is judged in either direction.
+    The fixture is a **capture**, not a hand-written approximation of one: every one of its
+    fourteen findings is a whole element of ``harness/artifacts/raw/joern.json``'s findings
+    array, taken verbatim in raw document order, behind that artifact's own envelope byte
+    for byte.  AAP 0.6.2 gives the reason -- *"a hand-written fixture tests the adapter
+    against the shape you believed the tool emits rather than the shape it emits."*  The
+    provenance itself is asserted in :class:`RawArtifactProvenanceTest`, against the raw
+    artifact rather than against a digest stored beside the fixture.
+
+    Because it is a capture, it carries the artifact's real mix of outcomes rather than a
+    chosen one: eleven records resolve uniquely into ``src/main`` and become rows -- nine in
+    scope and two outside the twelve globs -- and three name a third-party class shaded into
+    Spark's JARs, which no source file declares and which is therefore a counted
+    ``unresolvable_path`` rejection.  Its parse status is ``partial``, and that is the
+    artifact's honest status rather than a defect in the fixture: over all 692 findings, 585
+    resolve to nothing.
+
+    Two counters read 14 against 11 rows -- ``rule_id_from_query_id`` and
+    ``coordinate_from_class`` -- because the rule identifier and the coordinate member are
+    read at steps 2 and 4 of the classification order, before the resolution that rejects
+    three records.  That is the order being visible, not a discrepancy.
     """
 
     def setUp(self) -> None:
         """Adapt the fixture once per test, against this class's hermetic root."""
-        self.adapted = self.adapt_fixture("joern")
-        self.expected = load_expected("joern")
+        self.adapted = self.adapt_fixture(CAPTURED_FIXTURE)
+        self.expected = load_expected(CAPTURED_FIXTURE)
 
-    def test_row_count_matches_the_expected_file(self) -> None:
-        """Eleven records, eleven rows, no rejection."""
+    def test_row_count_and_rejection_count_match_the_expected_file(self) -> None:
+        """Fourteen records, eleven rows, three rejections, all one class."""
         self.assertEqual(len(self.adapted.rows), len(self.expected["rows"]))
-        self.assertEqual(self.adapted.rejections, [])
+        self.assertEqual(self.adapted.raw_records, 14)
+        self.assertEqual(self.expected["counts"]["raw_finding_records"], 14)
         self.assertEqual(self.expected["counts"]["rows"], 11)
-        self.assertEqual(self.expected["counts"]["rejections"], 0)
+        self.assertEqual(self.expected["counts"]["rejections"], 3)
+        self.assertEqual(len(self.adapted.rejections), 3)
+        self.assertEqual(
+            self.adapted.reject_classes,
+            (paths.REJECT_UNRESOLVABLE_PATH,) * 3,
+            "the capture's three shaded third-party classes are unresolvable_path "
+            "rejections, each named by class rather than merely counted",
+        )
+        self.assertEqual(
+            self.adapted.rejections_by_class(),
+            self.expected["counts"]["rejections_by_class"],
+        )
+        self.assertEqual(
+            len(self.adapted.rows) + len(self.adapted.rejections),
+            self.adapted.raw_records,
+        )
+
+    def test_each_rejection_names_its_class_key_and_keeps_its_reason(self) -> None:
+        """Every rejection carries the hand-derived detail and identity, not just a class.
+
+        A rejection that reached the count with an empty or generic reason would satisfy the
+        arithmetic while losing why the record failed -- which is the evidence
+        ``tool-status.md`` reports and AAP 0.5.4 requires a rejection to carry.  So each
+        expected rejection's distinguishing substrings are asserted, and its
+        ``record_identity`` is asserted key by key against the hand-derived expectation.
+        """
+        expected_rejections = self.expected["rejections"]
+        self.assertEqual(len(self.adapted.rejections), len(expected_rejections))
+        for index, (produced, expected) in enumerate(
+            zip(self.adapted.rejections, expected_rejections)
+        ):
+            with self.subTest(rejection=index):
+                self.assertEqual(produced.reject_class, expected["reject_class"])
+                self.assertTrue(paths.is_reject_class(produced.reject_class))
+                self.assertEqual(produced.tool, TOOL)
+                self.assertEqual(produced.detail, expected["expected_detail"])
+                identity = produced.record_identity
+                self.assertEqual(
+                    identity["finding_index"], expected["finding_index"]
+                )
+                self.assertEqual(identity["class"], expected["class_coordinate"])
+                self.assertEqual(identity["class_key"], expected["class_key"])
+                self.assertEqual(identity["coordinate_field"], "class")
+                self.assertEqual(
+                    identity["rule_id"],
+                    expected["expected_record_identity"]["rule_id"],
+                )
+                self.assertEqual(
+                    identity["method"],
+                    expected["expected_record_identity"]["method"],
+                )
+                self.assertEqual(
+                    identity["callee"],
+                    expected["expected_record_identity"]["callee"],
+                )
+                # The explanation-bearing suffix is absent because this shape emits no
+                # path_resolution member, and no explanation may be invented for one.
+                self.assertNotIn("collector path_resolution:", produced.detail)
+
+    def test_no_rejected_record_reaches_any_row(self) -> None:
+        """The three rejected coordinates appear in no field of any emitted row.
+
+        A rejection that also produced a row would keep the arithmetic honest while putting
+        an unresolved coordinate in the dataset, so the absence is asserted directly rather
+        than inferred from the counts.
+        """
+        emitted = "\n".join(
+            str(value) for row in self.adapted.rows for value in row.values()
+        )
+        for expected in self.expected["rejections"]:
+            with self.subTest(class_key=expected["class_key"]):
+                self.assertNotIn(expected["class_key"], emitted)
+                self.assertNotIn(expected["class_coordinate"], emitted)
+                simple = expected["class_key"].rsplit("/", 1)[-1]
+                self.assertNotIn(simple, emitted)
 
     def test_every_row_field_by_field_in_emit_field_order(self) -> None:
         """Assertion 11: every field of every row, iterated from ``emit.FIELDS`` in order.
@@ -1068,7 +1526,7 @@ class PositiveFixtureTest(HermeticRootTestCase):
         so a failure names the field that differs instead of printing two dictionaries.
         """
         self.assertRowsMatchExpected(
-            self.adapted.rows, self.expected["rows"], label="joern"
+            self.adapted.rows, self.expected["rows"], label=CAPTURED_FIXTURE
         )
 
     def test_rows_pass_the_emitter_s_own_validation(self) -> None:
@@ -1122,10 +1580,17 @@ class PositiveFixtureTest(HermeticRootTestCase):
     def test_start_line_is_the_integer_the_finding_reported(self) -> None:
         """Assertion 13a: ``start_line`` is the integer the finding reported, unchanged.
 
-        Taken from the ``line`` member of each record of this provisioning's shape, and
-        compared as a sequence so a transposition between rows would fail too.
+        Taken from the ``line`` member of each record of this provisioning's shape.  The row
+        at index *i* is **not** the record at index *i* here -- three records reject -- so
+        each row is paired with its record through the expected file's own
+        ``finding_pointer``, and the sequence is compared as a whole so a transposition
+        between rows would fail too.  Zipping rows against ``findings`` directly is exactly
+        the mistake this pairing prevents.
         """
-        reported = [finding["line"] for finding in self.adapted.document["findings"]]
+        findings = self.adapted.document["findings"]
+        indexes = finding_indexes_for_rows(self.expected)
+        self.assertEqual(len(indexes), len(self.adapted.rows))
+        reported = [findings[index]["line"] for index in indexes]
         self.assertEqual([row["start_line"] for row in self.adapted.rows], reported)
         for index, row in enumerate(self.adapted.rows):
             with self.subTest(row=index):
@@ -1136,11 +1601,33 @@ class PositiveFixtureTest(HermeticRootTestCase):
         self.assertEqual(self.adapted.counters["start_line_from_line"], 11)
         self.assertEqual(self.adapted.counters["start_line_from_start_line"], 0)
 
+    def test_the_rejected_records_are_the_ones_the_expected_file_names(self) -> None:
+        """The rows come from exactly the records the expected file pairs them with.
+
+        The complement of the pairing above: the fixture indexes that produced no row are
+        asserted to be precisely the three the ``rejections`` block names, so a row silently
+        derived from a different record than the one documented cannot pass.
+        """
+        row_indexes = set(finding_indexes_for_rows(self.expected))
+        rejected_indexes = {
+            expected["finding_index"] for expected in self.expected["rejections"]
+        }
+        every_index = set(range(len(self.adapted.document["findings"])))
+        self.assertEqual(row_indexes | rejected_indexes, every_index)
+        self.assertEqual(row_indexes & rejected_indexes, set())
+        self.assertEqual(
+            rejected_indexes,
+            {
+                rejection.record_identity["finding_index"]
+                for rejection in self.adapted.rejections
+            },
+        )
+
     def test_in_scope_decomposition_sums_to_the_row_count(self) -> None:
         """``rows_in_scope`` plus ``rows_out_of_scope`` is one measurement split, not two."""
         counters = self.adapted.counters
-        self.assertEqual(counters["rows_in_scope"], 8)
-        self.assertEqual(counters["rows_out_of_scope"], 3)
+        self.assertEqual(counters["rows_in_scope"], 9)
+        self.assertEqual(counters["rows_out_of_scope"], 2)
         self.assertEqual(
             counters["rows_in_scope"] + counters["rows_out_of_scope"],
             len(self.adapted.rows),
@@ -1207,7 +1694,7 @@ class PositiveFixtureTest(HermeticRootTestCase):
         makes the difference between a measured index and an injected one visible.
         """
         injected = paths.build_source_index(self.environment.root)
-        adapted = self.adapt_fixture("joern", source_index=injected)
+        adapted = self.adapt_fixture(CAPTURED_FIXTURE, source_index=injected)
         self.assertEqual(adapted.counters["source_index_supplied"], 1)
         self.assertEqual(adapted.paths_emitted, self.adapted.paths_emitted)
 
@@ -1270,28 +1757,186 @@ class PositiveFixtureTest(HermeticRootTestCase):
         self.assertEqual(adapted.raw_records, 1)
         self.assertEqual(adapted.counters["multi_location_records"], 1)
 
+    def test_the_parse_status_for_the_capture_is_partial(self) -> None:
+        """A capture with rejections is ``partial``, and that is recorded as its status.
+
+        ``partial`` is not a failure to parse: every parsable record was emitted and each
+        rejected record is counted under its named class with its reason retained.  The
+        status is asserted here rather than assumed because a capture of *this* artifact
+        cannot be clean -- most of what the tool reported names a shaded third-party class --
+        and an expected file claiming ``clean`` for it would be describing a different
+        artifact.
+        """
+        self.assertEqual(self.adapted.parse_status(), cli.PARSE_STATUS_PARTIAL)
+        self.assertEqual(self.expected["counts"]["parse_status"], cli.PARSE_STATUS_PARTIAL)
+
+    def test_the_expected_file_records_the_requirement_it_cannot_carry(self) -> None:
+        """The capture's expected file states, in its own words, what it cannot exercise.
+
+        AAP 0.5.4 and 0.6.1 require a ``src/test`` resolution retained with ``in_scope``
+        false.  No capture of this artifact can carry that case, and the expected file
+        records it as covered on a declared-derived fixture rather than as an exception, a
+        waiver or an inapplicable requirement.  The wording is asserted so the record cannot
+        drift into a claim the fixture does not support.
+        """
+        coverage = self.expected["aap_requirement_coverage"]
+        captured = coverage["captured_positive_mapping"]
+        self.assertEqual(captured["status"], "SATISFIED")
+        retention = coverage["src_test_resolution_retained"]
+        self.assertEqual(
+            retention["status"],
+            "COVERED ON A DECLARED-DERIVED FIXTURE, NOT ON THIS CAPTURE",
+        )
+        self.assertIn("cannot exercise the requirement", retention["statement"])
+        self.assertIn("not waived", retention["statement"])
+        self.assertIn(DERIVED_FEATURES_FIXTURE, retention["statement"])
+        evidence = retention["measured_evidence"]
+        self.assertEqual(evidence["raw_findings"], 692)
+        self.assertEqual(
+            evidence["raw_findings_whose_class_simple_name_carries_Suite_or_Test"], 0
+        )
+        self.assertEqual(
+            evidence["joern_rows_in_the_committed_dataset_with_a_src_test_path"], 0
+        )
+        self.assertEqual(self.adapted.counters["rows_from_src_test"], 0)
+
+
+# --------------------------------------------------------------------------------------
+# The derived features fixture: the one AAP-required case no capture of this artifact can
+# supply, on a fixture that says so
+# --------------------------------------------------------------------------------------
+
+
+class DerivedFeaturesFixtureTest(HermeticRootTestCase):
+    """``fixtures/derived-joern-features.json`` against its expected file, field by field.
+
+    This fixture is **derived and says so**: ten of its eleven findings are verbatim members
+    of the raw artifact and one -- the ``MasterSuite`` record at index 7 -- is authored,
+    because the artifact carries no test-tree class to capture.  It exists for the AAP
+    requirement a capture cannot carry, and it is the clean-parse complement of the capture:
+    eleven records, eleven rows, no rejection.
+
+    Nothing is asserted about the authored record's call site, and no finding is judged in
+    either direction.  What is asserted is exactly what was verified: the class resolves
+    uniquely to one source path, the reported line falls inside that file at the pin, and the
+    row is retained with ``in_scope: false``.
+    """
+
+    def setUp(self) -> None:
+        """Adapt the derived fixture once per test, against this class's hermetic root."""
+        self.adapted = self.adapt_fixture(DERIVED_FEATURES_FIXTURE)
+        self.expected = load_expected(DERIVED_FEATURES_FIXTURE)
+
+    def test_row_count_matches_the_expected_file(self) -> None:
+        """Eleven records, eleven rows, no rejection."""
+        self.assertEqual(len(self.adapted.rows), len(self.expected["rows"]))
+        self.assertEqual(self.adapted.rejections, [])
+        self.assertEqual(self.expected["counts"]["raw_finding_records"], 11)
+        self.assertEqual(self.expected["counts"]["rows"], 11)
+        self.assertEqual(self.expected["counts"]["rejections"], 0)
+        self.assertEqual(self.expected["counts"]["rejections_by_class"], {})
+
+    def test_every_row_field_by_field_in_emit_field_order(self) -> None:
+        """Every field of every row, iterated from ``emit.FIELDS`` in order."""
+        self.assertRowsMatchExpected(
+            self.adapted.rows, self.expected["rows"], label=DERIVED_FEATURES_FIXTURE
+        )
+
+    def test_artifact_determined_counters_match_the_expected_file(self) -> None:
+        """Every counter that is a property of the artifact, compared verbatim."""
+        expected_counters = self.expected["counters"]
+        self.assertEqual(set(expected_counters), set(joern.COUNTER_KEYS))
+        self.assertEqual(set(self.adapted.counters), set(joern.COUNTER_KEYS))
+        for key in joern.COUNTER_KEYS:
+            if key in ROOT_DEPENDENT_COUNTERS:
+                continue
+            with self.subTest(counter=key):
+                self.assertEqual(
+                    self.adapted.counters[key],
+                    expected_counters[key],
+                    f"counter {key!r} differs from the expected file",
+                )
+
     def test_the_parse_status_for_a_clean_artifact_is_clean(self) -> None:
-        """No rejection means ``clean``; ``partial`` is the negative fixtures' status."""
+        """No rejection means ``clean``, which is what makes ``partial`` meaningful.
+
+        Asserted on the fixture that genuinely produces no rejection.  Without a clean case
+        somewhere, ``partial`` would be the only status ever observed and the distinction
+        would go untested.
+        """
         self.assertEqual(self.adapted.parse_status(), cli.PARSE_STATUS_CLEAN)
+        self.assertEqual(self.adapted.rejections, [])
+
+    def test_rows_pass_the_emitter_s_own_validation(self) -> None:
+        """``emit.validate_rows`` accepts them, which is the no-absolute-path check itself."""
+        validated = emit.validate_rows(self.adapted.rows)
+        self.assertEqual(len(validated), len(self.adapted.rows))
+        for index, row in enumerate(validated):
+            with self.subTest(row=index):
+                self.assertEqual(tuple(row), emit.FIELDS)
+                self.assertNotIn(self.environment.root, str(row["path"]))
+
+    def test_the_expected_file_declares_the_fixture_derived(self) -> None:
+        """The declaration is asserted, so the fixture cannot pass itself off as a capture.
+
+        AAP 0.6.2 distinguishes a captured excerpt from a derivation, and the distinction is
+        only worth anything if the derived file says which it is, names what it was derived
+        from, and names the cases it exists to exercise.
+        """
+        fixture = self.expected["fixture"]
+        self.assertTrue(fixture["provenance"].startswith("DERIVED."))
+        self.assertIn("not an unmodified captured excerpt", fixture["provenance"])
+        self.assertEqual(
+            fixture["derived_from"]["artifact"], "harness/artifacts/raw/joern.json"
+        )
+        self.assertNotIn("captured_from", fixture)
+        self.assertEqual(
+            fixture["path"].split("/")[-1], f"{DERIVED_FEATURES_FIXTURE}.json"
+        )
+        self.assertEqual(
+            fixture["authored_record"]["index"], DERIVED_AUTHORED_FINDING_INDEX
+        )
+        self.assertIs(fixture["authored_record"]["present_in_the_raw_artifact"], False)
+        self.assertEqual(
+            tuple(fixture["records_whose_values_are_captured"]["raw_finding_indexes"]),
+            DERIVED_CAPTURED_FINDING_INDEXES,
+        )
+        self.assertTrue(
+            any(
+                "src/test" in case
+                for case in fixture["cases_this_fixture_exists_to_exercise"]
+            ),
+            "the derived fixture must name the src/test retention among the cases it "
+            "exists to exercise",
+        )
 
 
 # --------------------------------------------------------------------------------------
 # Gap 1: resolution against BOTH src/main and src/test
 # --------------------------------------------------------------------------------------
 
-#: The row of the positive fixture that resolves into a test tree, and its coordinates.
+#: The row of the **derived** fixture that resolves into a test tree, and its path.  The
+#: case lives there rather than on the capture because the raw artifact carries no test-tree
+#: class at all -- see the module docstring and the capture's expected file.
 SRC_TEST_ROW_INDEX = 7
 SRC_TEST_ROW_PATH = "core/src/test/scala/org/apache/spark/deploy/master/MasterSuite.scala"
+
+#: The row of the **captured** fixture that resolves uniquely into ``src/main``, and its path.
 SRC_MAIN_ROW_INDEX = 1
 SRC_MAIN_ROW_PATH = "core/src/main/scala/org/apache/spark/rdd/PipedRDD.scala"
 
-#: The two coordinates that resolve on the declaration scheme alone, with the file each
-#: declares them in.  No file is named after either class, so a filename-only index loses
-#: both silently.
+#: The three coordinates the captured fixture reaches that resolve on the declaration scheme
+#: alone, with the file each declares them in.  No file is named after any of the three, so a
+#: filename-only index loses all three silently -- and a silently lost row is
+#: indistinguishable from a class with nothing to report.
 DECLARATION_ONLY_RESOLUTIONS = (
     (
         "org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3",
         "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala",
+    ),
+    (
+        "org.apache.spark.RangePartitioner",
+        "core/src/main/scala/org/apache/spark/Partitioner.scala",
     ),
     (
         "org.apache.spark.streaming.ObjectInputStreamWithLoader",
@@ -1322,8 +1967,12 @@ class BothSourceTreesTest(HermeticRootTestCase):
         self.assertTrue(statistics["declarations_read"])
 
     def test_a_src_main_class_resolves_uniquely_and_is_in_scope(self) -> None:
-        """Assertion 1: a unique ``src/main`` resolution is a row with ``in_scope`` true."""
-        adapted = self.adapt_fixture("joern")
+        """Assertion 1: a unique ``src/main`` resolution is a row with ``in_scope`` true.
+
+        On the captured fixture, so the resolution being asserted is one the tool's own
+        artifact reports rather than one this module chose.
+        """
+        adapted = self.adapt_fixture(CAPTURED_FIXTURE)
         row = adapted.rows[SRC_MAIN_ROW_INDEX]
         self.assertEqual(row["path"], SRC_MAIN_ROW_PATH)
         self.assertIs(row["in_scope"], True)
@@ -1338,8 +1987,14 @@ class BothSourceTreesTest(HermeticRootTestCase):
 
         A dropped test-tree row and a retained one are indistinguishable in a row count, so
         the row's presence, its path and its ``in_scope`` value are each asserted.
+
+        Asserted on the **derived** fixture, which declares itself derived, because the raw
+        artifact carries no test-tree class: the runbook excludes every ``-tests`` JAR from
+        the graph input.  The requirement is therefore exercised rather than waived, and the
+        captured fixture's claim to be a capture stays true.  The absence in the raw artifact
+        is itself measured, in :class:`RawArtifactProvenanceTest`.
         """
-        adapted = self.adapt_fixture("joern")
+        adapted = self.adapt_fixture(DERIVED_FEATURES_FIXTURE)
         row = adapted.rows[SRC_TEST_ROW_INDEX]
         self.assertEqual(row["path"], SRC_TEST_ROW_PATH)
         self.assertIn("src/test", row["path"])
@@ -1447,9 +2102,9 @@ class BothSourceTreesTest(HermeticRootTestCase):
         self.assertIs(adapted.rows[0]["in_scope"], False)
         self.assertIs(adapted.rows[1]["in_scope"], True)
         # The resolution is this run's own, not the collector's: the collector supplied
-        # none, so collector_path_used stays at zero.
+        # none, so the refusal counter stays at zero: there was nothing to refuse.
         self.assertEqual(adapted.counters["resolution_from_class"], 2)
-        self.assertEqual(adapted.counters["collector_path_used"], 0)
+        self.assertEqual(adapted.counters["collector_path_refused"], 0)
         self.assertEqual(adapted.counters["collector_path_corroborated"], 0)
         self.assertEqual(adapted.counters["rows_from_src_test"], 1)
         self.assertEqual(adapted.counters["collector_explanation_present"], 2)
@@ -1479,9 +2134,15 @@ class BothSourceTreesTest(HermeticRootTestCase):
                     "a filename-only index must be shown to lose this resolution, or the "
                     "declaration scheme is not what is being tested",
                 )
-        adapted = self.adapt_fixture("joern")
-        self.assertIn(DECLARATION_ONLY_RESOLUTIONS[0][1], adapted.paths_emitted)
-        self.assertIn(DECLARATION_ONLY_RESOLUTIONS[1][1], adapted.paths_emitted)
+        adapted = self.adapt_fixture(CAPTURED_FIXTURE)
+        for _, expected_path in DECLARATION_ONLY_RESOLUTIONS:
+            with self.subTest(path=expected_path):
+                self.assertIn(
+                    expected_path,
+                    adapted.paths_emitted,
+                    "the captured fixture reaches all three declaration-only "
+                    "resolutions, so each must appear among the emitted paths",
+                )
 
     def test_the_class_key_reduction_collapses_companion_anonymous_and_nested_names(
         self,
@@ -1684,7 +2345,10 @@ class UniqueResolutionOnlyTest(HermeticRootTestCase):
             adapted.rejections[0].reject_class,
             paths.REJECT_AMBIGUOUS_SOURCE_RESOLUTION,
         )
-        self.assertEqual(adapted.counters["collector_path_used"], 0)
+        # The collector did supply a usable path here, and it was refused rather than
+        # substituted: unique class-to-source resolution is the only route to a row's
+        # path, so the ambiguity stands and the refusal is what the counter records.
+        self.assertEqual(adapted.counters["collector_path_refused"], 1)
 
     def test_an_unresolvable_class_is_a_counted_rejection(self) -> None:
         """Assertion 5: nothing on disk claims the key, so the record is rejected.
@@ -1719,7 +2383,14 @@ class UniqueResolutionOnlyTest(HermeticRootTestCase):
         )
 
     def test_an_absent_or_sentinel_coordinate_is_a_counted_rejection(self) -> None:
-        """``absent_path`` is reachable and asserted, though no committed fixture carries it.
+        """``absent_path``'s three routes, asserted on documents authored here.
+
+        Supplemental to ``reject-joern-absent-path.json``, which is that condition's
+        committed coverage and carries all six of its spellings.  This test keeps its own
+        assertions because it exercises the three routes against a single-record document,
+        so a failure names the route rather than one record among nine, and because it
+        asserts the explanation-retention behaviour route by route -- which the fixture
+        records but which is easier to read here.
 
         Three routes: no coordinate member at all, a blank one, and the collector's
         ``<unknown>`` sentinel -- written where a method has no enclosing type declaration,
@@ -1727,24 +2398,23 @@ class UniqueResolutionOnlyTest(HermeticRootTestCase):
         index on the literal would turn a stated absence into an ordinary lookup miss and
         lose why the record failed, which is why the sentinel earns its own route.
 
-        **Recorded divergence, asserted as observed rather than repaired.**  The sentinel
-        route retains the collector's ``path_resolution`` in the rejection detail; the
-        absent and blank routes do not, because
-        ``normalize.paths.resolve_bytecode_class``'s earliest branch builds its
-        :class:`normalize.paths.Rejection` without composing the explanation in.  AAP 0.5.4
-        has the explanation *retained in the rejection record* for an unmappable bytecode
-        path, so this is a narrow gap in that branch rather than a fault in this adapter.
-        Nothing here edits ``harness/lib/normalize/``: the behaviour is asserted as it
-        stands and the divergence is stated.  What matters for the confinement requirement
-        holds on every route -- the explanation reaches no dataset field, because no row is
-        produced at all.
+        **Every one of the three retains the collector's own explanation**, which is what
+        AAP 0.5.4 requires of an unmappable bytecode path: the explanation is *"retained in
+        the rejection record, never in a dataset field"*.  So the assertion is uniform
+        rather than route-dependent -- ``normalize.paths.resolve_bytecode_class`` composes
+        its detail through ``_with_collector_explanation`` on the absent and blank routes
+        exactly as it does on the unresolvable and ambiguous ones, and the sentinel route
+        composes its own in ``joern._with_explanation``.  Retention and confinement are
+        asserted together, because they are two halves of one requirement: the explanation
+        must be **in** the rejection detail and **out** of every dataset field, and here the
+        second half is structural -- no row is produced on any of the three routes.
         """
         routes = (
-            ("absent", None, False),
-            ("blank", "   ", False),
-            ("sentinel", joern.COLLECTOR_UNKNOWN_CLASS, True),
+            ("absent", None),
+            ("blank", "   "),
+            ("sentinel", joern.COLLECTOR_UNKNOWN_CLASS),
         )
-        for label, coordinate, explanation_retained in routes:
+        for label, coordinate in routes:
             with self.subTest(coordinate=label):
                 finding = {
                     "rule_id": DOCUMENTED_RULE_IDS[0],
@@ -1764,15 +2434,70 @@ class UniqueResolutionOnlyTest(HermeticRootTestCase):
                 # Every route names the ignored ephemeral member, which is what makes the
                 # rejection diagnosable: no coordinate remains once `file` is excluded.
                 self.assertIn("file", rejection.detail)
-                if explanation_retained:
-                    self.assertIn(
-                        paths.COLLECTOR_UNRESOLVED_BYTECODE_ONLY, rejection.detail
-                    )
+                # And every route retains the collector's own account of the failure, in
+                # the composed form the two modules spell identically.
+                self.assertIn(
+                    f"collector path_resolution: "
+                    f"{paths.COLLECTOR_UNRESOLVED_BYTECODE_ONLY}",
+                    rejection.detail,
+                    "the collector's explanation must be retained in the rejection "
+                    "detail on every route, absent and blank included (AAP 0.5.4)",
+                )
+                self.assertEqual(adapted.counters["collector_explanation_present"], 1)
+                if coordinate == joern.COLLECTOR_UNKNOWN_CLASS:
                     self.assertIn(joern.COLLECTOR_UNKNOWN_CLASS, rejection.detail)
-                else:
-                    self.assertNotIn(
-                        paths.COLLECTOR_UNRESOLVED_BYTECODE_ONLY, rejection.detail
-                    )
+
+    def test_a_non_string_class_identifier_rejects_and_keeps_the_explanation(
+        self,
+    ) -> None:
+        """The non-string coordinate route is ``malformed_record``, and it retains the explanation.
+
+        The fourth route out of ``normalize.paths.resolve_bytecode_class``'s early branches,
+        and the one a reader is most likely to assume is covered by the three above.  It is
+        a different class -- *"this artifact is not shaped as expected"* rather than *"this
+        record states no coordinate"* -- and it is subject to the same AAP 0.5.4 retention
+        requirement, so the explanation is asserted present here too.  Authored rather than
+        taken from a fixture: ``reject-joern-malformed-record.json`` reaches this class by a
+        different sub-route and carries no ``path_resolution``.
+        """
+        for label, coordinate in (("integer", 407), ("list", ["a", "b"])):
+            with self.subTest(coordinate=label):
+                adapted = self.adapt_document(
+                    {
+                        "tool": TOOL,
+                        "findings": [
+                            {
+                                "rule_id": DOCUMENTED_RULE_IDS[0],
+                                "message": "external process launch reachable in bytecode",
+                                "start_line": 276,
+                                "class_file": coordinate,
+                                "path_resolution": (
+                                    paths.COLLECTOR_UNRESOLVED_BYTECODE_ONLY
+                                ),
+                            }
+                        ],
+                    }
+                )
+                self.assertEqual(adapted.rows, [])
+                self.assertEqual(len(adapted.rejections), 1)
+                rejection = adapted.rejections[0]
+                self.assertEqual(
+                    rejection.reject_class, paths.REJECT_MALFORMED_RECORD
+                )
+                self.assertIn(rejection.reject_class, paths.REJECT_CLASSES)
+                self.assertEqual(rejection.tool, TOOL)
+                self.assertIn(
+                    type(coordinate).__name__,
+                    rejection.detail,
+                    "the detail must name the type that arrived",
+                )
+                self.assertIn(
+                    f"collector path_resolution: "
+                    f"{paths.COLLECTOR_UNRESOLVED_BYTECODE_ONLY}",
+                    rejection.detail,
+                    "the collector's explanation must be retained on the non-string "
+                    "coordinate route as well (AAP 0.5.4)",
+                )
 
     def test_path_is_never_absent_from_a_row(self) -> None:
         """Assertion 7: absence is permitted for five fields, and ``path`` is not one.
@@ -1908,7 +2633,7 @@ class CollectorExplanationConfinementTest(HermeticRootTestCase):
             "no filesystem base exists for a bytecode class, so no fallback base may be "
             "recorded for this tool",
         )
-        adapted = self.adapt_fixture("joern")
+        adapted = self.adapt_fixture(CAPTURED_FIXTURE)
         for row_index, row in enumerate(adapted.rows):
             with self.subTest(row=row_index):
                 self.assertNotIn("jimple2cpg", row["path"])
@@ -2022,24 +2747,38 @@ class SeverityPolicyTest(HermeticRootTestCase):
         asserted against ``severity.resolve`` on the same literal, so this test cannot
         disagree with the policy document.
         """
-        adapted = self.adapt_fixture("joern")
-        for index, (row, finding) in enumerate(
-            zip(adapted.rows, adapted.document["findings"])
+        for stem, expected_bands in (
+            (CAPTURED_FIXTURE, {"High": 6, "Medium": 5, "Info": 0}),
+            (DERIVED_FEATURES_FIXTURE, {"High": 5, "Medium": 6, "Info": 0}),
         ):
-            with self.subTest(row=index):
-                literal = finding["severity"]
-                self.assertEqual(row["severity_native"], literal)
-                expected = severity.resolve(label=literal)
-                self.assertEqual(row["severity_norm"], expected.severity_norm)
-                self.assertEqual(expected.basis, severity.BASIS_LABEL)
-        self.assertEqual(
-            adapted.counters["severity_from_record_label"], len(adapted.rows)
-        )
-        self.assertEqual(adapted.counters["severity_absent"], 0)
-        bands = adapted.tally.band_counts(TOOL)
-        self.assertEqual(bands["High"], 5)
-        self.assertEqual(bands["Medium"], 6)
-        self.assertEqual(bands["Info"], 0)
+            adapted = self.adapt_fixture(stem)
+            expected_document = load_expected(stem)
+            findings = adapted.document["findings"]
+            # The row at index i is not always the record at index i: the captured fixture
+            # rejects three records, so each row is paired with its record through the
+            # expected file's own finding_pointer rather than by zipping the sequences.
+            indexes = finding_indexes_for_rows(expected_document)
+            self.assertEqual(len(indexes), len(adapted.rows))
+            for index, (row, finding_index) in enumerate(zip(adapted.rows, indexes)):
+                with self.subTest(fixture=stem, row=index):
+                    literal = findings[finding_index]["severity"]
+                    self.assertEqual(row["severity_native"], literal)
+                    expected = severity.resolve(label=literal)
+                    self.assertEqual(row["severity_norm"], expected.severity_norm)
+                    self.assertEqual(expected.basis, severity.BASIS_LABEL)
+            with self.subTest(fixture=stem):
+                self.assertEqual(
+                    adapted.counters["severity_from_record_label"], len(adapted.rows)
+                )
+                self.assertEqual(adapted.counters["severity_absent"], 0)
+                bands = adapted.tally.band_counts(TOOL)
+                for band, count in expected_bands.items():
+                    self.assertEqual(bands[band], count, f"{stem}: band {band}")
+                self.assertEqual(
+                    sum(expected_bands.values()),
+                    len(adapted.rows),
+                    "the band decomposition must sum to the row count",
+                )
 
     def test_severity_norm_is_never_absent_on_any_row_of_any_fixture(self) -> None:
         """One of the two never-absent fields, the other being ``path``."""
@@ -2057,13 +2796,22 @@ class SeverityPolicyTest(HermeticRootTestCase):
 
 
 class NegativeFixtureTest(HermeticRootTestCase):
-    """The six rejection conditions, each asserted by class name rather than by count.
+    """The seven rejection conditions, each asserted by class name rather than by count.
 
     AAP 0.6.2 requires a negative fixture per condition each exercised adapter can produce,
     *"present whether or not this run's own artifacts contained the case"* -- a rejection
     path with no test is a rejection path nobody has exercised.  Every fixture also carries
     well-formed neighbours, so each one asserts the second half of partial parse: the
     adapter did not abandon the artifact, and every parsable record still became a row.
+
+    ``absent_path`` is the condition the production artifact does not exercise at all: over
+    ``harness/artifacts/raw/joern.json``'s 692 findings every one of the 585 rejections is
+    ``unresolvable_path``, because this provisioning's collector named a class on every
+    finding it wrote.  The condition is nonetheless reachable -- ``joern-scan.sc`` writes
+    the ``<unknown>`` sentinel for a method with no enclosing type declaration, and the
+    documented shape's coordinate member may be null, blank or absent -- which is exactly
+    the case AAP 0.9.4's *"whether or not"* clause exists for, so
+    ``reject-joern-absent-path.json`` carries all six spellings of it.
     """
 
     def test_each_negative_fixture_produces_exactly_its_expected_rejection(self) -> None:
@@ -2167,19 +2915,40 @@ class NegativeFixtureTest(HermeticRootTestCase):
                     self.assertEqual(adapted.counters[key], expected_counters[key])
 
     def test_every_condition_this_adapter_can_produce_has_a_fixture(self) -> None:
-        """The six conditions are covered, and the classes it cannot produce are named.
+        """Every condition is covered by a fixture, and the classes it cannot produce are named.
 
         ``invalid_uri`` needs a URI and a SARIF base map, of which this shape has neither;
         ``unformable_package_coordinate`` covers a dependency-oriented record, which this is
         not; ``unattributable_section`` needs finding sections, and ``scanner_class`` is
         fixed for the whole artifact here.  Each is asserted absent from every fixture's
         rejections, so "cannot happen" is measured rather than asserted in prose alone.
+
+        The complement is exact: every class in ``paths.REJECT_CLASSES`` is either backed by
+        a committed fixture in ``NEGATIVE_FIXTURES`` or named in
+        ``UNREACHABLE_REJECT_CLASSES`` with its reason, and nothing sits between the two.
+        ``absent_path`` moved from the second set to the first when
+        ``reject-joern-absent-path.json`` was committed; the authored-document cases in
+        ``UniqueResolutionOnlyTest`` remain as supplemental assertions over shapes no
+        committed fixture carries, not as that condition's coverage.
+
+        The relation between fixtures and classes is onto rather than one-to-one. Three
+        fixtures reach ``non_integer_start_line`` -- a boolean, a zero and a negative
+        ``line`` -- and three reach ``ambiguous_source_resolution`` by three different
+        collisions (two source trees, a declaration, and the mixed document). Those are
+        routes into one class, and a corpus carrying one of each cannot show that the
+        adapter classifies them alike. What must not exist is a producible class with no
+        committed fixture, which is what the set equality states.
         """
         covered = {expected_class for _, expected_class in NEGATIVE_FIXTURES}
-        self.assertEqual(len(covered), len(NEGATIVE_FIXTURES))
+        self.assertEqual(
+            len({stem for stem, _ in NEGATIVE_FIXTURES}),
+            len(NEGATIVE_FIXTURES),
+            msg="no stem appears twice in the inventory",
+        )
         self.assertEqual(
             covered,
             {
+                paths.REJECT_ABSENT_PATH,
                 paths.REJECT_UNRESOLVABLE_PATH,
                 paths.REJECT_AMBIGUOUS_SOURCE_RESOLUTION,
                 paths.REJECT_MISSING_RULE_ID,
@@ -2188,11 +2957,8 @@ class NegativeFixtureTest(HermeticRootTestCase):
                 paths.REJECT_MALFORMED_RECORD,
             },
         )
-        # absent_path has no committed fixture and is asserted on authored documents in
-        # UniqueResolutionOnlyTest, so it is reachable-and-covered rather than unreachable.
-        reachable = covered | {paths.REJECT_ABSENT_PATH}
         self.assertEqual(
-            set(paths.REJECT_CLASSES) - reachable, set(UNREACHABLE_REJECT_CLASSES)
+            set(paths.REJECT_CLASSES) - covered, set(UNREACHABLE_REJECT_CLASSES)
         )
         for unreachable, reason in UNREACHABLE_REJECT_CLASSES.items():
             with self.subTest(unreachable=unreachable):
@@ -2273,6 +3039,387 @@ class NegativeFixtureTest(HermeticRootTestCase):
 
 
 # --------------------------------------------------------------------------------------
+# The absent-coordinate fixture: one class, six artifact shapes, two code routes
+# --------------------------------------------------------------------------------------
+
+
+class AbsentCoordinateFixtureTests(HermeticRootTestCase):
+    """``reject-joern-absent-path.json``, asserted on the properties its expected file states.
+
+    :class:`NegativeFixtureTest` already asserts the class, the count, every detail string,
+    every record identity and all 38 artifact-determined counters of this fixture through
+    the generic loop over ``NEGATIVE_FIXTURES``.  What this class adds is the structure that
+    loop cannot see: that the six rejections are **six different artifact shapes** of one
+    condition rather than six copies of it, that they arrive through **two different code
+    routes** with two different detail strings and three different identity key sets, and
+    that the index is never consulted on any of them.
+
+    Six shapes are carried rather than one because a fixture with a single absent
+    coordinate would leave five spellings uncovered while the class still appeared covered.
+    The sharpest is whitespace: a resolver testing ``not identifier`` rather than ``not
+    identifier.strip()`` would classify the empty string as absent and three spaces as a
+    class name, reduce it to a key of ``'   '`` and report an index miss under
+    ``unresolvable_path`` -- the wrong class, with a detail claiming no source file is named
+    ``'   '``.  Only a fixture carrying both spellings makes that visible.
+    """
+
+    STEM = "reject-joern-absent-path"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Adapt the fixture once and load its expected file once."""
+        super().setUpClass()
+        cls.expected = load_expected(cls.STEM)
+        cls.fixture = load_fixture(cls.STEM)
+
+    def setUp(self) -> None:
+        """Re-adapt per test, so no test can observe another's counters."""
+        self.adapted = self.adapt_fixture(self.STEM)
+
+    def test_the_fixture_is_the_condition_this_module_declares_it_to_be(self) -> None:
+        """The stem is in ``NEGATIVE_FIXTURES`` against ``paths.REJECT_ABSENT_PATH``."""
+        self.assertIn((self.STEM, paths.REJECT_ABSENT_PATH), NEGATIVE_FIXTURES)
+        self.assertIn(self.STEM, ALL_FIXTURE_STEMS)
+        self.assertEqual(self.expected["counts"]["rejections_by_class"], {"absent_path": 6})
+        self.assertEqual(paths.REJECT_ABSENT_PATH, "absent_path")
+        self.assertIn(paths.REJECT_ABSENT_PATH, paths.REJECT_CLASS_DESCRIPTIONS)
+
+    def test_the_six_defective_shapes_are_the_fixture_the_expectation_describes(self) -> None:
+        """Each declared shape names a record whose coordinate member is in that state.
+
+        Read from the fixture rather than from the expectation's prose: the member's
+        presence, the null collector path that makes the rejection stand, and the
+        ``path_resolution`` every record carries are all checked against the document.
+        """
+        shapes = self.expected["the_six_defective_shapes"]["shapes"]
+        self.assertEqual(len(shapes), 6)
+        self.assertEqual(
+            [entry["rejection_index"] for entry in shapes], list(range(6))
+        )
+        seen: set[str] = set()
+        for entry in shapes:
+            index = entry["finding_index"]
+            with self.subTest(finding=index):
+                record = self.fixture["findings"][index]
+                self.assertEqual(entry["finding_pointer"], f"/findings/{index}")
+                self.assertEqual(
+                    entry["coordinate_member_present"], "class_file" in record
+                )
+                self.assertNotIn("class", record, "the documented shape carries class_file")
+                # The null collector path is load-bearing: a usable one would make the
+                # record a row on that path and the rejection would not exist.
+                self.assertIsNone(record["path"])
+                self.assertEqual(
+                    record["path_resolution"], paths.COLLECTOR_UNRESOLVED_BYTECODE_ONLY
+                )
+                self.assertTrue(entry["shape"].strip())
+                self.assertNotIn(entry["shape"], seen, "each shape is described once")
+                seen.add(entry["shape"])
+
+    def test_no_defective_record_carries_a_usable_coordinate(self) -> None:
+        """Every declared shape is genuinely absent under ``resolve_bytecode_class``'s guard.
+
+        Asserted against ``paths.py``'s own guard rather than by inspecting the values: a
+        coordinate is absent when it is ``None`` or when it strips to nothing, and the
+        sentinel is absent because the adapter intercepts it before the guard is reached.
+        """
+        for entry in self.expected["the_six_defective_shapes"]["shapes"]:
+            index = entry["finding_index"]
+            with self.subTest(finding=index):
+                value = self.fixture["findings"][index].get("class_file")
+                if entry["route"] == "route_b":
+                    self.assertEqual(value.strip(), joern.COLLECTOR_UNKNOWN_CLASS)
+                    self.assertTrue(value.strip(), "the sentinel is not blank")
+                else:
+                    self.assertTrue(
+                        value is None or not value.strip(),
+                        f"/findings/{index}/class_file must be absent, null or blank",
+                    )
+
+    def test_the_two_routes_partition_the_six_rejections(self) -> None:
+        """Every rejected record takes exactly one of the two documented routes."""
+        routes = self.expected["the_two_classification_routes"]
+        route_a = list(routes["route_a"]["findings"])
+        route_b = list(routes["route_b"]["findings"])
+        self.assertEqual(sorted(route_a + route_b), [1, 2, 3, 4, 5, 6])
+        self.assertEqual(set(route_a) & set(route_b), set())
+        self.assertEqual(len(route_b), 1, "only the sentinel takes the adapter's own route")
+        produced = {
+            rejection.record_identity["finding_index"]: rejection
+            for rejection in self.adapted.rejections
+        }
+        self.assertEqual(sorted(produced), [1, 2, 3, 4, 5, 6])
+        for index in route_a:
+            with self.subTest(route="a", finding=index):
+                self.assertEqual(produced[index].detail, routes["route_a"]["detail"])
+        for index in route_b:
+            with self.subTest(route="b", finding=index):
+                self.assertEqual(produced[index].detail, routes["route_b"]["detail"])
+
+    def test_the_two_routes_produce_two_details_and_one_class(self) -> None:
+        """One class carries the count; the detail carries the sub-reason (AAP 0.5.4).
+
+        A fixture whose rejections all shared one detail could not show that the sentinel
+        route is a different route, and a test asserting the class alone would pass if the
+        sentinel were classified by the guard instead.
+        """
+        classes = {rejection.reject_class for rejection in self.adapted.rejections}
+        self.assertEqual(classes, {paths.REJECT_ABSENT_PATH})
+        details = {rejection.detail for rejection in self.adapted.rejections}
+        self.assertEqual(len(details), 2, "route A shares one detail; route B has its own")
+        for detail in details:
+            with self.subTest(detail=detail[:40]):
+                self.assertTrue(detail.strip())
+                # Every route names the ignored ephemeral member, which is what makes the
+                # rejection diagnosable: no coordinate remains once `file` is excluded.
+                self.assertIn("file", detail)
+        sentinel_details = [
+            detail for detail in details if joern.COLLECTOR_UNKNOWN_CLASS in detail
+        ]
+        self.assertEqual(len(sentinel_details), 1)
+        self.assertIn(
+            f"collector {joern.COLLECTOR_EXPLANATION_FIELD}: "
+            f"{paths.COLLECTOR_UNRESOLVED_BYTECODE_ONLY}",
+            sentinel_details[0],
+            "the sentinel route retains the collector's own explanation",
+        )
+
+    def test_the_three_identity_key_sets_are_the_ones_recorded(self) -> None:
+        """Which keys an identity carries is decided by the route and by member presence.
+
+        Three distinct spellings, and each one's absence is meaningful: no
+        ``coordinate_field`` where no coordinate member was present, no ``class`` where the
+        sentinel branch returned before ``resolve_bytecode_class`` seeded it, and no
+        ``class_key`` on any of the six because neither route reaches the reduction.
+        """
+        observed = [
+            tuple(rejection.record_identity) for rejection in self.adapted.rejections
+        ]
+        recorded = [
+            tuple(entry["expected_record_identity_keys"])
+            for entry in self.expected["rejections"]
+        ]
+        self.assertEqual(observed, recorded)
+        self.assertEqual(len(set(recorded)), 3, "three distinct identity key sets")
+        for rejection in self.adapted.rejections:
+            with self.subTest(finding=rejection.record_identity["finding_index"]):
+                self.assertNotIn(
+                    "class_key",
+                    rejection.record_identity,
+                    "no route reaches joern_collect.class_key, so no key can exist",
+                )
+                self.assertIn("rule_id", rejection.record_identity)
+                self.assertIn("method_full_name", rejection.record_identity)
+
+    def test_the_sentinel_record_is_the_only_one_counted_as_a_sentinel(self) -> None:
+        """``unknown_class_sentinel_records`` counts the shape, not the class."""
+        self.assertEqual(self.adapted.counters["unknown_class_sentinel_records"], 1)
+        self.assertEqual(
+            self.expected["counters"]["unknown_class_sentinel_records"], 1
+        )
+        sentinels = [
+            index
+            for index, finding in enumerate(self.fixture["findings"])
+            if isinstance(finding.get("class_file"), str)
+            and finding["class_file"].strip() == joern.COLLECTOR_UNKNOWN_CLASS
+        ]
+        self.assertEqual(sentinels, list(self.expected["the_two_classification_routes"]["route_b"]["findings"]))
+
+    def test_the_coordinate_provenance_counter_counts_presence_not_usability(self) -> None:
+        """8 of 9, because ``_read_first`` tests membership rather than truthiness.
+
+        The one record short is the one that omits the member entirely.  A counter that
+        counted usable coordinates instead would read 3 and make the eight-versus-nine
+        asymmetry -- the classification order made visible -- invisible.
+        """
+        present = sum(
+            1 for finding in self.fixture["findings"] if "class_file" in finding
+        )
+        self.assertEqual(present, 8)
+        self.assertEqual(self.adapted.counters["coordinate_from_class_file"], present)
+        self.assertEqual(self.adapted.counters["coordinate_from_class"], 0)
+        self.assertEqual(
+            self.adapted.counters["rule_id_from_rule_id"], self.adapted.raw_records
+        )
+        self.assertEqual(
+            self.adapted.counters["collector_explanation_present"],
+            self.adapted.raw_records,
+        )
+        # And no rejected record's start_line was ever examined: the path is step 4.
+        self.assertEqual(
+            self.adapted.counters["start_line_from_start_line"], len(self.adapted.rows)
+        )
+
+    def test_none_of_the_six_depends_on_the_tree_the_test_runs_against(self) -> None:
+        """The six rejections are identical under a scan root with no source files at all.
+
+        Neither route consults the source index, so the condition is decided before any
+        checkout is read.  Asserted by adapting the same document against a second,
+        deliberately empty root and comparing every class, every detail and every identity
+        key and value -- which is what separates this condition from ``unresolvable_path``,
+        whose rejection *is* the result of a lookup over a tree.
+
+        The three sound records are the control, and they behave the opposite way: they are
+        resolved from the index, so emptying the index takes their rows away.  They do
+        **not** fall through to the collector's own already-root-relative path -- unique
+        class-to-source resolution is the only route to a row's path, and a collector path
+        may corroborate a resolution or enrich a rejection but never replace one.  So under
+        the bare root the three become ``unresolvable_path`` rejections whose refused
+        collector path is recorded, while the six absent-coordinate rejections are unchanged
+        down to their identity values.  That contrast is the assertion: the six do not
+        depend on the tree, and the three do.
+        """
+        with tempfile.TemporaryDirectory(prefix="blitzy-joern-empty-root-") as bare:
+            rows, rejections, counters = joern.adapt(
+                self.fixture,
+                tool=TOOL,
+                root=bare,
+                tool_base=self.environment.tool_base,
+                allowlist=self.environment.globs,
+                tally=severity.LiteralTally.with_all_tools(),
+            )
+        self.assertEqual(
+            len(rejections),
+            len(self.adapted.rejections) + len(self.adapted.rows),
+            msg=(
+                "the six are unchanged and the three sound records join them once the "
+                "index holds nothing: nine in total, none of them a row emitted from a "
+                "collector path"
+            ),
+        )
+        by_index = {
+            rejection.record_identity["finding_index"]: rejection
+            for rejection in rejections
+        }
+        for produced in self.adapted.rejections:
+            index = produced.record_identity["finding_index"]
+            with self.subTest(finding=index):
+                self.assertEqual(by_index[index].reject_class, produced.reject_class)
+                self.assertEqual(by_index[index].detail, produced.detail)
+                self.assertEqual(
+                    dict(by_index[index].record_identity),
+                    dict(produced.record_identity),
+                )
+        # The control: the three sound records lose their rows, because a unique resolution
+        # over the index is the only route to a row's path.
+        self.assertEqual(rows, [])
+        six = {
+            rejection.record_identity["finding_index"]
+            for rejection in self.adapted.rejections
+        }
+        control = [
+            rejection
+            for rejection in rejections
+            if rejection.record_identity["finding_index"] not in six
+        ]
+        self.assertEqual(len(control), len(self.adapted.rows))
+        for rejection in control:
+            with self.subTest(control=rejection.record_identity["finding_index"]):
+                self.assertEqual(
+                    rejection.reject_class, paths.REJECT_UNRESOLVABLE_PATH
+                )
+        self.assertEqual(counters["source_index_files_indexed"], 0)
+        self.assertEqual(counters["resolution_from_class"], 0)
+        self.assertEqual(counters["collector_path_corroborated"], 0)
+        self.assertEqual(
+            counters["collector_path_refused"],
+            len(control),
+            msg=(
+                "each control record did carry a usable collector path, and the refusal is "
+                "what the counter makes visible"
+            ),
+        )
+        self.assertEqual(self.adapted.counters["collector_path_refused"], 0)
+        self.assertEqual(
+            self.adapted.counters["collector_path_corroborated"],
+            len(self.adapted.rows),
+        )
+
+    def test_the_three_sound_records_are_the_siblings_own(self) -> None:
+        """The neighbours are carried across from the unresolvable-path fixture unchanged.
+
+        Which is what makes the two expected files a controlled comparison: same envelope,
+        same three rows, and every other difference attributable to the condition.
+        """
+        sibling = load_fixture("reject-joern-unresolvable-path")
+        for member in (
+            "tool",
+            "cpg_path",
+            "generated_at",
+            "cpg_methods",
+            "cpg_typedecls",
+            "source_index_size",
+            "declaration_index_size",
+            "queries",
+        ):
+            with self.subTest(member=member):
+                self.assertEqual(self.fixture[member], sibling[member])
+        for here, there in ((0, 0), (7, 1), (8, 3)):
+            with self.subTest(finding=here):
+                self.assertEqual(
+                    self.fixture["findings"][here], sibling["findings"][there]
+                )
+        # And the sibling's own defective record -- the shaded class that resolves to
+        # nothing -- is deliberately absent, so this fixture produces one class and not two.
+        self.assertNotIn(
+            UNRESOLVABLE_CLASS_KEY,
+            json.dumps(self.fixture),
+            "the unresolvable coordinate belongs to the sibling fixture",
+        )
+        self.assertEqual(
+            load_expected("reject-joern-unresolvable-path")["rows"],
+            self.expected["rows"],
+            "the three rows agree with the sibling's field for field",
+        )
+
+    def test_the_expectation_states_the_retention_it_asserts(self) -> None:
+        """Every branch retains the collector's explanation, on both routes.
+
+        The collector's ``path_resolution`` reaches the detail on route B, built by the
+        adapter's own sentinel branch, and on route A, built by
+        ``paths.resolve_bytecode_class``'s absent-identifier branch: both compose it through
+        ``_with_collector_explanation``. Retention on every unmappable branch is what makes
+        two records of one condition preserve the same evidence, and the expected file
+        states it rather than leaving this module as its only witness.
+        """
+        block = self.expected["collector_explanation_retention"]
+        for key in (
+            "statement",
+            "both_routes_retain_it",
+            "why_retention_is_required",
+            "what_is_not_lost",
+            "confinement",
+        ):
+            with self.subTest(key=key):
+                self.assertTrue(block[key].strip())
+        route_a_details = {
+            rejection.detail
+            for rejection in self.adapted.rejections
+            if joern.COLLECTOR_UNKNOWN_CLASS not in rejection.detail
+        }
+        self.assertEqual(len(route_a_details), 1)
+        self.assertIn(
+            paths.COLLECTOR_UNRESOLVED_BYTECODE_ONLY,
+            route_a_details.pop(),
+            msg=(
+                "route A's detail must retain the collector's own account too: a branch "
+                "that dropped it would leave a reader unable to tell an absent explanation "
+                "from a discarded one"
+            ),
+        )
+        # What the confinement requirement needs holds on every route regardless: the
+        # explanation reaches no dataset field, because no row is produced at all.
+        for row in self.adapted.rows:
+            for field in emit.FIELDS:
+                value = row[field]
+                if isinstance(value, str):
+                    with self.subTest(field=field):
+                        self.assertNotIn(
+                            paths.COLLECTOR_UNRESOLVED_BYTECODE_ONLY, value
+                        )
+
+
+# --------------------------------------------------------------------------------------
 # Caller faults: raised, never absorbed into a rejection count
 # --------------------------------------------------------------------------------------
 
@@ -2299,12 +3446,30 @@ class CallerContractTest(HermeticRootTestCase):
         return keywords
 
     def test_a_well_formed_call_succeeds(self) -> None:
-        """The baseline, so every fault below is shown to be the fault under test."""
+        """The baseline, so every fault below is shown to be the fault under test.
+
+        Two documents, because a caller fault must be distinguishable from both of the
+        artifact's ordinary outcomes: the derived fixture, which produces eleven rows and no
+        rejection, and the captured fixture, whose three shaded third-party classes are
+        counted rejections.  A rejection is a record outcome rather than a caller fault, and
+        every fault below raises instead of producing either.
+        """
         rows, rejections, counters = joern.adapt(
-            load_fixture("joern"), **self._keywords()
+            load_fixture(DERIVED_FEATURES_FIXTURE), **self._keywords()
         )
         self.assertEqual(len(rows), 11)
         self.assertEqual(rejections, [])
+        self.assertEqual(set(counters), set(joern.COUNTER_KEYS))
+
+        rows, rejections, counters = joern.adapt(
+            load_fixture(CAPTURED_FIXTURE), **self._keywords()
+        )
+        self.assertEqual(len(rows), 11)
+        self.assertEqual(len(rejections), 3)
+        self.assertEqual(
+            {rejection.reject_class for rejection in rejections},
+            {paths.REJECT_UNRESOLVABLE_PATH},
+        )
         self.assertEqual(set(counters), set(joern.COUNTER_KEYS))
 
     def test_a_document_that_is_not_an_object_raises(self) -> None:
@@ -2444,9 +3609,14 @@ CAPABILITY_MODULES_NEVER_IMPORTED = (
     "pickle",
 )
 
-#: The provisioned collector, which is never imported: it is not version-controlled, and
-#: this module asserts against its artifact contract alone.
-PROVISIONED_COLLECTOR_MODULE = "joern_collect"
+#: The collector contract module the adapter under test consumes -- ``joern_collect``,
+#: which AAP 0.6.4 names as the Joern adapter's one harness dependency.  Held as a string
+#: rather than an import, deliberately: this module asserts against the adapter's reading
+#: of an artifact **shape**, so every case is a document rather than a call into the
+#: contract, and a contract that agreed with itself would prove nothing about the adapter.
+#: Its presence in ``sys.modules`` is asserted -- because the module under test imports it
+#: -- while its absence from *this* file's imports and identifiers is asserted separately.
+COLLECTOR_CONTRACT_MODULE = "joern_collect"
 
 #: The two graph loaders, each split in half.  ``importCpg`` is the probe's and the other is
 #: forbidden run-wide; both are assembled at the point of use so that neither literal is
@@ -2478,6 +3648,10 @@ WRITE_ATTRIBUTES = frozenset(
 PERMITTED_WRITE_RECEIVERS = frozenset(
     {
         "target",  # one scaffold file, under Environment.root_path
+        "package",  # SourceIndexCompletenessTest's own package directory
+        "readable",  # its one readable source file
+        "dangling",  # the dangling symlink that makes a read failure deterministic
+        "empty_root",  # its empty-but-readable root
         "target.parent",  # its package directory
         "self.root_path",  # the scan root itself
         "self.allowlist_path",  # the twelve globs
@@ -2640,10 +3814,16 @@ class HygieneTest(HermeticRootTestCase):
     def test_every_fixture_is_unchanged(self) -> None:
         """Each fixture's sha256 equals the digest its expected file records.
 
-        A fixture is captured tool output; mutating one would make the adapter agree with a
-        shape the tool never emitted.  Asserted rather than trusted, and asserted against the
-        expected file rather than against a digest written here, so the two documents are
-        cross-checked instead of one being taken on faith.
+        Mutating a fixture would make the adapter agree with a shape the tool never emitted.
+        Asserted against the expected file rather than against a digest written here, so the
+        two documents are cross-checked instead of one being taken on faith.
+
+        This is a **change-detection** check and nothing more.  A fixture agreeing with a
+        digest recorded beside it establishes only that the pair is internally consistent; it
+        cannot tell captured output from a convincing hand-written document.  That claim is
+        :class:`RawArtifactProvenanceTest`'s, which opens ``harness/artifacts/raw/joern.json``
+        and compares record for record.  Both are needed and neither substitutes for the
+        other.
         """
         for stem in ALL_FIXTURE_STEMS:
             with self.subTest(fixture=stem):
@@ -2708,18 +3888,50 @@ class HygieneTest(HermeticRootTestCase):
             with self.subTest(module=module_name):
                 self.assertIn(module_name, self.imported)
 
-    def test_this_module_never_imports_the_provisioned_collector(self) -> None:
-        """``harness/lib/joern_collect.py`` is provisioned, not version-controlled.
+    def test_this_module_tests_the_collector_contract_without_importing_it(self) -> None:
+        """Two halves of one invariant: where the contract lives, and that it is not read here.
 
-        It is never imported and never edited; this module asserts against its **artifact
-        contract** alone, which is why every case here is a document rather than a call into
-        the collector.  Asserted over the import statements and the identifiers actually
-        used, so naming the collector in prose -- as the docstrings here do, to say it is not
-        imported -- is not mistaken for importing it.
+        The class-to-source contract AAP 0.6.4 makes the Joern adapter's one dependency --
+        the field roles, the class-key reduction and the dual ``src/main``/``src/test``
+        index -- is owned by ``harness/lib/normalize/paths.py`` and consumed from there.  It
+        is deliberately **not** a separate ``harness/lib/joern_collect.py``: no such module
+        is delivered by this change or provisioned by the harness, so a tree importing one
+        would not be importable at all, and the ownership rule the contract exists for is
+        satisfied by having exactly one definition wherever it lives.  This half is a real
+        assertion rather than a formality: were the adapter to grow a second, local copy of
+        the reduction, the single-ownership assertions below would still pass while
+        ``paths`` and the adapter drifted, which is why the contract objects are asserted on
+        ``paths`` by name.
+
+        The second half is what makes the rest of this file mean something.  *This module*
+        neither imports the contract nor names it in executable content, so every case here
+        is a **document handed to the adapter** rather than a call into the contract.  A test
+        that imported the contract and reused its constants would agree with itself by
+        construction -- it would restate the contract instead of verifying the adapter reads
+        it -- which is the same independence rule AAP 0.5.4 applies to reconciliation.
+        Asserted over the import statements and the identifiers actually used, so naming the
+        contract in prose -- as these docstrings do, to say it is not imported -- is not
+        mistaken for importing it.
         """
-        self.assertNotIn(PROVISIONED_COLLECTOR_MODULE, self.imported)
-        self.assertNotIn(PROVISIONED_COLLECTOR_MODULE, self.identifiers)
-        self.assertNotIn(PROVISIONED_COLLECTOR_MODULE, sys.modules)
+        self.assertNotIn(COLLECTOR_CONTRACT_MODULE, self.imported)
+        self.assertNotIn(COLLECTOR_CONTRACT_MODULE, self.identifiers)
+        self.assertNotIn(
+            COLLECTOR_CONTRACT_MODULE,
+            sys.modules,
+            "the contract is owned by the delivered normalizer rather than by a separate "
+            f"{COLLECTOR_CONTRACT_MODULE} module: a tree that imported one would not be "
+            "importable on its own, since no such module is delivered or provisioned",
+        )
+        for name in ("SourceIndex", "build_source_index", "class_key", "source_index_key"):
+            with self.subTest(contract=name):
+                self.assertTrue(
+                    hasattr(paths, name),
+                    msg=(
+                        f"the class-to-source contract {name!r} must be owned in one "
+                        "place -- harness/lib/normalize/paths.py -- and consumed from "
+                        "there by the adapter"
+                    ),
+                )
 
     def test_this_module_loads_no_graph_and_starts_no_process(self) -> None:
         """The probe's constraint, and the reason it holds here without being enforced.
@@ -2800,9 +4012,12 @@ class HygieneTest(HermeticRootTestCase):
                             self.assertFalse(pattern in value)
 
     def test_every_class_this_module_asserts_is_a_real_rejection_class(self) -> None:
-        """The vocabulary is closed and owned by ``paths.py``; nothing here invents a name."""
+        """The vocabulary is closed and owned by ``paths.py``; nothing here invents a name.
+
+        The two sets together are every class this module names: the seven backed by a
+        committed fixture, and the three asserted unreachable with their reasons.
+        """
         asserted = {expected_class for _, expected_class in NEGATIVE_FIXTURES}
-        asserted.add(paths.REJECT_ABSENT_PATH)
         asserted |= set(UNREACHABLE_REJECT_CLASSES)
         for reject_class in asserted:
             with self.subTest(reject_class=reject_class):
@@ -2889,7 +4104,7 @@ class HygieneTest(HermeticRootTestCase):
                 self.assertTrue(resolved.is_relative_to(directory))
                 self.assertFalse(resolved.is_relative_to(repository))
         # And the committed input directories hold exactly the joern files this module reads:
-        # no eighth fixture and no eighth expected result appeared beside them, which is the
+        # no ninth fixture and no ninth expected result appeared beside them, which is the
         # observable consequence of writing nothing here.  Other adapters' files share both
         # directories and are deliberately left out of the comparison.
         self.assertEqual(
@@ -2907,4 +4122,328 @@ class HygieneTest(HermeticRootTestCase):
                 if entry.is_file() and entry.name.split(".")[0] in ALL_FIXTURE_STEMS
             ),
             sorted(f"{stem}.rows.json" for stem in ALL_FIXTURE_STEMS),
+        )
+
+
+class SourceIndexCompletenessTest(unittest.TestCase):
+    """An index that lost part of the tree must raise rather than answer.
+
+    Every Joern row's path comes from this index, and its ordinary answer for a class it
+    cannot place is a counted ``unresolvable_path`` rejection -- the outcome five findings
+    in six take legitimately, because the graph is built over JARs that vendor shaded
+    third-party classes.  That is exactly what makes an incomplete index dangerous: a
+    directory the walk could not list, or a source file whose declarations could not be
+    read, produces *more of the same ordinary outcome*, so the loss is invisible in the
+    result and the count is unreproducible.  AAP 0.9.2 halts on a condition that makes a
+    count unreproducible, so both failures now propagate as :class:`OSError` and
+    ``cli._build_source_index`` names the failing path in a configuration fault.
+
+    The two failures are provoked without relying on file permissions, because this suite
+    may run as a user for whom no mode bit denies anything: a root that does not exist
+    makes ``os.walk``'s ``onerror`` fire, and a dangling symlink named like a source file
+    is listed by the walk and then fails to open.  Both are deterministic for every user.
+
+    This class owns its own temporary tree rather than sharing
+    :class:`HermeticRootTestCase`'s scaffold, because a dangling symlink inside that
+    scaffold would change what every other test in this module indexes.
+    """
+
+    def setUp(self) -> None:
+        """Materialise a one-file tree, and record the paths the tests derive from it."""
+        temporary = tempfile.TemporaryDirectory(prefix="blitzy-joern-source-index-")
+        self.addCleanup(temporary.cleanup)
+        self.directory = Path(temporary.name)
+        self.index_root = self.directory / "spark-src"
+        package = self.index_root / "core/src/main/scala/org/apache/spark/storage"
+        package.mkdir(parents=True)
+        readable = package / "DiskStore.scala"
+        readable.write_text(
+            "// scaffold\nprivate[spark] class DiskStore {}\n", encoding="utf-8"
+        )
+        self.package = package
+        self.readable = readable
+        self.absent_root = self.directory / "no-such-tree"
+
+    def test_the_readable_tree_indexes_on_both_schemes(self) -> None:
+        """The control: without a fault, this tree indexes exactly as before.
+
+        Asserted first so the two failure tests are known to be failing for the reason
+        claimed rather than because the scaffold never indexed anything.
+        """
+        index = paths.build_source_index(self.index_root)
+        self.assertEqual(index.files_indexed, 1)
+        self.assertEqual(
+            index.candidates("org/apache/spark/storage/DiskStore"),
+            ("core/src/main/scala/org/apache/spark/storage/DiskStore.scala",),
+        )
+        self.assertTrue(index.declarations_read)
+
+    def test_a_root_that_cannot_be_listed_raises_rather_than_indexing_nothing(
+        self,
+    ) -> None:
+        """``os.walk`` ignores a listing failure by default; ``onerror`` is now wired.
+
+        The silence being replaced is what the assertion is against: ``os.walk`` over a
+        path it cannot list yields no entries and reports no problem, so the old index came
+        back empty and indistinguishable from one over a tree that exists and holds
+        nothing.  The two are now different outcomes -- this one raises, and the
+        empty-but-readable root is asserted separately below to still return an index.
+        This module deliberately does not import ``os`` (see the hygiene assertions), so
+        the contrast is drawn against ``build_source_index``'s two behaviours rather than
+        by walking the tree here.
+        """
+        self.assertFalse(self.absent_root.exists())
+        with self.assertRaises(OSError) as caught:
+            paths.build_source_index(self.absent_root)
+        error = caught.exception
+        self.assertIsInstance(error, FileNotFoundError)
+        self.assertEqual(error.filename, str(self.absent_root))
+
+    def test_an_unreadable_source_file_raises_rather_than_declaring_nothing(
+        self,
+    ) -> None:
+        """A file the walk lists and the reader cannot open is a halt, not zero declarations.
+
+        The distinction the second assertion draws is the point: ``read_declarations=False``
+        opens no file, so the cheap index over the same tree still succeeds.  That is what
+        establishes the raise comes from the declaration read rather than from the walk,
+        and it is why the two faults carry different evidence.
+        """
+        dangling = self.package / "Partitioner.scala"
+        dangling.symlink_to(self.directory / "never-created.scala")
+        self.assertTrue(dangling.is_symlink())
+        self.assertFalse(dangling.exists())
+
+        with self.assertRaises(OSError) as caught:
+            paths.build_source_index(self.index_root)
+        self.assertEqual(caught.exception.filename, str(dangling))
+
+        cheap = paths.build_source_index(self.index_root, read_declarations=False)
+        self.assertFalse(cheap.declarations_read)
+        self.assertEqual(cheap.files_indexed, 2)
+
+    def test_the_caller_turns_the_failure_into_a_named_configuration_fault(self) -> None:
+        """``cli._build_source_index`` names the reason, the root and the failing path.
+
+        The reason is its own, kept apart from ``source-index-empty``: an empty index means
+        the scan root is not the pinned tree, while an incomplete one means part of that
+        tree could not be read, and the two corrections are different.
+        """
+        record: dict = {}
+        with self.assertRaises(cli.NormalizeHalt) as caught:
+            cli._build_source_index(
+                str(self.absent_root), {"joern": self.readable}, record
+            )
+        halt = caught.exception
+        self.assertEqual(halt.reason, cli.HALT_SOURCE_INDEX_INCOMPLETE)
+        self.assertIn(halt.reason, cli.HALT_REASONS)
+        self.assertNotEqual(halt.reason, cli.HALT_SOURCE_INDEX_EMPTY)
+        self.assertIsInstance(halt, cli.ConfigurationFault)
+        self.assertEqual(halt.exit_code, cli.EXIT_CONFIG)
+        self.assertEqual(halt.details["failing_path"], str(self.absent_root))
+        self.assertEqual(halt.details["root"], str(self.absent_root))
+        self.assertIn("FileNotFoundError", halt.details["error"])
+        self.assertIsNotNone(halt.details["errno"])
+
+    def test_an_index_over_zero_files_is_the_other_reason(self) -> None:
+        """An empty but readable root does not raise here, and halts under its own reason.
+
+        Both conditions have to remain distinguishable, or the halt loses the one thing it
+        exists to tell a reader.
+        """
+        empty_root = self.directory / "empty-tree"
+        empty_root.mkdir()
+        index = paths.build_source_index(empty_root)
+        self.assertEqual(index.files_indexed, 0)
+        record: dict = {}
+        with self.assertRaises(cli.NormalizeHalt) as caught:
+            cli._build_source_index(str(empty_root), {"joern": self.readable}, record)
+        self.assertEqual(caught.exception.reason, cli.HALT_SOURCE_INDEX_EMPTY)
+        self.assertEqual(record["source_index"]["files_indexed"], 0)
+
+    def test_no_index_is_built_where_joern_wrote_no_artifact(self) -> None:
+        """The unreadable tree is never walked at all when there is nothing to resolve.
+
+        Which is why an absent Joern artifact cannot be turned into a configuration fault
+        by a tree this run had no reason to read.
+        """
+        record: dict = {}
+        self.assertIsNone(
+            cli._build_source_index(str(self.absent_root), {}, record)
+        )
+        self.assertFalse(record["source_index"]["built"])
+
+
+class CollectorPathRefusalTest(HermeticRootTestCase):
+    """A collector answer beside a coordinate this run cannot use is refused, not adopted.
+
+    AAP 0.5.4: the adapter *"takes the resolution only where it is unique, and rejects the
+    ambiguous **and the unresolvable**"*.  That sentence leaves no class of failure for
+    which another answer may stand in, so the refusal is uniform across every route to a
+    rejection -- a null coordinate member, no coordinate member at all, and the
+    collector's ``<unknown>`` sentinel, which are the three routes
+    ``fixtures/reject-joern-collector-path-refused.json`` carries.
+
+    The fixture is authored rather than captured, and measurably had to be: over
+    ``harness/artifacts/raw/joern.json``'s 692 findings none carries a ``path`` member and
+    none carries the sentinel, so no captured record places a collector answer beside a
+    coordinate this run cannot use.  AAP 0.9.4 requires the rejection path to be exercised
+    regardless.
+
+    Three consequences are asserted separately, because any one of them alone would let a
+    regression through: the record stays a rejection, the refusal is counted, and the
+    refused value is retained per record under
+    :data:`normalize.adapters.joern.REFUSED_COLLECTOR_PATH_KEY`.
+    """
+
+    FIXTURE = "reject-joern-collector-path-refused"
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        """Build the environment, then adapt the fixture once for the whole class."""
+        super().setUpClass()
+        cls.document = load_fixture(cls.FIXTURE)
+        cls.adapted = Adapted(cls.document, cls.environment)
+        cls.expected = load_expected(cls.FIXTURE)
+
+    def test_every_record_offered_a_collector_path(self) -> None:
+        """The premise: without it the refusal would be vacuous rather than asserted.
+
+        Read from the fixture, so a document edited to drop a ``path`` member would fail
+        here rather than quietly making the rest of this class pass for the wrong reason.
+        """
+        findings = self.document["findings"]
+        self.assertEqual(len(findings), 5)
+        for index, finding in enumerate(findings):
+            with self.subTest(finding=index):
+                self.assertIsInstance(finding[joern.COLLECTOR_PATH_FIELD], str)
+                self.assertTrue(finding[joern.COLLECTOR_PATH_FIELD].strip())
+
+    def test_the_three_unresolvable_records_are_rejections(self) -> None:
+        """Two rows and three counted rejections, all of one class, from five records."""
+        self.assertEqual(len(self.adapted.rows), 2)
+        self.assertEqual(len(self.adapted.rejections), 3)
+        self.assertEqual(self.adapted.raw_records, 5)
+        self.assertEqual(
+            self.adapted.rejections_by_class(), {paths.REJECT_ABSENT_PATH: 3}
+        )
+        self.assertEqual(self.adapted.parse_status(), cli.PARSE_STATUS_PARTIAL)
+
+    def test_the_refusal_is_counted_once_per_record(self) -> None:
+        """``collector_path_refused`` is the per-artifact half of the evidence.
+
+        Its complement is asserted with it: the two records that did resolve are counted
+        as corroborated rather than refused, so the five records are fully accounted for
+        and a counter that moved for the wrong record would show as an imbalance.
+        """
+        counters = self.adapted.counters
+        self.assertEqual(counters["collector_path_refused"], 3)
+        self.assertEqual(counters["collector_path_corroborated"], 2)
+        self.assertEqual(counters["collector_path_disagreed"], 0)
+        self.assertEqual(
+            counters["collector_path_refused"] + counters["collector_path_corroborated"],
+            self.adapted.raw_records,
+        )
+        self.assertEqual(counters["resolution_from_class"], len(self.adapted.rows))
+        self.assertIn(joern.COUNTER_COLLECTOR_PATH_REFUSED, joern.COUNTER_KEYS)
+
+    def test_the_refused_value_is_retained_on_each_rejection(self) -> None:
+        """The per-record half: which value was refused, on which record.
+
+        Asserted against the value the offending record itself carries rather than against
+        a literal chosen here, so the retention cannot pass by coincidence.
+        """
+        for rejection in self.adapted.rejections:
+            index = rejection.record_identity["finding_index"]
+            record = self.document["findings"][index]
+            with self.subTest(finding=index):
+                self.assertEqual(
+                    rejection.record_identity[joern.REFUSED_COLLECTOR_PATH_KEY],
+                    record[joern.COLLECTOR_PATH_FIELD],
+                )
+                self.assertEqual(rejection.reject_class, paths.REJECT_ABSENT_PATH)
+
+    def test_the_refusal_is_not_a_judgement_that_the_answer_was_wrong(self) -> None:
+        """Each refused path is a real file this run could have resolved.
+
+        Which is the point of the refusal: what is missing is not a correct answer but
+        anything to check one against.  Measured against the index this class's root
+        produces, so the claim is a resolution rather than an assumption about the tree.
+        """
+        index = paths.build_source_index(self.environment.root)
+        for rejection in self.adapted.rejections:
+            refused = rejection.record_identity[joern.REFUSED_COLLECTOR_PATH_KEY]
+            with self.subTest(refused=refused):
+                self.assertIn(refused, self.environment.scaffold_paths)
+                self.assertIn(
+                    refused,
+                    {
+                        candidate
+                        for candidates in index.by_filename.values()
+                        for candidate in candidates
+                    },
+                    "the refused path is not even in the index, so the fixture no longer "
+                    "demonstrates a refusal of a resolvable answer",
+                )
+
+    def test_no_refused_path_reaches_any_row_or_any_emitted_path(self) -> None:
+        """Structural confinement: the refused value has nowhere in the dataset to go."""
+        refused = {
+            rejection.record_identity[joern.REFUSED_COLLECTOR_PATH_KEY]
+            for rejection in self.adapted.rejections
+        }
+        self.assertEqual(len(refused), 3)
+        for path in refused:
+            with self.subTest(refused=path):
+                self.assertNotIn(path, self.adapted.paths_emitted)
+        for row_index, row in enumerate(self.adapted.rows):
+            for field in emit.FIELDS:
+                value = row[field]
+                if not isinstance(value, str):
+                    continue
+                for path in refused:
+                    with self.subTest(row=row_index, field=field, refused=path):
+                        self.assertNotIn(path, value)
+
+    def test_the_sentinel_route_is_a_rejection_with_no_class_key(self) -> None:
+        """The ``<unknown>`` record is counted as a sentinel and never looked up.
+
+        Its identity carries no ``class`` and no ``class_key``, which is the branch's
+        signature: the resolver was never called, because the coordinate names the absence
+        of a type declaration rather than a class.  The other two routes do carry ``class``
+        -- as ``None`` -- because the resolver was called and recorded what it was given.
+        """
+        self.assertEqual(self.adapted.counters["unknown_class_sentinel_records"], 1)
+        sentinel = next(
+            rejection
+            for rejection in self.adapted.rejections
+            if rejection.record_identity["finding_index"] == 3
+        )
+        self.assertEqual(sentinel.reject_class, paths.REJECT_ABSENT_PATH)
+        self.assertNotIn("class", sentinel.record_identity)
+        self.assertNotIn("class_key", sentinel.record_identity)
+        self.assertIn(joern.COLLECTOR_UNKNOWN_CLASS, sentinel.detail)
+        self.assertEqual(
+            self.document["findings"][3]["class_file"], joern.COLLECTOR_UNKNOWN_CLASS
+        )
+        for rejection in self.adapted.rejections:
+            if rejection is sentinel:
+                continue
+            with self.subTest(finding=rejection.record_identity["finding_index"]):
+                self.assertIsNone(rejection.record_identity["class"])
+
+    def test_every_rejection_retains_the_collector_explanation(self) -> None:
+        """AAP 0.5.4's retention, on all three routes and in one spelling."""
+        for rejection in self.adapted.rejections:
+            index = rejection.record_identity["finding_index"]
+            explanation = self.document["findings"][index]["path_resolution"]
+            with self.subTest(finding=index):
+                self.assertIn(explanation, PATH_RESOLUTION_LITERALS)
+                self.assertIn(
+                    f"collector path_resolution: {explanation}", rejection.detail
+                )
+                self.assertNotIn("path_resolution", rejection.record_identity)
+        self.assertEqual(
+            self.adapted.counters["collector_explanation_present"],
+            self.adapted.raw_records,
         )

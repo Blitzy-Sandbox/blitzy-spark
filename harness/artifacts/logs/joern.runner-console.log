@@ -1,0 +1,18 @@
+tool            : joern
+scan root       : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scope dirs      : 18
+start           : 2026-08-31T10:09:21+00:00
+cpg             : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/cpg/spark.cpg -> /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/cpg/spark.cpg
+cpg bytes       : 605687359
+cpg sha256      : ceefe60e58308ffcfc1d93f8ed6226bf25bac85678f1a54caf826340a25542a6
+jdk             : /opt/blitzy-tools/jdk/jdk-21.0.12.1+1
+heap            : 192g
+query set       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/lib/joern-scan.sc (bound 2000 per query)
+workspace       : /tmp/blitzy-harness-scratch/1/joern-run (outside the repository; joern writes ./workspace)
+exit code       : 0
+elapsed seconds : 1312
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/raw/joern.json (384984 bytes)
+end             : 2026-08-31T10:31:13+00:00

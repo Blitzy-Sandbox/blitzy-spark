@@ -1,0 +1,32 @@
+{
+  "schema": "joern-probe-publication/1.0.0",
+  "document": "harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.publication.json",
+  "query_id": "02-dataflow-unguarded-driver-launch",
+  "member_set_id": "3573a0b81a3e5d6a619f221dcdf5023e",
+  "member_set_id_derivation": "sha256 over each content member's target filename and sha256, NUL-separated within a member and newline-separated between members, in published order, truncated to 32 hex characters. Derived from member BYTES, so it changes if any member changes, is missing, or came from another generation",
+  "member_count": 3,
+  "publication_id": "60ff1a9c3a6674d405b0540f1469b3a10cb18e8626f70f6297497dcb14317f10",
+  "commit_protocol": "Every content member is staged, fsynced and measured from the disk; this manifest is staged after all of them; every content member is then renamed onto its target; and this manifest is renamed LAST. Its presence is therefore the completion signal for the set, and a member on disk disagreeing with the digest recorded here means the set is not one generation",
+  "required_by_consumers": "REQUIRED. The producer re-measures every member named here immediately after publishing and stops the run on any disagreement, so a manifest that nothing checks cannot occur. A downstream consumer must do the same before treating the set as one generation",
+  "self_digest": "absent by construction: a manifest cannot carry its own digest. Its own identity is published in the run record's per-file manifest",
+  "members": [
+    {
+      "role": "02-dataflow-unguarded-driver-launch.json",
+      "path": "queries/joern/results/02-dataflow-unguarded-driver-launch.json",
+      "bytes": 87815,
+      "sha256": "0c6093054cddb1706ec0b3c9669db66f6a3e3a6dc24564eb91ac9d0c363a898f"
+    },
+    {
+      "role": "02-dataflow-unguarded-driver-launch.md",
+      "path": "queries/joern/results/02-dataflow-unguarded-driver-launch.md",
+      "bytes": 30824,
+      "sha256": "165b0734e72c94c93f6e48a86b459f90080caed89fccabf660c0114e8e90cb52"
+    },
+    {
+      "role": "probe-02-dataflow-unguarded-driver-launch.log",
+      "path": "harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log",
+      "bytes": 18085,
+      "sha256": "2d53abcbb7a2060233634c5825929f51a2c5711217d1a682e0fd399dd0cf8264"
+    }
+  ]
+}

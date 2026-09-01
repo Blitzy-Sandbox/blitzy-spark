@@ -1,0 +1,35 @@
+arm             : off (taint analysis default: intra-procedural only, the flag omitted)
+the one variable: --taint-intrafile absent
+engine          : 1.27.1 (/opt/blitzy-tools/bin/opengrep)
+rule            : /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml
+rule id(s)      : tainted-sql-string 
+rule mode       : taint
+ruleset         : /opt/blitzy-harness/rules/opengrep-rules (commit f1d2b562b414783763fd02a6ed2736eaed622efa)
+subject file    : sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+scan root       : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src
+cwd             : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src
+command         : opengrep scan --config <rule> --sarif --sarif-output taint-ab-off.sarif --dataflow-traces --timeout 120 --timeout-threshold 0 --max-target-bytes 20000000 --x-ignore-semgrepignore-files --disable-version-check sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+exit code       : 0
+elapsed seconds : 3
+sarif           : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs/taint-ab-off.sarif (2341 bytes)
+sarif sha256    : 6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced
+
+--- findings, from the arm's own SARIF ---
+  findings: 0
+
+--- the arm's own stderr summary ---
+[00.11][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 1 file tracked by git with 1 Code rule:
+  Scanning 1 file.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+
+Ran 1 rule on 1 file: 0 findings.

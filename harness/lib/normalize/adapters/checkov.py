@@ -100,6 +100,29 @@ rejected**, because ``reconcile._count_checkov`` reads it through its own
 the direction hardest to notice.  ``adapters/sarif.py`` treats a non-object ``runs``
 element the same way and for the same reason.
 
+Two of those container shapes no longer reach this module in a run
+------------------------------------------------------------------
+``shape.NATIVE_SIGNATURES["checkov"]`` requires a ``checkov.json`` to be *either* a
+JSON object carrying a ``results`` **object**, *or* a JSON array whose **every**
+element is a JSON object carrying a ``results`` object.  ``shape.route`` halts on
+anything else with ``shape.REASON_NATIVE_SIGNATURE_MISMATCH`` (AAP 0.5.4: an artifact
+matching neither the SARIF shape nor a known native shape is a halt rather than a
+best-effort parse; AAP 0.9.2 lists it among the conditions that stop the run).  So
+two rows of the table above -- an array element that is not an object, and a
+``results`` that is not an object -- are now **unreachable from ``cli.py``**: such a
+document stops the run before an adapter is named.  A ``failed_checks`` that is not an
+array still reaches here, because the signature deliberately does not read inside
+``results``: an empty or absent ``failed_checks`` is a legitimate report and a
+signature that required the array would reject one.
+
+The handling of all three is nevertheless kept exactly as it is, as the second line of
+defence rather than as dead code.  This adapter is called directly by
+``oss-scan-results/adapter-tests/`` and could be called directly by a later consumer,
+and the counted-not-rejected treatment is what keeps the reconciliation identity
+honest whenever it *is* reached.  What the two layers must never do is disagree about
+which of them halts, which is why the boundary is stated here rather than left to be
+inferred: shape belongs to ``shape.py``, and per-record attribution belongs here.
+
 Every failed check therefore yields **exactly one outcome -- one row or one
 rejection, never both and never neither**.  :func:`_adapt_failed_check` returns a
 single value of one of those two types, so the invariant is structural rather than
@@ -689,6 +712,17 @@ def _report_sequence(doc: Any) -> tuple[Sequence[Any], bool]:
     are **not** filtered here: a non-object element is counted by the caller, because
     the independent traversal contributes zero for it and dropping it silently would
     make the two counts agree for the wrong reason.
+
+    ``shape.py`` is now stricter than this reduction, and deliberately so.
+    ``shape.NATIVE_SIGNATURES["checkov"]`` additionally requires the object form to
+    carry a ``results`` object and every element of the array form to be an object
+    carrying one, halting under ``shape.REASON_NATIVE_SIGNATURE_MISMATCH`` otherwise.
+    A document reaching here from ``cli.py`` has therefore already satisfied that
+    signature, so the raise below is unreachable in a run and is kept as the second
+    line of defence for a direct caller -- an adapter test, or a later consumer that
+    calls this module without routing first.  It is not relaxed on that account: an
+    adapter that returned zero rows for a top level it could not read would report a
+    clean scan over a document nobody parsed.
 
     Raises
     ------
@@ -1532,4 +1566,3 @@ def adapt(
                 rows.append(outcome)
 
     return rows, rejections, counters
-

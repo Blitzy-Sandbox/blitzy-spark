@@ -13,13 +13,13 @@
     "elements": 5,
     "record_keys": 18,
     "record_key_order_matches_raw_artifact": true,
-    "derived_from": "oss-scan-results/adapter-tests/fixtures/gitleaks.json and harness/artifacts/raw/gitleaks.json",
-    "derivation": "A negative fixture is derived from the captured one rather than being an excerpt of it, so the provenance is stated as a derivation. Four of the five elements are byte-equal to elements of the positive fixture -- /0 to its element 1, /1 to its element 2, /3 to its element 3 and /4 to its element 5 -- established by comparing each element's serialization key by key and in key order, not by eye. The fifth, /2, is the defective record: it is the raw artifact's sole captured record with exactly two keys changed, its File emptied and the file component of its Fingerprint removed, so the only thing wrong with it is that it names no location.",
+    "derived_from": "oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json and harness/artifacts/raw/gitleaks.json",
+    "derivation": "A negative fixture is derived from the captured one rather than being an excerpt of it, so the provenance is stated as a derivation. Four of the five elements are byte-equal to elements of the declared-derived oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json -- /0 to its element 1, /1 to its element 2, /3 to its element 3 and /4 to its element 5 -- established by comparing each element's serialization key by key and in key order, not by eye. The fifth, /2, is the defective record: it is the raw artifact's sole captured record with exactly two keys changed, its File emptied and the file component of its Fingerprint removed, so the only thing wrong with it is that it names no location.",
     "defective_element_pointer": "/2",
     "defective_element_derivation_check": "The other sixteen keys of /2 are byte-identical to the raw record's, and its key order is the raw record's key order, so a reviewer can re-derive the derivation by diffing /2 against harness/artifacts/raw/gitleaks.json's single element and finding exactly those two differences. The path that record carried before its File was emptied is deliberately not reproduced anywhere in this file; see rejections[0].no_guessed_path for why.",
     "captured_verbatim_elements": 0,
     "derived_elements": 5,
-    "captured_provenance": "No element is carried verbatim. /0, /1, /3 and /4 are the positive fixture's own derived elements, reused unchanged so that the surviving rows of this fixture are the same rows that file already fixes; /2 is this fixture's own derivation from the captured record. The recorded sha256 above is what makes a later edit to the fixture visible: these values are re-derived when the fixture changes, never adjusted to keep a test green.",
+    "captured_provenance": "No element is carried verbatim. /0, /1, /3 and /4 are the declared-derived oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json's own derived elements, reused unchanged so that the surviving rows of this fixture are the same rows that fixture's expected file already fixes; /2 is this fixture's own derivation from the captured record. The recorded sha256 above is what makes a later edit to the fixture visible: these values are re-derived when the fixture changes, never adjusted to keep a test green.",
     "fixture_is_never_edited_to_suit_these_rows": true,
     "not_records": "There is nothing in this artifact that is not a record. The top level is an array of five objects and every one of them is a finding record; the count unit is the element, so no reading of this document can arrive at any number other than five."
   },
@@ -301,11 +301,11 @@
     "agreement_check_disclosed": "After these values were derived and written, the adapter was invoked over this fixture once with the real metadata, root and allowlist, and its rows, rejections, detail, record identity and counters compared to what is recorded here; agreement was complete. The metadata-variant scenario under reject_class_divergence was checked the same way, once. Both checks followed derivation, could only ever have surfaced a disagreement to diagnose, and contributed no value to this file. A reader who wants the derivation checked should check it against the fixture and the contracts, which is what every row_derivations entry below is for."
   },
   "corroboration": {
-    "source": "oss-scan-results/adapter-tests/expected/gitleaks.rows.json",
+    "source": "oss-scan-results/adapter-tests/expected/derived-gitleaks-features.rows.json",
     "records_compared": 4,
     "fields_compared_per_record": 12,
     "agreement": "complete",
-    "note": "All four surviving rows have counterparts in the positive sibling, because all four elements are that fixture's own derived elements reused unchanged: this file's rows[0] is that file's row 1, rows[1] is its row 2, rows[2] is its row 3 and rows[3] is its row 5. All forty-eight field comparisons agree, including every null and both in_scope values. Recorded after the fact rather than as the source of these values: each was derived from the fixture and the authored contracts, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply.",
+    "note": "All four surviving rows have counterparts in the declared-derived sibling expected/derived-gitleaks-features.rows.json, because all four elements are oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json's own derived elements reused unchanged: this file's rows[0] is that file's row 1, rows[1] is its row 2, rows[2] is its row 3 and rows[3] is its row 5. All forty-eight field comparisons agree, including every null and both in_scope values. Recorded after the fact rather than as the source of these values: each was derived from the fixture and the authored contracts, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply.",
     "defective_element_has_no_counterpart": "The rejected record has nothing to corroborate against and needs nothing: it appears in no other fixture, contributes no dataset row, and its expected outcome is checkable by reading the fixture and resolve_recorded_path. Its captured ancestor's dataset row is deliberately not cited as a counterpart, because that row carries the path this record no longer has and citing it would put that coordinate in this file."
   },
   "rows": [
@@ -370,7 +370,7 @@
     {
       "row_index": 0,
       "record_pointer": "/0",
-      "source": "derived, in the tool's own eighteen-key shape; byte-equal to fixtures/gitleaks.json element 1",
+      "source": "derived, in the tool's own eighteen-key shape; byte-equal to fixtures/derived-gitleaks-features.json element 1",
       "derivation_purpose": "a Scala main source under core/src/main -- the anchor file AAP 0.2.1 verifies at 380 lines at the pin, so a start_line bound for it is checkable against a figure the plan already states",
       "rule_id_source": "/0/RuleID",
       "message_source": "/0/Description",
@@ -399,7 +399,7 @@
     {
       "row_index": 1,
       "record_pointer": "/1",
-      "source": "derived, in the tool's own eighteen-key shape; byte-equal to fixtures/gitleaks.json element 2",
+      "source": "derived, in the tool's own eighteen-key shape; byte-equal to fixtures/derived-gitleaks-features.json element 2",
       "derivation_purpose": "a Python test module inside python/pyspark/** -- the case a loose reading of 'tests are out of scope' gets wrong. The exclusion is literal: a path containing src/test is out of scope, and this path carries no such segment, so it is in scope and scanned like any other source (AAP 0.3.1). 832 of the 1,203 files under that glob are test modules, so mis-reading this drops a fifth of the in-scope file count.",
       "rule_id_source": "/1/RuleID",
       "message_source": "/1/Description",
@@ -430,7 +430,7 @@
     {
       "row_index": 2,
       "record_pointer": "/3",
-      "source": "derived, in the tool's own eighteen-key shape; byte-equal to fixtures/gitleaks.json element 3",
+      "source": "derived, in the tool's own eighteen-key shape; byte-equal to fixtures/derived-gitleaks-features.json element 3",
       "derivation_purpose": "a Dockerfile under resource-managers/kubernetes/docker/src/main -- reachable only through the mid-path ** of its glob, and no Maven module, so it is scanned by the file-based tools while contributing no bytecode (AAP 0.2.1)",
       "pointer_note": "The record pointer skips /2. rows[2] comes from element /3 because the rejected element contributes no row and the row order is the order of the elements that survive.",
       "rule_id_source": "/3/RuleID",
@@ -461,7 +461,7 @@
     {
       "row_index": 3,
       "record_pointer": "/4",
-      "source": "derived, in the tool's own eighteen-key shape; byte-equal to fixtures/gitleaks.json element 5",
+      "source": "derived, in the tool's own eighteen-key shape; byte-equal to fixtures/derived-gitleaks-features.json element 5",
       "derivation_purpose": "a path outside the twelve globs, kept rather than dropped. In this negative fixture it does a second job: it is the kept case standing beside the counted one, so the boundary between an out-of-glob path and an unresolvable one is fixed inside a single document rather than across two.",
       "rule_id_source": "/4/RuleID",
       "message_source": "/4/Description",

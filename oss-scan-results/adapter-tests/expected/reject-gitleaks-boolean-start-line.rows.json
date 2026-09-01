@@ -1,0 +1,716 @@
+{
+ "description": "The hand-verified expected result for the negative Gitleaks native fixture whose one defective record states StartLine as true -- the boolean route through the non_integer_start_line class. Every value was derived by reading the fixture and the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/gitleaks.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. The file exists because that class has three branches and a fixture exercising one leaves the others with no committed input, which AAP 0.9.4 does not permit.",
+ "tool": "gitleaks",
+ "scanner_class": "secret",
+ "scanner_class_note": "Fixed per tool by AAP 0.5.4's class table and authored as a constant in the adapter (SCANNER_CLASS). Trivy is the single tool whose class varies per record; this one never does, so no row below takes its class from record content, and the rejected record changes the class of nothing.",
+ "adapter": "harness/lib/normalize/adapters/gitleaks.py",
+ "rules": "No user-specified rule governs this file. review_rules returns exactly one line, 'No user rules provided.', which is the whole document; AAP 0.7 says the same. No rule is cited or invented here, and the absence is not licence to lower the bar. The bar on this file is three things at once: a rejection class asserted against the module that defines it rather than against the fixture's file name, a security property stated under redaction_invariant and asserted against this file's own bytes, and a derivation a reader can re-perform from the fixture without running anything.",
+ "fixture": {
+  "path": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-boolean-start-line.json",
+  "sha256": "5d066c2486602a4d861582166e07eb3957a55f12ad04df7d5c512581a57597b0",
+  "bytes": 3426,
+  "kind": "derived",
+  "shape": "bare top-level JSON array",
+  "elements": 6,
+  "record_keys": "18 on five of the six elements -- the full key set the pinned Gitleaks emits -- and 17 on /2, whose StartLine key the base fixture's derivation deleted.",
+  "record_key_order_matches_raw_artifact": true,
+  "defective_element_pointer": "/4",
+  "derived_from": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-non-integer-start-line.json",
+  "derivation": "A single scalar change and nothing else. Both files hold the same number of lines and a line-by-line diff reports exactly one differing line: /4/StartLine, which the base fixture states as the string \"5\" and this one states as the boolean true. Every other element, and every other key of /4, is what the base fixture holds -- so that file's element-by-element derivation is inherited rather than restated, and the fault this file asserts is attributable to the one member alone.",
+  "base_fixture_provenance": "reject-gitleaks-non-integer-start-line.json carries one captured element -- /0, byte-equal to the sole record of harness/artifacts/raw/gitleaks.json -- and five derived ones. Its own expected file sets out that derivation element by element and it is not restated here.",
+  "defect": {
+   "record_pointer": "/4",
+   "member_pointer": "/4/StartLine",
+   "observed_value": true,
+   "observed_json_type": "boolean",
+   "value_in_the_base_fixture": "5",
+   "form": "the boolean form -- the shape a producer whose line field was serialized from a flag, or a hand-edited artifact, would carry. It is the one form that survives an unguarded integer test, which is what makes it worth a committed fixture rather than a note."
+  },
+  "captured_verbatim_elements": 1,
+  "derived_elements": 5,
+  "fixture_is_never_edited_to_suit_these_rows": true,
+  "not_records": "There is nothing in this artifact that is not a record. The top level is an array of six objects and every one of them is a finding record, so the count unit is the element and no reading of this document can arrive at any number other than six."
+ },
+ "routing": {
+  "shape": "native",
+  "detected_by": "normalize.shape.is_sarif returns false -- a SARIF artifact is a version of '2.1.0' together with a runs array, and those two together are the whole test. A bare array carries neither, and cannot: a JSON array has no string keys to look either of them up under.",
+  "adapter_module": "normalize.adapters.gitleaks",
+  "routing_decision": "normalize.shape.route('gitleaks', doc) returns tool 'gitleaks', shape 'native', adapter 'gitleaks', scanner_class 'secret'",
+  "routes_successfully": true,
+  "rejection_is_record_level": true,
+  "not_a_shape_failure": "No normalize.shape.UnknownArtifactShape is expected here, and a test asserting one against this fixture would be asserting the wrong thing. The enclosing document is a well-formed Gitleaks artifact and routes cleanly; exactly one record inside it is defective, and the adapter rejects that record while still emitting the other five. The fixtures that own shape-detection failure are near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json.",
+  "the_document_level_fault_this_fixture_is_not": "adapters/gitleaks.py raises GitleaksAdapterError rather than rejecting where the top level is not an array, because reconcile.count_records counts zero records in a non-array document and a rejection would then make rows plus rejections exceed the record count. That behaviour belongs to a call-level assertion, not to this fixture, whose top level is an array.",
+  "negative_routing_test": "The mandated negative routing assertion -- that a native artifact must not route to the SARIF adapter -- belongs to test_shape_routing_negative.py. This file fixes only what the gitleaks adapter produces."
+ },
+ "field_order": [
+  "tool",
+  "scanner_class",
+  "rule_id",
+  "message",
+  "severity_native",
+  "severity_norm",
+  "path",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate",
+  "in_scope"
+ ],
+ "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant -- the only place the order is written down and the iteration order of every writer, reader and comparison. Every row below carries all twelve keys in that order, present-with-null rather than omitted, which is what keeps the CSV column set uniform. The adapter's own FIELDS is an authored copy that must agree with it by construction, because AAP 0.6.4 permits an adapter to import paths and severity and nothing else.",
+ "absence_permitted_fields": [
+  "severity_native",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate"
+ ],
+ "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS. start_line's presence in the permitted set is this fixture's whole subject: it is why an absent start_line is a row and not a rejection, and why a present-but-wrong one cannot be emitted as null.",
+ "severity_norm_vocabulary": [
+  "Critical",
+  "High",
+  "Medium",
+  "Low",
+  "Info"
+ ],
+ "allowlist": {
+  "path": "harness/scope/allowlist.txt",
+  "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+  "globs": 12,
+  "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under row_derivations, and the one row matching none of them is named there too."
+ },
+ "reference_behaviours": [
+  {
+   "behaviour": "a boolean start_line rejected under non_integer_start_line, with the bool test ordered before the integer test",
+   "what_this_file_fixes": "One rejection for the boolean true, with the sub-reason retained, alongside the five rows the same artifact still produces. Neither 1 nor null is written for that record anywhere.",
+   "why_it_belongs_here": "bool is a subclass of int, so an implementation that tests only isinstance(value, int) emits line 1 and passes every other assertion in this module. Until this fixture was committed no boolean start_line reached any adapter in this corpus, so the guard was present and unfalsifiable."
+  },
+  {
+   "behaviour": "a rejection detail that renders a boolean in full rather than naming its type",
+   "what_this_file_fixes": "The expected detail is 'StartLine is True rather than an integer'. The value appears in it because _safe_value_repr renders a bool, and a bool can carry no captured content.",
+   "why_it_belongs_here": "The string route's detail names a type and this one renders a value, from the same line of the same function. Asserting both is what fixes the rendering rule rather than one of its two outcomes -- and the two details share the tail 'rather than an integer', so a test matching only that tail would not tell the branches apart."
+  },
+  {
+   "behaviour": "the permitted absent start_line surviving beside a defective one",
+   "what_this_file_fixes": "Two rows with start_line null -- one from a deleted key, one from an explicit null -- and start_line_absent at 2, inherited from the base fixture's derivation and re-asserted here.",
+   "why_it_belongs_here": "A conflating implementation rejects an absent key and a wrongly-typed value alike, producing a plausible rejection count for the wrong reason. The two absences sitting beside the boolean are what make the count attributable."
+  }
+ ],
+ "resolution_context": {
+  "path_base_kind": "scan_root",
+  "path_base_equals_scan_root": true,
+  "path_base_source": "harness/artifacts/logs/runner-metadata.json, tools.gitleaks.path_base -- read as input, never assumed. Its record_path_field is 'File', which is the field resolve_gitleaks_path reads; the adapter's own _FILE_KEY is only the default that function falls back to.",
+  "path_base_value_note": "The recorded base is the pinned scan root. Its absolute form is deliberately not reproduced here: no absolute path appears anywhere in this file, and these rows hold for whatever absolute root the adapter is given.",
+  "path_base_has_explicit_base": true,
+  "record_path_field": "File",
+  "recorded_invocation_shape": "Eighteen invocations, each handed exactly one root-relative directory, with the runner's working directory set to the scan root.",
+  "invocation_source": "runner-metadata.json tools.gitleaks.invocation_form and working_directory -- invocations_per_run 18, target_passing_style 'exactly one root-relative path per invocation, one invocation per scope directory', working directory equal to the scan root -- corroborated independently by harness/bin/run-gitleaks.sh, which cds to the scan root and then loops one directory per invocation.",
+  "why_the_base_is_invocation_dependent": "gitleaks dir takes exactly one path and reports relative to the process working directory when handed more, so the base is a property of the invocation rather than of the tool (AAP 0.5.4). Both shapes are real: the historical harness AAP 0.2.3 describes passed all eighteen scope directories to a single invocation, and this provisioning passes one per invocation.",
+  "invariance_across_the_two_shapes": "Here the two shapes give the same base, because the runner's working directory is the scan root, so every path below holds under either reading. That is a fact about this provisioning rather than a licence to skip reading the metadata -- a runner that cds elsewhere would need these paths re-derived, and no runner may be edited to make one shape true (AAP 0.3.2).",
+  "path_basis": "already-root-relative",
+  "path_basis_authority": "harness/lib/normalize/paths.py, BASIS_ALREADY_ROOT_RELATIVE -- the basis resolve_recorded_path records where the recorded base and the scan root are the same location, so the reported File was already root-relative and the join changed nothing. The basis says so rather than implying a resolution that did no work.",
+  "path_kind": "tree_file",
+  "path_kind_authority": "harness/lib/normalize/paths.py, path_kind_for: no '!' separator and no leading '..' segment, so every emitted path names a location inside the scanned tree. Whether the file exists on disk is a separate question paths.py never asks -- nothing in it stats the filesystem -- and each of the five surviving paths was checked against the pinned tree separately, per row.",
+  "severity_source": "None. The eighteen keys a pinned-Gitleaks record carries include no severity-like field, and no element of this fixture carries one, so every emitted row goes through severity.SeverityResult.absent().",
+  "severity_basis": "no_vocabulary",
+  "severity_basis_authority": "harness/lib/normalize/severity.py, BASIS_NO_VOCABULARY. absent() carries severity_native null, severity_norm Info and that basis, and its __post_init__ refuses a severity_native on it -- so the absence is structural rather than a convention a caller has to remember. Info is not hard-coded in the adapter.",
+  "severity_selected_entry": null,
+  "severity_selected_entry_note": "null on this path: nothing was used to derive the band, so there is neither a label nor a score entry to record. The band comes from a policy fixed before any output was observed, and no native literal is synthesised -- inventing one would put a literal into oss-scan-results/severity-map.md that the tool never emitted.",
+  "severity_norm_on_every_row": "Info",
+  "severity_map_consequence": "The tally is fed once per emitted row and never for a rejected record, so severity-map.md can name gitleaks as a tool that defines no severity vocabulary with a row count behind the statement, and that count is five here rather than six. A rejected record contributing a tally entry would report an entry against a row the dataset does not contain.",
+  "package_coordinate": "null on every row. A secret finding names a code location rather than a package, and this shape supplies no coordinate to carry. AAP 0.5.4's unformable-coordinate rejection reaches dependency-oriented records only, so the absence here is not a rejection condition -- not on the row whose path is a lockfile, and not on the rejected record whose path is a manifest.",
+  "cwe_and_cve": "null on every row. The shape carries no weakness or advisory identifier; deriving a CWE from a rule id would be inference of exactly the kind AAP 0.5.4 forbids."
+ },
+ "start_line_policy": {
+  "statement": "This fixture's subject is the difference between a start_line that is ABSENT, a start_line that is PRESENT and an integer, and a start_line that PASSES an integer test without being an integer. Absence is permitted: start_line is one of the five fields AAP 0.8.2 allows to be absent, so a record that states no line yields a row with start_line null. A boolean is rejected, because bool is a subclass of int and admitting it would assert a line the producer never stated.",
+  "no_coercion": "true must not become 1, in any file this pipeline writes. Coercing it would invent data -- it would assert that the producer stated a line number when what the producer stated was a flag -- and AAP 0.5.4 is explicit that a record which cannot be attributed with certainty is rejected and counted, never inferred into a field. The adapter's guard exists because Python makes the coercion silent: int(True) is 1 and isinstance(True, int) is True, so nothing raises and nothing warns.",
+  "why_a_rejection_rather_than_a_row_with_null": "Emitting the record with start_line null would record an absence the producer did not state, and would make a defective record indistinguishable from the two legitimate absences sitting beside it in this very fixture. Emitting it with 1 would be worse: 1 is a real line of the named file, so the row would be indistinguishable from a row the artifact had actually asserted. Counting it under a named class is the only outcome that neither drops the record nor invents a value for it.",
+  "adapter_contract": "harness/lib/normalize/adapters/gitleaks.py, _start_line. Four outcomes, and only two of them reject: StartLine absent from the record -> (None, no rejection); StartLine present as an explicit null -> (None, no rejection), the same first branch, since the lookup yields None either way; StartLine present as a bool, or present and not an int -> non_integer_start_line, with the bool test ordered first; StartLine an int below 1 -> non_integer_start_line with a different detail, since gitleaks numbers lines from one.",
+  "explicit_null_is_absence_not_a_type_fault": "The one judgement in this policy a reader might expect to go the other way, so it is stated rather than left to the code. JSON null is exactly what emit.py writes for an absent optional field, so a producer's null is the producer saying nothing rather than saying something wrong. Reading it as 'present but not an integer' would reject a legal record, and it would make findings.json internally inconsistent: the same null that means absence when this pipeline writes it would mean a defect when it reads it. record.get() collapses the two onto one branch, which is the behaviour rather than an accident of the lookup.",
+  "classification_position": "step 5 of the adapter's fixed five-step order -- shape, rule identifier, message, path, start_line. It is last, so a record defective in both its path and its start_line is classified by its path. The defective record here has a perfectly resolvable path, which is what lets it reach step 5 at all, and its path is deliberately not recorded in this file.",
+  "cases_present_in_this_fixture": [
+   {
+    "case": "start_line present as an integer well inside a long file",
+    "record": "/0",
+    "expected": "a row with start_line 3090",
+    "outcome": "row"
+   },
+   {
+    "case": "start_line present as an integer inside a short file",
+    "record": "/1",
+    "expected": "a row with start_line 241",
+    "outcome": "row"
+   },
+   {
+    "case": "the StartLine key deleted from the record altogether",
+    "record": "/2",
+    "expected": "a row with start_line null",
+    "outcome": "row"
+   },
+   {
+    "case": "StartLine present as an explicit JSON null",
+    "record": "/3",
+    "expected": "a row with start_line null",
+    "outcome": "row"
+   },
+   {
+    "case": "start_line present as the boolean true, which passes an integer test in Python without being a line number",
+    "record": "/4",
+    "expected": "a counted rejection under non_integer_start_line, no row, no coercion",
+    "outcome": "rejection"
+   },
+   {
+    "case": "start_line present as an integer, on a path outside the twelve globs",
+    "record": "/5",
+    "expected": "a row with start_line 17 and in_scope false",
+    "outcome": "row"
+   }
+  ],
+  "rows_with_null_start_line": 2,
+  "rows_with_null_start_line_indices": [
+   2,
+   3
+  ],
+  "two_absence_routes_not_one": "Worth stating plainly, because a reader expecting a single companion row will count wrong. This fixture carries TWO records with no start_line and they reach the same early return by two different routes: /2's StartLine key is absent, so record.get returns None because the key is missing, and /3's StartLine is an explicit null, so record.get returns None because that is the value. Both are rows with start_line null; neither is a rejection; both increment start_line_absent. Covering both is deliberate -- an implementation could guard the missing key and still reject the explicit null, or use a sentinel default that distinguishes them and then treat the null as a wrongly-typed value.",
+  "missing_key_hazard": {
+   "statement": "The load-bearing reason the companion rows exist. An implementation that tests isinstance(value, int) against the result of a plain dict lookup -- with no distinction between a key that is absent and a key whose value is of the wrong type -- rejects both. That single conflation would reject two of this fixture's five rows, and it does not stop there.",
+   "blast_radius": [
+    "Every Trivy vulnerability record. harness/lib/normalize/adapters/trivy.py records that line information appears on secrets and misconfigurations rather than on vulnerabilities, which is Trivy 0.74.0's own report shape (AAP 0.5.4: start_line is section-dependent). A missing-key rejection would discard that artifact's entire vulnerability section under a class describing a defect none of those records has.",
+    "The whole Dependency-Check artifact. harness/lib/normalize/adapters/dependency_check.py holds start_line at a module-level constant of None for every row, because that tool reports at dependency granularity and carries no line information at all. Under a missing-key rejection its row count would be zero and its rejection count would be its record count.",
+    "Every Gitleaks finding a future artifact reports without a line. This shape's own exposure: the eighteen-key record always carries StartLine today, so the hazard is invisible in this run's own artifact and is only testable through a derived fixture -- which is what /2 and /3 are."
+   ],
+   "measured_in_this_run": "Stated as a structural hazard rather than an observed one, because this run's own Gitleaks artifact could not have exposed it: it holds a single element and that element carries an integer StartLine. The hazard would bite the moment a producer omitted one, which is exactly why it is tested here rather than left to be discovered then.",
+   "what_the_test_must_assert": "Not merely that the rejection count is 1. It must assert that the two absent-start_line records are present as rows, each with start_line null, because a conflating implementation produces the correct rejection count for the wrong reason -- three rejections and three rows would fail, but so would any assertion that only counted rejections."
+  },
+  "boolean_hazard": {
+   "present_in_this_fixture": true,
+   "statement": "isinstance(True, int) is True in Python: bool is a subclass of int, so an unguarded integer check admits True as line 1 and False as line 0. gitleaks._start_line guards it explicitly and the guard is ordered first -- isinstance(raw, bool) is tested before not isinstance(raw, int) -- so a boolean is classified as non_integer_start_line rather than emitted. The detail would name it in full, since _safe_value_repr renders a bool rather than naming its type.",
+   "cover_with": "this fixture, whose expected rejection detail is recorded verbatim below",
+   "exercised_by": "this fixture, at /4"
+  },
+  "below_one_hazard": {
+   "present_in_this_fixture": false,
+   "statement": "An integer below 1 is rejected under the same class with a different detail, because gitleaks numbers lines from one: 0 is not a line and a negative value is not one either -- emit.py would refuse a negative outright, and emitting 0 would assert a line that does not exist. Naming it here keeps the class's three routes legible: wrong type, boolean, and out of range.",
+   "cover_with": "the sibling fixtures named under start_line_policy.routes.branches, each with its own expected file and its own asserted detail"
+  },
+  "the_class_covers_three_routes_so_the_detail_carries_the_distinction": "paths.REJECT_CLASSES is a closed set, so all three branches share one class name and the detail carries the sub-reason -- exactly as AAP 0.5.4 does for the uriBaseId terminal cases. A test asserting only the class would pass against any of the four committed fixtures for this class no matter which branch the adapter took, which is why the expected detail is recorded verbatim under rejections and why distinguishing_substrings names the part of it that is unique to this route.",
+  "routes": {
+   "authority": "harness/lib/normalize/adapters/gitleaks.py, _start_line",
+   "the_class_has_three_branches_and_four_committed_fixtures": "paths.REJECT_CLASSES is a closed set, so every branch shares one class name and the detail carries the sub-reason. The below-one branch has two committed fixtures because 0 and a negative value are wrong in different ways and invite different repairs, and each is asserted on its own detail.",
+   "branches": [
+    {
+     "route": "non_integer_type",
+     "branch": "isinstance(raw, bool) or not isinstance(raw, int), reached by a non-bool of the wrong type",
+     "detail_shape": "StartLine is a <type name> rather than an integer",
+     "detail_names_a_type_not_a_value": "_safe_value_repr renders only None, a bool, an int and a float in full and names the type of anything else, so a str's content never reaches the detail even though AAP 0.5.4 requires the reason retained verbatim.",
+     "fixture": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-non-integer-start-line.json"
+    },
+    {
+     "route": "boolean",
+     "branch": "the same predicate, with isinstance(raw, bool) tested first",
+     "detail_shape": "StartLine is True rather than an integer",
+     "detail_renders_the_value": "_safe_value_repr renders a bool in full, because a bool can carry no captured content.",
+     "fixture": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-boolean-start-line.json"
+    },
+    {
+     "route": "below_one",
+     "branch": "raw < 1, reached only after both type tests pass, so the value is genuinely an integer",
+     "detail_shape": "StartLine is <value>, which is not a line number: gitleaks numbers lines from one",
+     "fixtures": [
+      "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-zero-start-line.json",
+      "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-negative-start-line.json"
+     ],
+     "two_fixtures_for_one_branch": "0 is the value a producer emits where a line field was never set, and it is the value the Trivy adapter deliberately reads as a stated absence instead -- so a reader carrying that reading across would expect a row here. A negative value is the one an implementation is tempted to make positive, and for this fixture the absolute value is a real line of the named file. The details differ in the rendered number, so each fixture asserts its own."
+    }
+   ],
+   "why_one_fixture_per_route": "AAP 0.9.4 requires a negative fixture and an assertion for every rejection condition each exercised adapter can produce, whether or not this run's artifacts contained the case. A class asserted through one branch leaves the others with no committed input, and until these three fixtures were added every non-integer fixture in this folder -- for all five adapters that can produce the class -- carried a numeric-looking string, so no boolean and no below-one value had ever reached an adapter here.",
+   "this_adapter_rejects_zero": "gitleaks numbers lines from one, so 0 is not a line and is rejected. The Trivy adapter reads a StartLine of 0 as a stated absence instead and counts it under start_line_zero_read_as_absent, which is why no reject-trivy-zero-start-line fixture exists. The divergence is deliberate on both sides -- Trivy's field is a Go struct member whose zero value means unset -- and it is recorded here so the two expectations are not read as an inconsistency between the two files."
+  },
+  "which_route_this_fixture_exercises": "boolean"
+ },
+ "boundary_case": {
+  "statement": "The Gitleaks-specific twist of the base fixture does not carry over, and saying so is what keeps the two files from being read as the same assertion. The defective record names core/src/main/resources/org/apache/spark/ui/static/package.json, which is exactly five lines and eighty bytes at the pin, and its StartLine is the boolean true. A boolean has no magnitude, so no range question arises for it at all: the boundary this fixture sits on is Python's type hierarchy, where a bool passes an integer test while being no line number, rather than the base fixture's coincidence of a wrongly typed value sitting at a real line.",
+  "the_two_faults_are_independent": "There is one fault, not two, and it is a fault of type rather than of range. A boolean has no magnitude to be in or out of range, so nothing here says anything about the five lines of the named file except that they exist. Had the record carried the integer 1 it would have been a row, because 1 is a line that file has; the class is decided on the value's type, before any range question is asked.",
+  "file_at_the_pin": {
+   "path": "core/src/main/resources/org/apache/spark/ui/static/package.json",
+   "lines": 5,
+   "bytes": 80,
+   "content_shape": "an object carrying a name, a license and a module type -- no dependencies block, and no lockfile beside it",
+   "why_it_matters": "It is the only manifest-shaped file inside the twelve authoritative globs (AAP 0.2.1), which is why nothing in scope resolves to a package and why OSV-Scanner writes no artifact at all. It appears across several fixtures for that reason, which makes it the file whose line bounds are easiest to get wrong."
+  },
+  "no_row_for_this_file_exists_in_this_expected_file": "Stated explicitly rather than left to be inferred from the rows. This fixture's only element naming that file is the defective one, and a rejected record contributes no row, so the constraint that no start_line for that file may exceed 5 holds here vacuously -- there is no such start_line to bound. A reader checking that constraint programmatically will find zero rows to check, and that is the correct result rather than a gap.",
+  "where_a_row_for_it_does_exist": "expected/derived-gitleaks-features.rows.json's counterpart row for the same file carries the integer 3, which is inside the file's five lines. This fixture's derivation moved that coordinate to the last line and changed its type; the positive sibling is where the sound row for the file is fixed.",
+  "verified_line_counts_at_the_pin": {
+   "core/src/main/resources/org/apache/spark/ui/static/package.json": 5,
+   "core/src/main/scala/org/apache/spark/storage/DiskStore.scala": 380,
+   "python/pyspark/ml/tests/test_evaluation.py": 391,
+   "python/pyspark/pandas/groupby.py": 4636,
+   "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile": 71,
+   "dev/package-lock.json": 2168,
+   "note": "Measured in the pinned tree at 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, which is the tree the artifact describes. Two of these differ at the branch tip and are recorded per row where they do; the pin governs. Every start_line emitted below is an integer at or below its own file's count."
+  },
+  "boundary_case_of_the_base_fixture": "The base fixture's StartLine is the string \"5\", which parses to the file's real last line, so that file has to separate a type fault from a range question. Here there is no range question to separate, and the base fixture's discussion of one is deliberately not repeated as though it applied.",
+  "what_a_coercion_would_produce_here": "Line 1 of that file, which exists -- the file opens with a brace. So an unguarded implementation produces a row naming a real line of a real file, and no range check anywhere in this corpus would catch it. Only the rejection does."
+ },
+ "rejection_boundary": {
+  "statement": "A start_line present but not an integer is a rejection. An absent start_line is a kept row with start_line null. Those are the two sides of this fixture's boundary, and it carries records on both -- three sound integers, two absences and one boolean, which is the value that sits closest to the line: it passes an integer test in Python while being no line number in any artifact.",
+  "why_it_can_only_be_a_rejection": "start_line is one of the five fields absence is permitted for, so unlike an unresolvable path there IS a valid row shape available -- which is precisely why the distinction has to be drawn on the producer's assertion rather than on the schema's tolerance. The producer supplied a value; that value is not a line number; emitting the row with null would misreport the artifact as silent, and emitting it with a coerced integer would misreport the artifact as having stated a number. AAP 0.5.4 settles it: reject rather than infer, count the rejection under its class, and keep the record visible.",
+  "not_a_rejection": [
+   {
+    "case": "start_line absent altogether, by either route",
+    "expected": "a kept row with start_line null, counted under start_line_absent",
+    "evidence": "Absence is permitted for start_line by AAP 0.8.2 and emit.OPTIONAL_FIELDS carries it, so the row is valid and complete.",
+    "present_in_this_fixture": true,
+    "where": "/2 and /3, which become rows[2] and rows[3]"
+   },
+   {
+    "case": "a path resolving outside the twelve authoritative globs",
+    "expected": "a kept row with in_scope false, counted under rows_out_of_scope",
+    "evidence": "Out of scope means kept and marked, never rejected (AAP 0.9.3). The real out-of-glob files in the pinned tree include dev/package-lock.json, ui-test/package-lock.json and docs/Gemfile.lock.",
+    "present_in_this_fixture": true,
+    "where": "/5, which becomes rows[4] with in_scope false"
+   },
+   {
+    "case": "an in-range integer line in a five-line file",
+    "expected": "a kept row with that integer",
+    "evidence": "Range is not a fault this class covers below 1, and above 1 it is not checked at all: nothing in the adapter compares a line against a file's length, and nothing in paths.py stats the filesystem. The bounds recorded per row here are this document's own verification of the fixture, not a behaviour of the pipeline.",
+    "present_in_this_fixture": false,
+    "where": "the one candidate is the rejected record, whose value is true; expected/derived-gitleaks-features.rows.json fixes the sound case for the same file"
+   },
+   {
+    "case": "an archive member or a location above the root",
+    "expected": "a kept row with in_scope false, counted in non_filesystem_paths",
+    "evidence": "Serialized as <container-relative-to-root>!<member> with '!' the single separator, and with ../ segments preserved rather than normalized. No File value in this fixture takes that route.",
+    "present_in_this_fixture": false
+   }
+  ],
+  "no_guessed_start_line": "The rejected record is rejected and counted, never given a start_line. Nothing in this file supplies a line number for it -- not 1, not null-as-though-absent, and not the integer EndLine that sits beside the defective StartLine in the same record. That EndLine is deliberately left unread: reading it would be inferring the start from the end, and it is the most tempting inference available here because it is the one integer in the record that looks like a line.",
+  "no_guessed_path": "Nor is the rejected record given a path, a severity or a row of any kind. It resolved a path successfully on its way to step 5, and that resolved path appears in no field of this document, because a record that produced no row contributes no field to the dataset. Its file is named in prose under boundary_case, which is a statement about the fixture rather than a value asserted for the record.",
+  "endline_is_unread_on_the_companion_rows_too": "/2 and /3 each carry an integer EndLine while their start_line is null, so the same inference is available on a row and is likewise not taken. A companion row whose start_line had been filled from EndLine would look correct and would be asserting a line the producer never put in that field."
+ },
+ "counts": {
+  "raw_finding_records": 6,
+  "raw_count_unit": "one element of the top-level array -- the unit normalize.reconcile.count_records walks independently of row construction; its _count_gitleaks is the array's length and nothing else",
+  "raw_count_authority": "harness/lib/normalize/reconcile.py, count_records('gitleaks', doc), doc), which builds no row, resolves no path and maps no severity. It is the independent half of the identity: a count taken from the traversal that builds the rows would satisfy the assertion while testing nothing. For this shape it also means the count is unaffected by any record's content -- a defective element counts exactly like a sound one, which is what makes the arithmetic below a real check.",
+  "raw_equals_array_length": true,
+  "rows": 5,
+  "rejections": 1,
+  "rejections_by_class": {
+   "non_integer_start_line": 1
+  },
+  "rejections_by_class_note": "One class, one record, and the class is the one the fixture's name states. paths.REJECT_NON_INTEGER_START_LINE is raised by the adapter's own step 5 rather than returned from a resolver, so the fixture name and the class coincide with nothing to reconcile -- and the fixture's name additionally states which of the class's three branches it exercises, because the class name alone cannot.",
+  "reconciliation_identity": "raw_finding_records == rows + rejections",
+  "reconciliation_arithmetic": "6 == 5 + 1",
+  "reconciliation_holds": true,
+  "every_element_yields_exactly_one_outcome": "One row or one rejection per element, never both and never neither -- _adapt_record returns a single value of one of the two types, so the property is structural rather than asserted. Five elements carry a non-empty RuleID and Description, a non-empty File and a StartLine that is either an integer of at least 1 or absent, and become rows; the sixth carries a boolean where a line belongs and is counted.",
+  "parse_status": "partial",
+  "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = 'partial', assigned as partial where there are rejections and clean where there are none. Partial is right precisely because the adapter did not abandon the artifact: every parsable record was emitted and the one rejected record is counted under its class, with its parser reason retained. This is deliberately not normalize.reconcile's STATUS_PASS / STATUS_FAIL / STATUS_NOT_APPLICABLE vocabulary, which describes an assertion's outcome rather than an artifact's parse.",
+  "row_order": "fixture order, preserved, with the rejected element contributing nothing to it -- so rows[4] comes from element /5. Both output files use this order and emit.py compares them ordered row by row, so an expected file in any other order would assert something the pipeline does not promise.",
+  "defect_position_is_deliberate": "The defective element sits at /4, second from last rather than at either end, so an adapter that stopped on the first defect would emit four rows and one that dropped the tail after it would emit four as well. Either is visible against the five above, and the surviving element after it is the out-of-glob row, which is the one a careless implementation is likeliest to drop for a second reason."
+ },
+ "counters": {
+  "multi_location_records": 0,
+  "non_filesystem_paths": 0,
+  "rows_in_scope": 4,
+  "rows_out_of_scope": 1,
+  "start_line_absent": 2,
+  "severity_absent": 5,
+  "path_kind_tree_file": 5,
+  "path_kind_outside_root": 0,
+  "path_kind_archive_member": 0,
+  "path_kind_bytecode_source": 0,
+  "severity_basis_sarif_level": 0,
+  "severity_basis_label": 0,
+  "severity_basis_cvss_score": 0,
+  "severity_basis_no_vocabulary": 5,
+  "severity_basis_unmapped_literal": 0
+ },
+ "counters_authority": "harness/lib/normalize/adapters/gitleaks.py, COUNTER_KEYS as returned by new_counters(): six authored keys, then one path_kind_* per normalize.paths.PATH_KINDS member and one severity_basis_* per normalize.severity.BASIS_VALUES member -- fifteen keys in that order, which is the key set and the order above. Deliberately absent from it, and so from here: any adapter-side count of records walked, rows or rejections. Those are len(rows), len(rejections) and reconcile.count_records, and a plausible substitute published here is how the independent-traversal requirement would quietly be lost.",
+ "counters_note": "Three numbers a reader must not 'correct'. First, start_line_absent is 2, not 1: the two absent-start_line records are two rows and each increments it -- see start_line_policy.two_absence_routes_not_one. Second, severity_absent, severity_basis_no_vocabulary and path_kind_tree_file are 5 rather than 6, and rows_in_scope plus rows_out_of_scope is 4 + 1 = 5: all four are incremented after step 5, so the record rejected at step 5 contributes to none of them even though its path resolved cleanly on the way there. That asymmetry is the classification order made visible, not a miscount. Third, multi_location_records is the one counter a rejected record could still have moved, since the adapter takes it before the path step; it is 0 here because SymlinkFile is the empty string on all six elements, including /4.",
+ "counters_aap_0_5_4_reported": {
+  "multi_location_records": 0,
+  "multi_valued_cwe_records": 0,
+  "multi_valued_cve_records": 0,
+  "non_filesystem_paths": 0,
+  "non_filesystem_path_proportion": "0 of 5 emitted rows",
+  "note": "The four counters AAP 0.5.4 has reported per tool. Two of them -- multi_location_records and non_filesystem_paths -- are keys of this adapter's own counter set and appear above with the same values. The other two are not: a Gitleaks record carries no CWE or CVE field at all, so no record can be multi-valued in either, and the adapter keys no counter it could never increment. They are stated here as 0 by construction so the four required numbers are all present in one place, and so that the difference between 'measured 0' and '0 because the field does not exist in this shape' is legible rather than inferred from a missing key."
+ },
+ "redaction_invariant": {
+  "requirement": "AAP 0.5.4: Gitleaks runs with redaction so a matched secret's value never enters an artifact, and no adapter carries a secret value into any field. This file is committed to git -- .gitignore line 31 matches artifacts/ and nothing under oss-scan-results/ -- so the invariant has to hold of this file as written, not only of the dataset the adapter produces. A negative expected file carries one exposure a positive one does not: a rejection detail, which AAP 0.5.4 requires retained verbatim and which is therefore quoted here in full.",
+  "message_source_on_every_row": "Description, the rule's own description. Never Secret, never Match, and never Message, which is a git commit message rather than a description. There is deliberately no fallback: every candidate would either infer content the tool did not state or carry a captured value into the field.",
+  "keys_never_read": [
+   "Secret",
+   "Match",
+   "Entropy",
+   "Fingerprint",
+   "Message",
+   "Commit",
+   "Author",
+   "Email",
+   "Date",
+   "Tags",
+   "StartColumn",
+   "EndColumn",
+   "EndLine"
+  ],
+  "keys_never_read_authority": "harness/lib/normalize/adapters/gitleaks.py, NEVER_READ_FIELDS. Fingerprint is excluded even though this artifact's values are composites of a path, a rule and a line: in commit mode it also carries a commit identity, and a field whose safety depends on which mode ran is not a field to read. EndLine's presence in this list is load-bearing for this fixture in particular -- three of its elements make reading it look attractive.",
+  "keys_read": [
+   "RuleID",
+   "Description",
+   "File",
+   "StartLine"
+  ],
+  "keys_read_authority": "harness/lib/normalize/adapters/gitleaks.py, SOURCE_FIELDS -- the four keys a row is built from, named one at a time. The record is never copied, spread or iterated into a row, which is what makes the invariant structural there; here it is upheld by deriving each of the twelve values from those four keys and fixed constants alone.",
+  "rejection_detail_safety": "The rejected record's detail is quoted verbatim below and contains no value from the record: the adapter composes it from the key's name, _safe_value_repr's rendering of the offending value and fixed prose. Here the offending value IS rendered -- it is the boolean true -- and that is safe by construction rather than by luck: a bool has two possible values and neither can carry captured content. _safe_value_repr renders exactly None, a bool, an int and a float and names the type of everything else, so the one channel AAP 0.5.4 requires to be verbatim cannot become a leak channel whatever the artifact contains.",
+  "record_identity_safety": "The rejection's record_identity carries the array index and the rule identifier and nothing else, because that is what the adapter passes into make_rejection at step 5. Both are identifying fields rather than captured values. Note what is absent by comparison with a path rejection: no reported_path and no File, since the resolver did not build this rejection.",
+  "symlink_file_is_the_one_exception": "SymlinkFile is the single key outside SOURCE_FIELDS the adapter looks at, and only through a predicate returning a bool. It is a filesystem path rather than a captured value, it is never emitted, and it is never substituted for an absent File. It is empty on all six elements here, so it decides nothing beyond leaving multi_location_records at 0.",
+  "check_performed": "Every distinct Match, Secret and Fingerprint value in the fixture -- 8 values across the six elements -- was tested as a substring against the whole of this file, including its prose. Zero hits, which is the required result. Three drafting consequences follow: no sentence here quotes the placeholder string the runner's redaction flag substitutes for a captured value, nowhere is a path, a rule id and a line number joined into one colon-separated string, since that is the shape of this artifact's fingerprint values, and no expression quoted from a scanned source file is reproduced.",
+  "upstream_protection_is_not_the_check": "The runner passes a redaction flag, so a captured value never reached the artifact in the first place. That is upstream protection in a runner this run may not edit, and it is not a substitute for the assertion above, which is made against this file's own bytes."
+ },
+ "prohibitions_observed": {
+  "no_coercion_recorded_as_expected_behaviour": "The single most important prohibition for this file. No row here carries a start_line derived from a boolean, from an EndLine, from a column or from a fingerprint, and the rejected record carries no start_line at all. Recording a coerced 1 would license the coercion permanently, since the adapter would then be asserted to agree with it -- and it would be the most durable of the four coercions this class invites, because 1 is a real line of the file the record names and nothing downstream could tell it from a stated one.",
+  "no_cross_tool_interpretation": "Trivy's adapter also reports secrets, and three other adapters can produce this same rejection class. A location or a condition both tools reach is two rows or two rejections in two expected files with no comment: nothing here compares tools, ranks them, explains why one found something another did not, or folds one into the other (AAP 0.3.2). The sibling non-integer fixtures are cited for coverage bookkeeping only -- which value each carries -- never to contrast the tools.",
+  "no_judging": "No row is characterised as real, important, a false positive or a duplicate, and no row's rule or location is glossed as the sort of thing that tends to be one. The rejected record is not judged either: it is counted for a structural reason -- its start_line is a string -- and nothing here says whether what it reported was worth reporting.",
+  "no_dedup": "Three elements share a RuleID and a Description and all three become rows. Three records, three rows, and no collapsing of any of them into the others.",
+  "no_invented_severity": "The tool defines no severity vocabulary, so none is invented: severity_native stays null and severity_norm comes from the fixed no-vocabulary policy rather than from a guess at what a finding deserves. The rejected record gets no severity at all, not even a default.",
+  "kept_not_filtered": "The out-of-glob lockfile row is kept with in_scope false and counted, never dropped (AAP 0.9.3). Only evidence about the runner establishes a wrong scan root (AAP 0.8.3), and the recorded metadata shows this runner resolved the pinned root.",
+  "rejected_not_dropped": "The defective record is counted under a named class with its sub-reason retained, not silently discarded. A dropped record would leave rows plus rejections short of the independent record count, which is the arithmetic that makes silent dropping detectable.",
+  "never_derived_by_running_the_adapter": "Every value in this file was read out of the fixture and the authored contracts -- the fixture's six elements, adapters/gitleaks.py's five-step classification order, its _start_line branches, its _safe_value_repr rendering and its counter set, paths.py's rejection vocabulary and path kinds, emit.py's field order and absence convention, severity.py's no-vocabulary result, reconcile.py's count unit and cli.py's parse-status vocabulary. Nothing here was produced by invoking the adapter and recording its output, which would make the test a tautology: the adapter would be asserted to agree with itself.",
+  "agreement_check_disclosed": "After these values were derived and written, the adapter was invoked over this fixture once with the real metadata, root and allowlist, and its rows, rejections, detail, record identity and counters compared to what is recorded here; agreement was complete. That check followed derivation, could only ever have surfaced a disagreement to diagnose, and contributed no value to this file. A reader who wants the derivation checked should check it against the fixture and the contracts, which is what every row_derivations entry below is for."
+ },
+ "corroboration": {
+  "source": "oss-scan-results/adapter-tests/expected/reject-gitleaks-non-integer-start-line.rows.json",
+  "records_compared": 5,
+  "fields_compared_per_record": 12,
+  "counters_compared": 15,
+  "agreement": "complete",
+  "note": "The five rows and all fifteen counters are identical to that sibling's, and the identity is this fixture's derivation made visible rather than a copy taken on trust: the two documents differ in one scalar inside the single record neither file emits, and a record rejected at step 5 reaches no row and no counter that is taken after it. What differs between the two files is the rejection's detail, which is the whole reason this fixture exists."
+ },
+ "rows": [
+  {
+   "tool": "gitleaks",
+   "scanner_class": "secret",
+   "rule_id": "generic-api-key",
+   "message": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "python/pyspark/pandas/groupby.py",
+   "start_line": 3090,
+   "cwe": null,
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  },
+  {
+   "tool": "gitleaks",
+   "scanner_class": "secret",
+   "rule_id": "generic-api-key",
+   "message": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+   "start_line": 241,
+   "cwe": null,
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  },
+  {
+   "tool": "gitleaks",
+   "scanner_class": "secret",
+   "rule_id": "jwt",
+   "message": "Uncovered a JSON Web Token, which may lead to unauthorized access to web applications and sensitive user data.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "python/pyspark/ml/tests/test_evaluation.py",
+   "start_line": null,
+   "cwe": null,
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  },
+  {
+   "tool": "gitleaks",
+   "scanner_class": "secret",
+   "rule_id": "github-pat",
+   "message": "Uncovered a GitHub Personal Access Token, potentially leading to unauthorized repository access and sensitive content exposure.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+   "start_line": null,
+   "cwe": null,
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  },
+  {
+   "tool": "gitleaks",
+   "scanner_class": "secret",
+   "rule_id": "generic-api-key",
+   "message": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "dev/package-lock.json",
+   "start_line": 17,
+   "cwe": null,
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": false
+  }
+ ],
+ "row_derivations": [
+  {
+   "row_index": 0,
+   "record_pointer": "/0",
+   "source": "captured verbatim, in the tool's own eighteen-key shape; byte-equal to harness/artifacts/raw/gitleaks.json's sole element and to fixtures/derived-gitleaks-features.json element 0",
+   "derivation_purpose": "the one element of this fixture the tool itself produced, retained so the fixture proves the adapter emits a correct row with a real integer line while rejecting the record two positions later. AAP 0.6.2 requires the positive fixture to be unmodified captured output; carrying one captured element into the negative fixture keeps a real record in the comparison rather than testing only derivations against each other.",
+   "rule_id_source": "/0/RuleID",
+   "message_source": "/0/Description",
+   "severity_native_source": null,
+   "severity_native_absent_reason": "the record carries no severity-like field, and the tool defines no severity vocabulary",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_basis_no_vocabulary",
+   "path_source": "/0/File",
+   "path_kind": "tree_file",
+   "path_basis": "already-root-relative",
+   "start_line_source": "/0/StartLine",
+   "start_line_json_type": "integer",
+   "start_line_present": true,
+   "locations_in_record": 1,
+   "symlink_counterpart": "absent -- SymlinkFile is the empty string, so the record names no second location and multi_location_records does not count it",
+   "cwe_source": null,
+   "cve_source": null,
+   "package_coordinate_source": null,
+   "absent_optional_fields_reason": "the shape supplies no weakness identifier, no advisory identifier and no package coordinate; for a secret record the coordinate's absence is not a rejection condition",
+   "distinct_cwe_identifiers": 0,
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": "python/pyspark/**",
+   "src_test_literal_present": false,
+   "file_exists_at_the_pin": true,
+   "file_line_count_at_the_pin": 4636,
+   "start_line_within_file": true,
+   "file_line_count_at_the_branch_tip": 4647,
+   "line_count_provenance_note": "Measured both ways because the two differ: the pinned tree this runner scanned carries 4,636 lines and the working checkout at the branch tip carries 4,647. The pin governs -- it is the tree the artifact describes -- and 3,090 is inside both, so the bound holds either way. AAP 0.2.1 warns about exactly this pin-versus-tip confusion.",
+   "in_scope_note": "true. This is a Python source module under python/pyspark/**, inside the authoritative glob and carrying no src/test segment."
+  },
+  {
+   "row_index": 1,
+   "record_pointer": "/1",
+   "source": "derived, in the tool's own eighteen-key shape; byte-equal to fixtures/derived-gitleaks-features.json element 1",
+   "derivation_purpose": "a Scala main source under core/src/main -- the anchor file AAP 0.2.1 verifies at 380 lines at the pin, so a start_line bound for it is checkable against a figure the plan already states",
+   "rule_id_source": "/1/RuleID",
+   "message_source": "/1/Description",
+   "severity_native_source": null,
+   "severity_native_absent_reason": "the record carries no severity-like field, and the tool defines no severity vocabulary",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_basis_no_vocabulary",
+   "path_source": "/1/File",
+   "path_kind": "tree_file",
+   "path_basis": "already-root-relative",
+   "start_line_source": "/1/StartLine",
+   "start_line_json_type": "integer",
+   "start_line_present": true,
+   "locations_in_record": 1,
+   "symlink_counterpart": "absent -- SymlinkFile is the empty string, so the record names no second location and multi_location_records does not count it",
+   "cwe_source": null,
+   "cve_source": null,
+   "package_coordinate_source": null,
+   "absent_optional_fields_reason": "the shape supplies no weakness identifier, no advisory identifier and no package coordinate; for a secret record the coordinate's absence is not a rejection condition",
+   "distinct_cwe_identifiers": 0,
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": "core/src/main/**",
+   "src_test_literal_present": false,
+   "file_exists_at_the_pin": true,
+   "file_line_count_at_the_pin": 380,
+   "start_line_within_file": true
+  },
+  {
+   "row_index": 2,
+   "record_pointer": "/2",
+   "source": "derived, seventeen keys -- the tool's shape with StartLine deleted; otherwise byte-equal to fixtures/derived-gitleaks-features.json element 2",
+   "derivation_purpose": "the first mandatory companion row, and a Python test module inside python/pyspark/** -- the case a loose reading of 'tests are out of scope' gets wrong. The exclusion is literal: a path containing src/test is out of scope, and this path carries no such segment, so it is in scope and scanned like any other source (AAP 0.3.1). 832 of the 1,203 files under that glob are test modules, so mis-reading this drops a fifth of the in-scope file count.",
+   "rule_id_source": "/2/RuleID",
+   "message_source": "/2/Description",
+   "severity_native_source": null,
+   "severity_native_absent_reason": "the record carries no severity-like field, and the tool defines no severity vocabulary",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_basis_no_vocabulary",
+   "path_source": "/2/File",
+   "path_kind": "tree_file",
+   "path_basis": "already-root-relative",
+   "start_line_source": null,
+   "start_line_json_type": "null",
+   "start_line_present": false,
+   "locations_in_record": 1,
+   "symlink_counterpart": "absent -- SymlinkFile is the empty string, so the record names no second location and multi_location_records does not count it",
+   "cwe_source": null,
+   "cve_source": null,
+   "package_coordinate_source": null,
+   "absent_optional_fields_reason": "the shape supplies no weakness identifier, no advisory identifier and no package coordinate; for a secret record the coordinate's absence is not a rejection condition",
+   "distinct_cwe_identifiers": 0,
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": "python/pyspark/**",
+   "src_test_literal_present": false,
+   "file_exists_at_the_pin": true,
+   "file_line_count_at_the_pin": 391,
+   "start_line_within_file": null,
+   "start_line_absence_route": "the StartLine key is absent from the record altogether, so record.get('StartLine') returns None because the key is missing and gitleaks._start_line returns (None, no rejection) on its first branch",
+   "start_line_absence_is_permitted_by": "AAP 0.8.2 and emit.OPTIONAL_FIELDS, which carry start_line among the five fields absence is permitted for",
+   "counted_under": "start_line_absent",
+   "endline_deliberately_unread": "The record still carries an integer EndLine. It is in NEVER_READ_FIELDS and is not consulted: filling start_line from it would assert a line the producer did not put in that field.",
+   "file_line_count_at_the_branch_tip": 384,
+   "line_count_provenance_note": "Measured both ways because the two differ and confusing them is easy: the pinned tree carries 391 lines and the working checkout at the branch tip carries 384. The pin governs. No bound is asserted for this row in any case, since its start_line is null.",
+   "in_scope_note": "true, and deliberately so -- one of the 832 Python test modules that are IN scope. No Spark test is executed by this run; the file is read by a scanner exactly as any other in-scope source is."
+  },
+  {
+   "row_index": 3,
+   "record_pointer": "/3",
+   "source": "derived, in the tool's own eighteen-key shape, with StartLine's value replaced by an explicit JSON null; otherwise byte-equal to fixtures/derived-gitleaks-features.json element 3",
+   "derivation_purpose": "the second mandatory companion row, taking the other absence route, and a Dockerfile under resource-managers/kubernetes/docker/src/main -- reachable only through the mid-path ** of its glob, and no Maven module, so it is scanned by the file-based tools while contributing no bytecode (AAP 0.2.1)",
+   "rule_id_source": "/3/RuleID",
+   "message_source": "/3/Description",
+   "severity_native_source": null,
+   "severity_native_absent_reason": "the record carries no severity-like field, and the tool defines no severity vocabulary",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_basis_no_vocabulary",
+   "path_source": "/3/File",
+   "path_kind": "tree_file",
+   "path_basis": "already-root-relative",
+   "start_line_source": "/3/StartLine",
+   "start_line_json_type": "null",
+   "start_line_present": false,
+   "locations_in_record": 1,
+   "symlink_counterpart": "absent -- SymlinkFile is the empty string, so the record names no second location and multi_location_records does not count it",
+   "cwe_source": null,
+   "cve_source": null,
+   "package_coordinate_source": null,
+   "absent_optional_fields_reason": "the shape supplies no weakness identifier, no advisory identifier and no package coordinate; for a secret record the coordinate's absence is not a rejection condition",
+   "distinct_cwe_identifiers": 0,
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+   "src_test_literal_present": false,
+   "file_exists_at_the_pin": true,
+   "file_line_count_at_the_pin": 71,
+   "start_line_within_file": null,
+   "pointer_note": "The pointer is /3 and the row index is 3; the divergence begins after this row, since the rejected element at /4 contributes none and rows[4] therefore comes from /5.",
+   "start_line_absence_route": "StartLine is present as an explicit null, so record.get('StartLine') returns None because that is the value -- the same first branch of gitleaks._start_line that /2 reaches by a missing key. A row, not a rejection: see start_line_policy.explicit_null_is_absence_not_a_type_fault.",
+   "start_line_absence_is_permitted_by": "AAP 0.8.2 and emit.OPTIONAL_FIELDS, which carry start_line among the five fields absence is permitted for",
+   "counted_under": "start_line_absent",
+   "start_line_json_type_note": "'null' names the type of the value present in the record, not an absent key. The distinction is recorded because it is the only thing separating this entry from /2's, and an implementation can get one right and the other wrong.",
+   "endline_deliberately_unread": "The record still carries an integer EndLine, and this is the element where reading it would look most defensible, since StartLine is present and merely empty. It is not consulted.",
+   "matched_glob_note": "The ** between kubernetes and src/main matches the single segment 'docker'. A matcher whose ** cannot span a segment there would drop this row's scope silently, which is why the expansion is asserted rather than assumed."
+  },
+  {
+   "row_index": 4,
+   "record_pointer": "/5",
+   "source": "derived, in the tool's own eighteen-key shape; byte-equal to fixtures/derived-gitleaks-features.json element 5",
+   "derivation_purpose": "a path outside the twelve globs, kept rather than dropped. In this negative fixture it does a second job: it sits after the defective element, so an adapter that abandoned the artifact at the rejection would lose it, and its presence with in_scope false is what shows the adapter carried on.",
+   "rule_id_source": "/5/RuleID",
+   "message_source": "/5/Description",
+   "severity_native_source": null,
+   "severity_native_absent_reason": "the record carries no severity-like field, and the tool defines no severity vocabulary",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_basis_no_vocabulary",
+   "path_source": "/5/File",
+   "path_kind": "tree_file",
+   "path_basis": "already-root-relative",
+   "start_line_source": "/5/StartLine",
+   "start_line_json_type": "integer",
+   "start_line_present": true,
+   "locations_in_record": 1,
+   "symlink_counterpart": "absent -- SymlinkFile is the empty string, so the record names no second location and multi_location_records does not count it",
+   "cwe_source": null,
+   "cve_source": null,
+   "package_coordinate_source": null,
+   "absent_optional_fields_reason": "the shape supplies none of the three. That the file is a lockfile changes nothing: the coordinate would have to come from the record, and a secret finding carries none -- so this row is not the dependency-oriented case whose missing coordinate is a rejection.",
+   "distinct_cwe_identifiers": 0,
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": null,
+   "src_test_literal_present": false,
+   "file_exists_at_the_pin": true,
+   "file_line_count_at_the_pin": 2168,
+   "start_line_within_file": true,
+   "pointer_note": "The record pointer skips /4. rows[4] comes from element /5 because the rejected element contributes no row and the row order is the order of the elements that survive.",
+   "path_kind_note": "tree_file, not a non-filesystem coordinate: the path names a real file inside the scan root and simply falls outside the globs. Out-of-scope and non-filesystem are different questions, and only the second increments non_filesystem_paths.",
+   "out_of_scope_reason": "The path matches none of the twelve globs -- dev/ is not among the scope roots -- so in_scope is false. It is not a rejection, not a filter and not a judgement about the finding; the row is emitted and counted under rows_out_of_scope. AAP 0.8.3 is explicit that such a row is kept.",
+   "file_line_count_at_the_branch_tip": 2169,
+   "line_count_provenance_note": "2,168 at the pin and 2,169 at the branch tip. The pin governs, and 17 is inside both."
+  }
+ ],
+ "rejections": [
+  {
+   "rejection_index": 0,
+   "record_pointer": "/4",
+   "array_index": 4,
+   "locator_note": "The pointer and the array index name the same element, and the array index is also what the produced Rejection carries: adapters/gitleaks.py builds this rejection through paths.make_rejection at step 5 and passes record_index and rule_id, so a produced record_identity and the expectation below can be compared directly without translating one coordinate system into the other.",
+   "reject_class": "non_integer_start_line",
+   "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_NON_INTEGER_START_LINE constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten. Written verbatim rather than paraphrased, and to be asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+   "reject_class_description": "a start_line is present but is not an integer",
+   "reject_class_description_source": "paths.REJECT_CLASS_DESCRIPTIONS[\"non_integer_start_line\"]",
+   "reject_class_is_produced_by_this_adapter": "Yes, and by its own check rather than by a resolver: gitleaks.REJECT_CLASSES_PRODUCED lists this class among the six, and the first four of those six are raised by the adapter's own steps. So unlike the path classes there is no divergence between the fixture's name and the class it exercises.",
+   "tool": "gitleaks",
+   "classification_step": "step 5 of the adapter's fixed classification order -- shape, rule identifier, message, path, start_line. Steps 1 to 4 all pass on this record: it is a JSON object, it carries a non-empty string RuleID, it carries a non-empty string Description, and its File resolves cleanly. That is deliberate, so the only thing left to reject it for is the type of its start_line.",
+   "path_resolved_before_rejection": true,
+   "path_resolution_note": "Its File is a root-relative path to a real file in the tree, so the path step succeeds and the record reaches step 5. The resolved path appears in no field of this file: a record that produced no row contributes no field to the dataset, and recording its path here would invite a reader to treat it as a row that was merely mislabelled. The file is named in prose under boundary_case, which is a statement about the fixture rather than a value asserted for the record.",
+   "multi_location_check_ran": "The adapter takes the multi-location count before the path step, so this record was inspected for a second location and found to name none -- SymlinkFile is the empty string. Worth stating because it is the one counter a rejected record can still move.",
+   "offending_value": true,
+   "offending_value_json_type": "boolean",
+   "offending_value_source": "/4/StartLine",
+   "no_coercion": "The expected outcome is a rejection, not a row with start_line 1 and not a row with start_line null. This is the route an implementation gets wrong for a reason that has nothing to do with Gitleaks: bool is a subclass of int in Python, so isinstance(True, int) is True and an unguarded type test admits the value as line 1 -- a line the artifact never stated, on a five-line file that does have a line 1, in a row that would satisfy every other assertion in this module. adapters/gitleaks.py tests isinstance(raw, bool) before the integer test for exactly that reason, and this fixture is what makes the guard falsifiable rather than merely present.",
+   "adjacent_values_deliberately_unread": "The rejected record is rejected and counted, never given a start_line. Nothing in this file supplies a line number for it -- not 1, not null-as-though-absent, and not the integer EndLine that sits beside the defective StartLine in the same record. That EndLine is deliberately left unread: reading it would be inferring the start from the end, and it is the most tempting inference available here because it is the one integer in the record that looks like a line.",
+   "range_is_not_the_fault": "There is one fault, not two, and it is a fault of type rather than of range. A boolean has no magnitude to be in or out of range, so nothing here says anything about the five lines of the named file except that they exist. Had the record carried the integer 1 it would have been a row, because 1 is a line that file has; the class is decided on the value's type, before any range question is asked.",
+   "expected_detail": "StartLine is True rather than an integer",
+   "expected_detail_note": "The detail is the sub-reason AAP 0.5.4 requires a rejection to carry, and it is quoted verbatim because this class covers three branches and the class name alone cannot tell them apart. The four committed fixtures for this class produce four different details from the same member of the same record, which is the falsifying set the class needs: a test asserting only the class would pass on all four even where the adapter took the wrong branch.",
+   "expected_record_identity_keys": [
+    "record_index",
+    "rule_id"
+   ],
+   "expected_record_identity": {
+    "record_index": 4,
+    "rule_id": "gcp-api-key"
+   },
+   "record_identity_note": "Two keys, and only two. The adapter builds this rejection itself and supplies record_index and rule_id; the RuleID, StartLine, File and reported_path keys that appear on a path rejection are added by the resolver, and the resolver did not reject this record. Enough to find the element in the artifact again, and never the record itself and never a captured value. Note in particular that the identity does not carry the offending value: the detail names its type and the identity names the record, so neither channel carries it.",
+   "why_not_a_row": "There are two wrong rows available and no right one. A row with start_line 5 would assert the artifact stated an integer it did not state -- and would be indistinguishable from a sound row, since 5 is a real line of that file. A row with start_line null would assert the artifact stated nothing, which is the opposite of what it did and is indistinguishable from the two legitimate absences in this same fixture. Counting it under a named class keeps the record visible and keeps the arithmetic honest.",
+   "contributes_no_row": true,
+   "contributes_no_counter": "Neither a path_kind_* counter, nor a severity_basis_* counter, nor severity_absent, nor either in_scope counter moves for this record, even though its path resolved: all of them are incremented after step 5. It did pass through the multi-location check, which is taken earlier and found nothing. That asymmetry is the classification order made visible, not a miscount.",
+   "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, so no entry from it reaches severity-map.md. That document reports against the rows the dataset contains, and this record contributes none -- which is why severity_absent is 5 rather than 6.",
+   "has_no_in_scope_value": "in_scope is a property of a resolved path on an emitted row. This record has no row, so it is neither in scope nor out of scope -- it is counted. A file that recorded in_scope false for it would be asserting that the allowlist had been consulted about a row that was never produced.",
+   "not_produced_by_any_other_condition": "The eleven sibling reject-gitleaks-* fixtures own the other five conditions this adapter can produce -- malformed_record, missing_rule_id, missing_message over four documents, absent_path and unresolvable_path -- and this record meets none of them: it is an object, its RuleID and Description are non-empty strings, and its File resolves. So this fixture re-covers nothing they cover, and each of them still has its own work to do. Three of the eleven carry the other routes into this fixture's own class, which is coverage of a different route rather than a re-covering of this one.",
+   "start_line_route": "boolean",
+   "expected_detail_composition": "adapters/gitleaks.py composes it as f\"{_START_LINE_KEY} is {_safe_value_repr(raw)} rather than an integer\". _safe_value_repr renders a bool in full -- a bool can carry no captured content -- so the detail reads Python's True where the string route's detail names a type instead.",
+   "distinguishing_substrings": [
+    "is True rather than an integer"
+   ],
+   "distinguishing_substrings_note": "The substring that is unique to this route among the four committed fixtures for this class. The tail 'rather than an integer' is composed by two of the three branches and therefore distinguishes nothing on its own, which is why the substrings recorded here are narrower than the detail."
+  }
+ ],
+ "in_scope_verification": {
+  "method": "Each of the five surviving paths was matched against the twelve globs by hand and then checked twice more, with two implementations that are not the one under test: a glob-to-regex translation written for this check, and CPython 3.13's PurePosixPath.full_match, whose ** spans zero or more directories. All three agree on all five paths, and on which glob each matched.",
+  "why_not_fnmatch": "Three of the twelve globs depend on ** matching zero or more directories, and neither fnmatch nor PurePath.match provides those semantics. A matcher built on either silently drops whole modules, and a silently dropped module looks exactly like a module with nothing to report (AAP 0.5.4).",
+  "src_test_rule": "The exclusion is the literal substring src/test, and it overrides a positive glob match. No path here contains it, including the Python test module, whose test-ness is expressed as a tests/ directory and a test_ filename rather than a Maven src/test tree.",
+  "the_rejected_record_is_not_in_this_check": "in_scope is a property of a resolved path on an emitted row, and the rejected record produced none, so it was not matched against the allowlist at all. Its path would have matched core/src/main/** had it become a row, and that counterfactual is deliberately recorded nowhere in the rows or counters.",
+  "result": "four in scope, one out of scope and kept, one record counted rather than scoped"
+ },
+ "behaviours_not_exercised_by_this_fixture": [
+  {
+   "behaviour": "the other branches of this same rejection class",
+   "why_absent": "one defective record, defective in one way, is what makes the branch attributable; a second defect would blur which branch the class came from",
+   "cover_with": "the sibling fixtures named under start_line_policy.routes.branches, each with its own expected file and its own asserted detail"
+  },
+  {
+   "behaviour": "the two path classes this adapter can produce",
+   "why_absent": "every File in this fixture is a non-empty root-relative path and the recorded base resolves it, so step 4 passes on all six elements",
+   "cover_with": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-absent-path.json for absent_path, and reject-gitleaks-unresolvable-path.json -- read under a metadata document recording path_base.kind 'none' -- for unresolvable_path"
+  },
+  {
+   "behaviour": "malformed_record, missing_rule_id and missing_message",
+   "why_absent": "steps 1 to 3 are made to pass on the defective record deliberately, so nothing but its start_line can claim it",
+   "cover_with": "the six sibling fixtures that own those conditions -- reject-gitleaks-malformed-record.json, reject-gitleaks-missing-rule-id.json, and the four documents that carry the forms in which a Description is unusable (reject-gitleaks-missing-message.json, reject-gitleaks-null-message.json, reject-gitleaks-empty-message.json and reject-gitleaks-whitespace-message.json)"
+  },
+  {
+   "behaviour": "a record naming a second location, which moves multi_location_records",
+   "why_absent": "every element's SymlinkFile is the empty string, so the counter is 0 -- including for the rejected record, which is measured for it before the path step",
+   "cover_with": "oss-scan-results/adapter-tests/expected/derived-gitleaks-features.rows.json"
+  }
+ ],
+ "base_document_renamed_note": "The base document this entry derives from was committed twice under two names, byte-identical in both. The duplicate is removed and every reference here names the surviving document, oss-scan-results/adapter-tests/fixtures/derived-gitleaks-features.json, whose sha256 is unchanged by the removal -- so the derivation stated above is the same derivation from the same bytes."
+}

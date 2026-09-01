@@ -1,0 +1,196 @@
+{
+  "description": "The hand-verified expected outcome for oss-scan-results/adapter-tests/fixtures/halt-trivy-unknown-section.json. It states a HALT, not rows, despite the .rows.json suffix this folder's naming convention requires. Every value was derived by reading the fixture and the authored contracts in harness/lib/normalize/adapters/trivy.py, never by running the adapter and recording its traceback. Where this file and adapters/trivy.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match.",
+  "outcome": "halt",
+  "outcome_kind": "adapter structural-validation halt, after successful routing and before a single row is built",
+  "tool": "trivy",
+  "scanner_class": "per record -- vuln, secret or misconfig -- taken from the section array a record was read from. No record is ever assigned one here, because the halt precedes row construction.",
+  "adapter": "harness/lib/normalize/adapters/trivy.py",
+  "adapter_invoked": true,
+  "fixture": {
+    "path": "oss-scan-results/adapter-tests/fixtures/halt-trivy-unknown-section.json",
+    "sha256": "b76067d764f41da8bff000b7402b9a54c3c88575b38d278f921b85055dad1d85",
+    "bytes": 3843,
+    "lines": 122,
+    "json_well_formed": true,
+    "top_level_type": "object",
+    "schema_version": 2,
+    "trivy_version": "0.74.0",
+    "artifact_type": "filesystem",
+    "artifact_name": ".",
+    "results": 3,
+    "supported_finding_records": 3,
+    "kind": "derived",
+    "derived_from": {
+      "fixture": "oss-scan-results/adapter-tests/fixtures/trivy.json",
+      "that_fixture_is": "the byte-for-byte capture of harness/artifacts/raw/trivy.json, sha256 4551d6ca435ad71aa2306bd03aa45ce92ba95d5f9ee03f304767f9f791878eba, 3,496 bytes, three Results[] elements each holding exactly one DS-0026 Misconfigurations record",
+      "what_changed": "one member named \"Findings\", holding a two-element array of objects, was inserted into Results[2] directly after its Misconfigurations array. \"Findings\" is not a member Trivy 0.74.0's Result struct declares and is therefore outside trivy.RESULT_KNOWN_KEYS. It stands for any finding section a later Trivy version might add: the point of the halt is that the adapter does not need to know the name in advance, so the name is deliberately one no version emits rather than one this dataset happens not to support yet.",
+      "derivation_check": "diff fixtures/trivy.json against this file: the only difference is the inserted \"Findings\" member on the third element. Its two objects carry ID, Title, Severity and Status -- finding-shaped, which is what makes _is_object_array true and what makes dropping them a silent loss of tool output rather than of metadata.",
+      "nothing_else_changed": "the report envelope, all three Targets, all three MisconfSummary objects and all three DS-0026 records are the capture's, byte for byte. The three supported finding records are still perfectly parsable, which is what makes the silent-drop this halt prevents plausible rather than hypothetical.",
+      "formatting": "written with the capture's own one-space JSON indentation and, like the capture, with no trailing newline, so a byte diff against fixtures/trivy.json shows the structural change and nothing else."
+    },
+    "fixture_is_never_edited_to_suit_this_file": "This expectation is re-derived when the fixture changes, which the recorded sha256 above makes visible. The fixture is the input and this file is the assertion; the dependency runs one way."
+  },
+  "field_order": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_native",
+    "severity_norm",
+    "path",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate",
+    "in_scope"
+  ],
+  "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Recorded for parity with the positive expected files in this folder; no row below carries it, because rows is empty by expectation.",
+  "row_level_policy_keys_absent": "absence_permitted_fields, absence_convention and severity_norm_vocabulary are deliberately not carried here: each is a policy about the content of an emitted row and this file expects no row. Those policies are asserted where rows exist -- oss-scan-results/adapter-tests/expected/trivy.rows.json for this same adapter.",
+  "routing": {
+    "shape": "native",
+    "is_sarif": false,
+    "is_sarif_derivation": "shape.is_sarif requires a mapping whose version is the exact string \"2.1.0\" together with a runs array. This document is a mapping carrying neither member, so the conjunction is False on both halves and the shape is native.",
+    "detected_by": "normalize.shape.route, or normalize.shape.route_artifact",
+    "writer_identity": "trivy",
+    "adapter_module": "trivy",
+    "adapter_module_authority": "shape.ADAPTER_MODULE_BY_TOOL, the trivy entry",
+    "scanner_class_from_routing": "the PER_RECORD sentinel shape.SCANNER_CLASS_BY_TOOL holds for trivy, for which shape.is_per_record returns True",
+    "routes_successfully": true,
+    "not_a_shape_failure": "The failure here is NOT shape.UnknownArtifactShape. The document's top level is a JSON object and its writer is a known runner, so routing succeeds and the adapter is entered; the halt is raised by the adapter's own first pass over an artifact it was correctly given."
+  },
+  "halt": {
+    "expected": true,
+    "expected_exception": "trivy.UnsupportedTrivySection",
+    "exception_symbol": "UnsupportedTrivySection",
+    "exception_defined_in": "harness/lib/normalize/adapters/trivy.py",
+    "exception_base": "Exception",
+    "exception_base_note": "Exception rather than the module's own TrivyAdapterError, which is a ValueError for caller faults. A caller catching argument faults must not be able to swallow this halt.",
+    "raised_by": [
+      "normalize.adapters.trivy.validate_finding_sections -- condition 2",
+      "normalize.adapters.trivy.adapt -- pass one calls validate_finding_sections before building any row, and lets the exception propagate untouched"
+    ],
+    "reason": "unknown_finding_section",
+    "reason_constant": "trivy.HALT_UNKNOWN_SECTION",
+    "reason_note": "The second of the four members of trivy.HALT_REASONS, and the second condition validate_finding_sections checks. The other three are excluded by observation of this fixture under halt_conditions_excluded, so the halt is attributable to this reason alone.",
+    "why_an_array_of_objects_is_the_whole_test": "The adapter halts on an unknown member only where trivy._is_object_array is true: a non-empty array carrying at least one object. Every finding section report.go declares is an array of objects, and every non-finding member that is not a scalar is an object (MisconfSummary, Layer) -- so halting on an unknown object would halt on the next metadata field Trivy adds, which AAP 0.5.4 does not ask for. This fixture's offending member is therefore an array of objects, and the two non-halting neighbours are covered as derived documents in the test: an unknown object, and an unknown array of strings.",
+    "observed_attributes": {
+      "tool": "trivy",
+      "reason": "unknown_finding_section",
+      "section": "Findings",
+      "target": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+      "result_index": 2,
+      "element_count": 2,
+      "note": "'Findings' is outside the known Result members (Class, CustomResources, ExperimentalModifiedFindings, Layer, Licenses, MisconfSummary, Misconfigurations, Packages, Secrets, Target, Type, Vulnerabilities).",
+      "structure": {
+        "json_type": "array",
+        "element_count": 2,
+        "elements": [
+          {
+            "json_type": "object",
+            "key_count": 4,
+            "keys": {
+              "ID": "string",
+              "Title": "string",
+              "Severity": "string",
+              "Status": "string"
+            }
+          },
+          {
+            "json_type": "object",
+            "key_count": 4,
+            "keys": {
+              "ID": "string",
+              "Title": "string",
+              "Severity": "string",
+              "Status": "string"
+            }
+          }
+        ]
+      },
+      "attribute_authority": "the attributes UnsupportedTrivySection sets, which as_dict() returns together with the composed message. element_count is 2 because the offending value is an array and holds two elements; note is non-null for this reason because the message has to name what the known members are for the key to be actionable.",
+      "target_note": "the Target is the third Dockerfile's path, echoed exactly as observed. It is never resolved as a path here: path resolution belongs to row construction, which does not happen.",
+      "structure_derivation": "trivy._structure_of over the offending value. The value is an array, so the description carries json_type, element_count and one nested description per element up to _EXCERPT_MAX_ELEMENTS, which is 3; both elements are described and elements_truncated is absent because 2 is not greater than 3. Each element is an object with 4 keys, well under _EXCERPT_MAX_KEYS (24), so keys_truncated is absent and each key maps to its JSON type name."
+    },
+    "result_index_is_the_last_element": "The offence is on Results[2], the last of the three, and the two elements before it are clean. That is deliberate: it establishes that the validation pass runs over every element rather than stopping at the first, because a defect in the last element must stop the run as surely as one in the first or a partial dataset would be produced from the elements already walked.",
+    "halt_conditions_excluded": {
+      "note": "trivy.HALT_REASONS holds four reasons and this fixture must be attributable to exactly one. Each of the other three is excluded by an observation of the fixture.",
+      "unsupported_finding_section": "does not apply: neither Licenses nor ExperimentalModifiedFindings appears on any of the three elements, so condition 1 -- which is checked first and would therefore win -- finds nothing. The capture carries neither member and this fixture added neither.",
+      "supported_section_not_an_array": "does not apply: Vulnerabilities and Secrets are absent from every element and Misconfigurations is an array on every element.",
+      "declared_findings_held_by_no_supported_section": "does not apply: each of the three MisconfSummary objects declares 1 failure and each element's Misconfigurations array holds 1 record, so no declared finding is unheld.",
+      "consequence": "the three supported sections are perfectly parsable and every other structural guard passes, so the halt is attributable to the unknown finding section and to nothing else."
+    },
+    "authority": "AAP 0.5.4 -- any non-empty finding array outside the three supported sections halts the run with the observed structure quoted, because otherwise reconciliation passes while real tool output is silently dropped -- and AAP 0.9.2, which lists that condition among those that stop the run.",
+    "not_a_rejection": {
+      "is_reject_class": false,
+      "reject_class": null,
+      "reject_classes_authority": "harness/lib/normalize/paths.py, the REJECT_CLASSES tuple -- a closed set of ten class names, not copied here so the one authority cannot drift into two.",
+      "statement": "The stated outcome is a halt, not a counted rejection. \"unknown_finding_section\" is not a member of paths.REJECT_CLASSES, and the test asserts that non-membership programmatically against the module. Filing this outcome as a rejection would invite exactly the implementation AAP 0.5.4 forbids: one that counts the anomaly, carries on, and reports a dataset that balances.",
+      "nearest_rejection_neighbour": "unattributable_section, owned by fixtures/reject-trivy-unattributable-section.json. That class is about one record handed over under a section key this adapter does not serve; this halt is about an artifact holding a whole section this dataset has no schema for. One record can be rejected and counted; a section cannot."
+    }
+  },
+  "parse": {
+    "json_load_expected_to_succeed": true,
+    "json_load_error": null,
+    "note": "The fixture is well-formed JSON and json.load succeeds on it. No parser failure is expected here and none is stated: malformed input is a different condition, owned by fixtures/reject-trivy-malformed-record.json.",
+    "not_a_partial_parse": "A halt is not a partial parse. A partial parse emits every parsable record, counts every rejected one under a named class and continues (AAP 0.5.4); here nothing is emitted, nothing is counted and the run stops. No parse_status of clean, partial or failed is claimed for this fixture, because a parse status describes an artifact that was normalized and this one deliberately was not."
+  },
+  "counts": {
+    "raw_finding_records": 3,
+    "raw_count_unit": "Results[] x one element of Vulnerabilities[], Secrets[] or Misconfigurations[] -- the unit normalize.reconcile._count_trivy walks independently of row construction, summing only the three supported sections",
+    "raw_count_derivation": "reconcile._count_trivy sums only the three supported sections, so the two objects under \"Findings\" contribute nothing to it. Three DS-0026 records remain, one per element, and 3 is what the traversal returns.",
+    "rows": 0,
+    "rejections": 0,
+    "rejections_by_class": {},
+    "reconciliation_identity": "not applicable -- the halt precedes row construction, so there is no dataset side to reconcile the 3 raw record(s) against",
+    "counters_returned": null,
+    "counters_note": "adapt() creates its counter mapping before pass one and returns the three-tuple only on success, so a caller that receives this exception receives no counters at all -- which is why counters_returned is null rather than a mapping of zeros."
+  },
+  "rows": [],
+  "rows_note": "Explicitly empty, and empty for a different reason than a clean scan is empty: the pipeline stopped, it did not look and find nothing. The three records that would have become rows are still in the fixture, still parsable, and deliberately not emitted.",
+  "row_derivations": [],
+  "rejections": [],
+  "rejections_note": "Explicitly empty, with a total of 0 and no class named. No member of paths.REJECT_CLASSES applies to this outcome, and none may be recorded for it.",
+  "guarded_failure": {
+    "summary": "A self-certifying failure: the arithmetic that is supposed to catch a dropped finding cannot see this one, because an ignored unknown section is absent from BOTH sides of the identity.",
+    "arithmetic_if_the_guard_were_removed": {
+      "raw_finding_records": 3,
+      "rows": 3,
+      "rejections": 0,
+      "identity": "3 == 3 + 0",
+      "holds": true,
+      "records_that_would_vanish": 2,
+      "records_that_would_vanish_detail": "the two finding-shaped objects under Results[2].Findings"
+    },
+    "derivation": "reconcile._count_trivy counts only the three supported sections, so it returns 3 for this fixture just as it does for the capture, and an implementation that skipped the unknown member would emit the capture's same three rows and reject nothing. The identity balances while two records of real tool output leave no trace in the dataset, in the counts or in the reconciliation.",
+    "why_a_halt_and_not_a_tolerated_skip": "Because no downstream check can recover the loss. A drop that unbalances the identity is caught by the identity; a drop invisible to both sides of it is caught by nothing, and the artifact reports a clean, reconciled normalization of an artifact it did not fully read.",
+    "what_this_fixture_falsifies": "Any implementation that walks only the members it knows. It equally falsifies one that halts on every unknown member regardless of shape: the test's derived documents put an unknown object and an unknown array of strings on the same element and require both to pass."
+  },
+  "siblings": {
+    "note": "Four halt fixtures, one per member of trivy.HALT_REASONS, each isolating its own condition. HaltReasonCoverageTest iterates the closed tuple and fails by name if a reason has no fixture, no expected file or no behavioural test.",
+    "unsupported_finding_section": "oss-scan-results/adapter-tests/expected/halt-trivy-unsupported-section.rows.json",
+    "supported_section_not_an_array": "oss-scan-results/adapter-tests/expected/halt-trivy-section-not-an-array.rows.json",
+    "declared_findings_held_by_no_supported_section": "oss-scan-results/adapter-tests/expected/halt-trivy-declared-findings-unheld.rows.json",
+    "positive_twin": "oss-scan-results/adapter-tests/expected/trivy.rows.json -- the same three elements with no unknown member, whose expectation is three rows and no halt. The pair differs only in the inserted member, so neither file alone would pin the rule and each names its counterpart."
+  },
+  "prohibitions_observed": {
+    "no_secret_value_in_any_field": "No field of this file carries a value read out of the fixture's finding content. The structure excerpt recorded below carries key names and JSON type names only, which is _structure_of's own guarantee, and this tree is committed to git.",
+    "no_cross_tool_interpretation": "This file describes one artifact's structural validation. It does not compare Trivy's output with any other tool's, rank coverage, or explain why one tool reported something another did not.",
+    "no_judging_and_no_deduplication": "No finding is called real, important, a false positive or a duplicate. The records this halt protects are not judged either: nothing here says what they mean, only that the artifact's structure cannot be read as this dataset's twelve fields and that continuing would hide it.",
+    "no_inference": "Every value above names the member or the authored contract it was read from. Nothing was derived by running the adapter and recording a traceback."
+  },
+  "behaviours_not_exercised_by_this_fixture": [
+    "Row construction of any kind -- the halt is pass one, so no field mapping, no severity mapping and no in_scope evaluation runs, and harness/scope/allowlist.txt is never consulted.",
+    "Path resolution -- normalize.paths.resolve_trivy_path is never called, and no absolute path appears anywhere in this file.",
+    "Per-record rejection -- none of the ten classes in paths.REJECT_CLASSES is reachable from this halt.",
+    "The other three reasons in trivy.HALT_REASONS, each excluded by observation under halt_conditions_excluded and each owned by its own fixture.",
+    "A partial parse, malformed JSON and a non-zero exit code, each a different condition owned by a different fixture."
+  ],
+  "how_to_check_this_file": [
+    "It parses as JSON, rows is an empty array, the top-level rejections is an empty array and counts.rejections is 0.",
+    "Diff fixtures/halt-trivy-unknown-section.json against fixtures/trivy.json and confirm the only difference is the \"Findings\" member on Results[2].",
+    "Confirm \"Findings\" is absent from trivy.RESULT_KNOWN_KEYS, and that the sorted membership of that constant is the list quoted in observed_attributes.note.",
+    "Confirm the other three halt conditions are excluded on this fixture by walking it: no Licenses or ExperimentalModifiedFindings member, every supported section an array or absent, and each MisconfSummary's 1 declared failure held by 1 record.",
+    "Confirm reconcile._count_trivy returns 3 for this fixture, which is what makes the counterfactual identity under guarded_failure balance.",
+    "Invoke the adapter on the fixture and assert it raises UnsupportedTrivySection whose reason, section, target, result_index, element_count, note and structure equal observed_attributes, and that no row and no rejection is produced."
+  ]
+}

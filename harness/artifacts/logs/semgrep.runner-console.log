@@ -1,0 +1,14 @@
+tool            : semgrep
+scan root       : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scope dirs      : 18
+start           : 2026-08-31T09:57:44+00:00
+ruleset         : /opt/blitzy-harness/rules/semgrep-rules (commit 40b8c63f75dc7c22c8a77482d73bfb864b146f7e)
+configs         : 60
+credential      : SEMGREP_APP_TOKEN=absent
+exit code       : 0
+elapsed seconds : 482
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/raw/semgrep.sarif (40660954 bytes)
+end             : 2026-08-31T10:05:46+00:00

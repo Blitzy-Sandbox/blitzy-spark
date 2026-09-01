@@ -1,0 +1,10 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.74.0"
+  },
+  "ReportID": "01a0574b-1f09-7196-819b-2ebd7b099193",
+  "CreatedAt": "2026-08-31T10:08:56.073106444Z",
+  "ArtifactName": "sql/catalyst/src/main",
+  "ArtifactType": "filesystem"
+}

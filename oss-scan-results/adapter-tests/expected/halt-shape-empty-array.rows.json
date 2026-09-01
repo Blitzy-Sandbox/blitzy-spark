@@ -1,0 +1,303 @@
+{
+  "description": "An empty JSON array, presented under each of the nine recognised artifact filenames. Under gitleaks.json it ROUTES -- a bare top-level array is that tool's whole envelope, and an empty one is a legitimate clean report -- and under the other eight it halts. It is the control that keeps the envelope check from becoming an emptiness check.",
+  "outcome": "mixed -- one routing decision and eight halts",
+  "outcome_kind": "envelope-satisfied-under-one-name-and-refused-under-eight",
+  "tool": null,
+  "scanner_class": null,
+  "adapter": null,
+  "adapter_invoked": false,
+  "null_field_note": "tool, scanner_class and adapter are null here because this file describes nine routings rather than one: the per-name table below carries the tool, the shape and the adapter for the name that routes, and the halt reason for the eight that do not. adapter_invoked is false for all nine -- the routing decision names an adapter by string key, and this test asserts over the decision without calling it.",
+  "fixture": {
+    "path": "oss-scan-results/adapter-tests/fixtures/halt-shape-empty-array.json",
+    "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+    "bytes": 3,
+    "json_well_formed": true,
+    "top_level_type": "array",
+    "python_type": "list",
+    "top_level_length": 0,
+    "top_level_keys": [],
+    "authored_note": "Authored, not captured. It is the emptiest well-formed array a runner could leave behind. Nothing in it is a finding, a secret, a credential or a token, and it names no path, so no location of any kind is characterised by it.",
+    "why_this_document": "An over-strict router is as wrong as a permissive one, and it fails in the opposite direction: it would halt on a tool that legitimately found nothing. AAP 0.5.4 makes an empty report ordinary -- the count unit is walked and yields zero records, and the reconciliation identity 0 = 0 + 0 holds over an artifact that was present and traversed, which is a different thing entirely from an artifact that was absent. This fixture is what pins that distinction at the router.",
+    "the_pair_it_completes": "Its sibling halt-shape-empty-object.json is equally empty and halts under all nine names. Same emptiness, different container, opposite outcome under gitleaks.json -- so the two together establish that the check keys on the envelope AAP 0.5.4's per-shape table names and not on whether anything is inside it."
+  },
+  "field_order": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_native",
+    "severity_norm",
+    "path",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate",
+    "in_scope"
+  ],
+  "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Recorded for parity with the positive expected files in this folder; no row below carries it, because rows is empty by expectation.",
+  "shape_detection": {
+    "function": "normalize.shape.is_sarif",
+    "authority": "harness/lib/normalize/shape.py",
+    "conjunction": "isinstance(doc, Mapping) and doc.get(\"version\") == \"2.1.0\" and isinstance(doc.get(\"runs\"), list)",
+    "mapping_condition_met": false,
+    "version_key_present": false,
+    "version_condition_met": false,
+    "runs_key_present": false,
+    "runs_condition_met": false,
+    "is_sarif": false,
+    "is_sarif_derivation": "The document is a list rather than a mapping, so the first condition fails and the conjunction is False. This is the sharpest subject in the folder for that first condition: a detector that skipped the isinstance check and called .get on the document would raise AttributeError here rather than return False, and an exception from the detector is a different failure from a correct negative.",
+    "sarif_adapter": "harness/lib/normalize/adapters/sarif.py",
+    "sarif_adapter_invoked": false,
+    "shape_never_sarif": true,
+    "container_check": {
+      "function": "normalize.shape._is_supported_container",
+      "supported_container": true,
+      "note": "The top level is a JSON array, which IS a supported container -- two of the nine artifacts are array-topped -- so REASON_UNSUPPORTED_DOCUMENT_TYPE does not apply under any name."
+    }
+  },
+  "native_shape_detection": {
+    "conclusion": "matches gitleaks' envelope and no other tool's",
+    "function": "normalize.shape.matches_native_shape",
+    "authority": "shape._NATIVE_ENVELOPE in harness/lib/normalize/shape.py, one entry per canonical tool, each pairing the predicate the router enforces with the prose the halt quotes.",
+    "checks": {
+      "opengrep": false,
+      "semgrep": false,
+      "datadog-static-analyzer": false,
+      "gitleaks": true,
+      "checkov": false,
+      "trivy": false,
+      "osv-scanner": false,
+      "dependency-check": false,
+      "joern": false
+    },
+    "every_envelope_verdict_is_false": false,
+    "checks_note": "Exactly one verdict is True. gitleaks' envelope is a top-level JSON array and nothing more, because its records carry no envelope of their own -- the artifact IS the array. Checkov's array form is refused: it requires a non-empty array whose every element is a report object carrying a results object, and an empty array establishes nothing about its elements, so admitting it would let a document with no report at all route as Checkov's. The six mapping-topped envelopes are refused by type before any key is read, and the three SARIF producers are refused by construction.",
+    "why_checkovs_array_form_needs_the_non_empty_requirement": "Recorded because it is the one asymmetry in the table and it is deliberate. gitleaks' marker is the container itself, so an empty container is a complete, legitimate report. Checkov's marker is the elements' shape, so an empty array carries no marker -- it is indistinguishable from gitleaks' empty report, from an empty OSV array and from an arbitrary empty list. Requiring one report object is what keeps the two array-topped envelopes distinguishable, and the cost is named rather than hidden: a Checkov run that produced a truly empty multi-framework array halts, and it halts with the envelope quoted, which is a stated outcome a reader can act on rather than a silent zero.",
+    "envelope_only_note": "What the router checks is the envelope and only the envelope. Under gitleaks.json this document routes, and every judgement about what the array holds -- including that it holds nothing -- belongs to the adapter and to the reconciliation identity, not to the router."
+  },
+  "under_each_recognised_name": [
+    {
+      "artifact_filename": "opengrep.sarif",
+      "tool": "opengrep",
+      "sarif_producer": true,
+      "envelope": "a SARIF 2.1.0 document -- version == \"2.1.0\" together with a runs array; this runner writes SARIF and nothing else, so there is no native shape to fall back to",
+      "envelope_satisfied": false,
+      "outcome": "halt",
+      "shape": null,
+      "adapter": null,
+      "halt_reason": "sarif-producer-artifact-not-sarif",
+      "halt_reason_constant": "shape.REASON_SARIF_PRODUCER_NOT_SARIF"
+    },
+    {
+      "artifact_filename": "semgrep.sarif",
+      "tool": "semgrep",
+      "sarif_producer": true,
+      "envelope": "a SARIF 2.1.0 document -- version == \"2.1.0\" together with a runs array; this runner writes SARIF and nothing else, so there is no native shape to fall back to",
+      "envelope_satisfied": false,
+      "outcome": "halt",
+      "shape": null,
+      "adapter": null,
+      "halt_reason": "sarif-producer-artifact-not-sarif",
+      "halt_reason_constant": "shape.REASON_SARIF_PRODUCER_NOT_SARIF"
+    },
+    {
+      "artifact_filename": "datadog-static-analyzer.sarif",
+      "tool": "datadog-static-analyzer",
+      "sarif_producer": true,
+      "envelope": "a SARIF 2.1.0 document -- version == \"2.1.0\" together with a runs array; this runner writes SARIF and nothing else, so there is no native shape to fall back to",
+      "envelope_satisfied": false,
+      "outcome": "halt",
+      "shape": null,
+      "adapter": null,
+      "halt_reason": "sarif-producer-artifact-not-sarif",
+      "halt_reason_constant": "shape.REASON_SARIF_PRODUCER_NOT_SARIF"
+    },
+    {
+      "artifact_filename": "gitleaks.json",
+      "tool": "gitleaks",
+      "sarif_producer": false,
+      "envelope": "a JSON array of finding objects at the top level (an empty array is a legitimate clean report)",
+      "envelope_satisfied": true,
+      "outcome": "route",
+      "shape": "native",
+      "adapter": "gitleaks",
+      "halt_reason": null,
+      "halt_reason_constant": null
+    },
+    {
+      "artifact_filename": "checkov.json",
+      "tool": "checkov",
+      "sarif_producer": false,
+      "envelope": "either one report object carrying a 'results' object, or a non-empty top-level array of such report objects (the multi-framework form)",
+      "envelope_satisfied": false,
+      "outcome": "halt",
+      "shape": null,
+      "adapter": null,
+      "halt_reason": "native-shape-unrecognized",
+      "halt_reason_constant": "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+    },
+    {
+      "artifact_filename": "trivy.json",
+      "tool": "trivy",
+      "sarif_producer": false,
+      "envelope": "a report object carrying 'Results', as an array or null (an empty or null 'Results' is a legitimate clean report, but the key's absence means the document is not a Trivy report)",
+      "envelope_satisfied": false,
+      "outcome": "halt",
+      "shape": null,
+      "adapter": null,
+      "halt_reason": "native-shape-unrecognized",
+      "halt_reason_constant": "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+    },
+    {
+      "artifact_filename": "osv-scanner.json",
+      "tool": "osv-scanner",
+      "sarif_producer": false,
+      "envelope": "a report object carrying an 'results' array",
+      "envelope_satisfied": false,
+      "outcome": "halt",
+      "shape": null,
+      "adapter": null,
+      "halt_reason": "native-shape-unrecognized",
+      "halt_reason_constant": "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+    },
+    {
+      "artifact_filename": "dependency-check.json",
+      "tool": "dependency-check",
+      "sarif_producer": false,
+      "envelope": "a report object carrying a 'dependencies' array (an empty array is a legitimate clean report)",
+      "envelope_satisfied": false,
+      "outcome": "halt",
+      "shape": null,
+      "adapter": null,
+      "halt_reason": "native-shape-unrecognized",
+      "halt_reason_constant": "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+    },
+    {
+      "artifact_filename": "joern.json",
+      "tool": "joern",
+      "sarif_producer": false,
+      "envelope": "a collector object carrying a 'findings' array, as written by harness/lib/joern-scan.sc",
+      "envelope_satisfied": false,
+      "outcome": "halt",
+      "shape": null,
+      "adapter": null,
+      "halt_reason": "native-shape-unrecognized",
+      "halt_reason_constant": "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+    }
+  ],
+  "under_each_recognised_name_note": "Nine entries, one per artifact filename, in canonical tool order. One routes and eight halt, and the split is the whole point of the fixture: the router refuses a document that is not the named tool's shape, and accepts one that is, whether or not it carries records.",
+  "under_its_own_name": {
+    "artifact_filename": "halt-shape-empty-array.json",
+    "resolves_to_tool": false,
+    "outcome": "halt",
+    "halt_reason": "unrecognized-artifact-name",
+    "halt_reason_constant": "shape.REASON_UNRECOGNIZED_ARTIFACT_NAME",
+    "note": "The name is not one of the nine, so resolve_tool returns None and the name reason is attributed before any envelope is consulted. Recorded for completeness; this fixture's purpose is the claimed-name table above."
+  },
+  "routed_outcome_under_gitleaks": {
+    "artifact_filename": "gitleaks.json",
+    "tool": "gitleaks",
+    "shape": "native",
+    "adapter": "gitleaks",
+    "scanner_class": "secret",
+    "is_sarif_shape": false,
+    "adapter_invoked_by_this_test": false,
+    "adapter_boundary": "The routing decision names the gitleaks adapter by string key; this file asserts the decision and stops there. What that adapter does with an empty array is its own module's business and is asserted in oss-scan-results/adapter-tests/test_gitleaks_adapter.py, so no expectation about rows is recorded here and none is implied.",
+    "why_it_must_not_halt": "A halt here would stop the run over a tool that ran correctly and found nothing. That is the over-strict failure, and it is not harmless either: it would make a clean artifact unprocessable and put the router in the business of judging results, which AAP 0.3.2 forbids in every direction."
+  },
+  "halt": {
+    "expected": true,
+    "expected_under": "eight of the nine recognised artifact filenames",
+    "expected_exception": "shape.UnknownArtifactShape",
+    "exception_symbol": "UnknownArtifactShape",
+    "exception_defined_in": "harness/lib/normalize/shape.py",
+    "exception_base": "Exception",
+    "raised_by": [
+      "normalize.shape.route",
+      "normalize.shape.route_artifact"
+    ],
+    "raised_before": "any adapter module is named, imported or called, and before any record traversal of any kind",
+    "reasons": [
+      "sarif-producer-artifact-not-sarif",
+      "native-shape-unrecognized"
+    ],
+    "reason_constants": [
+      "shape.REASON_SARIF_PRODUCER_NOT_SARIF",
+      "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+    ],
+    "reason_note": "shape.py names four reasons. The top level is a supported container and each of the nine names resolves, so neither the container reason nor the name reason applies; the eight halts split between the producer reason and the native-envelope reason exactly as the per-name table records.",
+    "observed_attributes": {
+      "artifact_path_note": "Whatever subject the caller passed, echoed unchanged. The negative test passes the claimed artifact filename, so no absolute path appears anywhere in this file.",
+      "stem": "the canonical tool identifier the claimed name resolved to",
+      "top_level_type": "array",
+      "python_type": "list",
+      "version": null,
+      "version_note": "None because shape.describe_document reads a version only from a mapping; an array has no keys to read one from, and the attribute records that absence rather than inventing a value.",
+      "top_level_keys": [],
+      "top_level_length": 0,
+      "sarif_detected": false,
+      "expectation": "the prose statement of what that tool's artifact must be, non-empty for each of the eight refusing names"
+    },
+    "authority": "AAP 0.5.4 -- an artifact matching neither the SARIF shape nor a known native shape is a halt rather than a best-effort parse -- and AAP 0.9.2, which lists it among the conditions that stop the run.",
+    "not_a_rejection": {
+      "is_reject_class": false,
+      "reject_class": null,
+      "reject_classes_authority": "harness/lib/normalize/paths.py, the REJECT_CLASSES tuple -- a closed set of ten class names, not copied here so the one authority cannot drift into two.",
+      "reject_classes_observed_count": 10,
+      "statement": "The stated outcome is a halt, not a counted rejection: \"halt\", \"UnknownArtifactShape\" and each of the four halt reasons shape.py names are provably absent from paths.REJECT_CLASSES, and the test asserts that non-membership programmatically rather than by inspection. A rejection is a per-record outcome inside an adapter that already owns the artifact; this document never reaches an adapter, so there is no record to reject and nothing to count under any class."
+    }
+  },
+  "parse": {
+    "json_load_expected_to_succeed": true,
+    "json_load_error": null,
+    "well_formed_is_essential": true,
+    "note": "The fixture is well-formed JSON and json.load succeeds on it. Malformed input is a different condition, owned by the reject-*-malformed-record fixtures."
+  },
+  "counts": {
+    "raw_finding_records": null,
+    "raw_count_unit": null,
+    "rows": 0,
+    "rejections": 0,
+    "rejections_by_class": {},
+    "reconciliation_identity": "not asserted by this fixture -- eight names halt before any traversal, and under gitleaks.json this file's expectation stops at the routing decision"
+  },
+  "counts_note": "Null rather than 0 for the raw fields, and the reason is different from its sibling's. For the eight halting names there is no count unit to walk. For gitleaks.json there is one -- the array itself -- but walking it is the adapter's and the reconciliation's work, not the router's, so recording a number here would be recording a measurement this file did not make.",
+  "rows": [],
+  "rows_note": "Empty because no adapter is invoked under any of the nine names. Under gitleaks.json a legitimate empty artifact would also produce no row, and the two emptinesses must not be conflated: this file's zero is \"nothing was built\", not \"the artifact held nothing\".",
+  "row_derivations": [],
+  "row_derivations_note": "Empty because no row exists to derive.",
+  "guarded_failure": "Two failures are guarded at once, in opposite directions. A router keying on the filename alone would accept this array under all nine names, and the Trivy, Checkov, Dependency-Check, OSV-Scanner and Joern adapters would each iterate a document with none of their containers and report zero rows -- silent, and indistinguishable from a clean scan. A router that treated emptiness itself as suspicious would halt under gitleaks.json and stop the run over a tool that ran correctly and found nothing. Only the envelope test produces the right answer in both directions.",
+  "negative_test_contract": {
+    "test": "oss-scan-results/adapter-tests/test_shape_routing_negative.py",
+    "assertions": [
+      "shape.route over this document under gitleaks.json returns a RoutingDecision whose shape is native, whose tool is gitleaks and whose adapter is the gitleaks module key -- it does not raise.",
+      "shape.route over this document under each of the other eight artifact filenames raises shape.UnknownArtifactShape, with the reason the per-name table records for that name.",
+      "shape.matches_native_shape is True for gitleaks and False for the other eight tools over this document.",
+      "The halts carry top_level_type \"array\", python_type \"list\", version None, an empty key list, length 0, sarif_detected False and a non-empty expectation.",
+      "shape.is_sarif over the document is False and does not raise, which is the assertion the array top level exists to exercise.",
+      "No adapter is invoked by any of the nine routing calls, including the one that routes: the decision names an adapter by string key and imports none.",
+      "Neither the outcome nor any halt reason is a member of paths.REJECT_CLASSES.",
+      "json.load over the fixture succeeds."
+    ],
+    "mandated_direction_note": "The mandated direction -- a native artifact must not route to the SARIF adapter -- is owned by the same test file over the native fixtures. This fixture adds the control that keeps the strictness those assertions require from being satisfied by a router that refuses everything: a router that halted on every document would pass every negative assertion in this file and fail this one."
+  },
+  "related_fixtures": {
+    "sibling_container": "oss-scan-results/adapter-tests/fixtures/halt-shape-empty-object.json -- the same emptiness in the other container, which no envelope admits.",
+    "captured_array_topped_artifact": "oss-scan-results/adapter-tests/fixtures/gitleaks.json -- the captured artifact whose envelope this document satisfies, with records in it.",
+    "checkov_array_form": "oss-scan-results/adapter-tests/fixtures/checkov-alt-shape.json -- the non-empty multi-framework array, which is what Checkov's array-form envelope requires and what this document is not.",
+    "note": "Named so a reader can see which layer owns which failure. No fixture's outcome is inferred from another's."
+  },
+  "behaviours_not_exercised_by_this_fixture": [
+    "Row construction of any kind -- no adapter runs under any of the nine names.",
+    "Path resolution -- normalize.paths is never called.",
+    "Per-record rejection -- none of the ten classes in paths.REJECT_CLASSES is reachable from a routing decision or a shape halt.",
+    "REASON_UNSUPPORTED_DOCUMENT_TYPE, which needs a top level that is neither a JSON object nor a JSON array; an array is one of the two.",
+    "The valid-SARIF-under-an-unexpected-name halt, whose sarif_detected attribute is True; this document's is False.",
+    "What the gitleaks adapter does with an empty array, which test_gitleaks_adapter.py owns.",
+    "An adapter's own record-level validation and its own halt.",
+    "Malformed JSON, owned by the reject-*-malformed-record fixtures.",
+    "The reconciliation identity, which this file records no measurement for."
+  ],
+  "how_to_check_this_file": "Parse the fixture and compare its sha256 and byte size against the fixture block; it holds exactly [] and a trailing newline. Read shape._NATIVE_ENVELOPE and confirm gitleaks' predicate is a bare top-level-array test while Checkov's array form requires a non-empty array of report objects, then read route and confirm a satisfied envelope returns a decision and an unsatisfied one raises. Then run the negative test: every assertion in negative_test_contract is checkable from this file alone.",
+  "prohibitions_observed": "No secret value, credential, token or redacted-secret placeholder appears in any field of this file (the tree is committed to git). No finding is judged -- nothing here is called real, important, a false positive or a duplicate. Nothing is deduplicated. No tool's output is characterised against another's: this file describes one document's shape detection and the outcomes it must produce, and nothing else."
+}

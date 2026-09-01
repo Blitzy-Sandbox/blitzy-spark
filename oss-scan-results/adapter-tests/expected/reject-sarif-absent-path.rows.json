@@ -1,0 +1,241 @@
+{
+ "description": "The hand-verified expected result for the negative Opengrep SARIF fixture that carries one record naming no location at all -- the locations array is absent from it entirely. This is the absent_path class, and until this fixture existed the class was reachable from this shape and produced by no committed fixture, which AAP 0.9.4 does not permit: a rejection route with no fixture is a route nobody has exercised. Every value was derived by reading the fixture and the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/sarif.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match.",
+ "tool": "opengrep",
+ "scanner_class": "sast",
+ "adapter": "harness/lib/normalize/adapters/sarif.py",
+ "fixture": {
+  "path": "oss-scan-results/adapter-tests/fixtures/reject-sarif-absent-path.sarif",
+  "sha256": "01245603bb1854129133375c829b6af9429c40b7fe1dac4bca1a5e07baf3c08c",
+  "bytes": 10564,
+  "kind": "derived",
+  "sarif_version": "2.1.0",
+  "runs": 1,
+  "results": 3,
+  "driver_rules": 3,
+  "derived_from": "oss-scan-results/adapter-tests/fixtures/reject-sarif-non-integer-start-line.sarif",
+  "derivation": "A negative fixture is derived from the captured one rather than being an excerpt of it, so the provenance is stated as a derivation. The envelope, the invocation notifications and all three driver rules are carried unchanged from fixtures/reject-sarif-non-integer-start-line.sarif, which took them from the captured fixtures/opengrep.sarif. /runs/0/results/0 is unmodified captured output -- byte-identical to harness/artifacts/raw/opengrep.sarif results[432] and to the positive fixture's results[1] -- and /runs/0/results/2 is raw results[1258] with its whole region member deleted, which is where its start_line null comes from. /runs/0/results/1 is the synthesized defective record: a copy of results[0] with its fingerprints member dropped and ONE further edit, named under the_single_edit_this_fixture_makes. It sits in the middle of the array on purpose -- the walk has to reach results[2] past it, which is what shows a partial parse emits everything parsable rather than stopping at the first defect.",
+  "the_single_edit_this_fixture_makes": "The locations member of the copied record is deleted outright. Nothing else differs from /runs/0/results/0: the same ruleId, the same message, the same properties. So the only thing this record can be rejected for is that it names no file.",
+  "recorded_rule_pointers": {
+   "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting": "/runs/0/tool/driver/rules/0",
+   "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle": "/runs/0/tool/driver/rules/1",
+   "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string": "/runs/0/tool/driver/rules/2"
+  },
+  "unreferenced_rule": "rules/1, the pickle rule, is referenced by no result in this fixture. It is carried unchanged rather than pruned: editing the rules array would make this fixture's envelope differ from its siblings' for a reason unrelated to the condition under test, and an unreferenced rule is the ordinary shape of a real artifact's driver table.",
+  "not_records": "The three entries under /runs/0/invocations/0/toolExecutionNotifications are tool notifications -- one rule timeout and two syntax errors over vendored minified JavaScript -- and are not finding records. They are neither rows nor rejections and are not counted: a reading that counted anything finding-shaped would arrive at six records and fail the reconciliation identity for a reason that has nothing to do with the adapter.",
+  "re_derivation_trigger": "These rows are re-derived when the fixture changes, which is what the recorded sha256 above makes visible. The fixture is never edited to suit the rows."
+ },
+ "routing": {
+  "shape": "sarif",
+  "detected_by": "normalize.shape.is_sarif -- a version of \"2.1.0\" together with a runs array; those two together are the whole test",
+  "adapter_module": "normalize.adapters.sarif",
+  "routes_successfully": true,
+  "rejection_is_record_level": true,
+  "not_a_shape_failure": "The enclosing document is valid SARIF 2.1.0 and routes cleanly; exactly one record inside it is defective, and the adapter rejects that record while still emitting the others. The fixtures that own shape-detection failure are near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json."
+ },
+ "field_order": [
+  "tool",
+  "scanner_class",
+  "rule_id",
+  "message",
+  "severity_native",
+  "severity_norm",
+  "path",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate",
+  "in_scope"
+ ],
+ "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+ "absence_permitted_fields": [
+  "severity_native",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate"
+ ],
+ "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS.",
+ "severity_norm_vocabulary": [
+  "Critical",
+  "High",
+  "Medium",
+  "Low",
+  "Info"
+ ],
+ "allowlist": {
+  "path": "harness/scope/allowlist.txt",
+  "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+  "globs": 12,
+  "note": "in_scope is decided by that file alone. Row 0 matched core/src/main/** and row 1 matched resource-managers/yarn/src/main/**; the globs are not copied here, since the allowlist is the single authority and stays byte-exact."
+ },
+ "resolution_context": {
+  "root_independence": "Both surviving uris are already root-relative and the recorded path base for opengrep is the scan root itself, so joining onto the base and relativizing back to the root returns each uri unchanged. These rows therefore hold for whatever absolute scan root the adapter is given, and no absolute path appears anywhere in this file.",
+  "path_base_kind": "scan_root",
+  "path_base_equals_scan_root": true,
+  "path_base_source": "harness/artifacts/logs/runner-metadata.json, the opengrep entry's path_base -- read as input, never assumed",
+  "sarif_uri_base_id_observed": "%SRCROOT%",
+  "sarif_original_uri_base_ids_present": false,
+  "uri_base_id_walk_outcome": "absent",
+  "uri_base_id_walk_consequence": "With no run.originalUriBaseIds the SARIF 2.1.0 section 3.4.4 procedure cannot complete -- the documented producer gap -- and that outcome is eligible for the metadata-backed fallback, so every path here resolves against the runner-recorded base rather than being rejected.",
+  "path_basis": "sarif-degenerate-base-metadata-fallback",
+  "path_kind": "tree_file",
+  "severity_source": "No result in this fixture states a level of its own and no rule carries properties.severity or properties.problem.severity, so each severity_native is the level its own rule states under defaultConfiguration.level and each severity_norm comes from the SARIF level table: error High, warning Medium, note Low, none Info.",
+  "package_coordinate": "null on every row. A SARIF result names a code location rather than a package, and this shape supplies no coordinate to carry."
+ },
+ "path_policy": {
+  "statement": "path is never absent from a row. AAP 0.8.2 permits absence for exactly five fields -- severity_native, start_line, cwe, cve and package_coordinate -- and path is not among them, so a record whose path cannot be established is rejected and counted rather than emitted with a placeholder.",
+  "enforced_twice": "Once by the adapter, which rejects here, and once by the emitter: emit.validate_rows refuses a row whose path is absent, and emit.validation_summary counts it under path_absent. So an adapter that emitted such a row would still not reach the dataset -- the rejection is what makes the record visible instead of merely absent.",
+  "cases_present_in_this_fixture": [
+   {
+    "case": "a location present and resolvable",
+    "record": "/runs/0/results/0",
+    "expected": "a row whose path is core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+    "outcome": "row"
+   },
+   {
+    "case": "no locations array at all",
+    "record": "/runs/0/results/1",
+    "expected": "a counted rejection under absent_path, no row, no invented path",
+    "outcome": "rejection"
+   },
+   {
+    "case": "a location present and resolvable, with no region member",
+    "record": "/runs/0/results/2",
+    "expected": "a row whose path resolves and whose start_line is null -- an absent line is permitted, an absent path is not",
+    "outcome": "row"
+   }
+  ],
+  "why_the_third_record_is_here": "It is the contrast the fixture needs. results[2] is missing line information and is kept; results[1] is missing location information and is rejected. Both absences are omissions by the same producer, and only the field decides the outcome -- which is what makes this a policy about the schema rather than about the artifact."
+ },
+ "counts": {
+  "raw_finding_records": 3,
+  "raw_count_unit": "one element of runs[].results[] -- the unit normalize.reconcile.count_records walks independently of row construction",
+  "raw_count_authority": "normalize.reconcile.count_records(\"opengrep\", doc), whose SARIF traversal sums the length of each run's results array and builds no row, resolves no path and maps no severity. It is the independent half of the identity: a count taken from the traversal that builds the rows would satisfy the assertion while testing nothing.",
+  "rows": 2,
+  "rejections": 1,
+  "rejections_by_class": {
+   "absent_path": 1
+  },
+  "reconciliation_identity": "raw_finding_records == rows + rejections",
+  "reconciliation_arithmetic": "3 == 2 + 1",
+  "reconciliation_note": "Three is two surviving records plus the one synthesized defective record. The traversal reads only the containers it needs in order to walk -- runs, then results, then the length -- so the defective element still counts as one record, which is what keeps the identity honest.",
+  "four_reported_counters": {
+   "authority": "AAP 0.5.4 -- the four counts reported per tool",
+   "names": [
+    "multi_location_records",
+    "multi_valued_cwe_records",
+    "multi_valued_cve_records",
+    "non_filesystem_paths"
+   ],
+   "values_live_in": "counters",
+   "all_four_are_zero_for_this_fixture": true,
+   "note": "Named here rather than restated with their values: a number carried twice inside one document is a number that can drift. Each is zero because every record names one location, no rule carries more than one CWE tag, no record carries a CVE, and both emitted paths are ordinary files inside the tree."
+  },
+  "parse_status": "partial",
+  "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = \"partial\", assigned as partial where there are rejections and clean where there are none. Partial is right precisely because the adapter did not abandon the artifact: every parsable record was emitted and the one rejected record is counted under its class with its parser reason retained."
+ },
+ "counters": {
+  "runs": 1,
+  "runs_skipped_non_mapping": 0,
+  "runs_without_results_array": 0,
+  "multi_location_records": 0,
+  "multi_valued_cwe_records": 0,
+  "multi_valued_cve_records": 0,
+  "non_filesystem_paths": 0,
+  "rows_in_scope": 2,
+  "rows_out_of_scope": 0,
+  "rule_id_from_rule_id": 3,
+  "rule_id_from_rule_index": 0,
+  "rule_index_unusable": 0,
+  "tool_component_reference_unresolved": 0,
+  "rule_metadata_from_extension": 0,
+  "rule_metadata_unresolved": 0,
+  "severity_from_level": 0,
+  "severity_from_rule_property": 0,
+  "severity_absent": 2,
+  "start_line_absent": 1,
+  "path_kind_tree_file": 2,
+  "path_kind_outside_root": 0,
+  "path_kind_archive_member": 0,
+  "path_kind_bytecode_source": 0,
+  "severity_basis_sarif_level": 0,
+  "severity_basis_label": 0,
+  "severity_basis_cvss_score": 0,
+  "severity_basis_no_vocabulary": 2,
+  "severity_basis_unmapped_literal": 0
+ },
+ "counters_authority": "harness/lib/normalize/adapters/sarif.py, the COUNTER_KEYS tuple. Every key that module publishes is present here with its value, so a counter added to the adapter and not derived here fails rather than passing unnoticed.",
+ "counters_note": "rule_id_from_rule_id is 3 and not 2: all three records resolve their rule identifier at step 2, including the defective one, because the step that rejects it comes later. The severity and path counters are 2, because those are bumped only for records that reach the end. That asymmetry is the classification order made visible, not a miscount.",
+ "rows": [
+  {
+   "tool": "opengrep",
+   "scanner_class": "sast",
+   "rule_id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+   "message": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+   "start_line": 72,
+   "cwe": "CWE-89",
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  },
+  {
+   "tool": "opengrep",
+   "scanner_class": "sast",
+   "rule_id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting",
+   "message": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils.java",
+   "start_line": null,
+   "cwe": "CWE-200",
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  }
+ ],
+ "rows_note": "Two rows, in artifact order: the record at /runs/0/results/0 and the record at /runs/0/results/2. The defective record between them contributes none. No sort, no grouping, no deduplication (AAP 0.3.2).",
+ "rejections": [
+  {
+   "rejection_index": 0,
+   "result_pointer": "/runs/0/results/1",
+   "run_index": 0,
+   "result_index": 1,
+   "locator_note": "The pointer and the run_index / result_index pair name the same record. The pair is carried as well because normalize.adapters.sarif passes exactly run_index, result_index and rule_id into the rejection it builds, so a produced Rejection's record_identity and this expectation can be compared directly without translating one coordinate system into the other.",
+   "reject_class": "absent_path",
+   "reject_class_authority": "harness/lib/normalize/paths.py -- a literal member of paths.REJECT_CLASSES, the closed set of ten. Written verbatim rather than paraphrased, and asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+   "reject_class_description": "a record's path cannot be read or is absent",
+   "reject_class_description_source": "paths.REJECT_CLASS_DESCRIPTIONS[\"absent_path\"]",
+   "tool": "opengrep",
+   "expected_detail": "the result carries no locations array, so it names no location; path is not an optional field",
+   "expected_detail_note": "Retained verbatim, as AAP 0.5.4 requires of every rejection's parser reason. The detail is the sub-reason, and it is what distinguishes this record from the sibling fixtures that produce the same class by a different route: naming the class alone would not.",
+   "expected_record_identity_keys": [
+    "run_index",
+    "result_index",
+    "rule_id"
+   ],
+   "expected_record_identity": {
+    "run_index": 0,
+    "result_index": 1,
+    "rule_id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string"
+   },
+   "record_identity_note": "Three keys. The adapter builds this rejection itself and supplies run_index, result_index and rule_id -- the rule identifier is real, resolved at step 2 against /runs/0/tool/driver/rules/2 before the rejecting step ran. Enough to find the record in the artifact again, and never the record itself and never a secret value.",
+   "contributes_no_row": true,
+   "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, so no native literal from it reaches severity-map.md. That document reports literals against the rows the dataset contains, and this record contributes none -- which matters here because its rule's level is error, and counting it would inflate that literal's row count by one. It is why severity_from_rule_default_configuration is 2 and not 3.",
+   "classification_step": "step 4 of the adapter's fixed classification order -- shape, rule identifier, message, path, start_line. Steps 1 to 3 all pass: the element is a JSON object, it carries a ruleId that resolves to /runs/0/tool/driver/rules/2, and it carries a non-empty message.text. Step 4 finds nothing to resolve.",
+   "produced_by_the_adapter_not_the_resolver": "sarif._first_location raises this one, before normalize.paths is consulted at all -- which is why the identity carries three keys and not the uri and uriBaseId keys a resolver-raised path rejection adds. There is no uri to carry: the record has no artifactLocation.",
+   "why_not_a_row": "path is one of the seven never-absent fields (AAP 0.8.2), so there is no valid row shape available at all. Emitting the row with an empty path would put a record in the dataset that points at nothing, and inventing a path from the ruleId or the message would be exactly the inference AAP 0.5.4 forbids.",
+   "not_unresolvable_path": "The boundary this fixture sits on. absent_path is a record that names no location; unresolvable_path is a record that names one which cannot be resolved -- a uriBaseId with no entry in the base map and no recorded fallback base, a chain that cycles or runs too deep, or a relative reference with no absolute ancestor. Six committed fixtures own those routes -- reject-sarif-unresolvable-path and the five reject-sarif-uribaseid-* files -- and this fixture re-covers none of them. One says the producer said nothing about where the finding is; the other says it said something the consumer cannot follow, and tool-status.md is read differently for each.",
+   "the_other_route_to_this_class": "sarif._first_location reaches absent_path by three routes, and this fixture exercises the first: no locations array; an empty locations array; and a first location carrying no physicalLocation, which is a result addressed only by logical location. All three name no file. The two not carried here are asserted on documents authored inside test_sarif_adapter.py, which is stated so the coverage is legible rather than assumed -- and a locations value that is not an array, or a member of the chain that is not an object, is malformed_record rather than this class, which reject-sarif-malformed-record.sarif owns."
+  }
+ ],
+ "prohibitions_observed": [
+  "No finding is judged: nothing here says a finding is real, important or a false positive, and the rejected record is described by its structure rather than by its content.",
+  "No tool is compared with another. Opengrep is named because it is the producer whose captured output this fixture derives from, and for no other reason.",
+  "No secret value appears anywhere in this file.",
+  "No absolute path appears anywhere in this file."
+ ],
+ "how_to_check_this_file": "Read the fixture, apply harness/lib/normalize/adapters/sarif.py's five classification steps to each of the three records by hand, and compare. The rows for /runs/0/results/0 and /runs/0/results/2 are the same rows expected/reject-sarif-non-integer-start-line.rows.json states for the same two captured records, so they can be cross-checked against a document that was hand-verified independently of this one."
+}

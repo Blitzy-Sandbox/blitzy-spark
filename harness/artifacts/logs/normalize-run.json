@@ -3,9 +3,23 @@
  "document": "harness/artifacts/logs/normalize-run.json",
  "produced_by": "harness/lib/normalize/cli.py",
  "purpose": "The normalizer's own run record: its exact command, interpreter path and version, per-artifact routing decisions, per-artifact parsed and rejected counts, every reconciliation assertion and its result, and the exit status (AAP 0.6.1). oss-scan-results/tool-status.md, severity-map.md and run-record.md are rendered from this joined with runner-metadata.json; this file is never rendered from them.",
- "publication": "harness/artifacts/** is git-ignored (.gitignore:31 is artifacts/), so this record is published through the per-file size-and-sha256 manifest (AAP 0.1.3) rather than by git add. It is written self-describing for that reason: every file it names carries that file's byte size and sha256.",
- "started_at_utc": "2026-08-25T04:10:15Z",
- "finished_at_utc": "2026-08-25T04:10:18Z",
+ "publication": "harness/artifacts/** is git-ignored (.gitignore:31 is artifacts/), so this record is published through the per-file size-and-sha256 manifest (AAP 0.1.3) rather than by git add. It is written self-describing for that reason: every file it names that exists on disk carries that file's byte size and its sha256, computed over the whole file. Where an entry carries a null measurement it also carries a null_reason saying why -- the file is absent, the file could not be read, or the entry names no file at all -- so the claim and the data cannot disagree. See file_measurement below.",
+ "file_measurement": {
+  "fields": [
+   "path",
+   "present",
+   "bytes",
+   "sha256"
+  ],
+  "digest": "sha256, lowercase hex, over the entire file",
+  "digest_chunk_bytes": 1048576,
+  "method": "os.stat for the byte size and hashlib.sha256 over the file read in digest_chunk_bytes chunks, taken at the moment the entry was written",
+  "null_convention": "bytes and sha256 are null only where the file is absent, where it exists but could not be read, or where the entry names no file; each such entry carries a null_reason stating which",
+  "embedded_text": "a runner stream's own words are embedded only where the artifact is absent and the classification therefore depends on them (AAP 0.5.4), bounded by text_excerpt_limit and flagged text_truncated when cut. Where the words are not embedded the entry carries a text_null_reason: the stream is still measured by size and sha256 and retained verbatim on disk, so the bound never loses evidence silently.",
+  "text_excerpt_limit": 20000
+ },
+ "started_at_utc": "2026-09-01T06:36:42Z",
+ "finished_at_utc": "2026-09-01T06:36:46Z",
  "command": {
   "program": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/lib/normalize/cli.py",
   "argv": [],
@@ -31,7 +45,76 @@
   "spark_src": "/opt/spark-src",
   "findings_json": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
   "findings_csv": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
-  "run_record": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/normalize-run.json"
+  "run_record": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/normalize-run.json",
+  "output_guards": {
+   "repository_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
+   "repository_root_source": "$HARNESS_REPO_ROOT",
+   "log_tree": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs",
+   "owners": {
+    "--findings-json": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
+    "--findings-csv": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
+    "--run-record": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs"
+   },
+   "identities": {
+    "--findings-json": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
+    "--findings-csv": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
+    "--run-record": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/normalize-run.json"
+   },
+   "input_identities_compared_against": 12,
+   "component_checks": {
+    "--findings-json": {
+     "target": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
+     "owner_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
+     "components_checked": [
+      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results",
+      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json"
+     ],
+     "symlinked_components": [],
+     "target_exists": true,
+     "checks": [
+      "no component at or below the owner root is a symbolic link (lstat)",
+      "the target, where it exists, is a regular file",
+      "the target is inside the owner root"
+     ]
+    },
+    "--findings-csv": {
+     "target": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
+     "owner_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
+     "components_checked": [
+      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results",
+      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv"
+     ],
+     "symlinked_components": [],
+     "target_exists": true,
+     "checks": [
+      "no component at or below the owner root is a symbolic link (lstat)",
+      "the target, where it exists, is a regular file",
+      "the target is inside the owner root"
+     ]
+    },
+    "--run-record": {
+     "target": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/normalize-run.json",
+     "owner_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs",
+     "components_checked": [
+      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/normalize-run.json"
+     ],
+     "symlinked_components": [],
+     "target_exists": true,
+     "checks": [
+      "no component at or below the owner root is a symbolic link (lstat)",
+      "the target, where it exists, is a regular file",
+      "the target is inside the owner root"
+     ]
+    }
+   },
+   "checks_passed": [
+    "each output resolves inside the root that owns it",
+    "the three outputs are three distinct files",
+    "no output names the raw directory, a raw artifact, the allowlist or the runner metadata",
+    "no output target or component at or below its owner root is a symbolic link"
+   ],
+   "note": "Every check is a ConfigurationFault (exit 78) rather than a warning, and all of them run before any artifact is read. emit.py owns the per-component lstat walk and the exclusive no-follow staged write that follows it, so the rule has one implementation for the dataset files and the run record alike."
+  }
  },
  "vocabularies": {
   "canonical_tools": {
@@ -147,8 +230,8 @@
   "file": {
    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/runner-metadata.json",
    "present": true,
-   "bytes": 108542,
-   "sha256": "d7ac82dbb7c990c3e5821eb43c9200319459c9556f81d63d89bd2962a8187dc4"
+   "bytes": 117676,
+   "sha256": "6314fbc9607de647cd449a73baa4156d1cba3378791ff24729897ad6d130cd60"
   },
   "schema_version": "runner-metadata/1.0.0",
   "spark_src": "/opt/spark-src",
@@ -328,14 +411,60 @@
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
      "top_level_keys": [
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 7,
+       "sha256": "5ca4f3850ccc331aaf8a257d6086e526a3b42a63e18cb11d020847985b31d188",
+       "excerpt": "version",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 4,
+       "sha256": "1f64fff08d787e732e04559f4d241876b399d9d4251af79833bd22adbb2d331a",
+       "excerpt": "runs",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 7,
+       "sha256": "631b0bf76158a24d761e0f1e6c8921afa534c55e924512efb3d18eb86b1f2ea8",
+       "excerpt": "$schema",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      }
+     ],
+     "top_level_key_excerpts": [
       "version",
       "runs",
       "$schema"
      ],
+     "top_level_keys_total": 3,
+     "top_level_keys_reported": 3,
+     "top_level_keys_truncated": false,
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
      "top_level_length": 3,
      "version_key": "version",
      "version_expected": "2.1.0",
      "version_observed": "2.1.0",
+     "version_observed_evidence": {
+      "value_type": "str",
+      "context": "version",
+      "character_length": 5,
+      "sha256": "8248f7772687aff0b103b36898908deb82126337f933e49a5ac04829093c58ff",
+      "excerpt": "2.1.0",
+      "truncated": false,
+      "controls_escaped": 0,
+      "userinfo_redactions": 0
+     },
      "version_matches": true,
      "runs_key": "runs",
      "runs_observed_type": "array",
@@ -366,18 +495,17 @@
     "rule_metadata_from_extension": 0,
     "rule_metadata_unresolved": 0,
     "severity_from_level": 0,
-    "severity_from_rule_default_configuration": 1322,
     "severity_from_rule_property": 0,
-    "severity_absent": 0,
+    "severity_absent": 1322,
     "start_line_absent": 0,
     "path_kind_tree_file": 1322,
     "path_kind_outside_root": 0,
     "path_kind_archive_member": 0,
     "path_kind_bytecode_source": 0,
-    "severity_basis_sarif_level": 1322,
+    "severity_basis_sarif_level": 0,
     "severity_basis_label": 0,
     "severity_basis_cvss_score": 0,
-    "severity_basis_no_vocabulary": 0,
+    "severity_basis_no_vocabulary": 1322,
     "severity_basis_unmapped_literal": 0
    },
    "counter_summary": {
@@ -403,11 +531,15 @@
    "runner_status": {
     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/opengrep.status",
     "present": true,
+    "bytes": 17996,
+    "sha256": "a7dec00fb25fd31233672ff107a4a5303d7af03abb9246a340deebfed193333f",
     "fields": {
      "tool": "opengrep",
      "runner": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-008_c55d9d/harness/bin/run-opengrep.sh",
      "runner_repo_relative": "harness/bin/run-opengrep.sh",
-     "invocation": "direct, no arguments, one tool at a time, never through an orchestrator",
+     "invocation": "direct, no arguments, never through an orchestrator, and one tool at a time WITHIN THIS CLONE; global sequencing across the run FAILED - see invocation_correction",
+     "invocation_superseded_value": "direct, no arguments, one tool at a time, never through an orchestrator",
+     "invocation_correction": "Direct invocation, no arguments and no orchestrator are unchanged: both were established by inspection of the runner and by this lane's own record. What the superseded value additionally asserted - one tool at a time - holds only inside the clone this runner ran in (w-008_c55d9d). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-25T01:23:16Z-01:39:00Z) overlapped NO other tool's window - it stands alone, later than every other invocation. The global failure is therefore a property of the run rather than of this invocation, and it is recorded here because the superseded value asserted a global property this invocation cannot establish. AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under \"Facts common to all nine\", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing here was repaired: no invocation was re-run to obtain a disjoint window.",
      "invocation_argument_count": "0",
      "log_dir_for_this_invocation": "/tmp/blitzy-harness-scratch/8/opengrep-final",
      "log_dir_variable": "HARNESS_LOG_DIR",
@@ -464,6 +596,15 @@
      "allowlist_sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
      "credential_semgrep_app_token": "absent"
     },
+    "field_count": 61,
+    "comment_lines": 165,
+    "blank_lines": 17,
+    "unparsed_lines": [],
+    "unparsed_line_count": 0,
+    "duplicate_fields": [],
+    "duplicate_field_count": 0,
+    "defects": [],
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -474,7 +615,7 @@
    },
    "network_fetch": {
     "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/opengrep.status",
-    "status_fields_scanned": 59,
+    "status_fields_scanned": 61,
     "statements": {
      "ruleset_location": "/opt/blitzy-harness/rules/opengrep-rules",
      "ruleset_commit": "f1d2b562b414783763fd02a6ed2736eaed622efa",
@@ -489,17 +630,19 @@
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/opengrep.stderr.log",
       "present": true,
       "bytes": 2560,
-      "sha256": null,
+      "sha256": "975f9e32be664d7bd4f5009cbe5d17236bfd19c8669138a3aeb5c14165854e0a",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/opengrep.stdout.log",
       "present": true,
-      "bytes": 963,
-      "sha256": null,
+      "bytes": 73841213,
+      "sha256": "089cfb56495d0be08e65a2e35ebbbdf21a377f120bc3af7d5714ce1e52952850",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
@@ -534,14 +677,60 @@
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
      "top_level_keys": [
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 7,
+       "sha256": "5ca4f3850ccc331aaf8a257d6086e526a3b42a63e18cb11d020847985b31d188",
+       "excerpt": "version",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 4,
+       "sha256": "1f64fff08d787e732e04559f4d241876b399d9d4251af79833bd22adbb2d331a",
+       "excerpt": "runs",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 7,
+       "sha256": "631b0bf76158a24d761e0f1e6c8921afa534c55e924512efb3d18eb86b1f2ea8",
+       "excerpt": "$schema",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      }
+     ],
+     "top_level_key_excerpts": [
       "version",
       "runs",
       "$schema"
      ],
+     "top_level_keys_total": 3,
+     "top_level_keys_reported": 3,
+     "top_level_keys_truncated": false,
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
      "top_level_length": 3,
      "version_key": "version",
      "version_expected": "2.1.0",
      "version_observed": "2.1.0",
+     "version_observed_evidence": {
+      "value_type": "str",
+      "context": "version",
+      "character_length": 5,
+      "sha256": "8248f7772687aff0b103b36898908deb82126337f933e49a5ac04829093c58ff",
+      "excerpt": "2.1.0",
+      "truncated": false,
+      "controls_escaped": 0,
+      "userinfo_redactions": 0
+     },
      "version_matches": true,
      "runs_key": "runs",
      "runs_observed_type": "array",
@@ -572,18 +761,17 @@
     "rule_metadata_from_extension": 0,
     "rule_metadata_unresolved": 0,
     "severity_from_level": 0,
-    "severity_from_rule_default_configuration": 1162,
     "severity_from_rule_property": 0,
-    "severity_absent": 0,
+    "severity_absent": 1162,
     "start_line_absent": 0,
     "path_kind_tree_file": 1162,
     "path_kind_outside_root": 0,
     "path_kind_archive_member": 0,
     "path_kind_bytecode_source": 0,
-    "severity_basis_sarif_level": 1162,
+    "severity_basis_sarif_level": 0,
     "severity_basis_label": 0,
     "severity_basis_cvss_score": 0,
-    "severity_basis_no_vocabulary": 0,
+    "severity_basis_no_vocabulary": 1162,
     "severity_basis_unmapped_literal": 0
    },
    "counter_summary": {
@@ -609,6 +797,8 @@
    "runner_status": {
     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/semgrep.status",
     "present": true,
+    "bytes": 21322,
+    "sha256": "5d9a65188846d3c23d0d06fcdc4610eb78c537299fb9dcf345c79fcce67838d7",
     "fields": {
      "tool": "semgrep",
      "exit_code": "0",
@@ -629,7 +819,9 @@
      "runner_sha256_scope": "The runner file as it stands in this clone, git-tracked and unmodified. No runner file and no baked flag was edited; the only levers used are environment values the runners are written to consume.",
      "invoked_directly": "true",
      "invocation_arguments": "none",
-     "invocation_concurrency": "one at a time",
+     "invocation_concurrency": "one at a time WITHIN THIS CLONE; global sequencing across the run FAILED, and THIS invocation's own overlap status is NOT ESTABLISHED - see invocation_concurrency_correction",
+     "invocation_concurrency_superseded_value": "one at a time",
+     "invocation_concurrency_correction": "Direct invocation, no arguments and no orchestrator are unchanged: both were established by inspection of the runner and by this lane's own record. What the superseded value additionally asserted - one tool at a time - holds only inside the clone this runner ran in (w-024_691318). This record's started_at and finished_at are not-established, so this invocation's window cannot be compared with any other: whether it overlapped another tool is NOT ESTABLISHED and is named as such rather than assumed disjoint. The five overlapping pairs measured across the run are between other tools' windows. AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under \"Facts common to all nine\", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing here was repaired: no invocation was re-run to obtain a disjoint window.",
      "invoked_through_orchestrator": "false",
      "orchestrator_note": "harness/bin carries the nine runners and no orchestrator, deliberately. Direct individual invocation is the requirement: an orchestrator's continue-on-error sequencing would carry a run past a condition that must stop it, and it would collapse per-tool attribution.",
      "argument_guard": "harness/bin/run-semgrep.sh lines 8-11, exit 64 with a diagnostic naming the refusal",
@@ -745,6 +937,15 @@
      "no_judgement": "Nothing here characterises any finding as real, important, a false positive or a duplicate of another tool's, and nothing here compares this tool with another.",
      "self_digest_note": "This file's own byte size and sha256 belong to the artifact-tree manifest oss-scan-results/run-record.md owns; a file cannot carry its own digest."
     },
+    "field_count": 136,
+    "comment_lines": 50,
+    "blank_lines": 11,
+    "unparsed_lines": [],
+    "unparsed_line_count": 0,
+    "duplicate_fields": [],
+    "duplicate_field_count": 0,
+    "defects": [],
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -755,7 +956,7 @@
    },
    "network_fetch": {
     "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/semgrep.status",
-    "status_fields_scanned": 134,
+    "status_fields_scanned": 136,
     "statements": {
      "ruleset_identity_observed": "commit 40b8c63f75dc7c22c8a77482d73bfb864b146f7e at /opt/blitzy-harness/rules/semgrep-rules",
      "ruleset_identity_expected": "commit 40b8c63f75dc7c22c8a77482d73bfb864b146f7e",
@@ -770,17 +971,19 @@
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/semgrep.stderr.log",
       "present": true,
       "bytes": 5079,
-      "sha256": null,
+      "sha256": "2ccdebc91138531483d9f2438b439917dbce1a881bb4d652c87cb71124e469f2",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/semgrep.stdout.log",
       "present": true,
-      "bytes": 40661230,
-      "sha256": null,
+      "bytes": 40660955,
+      "sha256": "f872f125ccc3e0874db36482aaf9eb70fd4c32552001cbfa0ed821830a8419f3",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
@@ -815,13 +1018,49 @@
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
      "top_level_keys": [
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 4,
+       "sha256": "1f64fff08d787e732e04559f4d241876b399d9d4251af79833bd22adbb2d331a",
+       "excerpt": "runs",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 7,
+       "sha256": "5ca4f3850ccc331aaf8a257d6086e526a3b42a63e18cb11d020847985b31d188",
+       "excerpt": "version",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      }
+     ],
+     "top_level_key_excerpts": [
       "runs",
       "version"
      ],
+     "top_level_keys_total": 2,
+     "top_level_keys_reported": 2,
+     "top_level_keys_truncated": false,
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
      "top_level_length": 2,
      "version_key": "version",
      "version_expected": "2.1.0",
      "version_observed": "2.1.0",
+     "version_observed_evidence": {
+      "value_type": "str",
+      "context": "version",
+      "character_length": 5,
+      "sha256": "8248f7772687aff0b103b36898908deb82126337f933e49a5ac04829093c58ff",
+      "excerpt": "2.1.0",
+      "truncated": false,
+      "controls_escaped": 0,
+      "userinfo_redactions": 0
+     },
      "version_matches": true,
      "runs_key": "runs",
      "runs_observed_type": "array",
@@ -852,7 +1091,6 @@
     "rule_metadata_from_extension": 0,
     "rule_metadata_unresolved": 0,
     "severity_from_level": 6832,
-    "severity_from_rule_default_configuration": 0,
     "severity_from_rule_property": 0,
     "severity_absent": 0,
     "start_line_absent": 0,
@@ -889,6 +1127,8 @@
    "runner_status": {
     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/datadog-static-analyzer.status",
     "present": true,
+    "bytes": 12938,
+    "sha256": "4611bb0cd28e2c70e828bce41b3e51d7fb1410b86ff48456996e0a9b943cbf5a",
     "fields": {
      "record_kind": "per-invocation status record for one direct invocation of one runner",
      "record_format": "one key=value pair per line, split on the first equals sign; every value is a single line; no line is a comment, so the whole file is machine-readable by the same parser harness/lib/normalize/cli.py uses",
@@ -907,7 +1147,9 @@
      "runner_edited_check": "git diff --quiet HEAD on the runner reports no change; no runner file and no baked flag was edited, and the only levers used are environment values the runner is written to read",
      "invocation": "./harness/bin/run-datadog-static-analyzer.sh",
      "invocation_arguments": "none",
-     "invocation_form": "direct, with no arguments, one tool at a time, never through an orchestrator (AAP 0.8.1)",
+     "invocation_form": "direct, with no arguments, never through an orchestrator (AAP 0.8.1), and one tool at a time WITHIN THIS CLONE; global sequencing across the run FAILED - see invocation_form_correction",
+     "invocation_form_superseded_value": "direct, with no arguments, one tool at a time, never through an orchestrator (AAP 0.8.1)",
+     "invocation_form_correction": "Direct invocation, no arguments and no orchestrator are unchanged: both were established by inspection of the runner and by this lane's own record. What the superseded value additionally asserted - one tool at a time - holds only inside the clone this runner ran in (w-025_42e7a6). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-24T22:36:12Z-22:39:55Z) overlapped three others: checkov by 81.000 s (22:36:12Z-22:37:33Z), gitleaks by 68.000 s (22:36:36Z-22:37:44Z) and dependency-check by 23.000 s (22:38:54Z-22:39:17Z). AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under \"Facts common to all nine\", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing here was repaired: no invocation was re-run to obtain a disjoint window.",
      "orchestrator_used": "false",
      "orchestrator_present_in_harness_bin": "false",
      "harness_bin_runner_entries": "9",
@@ -1002,6 +1244,15 @@
      "evidence_gate_record": "harness/artifacts/logs/gate-record.json",
      "manifest_note": "this file's own byte size and sha256 are measured after it is written and carried into the manifest oss-scan-results/run-record.md owns; a file cannot carry its own digest, so neither is embedded here"
     },
+    "field_count": 113,
+    "comment_lines": 0,
+    "blank_lines": 0,
+    "unparsed_lines": [],
+    "unparsed_line_count": 0,
+    "duplicate_fields": [],
+    "duplicate_field_count": 0,
+    "defects": [],
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -1012,7 +1263,7 @@
    },
    "network_fetch": {
     "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/datadog-static-analyzer.status",
-    "status_fields_scanned": 111,
+    "status_fields_scanned": 113,
     "statements": {
      "ruleset_source": "local captured file /opt/blitzy-harness/rules/datadog/datadog-sast-rules.json, so the scan made no API call for rules",
      "ruleset_sha256": "4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1",
@@ -1027,17 +1278,19 @@
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/datadog-static-analyzer.stderr.log",
       "present": true,
       "bytes": 0,
-      "sha256": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/datadog-static-analyzer.stdout.log",
       "present": true,
-      "bytes": 4033,
-      "sha256": null,
+      "bytes": 4101,
+      "sha256": "53cd2207c079d52a450aa8f36aead7326020380051ef4cd12b39451da0a2b015",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
@@ -1072,10 +1325,25 @@
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "array",
      "top_level_keys": [],
+     "top_level_key_excerpts": [],
+     "top_level_keys_total": 0,
+     "top_level_keys_reported": 0,
+     "top_level_keys_truncated": false,
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
      "top_level_length": 1,
      "version_key": "version",
      "version_expected": "2.1.0",
      "version_observed": null,
+     "version_observed_evidence": {
+      "value_type": "NoneType",
+      "context": "version",
+      "character_length": 4,
+      "sha256": "dc937b59892604f5a86ac96936cd7ff09e25f18ae6b758e8014a24c7fa039e91",
+      "excerpt": "None",
+      "truncated": false,
+      "controls_escaped": 0,
+      "userinfo_redactions": 0
+     },
      "version_matches": false,
      "runs_key": "runs",
      "runs_observed_type": "absent",
@@ -1132,6 +1400,8 @@
    "runner_status": {
     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/gitleaks.status",
     "present": true,
+    "bytes": 13358,
+    "sha256": "6a71991b834298401fddc7d1377520f111a31fde2aee9b547a38cffaf69d3299",
     "fields": {
      "tool": "gitleaks",
      "exit_code": "2",
@@ -1169,7 +1439,9 @@
      "runner_unmodified": "yes; the tracked runner is clean in git, and neither it nor any baked flag was edited by this run",
      "shared_scope_library": "harness/lib/scope.sh",
      "shared_scope_library_sha256": "17af8d7d4fcc4532b101ea4b6fb16ffa97458119a5d4d4702a3674e7a858611f",
-     "invocation_mode": "invoked directly, with no arguments, one tool at a time",
+     "invocation_mode": "invoked directly, with no arguments, and one tool at a time WITHIN THIS CLONE; global sequencing across the run FAILED - see invocation_mode_correction",
+     "invocation_mode_superseded_value": "invoked directly, with no arguments, one tool at a time",
+     "invocation_mode_correction": "Direct invocation, no arguments and no orchestrator are unchanged: both were established by inspection of the runner and by this lane's own record. What the superseded value additionally asserted - one tool at a time - holds only inside the clone this runner ran in (w-026_42ec90). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-24T22:36:36Z-22:37:44Z) overlapped two others: datadog-static-analyzer by 68.000 s (22:36:36Z-22:37:44Z, the whole of this window) and checkov by 57.000 s (22:36:36Z-22:37:33Z). AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under \"Facts common to all nine\", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing here was repaired: no invocation was re-run to obtain a disjoint window.",
      "orchestrator": "none used and none exists; harness/bin holds exactly the nine runners",
      "argument_guard": "run-gitleaks.sh lines 13-16, exit 64, ahead of the environment sourcing at line 21, the shared library at line 23, target resolution at line 33 and the first tool invocation at line 53",
      "smoke_override": "unset, so this was a real scan rather than the setup-time override; scan_root_source above names SPARK_SRC",
@@ -1233,6 +1505,15 @@
      "stderr_content": "the tool's own single warning that it found one leak; it names no secret value",
      "stderr_clock_note": "the prefix is gitleaks' own local-clock format rather than the ISO timestamps scope_finish prints, and it reads 11:26PM against a run window of 22:36:36 to 22:37:44; recorded as observed, since no value in this record is taken from it and the count it states agrees with the merge line"
     },
+    "field_count": 101,
+    "comment_lines": 46,
+    "blank_lines": 11,
+    "unparsed_lines": [],
+    "unparsed_line_count": 0,
+    "duplicate_fields": [],
+    "duplicate_field_count": 0,
+    "defects": [],
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
     "exit_code": 2,
     "exit_code_literal": "2",
     "exit_status": "exited",
@@ -1243,7 +1524,7 @@
    },
    "network_fetch": {
     "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/gitleaks.status",
-    "status_fields_scanned": 99,
+    "status_fields_scanned": 101,
     "statements": {
      "ruleset_fetched_at_scan_time": "no; the rule set is compiled into the binary, so there is no scan-time fetch and no reproducibility gap of that kind"
     },
@@ -1256,17 +1537,19 @@
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/gitleaks.stderr.log",
       "present": true,
       "bytes": 27,
-      "sha256": null,
+      "sha256": "a6723be175eacb6e6b3913031e2928a1e33bd381499f460821bc7f66f1709c79",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/gitleaks.stdout.log",
       "present": true,
-      "bytes": 2547,
-      "sha256": null,
+      "bytes": 1422,
+      "sha256": "461feae54405afc40c7d81025a7859d192654879a5db5fc91a79f3e1b28e5195",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
@@ -1303,14 +1586,60 @@
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
      "top_level_keys": [
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 10,
+       "sha256": "c7fdcbe6557a3e741137d433aaee46ab51eefce0471958c4502c8c446ab4f5c7",
+       "excerpt": "check_type",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 7,
+       "sha256": "c099142bc3186ded72786ba27e9ea6d2da240fb9fd3fe79b479ecf8e734b2850",
+       "excerpt": "results",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 7,
+       "sha256": "761b7ad8ad439b2855fcbb611331c646ef0870b0631247bba3f3025cb6df5a53",
+       "excerpt": "summary",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      }
+     ],
+     "top_level_key_excerpts": [
       "check_type",
       "results",
       "summary"
      ],
+     "top_level_keys_total": 3,
+     "top_level_keys_reported": 3,
+     "top_level_keys_truncated": false,
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
      "top_level_length": 3,
      "version_key": "version",
      "version_expected": "2.1.0",
      "version_observed": null,
+     "version_observed_evidence": {
+      "value_type": "NoneType",
+      "context": "version",
+      "character_length": 4,
+      "sha256": "dc937b59892604f5a86ac96936cd7ff09e25f18ae6b758e8014a24c7fa039e91",
+      "excerpt": "None",
+      "truncated": false,
+      "controls_escaped": 0,
+      "userinfo_redactions": 0
+     },
      "version_matches": false,
      "runs_key": "runs",
      "runs_observed_type": "null",
@@ -1377,6 +1706,8 @@
    "runner_status": {
     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/checkov.status",
     "present": true,
+    "bytes": 21866,
+    "sha256": "1f37a8ab75f51df4fc814dc43db29b94e554b09ebd701a866aca0e1a06c04d04",
     "fields": {
      "tool": "checkov",
      "exit_code": "1",
@@ -1391,7 +1722,9 @@
      "runner_repo_relative": "harness/bin/run-checkov.sh",
      "invocation_style": "direct",
      "invocation_arguments": "none",
-     "invocation_sequencing": "one tool at a time",
+     "invocation_sequencing": "one tool at a time WITHIN THIS CLONE; global sequencing across the run FAILED - see invocation_sequencing_correction",
+     "invocation_sequencing_superseded_value": "one tool at a time",
+     "invocation_sequencing_correction": "Direct invocation, no arguments and no orchestrator are unchanged: both were established by inspection of the runner and by this lane's own record. What the superseded value additionally asserted - one tool at a time - holds only inside the clone this runner ran in (w-027_182a66). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-24T22:35:18Z-22:37:33Z) overlapped three others: datadog-static-analyzer by 81.000 s (22:36:12Z-22:37:33Z), gitleaks by 57.000 s (22:36:36Z-22:37:33Z) and osv-scanner by 3.609 s (22:36:00.324Z-22:36:03.933Z). AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under \"Facts common to all nine\", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing here was repaired: no invocation was re-run to obtain a disjoint window.",
      "orchestrator_used": "false",
      "orchestrator_present_in_harness_bin": "false",
      "argument_guard": "harness/bin/run-checkov.sh lines 8-11 exit 64 before the environment is sourced (line 16), before the shared library is sourced (line 18), before the target is resolved (line 28) and before the tool is invoked (line 46); established by inspection, so no rejection probe was run",
@@ -1428,9 +1761,14 @@
      "output_shape": "object",
      "output_shape_description": "one top-level JSON report object with keys check_type, results and summary; check_type is dockerfile and results carries failed_checks only",
      "output_shape_alternative_not_written": "the top-level array of per-framework report objects, which checkov emits when more than one framework reports",
-     "output_shape_determination": "detected by measurement over two independent paths",
+     "output_shape_determination": "detected by measurement over the recorded artifact and against checkov's documented output shapes. See output_shape_evidence_2_prohibition below: a second scan was also run, and it is recorded as a prohibited re-execution rather than as a basis for this field",
+     "output_shape_determination_superseded_value": "detected by measurement over two independent paths",
+     "output_shape_basis_after_correction": "evidence 1 alone, corroborated by the captured fixtures and by checkov's own documented shapes. Evidence 1 is a byte-size discrimination performed entirely over THIS invocation's recorded artifact and needs no second scan: of the candidate serializations only the single object form is 8380 bytes. oss-scan-results/adapter-tests/fixtures/checkov.json (captured from this artifact) and fixtures/checkov-alt-shape.json (the same records re-enveloped in the array form) exercise both shapes through the adapter, and checkov's CLI documentation states that the array form appears when more than one framework reports. That is sufficient, and it is what this field now rests on",
      "output_shape_evidence_1": "byte-size discrimination against the recorded artifact size of 8380, over the candidate serializations of this invocation's own dockerfile report: the single object compact is exactly 8380 bytes, an array holding that one object compact is 8382, an array of all 18 stdout documents compact is 92993, an array of the 11 dockerfile documents compact is 92202, and the single object at indent 4 is 12648. Only the object form matches",
-     "output_shape_evidence_2": "direct observation of the file the runner copies: checkov 3.3.12 re-invoked with this runner's exact flags over the same 18 scope directories from /opt/spark-src wrote results_json.json opening with a brace and closing with a brace, 8380 bytes, top-level keys check_type, results and summary, check_type dockerfile, 6 failed checks, summary passed 201 failed 6 skipped 0 parsing_errors 0 resource_count 3 checkov_version 3.3.12",
+     "output_shape_evidence_2": "PROHIBITED RE-EXECUTION, recorded as a violation and NOT relied on. What was done: checkov 3.3.12 was re-invoked with this runner's exact flags over the same 18 scope directories from /opt/spark-src, and wrote results_json.json opening with a brace and closing with a brace, 8380 bytes, top-level keys check_type, results and summary, check_type dockerfile, 6 failed checks, summary passed 201 failed 6 skipped 0 parsing_errors 0 resource_count 3 checkov_version 3.3.12",
+     "output_shape_evidence_2_prohibition": "Re-running a scanner is not this run's to do. AAP 0.8.1 has each runner invoked directly, once, with its output captured, and AAP 0.9.2 makes an unexplained deviation a stop-and-report rather than a step to take; nothing in the AAP sanctions a second invocation of a scanner for verification. The Opengrep taint A/B is the ONE second appearance the AAP sanctions, and it is sanctioned explicitly and by name (AAP 0.1.1, 0.5.1) - a shape check is not. So this invocation should not have been made. It is recorded here in full rather than deleted, because deleting it would hide a prohibited action, and it is marked non-load-bearing: output_shape_basis_after_correction states what this field's conclusion actually rests on, and that basis stands without this scan",
+     "output_shape_evidence_2_containment": "The re-invocation wrote outside harness/artifacts entirely, to /tmp/blitzy-harness-scratch/4/checkov-shape-verify, so it overwrote no runner artifact, contributed no dataset row and did not make harness/artifacts/raw/ non-runner-written. That limits the damage; it does not make the invocation permitted",
+     "output_shape_evidence_2_for_a_future_run": "A compliant run derives shape evidence from the artifact it already has, from captured fixtures, and from the tool's documented output shapes. It does not re-scan",
      "output_shape_evidence_2_location": "/tmp/blitzy-harness-scratch/4/checkov-shape-verify; verification only, written outside harness/artifacts so it overwrites no runner artifact and contributes no dataset row",
      "output_shape_evidence_2_outcome": "exit 1, elapsed 88 s",
      "output_shape_evidence_2_relation": "order-insensitively deep-equal to the recorded report; the two differ only in the order of the three Dockerfile groups, spark then python then R as recorded against spark then R then python on re-invocation, so their digests differ while the object shape, the six failed checks and the summary are identical",
@@ -1492,8 +1830,56 @@
      "failure_verdict": "none; a non-zero exit alongside an artifact that was written and parses is ordinary for this tool, which exits 1 because it found something, and artifact status and exit status are independent",
      "halt_conditions_engaged": "none; an artifact was written, so the missing-artifact rule does not apply, and the shape matched a known native shape, so the unknown-shape rule does not apply",
      "absent_artifact_reason": "not applicable; an artifact was written",
-     "manifest_owner": "oss-scan-results/run-record.md publishes this file's byte size and sha256 with the rest of the logs/ manifest"
+     "manifest_owner": "oss-scan-results/run-record.md publishes this file's byte size and sha256 with the rest of the logs/ manifest",
+     "overlap_correction_finding": "F2 (CRITICAL, execution ordering) of the checkpoint code review",
+     "sequential_execution_requirement": "AAP 0.8.1 and 0.9.1 - nine runners, each invoked directly with no arguments, one at a time, output captured before the next is started",
+     "sequential_execution_requirement_met_run_wide": "false",
+     "sequential_execution_classification": "halt-class departure from AAP 0.8.1's one-at-a-time requirement. It is recorded here and NOT repaired: repairing it would mean re-invoking scanners, which would replace captured evidence rather than correct a record",
+     "this_tool_window": "2026-08-24T22:35:18Z -> 2026-08-24T22:37:33Z",
+     "this_tool_window_source": "harness/artifacts/logs/checkov.status lines 46-47, quoted rather than recomputed",
+     "this_tool_invocation_lane": "w-027_182a66",
+     "this_tool_overlapping_partners": "3",
+     "overlap_1_partner": "datadog-static-analyzer",
+     "overlap_1_this_window": "2026-08-24T22:35:18Z -> 2026-08-24T22:37:33Z   (harness/artifacts/logs/checkov.status lines 46-47)",
+     "overlap_1_partner_window": "2026-08-24T22:36:12Z -> 2026-08-24T22:39:55Z   (harness/artifacts/logs/datadog-static-analyzer.status lines 46-47)",
+     "overlap_1_seconds": "81.000",
+     "overlap_1_interval": "2026-08-24T22:36:12+00:00 .. 2026-08-24T22:37:33+00:00",
+     "overlap_1_partner_lane": "w-025_42e7a6",
+     "overlap_1_classification": "halt-class departure from AAP 0.8.1: two runners of the nine were live at the same time for 81.000 s, so neither one's output was captured before the other started",
+     "overlap_2_partner": "gitleaks",
+     "overlap_2_this_window": "2026-08-24T22:35:18Z -> 2026-08-24T22:37:33Z   (harness/artifacts/logs/checkov.status lines 46-47)",
+     "overlap_2_partner_window": "2026-08-24T22:36:36+00:00 -> 2026-08-24T22:37:44+00:00   (harness/artifacts/logs/gitleaks.status lines 63-64)",
+     "overlap_2_seconds": "57.000",
+     "overlap_2_interval": "2026-08-24T22:36:36+00:00 .. 2026-08-24T22:37:33+00:00",
+     "overlap_2_partner_lane": "w-026_42ec90",
+     "overlap_2_classification": "halt-class departure from AAP 0.8.1: two runners of the nine were live at the same time for 57.000 s, so neither one's output was captured before the other started",
+     "overlap_3_partner": "osv-scanner",
+     "overlap_3_this_window": "2026-08-24T22:35:18Z -> 2026-08-24T22:37:33Z   (harness/artifacts/logs/checkov.status lines 46-47)",
+     "overlap_3_partner_window": "2026-08-24T22:36:00.324Z -> 2026-08-24T22:36:03.933Z   (harness/artifacts/logs/osv-scanner.status lines 67-68)",
+     "overlap_3_seconds": "3.609",
+     "overlap_3_interval": "2026-08-24T22:36:00.324000+00:00 .. 2026-08-24T22:36:03.933000+00:00",
+     "overlap_3_partner_lane": "w-030_f3f236",
+     "overlap_3_classification": "halt-class departure from AAP 0.8.1: two runners of the nine were live at the same time for 3.609 s, so neither one's output was captured before the other started",
+     "overlap_pair_method": "each recorded window was read as a pair of UTC instants and the pairs intersected: overlap_seconds = min(end_a, end_b) - max(start_a, start_b), counted only where positive. Both windows of every pair are quoted from the two records that own them",
+     "overlap_ledger_all_overlapping_pairs": "checkov x datadog-static-analyzer 81.000 s | checkov x gitleaks 57.000 s | checkov x osv-scanner 3.609 s | datadog-static-analyzer x dependency-check 23.000 s | datadog-static-analyzer x gitleaks 68.000 s",
+     "overlap_ledger_overlapping_runners": "5 of 9: checkov, datadog-static-analyzer, dependency-check, gitleaks, osv-scanner",
+     "overlap_ledger_non_overlapping_runners": "joern, opengrep, trivy (windows on record, intersecting no other); semgrep (endpoints not-established, so not adjudicable)",
+     "overlap_ledger_is_one_measurement": "the same ledger is appended verbatim to all nine <tool>.status files, computed once from the nine recorded windows; no file recomputes it and no two files may disagree",
+     "overlap_cause_from_the_evidence": "the overlapping windows were produced in DIFFERENT clone-local lanes, which these records name themselves: checkov in w-027_182a66, datadog-static-analyzer in w-025_42e7a6, dependency-check in w-029_4cc49b, gitleaks in w-026_42ec90, osv-scanner in w-030_f3f236. Each lane invoked its own runner directly, with no arguments and without an orchestrator, and captured its own streams; no lane sequenced its invocation against another lane's, so the windows were free to overlap. Nine per-tool records assembled from nine lanes cannot constitute the single ordered ledger AAP 0.8.1 requires",
+     "overlap_cause_not_asserted": "no orchestrator was involved - none exists in harness/bin/, which every one of these records establishes independently - and nothing is claimed about which lane started first beyond the timestamps quoted here",
+     "what_still_holds_for_this_tool": "this runner was invoked directly, with no arguments, exactly once, never through an orchestrator, and its own streams were captured before this record was written. Those are properties of this invocation and are unaffected by the overlap",
+     "what_no_longer_holds": "any statement in this file that the nine ran one at a time, or that AAP 0.8.1's sequential-execution requirement was satisfied run-wide",
+     "superseded_claims_note": "this record made no run-wide one-at-a-time claim, so no line in it required replacement; the ledger above is added evidence rather than a correction of this file's own words"
     },
+    "field_count": 161,
+    "comment_lines": 31,
+    "blank_lines": 11,
+    "unparsed_lines": [],
+    "unparsed_line_count": 0,
+    "duplicate_fields": [],
+    "duplicate_field_count": 0,
+    "defects": [],
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
     "exit_code": 1,
     "exit_code_literal": "1",
     "exit_status": "exited",
@@ -1504,7 +1890,7 @@
    },
    "network_fetch": {
     "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/checkov.status",
-    "status_fields_scanned": 115,
+    "status_fields_scanned": 161,
     "statements": {
      "policy_feed_state": "not attempted",
      "policy_feed_state_basis": "--skip-download is baked into the invocation, so no policy metadata and no external module was fetched. The four permitted outcomes are attempted and succeeded, attempted and failed, not attempted, and not reported",
@@ -1519,17 +1905,19 @@
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/checkov.stderr.log",
       "present": true,
       "bytes": 0,
-      "sha256": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/checkov.stdout.log",
       "present": true,
-      "bytes": 141208,
-      "sha256": null,
+      "bytes": 143933,
+      "sha256": "da4b2502669fb775aba1d872bb163319524bf803e3a2ded6aa8ee7d18b1d00f2",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
@@ -1586,6 +1974,78 @@
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
      "top_level_keys": [
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 13,
+       "sha256": "1c6603bd26292492ebc9a740904710774d5ea28794df1e7171d07e82bb32c4fe",
+       "excerpt": "SchemaVersion",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 5,
+       "sha256": "a093422585a8a4cb763d89a0fa8e76744a80830fe24724c7e7943a50ec479240",
+       "excerpt": "Trivy",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 8,
+       "sha256": "816561efeb0d90bb954b42284e6c35710e1c91d7047121faf489387f682de626",
+       "excerpt": "ReportID",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 9,
+       "sha256": "f8d53ef5f908731aa2a17327ef36642673e58e33ab89072bb725f53f7a120459",
+       "excerpt": "CreatedAt",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 12,
+       "sha256": "4b3a85907a2fe9f86bc676f49feec3d0a3ca428042adb78f0b1ef011314819b1",
+       "excerpt": "ArtifactName",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 12,
+       "sha256": "c6846492d67a7c29a3baf2f385a63ddc03534e38398f7164403209d53e1d03c9",
+       "excerpt": "ArtifactType",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 7,
+       "sha256": "219c4a6c86a716e99d5dc9611b61e584deb11b57e972d87d4b773387ebc3cadd",
+       "excerpt": "Results",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      }
+     ],
+     "top_level_key_excerpts": [
       "SchemaVersion",
       "Trivy",
       "ReportID",
@@ -1594,10 +2054,24 @@
       "ArtifactType",
       "Results"
      ],
+     "top_level_keys_total": 7,
+     "top_level_keys_reported": 7,
+     "top_level_keys_truncated": false,
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
      "top_level_length": 7,
      "version_key": "version",
      "version_expected": "2.1.0",
      "version_observed": null,
+     "version_observed_evidence": {
+      "value_type": "NoneType",
+      "context": "version",
+      "character_length": 4,
+      "sha256": "dc937b59892604f5a86ac96936cd7ff09e25f18ae6b758e8014a24c7fa039e91",
+      "excerpt": "None",
+      "truncated": false,
+      "controls_escaped": 0,
+      "userinfo_redactions": 0
+     },
      "version_matches": false,
      "runs_key": "runs",
      "runs_observed_type": "null",
@@ -1674,6 +2148,8 @@
    "runner_status": {
     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/trivy.status",
     "present": true,
+    "bytes": 30961,
+    "sha256": "800170b2fb04d9d8e0ac6f77988f07bd7af6a2c96d059e874944b505caf36d66",
     "fields": {
      "tool": "trivy",
      "exit_code": "0",
@@ -1704,9 +2180,14 @@
      "runner_inventory_context": "harness/bin/ holds exactly the nine runners the AAP 0.5.4 class table names and no orchestrator",
      "invoked_directly": "true",
      "invoked_with_arguments": "none",
-     "invoked_one_at_a_time": "true",
+     "invoked_one_at_a_time_within_clone": "true",
+     "global_sequencing_satisfied": "false",
+     "invoked_one_at_a_time_superseded_value": "true",
+     "invoked_one_at_a_time_correction": "The superseded value stated one-at-a-time without naming a scope, and no per-clone record has standing to state it globally - that is the fault being corrected here. One tool at a time holds only inside the clone this runner ran in (w-016_e8e47c). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-25T00:50:38Z-00:51:00Z) overlapped NO other tool's window - it stands alone - so this invocation's own window is disjoint and the correction is made because the superseded value asserted a global property this invocation cannot establish, not because this window overlapped anything. AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - and five pairs of other tools' windows do overlap, so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under \"Facts common to all nine\", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing was measured afresh for this correction and nothing was repaired: no scanner was re-run, no window was re-measured, and the two fields above are read off the records already written.",
      "invoked_through_orchestrator": "false",
-     "invocation_discipline": "invoked directly, with no arguments, one at a time, never through an orchestrator (AAP 0.8.1). An orchestrator's continue-on-error sequencing would carry the run past a condition that must halt it and would collapse per-tool attribution",
+     "invocation_discipline": "invoked directly, with no arguments, never through an orchestrator (AAP 0.8.1), and one at a time WITHIN THIS CLONE; global sequencing across the run FAILED - see invocation_discipline_correction. An orchestrator's continue-on-error sequencing would carry the run past a condition that must halt it and would collapse per-tool attribution",
+     "invocation_discipline_superseded_value": "invoked directly, with no arguments, one at a time, never through an orchestrator (AAP 0.8.1). An orchestrator's continue-on-error sequencing would carry the run past a condition that must halt it and would collapse per-tool attribution",
+     "invocation_discipline_correction": "Direct invocation, no arguments and no orchestrator are unchanged: both were established by inspection of the runner and by this lane's own record. What the superseded value additionally asserted - one tool at a time - holds only inside the clone this runner ran in (w-016_e8e47c). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-25T00:50:38Z-00:51:00Z) overlapped NO other tool's window - it stands alone. The global failure is therefore a property of the run rather than of this invocation, and it is recorded here because the superseded value asserted a global property this invocation cannot establish. AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under \"Facts common to all nine\", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing here was repaired: no invocation was re-run to obtain a disjoint window.",
      "argument_guard": "run-trivy.sh lines 22-25 print 'run-trivy.sh: takes no arguments (configuration is baked in); refusing to scan' to stderr and exit 64",
      "argument_guard_precedes_all_scanning_steps": "true",
      "argument_guard_established_by": "inspection: the guard is the first executable statement, and environment sourcing (line 30), shared-library sourcing (32), target resolution (45) and the first tool invocation (67) all follow it",
@@ -1741,7 +2222,7 @@
      "artifact_top_level_keys": "ArtifactName, ArtifactType, CreatedAt, ReportID, Results, SchemaVersion, Trivy",
      "artifact_schema_version": "2",
      "artifact_artifact_name": ".",
-     "artifact_assembly": "the 18 per-directory reports retained under $HARNESS_LOG_DIR/trivy.parts/ are merged by run-trivy.sh lines 78-119 into one report whose Results[] is the concatenation of every part's sections, each Target root-anchored by prefixing that part's own ArtifactName, and the merged ArtifactName set to '.'",
+     "artifact_assembly": "the 18 per-directory reports the runner wrote under $HARNESS_LOG_DIR/trivy.parts/ - absent from this checkout, see parts_retained - are merged by run-trivy.sh lines 78-119 into one report whose Results[] is the concatenation of every part's sections, each Target root-anchored by prefixing that part's own ArtifactName, and the merged ArtifactName set to '.'",
      "artifact_local_presence_in_this_clone": "present",
      "artifact_local_presence_note": "this lane invoked harness/bin/run-trivy.sh in this checkout, so the artifact was written here by the runner. It is the runner's own bytes: nothing was authored, reformatted, re-serialized, truncated, sorted, filtered, deduplicated or dropped",
      "artifact_written_by": "harness/bin/run-trivy.sh, invoked directly with no arguments by the lane that owns harness/artifacts/raw/trivy.json. The file is not authored by any agent",
@@ -1843,9 +2324,11 @@
      "path_base_kind": "scan_root",
      "path_base_value": "/opt/spark-src",
      "path_base_record_field": "the enclosing Results[].Target, refined by a per-record path or StartLine where the section supplies one",
-     "path_base_parts_caveat": "the 18 retained per-directory reports under $HARNESS_LOG_DIR/trivy.parts/ are not root-anchored: each states Target relative to its own single path argument, so they must be read with per-section target semantics rather than with this base",
-     "parts_retained": "18",
-     "parts_location": "harness/artifacts/logs/trivy.parts/ (18 files, verbatim)",
+     "path_base_parts_caveat": "the 18 per-directory reports the runner wrote under $HARNESS_LOG_DIR/trivy.parts/ - absent from this checkout, see parts_retained - are not root-anchored: each states Target relative to its own single path argument, so they must be read with per-section target semantics rather than with this base",
+     "parts_retained": "no - NOT RETAINED: measured absent. The parts were written into the log tree of the clone the runner ran in and were not carried into this checkout, so they are absent from harness/artifacts/logs/ and from the size-and-sha256 manifest oss-scan-results/run-record.md section 16 publishes. No figure in this record is measured from them. CORRECTED after review, which found the retention claim unsupported by disk state.",
+     "parts_retained_superseded_value": "18",
+     "parts_written_by_the_runner": "18, one per scope directory, verbatim at the time of the invocation",
+     "parts_location": "harness/artifacts/logs/trivy.parts/ in the clone the runner ran in (w-016_e8e47c); not present in this checkout",
      "targets_observed": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile; resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile; resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
      "targets_are_real_files": "true",
      "targets_absolute_values_emitted": "0",
@@ -1894,8 +2377,17 @@
      "artifact_status_independent_of_exit_status": "asserted: the exit code is recorded as a fact and used for nothing else. A valid artifact is never suppressed because its runner exited non-zero, and a zero exit is not itself evidence about the artifact",
      "halt_conditions_evaluated": "unknown shape (not triggered), nothing distinguishing the three supported sections (not triggered), a non-empty unsupported or unknown finding section (not triggered), an artifact absent with no tool-stated reason (not applicable - the artifact is present), a runner resolving a tree other than $SPARK_SRC (not triggered), and the smoke override being set (not triggered)",
      "manifest_owner": "oss-scan-results/run-record.md publishes this file's byte size and sha256, both computed over this file after it is written; a file cannot carry its own digest without self-reference",
-     "evidence_files": "harness/artifacts/logs/trivy.stdout.log, harness/artifacts/logs/trivy.stderr.log, harness/artifacts/logs/trivy.parts/ (the 18 per-directory reports retained verbatim), harness/artifacts/logs/runner-metadata.json, harness/artifacts/logs/gate-record.json, harness/ENVIRONMENT.md"
+     "evidence_files": "harness/artifacts/logs/trivy.stdout.log, harness/artifacts/logs/trivy.stderr.log, harness/artifacts/logs/runner-metadata.json, harness/artifacts/logs/gate-record.json, harness/ENVIRONMENT.md"
     },
+    "field_count": 227,
+    "comment_lines": 0,
+    "blank_lines": 0,
+    "unparsed_lines": [],
+    "unparsed_line_count": 0,
+    "duplicate_fields": [],
+    "duplicate_field_count": 0,
+    "defects": [],
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -1906,7 +2398,7 @@
    },
    "network_fetch": {
     "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/trivy.status",
-    "status_fields_scanned": 220,
+    "status_fields_scanned": 227,
     "statements": {
      "feed_identity_matches_expected": "false",
      "feed_state": "not attempted",
@@ -1925,17 +2417,19 @@
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/trivy.stderr.log",
       "present": true,
       "bytes": 0,
-      "sha256": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/trivy.stdout.log",
       "present": true,
-      "bytes": 2756,
-      "sha256": null,
+      "bytes": 1422,
+      "sha256": "335c28b2e4b984d10259f8e6fd8a9a318a551ef2f4c8e9e76e815fb40519eacb",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
@@ -1966,7 +2460,8 @@
     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/osv-scanner.json",
     "present": false,
     "bytes": null,
-    "sha256": null
+    "sha256": null,
+    "null_reason": "no file exists at this path, so there are no bytes to size and no bytes to digest; both measurements are null because the file is absent, not because it was skipped"
    },
    "routing": null,
    "raw_records": null,
@@ -1980,6 +2475,8 @@
    "runner_status": {
     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/osv-scanner.status",
     "present": true,
+    "bytes": 26012,
+    "sha256": "7790c4146ae552bba5a9f1ced0a905d208a3291b48209a86111d7369b823fc85",
     "fields": {
      "tool": "osv-scanner",
      "exit_code": "128",
@@ -2009,10 +2506,15 @@
      "runner_clone_independent_form": "$HARNESS_DIR/bin/run-osv-scanner.sh",
      "invoked_directly": "true",
      "invoked_with_arguments": "none",
-     "invoked_one_at_a_time": "true",
+     "invoked_one_at_a_time_within_clone": "true",
+     "global_sequencing_satisfied": "false",
+     "invoked_one_at_a_time_superseded_value": "true",
+     "invoked_one_at_a_time_correction": "The superseded value stated one-at-a-time without naming a scope, and no per-clone record has standing to state it globally - that is the fault being corrected here. One tool at a time holds only inside the clone this runner ran in (w-030_f3f236). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-24T22:36:00.324Z-22:36:03.933Z) overlapped one other tool: checkov, by 3.609 s - the whole of this invocation's window falls inside checkov's 22:35:18Z-22:37:33Z. AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under \"Facts common to all nine\", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing was measured afresh for this correction and nothing was repaired: no scanner was re-run, no window was re-measured, and the two fields above are read off the records already written.",
      "invoked_via_orchestrator": "false",
      "orchestrator_exists_in_harness_bin": "false",
-     "invocation_discipline_source": "AAP 0.8.1 - each runner invoked directly, with no arguments, output captured before the next is started",
+     "invocation_discipline_source": "AAP 0.8.1 - each runner invoked directly, with no arguments, output captured before the next is started. Direct invocation and no arguments hold; the output-captured-before-the-next clause FAILED globally - see invocation_discipline_correction",
+     "invocation_discipline_source_superseded_value": "AAP 0.8.1 - each runner invoked directly, with no arguments, output captured before the next is started",
+     "invocation_discipline_correction": "Direct invocation, no arguments and no orchestrator are unchanged: both were established by inspection of the runner and by this lane's own record. What the superseded value additionally asserted - one tool at a time - holds only inside the clone this runner ran in (w-030_f3f236). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-24T22:36:00.324Z-22:36:03.933Z) overlapped one other: checkov, by 3.609 s - the whole of this invocation's window falls inside checkov's 22:35:18Z-22:37:33Z. AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under \"Facts common to all nine\", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing here was repaired: no invocation was re-run to obtain a disjoint window.",
      "orchestrator_prohibition_reason": "continue-on-error sequencing would carry the run past a condition that must halt it, and it collapses per-tool attribution",
      "invocations_of_the_tool": "1",
      "target_passing_style": "18 root-relative directories in one invocation, after a -- separator so no path can be read as a flag",
@@ -2130,7 +2632,10 @@
      "conditional_files_decision_deferred": "false",
      "conditional_files_verified_absent_on_disk": "true",
      "shape_routing_key_declared": "true",
-     "shape_routing_key_note": "harness/lib/normalize/shape.py declares an osv-scanner routing key deliberately, so a legitimately written artifact would have routed rather than falling into the halt path; a written artifact would have been handled, not a crisis - it simply was not written",
+     "shape_routing_key_note": "harness/lib/normalize/shape.py declares an osv-scanner routing key deliberately, so a legitimately written artifact would have been DETECTED rather than falling into the unknown-shape halt. Detection is not routing: see shape_routing_would_then_halt below",
+     "shape_routing_key_note_superseded_value": "harness/lib/normalize/shape.py declares an osv-scanner routing key deliberately, so a legitimately written artifact would have routed rather than falling into the halt path; a written artifact would have been handled, not a crisis - it simply was not written",
+     "shape_routing_would_then_halt": "Detection and adapter availability are two separate steps and only the first is satisfied. harness/lib/normalize/cli.py line 392 declares CONDITIONAL_ADAPTER_MODULES = (\"osv_scanner\",) and lines 1133-1149 import that module under a guard, raising MissingAdapterModule - reject/halt class missing_adapter_module - when it does not exist. harness/lib/normalize/adapters/osv_scanner.py does not exist in this checkout, by the AAP 0.6.1 conditional this observed outcome decided. So the accurate statement is: an osv-scanner artifact WOULD be recognised by shape, and normalization would then HALT with missing_adapter_module until the conditional adapter is created. It would not silently produce zero rows and it would not route to another tool's adapter",
+     "shape_routing_halt_is_by_design": "The halt is the designed behaviour rather than a gap: a shape recognised with no adapter must stop rather than be dropped, which is the same principle as the unknown-shape halt. The four conditional deliverables (adapter, fixture, expected rows, test module) are created together if and only if an artifact is written",
      "inventory_document_1": "oss-scan-results/tool-status.md",
      "inventory_document_2": "oss-scan-results/severity-map.md",
      "entry_required_in_tool_status_md": "true",
@@ -2164,6 +2669,15 @@
      "own_size_and_digest_self_stated": "false",
      "own_size_and_digest_reason": "a file cannot carry its own sha256 without invalidating it"
     },
+    "field_count": 190,
+    "comment_lines": 144,
+    "blank_lines": 18,
+    "unparsed_lines": [],
+    "unparsed_line_count": 0,
+    "duplicate_fields": [],
+    "duplicate_field_count": 0,
+    "defects": [],
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
     "exit_code": 128,
     "exit_code_literal": "128",
     "exit_status": "exited",
@@ -2174,7 +2688,7 @@
    },
    "network_fetch": {
     "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/osv-scanner.status",
-    "status_fields_scanned": 182,
+    "status_fields_scanned": 190,
     "statements": {
      "local_database": "none",
      "local_database_note": "this tool ships and seeds no local database",
@@ -2199,28 +2713,72 @@
      "stderr": {
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/osv-scanner.stderr.log",
       "present": true,
-      "bytes": 969,
-      "sha256": "021347c72dcd98e06b26c579164cded04c26b0eacc203aff07d5eb0487f2c401",
-      "text": "Scanning dir common/network-common/src/main\nScanning dir common/network-shuffle/src/main\nScanning dir common/network-yarn/src/main\nScanning dir core/src/main\nScanning dir python/pyspark\nScanning dir resource-managers/kubernetes/core/src/main\nScanning dir resource-managers/kubernetes/core/volcano/src/main\nScanning dir resource-managers/kubernetes/docker/src/main\nScanning dir resource-managers/yarn/src/main\nScanning dir sql/catalyst/src/main\nScanning dir sql/connect/client/jdbc/src/main\nScanning dir sql/connect/client/jvm/src/main\nScanning dir sql/connect/common/src/main\nScanning dir sql/connect/server/src/main\nScanning dir sql/connect/shims/src/main\nScanning dir sql/core/src/main\nScanning dir sql/hive-thriftserver/src/main\nScanning dir sql/hive/src/main\nStarting filesystem walk for root: /\nEnd status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 296.253311ms elapsed, 296.253503ms wall time\nNo package sources found, --help for usage information.\n",
+      "bytes": 968,
+      "sha256": "3c75f46467664e7bab7a85b53ab43fa7f381c02b0dd3b5a574e09f4b59647c00",
+      "text": "Scanning dir common/network-common/src/main\nScanning dir common/network-shuffle/src/main\nScanning dir common/network-yarn/src/main\nScanning dir core/src/main\nScanning dir python/pyspark\nScanning dir resource-managers/kubernetes/core/src/main\nScanning dir resource-managers/kubernetes/core/volcano/src/main\nScanning dir resource-managers/kubernetes/docker/src/main\nScanning dir resource-managers/yarn/src/main\nScanning dir sql/catalyst/src/main\nScanning dir sql/connect/client/jdbc/src/main\nScanning dir sql/connect/client/jvm/src/main\nScanning dir sql/connect/common/src/main\nScanning dir sql/connect/server/src/main\nScanning dir sql/connect/shims/src/main\nScanning dir sql/core/src/main\nScanning dir sql/hive-thriftserver/src/main\nScanning dir sql/hive/src/main\nStarting filesystem walk for root: /\nEnd status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 483.86792ms elapsed, 483.868282ms wall time\nNo package sources found, --help for usage information.\n",
       "text_truncated": false
      },
      "stdout": {
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/osv-scanner.stdout.log",
       "present": true,
-      "bytes": 39545,
-      "sha256": "16888631f684d1f9183a3a2028a419557acfb30d75a1f6761e7459ea4977a783",
-      "text": "================================================================================\nrun-osv-scanner.sh - captured streams and absent-artifact record\nharness/artifacts/logs/osv-scanner.stdout.log\n================================================================================\n\n================================================================================\nWHAT THIS FILE ESTABLISHES\n================================================================================\n\n  What happened when harness/bin/run-osv-scanner.sh was invoked directly, with no\n  arguments, on its own, over the full twelve-root scope - and, because this is\n  the one tool of the nine expected to write NO ARTIFACT AT ALL, which of exactly\n  two things that absence was:\n\n      the tool FAILED, or\n      the tool COMPLETED with nothing in scope to work on and said so in its own\n      output.\n\n  AAP 0.9.2 halts the whole run on the first and AAP 0.9.3 continues past the\n  second, so this single distinction is the most consequential thing this file\n  carries. Only the tool's own words can settle it, so its own words are quoted\n  verbatim below (STEP 6) and nothing else is offered in their place.\n\n  The file also carries the three things a reader cannot reconstruct later: the\n  state of both artifact trees BEFORE the invocation and AFTER it, each listed\n  rather than inferred; the runner's own banner and trailer, which record the\n  scan root, the allowlist digest and the MISSING artifact marker; and the\n  decision the observed outcome forces on four conditional deliverables, stated\n  here rather than deferred.\n\n  VERDICT, stated once at the top and evidenced throughout:\n  exit 128, no artifact, and the tool's own stderr reads\n  \"No package sources found, --help for usage information.\" after\n  \"0 Extract calls\". THE TOOL COMPLETED. It did not fail. The run continues.\n\n================================================================================\nHOW TO READ THIS FILE\n================================================================================\n\n  Plain text, in execution order. Every step is a command line introduced by\n  '$ ', followed by its captured output and exit status:\n\n      [stdout]  ... verbatim; nothing follows the marker when the stream was empty\n      [stderr]  ... verbatim; this tool writes everything it says here, not to stdout\n      [exit]    ... the command's exit status\n\n  Everything between a BEGIN and an END marker is a byte-for-byte reproduction of\n  a captured stream, flush-left and unindented so it can be compared against the\n  capture mechanically. No stream is summarised, reflowed, elided, re-ordered or\n  annotated inline. Where a stream was empty, that is stated and its length and\n  digest are given rather than the block being dropped.\n\n  Nothing in this file is a fabricated measurement. Every figure traces to a\n  command whose output is present in it.\n\n================================================================================\nWHY THIS FILE CARRIES TWO STREAMS RATHER THAN ONE\n================================================================================\n\n  The provisioned runner reuses this file's own path for the SCANNER's stdout\n  while printing its banner and trailer on the RUNNER's stdout:\n\n      harness/bin/run-osv-scanner.sh:29   OUT=\"$HARNESS_LOG_DIR/$TOOL.stdout.log\"\n      harness/bin/run-osv-scanner.sh:46-49\n                                          osv-scanner scan source ... > \"$OUT\" 2> \"$ERR\"\n      harness/lib/scope.sh scope_begin    the banner  -> the runner's own stdout\n      harness/lib/scope.sh scope_finish   the trailer -> the runner's own stdout\n\n  So the two streams a reader needs are produced on two different descriptors,\n  and this scanner's own stdout is EMPTY (0 bytes, STEP 5) - the tool says what\n  it has to say on stderr. AAP 0.6.1 requires this file to carry \"the runner's\n  streams verbatim, and its exit code ... with elapsed seconds\", which are in the\n  banner and trailer, and the absent-artifact marker, which is in the trailer.\n\n  Both streams are therefore reproduced here, each labelled with the descriptor\n  and the process it came from, in the order they occurred. Because the scanner's\n  stdout is empty, the two in chronological order ARE the runner's stdout: the\n  banner and the two header lines, then nothing from the scanner, then the\n  trailer. No content is invented by placing them together and none is lost.\n\n  The runner was NOT edited to resolve this, and its stdout was not redirected\n  into this path either: line 49 re-truncates that file mid-run while the\n  script's own descriptor offset has already advanced, which would leave a hole\n  of NUL bytes where the banner had been. The collision is recorded, not\n  repaired.\n\n  One consequence a later reader should expect: re-invoking the runner\n  overwrites this path with the scanner's own stdout again - 0 bytes, on the\n  evidence below. This record is the state as of the invocation timestamped in\n  SUBJECT, and the captures it embeds are the only copies of those streams that\n  the runner does not itself rewrite.\n\n================================================================================\nMETHOD - THE FOUR PRINCIPLES THIS FILE IS HELD TO\n================================================================================\n\n  review_rules returned exactly 'No user rules provided.' for the whole document.\n  That is a complete read, corroborated by AAP 0.7 and 0.10.2. No user-specified\n  rule governs this file, and the absence is not read as licence to lower the\n  bar; enterprise best practice is substituted, held to the AAP's own four\n  principles.\n\n  P1 Verification is independent of the thing verified (AAP 0.1.3). The absence\n     of the artifact is established by LISTING harness/artifacts/raw/ before and\n     after the invocation (STEP 1, STEP 7), never inferred from the exit code and\n     never taken from the trailer's own MISSING marker alone. Three independent\n     records agree: the listing, the trailer, and osv-scanner.status (STEP 8).\n  P2 Reject rather than infer (AAP 0.1.3). The completion-versus-failure verdict\n     is settled ONLY by the tool's own stated words, quoted verbatim in STEP 6.\n     No exit-code convention, no documentation and no prior run's record is\n     allowed to stand in for them.\n  P3 Halt-and-report over silent repair (AAP 0.8.1). The runner was invoked\n     directly, with no arguments, one at a time, never through an orchestrator -\n     harness/bin/ holds exactly the nine runners and no orchestrator exists to\n     invoke. Nothing was installed, no runner and no baked flag was edited, no\n     artifact was manufactured, and the twelve globs were NOT widened to give the\n     tool something to resolve.\n  P4 Verbatim preservation - the governing principle. Every stream appears as\n     captured, with its length and sha256 given so the reproduction can be\n     checked against the capture.\n\n================================================================================\nSUBJECT\n================================================================================\n\n  Pinned commit               : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d\n  Pin, as exported            : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d\n  Pinned clone (SPARK_SRC)    : /opt/spark-src   (never edited, never rebuilt)\n  Working checkout            : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-030_f3f236\n                                NEITHER BUILT NOR SCANNED (AAP 0.3.2)\n  Tool                        : osv-scanner 2.5.1 (osv-scalibr 0.5.2)\n                                commit c84fa4568f2526d0333e9a914ea8a0a5f74ad68b\n  Binary                      : /opt/blitzy-tools/bin/osv-scanner\n                                ELF 64-bit LSB executable, x86-64, statically linked\n  Runtime                     : no JVM and no interpreter - a standalone binary,\n                                so no JDK assignment and no heap lever apply\n  Scanner class               : vuln  (AAP 0.5.4 class table; does not vary per record)\n  Runner                      : harness/bin/run-osv-scanner.sh   (read, never edited)\n  Argument guard              : lines 15-18, exit 64, the first executable\n                                statement - before env sourcing (23), the shared\n                                library (25), target resolution (34) and the tool\n                                invocation (46). Established BY INSPECTION; no\n                                rejection probe was run, because a probe against a\n                                defective runner could scan for real and\n                                contaminate the raw tree (AAP 0.8.1)\n  Scan-target variable        : SPARK_SRC -> /opt/spark-src, resolved indirectly\n                                through harness/lib/scope.sh scope_resolve_target\n  Smoke override              : HARNESS_SMOKE_TARGET unset, as a real scan requires\n  Working directory           : /opt/spark-src  (cd \"$SCAN_ROOT\", runner line 44)\n  Path base                   : the scan root - cwd is the root and every target\n                                argument is root-relative\n  Allowlist                   : harness/scope/allowlist.txt, 12 globs, sha256\n                                0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1\n                                unchanged by this run; expands to 18 existing\n                                directories, all 18 passed to the one invocation\n  Baked flags, as read        : scan source / --recursive / --format json /\n                                --output-file \"$ART\" / --verbosity info /\n                                -- \"${DIRS[@]}\"\n                                No --allow-no-lockfiles is passed in this\n                                provisioning. Nothing was added or removed.\n  Zero-byte artifact rule     : runner lines 53-55 delete a zero-byte artifact if\n                                one is created, deliberately, so the absent case\n                                stays distinguishable from an empty parse\n  Credentials                 : this runner reads none and prints no credential\n                                line; credential_expression is null in\n                                runner-metadata.json. No credential name in this\n                                file carries a value, and no credential value\n                                appears anywhere in it\n  Expected outcome            : exit 128, no artifact - stated by the runner's own\n                                header (lines 7-11) and by runner-metadata.json\n                                (artifact_expected false)\n  Invoked at (UTC)            : 2026-08-24T22:36:00.324Z\n  Completed at (UTC)          : 2026-08-24T22:36:03.933Z\n\n================================================================================\nSTEP 1 - PRE-INVOCATION STATE OF BOTH ARTIFACT TREES\n================================================================================\n\n  Taken BEFORE the invocation, so the absence of an artifact afterwards cannot be\n  confused with an artifact that was never there. harness/artifacts/raw/ is\n  runner-only and receives exactly one artifact per tool that writes one and\n  nothing else, ever; harness/artifacts/logs/ legitimately accumulates this run's\n  own evidence from Stage 1 onward (AAP 0.8.1).\n\n  Neither tree was created or cleared by this run. Both are created by the\n  provisioned environment file itself - harness/env.sh line 91 is\n  'mkdir -p \"$HARNESS_RAW_DIR\" \"$HARNESS_LOG_DIR\" \"$HARNESS_SCRATCH_DIR\"'. They\n  are absent from a fresh clone only because .gitignore line 31 is 'artifacts/'\n  and git cannot track an empty directory.\n\n$ { echo \"PRE_INVOCATION_TIMESTAMP_UTC=$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\"; ls -A harness/artifacts/raw; ... }\n\n[stdout]\n--- BEGIN CAPTURE: pre-invocation state -----------------------------------------\nPRE_INVOCATION_TIMESTAMP_UTC=2026-08-24T22:35:52.527Z\n--- ls -A harness/artifacts/raw ---\nrc=0\nraw_entry_count=0\n--- osv-scanner.json present? ---\nABSENT\n--- ls -A harness/artifacts/logs ---\nbuild-reactor.log\ncpg-frontend.log\ncpg-input-inventory.json\ncpg-verify.log\ngate-record.json\nmaven-preflight.log\nrunner-metadata.json\ntaint-ab-on.log\ntaint-ab-on.sarif\nlogs_entry_count=9\n--- osv-scanner.* in logs? ---\nnone\n--- END CAPTURE ----------------------------------------------------------------\n\n  raw/ held nothing at 22:35:52.527Z. logs/ held nine files, every one of them\n  this run's own prior-stage evidence and none of them an osv-scanner stream.\n\n================================================================================\nSTEP 2 - THE INVOCATION\n================================================================================\n\n  Directly, no arguments, on its own. No orchestrator was used and none exists:\n  harness/bin/ holds exactly the nine runners. No other runner and no Joern\n  process was running from this clone at the time.\n\n$ BLITZY_CLONE_INDEX=30 ./harness/bin/run-osv-scanner.sh > <scratch>/runner.stdout 2> <scratch>/runner.stderr\n\n  BLITZY_CLONE_INDEX=30 is passed on the command line rather than exported,\n  because each command is its own subshell. This tool uses no per-clone scratch -\n  only Joern does - so the index changes nothing here and is passed for\n  correctness. The runner's own two descriptors were captured outside the\n  repository, for the reason STEP 5 gives.\n\n[exit]\n128\n\n  Wall clock: 2026-08-24T22:36:00.324Z to 2026-08-24T22:36:03.933Z.\n\n================================================================================\nSTEP 3 - THE RUNNER'S OWN STDOUT STREAM, VERBATIM\n================================================================================\n\n  995 bytes, 13 lines, sha256\n  3c0cb9b071de1946f26d86cabf98fc206d1817c6b5600c022ad15f7a67ce0a3c\n\n  Lines 1-7 are the banner (harness/lib/scope.sh scope_begin), lines 8-9 the\n  runner's own two header lines (run-osv-scanner.sh lines 40-41), lines 10-13 the\n  trailer (scope_finish). The trailer's 'artifact ... (MISSING bytes)' is the\n  authoritative in-stream record of the absence.\n\n--- BEGIN CAPTURE: run-osv-scanner.sh, fd 1 -------------------------------------\ntool            : osv-scanner\nscan root       : /opt/spark-src (from SPARK_SRC)\nraw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-030_f3f236/harness/artifacts/raw\nlog dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-030_f3f236/harness/artifacts/logs\nallowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-030_f3f236/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)\nscope dirs      : 18\nstart           : 2026-08-24T22:36:00+00:00\ndatabase        : none local - queries the OSV API (https://api.osv.dev) at scan time\ninvocation      : one invocation over all 18 scope directories, --recursive\nexit code       : 128\nelapsed seconds : 3\nartifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-030_f3f236/harness/artifacts/raw/osv-scanner.json (MISSING bytes)\nend             : 2026-08-24T22:36:03+00:00\n--- END CAPTURE ----------------------------------------------------------------\n\n  Read off this stream, with nothing added:\n    - scan root /opt/spark-src, and its source named as SPARK_SRC. The runner\n      resolved the pinned clone and no other tree, which is what AAP 0.9.2 makes\n      a halting condition when it fails. It did not fail.\n    - the allowlist digest, matching the byte-exact file this run did not touch.\n    - 18 scope directories, the arithmetic expansion of the twelve globs.\n    - 'none local - queries the OSV API (https://api.osv.dev) at scan time' -\n      the no-local-database fact, in the runner's own words. See the\n      REPRODUCIBILITY GAP section.\n    - exit 128, elapsed 3 seconds, artifact MISSING.\n\n================================================================================\nSTEP 4 - THE RUNNER'S OWN STDERR STREAM, VERBATIM\n================================================================================\n\n  0 bytes, sha256\n  e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n  (the digest of the empty input).\n\n--- BEGIN CAPTURE: run-osv-scanner.sh, fd 2 -------------------------------------\n--- END CAPTURE ----------------------------------------------------------------\n\n  Empty, and that is a positive result rather than nothing to report: the runner\n  printed no diagnostic, so it took neither of its two failure exits - not the\n  argument guard's 64 (it was given no argument) and not scope_fail's 78, which\n  would have written 'CONFIGURATION FAULT: ...' here and named the fault. Exit\n  128 is therefore the SCANNER's own exit code, passed through unchanged by\n  runner lines 50-58, and not a harness fault dressed as one.\n\n================================================================================\nSTEP 5 - THE SCANNER'S OWN STDOUT STREAM, VERBATIM\n================================================================================\n\n  This is the stream the runner wrote to this file's own path at line 49, copied\n  out to a scratch file before anything was written here, so that it is preserved\n  rather than displaced.\n\n  0 bytes, 0 lines, sha256\n  e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n  (the digest of the empty input). `od -c` over it printed the single offset line\n  '0000000' and no byte.\n\n--- BEGIN CAPTURE: osv-scanner, fd 1 --------------------------------------------\n--- END CAPTURE ----------------------------------------------------------------\n\n  Empty. This scanner writes nothing to stdout in this configuration - it reports\n  on stderr, which STEP 6 carries. The emptiness is recorded with its length and\n  digest rather than left as an unexplained blank, and it is why the two captured\n  streams are presented together: their chronological concatenation is exactly\n  the runner's stdout in STEP 3, so nothing is added by placing them side by side\n  and nothing is lost.\n\n  It also settles the nuance the agent brief asked be verified rather than\n  assumed: the runner directs output to a file path, so an empty or partial file\n  could have appeared in raw/ even with nothing to report. Nothing did - see\n  STEP 7 - and the runner's lines 53-55 would have removed a zero-byte one on\n  purpose if the scanner had created it.\n\n================================================================================\nSTEP 6 - THE SCANNER'S OWN STDERR STREAM, VERBATIM - THE CLASSIFYING EVIDENCE\n================================================================================\n\n  969 bytes, 23 lines, sha256\n  ad7df520bc9f146fbb1e59e4cce07392b7f5db969bc638ced1d640c02c4cb014\n\n  This is the whole of what the tool said, in its own words. It is the only\n  admissible basis for the completion-versus-failure verdict (AAP 0.1.3), so it\n  is reproduced in full and nothing is paraphrased. Its authoritative copy is the\n  sibling deliverable harness/artifacts/logs/osv-scanner.stderr.log, whose bytes\n  and digest are the ones above.\n\n--- BEGIN CAPTURE: osv-scanner, fd 2 --------------------------------------------\nScanning dir common/network-common/src/main\nScanning dir common/network-shuffle/src/main\nScanning dir common/network-yarn/src/main\nScanning dir core/src/main\nScanning dir python/pyspark\nScanning dir resource-managers/kubernetes/core/src/main\nScanning dir resource-managers/kubernetes/core/volcano/src/main\nScanning dir resource-managers/kubernetes/docker/src/main\nScanning dir resource-managers/yarn/src/main\nScanning dir sql/catalyst/src/main\nScanning dir sql/connect/client/jdbc/src/main\nScanning dir sql/connect/client/jvm/src/main\nScanning dir sql/connect/common/src/main\nScanning dir sql/connect/server/src/main\nScanning dir sql/connect/shims/src/main\nScanning dir sql/core/src/main\nScanning dir sql/hive-thriftserver/src/main\nScanning dir sql/hive/src/main\nStarting filesystem walk for root: /\nEnd status: 640 dirs visited, 47",
+      "bytes": 45872,
+      "sha256": "5819350d2f5b82461b8de8a708ddd2ca8c5389a21d18ae38fbee62bc777c2847",
+      "text": "================================================================================\nrun-osv-scanner.sh - captured streams and absent-artifact record\nharness/artifacts/logs/osv-scanner.stdout.log\n================================================================================\n\n================================================================================\nWHAT THIS FILE ESTABLISHES\n================================================================================\n\n  What happened when harness/bin/run-osv-scanner.sh was invoked directly, with no\n  arguments, on its own, over the full twelve-root scope - and, because this is\n  the one tool of the nine expected to write NO ARTIFACT AT ALL, which of exactly\n  two things that absence was:\n\n      the tool FAILED, or\n      the tool COMPLETED with nothing in scope to work on and said so in its own\n      output.\n\n  AAP 0.9.2 halts the whole run on the first and AAP 0.9.3 continues past the\n  second, so this single distinction is the most consequential thing this file\n  carries. Only the tool's own words can settle it, so its own words are quoted\n  verbatim below (STEP 6) and nothing else is offered in their place.\n\n  The file also carries the three things a reader cannot reconstruct later: the\n  state of both artifact trees BEFORE the invocation and AFTER it, each listed\n  rather than inferred; the runner's own banner and trailer, which record the\n  scan root, the allowlist digest and the MISSING artifact marker; and the\n  decision the observed outcome forces on four conditional deliverables, stated\n  here rather than deferred.\n\n  VERDICT, stated once at the top and evidenced throughout:\n  exit 128, no artifact, and the tool's own stderr reads\n  \"No package sources found, --help for usage information.\" after\n  \"0 Extract calls\". THE TOOL COMPLETED. It did not fail. The run continues.\n\n================================================================================\nHOW TO READ THIS FILE\n================================================================================\n\n  Plain text, in execution order. Every step is a command line introduced by\n  '$ ', followed by its captured output and exit status:\n\n      [stdout]  ... verbatim; nothing follows the marker when the stream was empty\n      [stderr]  ... verbatim; this tool writes everything it says here, not to stdout\n      [exit]    ... the command's exit status\n\n  Everything between a BEGIN and an END marker is a byte-for-byte reproduction of\n  a captured stream, flush-left and unindented so it can be compared against the\n  capture mechanically. No stream is summarised, reflowed, elided, re-ordered or\n  annotated inline. Where a stream was empty, that is stated and its length and\n  digest are given rather than the block being dropped.\n\n  Nothing in this file is a fabricated measurement. Every figure traces to a\n  command whose output is present in it.\n\n================================================================================\nWHY THIS FILE CARRIES TWO STREAMS RATHER THAN ONE\n================================================================================\n\n  The provisioned runner reuses this file's own path for the SCANNER's stdout\n  while printing its banner and trailer on the RUNNER's stdout:\n\n      harness/bin/run-osv-scanner.sh:29   OUT=\"$HARNESS_LOG_DIR/$TOOL.stdout.log\"\n      harness/bin/run-osv-scanner.sh:46-49\n                                          osv-scanner scan source ... > \"$OUT\" 2> \"$ERR\"\n      harness/lib/scope.sh scope_begin    the banner  -> the runner's own stdout\n      harness/lib/scope.sh scope_finish   the trailer -> the runner's own stdout\n\n  So the two streams a reader needs are produced on two different descriptors,\n  and this scanner's own stdout is EMPTY (0 bytes, STEP 5) - the tool says what\n  it has to say on stderr. AAP 0.6.1 requires this file to carry \"the runner's\n  streams verbatim, and its exit code ... with elapsed seconds\", which are in the\n  banner and trailer, and the absent-artifact marker, which is in the trailer.\n\n  Both streams are therefore reproduced here, each labelled with the descriptor\n  and the process it came from, in the order they occurred. Because the scanner's\n  stdout is empty, the two in chronological order ARE the runner's stdout: the\n  banner and the two header lines, then nothing from the scanner, then the\n  trailer. No content is invented by placing them together and none is lost.\n\n  The runner was NOT edited to resolve this, and its stdout was not redirected\n  into this path either: line 49 re-truncates that file mid-run while the\n  script's own descriptor offset has already advanced, which would leave a hole\n  of NUL bytes where the banner had been. The collision is recorded, not\n  repaired.\n\n  One consequence a later reader should expect: re-invoking the runner\n  overwrites this path with the scanner's own stdout again - 0 bytes, on the\n  evidence below. This record is the state as of the invocation timestamped in\n  SUBJECT, and the captures it embeds are the only copies of those streams that\n  the runner does not itself rewrite.\n\n================================================================================\nMETHOD - THE FOUR PRINCIPLES THIS FILE IS HELD TO\n================================================================================\n\n  review_rules returned exactly 'No user rules provided.' for the whole document.\n  That is a complete read, corroborated by AAP 0.7 and 0.10.2. No user-specified\n  rule governs this file, and the absence is not read as licence to lower the\n  bar; enterprise best practice is substituted, held to the AAP's own four\n  principles.\n\n  P1 Verification is independent of the thing verified (AAP 0.1.3). The absence\n     of the artifact is established by LISTING harness/artifacts/raw/ before and\n     after the invocation (STEP 1, STEP 7), never inferred from the exit code and\n     never taken from the trailer's own MISSING marker alone. Three independent\n     records agree: the listing, the trailer, and osv-scanner.status (STEP 8).\n  P2 Reject rather than infer (AAP 0.1.3). The completion-versus-failure verdict\n     is settled ONLY by the tool's own stated words, quoted verbatim in STEP 6.\n     No exit-code convention, no documentation and no prior run's record is\n     allowed to stand in for them.\n  P3 Halt-and-report over silent repair (AAP 0.8.1). The runner was invoked\n     directly, with no arguments, never through an orchestrator - harness/bin/\n     holds exactly the nine runners and no orchestrator exists to invoke. It ran\n     one at a time WITHIN ITS OWN CLONE; the \"one at a time\" clause is CORRECTED\n     after review, which found it unqualified: AAP 0.8.1's requirement is GLOBAL,\n     and measured across the run from the nine per-tool .status records' own start\n     and finish stamps, five pairs of windows overlapped - this invocation's own\n     window overlaps checkov's by 3.609 s. Global sequencing therefore FAILED and\n     is reported rather than repaired; see oss-scan-results/tool-status.md and\n     oss-scan-results/run-record.md section 8. Nothing was measured afresh, and no\n     scanner was re-run, for this correction. Nothing was installed, no runner\n     and no baked flag was edited, no artifact was manufactured, and the twelve\n     globs were NOT widened to give the tool something to resolve.\n  P4 Verbatim preservation - the governing principle. Every stream appears as\n     captured, with its length and sha256 given so the reproduction can be\n     checked against the capture.\n\n================================================================================\nSUBJECT\n================================================================================\n\n  Pinned commit               : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d\n  Pin, as exported            : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d\n  Pinned clone (SPARK_SRC)    : /opt/spark-src   (never edited, never rebuilt)\n  Working checkout            : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-030_f3f236\n                                NEITHER BUILT NOR SCANNED (AAP 0.3.2)\n  Tool                        : osv-scanner 2.5.1 (osv-scalibr 0.5.2)\n                                commit c84fa4568f2526d0333e9a914ea8a0a5f74ad68b\n  Binary                      : /opt/blitzy-tools/bin/osv-scanner\n                                ELF 64-bit LSB executable, x86-64, statically linked\n  Runtime                     : no JVM and no interpreter - a standalone binary,\n                                so no JDK assignment and no heap lever apply\n  Scanner class               : vuln  (AAP 0.5.4 class table; does not vary per record)\n  Runner                      : harness/bin/run-osv-scanner.sh   (read, never edited)\n  Argument guard              : lines 15-18, exit 64, the first executable\n                                statement - before env sourcing (23), the shared\n                                library (25), target resolution (34) and the tool\n                                invocation (46). Established BY INSPECTION; no\n                                rejection probe was run, because a probe against a\n                                defective runner could scan for real and\n                                contaminate the raw tree (AAP 0.8.1)\n  Scan-target variable        : SPARK_SRC -> /opt/spark-src, resolved indirectly\n                                through harness/lib/scope.sh scope_resolve_target\n  Smoke override              : HARNESS_SMOKE_TARGET unset, as a real scan requires\n  Working directory           : /opt/spark-src  (cd \"$SCAN_ROOT\", runner line 44)\n  Path base                   : the scan root - cwd is the root and every target\n                                argument is root-relative\n  Allowlist                   : harness/scope/allowlist.txt, 12 globs, sha256\n                                0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1\n                                unchanged by this run; expands to 18 existing\n                                directories, all 18 passed to the one invocation\n  Baked flags, as read        : scan source / --recursive / --format json /\n                                --output-file \"$ART\" / --verbosity info /\n                                -- \"${DIRS[@]}\"\n                                No --allow-no-lockfiles is passed in this\n                                provisioning. Nothing was added or removed.\n  Zero-byte artifact rule     : runner lines 53-55 delete a zero-byte artifact if\n                                one is created, deliberately, so the absent case\n                                stays distinguishable from an empty parse\n  Credentials                 : this runner reads none and prints no credential\n                                line; credential_expression is null in\n                                runner-metadata.json. No credential name in this\n                                file carries a value, and no credential value\n                                appears anywhere in it\n  Expected outcome            : exit 128, no artifact - stated by the runner's own\n                                header (lines 7-11) and by runner-metadata.json\n                                (artifact_expected false)\n  Invoked at (UTC)            : 2026-08-24T22:36:00.324Z\n  Completed at (UTC)          : 2026-08-24T22:36:03.933Z\n\n================================================================================\nSTEP 1 - PRE-INVOCATION STATE OF BOTH ARTIFACT TREES\n================================================================================\n\n  Taken BEFORE the invocation, so the absence of an artifact afterwards cannot be\n  confused with an artifact that was never there. harness/artifacts/raw/ is\n  runner-only and receives exactly one artifact per tool that writes one and\n  nothing else, ever; harness/artifacts/logs/ legitimately accumulates this run's\n  own evidence from Stage 1 onward (AAP 0.8.1).\n\n  Neither tree was created or cleared by this run. Both are created by the\n  provisioned environment file itself - harness/env.sh line 91 is\n  'mkdir -p \"$HARNESS_RAW_DIR\" \"$HARNESS_LOG_DIR\" \"$HARNESS_SCRATCH_DIR\"'. They\n  are absent from a fresh clone only because .gitignore line 31 is 'artifacts/'\n  and git cannot track an empty directory.\n\n$ { echo \"PRE_INVOCATION_TIMESTAMP_UTC=$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\"; ls -A harness/artifacts/raw; ... }\n\n[stdout]\n--- BEGIN CAPTURE: pre-invocation state -----------------------------------------\nPRE_INVOCATION_TIMESTAMP_UTC=2026-08-24T22:35:52.527Z\n--- ls -A harness/artifacts/raw ---\nrc=0\nraw_entry_count=0\n--- osv-scanner.json present? ---\nABSENT\n--- ls -A harness/artifacts/logs ---\nbuild-reactor.log\ncpg-frontend.log\ncpg-input-inventory.json\ncpg-verify.log\ngate-record.json\nmaven-preflight.log\nrunner-metadata.json\ntaint-ab-on.log\ntaint-ab-on.sarif\nlogs_entry_count=9\n--- osv-scanner.* in logs? ---\nnone\n--- END CAPTURE ----------------------------------------------------------------\n\n  raw/ held nothing at 22:35:52.527Z. logs/ held nine files, every one of them\n  this run's own prior-stage evidence and none of them an osv-scanner stream.\n\n================================================================================\nSTEP 2 - THE INVOCATION\n================================================================================\n\n  Directly, no arguments, on its own. No orchestrator was used and none exists:\n  harness/bin/ holds exactly the nine runners. No other runner and no Joern\n  process was running from this clone at the time.\n\n$ BLITZY_CLONE_INDEX=30 ./harness/bin/run-osv-scanner.sh > <scratch>/runner.stdout 2> <scratch>/runner.stderr\n\n  BLITZY_CLONE_INDEX=30 is passed on the command line rather than exported,\n  because each command is its own subshell. This tool uses no per-clone scratch -\n  only Joern does - so the index changes nothing here and is passed for\n  correctness. The runner's own two descriptors were captured outside the\n  repository, for the reason STEP 5 gives.\n\n[exit]\n128\n\n  Wall clock: 2026-08-24T22:36:00.324Z to 2026-08-24T22:36:03.933Z.\n\n================================================================================\nSTEP 3 - THE RUNNER'S OWN STDOUT STREAM, VERBATIM\n================================================================================\n\n  995 bytes, 13 lines, sha256\n  3c0cb9b071de1946f26d86cabf98fc206d1817c6b5600c022ad15f7a67ce0a3c\n\n  Lines 1-7 are the banner (harness/lib/scope.sh scope_begin), lines 8-9 the\n  runner's own two header lines (run-osv-scanner.sh lines 40-41), lines 10-13 the\n  trailer (scope_finish). The trailer's 'artifact ... (MISSING bytes)' is the\n  authoritative in-stream record of the absence.\n\n--- BEGIN CAPTURE: run-osv-scanner.sh, fd 1 -------------------------------------\ntool            : osv-scanner\nscan root       : /opt/spark-src (from SPARK_SRC)\nraw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-030_f3f236/harness/artifacts/raw\nlog dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-030_f3f236/harness/artifacts/logs\nallowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-030_f3f236/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)\nscope dirs      : 18\nstart           : 2026-08-24T22:36:00+00:00\ndatabase        : none local - queries the OSV API (https://api.osv.dev) at scan time\ninvocation      : one invocation over all 18 scope directories, --recursive\nexit code       : 128\nelapsed seconds : 3\nartifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-030_f3f236/harness/artifacts/raw/osv-scanner.json (MISSING bytes)\nend             : 2026-08-24T22:36:03+00:00\n--- END CAPTURE ----------------------------------------------------------------\n\n  Read off this stream, with nothing added:\n    - scan root /opt/spark-src, and its source named as SPARK_SRC. The runner\n      resolved the pinned clone and no other tree, which is what AAP 0.9.2 makes\n      a halting condition when it fails. It did not fail.\n    - the allowlist digest, matching the byte-exact file this run did not touch.\n    - 18 scope directories, the arithmetic expansion of the twelve globs.\n    - 'none local - queries the OSV API (https://api.osv.dev) at scan time' -\n      the no-local-database fact, in the runner's own words. See the\n      REPRODUCIBILITY GAP section.\n    - exit 128, elapsed 3 seconds, artifact MISSING.\n\n================================================================================\nSTEP 4 - THE RUNNER'S OWN STDERR STREAM, VERBATIM\n================================================================================\n\n  0 bytes, sha256\n  e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n  (the digest of the empty input).\n\n--- BEGIN CAPTURE: run-osv-scanner.sh, fd 2 -------------------------------------\n--- END CAPTURE ----------------------------------------------------------------\n\n  Empty, and that is a positive result rather than nothing to report: the runner\n  printed no diagnostic, so it took neither of its two failure exits - not the\n  argument guard's 64 (it was given no argument) and not scope_fail's 78, which\n  would have written 'CONFIGURATION FAULT: ...' here and named the fault. Exit\n  128 is therefore the SCANNER's own exit code, passed through unchanged by\n  runner lines 50-58, and not a harness fault dressed as one.\n\n================================================================================\nSTEP 5 - THE SCANNER'S OWN STDOUT STREAM, VERBATIM\n================================================================================\n\n  This is the stream the runner wrote to this file's own path at line 49, copied\n  out to a scratch file before anything was written here, so that it is preserved\n  rather than displaced.\n\n  0 bytes, 0 lines, sha256\n  e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n  (the digest of the empty input). `od -c` over it printed the single offset line\n  '0000000' and no byte.\n\n--- BEGIN CAPTURE: osv-scanner, fd 1 --------------------------------------------\n--- END CAPTURE ----------------------------------------------------------------\n\n  Empty. This scanner writes nothing to stdout in this configuration - it reports\n  on stderr, which STEP 6 carries. The emptiness is recorded with its length and\n  digest rather than left as an unexplained blank, and it is why the two captured\n  streams are presented together: their chronological concatenation is exactly\n  the runner's stdout in STEP 3, so nothing is added by placing them side by side\n  and nothing is lost.\n\n  It also settles the nuance the agent brief asked be verified rather than\n  assumed: the runner directs output to a file path, so an empty or partial file\n  could have appeared in raw/ even with nothing to report. Nothing did - see\n  STEP 7 - and the runner's lines 53-55 would have removed a zero-byte one on\n  purpose if the scanner had created it.\n\n================================================================================\nSTEP 6 - THE SCANNER'S OWN STDERR STREAM, VERBATIM - THE CLASSIFYING EVIDENCE\n================================================================================\n\n  969 bytes, 21 lines (SUPERSEDED: '23 lines' was wrong - measured 21), sha256\n  ad7df520bc9f146fbb1e59e4cce07392b7f5db969bc638ced1d640c02c4cb014 - this is CAPTURE A, the block reproduced below, NOT the committed sibling (F32)\n\n  This is the whole of what the tool said, in its own words. It is the only\n  admissible basis for the completion-versus-failure verdict (AAP 0.1.3), so it\n  is reproduced in full and nothing is paraphrased. The committed sibling stream is\n  harness/artifacts/logs/osv-scanner.stderr.log - CAPTURE B - 21 lines, 969 bytes,\n  sha256 021347c72dcd98e06b26c579164cded04c26b0eacc203aff07d5eb0487f2c401 (F32).\n\n--- BEGIN CAPTURE: osv-scanner, fd 2 --------------------------------------------\nScanning dir common/network-common/src/main\nSc",
       "text_truncated": true,
       "text_excerpt_limit": 20000
      }
     },
-    "stated_reason": "Scanning dir common/network-common/src/main\nScanning dir common/network-shuffle/src/main\nScanning dir common/network-yarn/src/main\nScanning dir core/src/main\nScanning dir python/pyspark\nScanning dir resource-managers/kubernetes/core/src/main\nScanning dir resource-managers/kubernetes/core/volcano/src/main\nScanning dir resource-managers/kubernetes/docker/src/main\nScanning dir resource-managers/yarn/src/main\nScanning dir sql/catalyst/src/main\nScanning dir sql/connect/client/jdbc/src/main\nScanning dir sql/connect/client/jvm/src/main\nScanning dir sql/connect/common/src/main\nScanning dir sql/connect/server/src/main\nScanning dir sql/connect/shims/src/main\nScanning dir sql/core/src/main\nScanning dir sql/hive-thriftserver/src/main\nScanning dir sql/hive/src/main\nStarting filesystem walk for root: /\nEnd status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 296.253311ms elapsed, 296.253503ms wall time\nNo package sources found, --help for usage information.\n",
+    "stated_reason": "Scanning dir common/network-common/src/main\nScanning dir common/network-shuffle/src/main\nScanning dir common/network-yarn/src/main\nScanning dir core/src/main\nScanning dir python/pyspark\nScanning dir resource-managers/kubernetes/core/src/main\nScanning dir resource-managers/kubernetes/core/volcano/src/main\nScanning dir resource-managers/kubernetes/docker/src/main\nScanning dir resource-managers/yarn/src/main\nScanning dir sql/catalyst/src/main\nScanning dir sql/connect/client/jdbc/src/main\nScanning dir sql/connect/client/jvm/src/main\nScanning dir sql/connect/common/src/main\nScanning dir sql/connect/server/src/main\nScanning dir sql/connect/shims/src/main\nScanning dir sql/core/src/main\nScanning dir sql/hive-thriftserver/src/main\nScanning dir sql/hive/src/main\nStarting filesystem walk for root: /\nEnd status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 483.86792ms elapsed, 483.868282ms wall time\nNo package sources found, --help for usage information.\n",
     "stated_reason_stream": "stderr",
-    "stated_reason_present": true
+    "stated_reason_present": true,
+    "no_work_classification": {
+     "tool": "osv-scanner",
+     "recognised_statements": [
+      {
+       "tool": "osv-scanner",
+       "sentence": "No package sources found",
+       "exit_codes": [
+        128
+       ],
+       "authority": "OSV-Scanner's own stated zero-package behaviour: it prints \"No package sources found, --help for usage information.\" and exits 128 when it resolves no package source. Long-standing documented behaviour rather than a crash -- google/osv-scanner issues 348 and 93, cited in AAP 0.2.2 -- and AAP 0.2.1 records why this scope reaches it: the one manifest-shaped file in the twelve globs, core/src/main/resources/org/apache/spark/ui/static/package.json, carries a name, a license and a type and no dependencies block."
+      }
+     ],
+     "words_present": true,
+     "words_stream": "stderr",
+     "classified": true,
+     "matched_sentence": "No package sources found",
+     "matched_stream": "stderr",
+     "matched_statement": {
+      "tool": "osv-scanner",
+      "sentence": "No package sources found",
+      "exit_codes": [
+       128
+      ],
+      "authority": "OSV-Scanner's own stated zero-package behaviour: it prints \"No package sources found, --help for usage information.\" and exits 128 when it resolves no package source. Long-standing documented behaviour rather than a crash -- google/osv-scanner issues 348 and 93, cited in AAP 0.2.2 -- and AAP 0.2.1 records why this scope reaches it: the one manifest-shaped file in the twelve globs, core/src/main/resources/org/apache/spark/ui/static/package.json, carries a name, a license and a type and no dependencies block."
+     },
+     "exit_code": 128,
+     "exit_status": "exited",
+     "exit_code_agrees_with_statement": true,
+     "streams_searched": [
+      {
+       "stream": "stderr",
+       "text_present": true,
+       "text_truncated": false,
+       "matched": true
+      },
+      {
+       "stream": "stdout",
+       "text_present": true,
+       "text_truncated": true,
+       "matched": false
+      }
+     ],
+     "basis": "the tool's own words on stderr: 'No package sources found'"
+    }
    },
    "extras": {},
    "notes": [
-    "Classified from the tool's own words in stderr, quoted verbatim in tool_words. Zero rows, and the reconciliation for this tool is the not-applicable sentinel rather than 0 = 0 + 0, which would be a passing assertion over an artifact nobody looked at.",
+    "Classified from the tool's own words in stderr, matching its recorded no-work statement 'No package sources found' and quoted verbatim in tool_words. Zero rows, and the reconciliation for this tool is the not-applicable sentinel rather than 0 = 0 + 0, which would be a passing assertion over an artifact nobody looked at.",
     "The runner's own status record independently reports the artifact as MISSING."
    ]
   },
@@ -2249,15 +2807,71 @@
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
      "top_level_keys": [
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 12,
+       "sha256": "73cd07bc35c187d1808aaf9ec8b019ecee1866fff6e0e59926bdcce474adda96",
+       "excerpt": "reportSchema",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 8,
+       "sha256": "cda0ccaefe77024a1d66ef9a894324eeee9c57d4ad961980088740f6f1393a56",
+       "excerpt": "scanInfo",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 11,
+       "sha256": "9688b3df475abc9fe53f256e84fcabe7f4458caca2ebf43440fdfeee503052ef",
+       "excerpt": "projectInfo",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 12,
+       "sha256": "2188dfc2d889b53230f6891977d505642d718b940aa3eec23985afb379141dcd",
+       "excerpt": "dependencies",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      }
+     ],
+     "top_level_key_excerpts": [
       "reportSchema",
       "scanInfo",
       "projectInfo",
       "dependencies"
      ],
+     "top_level_keys_total": 4,
+     "top_level_keys_reported": 4,
+     "top_level_keys_truncated": false,
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
      "top_level_length": 4,
      "version_key": "version",
      "version_expected": "2.1.0",
      "version_observed": null,
+     "version_observed_evidence": {
+      "value_type": "NoneType",
+      "context": "version",
+      "character_length": 4,
+      "sha256": "dc937b59892604f5a86ac96936cd7ff09e25f18ae6b758e8014a24c7fa039e91",
+      "excerpt": "None",
+      "truncated": false,
+      "controls_escaped": 0,
+      "userinfo_redactions": 0
+     },
      "version_matches": false,
      "runs_key": "runs",
      "runs_observed_type": "null",
@@ -2329,6 +2943,8 @@
    "runner_status": {
     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/dependency-check.status",
     "present": true,
+    "bytes": 24373,
+    "sha256": "8749004fec6fbedde8d46588980924fe3c9110e0300bdf75ad8bd27906755c9d",
     "fields": {
      "tool": "dependency-check",
      "exit_code": "0",
@@ -2337,10 +2953,6 @@
      "artifact_bytes": "17097",
      "scan_root": "/opt/spark-src",
      "scan_root_source": "SPARK_SRC",
-     "#": "============================================================================",
-     "# harness/lib/scope.sh's scope_finish emits exactly those seven key": "value lines",
-     "# key": "value idiom, so no consumer of a .status file meets a shape it cannot",
-     "# parse. A value may itself contain '": "' - split on the FIRST one only. A line",
      "runner_written_block_lines": "1-7",
      "runner_written_block_bytes": "261",
      "runner_written_block_sha256": "86406a7e596b496f48f71cf773a0bd8e6c8bbb425a838b94ba4e62e76df935bc",
@@ -2356,7 +2968,9 @@
      "invocation_happened": "true",
      "invocation_form": "direct",
      "invocation_arguments": "none",
-     "invocation_concurrency": "one tool at a time",
+     "invocation_concurrency": "one tool at a time WITHIN THIS CLONE; global sequencing across the run FAILED - see invocation_concurrency_correction",
+     "invocation_concurrency_superseded_value": "one tool at a time",
+     "invocation_concurrency_correction": "Direct invocation, no arguments and no orchestrator are unchanged: both were established by inspection of the runner and by this lane's own record. What the superseded value additionally asserted - one tool at a time - holds only inside the clone this runner ran in (w-029_4cc49b). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-24T22:38:54Z-22:39:17Z) overlapped one other: datadog-static-analyzer, by 23.000 s - the whole of this invocation's window falls inside datadog's 22:36:12Z-22:39:55Z. AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under \"Facts common to all nine\", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing here was repaired: no invocation was re-run to obtain a disjoint window.",
      "invocations_per_run": "1",
      "orchestrator_used": "false",
      "orchestrator_present_in_harness_bin": "false",
@@ -2364,7 +2978,6 @@
      "invocation_command": ". ./harness/env.sh && ./harness/bin/run-dependency-check.sh",
      "reinvoked_by_this_record": "false",
      "reinvoked_by_this_record_reason": "A second invocation would be a second measurement of a quantity already measured, which AAP 0.6.4 forbids, and would put a second artifact into the runner-only raw tree. Every figure here is either lifted from the committed verbatim runner trailer or re-measured from a stable shared read-only fact.",
-     "# 'exit_status": "timeout' is the single recorded name for a termination WITHOUT an",
      "termination": "exit_code",
      "exit_status_present": "false",
      "exit_code_source": "the tool's own exit status, captured at harness/bin/run-dependency-check.sh line 58 and printed by scope_finish",
@@ -2391,6 +3004,7 @@
      "artifact_bytes_owner": "harness/artifacts/logs (AAP 0.6.1); the raw tree conforms to this number",
      "artifact_bytes_agreement": "scope_finish trailer 17097 = this file 17097 = harness/ENVIRONMENT.md line 473 17,097",
      "artifact_assembly": "the tool wrote dependency-check-report.json into $HARNESS_LOG_DIR/dependency-check.out/ and the runner copied it to the artifact path unchanged (lines 61-63); no field was rewritten by the harness",
+     "output_directory_retained": "no - that directory was written into the log tree of the clone the runner ran in (w-029_4cc49b) and is absent from this checkout and from the size-and-sha256 manifest oss-scan-results/run-record.md section 16 publishes. The copied artifact harness/artifacts/raw/dependency-check.json is what survives, and every figure in this record comes from it or from the captured streams. Stated because a reader looking for the tool's own output directory will not find it",
      "artifact_status_independent_of_exit_status": "true",
      "stdout_log": "harness/artifacts/logs/dependency-check.stdout.log",
      "stdout_trailer_exit_code": "0",
@@ -2507,6 +3121,15 @@
      "tree": "harness/artifacts/logs (git-ignored by .gitignore line 31; published by manifest with per-file byte size and sha256)",
      "raw_tree_contribution": "exactly one file, harness/artifacts/raw/dependency-check.json, and nothing else"
     },
+    "field_count": 174,
+    "comment_lines": 108,
+    "blank_lines": 0,
+    "unparsed_lines": [],
+    "unparsed_line_count": 0,
+    "duplicate_fields": [],
+    "duplicate_field_count": 0,
+    "defects": [],
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -2517,7 +3140,7 @@
    },
    "network_fetch": {
     "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/dependency-check.status",
-    "status_fields_scanned": 176,
+    "status_fields_scanned": 174,
     "statements": {
      "feed_identity_expected": "keyless NVD datafeed, 2026-08-23T08:00:06-04",
      "feed_identity_observed": "keyless NIST NVD JSON 2.0 datafeed, NVD API Last Modified 2026-08-24T08:00:04-04",
@@ -2540,17 +3163,19 @@
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/dependency-check.stderr.log",
       "present": true,
       "bytes": 0,
-      "sha256": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/dependency-check.stdout.log",
       "present": true,
-      "bytes": 57061,
-      "sha256": null,
+      "bytes": 2125,
+      "sha256": "4ff3fccf282ff67483d24b12838342d9d157590a041e5aa42f2d0a45dbf3994b",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
@@ -2585,6 +3210,78 @@
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
      "top_level_keys": [
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 4,
+       "sha256": "7c9bbe5ec9b3fb774e8fa0f54247e93c34ddf8e5d16fe3073420de0ae81a262d",
+       "excerpt": "tool",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 12,
+       "sha256": "f7121b69335df8bce0ded2f2f55a8fa0fbc472aed1cbb721e15a5d9417971751",
+       "excerpt": "tool_version",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 3,
+       "sha256": "08795664000a9df669e49594afb07f1bbf6e45a0c053d311a9afcae930b49ced",
+       "excerpt": "cpg",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 5,
+       "sha256": "eef93e1d14482804277fca0172464032d1a4fdbcc338524059fa1e861454ad4d",
+       "excerpt": "graph",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 9,
+       "sha256": "d3e44004c69e90abefdf8004c7f7c7a55ba01aded627f12a34fa6564b801c482",
+       "excerpt": "query_set",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 7,
+       "sha256": "07193df400d460d8dea9e7bcd261e9e48cc82036e86003135c4db6f0e22b48fd",
+       "excerpt": "queries",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      },
+      {
+       "value_type": "str",
+       "context": "top-level key",
+       "character_length": 8,
+       "sha256": "8aa3c4ce3ccdfe89f32935d164b3fb04ea01afa7a71f17c5be4f777cb7968cbc",
+       "excerpt": "findings",
+       "truncated": false,
+       "controls_escaped": 0,
+       "userinfo_redactions": 0
+      }
+     ],
+     "top_level_key_excerpts": [
       "tool",
       "tool_version",
       "cpg",
@@ -2593,10 +3290,24 @@
       "queries",
       "findings"
      ],
+     "top_level_keys_total": 7,
+     "top_level_keys_reported": 7,
+     "top_level_keys_truncated": false,
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
      "top_level_length": 7,
      "version_key": "version",
      "version_expected": "2.1.0",
      "version_observed": null,
+     "version_observed_evidence": {
+      "value_type": "NoneType",
+      "context": "version",
+      "character_length": 4,
+      "sha256": "dc937b59892604f5a86ac96936cd7ff09e25f18ae6b758e8014a24c7fa039e91",
+      "excerpt": "None",
+      "truncated": false,
+      "controls_escaped": 0,
+      "userinfo_redactions": 0
+     },
      "version_matches": false,
      "runs_key": "runs",
      "runs_observed_type": "null",
@@ -11398,7 +12109,7 @@
     "severity_from_record_label": 107,
     "severity_absent": 0,
     "resolution_from_class": 107,
-    "collector_path_used": 0,
+    "collector_path_refused": 0,
     "collector_path_disagreed": 0,
     "collector_path_corroborated": 0,
     "collector_explanation_present": 0,
@@ -11459,6 +12170,8 @@
    "runner_status": {
     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/joern.status",
     "present": true,
+    "bytes": 31913,
+    "sha256": "cf55f7f359dc25be4bb78a6eaf67b41299519cab7bdec0d7429f74974b467fc0",
     "fields": {
      "tool": "joern",
      "exit_code": "0",
@@ -11476,7 +12189,10 @@
      "runner_path_absolute_as_invoked": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/bin/run-joern.sh",
      "runner_invocation_form": "direct",
      "runner_arguments_passed": "none",
-     "runner_invoked_one_at_a_time": "yes",
+     "runner_invoked_one_at_a_time_within_clone": "yes",
+     "global_sequencing_satisfied": "no",
+     "runner_invoked_one_at_a_time_superseded_value": "yes",
+     "runner_invoked_one_at_a_time_correction": "The superseded value stated one-at-a-time without naming a scope, and no per-clone record has standing to state it globally - that is the fault being corrected here. One tool at a time holds only inside the clone this runner ran in (w-031_2e6517). Measured across the run from the nine per-tool .status records' own start and finish stamps, this invocation (2026-08-24T22:41:02Z-22:58:56Z) overlapped NO other tool's window - it stands alone - so this invocation's own window is disjoint and the correction is made because the superseded value asserted a global property this invocation cannot establish, not because this window overlapped anything. AAP 0.8.1's requirement is GLOBAL - each runner invoked directly and individually, with its output captured before the next is started - and five pairs of other tools' windows do overlap, so this run records global sequencing as FAILED rather than satisfied. All five overlapping pairs are published once, in oss-scan-results/tool-status.md under \"Facts common to all nine\", and indexed in oss-scan-results/run-record.md section 8. semgrep.status records started_at and finished_at as not-established, so its window cannot be compared with any other and is excluded from the pair count rather than assumed disjoint. Nothing was measured afresh for this correction and nothing was repaired: no scanner was re-run, no window was re-measured, and the two fields above are read off the records already written.",
      "runner_invoked_through_orchestrator": "no",
      "orchestrator_present_in_harness_bin": "no",
      "argument_guard_lines": "harness/bin/run-joern.sh lines 19-22",
@@ -11657,6 +12373,15 @@
      "credential_read_by_this_runner": "none",
      "credential_value_present_in_this_file": "none"
     },
+    "field_count": 199,
+    "comment_lines": 316,
+    "blank_lines": 1,
+    "unparsed_lines": [],
+    "unparsed_line_count": 0,
+    "duplicate_fields": [],
+    "duplicate_field_count": 0,
+    "defects": [],
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -11667,7 +12392,7 @@
    },
    "network_fetch": {
     "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/joern.status",
-    "status_fields_scanned": 196,
+    "status_fields_scanned": 199,
     "statements": {},
     "statement_count": 0,
     "note": "Selected by field name from the runner's own status record, which is carried verbatim in 'runner_status' above; this is that one measurement projected, not a second one. An empty 'statements' means the runner stated nothing about an invocation-time fetch -- which is not the same claim as no fetch having occurred, and is left as the weaker statement on purpose."
@@ -11677,18 +12402,20 @@
      "stderr": {
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/joern.stderr.log",
       "present": true,
-      "bytes": 699,
-      "sha256": null,
+      "bytes": 854,
+      "sha256": "311a5aacc35980bb40b60fa84faa23190bf0507f80ffd7a1fd02fbf961a2d332",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
       "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/joern.stdout.log",
       "present": true,
-      "bytes": 16444,
-      "sha256": null,
+      "bytes": 14613,
+      "sha256": "a17dd4d95d07d602937eccc5f34d1661c71b27624cdee66709b5bcc411afd195",
       "text": null,
-      "text_truncated": false
+      "text_truncated": false,
+      "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
@@ -11734,6 +12461,16 @@
    "unmapped_disclosure"
   ],
   "policy_source": "harness/lib/normalize/severity.py",
+  "literal_key": [
+   "severity_native",
+   "severity_norm",
+   "basis",
+   "selected_label",
+   "selected_score",
+   "selected_source",
+   "selected_version"
+  ],
+  "selected_entry_policy": "The entry that governed a band is part of a tallied literal's identity, not a detail discarded when rows are aggregated. A bucket is keyed on the observed literal, the band, the basis and the selected entry decomposed into its four scalar parts -- the label, and a score's value, source and version -- each carried as its own field rather than as one rendered string. So two advisories scored 7.5 by different sources, or under different CVSS versions, are reported as two entries naming their sources rather than as one entry that names neither.",
   "total_rows": 9433,
   "tools_reported": [
    "opengrep",
@@ -11751,34 +12488,22 @@
     "rows": 1322,
     "bands": {
      "Critical": 0,
-     "High": 314,
-     "Medium": 731,
-     "Low": 277,
-     "Info": 0
+     "High": 0,
+     "Medium": 0,
+     "Low": 0,
+     "Info": 1322
     },
     "literals": [
      {
       "tool": "opengrep",
-      "severity_native": "error",
-      "severity_norm": "High",
-      "basis": "sarif_level",
-      "rows": 314,
-      "unmapped": false
-     },
-     {
-      "tool": "opengrep",
-      "severity_native": "warning",
-      "severity_norm": "Medium",
-      "basis": "sarif_level",
-      "rows": 731,
-      "unmapped": false
-     },
-     {
-      "tool": "opengrep",
-      "severity_native": "note",
-      "severity_norm": "Low",
-      "basis": "sarif_level",
-      "rows": 277,
+      "severity_native": null,
+      "severity_norm": "Info",
+      "basis": "no_vocabulary",
+      "selected_label": null,
+      "selected_score": null,
+      "selected_source": null,
+      "selected_version": null,
+      "rows": 1322,
       "unmapped": false
      }
     ],
@@ -11788,34 +12513,22 @@
     "rows": 1162,
     "bands": {
      "Critical": 0,
-     "High": 278,
-     "Medium": 675,
-     "Low": 209,
-     "Info": 0
+     "High": 0,
+     "Medium": 0,
+     "Low": 0,
+     "Info": 1162
     },
     "literals": [
      {
       "tool": "semgrep",
-      "severity_native": "error",
-      "severity_norm": "High",
-      "basis": "sarif_level",
-      "rows": 278,
-      "unmapped": false
-     },
-     {
-      "tool": "semgrep",
-      "severity_native": "warning",
-      "severity_norm": "Medium",
-      "basis": "sarif_level",
-      "rows": 675,
-      "unmapped": false
-     },
-     {
-      "tool": "semgrep",
-      "severity_native": "note",
-      "severity_norm": "Low",
-      "basis": "sarif_level",
-      "rows": 209,
+      "severity_native": null,
+      "severity_norm": "Info",
+      "basis": "no_vocabulary",
+      "selected_label": null,
+      "selected_score": null,
+      "selected_source": null,
+      "selected_version": null,
+      "rows": 1162,
       "unmapped": false
      }
     ],
@@ -11836,6 +12549,10 @@
       "severity_native": "error",
       "severity_norm": "High",
       "basis": "sarif_level",
+      "selected_label": "error",
+      "selected_score": null,
+      "selected_source": null,
+      "selected_version": null,
       "rows": 195,
       "unmapped": false
      },
@@ -11844,6 +12561,10 @@
       "severity_native": "warning",
       "severity_norm": "Medium",
       "basis": "sarif_level",
+      "selected_label": "warning",
+      "selected_score": null,
+      "selected_source": null,
+      "selected_version": null,
       "rows": 1342,
       "unmapped": false
      },
@@ -11852,6 +12573,10 @@
       "severity_native": "note",
       "severity_norm": "Low",
       "basis": "sarif_level",
+      "selected_label": "note",
+      "selected_score": null,
+      "selected_source": null,
+      "selected_version": null,
       "rows": 5275,
       "unmapped": false
      },
@@ -11860,6 +12585,10 @@
       "severity_native": "none",
       "severity_norm": "Info",
       "basis": "sarif_level",
+      "selected_label": "none",
+      "selected_score": null,
+      "selected_source": null,
+      "selected_version": null,
       "rows": 20,
       "unmapped": false
      }
@@ -11881,6 +12610,10 @@
       "severity_native": "HIGH",
       "severity_norm": "High",
       "basis": "label",
+      "selected_label": "HIGH",
+      "selected_score": null,
+      "selected_source": null,
+      "selected_version": null,
       "rows": 63,
       "unmapped": false
      },
@@ -11889,6 +12622,10 @@
       "severity_native": "MEDIUM",
       "severity_norm": "Medium",
       "basis": "label",
+      "selected_label": "MEDIUM",
+      "selected_score": null,
+      "selected_source": null,
+      "selected_version": null,
       "rows": 44,
       "unmapped": false
      }
@@ -11910,6 +12647,10 @@
       "severity_native": null,
       "severity_norm": "Info",
       "basis": "no_vocabulary",
+      "selected_label": null,
+      "selected_score": null,
+      "selected_source": null,
+      "selected_version": null,
       "rows": 1,
       "unmapped": false
      }
@@ -11931,6 +12672,10 @@
       "severity_native": null,
       "severity_norm": "Info",
       "basis": "no_vocabulary",
+      "selected_label": null,
+      "selected_score": null,
+      "selected_source": null,
+      "selected_version": null,
       "rows": 6,
       "unmapped": false
      }
@@ -11976,6 +12721,10 @@
       "severity_native": "LOW",
       "severity_norm": "Low",
       "basis": "label",
+      "selected_label": "LOW",
+      "selected_score": null,
+      "selected_source": null,
+      "selected_version": null,
       "rows": 3,
       "unmapped": false
      }
@@ -12117,10 +12866,30 @@
   },
   "non_filesystem_paths": 0,
   "non_filesystem_proportion": 0.0,
+  "paths_not_on_disk": {
+   "count": 0,
+   "rows_examined": 9433,
+   "proportion": 0.0,
+   "by_reason": {
+    "archive-member-not-a-tree-file": 0,
+    "outside-root-not-stat-ed": 0,
+    "absent-from-the-pinned-tree": 0,
+    "present-but-not-a-regular-file": 0
+   },
+   "by_tool": {},
+   "examples": [],
+   "example_limit": 25,
+   "examples_truncated": false,
+   "distinct_paths_examined": 712,
+   "root": "/opt/spark-src",
+   "method": "Each row's path is joined to the scan root lexically -- never through Path.resolve(), which would collapse the '..' segments the SARIF 2.1.0 errata require preserved -- and tested with Path.is_file(). An archive member and a coordinate that escapes the root are classified without a stat: the first names a member inside a container rather than a file in the tree, and stat-ing the second would reach outside the root this dataset is expressed against. Distinct paths are classified once and the verdict reused, so the cost is one stat per distinct path rather than one per row.",
+   "note": "A row counted here is kept, never dropped (AAP 0.9.3): an external coordinate, an archive member and a virtual reference are legitimate coordinates. This figure is a fact about the dataset, not a judgement on any tool, and it is distinct from the path-kind tally beside it -- that classifies a path by its form, this asks whether the thing it names is there."
+  },
   "notes": [
    "A record carrying more than one location contributes one row, from its first location, and still counts once (AAP 0.5.4).",
    "A record carrying several CWE or CVE identifiers emits one of each, chosen by ascending numeric identifier.",
-   "Nothing is deduplicated, ranked or compared across tools: two tools reporting the same location produce two rows and no comment (AAP 0.3.2)."
+   "Nothing is deduplicated, ranked or compared across tools: two tools reporting the same location produce two rows and no comment (AAP 0.3.2).",
+   "'path_kinds' classifies each path by its form and needs no filesystem; 'paths_not_on_disk' asks whether the thing each path names is present in the pinned tree. Both are required (AAP 0.1.1, AAP 0.6.1) and neither substitutes for the other: a tree_file naming a file the pin does not carry is invisible to the first and counted by the second."
   ]
  },
  "reconciliation": {
@@ -12350,14 +13119,132 @@
   "findings_json": {
    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
    "present": true,
-   "bytes": 4423605,
-   "sha256": "b719fe739417f53f3bf501d00a10d380855894751eda4efef02d2b94d6a9cab3"
+   "bytes": 4411501,
+   "sha256": "a1ef544c45faad1ca0592b4c77cb4b43028308c84342e79445f5d0b7e0c3f358"
   },
   "findings_csv": {
    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
    "present": true,
-   "bytes": 2100816,
-   "sha256": "6c7bea599e176b73113a6651f937b9aa109c452bc9fd26cdd046a7f1f7f49fe4"
+   "bytes": 2083744,
+   "sha256": "895cf6a887dcbc16f565cef88e4882ff4cba5ed2ffcedfff94dde2c6a81088e7"
+  },
+  "publication": {
+   "scheme": "findings-publication/1.0.0",
+   "publication_id": "0f99ab0939fb9872672c98609da9b2e4",
+   "identifier_method": "sha256 over the UTF-8 text 'findings-publication/1.0.0\\n' followed by one '<role>\\t<sha256>\\n' line per member in ascending role order, truncated to its first 32 hex characters. Content-derived, so both members of one publication carry it, two runs over identical rows produce the same value, and a consumer holding the two files can recompute it: a mixed generation yields an identifier that matches neither recorded value.",
+   "members": [
+    {
+     "role": "findings_json",
+     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
+     "bytes": 4411501,
+     "sha256": "a1ef544c45faad1ca0592b4c77cb4b43028308c84342e79445f5d0b7e0c3f358",
+     "publication_id": "0f99ab0939fb9872672c98609da9b2e4"
+    },
+    {
+     "role": "findings_csv",
+     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
+     "bytes": 2083744,
+     "sha256": "895cf6a887dcbc16f565cef88e4882ff4cba5ed2ffcedfff94dde2c6a81088e7",
+     "publication_id": "0f99ab0939fb9872672c98609da9b2e4"
+    }
+   ],
+   "rows": 9433,
+   "comparison": {
+    "passed": true,
+    "rows_compared": 9433,
+    "fields_compared": 113196,
+    "field_order": [
+     "tool",
+     "scanner_class",
+     "rule_id",
+     "message",
+     "severity_native",
+     "severity_norm",
+     "path",
+     "start_line",
+     "cwe",
+     "cve",
+     "package_coordinate",
+     "in_scope"
+    ],
+    "json_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
+    "csv_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
+    "first_mismatch": null
+   },
+   "staging": {
+    "scheme": "findings-publication/1.0.0",
+    "parent_directory_validation": "the target's parent is taken lexically with os.path.abspath and then walked ONE COMPONENT AT A TIME: each component is opened relative to the previous component's descriptor with O_RDONLY|O_DIRECTORY|O_NOFOLLOW, and a missing component is created with os.mkdir(dir_fd=) against that same descriptor before it is opened. So no component can be a symlink, no component can be created through one, and no component can be swapped between being checked and being used. A component that is a link is distinguished from one that is not a directory with os.lstat(dir_fd=), because O_NOFOLLOW|O_DIRECTORY reports ELOOP on some platforms and ENOTDIR on Linux. The whole-path os.path.realpath equality is still asserted afterwards, now as a cross-check that must agree rather than as the validation itself; it superseded a sequence that called mkdir(parents=True) BEFORE that comparison, which created a missing descendant under a linked ancestor at the redirected destination and only then refused the write",
+    "identity_binding": "(st_dev, st_ino) is taken through the WRITE descriptor before it is closed, required again when the staged bytes are measured, and required once more when the published path is re-measured after the rename -- a rename preserves the inode, so the file that was validated is the file that must be at the published path. Without it, 'the published bytes are the validated bytes' would be a statement about a pathname",
+    "target_validation": "a target that already exists must be a regular file; a symlink or any other file type at the target path is refused rather than published through or replaced",
+    "temporary_name_pattern": ".<target-name>.<24 random hex characters>.staged",
+    "temporary_randomness_bits": 96,
+    "open_flags": "O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW",
+    "file_mode": "0o666",
+    "addressing": "openat/renameat/unlinkat against an open descriptor on the validated directory",
+    "durability": "each staged file is flushed and os.fsync'd before it is measured, and the containing directory is os.fsync'd after the rename",
+    "atomicity": "os.replace within one directory, which replaces the target path itself and follows no symlink at it; every member is staged and validated before the first member is moved",
+    "on_failure": "the staged file is unlinked and the exception propagates; no partial file is left behind and there is no unsafe fallback write",
+    "digest_chunk_bytes": 1048576
+   },
+   "csv_neutralisation": {
+    "rule": {
+     "name": "leading-formula-character escape",
+     "applies_to": [
+      "tool",
+      "scanner_class",
+      "rule_id",
+      "message",
+      "severity_native",
+      "severity_norm",
+      "path",
+      "cwe",
+      "cve",
+      "package_coordinate"
+     ],
+     "escape_character": "'",
+     "triggers": [
+      "=",
+      "+",
+      "-",
+      "@",
+      "\t",
+      "\r"
+     ],
+     "also_escaped": "a cell whose text already begins with the escape character, which is what makes the inverse unambiguous rather than a guess",
+     "rule": "a text cell whose first character is a trigger or the escape character is written with one escape character prepended; every other cell is written unchanged",
+     "inverse": "a cell beginning with the escape character whose second character is a trigger or the escape character has exactly one leading escape character removed; every other cell is read unchanged",
+     "reversible": true,
+     "reversibility": "exact for every input: a cell the rule escaped begins with the escape character followed by a trigger or the escape character, and a cell it did not escape cannot begin with the escape character at all, so the two cases never collide and the inverse never has to guess",
+     "not_applied_to": [
+      "the header row, which is the twelve field names",
+      "the in_scope literals 'true' and 'false'",
+      "the start_line integer",
+      "the empty cell that means absence",
+      "findings.json, which carries every value exactly as the adapter produced it"
+     ],
+     "why": "a cell beginning with one of the triggers is evaluated as a formula when the CSV is opened interactively in a spreadsheet, so scanner-controlled text would become executable content in a deliverable whose purpose is to record verbatim what a tool reported (CWE-1236)",
+     "round_trip": "the inverse is applied by read_findings_csv, so the typed re-parse comparison against findings.json is over the tools' own text and the two files still agree field for field"
+    },
+    "cells_examined": 64299,
+    "cells_escaped": 0,
+    "escaped_by_field": {},
+    "escaped_by_leading_character": {},
+    "measured": "counted by the CSV writer as it rendered each cell, so this is the number of cells actually written escaped rather than a second pass over the rows"
+   },
+   "completion_manifest": {
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/findings-publication.json",
+    "bytes": 2985,
+    "sha256": "f5fac3fb586395707d8732ec441a7b860798775b3c05404406cf8e0dfd322fbd",
+    "member_set_id": "2dab6674cc2c22cfefcd4872a8c55274",
+    "renamed": "last, after every member it names was in place",
+    "verified_by_producer": true,
+    "verified_members": [
+     "findings_json",
+     "findings_csv"
+    ],
+    "required_of_consumers": "a consumer must require this file and re-measure every member it names before treating the set as one generation; normalize.emit.require_publication_manifest is that check"
+   },
+   "order": "every member was staged in its own target directory, validated by being parsed back from the staged bytes through a descriptor bound to the inode they were written into, fsynced, and only then moved into place; a fault at any point before the first move leaves every previous deliverable untouched. The completion manifest is staged after all of them and renamed LAST, which is what closes the window BETWEEN the renames -- N renames are N atomic operations rather than one, and POSIX offers no N-way atomic rename, so a record whose presence means 'every member it names is in place' is the only thing that can close it"
   },
   "row_validation": {
    "rows": 9433,
@@ -12401,7 +13288,7 @@
     "cve": 9433,
     "cwe": 8674,
     "package_coordinate": 9433,
-    "severity_native": 7,
+    "severity_native": 2491,
     "start_line": 3
    },
    "passed": true,
@@ -12416,7 +13303,52 @@
    ]
   },
   "row_order": "Artifacts in normalize.shape.CANONICAL_TOOLS order; within an artifact, the order its adapter returned, which is document order. Both files carry that one sequence, so two runs over identical artifacts produce byte-identical files.",
-  "absence_convention": "JSON null and an empty CSV field, permitted for severity_native, start_line, cwe, cve and package_coordinate only; path and severity_norm are never absent."
+  "absence_convention": "JSON null and an empty CSV field, permitted for severity_native, start_line, cwe, cve and package_coordinate only; path and severity_norm are never absent.",
+  "csv_spreadsheet_neutralisation": {
+   "rule": {
+    "name": "leading-formula-character escape",
+    "applies_to": [
+     "tool",
+     "scanner_class",
+     "rule_id",
+     "message",
+     "severity_native",
+     "severity_norm",
+     "path",
+     "cwe",
+     "cve",
+     "package_coordinate"
+    ],
+    "escape_character": "'",
+    "triggers": [
+     "=",
+     "+",
+     "-",
+     "@",
+     "\t",
+     "\r"
+    ],
+    "also_escaped": "a cell whose text already begins with the escape character, which is what makes the inverse unambiguous rather than a guess",
+    "rule": "a text cell whose first character is a trigger or the escape character is written with one escape character prepended; every other cell is written unchanged",
+    "inverse": "a cell beginning with the escape character whose second character is a trigger or the escape character has exactly one leading escape character removed; every other cell is read unchanged",
+    "reversible": true,
+    "reversibility": "exact for every input: a cell the rule escaped begins with the escape character followed by a trigger or the escape character, and a cell it did not escape cannot begin with the escape character at all, so the two cases never collide and the inverse never has to guess",
+    "not_applied_to": [
+     "the header row, which is the twelve field names",
+     "the in_scope literals 'true' and 'false'",
+     "the start_line integer",
+     "the empty cell that means absence",
+     "findings.json, which carries every value exactly as the adapter produced it"
+    ],
+    "why": "a cell beginning with one of the triggers is evaluated as a formula when the CSV is opened interactively in a spreadsheet, so scanner-controlled text would become executable content in a deliverable whose purpose is to record verbatim what a tool reported (CWE-1236)",
+    "round_trip": "the inverse is applied by read_findings_csv, so the typed re-parse comparison against findings.json is over the tools' own text and the two files still agree field for field"
+   },
+   "cells_examined": 64299,
+   "cells_escaped": 0,
+   "escaped_by_field": {},
+   "escaped_by_leading_character": {},
+   "measured": "counted by the CSV writer as it rendered each cell, so this is the number of cells actually written escaped rather than a second pass over the rows"
+  }
  },
  "halt": null,
  "exit_status": {

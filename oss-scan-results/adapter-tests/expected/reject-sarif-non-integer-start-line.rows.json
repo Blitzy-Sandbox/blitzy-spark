@@ -1,485 +1,484 @@
 {
-  "description": "The hand-verified expected result for the negative Opengrep SARIF fixture that carries one record whose region.startLine is present but is not an integer -- the numeric-looking string \"72\". Every value was derived by reading the fixture and the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/sarif.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. Key names follow expected/reject-sarif-unresolvable-path.rows.json, the first negative expected file in this folder and the template for the rest, so one generic loader reads them all; the only additive structure is start_line_policy, which is this fixture's subject.",
-  "tool": "opengrep",
-  "scanner_class": "sast",
-  "adapter": "harness/lib/normalize/adapters/sarif.py",
-  "fixture": {
-    "path": "oss-scan-results/adapter-tests/fixtures/reject-sarif-non-integer-start-line.sarif",
-    "sha256": "0e4b7872a95391e62c82b528e098997111237c133a0c39ce2fcebed864f6ed1a",
-    "bytes": 12399,
-    "sarif_version": "2.1.0",
-    "runs": 1,
-    "results": 4,
-    "driver_rules": 3,
-    "derived_from": "oss-scan-results/adapter-tests/fixtures/opengrep.sarif",
-    "derivation": "A negative fixture is derived from the captured one rather than being an excerpt of it, so the provenance is stated as a derivation. /runs/0/results/0 is unmodified captured output: byte-identical to harness/artifacts/raw/opengrep.sarif results[432] and to the positive fixture's results[1], and it carries region.startLine 72 as a JSON integer. The other three are each one edit away from a captured record, and each edit touches nothing but line information. /runs/0/results/1 is raw results[521] (the positive fixture's results[2]) with the region's endColumn, endLine, startColumn and startLine deleted, leaving a region that carries only its snippet. /runs/0/results/2 is results[0] with startLine 72 replaced by the string \"72\" and the fingerprints member dropped -- the synthesized defective record, defective in exactly one way. /runs/0/results/3 is raw results[1258] (the positive fixture's results[4]) with the whole region member deleted.",
-    "captured_provenance": "Established by structural comparison of every result in this fixture against every result in harness/artifacts/raw/opengrep.sarif (1,322 results) and in the positive fixture (8 results), not by eye. Only results[0] matches one byte for byte; the other three match nothing, which is what makes them demonstrably this fixture's own derivations rather than something the tool emitted. The three driver rules are byte-identical to the positive fixture's rules[3], rules[5] and rules[6] respectively. The recorded sha256 above is what makes a later edit to the fixture visible: these values are re-derived when the fixture changes, never adjusted to keep a test green.",
-    "recorded_rule_pointers": {
-      "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting": "/runs/0/tool/driver/rules/0",
-      "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle": "/runs/0/tool/driver/rules/1",
-      "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string": "/runs/0/tool/driver/rules/2"
-    },
-    "line_information_the_derivation_removed": {
-      "statement": "Both surviving absences are synthesized, and that is provable rather than assumed: the captured originals of /runs/0/results/1 and /runs/0/results/3 stated startLine 90 and startLine 75. Line 90 of python/pyspark/ml/tests/connect/test_legacy_mode_feature.py is the pickle.load(f) call the snippet quotes, and line 75 of resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils.java is the sendRedirect declaration the captured snippet quotes -- both verified in the pinned tree at 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d. So this fixture exercises absence as a producer's omission, not as a file that has no lines to report.",
-      "results_1_captured_start_line": 90,
-      "results_3_captured_start_line": 75
-    },
-    "not_records": "The three entries under /runs/0/invocations/0/toolExecutionNotifications are tool notifications -- one rule timeout and two syntax errors over vendored minified JavaScript -- and are not finding records. They are neither rows nor rejections and are not counted: a reading that counted anything finding-shaped would arrive at seven records and fail the reconciliation identity for a reason that has nothing to do with the adapter."
+ "description": "The hand-verified expected result for the negative Opengrep SARIF fixture that carries one record whose region.startLine is present but is not an integer -- the numeric-looking string \"72\". Every value was derived by reading the fixture and the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/sarif.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. Key names follow expected/reject-sarif-unresolvable-path.rows.json, the first negative expected file in this folder and the template for the rest, so one generic loader reads them all; the only additive structure is start_line_policy, which is this fixture's subject.",
+ "tool": "opengrep",
+ "scanner_class": "sast",
+ "adapter": "harness/lib/normalize/adapters/sarif.py",
+ "fixture": {
+  "path": "oss-scan-results/adapter-tests/fixtures/reject-sarif-non-integer-start-line.sarif",
+  "sha256": "0e4b7872a95391e62c82b528e098997111237c133a0c39ce2fcebed864f6ed1a",
+  "bytes": 12399,
+  "sarif_version": "2.1.0",
+  "runs": 1,
+  "results": 4,
+  "driver_rules": 3,
+  "derived_from": "oss-scan-results/adapter-tests/fixtures/opengrep.sarif",
+  "derivation": "A negative fixture is derived from the captured one rather than being an excerpt of it, so the provenance is stated as a derivation. /runs/0/results/0 is unmodified captured output: byte-identical to harness/artifacts/raw/opengrep.sarif results[432] and to the positive fixture's results[1], and it carries region.startLine 72 as a JSON integer. The other three are each one edit away from a captured record, and each edit touches nothing but line information. /runs/0/results/1 is raw results[521] (the positive fixture's results[2]) with the region's endColumn, endLine, startColumn and startLine deleted, leaving a region that carries only its snippet. /runs/0/results/2 is results[0] with startLine 72 replaced by the string \"72\" and the fingerprints member dropped -- the synthesized defective record, defective in exactly one way. /runs/0/results/3 is raw results[1258] (the positive fixture's results[4]) with the whole region member deleted.",
+  "captured_provenance": "Established by structural comparison of every result in this fixture against every result in harness/artifacts/raw/opengrep.sarif (1,322 results) and in the positive fixture (8 results), not by eye. Only results[0] matches one byte for byte; the other three match nothing, which is what makes them demonstrably this fixture's own derivations rather than something the tool emitted. The three driver rules are byte-identical to the positive fixture's rules[3], rules[5] and rules[6] respectively. The recorded sha256 above is what makes a later edit to the fixture visible: these values are re-derived when the fixture changes, never adjusted to keep a test green.",
+  "recorded_rule_pointers": {
+   "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting": "/runs/0/tool/driver/rules/0",
+   "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle": "/runs/0/tool/driver/rules/1",
+   "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string": "/runs/0/tool/driver/rules/2"
   },
-  "routing": {
-    "shape": "sarif",
-    "detected_by": "normalize.shape.is_sarif -- a version of \"2.1.0\" together with a runs array; those two together are the whole test",
-    "sarif_version_pointer": "/version",
-    "runs_pointer": "/runs",
-    "adapter_module": "normalize.adapters.sarif",
-    "routing_decision": "normalize.shape.route(\"opengrep\", doc) returns tool \"opengrep\", shape \"sarif\", adapter \"sarif\", scanner_class \"sast\"",
-    "routes_successfully": true,
-    "rejection_is_record_level": true,
-    "not_a_shape_failure": "No normalize.shape.UnknownArtifactShape is expected here, and a test asserting one against this fixture would be asserting the wrong thing. The enclosing document is valid SARIF 2.1.0 and routes cleanly; exactly one record inside it is defective, and the adapter rejects that record while still emitting the others. The fixtures that own shape-detection failure are near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json.",
-    "negative_routing_test": "The mandated negative routing assertion -- that a native artifact must not route to the SARIF adapter -- belongs to test_shape_routing_negative.py and does not use this fixture."
+  "line_information_the_derivation_removed": {
+   "statement": "Both surviving absences are synthesized, and that is provable rather than assumed: the captured originals of /runs/0/results/1 and /runs/0/results/3 stated startLine 90 and startLine 75. Line 90 of python/pyspark/ml/tests/connect/test_legacy_mode_feature.py is the pickle.load(f) call the snippet quotes, and line 75 of resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils.java is the sendRedirect declaration the captured snippet quotes -- both verified in the pinned tree at 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d. So this fixture exercises absence as a producer's omission, not as a file that has no lines to report.",
+   "results_1_captured_start_line": 90,
+   "results_3_captured_start_line": 75
   },
-  "field_order": [
-    "tool",
-    "scanner_class",
-    "rule_id",
-    "message",
-    "severity_native",
-    "severity_norm",
-    "path",
-    "start_line",
-    "cwe",
-    "cve",
-    "package_coordinate",
-    "in_scope"
+  "not_records": "The three entries under /runs/0/invocations/0/toolExecutionNotifications are tool notifications -- one rule timeout and two syntax errors over vendored minified JavaScript -- and are not finding records. They are neither rows nor rejections and are not counted: a reading that counted anything finding-shaped would arrive at seven records and fail the reconciliation identity for a reason that has nothing to do with the adapter."
+ },
+ "routing": {
+  "shape": "sarif",
+  "detected_by": "normalize.shape.is_sarif -- a version of \"2.1.0\" together with a runs array; those two together are the whole test",
+  "sarif_version_pointer": "/version",
+  "runs_pointer": "/runs",
+  "adapter_module": "normalize.adapters.sarif",
+  "routing_decision": "normalize.shape.route(\"opengrep\", doc) returns tool \"opengrep\", shape \"sarif\", adapter \"sarif\", scanner_class \"sast\"",
+  "routes_successfully": true,
+  "rejection_is_record_level": true,
+  "not_a_shape_failure": "No normalize.shape.UnknownArtifactShape is expected here, and a test asserting one against this fixture would be asserting the wrong thing. The enclosing document is valid SARIF 2.1.0 and routes cleanly; exactly one record inside it is defective, and the adapter rejects that record while still emitting the others. The fixtures that own shape-detection failure are near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json.",
+  "negative_routing_test": "The mandated negative routing assertion -- that a native artifact must not route to the SARIF adapter -- belongs to test_shape_routing_negative.py and does not use this fixture."
+ },
+ "field_order": [
+  "tool",
+  "scanner_class",
+  "rule_id",
+  "message",
+  "severity_native",
+  "severity_norm",
+  "path",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate",
+  "in_scope"
+ ],
+ "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+ "absence_permitted_fields": [
+  "severity_native",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate"
+ ],
+ "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS.",
+ "severity_norm_vocabulary": [
+  "Critical",
+  "High",
+  "Medium",
+  "Low",
+  "Info"
+ ],
+ "allowlist": {
+  "path": "harness/scope/allowlist.txt",
+  "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+  "globs": 12,
+  "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under row_derivations."
+ },
+ "resolution_context": {
+  "root_independence": "All three surviving uris are already root-relative, and the recorded path base for opengrep is the scan root itself, so joining onto the base and relativizing back to the root returns each uri unchanged. These rows therefore hold for whatever absolute scan root the adapter is given, and no absolute path appears anywhere in this file. The rejected record is root-independent for a different reason: its uri is the same root-relative path row 0 carries, so it resolves cleanly under any root -- nothing about the root decides its outcome.",
+  "path_base_kind": "scan_root",
+  "path_base_equals_scan_root": true,
+  "path_base_source": "harness/artifacts/logs/runner-metadata.json, the opengrep entry's path_base -- read as input, never assumed",
+  "sarif_uri_base_id_observed": "%SRCROOT%",
+  "sarif_original_uri_base_ids_present": false,
+  "uri_base_id_walk_outcome": "absent",
+  "uri_base_id_walk_consequence": "With no run.originalUriBaseIds the SARIF 2.1.0 section 3.4.4 procedure cannot complete -- the documented producer gap -- and that outcome is eligible for the metadata-backed fallback, so every path here resolves against the runner-recorded base rather than being rejected. All four records reach and pass this step, including the defective one.",
+  "path_basis": "sarif-degenerate-base-metadata-fallback",
+  "path_kind": "tree_file",
+  "severity_source": "No result in this fixture states a level of its own, and no rule carries properties.severity or properties.problem.severity, so each severity_native is the level its own rule states under defaultConfiguration.level and each severity_norm comes from the SARIF level table: error High, warning Medium, note Low, none Info.",
+  "package_coordinate": "null on every row. A SARIF result names a code location rather than a package, and this shape supplies no coordinate to carry."
+ },
+ "start_line_policy": {
+  "statement": "This fixture's whole subject is the difference between a start_line that is ABSENT and a start_line that is PRESENT and of the wrong type. Absence is permitted: start_line is one of the five fields AAP 0.8.2 allows to be absent, so a record that states no line yields a row with start_line null. A start_line present but not an integer is a rejection: the producer asserted a line number and supplied something that is not one, and there is no reading of that which is not a guess.",
+  "no_coercion": "\"72\" must not become 72, in any file this pipeline writes. Coercing it would invent data -- it would assert that the producer said line 72 when what the producer said was a string -- and AAP 0.5.4 is explicit that a record which cannot be attributed with certainty is rejected and counted, never inferred into a field. There is no coercion anywhere in the expected behaviour recorded in this file, not for the rejected record and not for any row: emit.py's own reader matches an integer cell exactly before converting it, precisely because int() would accept \" 4\", \"+5\" and \"3_0\" into silent agreement.",
+  "why_a_rejection_rather_than_a_row_with_null": "Emitting the record with start_line null would record an absence the producer did not state, and would make a defective record indistinguishable from the two legitimate absences sitting beside it in this very fixture. Emitting it with 72 would be worse: it would put a number in the dataset that no field of the artifact contains as a number. Counting it under a named class is the only outcome that neither drops the record nor invents a value for it.",
+  "adapter_contract": "harness/lib/normalize/adapters/sarif.py, _start_line. Five outcomes, and only three of them reject: region absent -> (None, no rejection); region present but not an object -> malformed_record, because a structurally wrong region is not an absence; startLine absent -> (None, no rejection); startLine present as a bool, or present and not an int -> non_integer_start_line; startLine an int below 1 -> non_integer_start_line, since SARIF 2.1.0 numbers lines from one.",
+  "classification_position": "step 5 of the adapter's fixed five-step order -- shape, rule identifier, message, path, start_line. It is last, so a record defective in both its path and its start_line is classified by its path. The defective record here has a perfectly resolvable path, which is what lets it reach step 5 at all.",
+  "cases_present_in_this_fixture": [
+   {
+    "case": "start_line present as an integer within the file",
+    "record": "/runs/0/results/0",
+    "expected": "a row with start_line 72",
+    "outcome": "row"
+   },
+   {
+    "case": "region present, startLine absent from it",
+    "record": "/runs/0/results/1",
+    "expected": "a row with start_line null",
+    "outcome": "row"
+   },
+   {
+    "case": "start_line present as the numeric-looking string \"72\"",
+    "record": "/runs/0/results/2",
+    "expected": "a counted rejection under non_integer_start_line, no row, no coercion",
+    "outcome": "rejection"
+   },
+   {
+    "case": "no region member at all",
+    "record": "/runs/0/results/3",
+    "expected": "a row with start_line null",
+    "outcome": "row"
+   }
   ],
-  "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
-  "absence_permitted_fields": [
-    "severity_native",
-    "start_line",
-    "cwe",
-    "cve",
-    "package_coordinate"
+  "rows_with_null_start_line": 2,
+  "rows_with_null_start_line_indices": [
+   1,
+   2
   ],
-  "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS.",
-  "severity_norm_vocabulary": [
-    "Critical",
-    "High",
-    "Medium",
-    "Low",
-    "Info"
+  "two_absence_routes_not_one": "Worth stating plainly, because a reader expecting a single companion row will count wrong. This fixture carries TWO records with no start_line, and they take two different early returns in _start_line: /runs/0/results/1 has a region whose startLine key is absent, and /runs/0/results/3 has no region member at all. Both are rows with start_line null; neither is a rejection. Covering both is deliberate -- an implementation could guard one route and miss the other, and the second is the shape a producer emits for a whole-symbol or whole-file finding.",
+  "missing_key_hazard": {
+   "statement": "The load-bearing reason the companion rows exist. An implementation that tests isinstance(value, int) against the result of a plain dict lookup -- with no distinction between a key that is absent and a key whose value is of the wrong type -- rejects both. That single conflation would reject the two rows in this fixture, and it does not stop there.",
+   "blast_radius": [
+    "Every Trivy vulnerability record. harness/lib/normalize/adapters/trivy.py records at its start_line constant that line information appears on secrets and misconfigurations rather than on vulnerabilities, which is Trivy 0.74.0's own report shape (AAP 0.5.4: start_line is section-dependent, present on secrets and misconfigurations and absent on vulnerabilities). A missing-key rejection would therefore discard the entire vulnerability section of that artifact under a class that describes a defect none of those records has.",
+    "The whole Dependency-Check artifact. harness/lib/normalize/adapters/dependency_check.py holds start_line at a module-level constant of None for every row, because that tool reports at dependency granularity and carries no line information at all. Under a missing-key rejection its row count would be zero and its rejection count would be its record count."
+   ],
+   "measured_in_this_run": "Stated as a structural hazard rather than an observed one, because this run's own artifacts could not have exposed it: harness/artifacts/raw/trivy.json holds 0 vulnerabilities, 0 secrets and 3 misconfigurations, and harness/artifacts/raw/dependency-check.json holds 32 dependencies with 0 vulnerability records -- the consequence of the twelve authoritative globs containing zero resolvable dependency manifests. The hazard would bite the moment a manifest entered scope, which is exactly why it is tested here rather than left to be discovered then.",
+   "what_the_test_must_assert": "Not merely that the rejection count is 1. It must assert that the two absent-start_line records are present as rows, each with start_line null, because a conflating implementation produces the correct rejection count for the wrong reason -- three rejections and one row would fail, but so would any assertion that only counted rejections."
+  },
+  "boolean_hazard": {
+   "present_in_this_fixture": false,
+   "statement": "isinstance(True, int) is True in Python: bool is a subclass of int, so an unguarded integer check admits True as line 1 and False as line 0. sarif._start_line guards it explicitly, and the guard is ordered first -- isinstance(raw, bool) is tested before not isinstance(raw, int) -- so a boolean is classified as non_integer_start_line rather than emitted.",
+   "why_absent_here": "The only startLine values this fixture contains are the integer 72 and the string \"72\". The prompt for this file allows for a boolean case and this fixture does not carry one, so no expected rejection is recorded for it: an expectation for a record that is not in the fixture would be an assertion nothing can run.",
+   "not_covered_by_a_sibling_either": "Checked, so the gap is stated rather than assumed covered: none of the four sibling non-integer fixtures carries a boolean either -- reject-checkov-non-integer-start-line.json uses the string \"20\" together with scalar and mis-shaped file_line_range forms, reject-gitleaks-non-integer-start-line.json uses the string \"5\" alongside an explicit null, reject-joern-non-integer-start-line.json uses the string \"417\", and reject-trivy-non-integer-start-line.json uses the string \"62\".",
+   "cover_with": "a derived fixture carrying region.startLine true, asserted to reject under non_integer_start_line with a detail naming the boolean rather than an integer"
+  },
+  "below_one_hazard": {
+   "present_in_this_fixture": false,
+   "statement": "An integer below 1 is rejected under the same class with a different detail, because SARIF 2.1.0 numbers lines from one and 0 is not a line. Naming it here keeps the class's three routes legible: wrong type, boolean, and out of range.",
+   "cover_with": "a derived fixture carrying region.startLine 0"
+  },
+  "sibling_absence": {
+   "file": "oss-scan-results/adapter-tests/fixtures/reject-dependency-check-non-integer-start-line.json",
+   "exists": false,
+   "deliberate": true,
+   "reason": "Dependency-Check's artifact carries no line information anywhere, so its adapter can never reach the non_integer_start_line condition and a fixture for it would test a code path that does not exist. Verified rather than assumed: the reject-dependency-check-* fixtures in this tree are malformed-record, missing-message, missing-rule-id, no-package-coordinate and unresolvable-path, and that is the complete set of conditions that adapter can produce.",
+   "why_stated_here": "The negative-fixture set is only legible if a missing member is distinguishable from an overlooked one. AAP 0.9.4 requires a negative fixture for every rejection condition each exercised adapter CAN produce -- so an absence that follows from the shape is a correct absence, and saying so here is what stops a later reader from filing it as a gap."
+  }
+ },
+ "rejection_boundary": {
+  "statement": "A start_line present but not an integer is a rejection. An absent start_line is a kept row with start_line null. Those are the two sides of this fixture's boundary, and it carries records on both.",
+  "why_it_can_only_be_a_rejection": "start_line is one of the five fields absence is permitted for, so unlike an unresolvable path there IS a valid row shape available -- which is precisely why the distinction has to be drawn on the producer's assertion rather than on the schema's tolerance. The producer supplied a value; that value is not a line number; emitting the row with null would misreport the artifact as silent, and emitting it with a coerced integer would misreport the artifact as having stated a number. AAP 0.5.4 settles it: reject rather than infer, count the rejection under its class, and keep the record visible.",
+  "not_a_rejection": [
+   {
+    "case": "start_line absent altogether",
+    "expected": "a kept row with start_line null, counted under start_line_absent",
+    "evidence": "Absence is permitted for start_line by AAP 0.8.2 and emit.OPTIONAL_FIELDS carries it, so the row is valid and complete.",
+    "present_in_this_fixture": true
+   },
+   {
+    "case": "a path resolving outside the twelve authoritative globs",
+    "expected": "a kept row with in_scope false, counted under rows_out_of_scope",
+    "evidence": "Out of scope means kept and marked, never rejected. The real out-of-glob files in the pinned tree are dev/package-lock.json, ui-test/package-lock.json and docs/Gemfile.lock.",
+    "present_in_this_fixture": false
+   },
+   {
+    "case": "an archive member or a location above the root",
+    "expected": "a kept row with in_scope false, counted in non_filesystem_paths",
+    "evidence": "Serialized as <container-relative-to-root>!<member> with ! the single separator, and with ../ segments preserved rather than normalized -- the SARIF 2.1.0 errata forbid a consumer normalizing .. segments out of a path.",
+    "present_in_this_fixture": false
+   }
   ],
-  "allowlist": {
-    "path": "harness/scope/allowlist.txt",
-    "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
-    "globs": 12,
-    "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under row_derivations."
+  "no_guessed_start_line": "The rejected record is rejected and counted, never given a start_line. Nothing in this file supplies a line number for it -- not 72, not null-as-though-absent, not the endLine of 72 that sits beside the defective startLine in the same region. That endLine is deliberately left unread: reading it would be inferring the start from the end.",
+  "no_guessed_path": "Nor is the rejected record given a path, a severity or a row of any kind. It resolved a path successfully on its way to step 5, and that resolved path appears nowhere in this file, because a record that produced no row contributes no field to the dataset."
+ },
+ "counts": {
+  "raw_finding_records": 4,
+  "raw_count_unit": "one element of runs[].results[] -- the unit normalize.reconcile.count_records walks independently of row construction",
+  "raw_count_authority": "normalize.reconcile.count_records(\"opengrep\", doc), whose SARIF traversal sums the length of each run's results array and builds no row, resolves no path and maps no severity. It is the independent half of the identity: a count taken from the traversal that builds the rows would satisfy the assertion while testing nothing.",
+  "rows": 3,
+  "rejections": 1,
+  "rejections_by_class": {
+   "non_integer_start_line": 1
   },
-  "resolution_context": {
-    "root_independence": "All three surviving uris are already root-relative, and the recorded path base for opengrep is the scan root itself, so joining onto the base and relativizing back to the root returns each uri unchanged. These rows therefore hold for whatever absolute scan root the adapter is given, and no absolute path appears anywhere in this file. The rejected record is root-independent for a different reason: its uri is the same root-relative path row 0 carries, so it resolves cleanly under any root -- nothing about the root decides its outcome.",
-    "path_base_kind": "scan_root",
-    "path_base_equals_scan_root": true,
-    "path_base_source": "harness/artifacts/logs/runner-metadata.json, the opengrep entry's path_base -- read as input, never assumed",
-    "sarif_uri_base_id_observed": "%SRCROOT%",
-    "sarif_original_uri_base_ids_present": false,
-    "uri_base_id_walk_outcome": "absent",
-    "uri_base_id_walk_consequence": "With no run.originalUriBaseIds the SARIF 2.1.0 section 3.4.4 procedure cannot complete -- the documented producer gap -- and that outcome is eligible for the metadata-backed fallback, so every path here resolves against the runner-recorded base rather than being rejected. All four records reach and pass this step, including the defective one.",
-    "path_basis": "sarif-degenerate-base-metadata-fallback",
-    "path_kind": "tree_file",
-    "severity_source": "No result in this fixture states a level of its own, and no rule carries properties.severity or properties.problem.severity, so each severity_native is the level its own rule states under defaultConfiguration.level and each severity_norm comes from the SARIF level table: error High, warning Medium, note Low, none Info.",
-    "package_coordinate": "null on every row. A SARIF result names a code location rather than a package, and this shape supplies no coordinate to carry."
+  "reconciliation_identity": "raw_finding_records == rows + rejections",
+  "reconciliation_arithmetic": "4 == 3 + 1",
+  "four_reported_counters": {
+   "authority": "AAP 0.5.4 -- the four counts reported per tool",
+   "names": [
+    "multi_location_records",
+    "multi_valued_cwe_records",
+    "multi_valued_cve_records",
+    "non_filesystem_paths"
+   ],
+   "values_live_in": "counters",
+   "all_four_are_zero_for_this_fixture": true,
+   "note": "Named here rather than restated with their values. The counters block below is the single measurement, and a number carried twice inside one document is a number that can drift; counters_note gives the reason each of the four is zero."
   },
-  "start_line_policy": {
-    "statement": "This fixture's whole subject is the difference between a start_line that is ABSENT and a start_line that is PRESENT and of the wrong type. Absence is permitted: start_line is one of the five fields AAP 0.8.2 allows to be absent, so a record that states no line yields a row with start_line null. A start_line present but not an integer is a rejection: the producer asserted a line number and supplied something that is not one, and there is no reading of that which is not a guess.",
-    "no_coercion": "\"72\" must not become 72, in any file this pipeline writes. Coercing it would invent data -- it would assert that the producer said line 72 when what the producer said was a string -- and AAP 0.5.4 is explicit that a record which cannot be attributed with certainty is rejected and counted, never inferred into a field. There is no coercion anywhere in the expected behaviour recorded in this file, not for the rejected record and not for any row: emit.py's own reader matches an integer cell exactly before converting it, precisely because int() would accept \" 4\", \"+5\" and \"3_0\" into silent agreement.",
-    "why_a_rejection_rather_than_a_row_with_null": "Emitting the record with start_line null would record an absence the producer did not state, and would make a defective record indistinguishable from the two legitimate absences sitting beside it in this very fixture. Emitting it with 72 would be worse: it would put a number in the dataset that no field of the artifact contains as a number. Counting it under a named class is the only outcome that neither drops the record nor invents a value for it.",
-    "adapter_contract": "harness/lib/normalize/adapters/sarif.py, _start_line. Five outcomes, and only three of them reject: region absent -> (None, no rejection); region present but not an object -> malformed_record, because a structurally wrong region is not an absence; startLine absent -> (None, no rejection); startLine present as a bool, or present and not an int -> non_integer_start_line; startLine an int below 1 -> non_integer_start_line, since SARIF 2.1.0 numbers lines from one.",
-    "classification_position": "step 5 of the adapter's fixed five-step order -- shape, rule identifier, message, path, start_line. It is last, so a record defective in both its path and its start_line is classified by its path. The defective record here has a perfectly resolvable path, which is what lets it reach step 5 at all.",
-    "cases_present_in_this_fixture": [
-      {
-        "case": "start_line present as an integer within the file",
-        "record": "/runs/0/results/0",
-        "expected": "a row with start_line 72",
-        "outcome": "row"
-      },
-      {
-        "case": "region present, startLine absent from it",
-        "record": "/runs/0/results/1",
-        "expected": "a row with start_line null",
-        "outcome": "row"
-      },
-      {
-        "case": "start_line present as the numeric-looking string \"72\"",
-        "record": "/runs/0/results/2",
-        "expected": "a counted rejection under non_integer_start_line, no row, no coercion",
-        "outcome": "rejection"
-      },
-      {
-        "case": "no region member at all",
-        "record": "/runs/0/results/3",
-        "expected": "a row with start_line null",
-        "outcome": "row"
-      }
-    ],
-    "rows_with_null_start_line": 2,
-    "rows_with_null_start_line_indices": [
-      1,
-      2
-    ],
-    "two_absence_routes_not_one": "Worth stating plainly, because a reader expecting a single companion row will count wrong. This fixture carries TWO records with no start_line, and they take two different early returns in _start_line: /runs/0/results/1 has a region whose startLine key is absent, and /runs/0/results/3 has no region member at all. Both are rows with start_line null; neither is a rejection. Covering both is deliberate -- an implementation could guard one route and miss the other, and the second is the shape a producer emits for a whole-symbol or whole-file finding.",
-    "missing_key_hazard": {
-      "statement": "The load-bearing reason the companion rows exist. An implementation that tests isinstance(value, int) against the result of a plain dict lookup -- with no distinction between a key that is absent and a key whose value is of the wrong type -- rejects both. That single conflation would reject the two rows in this fixture, and it does not stop there.",
-      "blast_radius": [
-        "Every Trivy vulnerability record. harness/lib/normalize/adapters/trivy.py records at its start_line constant that line information appears on secrets and misconfigurations rather than on vulnerabilities, which is Trivy 0.74.0's own report shape (AAP 0.5.4: start_line is section-dependent, present on secrets and misconfigurations and absent on vulnerabilities). A missing-key rejection would therefore discard the entire vulnerability section of that artifact under a class that describes a defect none of those records has.",
-        "The whole Dependency-Check artifact. harness/lib/normalize/adapters/dependency_check.py holds start_line at a module-level constant of None for every row, because that tool reports at dependency granularity and carries no line information at all. Under a missing-key rejection its row count would be zero and its rejection count would be its record count."
-      ],
-      "measured_in_this_run": "Stated as a structural hazard rather than an observed one, because this run's own artifacts could not have exposed it: harness/artifacts/raw/trivy.json holds 0 vulnerabilities, 0 secrets and 3 misconfigurations, and harness/artifacts/raw/dependency-check.json holds 32 dependencies with 0 vulnerability records -- the consequence of the twelve authoritative globs containing zero resolvable dependency manifests. The hazard would bite the moment a manifest entered scope, which is exactly why it is tested here rather than left to be discovered then.",
-      "what_the_test_must_assert": "Not merely that the rejection count is 1. It must assert that the two absent-start_line records are present as rows, each with start_line null, because a conflating implementation produces the correct rejection count for the wrong reason -- three rejections and one row would fail, but so would any assertion that only counted rejections."
-    },
-    "boolean_hazard": {
-      "present_in_this_fixture": false,
-      "statement": "isinstance(True, int) is True in Python: bool is a subclass of int, so an unguarded integer check admits True as line 1 and False as line 0. sarif._start_line guards it explicitly, and the guard is ordered first -- isinstance(raw, bool) is tested before not isinstance(raw, int) -- so a boolean is classified as non_integer_start_line rather than emitted.",
-      "why_absent_here": "The only startLine values this fixture contains are the integer 72 and the string \"72\". The prompt for this file allows for a boolean case and this fixture does not carry one, so no expected rejection is recorded for it: an expectation for a record that is not in the fixture would be an assertion nothing can run.",
-      "not_covered_by_a_sibling_either": "Checked, so the gap is stated rather than assumed covered: none of the four sibling non-integer fixtures carries a boolean either -- reject-checkov-non-integer-start-line.json uses the string \"20\" together with scalar and mis-shaped file_line_range forms, reject-gitleaks-non-integer-start-line.json uses the string \"5\" alongside an explicit null, reject-joern-non-integer-start-line.json uses the string \"417\", and reject-trivy-non-integer-start-line.json uses the string \"62\".",
-      "cover_with": "a derived fixture carrying region.startLine true, asserted to reject under non_integer_start_line with a detail naming the boolean rather than an integer"
-    },
-    "below_one_hazard": {
-      "present_in_this_fixture": false,
-      "statement": "An integer below 1 is rejected under the same class with a different detail, because SARIF 2.1.0 numbers lines from one and 0 is not a line. Naming it here keeps the class's three routes legible: wrong type, boolean, and out of range.",
-      "cover_with": "a derived fixture carrying region.startLine 0"
-    },
-    "sibling_absence": {
-      "file": "oss-scan-results/adapter-tests/fixtures/reject-dependency-check-non-integer-start-line.json",
-      "exists": false,
-      "deliberate": true,
-      "reason": "Dependency-Check's artifact carries no line information anywhere, so its adapter can never reach the non_integer_start_line condition and a fixture for it would test a code path that does not exist. Verified rather than assumed: the reject-dependency-check-* fixtures in this tree are malformed-record, missing-message, missing-rule-id, no-package-coordinate and unresolvable-path, and that is the complete set of conditions that adapter can produce.",
-      "why_stated_here": "The negative-fixture set is only legible if a missing member is distinguishable from an overlooked one. AAP 0.9.4 requires a negative fixture for every rejection condition each exercised adapter CAN produce -- so an absence that follows from the shape is a correct absence, and saying so here is what stops a later reader from filing it as a gap."
-    }
+  "parse_status": "partial",
+  "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = \"partial\", assigned as partial where there are rejections and clean where there are none. Partial is right precisely because the adapter did not abandon the artifact: every parsable record was emitted and the one rejected record is counted under its class, with its parser reason retained. This is deliberately not normalize.reconcile's STATUS_PASS / STATUS_FAIL / STATUS_NOT_APPLICABLE vocabulary, which describes an assertion's outcome rather than an artifact's parse."
+ },
+ "counters": {
+  "runs": 1,
+  "runs_skipped_non_mapping": 0,
+  "runs_without_results_array": 0,
+  "multi_location_records": 0,
+  "multi_valued_cwe_records": 0,
+  "multi_valued_cve_records": 0,
+  "non_filesystem_paths": 0,
+  "rows_in_scope": 3,
+  "rows_out_of_scope": 0,
+  "rule_id_from_rule_id": 4,
+  "rule_id_from_rule_index": 0,
+  "rule_index_unusable": 0,
+  "tool_component_reference_unresolved": 0,
+  "rule_metadata_from_extension": 0,
+  "rule_metadata_unresolved": 0,
+  "severity_from_level": 0,
+  "severity_from_rule_property": 0,
+  "severity_absent": 3,
+  "start_line_absent": 2,
+  "path_kind_tree_file": 3,
+  "path_kind_outside_root": 0,
+  "path_kind_archive_member": 0,
+  "path_kind_bytecode_source": 0,
+  "severity_basis_sarif_level": 0,
+  "severity_basis_label": 0,
+  "severity_basis_cvss_score": 0,
+  "severity_basis_no_vocabulary": 3,
+  "severity_basis_unmapped_literal": 0
+ },
+ "counters_authority": "harness/lib/normalize/adapters/sarif.py, COUNTER_KEYS as returned by new_counters(): twenty authored keys, one path_kind_* per path kind and one severity_basis_* per severity basis, twenty-nine in total.",
+ "counters_note": "Three things a reader must not \"correct\". First, start_line_absent is 2, not 1: the two absent-start_line records are two rows, and each increments it -- see start_line_policy.two_absence_routes_not_one. Second, rule_id_from_rule_id is 4 while every severity counter sums to 3: the rule step is step 2 and the start_line step is step 5, so the rejected record resolves its rule identifier before it is rejected, and it never reaches severity. Third, and specific to this fixture, path_kind_tree_file is 3 rather than 4 even though all four paths resolve: the path_kind_* and severity_basis_* counters are incremented after step 5, so a record rejected at step 5 contributes to neither -- the rejected record's path resolving is a fact about the record, not a row in the dataset. The four counters AAP 0.5.4 has reported per tool are all 0 here: every result carries exactly one location, so multi_location_records is 0; each of the three rules names exactly one CWE, so multi_valued_cwe_records is 0; no rule string carries a CVE identifier, so multi_valued_cve_records is 0; and all three emitted paths name a file inside the scanned tree, so non_filesystem_paths is 0.",
+ "corroboration": {
+  "source": "oss-scan-results/adapter-tests/expected/opengrep.rows.json",
+  "records_compared": 3,
+  "fields_compared_per_record": 12,
+  "fields_agreeing": 34,
+  "fields_differing": 2,
+  "agreement": "complete once the derivation is accounted for",
+  "note": "The three surviving results correspond to that file's rows 1, 2 and 4 -- this file's row 0 is its row 1, row 1 is its row 2, and row 2 is its row 4. Of the thirty-six field comparisons, thirty-four are identical and the two differences are both start_line: its row 2 carries 90 where this file carries null, and its row 4 carries 75 where this file carries null. Those are exactly the two values this fixture's derivation deleted, so the disagreement is the derivation being visible rather than a discrepancy. Recorded after the fact rather than as the source of these values: each value here was derived from the fixture and the authored contracts, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply. The rejected record has no counterpart to corroborate against: it is this fixture's own synthesized addition, it appears in no captured artifact, and it contributes no dataset row.",
+  "row_derivation_agreement": "That file's row_derivations agree with this one on every derived property of the three records: severity_basis sarif_level, severity_counter severity_from_rule_default_configuration, path_kind tree_file, path_basis sarif-degenerate-base-metadata-fallback, locations_in_record 1, distinct_cwe_identifiers 1, distinct_cve_identifiers 0, the matched allowlist globs, and the file line counts 380, 219 and 126."
+ },
+ "rows": [
+  {
+   "tool": "opengrep",
+   "scanner_class": "sast",
+   "rule_id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+   "message": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+   "start_line": 72,
+   "cwe": "CWE-89",
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
   },
-  "rejection_boundary": {
-    "statement": "A start_line present but not an integer is a rejection. An absent start_line is a kept row with start_line null. Those are the two sides of this fixture's boundary, and it carries records on both.",
-    "why_it_can_only_be_a_rejection": "start_line is one of the five fields absence is permitted for, so unlike an unresolvable path there IS a valid row shape available -- which is precisely why the distinction has to be drawn on the producer's assertion rather than on the schema's tolerance. The producer supplied a value; that value is not a line number; emitting the row with null would misreport the artifact as silent, and emitting it with a coerced integer would misreport the artifact as having stated a number. AAP 0.5.4 settles it: reject rather than infer, count the rejection under its class, and keep the record visible.",
-    "not_a_rejection": [
-      {
-        "case": "start_line absent altogether",
-        "expected": "a kept row with start_line null, counted under start_line_absent",
-        "evidence": "Absence is permitted for start_line by AAP 0.8.2 and emit.OPTIONAL_FIELDS carries it, so the row is valid and complete.",
-        "present_in_this_fixture": true
-      },
-      {
-        "case": "a path resolving outside the twelve authoritative globs",
-        "expected": "a kept row with in_scope false, counted under rows_out_of_scope",
-        "evidence": "Out of scope means kept and marked, never rejected. The real out-of-glob files in the pinned tree are dev/package-lock.json, ui-test/package-lock.json and docs/Gemfile.lock.",
-        "present_in_this_fixture": false
-      },
-      {
-        "case": "an archive member or a location above the root",
-        "expected": "a kept row with in_scope false, counted in non_filesystem_paths",
-        "evidence": "Serialized as <container-relative-to-root>!<member> with ! the single separator, and with ../ segments preserved rather than normalized -- the SARIF 2.1.0 errata forbid a consumer normalizing .. segments out of a path.",
-        "present_in_this_fixture": false
-      }
-    ],
-    "no_guessed_start_line": "The rejected record is rejected and counted, never given a start_line. Nothing in this file supplies a line number for it -- not 72, not null-as-though-absent, not the endLine of 72 that sits beside the defective startLine in the same region. That endLine is deliberately left unread: reading it would be inferring the start from the end.",
-    "no_guessed_path": "Nor is the rejected record given a path, a severity or a row of any kind. It resolved a path successfully on its way to step 5, and that resolved path appears nowhere in this file, because a record that produced no row contributes no field to the dataset."
+  {
+   "tool": "opengrep",
+   "scanner_class": "sast",
+   "rule_id": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle",
+   "message": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "python/pyspark/ml/tests/connect/test_legacy_mode_feature.py",
+   "start_line": null,
+   "cwe": "CWE-502",
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
   },
-  "counts": {
-    "raw_finding_records": 4,
-    "raw_count_unit": "one element of runs[].results[] -- the unit normalize.reconcile.count_records walks independently of row construction",
-    "raw_count_authority": "normalize.reconcile.count_records(\"opengrep\", doc), whose SARIF traversal sums the length of each run's results array and builds no row, resolves no path and maps no severity. It is the independent half of the identity: a count taken from the traversal that builds the rows would satisfy the assertion while testing nothing.",
-    "rows": 3,
-    "rejections": 1,
-    "rejections_by_class": {
-      "non_integer_start_line": 1
-    },
-    "reconciliation_identity": "raw_finding_records == rows + rejections",
-    "reconciliation_arithmetic": "4 == 3 + 1",
-    "four_reported_counters": {
-      "authority": "AAP 0.5.4 -- the four counts reported per tool",
-      "names": [
-        "multi_location_records",
-        "multi_valued_cwe_records",
-        "multi_valued_cve_records",
-        "non_filesystem_paths"
-      ],
-      "values_live_in": "counters",
-      "all_four_are_zero_for_this_fixture": true,
-      "note": "Named here rather than restated with their values. The counters block below is the single measurement, and a number carried twice inside one document is a number that can drift; counters_note gives the reason each of the four is zero."
-    },
-    "parse_status": "partial",
-    "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = \"partial\", assigned as partial where there are rejections and clean where there are none. Partial is right precisely because the adapter did not abandon the artifact: every parsable record was emitted and the one rejected record is counted under its class, with its parser reason retained. This is deliberately not normalize.reconcile's STATUS_PASS / STATUS_FAIL / STATUS_NOT_APPLICABLE vocabulary, which describes an assertion's outcome rather than an artifact's parse."
+  {
+   "tool": "opengrep",
+   "scanner_class": "sast",
+   "rule_id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting",
+   "message": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils.java",
+   "start_line": null,
+   "cwe": "CWE-200",
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  }
+ ],
+ "row_derivations": [
+  {
+   "row_index": 0,
+   "result_pointer": "/runs/0/results/0",
+   "rule_pointer": "/runs/0/tool/driver/rules/2",
+   "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+   "message_source": "/runs/0/results/0/message/text",
+   "severity_native_source": null,
+   "severity_native_note": "the result states no level, and its rule carries neither properties.severity nor properties.problem.severity, so all three field sources AAP 0.5.4 authorises for a SARIF record are silent; the absence is stated rather than filled from rule.defaultConfiguration.level, which AAP 0.5.4 does not carry as a field source",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_absent",
+   "path_source": "/runs/0/results/0/locations/0/physicalLocation/artifactLocation/uri",
+   "path_kind": "tree_file",
+   "path_basis": "sarif-degenerate-base-metadata-fallback",
+   "start_line_source": "/runs/0/results/0/locations/0/physicalLocation/region/startLine",
+   "start_line_json_type": "integer",
+   "start_line_present": true,
+   "locations_in_record": 1,
+   "cwe_source": {
+    "pointer": "/runs/0/tool/driver/rules/2/properties/tags/0",
+    "text": "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+   },
+   "cwe_absent_reason": null,
+   "distinct_cwe_identifiers": 1,
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": "core/src/main/**",
+   "file_line_count_at_the_pin": 380,
+   "start_line_within_file": true,
+   "anchor_note": "The unmodified captured record, retained so the fixture proves the adapter emits a correct row with a real integer line while rejecting the record beside it. Line 72 of the pinned DiskStore.scala is the interpolated string argument of the SparkException.internalError(...) call that opens on line 71, and the file is 380 lines, so start_line is within the file. This row and the rejected record name the same file and the same line-72 region: the only difference between them is the JSON type of startLine, which is what isolates the condition."
   },
-  "counters": {
-    "runs": 1,
-    "runs_skipped_non_mapping": 0,
-    "runs_without_results_array": 0,
-    "multi_location_records": 0,
-    "multi_valued_cwe_records": 0,
-    "multi_valued_cve_records": 0,
-    "non_filesystem_paths": 0,
-    "rows_in_scope": 3,
-    "rows_out_of_scope": 0,
-    "rule_id_from_rule_id": 4,
-    "rule_id_from_rule_index": 0,
-    "rule_index_unusable": 0,
-    "tool_component_reference_unresolved": 0,
-    "rule_metadata_from_extension": 0,
-    "rule_metadata_unresolved": 0,
-    "severity_from_level": 0,
-    "severity_from_rule_default_configuration": 3,
-    "severity_from_rule_property": 0,
-    "severity_absent": 0,
-    "start_line_absent": 2,
-    "path_kind_tree_file": 3,
-    "path_kind_outside_root": 0,
-    "path_kind_archive_member": 0,
-    "path_kind_bytecode_source": 0,
-    "severity_basis_sarif_level": 3,
-    "severity_basis_label": 0,
-    "severity_basis_cvss_score": 0,
-    "severity_basis_no_vocabulary": 0,
-    "severity_basis_unmapped_literal": 0
+  {
+   "row_index": 1,
+   "result_pointer": "/runs/0/results/1",
+   "rule_pointer": "/runs/0/tool/driver/rules/1",
+   "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+   "message_source": "/runs/0/results/1/message/text",
+   "severity_native_source": null,
+   "severity_native_note": "the result states no level, and its rule carries neither properties.severity nor properties.problem.severity, so all three field sources AAP 0.5.4 authorises for a SARIF record are silent; the absence is stated rather than filled from rule.defaultConfiguration.level, which AAP 0.5.4 does not carry as a field source",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_absent",
+   "path_source": "/runs/0/results/1/locations/0/physicalLocation/artifactLocation/uri",
+   "path_kind": "tree_file",
+   "path_basis": "sarif-degenerate-base-metadata-fallback",
+   "start_line_source": null,
+   "start_line_json_type": "null",
+   "start_line_present": false,
+   "start_line_absence_route": "the region at /runs/0/results/1/locations/0/physicalLocation/region is present and is an object, and carries only a snippet -- its startLine key is absent, so sarif._start_line returns (None, no rejection)",
+   "start_line_absence_is_permitted_by": "AAP 0.8.2 and emit.OPTIONAL_FIELDS, which carry start_line among the five fields absence is permitted for",
+   "counted_under": "start_line_absent",
+   "locations_in_record": 1,
+   "cwe_source": {
+    "pointer": "/runs/0/tool/driver/rules/1/properties/tags/0",
+    "text": "CWE-502: Deserialization of Untrusted Data"
+   },
+   "cwe_absent_reason": null,
+   "distinct_cwe_identifiers": 1,
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": "python/pyspark/**",
+   "file_line_count_at_the_pin": 219,
+   "start_line_within_file": null,
+   "in_scope_note": "true, and deliberately so. This is one of the 832 Python test modules under python/pyspark/** and it is IN scope: the exclusion AAP 0.3.1 states is literal -- a path containing src/test is out of scope -- and this path carries no such segment. No Spark test is executed by this run; the file is read by a scanner exactly as any other in-scope source is.",
+   "anchor_note": "The first mandatory companion row. Its captured original stated startLine 90 -- the pickle.load(f) call its snippet quotes, verified at line 90 of the pinned file -- so the absence here is the derivation's, which is what makes this record a test of the absent-key route rather than a record that never had a line."
   },
-  "counters_authority": "harness/lib/normalize/adapters/sarif.py, COUNTER_KEYS as returned by new_counters(): twenty authored keys, one path_kind_* per path kind and one severity_basis_* per severity basis, twenty-nine in total.",
-  "counters_note": "Three things a reader must not \"correct\". First, start_line_absent is 2, not 1: the two absent-start_line records are two rows, and each increments it -- see start_line_policy.two_absence_routes_not_one. Second, rule_id_from_rule_id is 4 while every severity counter sums to 3: the rule step is step 2 and the start_line step is step 5, so the rejected record resolves its rule identifier before it is rejected, and it never reaches severity. Third, and specific to this fixture, path_kind_tree_file is 3 rather than 4 even though all four paths resolve: the path_kind_* and severity_basis_* counters are incremented after step 5, so a record rejected at step 5 contributes to neither -- the rejected record's path resolving is a fact about the record, not a row in the dataset. The four counters AAP 0.5.4 has reported per tool are all 0 here: every result carries exactly one location, so multi_location_records is 0; each of the three rules names exactly one CWE, so multi_valued_cwe_records is 0; no rule string carries a CVE identifier, so multi_valued_cve_records is 0; and all three emitted paths name a file inside the scanned tree, so non_filesystem_paths is 0.",
-  "corroboration": {
-    "source": "oss-scan-results/adapter-tests/expected/opengrep.rows.json",
-    "records_compared": 3,
-    "fields_compared_per_record": 12,
-    "fields_agreeing": 34,
-    "fields_differing": 2,
-    "agreement": "complete once the derivation is accounted for",
-    "note": "The three surviving results correspond to that file's rows 1, 2 and 4 -- this file's row 0 is its row 1, row 1 is its row 2, and row 2 is its row 4. Of the thirty-six field comparisons, thirty-four are identical and the two differences are both start_line: its row 2 carries 90 where this file carries null, and its row 4 carries 75 where this file carries null. Those are exactly the two values this fixture's derivation deleted, so the disagreement is the derivation being visible rather than a discrepancy. Recorded after the fact rather than as the source of these values: each value here was derived from the fixture and the authored contracts, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply. The rejected record has no counterpart to corroborate against: it is this fixture's own synthesized addition, it appears in no captured artifact, and it contributes no dataset row.",
-    "row_derivation_agreement": "That file's row_derivations agree with this one on every derived property of the three records: severity_basis sarif_level, severity_counter severity_from_rule_default_configuration, path_kind tree_file, path_basis sarif-degenerate-base-metadata-fallback, locations_in_record 1, distinct_cwe_identifiers 1, distinct_cve_identifiers 0, the matched allowlist globs, and the file line counts 380, 219 and 126."
+  {
+   "row_index": 2,
+   "result_pointer": "/runs/0/results/3",
+   "rule_pointer": "/runs/0/tool/driver/rules/0",
+   "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+   "message_source": "/runs/0/results/3/message/text",
+   "severity_native_source": null,
+   "severity_native_note": "the result states no level, and its rule carries neither properties.severity nor properties.problem.severity, so all three field sources AAP 0.5.4 authorises for a SARIF record are silent; the absence is stated rather than filled from rule.defaultConfiguration.level, which AAP 0.5.4 does not carry as a field source",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_absent",
+   "path_source": "/runs/0/results/3/locations/0/physicalLocation/artifactLocation/uri",
+   "path_kind": "tree_file",
+   "path_basis": "sarif-degenerate-base-metadata-fallback",
+   "start_line_source": null,
+   "start_line_json_type": "null",
+   "start_line_present": false,
+   "start_line_absence_route": "the physicalLocation at /runs/0/results/3/locations/0/physicalLocation carries no region member at all, so sarif._start_line is handed None and returns (None, no rejection) on its first branch -- a different route from row 1's",
+   "start_line_absence_is_permitted_by": "AAP 0.8.2 and emit.OPTIONAL_FIELDS, which carry start_line among the five fields absence is permitted for",
+   "counted_under": "start_line_absent",
+   "locations_in_record": 1,
+   "cwe_source": {
+    "pointer": "/runs/0/tool/driver/rules/0/properties/tags/0",
+    "text": "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor"
+   },
+   "cwe_absent_reason": null,
+   "distinct_cwe_identifiers": 1,
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": "resource-managers/yarn/src/main/**",
+   "file_line_count_at_the_pin": 126,
+   "start_line_within_file": null,
+   "anchor_note": "The second mandatory companion row, from a third module and a third rule, so the fixture also proves the adapter carried on past the rejection rather than merely emitting the records that preceded it. Its captured original stated startLine 75 -- the sendRedirect declaration its captured snippet quotes, verified at line 75 of the pinned file -- so this absence too is the derivation's."
+  }
+ ],
+ "rejections": [
+  {
+   "rejection_index": 0,
+   "result_pointer": "/runs/0/results/2",
+   "run_index": 0,
+   "result_index": 2,
+   "locator_note": "The pointer and the run_index / result_index pair name the same record. The pair is carried as well because normalize.adapters.sarif passes exactly run_index, result_index and rule_id into the rejection it builds at step 5, so a produced Rejection's record_identity and this expectation can be compared directly, without translating one coordinate system into the other.",
+   "reject_class": "non_integer_start_line",
+   "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_NON_INTEGER_START_LINE constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten. Written verbatim rather than paraphrased, and asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+   "reject_class_description": "a start_line is present but is not an integer",
+   "reject_class_description_source": "paths.REJECT_CLASS_DESCRIPTIONS[\"non_integer_start_line\"]",
+   "tool": "opengrep",
+   "classification_step": "step 5 of the adapter's fixed classification order -- shape, rule identifier, message, path, start_line. Steps 1 to 4 all pass on this record: it is a JSON object, it carries a valid ruleId that resolves to /runs/0/tool/driver/rules/2, it carries a non-empty message.text, and its path resolves cleanly. That is deliberate, so the only thing left to reject it for is the type of its start_line.",
+   "path_resolved_before_rejection": true,
+   "path_resolution_note": "Its uri is core/src/main/scala/org/apache/spark/storage/DiskStore.scala with uriBaseId %SRCROOT% -- the same coordinate row 0 carries -- so the path step succeeds and the record reaches step 5. The resolved path appears nowhere in this file: a record that produced no row contributes no field to the dataset, and recording its path here would invite a reader to treat it as a row that was merely mislabelled.",
+   "offending_value": "72",
+   "offending_value_json_type": "string",
+   "offending_value_pointer": "/runs/0/results/2/locations/0/physicalLocation/region/startLine",
+   "no_coercion": "The expected outcome is a rejection, not a row with start_line 72 and not a row with start_line \"72\". Nothing in this pipeline converts the string: emit.py would refuse a string in that field, and the adapter never offers it one. The value is quoted here as evidence of what the artifact contained, and quoting it is not carrying it.",
+   "adjacent_values_deliberately_unread": "The same region carries endLine 72, startColumn 13 and endColumn 94, all integers. None of them is read. Deriving the start from the end, or from a column, would be exactly the inference AAP 0.5.4 forbids -- and it would produce a row that looks correct while resting on a value the producer never assigned to that field.",
+   "expected_detail": "region.startLine is '72', a string rather than an integer",
+   "expected_detail_note": "The detail is the sub-reason AAP 0.5.4 requires a rejection to carry, and it is quoted here because this class covers three routes -- a non-integer type, a boolean, and an integer below one. Naming the class alone would not distinguish this record from a startLine of true or of 0. The detail is produced by sarif._start_line from the raw value's repr and its JSON type name, so a test may assert it exactly or by its distinguishing substrings; asserting only the class would pass against any of the three routes.",
+   "expected_record_identity_keys": [
+    "run_index",
+    "result_index",
+    "rule_id"
+   ],
+   "expected_record_identity": {
+    "run_index": 0,
+    "result_index": 2,
+    "rule_id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string"
+   },
+   "record_identity_note": "Three keys, not five. The adapter builds this rejection itself and supplies run_index, result_index and rule_id; the uri and uriBaseId keys that appear on a path rejection are added by the resolver, and the resolver did not reject this record. Enough to find the record in the artifact again, and never the record itself and never a secret value.",
+   "why_not_a_row": "There are two wrong rows available and no right one. A row with start_line 72 would assert the artifact stated an integer it did not state; a row with start_line null would assert the artifact stated nothing, which is the opposite of what it did and is indistinguishable from the two legitimate absences in this same fixture. Counting it under a named class keeps the record visible and keeps the arithmetic honest.",
+   "contributes_no_row": true,
+   "contributes_no_counter": "Neither a path_kind_* nor a severity_basis_* counter moves for this record, even though its path resolved: both are incremented after step 5. It does increment rule_id_from_rule_id, because step 2 completed. That asymmetry is the classification order made visible, not a miscount.",
+   "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, so no native literal from it reaches severity-map.md. That document reports literals against the rows the dataset contains, and this record contributes none -- which matters here because its rule's level is error, and counting it would inflate that literal's row count by one.",
+   "not_produced_by_the_path_step": "reject-sarif-unresolvable-path.sarif and the five reject-sarif-uribaseid-* fixtures own every route through step 4. This record passes step 4 outright, so this fixture re-covers none of what those six cover and each of them still has its own work to do."
+  }
+ ],
+ "behaviours_not_exercised_by_this_fixture": [
+  {
+   "behaviour": "shape-detection failure -- an artifact matching neither SARIF nor a known native shape halting the run",
+   "why_absent": "this document is valid SARIF 2.1.0 and routes cleanly; its defect is one record, not its shape",
+   "cover_with": "near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json"
   },
-  "rows": [
-    {
-      "tool": "opengrep",
-      "scanner_class": "sast",
-      "rule_id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
-      "message": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library.",
-      "severity_native": "error",
-      "severity_norm": "High",
-      "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
-      "start_line": 72,
-      "cwe": "CWE-89",
-      "cve": null,
-      "package_coordinate": null,
-      "in_scope": true
-    },
-    {
-      "tool": "opengrep",
-      "scanner_class": "sast",
-      "rule_id": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle",
-      "message": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.",
-      "severity_native": "warning",
-      "severity_norm": "Medium",
-      "path": "python/pyspark/ml/tests/connect/test_legacy_mode_feature.py",
-      "start_line": null,
-      "cwe": "CWE-502",
-      "cve": null,
-      "package_coordinate": null,
-      "in_scope": true
-    },
-    {
-      "tool": "opengrep",
-      "scanner_class": "sast",
-      "rule_id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting",
-      "message": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties.",
-      "severity_native": "warning",
-      "severity_norm": "Medium",
-      "path": "resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils.java",
-      "start_line": null,
-      "cwe": "CWE-200",
-      "cve": null,
-      "package_coordinate": null,
-      "in_scope": true
-    }
-  ],
-  "row_derivations": [
-    {
-      "row_index": 0,
-      "result_pointer": "/runs/0/results/0",
-      "rule_pointer": "/runs/0/tool/driver/rules/2",
-      "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
-      "message_source": "/runs/0/results/0/message/text",
-      "severity_native_source": "/runs/0/tool/driver/rules/2/defaultConfiguration/level",
-      "severity_native_note": "the result states no level of its own, so the level is the one its rule states -- SARIF 2.1.0's own derivation, not an inference",
-      "severity_basis": "sarif_level",
-      "severity_counter": "severity_from_rule_default_configuration",
-      "path_source": "/runs/0/results/0/locations/0/physicalLocation/artifactLocation/uri",
-      "path_kind": "tree_file",
-      "path_basis": "sarif-degenerate-base-metadata-fallback",
-      "start_line_source": "/runs/0/results/0/locations/0/physicalLocation/region/startLine",
-      "start_line_json_type": "integer",
-      "start_line_present": true,
-      "locations_in_record": 1,
-      "cwe_source": {
-        "pointer": "/runs/0/tool/driver/rules/2/properties/tags/0",
-        "text": "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
-      },
-      "cwe_absent_reason": null,
-      "distinct_cwe_identifiers": 1,
-      "distinct_cve_identifiers": 0,
-      "matched_allowlist_glob": "core/src/main/**",
-      "file_line_count_at_the_pin": 380,
-      "start_line_within_file": true,
-      "anchor_note": "The unmodified captured record, retained so the fixture proves the adapter emits a correct row with a real integer line while rejecting the record beside it. Line 72 of the pinned DiskStore.scala is the interpolated string argument of the SparkException.internalError(...) call that opens on line 71, and the file is 380 lines, so start_line is within the file. This row and the rejected record name the same file and the same line-72 region: the only difference between them is the JSON type of startLine, which is what isolates the condition."
-    },
-    {
-      "row_index": 1,
-      "result_pointer": "/runs/0/results/1",
-      "rule_pointer": "/runs/0/tool/driver/rules/1",
-      "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
-      "message_source": "/runs/0/results/1/message/text",
-      "severity_native_source": "/runs/0/tool/driver/rules/1/defaultConfiguration/level",
-      "severity_native_note": "the result states no level of its own, so the level is the one its rule states -- SARIF 2.1.0's own derivation, not an inference",
-      "severity_basis": "sarif_level",
-      "severity_counter": "severity_from_rule_default_configuration",
-      "path_source": "/runs/0/results/1/locations/0/physicalLocation/artifactLocation/uri",
-      "path_kind": "tree_file",
-      "path_basis": "sarif-degenerate-base-metadata-fallback",
-      "start_line_source": null,
-      "start_line_json_type": "null",
-      "start_line_present": false,
-      "start_line_absence_route": "the region at /runs/0/results/1/locations/0/physicalLocation/region is present and is an object, and carries only a snippet -- its startLine key is absent, so sarif._start_line returns (None, no rejection)",
-      "start_line_absence_is_permitted_by": "AAP 0.8.2 and emit.OPTIONAL_FIELDS, which carry start_line among the five fields absence is permitted for",
-      "counted_under": "start_line_absent",
-      "locations_in_record": 1,
-      "cwe_source": {
-        "pointer": "/runs/0/tool/driver/rules/1/properties/tags/0",
-        "text": "CWE-502: Deserialization of Untrusted Data"
-      },
-      "cwe_absent_reason": null,
-      "distinct_cwe_identifiers": 1,
-      "distinct_cve_identifiers": 0,
-      "matched_allowlist_glob": "python/pyspark/**",
-      "file_line_count_at_the_pin": 219,
-      "start_line_within_file": null,
-      "in_scope_note": "true, and deliberately so. This is one of the 832 Python test modules under python/pyspark/** and it is IN scope: the exclusion AAP 0.3.1 states is literal -- a path containing src/test is out of scope -- and this path carries no such segment. No Spark test is executed by this run; the file is read by a scanner exactly as any other in-scope source is.",
-      "anchor_note": "The first mandatory companion row. Its captured original stated startLine 90 -- the pickle.load(f) call its snippet quotes, verified at line 90 of the pinned file -- so the absence here is the derivation's, which is what makes this record a test of the absent-key route rather than a record that never had a line."
-    },
-    {
-      "row_index": 2,
-      "result_pointer": "/runs/0/results/3",
-      "rule_pointer": "/runs/0/tool/driver/rules/0",
-      "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
-      "message_source": "/runs/0/results/3/message/text",
-      "severity_native_source": "/runs/0/tool/driver/rules/0/defaultConfiguration/level",
-      "severity_native_note": "the result states no level of its own, so the level is the one its rule states -- SARIF 2.1.0's own derivation, not an inference",
-      "severity_basis": "sarif_level",
-      "severity_counter": "severity_from_rule_default_configuration",
-      "path_source": "/runs/0/results/3/locations/0/physicalLocation/artifactLocation/uri",
-      "path_kind": "tree_file",
-      "path_basis": "sarif-degenerate-base-metadata-fallback",
-      "start_line_source": null,
-      "start_line_json_type": "null",
-      "start_line_present": false,
-      "start_line_absence_route": "the physicalLocation at /runs/0/results/3/locations/0/physicalLocation carries no region member at all, so sarif._start_line is handed None and returns (None, no rejection) on its first branch -- a different route from row 1's",
-      "start_line_absence_is_permitted_by": "AAP 0.8.2 and emit.OPTIONAL_FIELDS, which carry start_line among the five fields absence is permitted for",
-      "counted_under": "start_line_absent",
-      "locations_in_record": 1,
-      "cwe_source": {
-        "pointer": "/runs/0/tool/driver/rules/0/properties/tags/0",
-        "text": "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor"
-      },
-      "cwe_absent_reason": null,
-      "distinct_cwe_identifiers": 1,
-      "distinct_cve_identifiers": 0,
-      "matched_allowlist_glob": "resource-managers/yarn/src/main/**",
-      "file_line_count_at_the_pin": 126,
-      "start_line_within_file": null,
-      "anchor_note": "The second mandatory companion row, from a third module and a third rule, so the fixture also proves the adapter carried on past the rejection rather than merely emitting the records that preceded it. Its captured original stated startLine 75 -- the sendRedirect declaration its captured snippet quotes, verified at line 75 of the pinned file -- so this absence too is the derivation's."
-    }
-  ],
-  "rejections": [
-    {
-      "rejection_index": 0,
-      "result_pointer": "/runs/0/results/2",
-      "run_index": 0,
-      "result_index": 2,
-      "locator_note": "The pointer and the run_index / result_index pair name the same record. The pair is carried as well because normalize.adapters.sarif passes exactly run_index, result_index and rule_id into the rejection it builds at step 5, so a produced Rejection's record_identity and this expectation can be compared directly, without translating one coordinate system into the other.",
-      "reject_class": "non_integer_start_line",
-      "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_NON_INTEGER_START_LINE constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten. Written verbatim rather than paraphrased, and asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
-      "reject_class_description": "a start_line is present but is not an integer",
-      "reject_class_description_source": "paths.REJECT_CLASS_DESCRIPTIONS[\"non_integer_start_line\"]",
-      "tool": "opengrep",
-      "classification_step": "step 5 of the adapter's fixed classification order -- shape, rule identifier, message, path, start_line. Steps 1 to 4 all pass on this record: it is a JSON object, it carries a valid ruleId that resolves to /runs/0/tool/driver/rules/2, it carries a non-empty message.text, and its path resolves cleanly. That is deliberate, so the only thing left to reject it for is the type of its start_line.",
-      "path_resolved_before_rejection": true,
-      "path_resolution_note": "Its uri is core/src/main/scala/org/apache/spark/storage/DiskStore.scala with uriBaseId %SRCROOT% -- the same coordinate row 0 carries -- so the path step succeeds and the record reaches step 5. The resolved path appears nowhere in this file: a record that produced no row contributes no field to the dataset, and recording its path here would invite a reader to treat it as a row that was merely mislabelled.",
-      "offending_value": "72",
-      "offending_value_json_type": "string",
-      "offending_value_pointer": "/runs/0/results/2/locations/0/physicalLocation/region/startLine",
-      "no_coercion": "The expected outcome is a rejection, not a row with start_line 72 and not a row with start_line \"72\". Nothing in this pipeline converts the string: emit.py would refuse a string in that field, and the adapter never offers it one. The value is quoted here as evidence of what the artifact contained, and quoting it is not carrying it.",
-      "adjacent_values_deliberately_unread": "The same region carries endLine 72, startColumn 13 and endColumn 94, all integers. None of them is read. Deriving the start from the end, or from a column, would be exactly the inference AAP 0.5.4 forbids -- and it would produce a row that looks correct while resting on a value the producer never assigned to that field.",
-      "expected_detail": "region.startLine is '72', a string rather than an integer",
-      "expected_detail_note": "The detail is the sub-reason AAP 0.5.4 requires a rejection to carry, and it is quoted here because this class covers three routes -- a non-integer type, a boolean, and an integer below one. Naming the class alone would not distinguish this record from a startLine of true or of 0. The detail is produced by sarif._start_line from the raw value's repr and its JSON type name, so a test may assert it exactly or by its distinguishing substrings; asserting only the class would pass against any of the three routes.",
-      "expected_record_identity_keys": [
-        "run_index",
-        "result_index",
-        "rule_id"
-      ],
-      "expected_record_identity": {
-        "run_index": 0,
-        "result_index": 2,
-        "rule_id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string"
-      },
-      "record_identity_note": "Three keys, not five. The adapter builds this rejection itself and supplies run_index, result_index and rule_id; the uri and uriBaseId keys that appear on a path rejection are added by the resolver, and the resolver did not reject this record. Enough to find the record in the artifact again, and never the record itself and never a secret value.",
-      "why_not_a_row": "There are two wrong rows available and no right one. A row with start_line 72 would assert the artifact stated an integer it did not state; a row with start_line null would assert the artifact stated nothing, which is the opposite of what it did and is indistinguishable from the two legitimate absences in this same fixture. Counting it under a named class keeps the record visible and keeps the arithmetic honest.",
-      "contributes_no_row": true,
-      "contributes_no_counter": "Neither a path_kind_* nor a severity_basis_* counter moves for this record, even though its path resolved: both are incremented after step 5. It does increment rule_id_from_rule_id, because step 2 completed. That asymmetry is the classification order made visible, not a miscount.",
-      "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, so no native literal from it reaches severity-map.md. That document reports literals against the rows the dataset contains, and this record contributes none -- which matters here because its rule's level is error, and counting it would inflate that literal's row count by one.",
-      "not_produced_by_the_path_step": "reject-sarif-unresolvable-path.sarif and the five reject-sarif-uribaseid-* fixtures own every route through step 4. This record passes step 4 outright, so this fixture re-covers none of what those six cover and each of them still has its own work to do."
-    }
-  ],
-  "behaviours_not_exercised_by_this_fixture": [
-    {
-      "behaviour": "shape-detection failure -- an artifact matching neither SARIF nor a known native shape halting the run",
-      "why_absent": "this document is valid SARIF 2.1.0 and routes cleanly; its defect is one record, not its shape",
-      "cover_with": "near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json"
-    },
-    {
-      "behaviour": "the other two routes into non_integer_start_line -- a boolean startLine, and an integer below one",
-      "why_absent": "this fixture isolates the wrong-type route, with the numeric-looking string the prompt names as the preferred value; and no sibling fixture carries either of the other two, so the gap is real rather than covered elsewhere",
-      "cover_with": "a derived fixture carrying region.startLine true, and one carrying region.startLine 0 -- both expected to reject under non_integer_start_line with the detail naming which route it was"
-    },
-    {
-      "behaviour": "a region that is present but is not an object, which is malformed_record rather than an absence",
-      "why_absent": "both regions here are objects; treating a non-object region as \"no line information\" is the failure that branch exists to prevent, and it is not demonstrated here",
-      "cover_with": "reject-sarif-malformed-record.sarif, or a derived fixture carrying region as a string"
-    },
-    {
-      "behaviour": "the six other rejection conditions this adapter can reach -- absent_path, unresolvable_path, invalid_uri, missing_rule_id, missing_message and malformed_record; seven with non_integer_start_line, which is the full set the SARIF path can produce",
-      "why_absent": "this fixture isolates one condition, so exactly one record is defective and it is defective in exactly one way",
-      "cover_with": "the sibling negative fixtures in this tree -- reject-sarif-malformed-record.sarif, reject-sarif-missing-rule-id.sarif, reject-sarif-missing-message.sarif, reject-sarif-unresolvable-path.sarif and the five reject-sarif-uribaseid-* fixtures. Which condition each of those asserts is stated in its own expected file, not here."
-    },
-    {
-      "behaviour": "the bounded uriBaseId chain walk and its terminal cases, including the metadata-backed fallback being refused where no explicit base is recorded",
-      "why_absent": "all four records resolve through the fallback with the walk reporting the absent outcome, so no terminal case is reached",
-      "cover_with": "the five reject-sarif-uribaseid-* fixtures"
-    },
-    {
-      "behaviour": "the first-location rule -- the row takes locations[0], the record counts once, multi_location_records counts it",
-      "why_absent": "all four results here carry exactly one location",
-      "cover_with": "a derived fixture carrying a second location on a result"
-    },
-    {
-      "behaviour": "ascending-numeric CWE selection where producer order disagrees with numeric order, and ascending-numeric CVE selection ordered by year then sequence",
-      "why_absent": "each of the three rules names exactly one CWE and none names a CVE, so both multi_valued counters are 0",
-      "cover_with": "semgrep.sarif, which carries a record with more than one CVE identifier, and a derived fixture whose rule tags list a higher CWE number first"
-    },
-    {
-      "behaviour": "a kept row with in_scope false -- an out-of-glob path, a src/test path, or a non-filesystem coordinate serialized <container-relative-to-root>!<member> with ../ preserved",
-      "why_absent": "all three emitted paths fall inside the twelve globs and name files in the tree, so rows_out_of_scope and non_filesystem_paths are both 0; the boundary those cases mark is stated under rejection_boundary rather than demonstrated here",
-      "cover_with": "a derived fixture naming a path outside the globs, one naming an archive member, and one naming a location above the root -- each kept and marked, never rejected"
-    },
-    {
-      "behaviour": "severity from a result's own level, from a rule property, or absent altogether with severity_norm Info on the no_vocabulary basis",
-      "why_absent": "all three emitted rows take their level from their rule's defaultConfiguration, so severity_from_level, severity_from_rule_property and severity_absent are all 0",
-      "cover_with": "datadog-static-analyzer.sarif and a derived fixture whose rule states no level anywhere"
-    },
-    {
-      "behaviour": "a rule identifier resolved through ruleIndex, an unusable index, or rule metadata reached through an extension component",
-      "why_absent": "every result here carries its own ruleId and every rule resolves inside tool.driver",
-      "cover_with": "a derived fixture carrying ruleIndex without ruleId, and one carrying a rule reference to an extension toolComponent"
-    }
-  ]
+  {
+   "behaviour": "the other two routes into non_integer_start_line -- a boolean startLine, and an integer below one",
+   "why_absent": "this fixture isolates the wrong-type route, with the numeric-looking string the prompt names as the preferred value; and no sibling fixture carries either of the other two, so the gap is real rather than covered elsewhere",
+   "cover_with": "a derived fixture carrying region.startLine true, and one carrying region.startLine 0 -- both expected to reject under non_integer_start_line with the detail naming which route it was"
+  },
+  {
+   "behaviour": "a region that is present but is not an object, which is malformed_record rather than an absence",
+   "why_absent": "both regions here are objects; treating a non-object region as \"no line information\" is the failure that branch exists to prevent, and it is not demonstrated here",
+   "cover_with": "reject-sarif-malformed-record.sarif, or a derived fixture carrying region as a string"
+  },
+  {
+   "behaviour": "the six other rejection conditions this adapter can reach -- absent_path, unresolvable_path, invalid_uri, missing_rule_id, missing_message and malformed_record; seven with non_integer_start_line, which is the full set the SARIF path can produce",
+   "why_absent": "this fixture isolates one condition, so exactly one record is defective and it is defective in exactly one way",
+   "cover_with": "the sibling negative fixtures in this tree -- reject-sarif-malformed-record.sarif, reject-sarif-missing-rule-id.sarif, reject-sarif-missing-message.sarif, reject-sarif-unresolvable-path.sarif and the five reject-sarif-uribaseid-* fixtures. Which condition each of those asserts is stated in its own expected file, not here."
+  },
+  {
+   "behaviour": "the bounded uriBaseId chain walk and its terminal cases, including the metadata-backed fallback being refused where no explicit base is recorded",
+   "why_absent": "all four records resolve through the fallback with the walk reporting the absent outcome, so no terminal case is reached",
+   "cover_with": "the five reject-sarif-uribaseid-* fixtures"
+  },
+  {
+   "behaviour": "the first-location rule -- the row takes locations[0], the record counts once, multi_location_records counts it",
+   "why_absent": "all four results here carry exactly one location",
+   "cover_with": "a derived fixture carrying a second location on a result"
+  },
+  {
+   "behaviour": "ascending-numeric CWE selection where producer order disagrees with numeric order, and ascending-numeric CVE selection ordered by year then sequence",
+   "why_absent": "each of the three rules names exactly one CWE and none names a CVE, so both multi_valued counters are 0",
+   "cover_with": "oss-scan-results/adapter-tests/fixtures/derived-semgrep-features.sarif, whose rule fixture.adapter-tests.semgrep.multi-cve-tag-ordering carries CVE-2024-31000, CVE-2023-40167 and CVE-2023-40168 in that producer order -- the captured semgrep.sarif carries no CVE identifier at all, so the multi-CVE case lives on that declared-derived document -- and a derived fixture whose rule tags list a higher CWE number first"
+  },
+  {
+   "behaviour": "a kept row with in_scope false -- an out-of-glob path, a src/test path, or a non-filesystem coordinate serialized <container-relative-to-root>!<member> with ../ preserved",
+   "why_absent": "all three emitted paths fall inside the twelve globs and name files in the tree, so rows_out_of_scope and non_filesystem_paths are both 0; the boundary those cases mark is stated under rejection_boundary rather than demonstrated here",
+   "cover_with": "a derived fixture naming a path outside the globs, one naming an archive member, and one naming a location above the root -- each kept and marked, never rejected"
+  },
+  {
+   "behaviour": "severity from a result's own level, from a rule property, or absent altogether with severity_norm Info on the no_vocabulary basis",
+   "why_absent": "all three emitted rows take their level from their rule's defaultConfiguration, so severity_from_level, severity_from_rule_property and severity_absent are all 0",
+   "cover_with": "datadog-static-analyzer.sarif and a derived fixture whose rule states no level anywhere"
+  },
+  {
+   "behaviour": "a rule identifier resolved through ruleIndex, an unusable index, or rule metadata reached through an extension component",
+   "why_absent": "every result here carries its own ruleId and every rule resolves inside tool.driver",
+   "cover_with": "a derived fixture carrying ruleIndex without ruleId, and one carrying a rule reference to an extension toolComponent"
+  }
+ ]
 }

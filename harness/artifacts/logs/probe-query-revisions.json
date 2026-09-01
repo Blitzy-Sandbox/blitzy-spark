@@ -1,0 +1,43 @@
+{
+ "schema_version": 1,
+ "document": "harness/artifacts/logs/probe-query-revisions.json",
+ "purpose": "The single derived revision measurement every probe query, every query result file and every record document quotes. A query that cannot read this file aborts rather than falling back to a hardcoded number.",
+ "written_at_utc": "2026-08-31T18:33:57Z",
+ "measured_at_head": "3fe19d01459295970475d2b8b04a896c55131840",
+ "convention": "commits touching queries/joern/<query id>.sc in this branch's history, counted at the HEAD named in measured_at_head. The measurement is taken after the query sources are committed and before the probe runs, so the number a query publishes is the number git history holds for that file at that commit.",
+ "queries": {
+  "01-callgraph-unguarded-driver-launch": 3,
+  "02-dataflow-unguarded-driver-launch": 3,
+  "03-parameterized-handler-sink-pairs": 4
+ },
+ "measurement_detail": {
+  "01-callgraph-unguarded-driver-launch": {
+   "path": "queries/joern/01-callgraph-unguarded-driver-launch.sc",
+   "commits": [
+    "3fe19d01459295970475d2b8b04a896c55131840 2026-08-31T18:33:53Z",
+    "cdd8646f342505c6134f28fb29cd84a9d085e748 2026-08-31T10:33:37Z",
+    "1ac5915ed1535ff1ffece11b6b40b0286be74d45 2026-08-25T09:25:13Z"
+   ],
+   "command": "git log --follow --format=%H --  queries/joern/01-callgraph-unguarded-driver-launch.sc"
+  },
+  "02-dataflow-unguarded-driver-launch": {
+   "path": "queries/joern/02-dataflow-unguarded-driver-launch.sc",
+   "commits": [
+    "3fe19d01459295970475d2b8b04a896c55131840 2026-08-31T18:33:53Z",
+    "cdd8646f342505c6134f28fb29cd84a9d085e748 2026-08-31T10:33:37Z",
+    "675f691eca921b2b7114029d97103ee8838a91b8 2026-08-25T11:07:26Z"
+   ],
+   "command": "git log --follow --format=%H --  queries/joern/02-dataflow-unguarded-driver-launch.sc"
+  },
+  "03-parameterized-handler-sink-pairs": {
+   "path": "queries/joern/03-parameterized-handler-sink-pairs.sc",
+   "commits": [
+    "3fe19d01459295970475d2b8b04a896c55131840 2026-08-31T18:33:53Z",
+    "cdd8646f342505c6134f28fb29cd84a9d085e748 2026-08-31T10:33:37Z",
+    "1072fd2334fc1a1b54b62119e086920e951ac209 2026-08-26T02:15:26Z",
+    "20a56482274ab6c5f53b45f0488d2fa37012e03f 2026-08-26T00:04:27Z"
+   ],
+   "command": "git log --follow --format=%H --  queries/joern/03-parameterized-handler-sink-pairs.sc"
+  }
+ }
+}

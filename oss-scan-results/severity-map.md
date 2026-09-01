@@ -9,7 +9,8 @@ separately: a mapping authored after the output is read can be arranged to
 produce a distribution somebody wanted, and one authored before it cannot.
 
 **Part 2 is what the artifacts actually contained** — every native severity
-literal observed, per tool, with the row count it affected.
+literal observed, per tool, with the row count it affected and the entry that
+governed its band.
 
 This document and `oss-scan-results/tool-status.md` are together the
 **authoritative inventory of the nine tools**. `oss-scan-results/findings.json`
@@ -34,7 +35,8 @@ document it is **one measurement cited twice**.
 | Input | What is taken from it |
 | --- | --- |
 | `harness/lib/normalize/severity.py` | The three mapping tables, the closed output vocabulary, the five basis constants, the four authored policy statements quoted verbatim below, and the `LiteralTally` accumulator whose readout Part 2 renders |
-| `harness/artifacts/logs/normalize-run.json` | `severity_literals` — the tally itself: per tool, every observed literal with its band, its basis and its row count, plus the per-tool and dataset row totals |
+| `harness/lib/normalize/adapters/sarif.py` | Which SARIF fields may state a level, and which field is deliberately not consulted |
+| `harness/artifacts/logs/normalize-run.json` | `severity_literals` — the tally itself: per tool, every observed literal with its band, its basis, the **selected entry** decomposed into its four scalar parts, and its row count, plus the per-tool and dataset row totals; and each artifact's `counters`, which record which field source stated each severity |
 | `oss-scan-results/findings.json`, `oss-scan-results/findings.csv` | The dataset the literals were observed in; the row counts here are the counts in those two files |
 | `oss-scan-results/tool-status.md` | The two zero-row tools' status, and the comparability determination for every tool |
 
@@ -44,13 +46,6 @@ into `harness/artifacts/logs/normalize-run.json` under `severity_literals`, and
 Part 2 is that readout. The independent traversal that reconciles record counts
 belongs to `harness/lib/normalize/reconcile.py` and its results belong to
 `oss-scan-results/tool-status.md`; this document does not restate them.
-
-The policy code carries its own self-check: `python3
-harness/lib/normalize/severity.py` exits 0 reporting `severity policy
-self-check: 270/270 passed`. Among those checks is one that matters to Part 1
-directly — that the **displayed** form of the CVSS band table and the ordered
-numeric comparisons that implement it agree, so the table below is not a
-description of the code that could drift from it.
 
 ---
 
@@ -68,7 +63,8 @@ construction of a severity result in `harness/lib/normalize/severity.py` and
 raises rather than asserting, so `python -O` cannot strip it. Absence is
 permitted for `severity_native` and for four other fields of the schema, and
 never for this one. Across the dataset, `row_validation.severity_norm_absent` is
-**0**.
+**0** (`harness/artifacts/logs/normalize-run.json`
+`outputs.row_validation`).
 
 ## Table 1 — SARIF `level`
 
@@ -82,14 +78,56 @@ observed.
 | `note` | Low |
 | `none` | Info |
 
+## Which SARIF fields may state a severity, and which may not
+
+Table 1 says how a level is banded. This says **where a level may be read from**,
+which is a separate decision and the one that moved rows in this run.
+
+AAP 0.5.4's per-shape table enumerates the field sources for a shared-SARIF
+record as *"`severity_native` ← `level`, or the rule's
+`properties.severity`/`problem.severity` where `level` is absent"*. That is the
+whole of the authorisation, and `harness/lib/normalize/adapters/sarif.py`
+consults exactly those three, in this fixed order, the first present literal
+winning outright:
+
+| Order | Field | Vocabulary it maps through | Basis recorded |
+| --- | --- | --- | --- |
+| 1 | `result.level` — the level the producer stated on this very result | Table 1 | `sarif_level` |
+| 2 | `rule.properties.severity` | Table 2 | `label` |
+| 3 | `rule.properties.problem.severity` | Table 2 | `label` |
+
+**`rule.defaultConfiguration.level` is not an authorised source and is not
+consulted.** The field exists, SARIF 2.1.0 does describe deriving an omitted
+`result.level` through it, and mainstream consumers do implement that
+derivation — and none of that is an authorisation here, because AAP 0.5.4
+enumerates the field sources for this shape and does not carry it. Where the
+specification and the AAP describe different behaviour, the AAP is what this
+pipeline is held to. Two further surfaces are excluded for the same reason and
+are named so the omissions are visible rather than silent: the specification's
+terminal `warning` default for a result whose level cannot be derived at all,
+which would manufacture a Medium band for a record nothing in the artifact
+assigns a severity to; and `run.policies` /
+`invocation.ruleConfigurationOverrides`, the run-time override surfaces that can
+outrank a rule's configuration.
+
+An earlier source outranks a later one **even when its literal is unmappable**: a
+`level` outside the SARIF vocabulary is disclosed as an unmapped literal rather
+than quietly replaced by a rule property, because reaching past a literal the
+producer did state would be inference.
+
+The measured consequence for this run's three SARIF producers is in Part 2 under
+*The SARIF field-source correction*. It is not symmetric across the three, and
+the asymmetry is a property of what each producer emits rather than of the
+policy.
+
 ## Table 2 — label vocabularies
 
-Applies to Trivy, Checkov, Dependency-Check and OSV ecosystem labels. The lookup
-strips surrounding whitespace and upper-cases the literal; nothing else is done
-to it, and the observed spelling is what reaches `severity_native`. Case folding
-is load-bearing rather than cosmetic: a real artifact can carry both `MODERATE`
-and lower-case `moderate` for the same band, and a case-sensitive table would map
-one and miss the other.
+Applies to Trivy, Checkov, Dependency-Check, OSV ecosystem labels and a SARIF
+rule property. The lookup strips surrounding whitespace and upper-cases the
+literal; nothing else is done to it, and the observed spelling is what reaches
+`severity_native`. Case folding is load-bearing rather than cosmetic: a real
+artifact can carry both `MODERATE` and lower-case `moderate` for the same band,
+and a case-sensitive table would map one and miss the other.
 
 | Native label (matched case-insensitively) | `severity_norm` |
 | --- | --- |
@@ -155,9 +193,17 @@ Where a record carries no severity vocabulary, `severity_native` is **absent**,
 `findings.json` and an empty field in `findings.csv`, and the two agree row for
 row.
 
-This is the path for a tool whose record shape defines no severity member at all,
-and for a record whose severity member is present and null. Part 2 names which
-tools took it and on which of those two grounds.
+Three shapes take this path, and Part 2 names which tools took it on which
+ground:
+
+- a record shape that defines no severity member at all;
+- a record whose severity member is present and null;
+- a record none of whose **authorised** field sources states a literal.
+
+The third is not a weaker case than the other two. It is the same outcome — a
+severity this pipeline is not authorised to read is a severity it does not have —
+and stating the absence is what keeps it distinguishable from a level that was
+assumed.
 
 ## Precedence: the label governs; a score is consulted only where no mapped label exists
 
@@ -183,13 +229,31 @@ precedence rule doing its work rather than an omission.
 
 ## Recording the entry that was used
 
-Every row records **what was used**, not merely the band it produced. Two shapes
-occur, and no third:
+Every row records **what was used**, not merely the band it produced, and the
+entry is carried through aggregation rather than discarded at it. The tally's
+bucket key is the observed literal, the band, the basis **and the selected entry
+decomposed into four scalar fields** — `selected_label`, `selected_score`,
+`selected_source`, `selected_version` — each carried in its own field rather than
+as one rendered string. The policy as written into the tally, quoted verbatim
+from `harness/artifacts/logs/normalize-run.json`
+`severity_literals.selected_entry_policy`:
 
-- `{"label": "<the literal as observed>"}` — for a mapped label and for a SARIF
-  level.
-- `{"score": <full-precision float>, "source": <source or absent>, "version":
-  <CVSS version or absent>}` — for a score.
+> The entry that governed a band is part of a tallied literal's identity, not a
+> detail discarded when rows are aggregated. A bucket is keyed on the observed
+> literal, the band, the basis and the selected entry decomposed into its four
+> scalar parts -- the label, and a score's value, source and version -- each
+> carried as its own field rather than as one rendered string. So two advisories
+> scored 7.5 by different sources, or under different CVSS versions, are reported
+> as two entries naming their sources rather than as one entry that names neither.
+
+Two shapes of selected entry occur, and no third:
+
+- a **label** entry — `selected_label` carries the literal as observed, and the
+  three score fields are absent. This is the shape for a mapped label and for a
+  SARIF `level`.
+- a **score** entry — `selected_score` carries the full-precision float,
+  `selected_source` the source it came from and `selected_version` the CVSS
+  version it declared; `selected_label` is absent.
 
 Recording the score's **source and version** is not decoration. An advisory
 commonly carries several scores from different providers and different CVSS
@@ -197,7 +261,10 @@ versions, so *which* entry governed has to be recorded rather than implied.
 Where more than one candidate is bandable, selection is by a documented total
 order — highest CVSS version, then highest score, then lexicographically smallest
 source, then earliest position in the supplied sequence — so two runs over the
-same input cannot select differently.
+same input cannot select differently. The worked case is in Part 2 under
+*Literals exercised by a committed fixture*, where one record carries a CVSS
+v2.0 score of 5.0 and a CVSS v3.1 base score of 7.5 and the recorded entry names
+the source `NVD:cvssv3` and the version `3.1` alongside the score that governed.
 
 ## Score rendering: exactly one decimal place
 
@@ -233,7 +300,7 @@ tally. Part 2 lists every unmapped literal observed, with its rows.
 
 Every figure in this part is the tally in `harness/artifacts/logs/normalize-run.json`
 under `severity_literals`, rendered. The dataset it describes is
-`oss-scan-results/findings.json` and `oss-scan-results/findings.csv`, **9,433
+`oss-scan-results/findings.json` and `oss-scan-results/findings.csv`, **9,466
 rows**, whose per-tool row counts are the same measurement
 `oss-scan-results/tool-status.md` carries in its inventory table.
 
@@ -244,79 +311,134 @@ assumed:
 
 | Basis | Rows |
 | --- | --- |
-| `sarif_level` (Table 1) | 9,316 |
-| `label` (Table 2) | 110 |
-| `no_vocabulary` (policy) | 7 |
+| `sarif_level` (Table 1) | 6,832 |
+| `label` (Table 2) | 143 |
+| `no_vocabulary` (policy) | 2,491 |
 | `cvss_score` (Table 3) | **0** |
 | `unmapped_literal` (policy) | **0** |
-| Total | 9,433 |
+| Total | 9,466 |
 
 Two of those zeros are statements about this run rather than about the policy.
 **No row in this dataset was banded from a CVSS numeric score**, so no score
-entry — no source, no version — was recorded for any row: the requirement that
-the selected entry be recorded wherever a score governed is satisfied over an
-empty set, and Table 3 was exercised here only by the committed adapter fixtures
-named at the end of this part. **No unmapped literal was observed**, so the
-disclosure list below is empty for every one of the nine tools; every literal
-that arrived fell inside a mapped vocabulary.
+entry — no `selected_score`, no `selected_source`, no `selected_version` — was
+recorded for any row: the requirement that the selected entry be recorded
+wherever a score governed is satisfied over an empty set, and Table 3 was
+exercised here only by the committed adapter fixtures named at the end of this
+part. **No unmapped literal was observed**, so the disclosure list below is empty
+for every one of the nine tools; every literal that arrived fell inside a mapped
+vocabulary.
 
-`severity_native` is absent on exactly **7** rows, which is the
+`severity_native` is absent on exactly **2,491** rows, which is the
 `no_vocabulary` count above and matches
 `normalize-run.json` `row_validation.absence_by_optional_field.severity_native`.
 
-Band totals across the dataset, which are the same 9,433 rows grouped the other
+Band totals across the dataset, which are the same 9,466 rows grouped the other
 way:
 
 | `severity_norm` | Rows |
 | --- | --- |
 | Critical | 0 |
-| High | 850 |
-| Medium | 2,792 |
-| Low | 5,764 |
-| Info | 27 |
-| Total | 9,433 |
+| High | 274 |
+| Medium | 1,403 |
+| Low | 5,278 |
+| Info | 2,511 |
+| Total | 9,466 |
 
 The `Critical` band is unrepresented: no row of any tool took it. That is a
 count of this dataset and nothing more — it is not read as a statement about any
 tool, any rule set or the code that was scanned.
 
+## The SARIF field-source correction, and the 2,484 rows it moved
+
+This run's severity fields differ from the previously published ones for a
+reason that belongs in this document, because it is a field-source decision
+rather than a mapping change: **not one table, boundary or precedence rule in
+Part 1 changed.** The shared SARIF adapter previously read
+`rule.defaultConfiguration.level` as a fourth field source. AAP 0.5.4 does not
+authorise it, and it is no longer consulted.
+
+The effect, measured per tool from
+`harness/artifacts/logs/normalize-run.json` — each artifact's `counters` record
+which source stated each severity:
+
+| tool | `severity_from_level` | `severity_from_rule_property` | `severity_absent` | Effect |
+| --- | ---: | ---: | ---: | --- |
+| `opengrep` | 0 | 0 | 1,322 | every row's `severity_native` absent, `severity_norm` `Info`, basis `no_vocabulary` |
+| `semgrep` | 0 | 0 | 1,162 | the same, over 1,162 rows |
+| `datadog-static-analyzer` | 6,832 | 0 | 0 | **unchanged** — every row's band comes from the `level` the producer stated on the result itself |
+
+**The three SARIF producers are not affected alike, and the asymmetry is the
+point.** `datadog-static-analyzer` states a `level` on every one of its 6,832
+results — `harness/artifacts/raw/datadog-static-analyzer.sarif` carries 6,832
+`"level"` keys and **no** `defaultConfiguration` object at all — so its
+severities were read from the AAP's *first* authorised source both before and
+after, and its per-literal
+counts below are identical to the previously published ones. `opengrep` and
+`semgrep` state a level nowhere the AAP authorises: their results carry no
+`level` and their rules carry no `properties.severity` and no
+`properties.problem.severity`, and what those two artifacts do say about
+severity sits in the rule descriptors' `defaultConfiguration` objects — 2,002 of
+them in `harness/artifacts/raw/opengrep.sarif` and 2,126 in
+`harness/artifacts/raw/semgrep.sarif`. **No reader should conclude from the two
+`Info`-only entries below that the SARIF family lost severity wholesale.**
+
+The rows the correction moved, with the previously published distribution stated
+beside this run's so the difference is recorded rather than silently replaced:
+
+| tool | Previously published | This run | Rows moved |
+| --- | --- | --- | ---: |
+| `opengrep` | High 314, Medium 731, Low 277 | Info 1,322 | 1,322 |
+| `semgrep` | High 278, Medium 675, Low 209 | Info 1,162 | 1,162 |
+| Total | | | **2,484** |
+
+Those two sets of figures are **not two measurements of one quantity**: the
+earlier one was produced by reading a field this pipeline is not authorised to
+read. It is recorded because a distribution that changes without an account of
+why is indistinguishable from one that drifted.
+
 ## opengrep
 
-`scanner_class` **sast**. Vocabulary: **SARIF `level`** (Table 1). 1,322 rows.
+`scanner_class` **sast**. **No authorised field source states a severity in this
+artifact**, so this tool contributes no native literal. 1,322 rows.
 
-| `severity_native` | `severity_norm` | Basis | Rows |
-| --- | --- | --- | --- |
-| `error` | High | `sarif_level` | 314 |
-| `warning` | Medium | `sarif_level` | 731 |
-| `note` | Low | `sarif_level` | 277 |
+| `severity_native` | `severity_norm` | Basis | Selected entry | Rows |
+| --- | --- | --- | --- | --- |
+| *absent* | Info | `no_vocabulary` | *none — no entry governed* | 1,322 |
 
-Unmapped literals: **none**. Entry recorded for every row: the observed level as
-a label entry. Comparability: **comparable** — the observed ruleset identity is
-the expected identity.
+The absence is **stated, not filled in**: `null` in `findings.json`, an empty
+field in `findings.csv`, and the basis `no_vocabulary` recording that the `Info`
+band came from policy rather than from anything this pipeline was authorised to
+read. No level was assumed. Unmapped literals: **none** — there was no literal to
+map, so nothing survived to be disclosed.
+
+Where this artifact's own severity statements sit, and why they are not read, is
+in *The SARIF field-source correction* above. Comparability: **comparable** — the
+observed ruleset identity is the expected identity.
 
 ## semgrep
 
-`scanner_class` **sast**. Vocabulary: **SARIF `level`** (Table 1). 1,162 rows.
+`scanner_class` **sast**. The same ground as `opengrep`, on the same measurement:
+no `level` on any result and no authorised rule property. 1,162 rows.
 
-| `severity_native` | `severity_norm` | Basis | Rows |
-| --- | --- | --- | --- |
-| `error` | High | `sarif_level` | 278 |
-| `warning` | Medium | `sarif_level` | 675 |
-| `note` | Low | `sarif_level` | 209 |
+| `severity_native` | `severity_norm` | Basis | Selected entry | Rows |
+| --- | --- | --- | --- | --- |
+| *absent* | Info | `no_vocabulary` | *none — no entry governed* | 1,162 |
 
 Unmapped literals: **none**. Comparability: **comparable** — the observed ruleset
 identity is the expected identity.
 
 ## datadog-static-analyzer
 
-`scanner_class` **sast**. Vocabulary: **SARIF `level`** (Table 1). 6,832 rows.
+`scanner_class` **sast**. Vocabulary: **SARIF `level`** (Table 1), read from the
+`level` each result states — the AAP's first authorised field source. 6,832 rows,
+**unchanged by the field-source correction**.
 
-| `severity_native` | `severity_norm` | Basis | Rows |
-| --- | --- | --- | --- |
-| `error` | High | `sarif_level` | 195 |
-| `warning` | Medium | `sarif_level` | 1,342 |
-| `note` | Low | `sarif_level` | 5,275 |
-| `none` | Info | `sarif_level` | 20 |
+| `severity_native` | `severity_norm` | Basis | Selected entry | Rows |
+| --- | --- | --- | --- | --- |
+| `error` | High | `sarif_level` | label `error` | 195 |
+| `warning` | Medium | `sarif_level` | label `warning` | 1,342 |
+| `note` | Low | `sarif_level` | label `note` | 5,275 |
+| `none` | Info | `sarif_level` | label `none` | 20 |
 
 Unmapped literals: **none**. The 20 rows carrying the SARIF level `none` reached
 the `Info` band through a mapped vocabulary rather than through the no-vocabulary
@@ -336,12 +458,12 @@ made again.
 
 ## joern
 
-`scanner_class` **sast**. Vocabulary: **label** (Table 2). 107 rows.
+`scanner_class` **sast**. Vocabulary: **label** (Table 2). 140 rows.
 
-| `severity_native` | `severity_norm` | Basis | Rows |
-| --- | --- | --- | --- |
-| `HIGH` | High | `label` | 63 |
-| `MEDIUM` | Medium | `label` | 44 |
+| `severity_native` | `severity_norm` | Basis | Selected entry | Rows |
+| --- | --- | --- | --- | --- |
+| `HIGH` | High | `label` | label `HIGH` | 79 |
+| `MEDIUM` | Medium | `label` | label `MEDIUM` | 61 |
 
 Unmapped literals: **none**.
 
@@ -349,7 +471,7 @@ Unmapped literals: **none**.
 than the no-vocabulary path.** The policy anticipates both cases for this tool —
 no vocabulary *unless a query defines one* — and in this provisioning the baked
 query set defines one per query, declared in `harness/lib/joern-scan.sc` at lines
-48 to 71, where the query record type carries a `severity` member and each of the
+48 to 77, where the query record type carries a `severity` member and each of the
 six entries supplies it:
 
 | Query identifier | Declared severity |
@@ -361,18 +483,38 @@ six entries supplies it:
 | `joern-cipher-getinstance` | `MEDIUM` |
 | `joern-xml-factory` | `MEDIUM` |
 
-Every one of the artifact's 692 finding records carries the declared severity of
-the query that produced it, giving `HIGH` 233 and `MEDIUM` 459 **in the
-artifact**. The row counts in the table above are **63 and 44**, over the 107 rows
-this tool contributed to the dataset: this artifact's parse status is `partial`
-and 585 of its records were rejected under the single class `unresolvable_path`,
-so a rejected record contributes no row and therefore no literal. The two figures
-are different measurements of different things and are not reconciled against each
-other here; the record-level identity `692 = 107 + 585` belongs to
-`oss-scan-results/tool-status.md`, which owns it.
+Every one of the artifact's 551 finding records carries the declared severity of
+the query that produced it, giving `HIGH` 199 and `MEDIUM` 352 **in the
+artifact** (`harness/artifacts/raw/joern.json`). The row counts in the table
+above are **79 and 61**, over the 140 rows this tool contributed to the dataset:
+this artifact's parse status is `partial` and 411 of its records were rejected
+under the single class `unresolvable_path`, so a rejected record contributes no
+row and therefore no literal. The two figures are different measurements of
+different things and are not reconciled against each other here; the record-level
+identity `551 = 140 + 411` belongs to `oss-scan-results/tool-status.md`, which
+owns it.
 
-Comparability: **comparable** — the observed query-set identity is the expected
-one.
+**The Stage 2 precondition behind these counts was not fully met.** This tool alone
+among the nine reads a graph rather than the source tree, so its literal counts are
+counts over that graph and inherit its limits. Two AAP requirements on it are
+**unmet, and measured rather than chosen**: the graph was built over **189 of the
+191** archives the reactor produced, because the all-191 attempt died in flatgraph's
+string-pool writer after 8 h 04 m having written nothing at a projected 100.6 % of
+the serializer's ceiling; and **35 of 38** JAR-producing modules carry a valid
+coverage witness, 35 being the measured ceiling because `sql/api` and
+`sql/connect/common` are republished whole by a sibling in every one of the eight
+candidate input sets and `connector/kafka-0-10-assembly` has no `src/`. The
+consequence for this section specifically is bounded and worth stating plainly: a
+finding in a class present only in one of the two withheld uber archives could not
+have been produced, so it contributes no literal here. Both conditions are owned by
+`oss-scan-results/build-record.md` and carried as divergences in
+`oss-scan-results/run-record.md`. Nothing about the mapping policy is affected — the
+label path and the boundaries are fixed in advance of any output.
+
+Comparability: **comparable** on query-set identity — the observed query set is
+the expected one. This tool's **counts**, however, are not comparable with the
+previous provisioning's, because the graph they were measured over differs;
+`oss-scan-results/tool-status.md` owns that determination and states both values.
 
 ## gitleaks
 
@@ -382,14 +524,12 @@ record shape carries no severity member at all — the members are `Author`,
 `File`, `Fingerprint`, `Match`, `Message`, `RuleID`, `Secret`, `StartColumn`,
 `StartLine`, `SymlinkFile` and `Tags`, and none of them is a severity. 1 row.
 
-| `severity_native` | `severity_norm` | Basis | Rows |
-| --- | --- | --- | --- |
-| *absent* | Info | `no_vocabulary` | 1 |
+| `severity_native` | `severity_norm` | Basis | Selected entry | Rows |
+| --- | --- | --- | --- | --- |
+| *absent* | Info | `no_vocabulary` | *none — no entry governed* | 1 |
 
-The absence is **stated, not filled in**: `null` in `findings.json`, an empty
-field in `findings.csv`, and the basis `no_vocabulary` recording that the `Info`
-band came from policy rather than from anything the tool said. No level was
-assumed for this tool. Unmapped literals: **none** — there was no literal to map.
+The absence is **stated, not filled in**, and no level was assumed for this tool.
+Unmapped literals: **none** — there was no literal to map.
 
 Comparability: **comparable** — the observed rule-set identity is the expected
 one, the default set built into the pinned version.
@@ -401,9 +541,9 @@ configuration.** The member is present on every one of the six failed checks and
 its value is `null` on all six; that is the **observed state of the field**, not a
 measurement this run failed to take. 6 rows.
 
-| `severity_native` | `severity_norm` | Basis | Rows |
-| --- | --- | --- | --- |
-| *absent* | Info | `no_vocabulary` | 6 |
+| `severity_native` | `severity_norm` | Basis | Selected entry | Rows |
+| --- | --- | --- | --- | --- |
+| *absent* | Info | `no_vocabulary` | *none — no entry governed* | 6 |
 
 Because the value is null rather than a literal, these rows take the
 no-vocabulary path: absence stated, `Info` from policy, basis `no_vocabulary`. Had
@@ -419,15 +559,16 @@ expected version.
 artifact.** It holds an entry here for exactly that reason — the row-only dataset
 files cannot represent it, so the inventory has to carry it.
 
-| `severity_native` | `severity_norm` | Basis | Rows |
-| --- | --- | --- | --- |
-| *no literal observed* | — | — | 0 |
+| `severity_native` | `severity_norm` | Basis | Selected entry | Rows |
+| --- | --- | --- | --- | --- |
+| *no literal observed* | — | — | — | 0 |
 
 `oss-scan-results/tool-status.md` owns this tool's status and states it in the
-tool's own words: exit 128 with `No package sources found` after `0 Extract
-calls`, classified as the tool having completed with nothing in scope to work on
-rather than as a failure, with the reconciliation recorded as `not applicable —
-artifact absent` and not as a zero-equals-zero pass.
+tool's own words: exit 128 with `No package sources found, --help for usage
+information.` after `0 Extract calls`, classified as the tool having completed
+with nothing in scope to work on rather than as a failure, with the
+reconciliation recorded as `not applicable — artifact absent` and not as a
+zero-equals-zero pass.
 
 **No mapping decision was exercised for this tool in this run.** Its ecosystem
 labels would have been governed by Table 2 and a CVSS entry by Table 3, under the
@@ -446,13 +587,13 @@ it is that document's field, cited here rather than restated.
 ground: its artifact is present and carries zero finding records.** That is the
 second of the two ways a tool reaches zero rows, and the distinction is why both
 entries are stated rather than collapsed into one. The count unit is
-`dependencies[].vulnerabilities[]`, and
-across the 32 dependency records the artifact analysed there is not one
-vulnerability member; the string `severity` occurs nowhere in the artifact.
+`dependencies[].vulnerabilities[]`, and across the 32 dependency records the
+artifact analysed there is not one vulnerability member; the string `severity`
+occurs nowhere in the artifact.
 
-| `severity_native` | `severity_norm` | Basis | Rows |
-| --- | --- | --- | --- |
-| *no literal observed* | — | — | 0 |
+| `severity_native` | `severity_norm` | Basis | Selected entry | Rows |
+| --- | --- | --- | --- | --- |
+| *no literal observed* | — | — | — | 0 |
 
 The parse status is `clean` and the per-artifact reconciliation is a real
 `0 = 0 + 0` with the artifact present. `oss-scan-results/tool-status.md` owns
@@ -476,9 +617,9 @@ Unmapped literals: **none**.
 identifier the class table does not fix to a single class, which is why the
 literals below are attributed to the section they were read from. 3 rows.
 
-| Section read from | `severity_native` | `severity_norm` | Basis | `scanner_class` | Rows |
-| --- | --- | --- | --- | --- | --- |
-| `Results[].Misconfigurations[]` | `LOW` | Low | `label` | misconfig | 3 |
+| Section read from | `severity_native` | `severity_norm` | Basis | Selected entry | `scanner_class` | Rows |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Results[].Misconfigurations[]` | `LOW` | Low | `label` | label `LOW` | misconfig | 3 |
 
 Section accounting in the artifact: **Vulnerabilities 0, Secrets 0,
 Misconfigurations 3**. All three sit in `Results` members whose `Class` is
@@ -498,32 +639,30 @@ advisory set. This is the same determination
 
 ## Every observed literal, in one table
 
-The complete set, for a reader who needs it in one place. Fifteen
-`(tool, literal, band, basis)` entries over 9,433 rows, plus the two tools that
-contributed none.
+The complete set, for a reader who needs it in one place. Eleven
+`(tool, literal, band, basis, selected entry)` entries over 9,466 rows, plus the
+two tools that contributed none.
 
-| tool | `severity_native` | `severity_norm` | Basis | Rows | Unmapped |
-| --- | --- | --- | --- | --- | --- |
-| `opengrep` | `error` | High | `sarif_level` | 314 | no |
-| `opengrep` | `warning` | Medium | `sarif_level` | 731 | no |
-| `opengrep` | `note` | Low | `sarif_level` | 277 | no |
-| `semgrep` | `error` | High | `sarif_level` | 278 | no |
-| `semgrep` | `warning` | Medium | `sarif_level` | 675 | no |
-| `semgrep` | `note` | Low | `sarif_level` | 209 | no |
-| `datadog-static-analyzer` | `error` | High | `sarif_level` | 195 | no |
-| `datadog-static-analyzer` | `warning` | Medium | `sarif_level` | 1,342 | no |
-| `datadog-static-analyzer` | `note` | Low | `sarif_level` | 5,275 | no |
-| `datadog-static-analyzer` | `none` | Info | `sarif_level` | 20 | no |
-| `joern` | `HIGH` | High | `label` | 63 | no |
-| `joern` | `MEDIUM` | Medium | `label` | 44 | no |
-| `gitleaks` | *absent* | Info | `no_vocabulary` | 1 | no |
-| `checkov` | *absent* | Info | `no_vocabulary` | 6 | no |
-| `trivy` | `LOW` | Low | `label` | 3 | no |
-| `osv-scanner` | *no literal observed* | — | — | 0 | — |
-| `dependency-check` | *no literal observed* | — | — | 0 | — |
+| tool | `severity_native` | `severity_norm` | Basis | Selected entry | Rows | Unmapped |
+| --- | --- | --- | --- | --- | --- | --- |
+| `opengrep` | *absent* | Info | `no_vocabulary` | *none* | 1,322 | no |
+| `semgrep` | *absent* | Info | `no_vocabulary` | *none* | 1,162 | no |
+| `datadog-static-analyzer` | `error` | High | `sarif_level` | label `error` | 195 | no |
+| `datadog-static-analyzer` | `warning` | Medium | `sarif_level` | label `warning` | 1,342 | no |
+| `datadog-static-analyzer` | `note` | Low | `sarif_level` | label `note` | 5,275 | no |
+| `datadog-static-analyzer` | `none` | Info | `sarif_level` | label `none` | 20 | no |
+| `joern` | `HIGH` | High | `label` | label `HIGH` | 79 | no |
+| `joern` | `MEDIUM` | Medium | `label` | label `MEDIUM` | 61 | no |
+| `gitleaks` | *absent* | Info | `no_vocabulary` | *none* | 1 | no |
+| `checkov` | *absent* | Info | `no_vocabulary` | *none* | 6 | no |
+| `trivy` | `LOW` | Low | `label` | label `LOW` | 3 | no |
+| `osv-scanner` | *no literal observed* | — | — | — | 0 | — |
+| `dependency-check` | *no literal observed* | — | — | — | 0 | — |
 
-Row total over the fifteen literal entries: **9,433**, which is the row count of
-`findings.json` and of `findings.csv`.
+Row total over the eleven literal entries: **9,466**, which is the row count of
+`findings.json` and of `findings.csv`. Every selected entry in this run is a
+**label** entry: `selected_label` carries the literal as observed and the three
+score fields are absent, because no row was banded from a score.
 
 ## Unmapped literals
 
@@ -551,7 +690,7 @@ observed native literal** — the entry above states that, and no figure is
 attributed to it here. The literals below are in the committed fixture
 `oss-scan-results/adapter-tests/fixtures/dependency-check.json`, and they are
 what exercises this adapter's numeric-banding and case-folding paths in
-`oss-scan-results/adapter-tests/test_dependency_check_adapter.py`:
+`oss-scan-results/adapter-tests/test_dependency_check_adapter.py`.
 
 Each band and each rendered text below is the expectation asserted in
 `oss-scan-results/adapter-tests/expected/dependency-check.rows.json`, read from
@@ -583,10 +722,14 @@ The last row is where **recording the entry that was used** stops being an
 abstraction. That record's `severity` member is null, so no mapped label exists
 and the score path is reached — and the record carries **two** score entries: a
 CVSS **v2.0** score of **5.0** and a CVSS **v3.1** base score of **7.5**. The
-selection order takes the highest CVSS version first, so the v3.1 entry governs,
-`7.5` bands High, and the entry recorded is that score with its source and its
-version. Had only the band been recorded, a reader could not tell which of the
-two scores produced it, and the two produce different bands.
+selection order takes the highest CVSS version first, so the v3.1 entry governs
+and `7.5` bands High. The entry recorded for that row names the score together
+with its **source** `NVD:cvssv3` — composed from the record's own source and the
+block key, because the `cvssv3` block declares no source of its own — and its
+**version** `3.1`, as
+`oss-scan-results/adapter-tests/expected/dependency-check.rows.json` asserts. Had
+only the band been recorded, a reader could not tell which of the two scores
+produced it, and the two produce different bands.
 
 Nothing in this section is a dataset count. Every figure here is a property of a
 committed fixture and of the adapter that reads it.
@@ -611,7 +754,7 @@ not a second determination made in this document.
 | `opengrep` | comparable | Ruleset commit `f1d2b562b414783763fd02a6ed2736eaed622efa` observed and expected; 2,006 rules against 2,006 |
 | `semgrep` | comparable | Ruleset commit `40b8c63f75dc7c22c8a77482d73bfb864b146f7e` observed and expected; 2,149 rules against 2,149, 19 Pro-only skipped |
 | `datadog-static-analyzer` | **NOT COMPARABLE** | Ruleset sha256 observed `4f397e81…b8fef6f1`, expected `e70ede30…ff6c44f7` — differs; 48 rulesets and 1,093 rules do match |
-| `joern` | comparable | Query-set identity observed as the expected one: 6 bounded structural queries baked into the runner |
+| `joern` | comparable on query-set identity, **counts NOT COMPARABLE** | The query-set identity observed is the expected one: 6 bounded structural queries baked into the runner. Its counts were measured over a graph this run built, which differs from the graph the previous provisioning measured over; `oss-scan-results/tool-status.md` states both values and why they are not comparable |
 | `gitleaks` | comparable | The default rule set built into the pinned version, observed and expected |
 | `checkov` | comparable | Policies bundled with the expected version, observed and expected |
 | `osv-scanner` | comparable on identity | No local database, the OSV API queried at scan time, observed and expected; no count to compare |
@@ -622,6 +765,21 @@ The two digests in the `datadog-static-analyzer` row are abbreviated for the
 table's width only; both full values appear in that tool's entry in Part 2 and in
 `oss-scan-results/tool-status.md`.
 
+**Every digest and timestamp above is the reading that tool's own invocation
+recorded**, in its `<tool>.status` and its captured stdout, rather than a value
+re-measured now. Three of the paths behind them — the Datadog rules file, the
+Trivy cache metadata and the Dependency-Check datafeed — are host-global and
+shared, and each was rewritten after these invocations by provisioning outside
+this run. `oss-scan-results/tool-status.md` owns that observation and states what
+each of the three holds now; the verdicts above are unaffected, because a
+comparability status is a statement about what the invocation used. The two
+ruleset checkouts named in the first two rows are unchanged.
+
+**The field-source correction is not a comparability status.** It changed which
+field a severity is read from, not which rule set or feed produced the finding,
+and its effect is stated with both distributions in Part 2 rather than folded
+into the table above.
+
 # Values that could not be established
 
 Named rather than omitted, because a value missing from the record is a value
@@ -631,7 +789,8 @@ nothing downstream can check.
 | --- | --- | --- |
 | The native severity vocabulary `osv-scanner` would have used | `osv-scanner` | It wrote no artifact, so no record arrived and no mapping decision was exercised. Table 2 for an ecosystem label and Table 3 for a CVSS entry were the policy in force; which of them a record would have taken is not established by this run, and no vocabulary was attributed to the tool on the strength of what it usually emits |
 | The native severity literals `dependency-check` emits | `dependency-check` | Its artifact carries zero finding records, so no literal was observed. The adapter's handling of this shape's label and score paths is established by the committed fixture named in Part 2, which is a statement about the adapter and not a dataset count |
-| Behaviour of the `cvss_score` basis on this run's own artifacts | dataset-wide | No artifact exercised it: the basis was recorded 0 times. It is established against the committed fixtures instead — three of the fixture records in the section above take that basis, one of them through the two-candidate selection — and is stated as such rather than left to look like a path nobody tested |
+| The severity `opengrep` and `semgrep` would state through an authorised source | those two tools | Neither artifact states one: no result carries a `level` and no rule carries `properties.severity` or `properties.problem.severity`, measured as `severity_from_level` 0 and `severity_from_rule_property` 0 in `normalize-run.json`. What their `defaultConfiguration` objects say is not an authorised source and is therefore not reported as their native literal; the absence is stated instead of being filled from an unauthorised field |
+| Behaviour of the `cvss_score` basis on this run's own artifacts | dataset-wide | No artifact exercised it: the basis was recorded 0 times. It is established against the committed fixtures instead — three of the fixture records in the section above take that basis, one of them through the two-candidate selection that records a source and a version — and is stated as such rather than left to look like a path nobody tested |
 | Behaviour of the `unmapped_literal` disclosure on this run's own artifacts | dataset-wide | Likewise recorded 0 times. Every literal that arrived was inside a mapped vocabulary |
 
 `oss-scan-results/tool-status.md` carries the values that could not be
@@ -644,29 +803,35 @@ by its tool. None was invented there and none is invented here.
 Each of these was checked, and each is one measurement appearing twice rather
 than two measurements agreeing.
 
-1. **Every literal listed here is present in the dataset.** The fifteen
+1. **Every literal listed here is present in the dataset.** The eleven
    `(tool, literal, band)` entries were recounted directly from
    `findings.json` and independently from `findings.csv`; both produce the same
-   fifteen entries with the same row counts as the tally rendered here.
+   eleven entries with the same row counts as the tally rendered here.
 2. **Every `severity_native` literal in the dataset appears here.** The recount
-   yields no sixteenth entry: the distinct literals in the dataset are `error`,
+   yields no twelfth entry: the distinct literals in the dataset are `error`,
    `warning`, `note`, `none`, `HIGH`, `MEDIUM`, `LOW` and the absent literal, and
    each appears above against the tool that produced it.
 3. **Per-tool row counts agree with `oss-scan-results/tool-status.md`** and with
    `normalize-run.json` `totals.rows_by_tool`, in the normalizer's processing
    order: `opengrep` 1,322, `semgrep` 1,162, `datadog-static-analyzer` 6,832,
    `gitleaks` 1, `checkov` 6, `trivy` 3, `osv-scanner` 0, `dependency-check` 0 and
-   `joern` 107, summing to 9,433.
+   `joern` 140, summing to 9,466.
 4. **`findings.json` and `findings.csv` agree** on every severity field, row for
    row: absence is `null` in the one and an empty field in the other, over the
-   same 9,433 rows, with the typed comparison in `normalize-run.json`
-   `output_comparison` reporting 9,433 rows and 113,196 fields compared and no
+   same 9,466 rows, with the typed comparison in `normalize-run.json`
+   `output_comparison` reporting 9,466 rows and 113,592 fields compared and no
    first mismatch.
 5. **The comparability verdicts match `oss-scan-results/tool-status.md`**
-   tool for tool: three not comparable — `datadog-static-analyzer`, `trivy`,
-   `dependency-check` — and six comparable.
+   tool for tool: three not comparable on ruleset or feed identity —
+   `datadog-static-analyzer`, `trivy`, `dependency-check` — and `joern` not
+   comparable on counts against the previous provisioning, on the separate ground
+   of a different graph.
 6. **`severity_norm` is absent nowhere**, and `severity_native` is absent on
-   exactly the 7 no-vocabulary rows.
+   exactly the 2,491 no-vocabulary rows.
+7. **The field-source counters close against the literals.** `sarif_level` 6,832
+   equals `datadog-static-analyzer`'s `severity_from_level`; `no_vocabulary`
+   2,491 equals the four absent-literal entries — 1,322 + 1,162 + 1 + 6 — and
+   equals `row_validation.absence_by_optional_field.severity_native`.
 
 # What this document does not do
 
@@ -674,7 +839,9 @@ than two measurements agreeing.
   severity vocabularies, explain why one reported something another did not, or
   characterise any tool's vocabulary as better, stricter or more accurate. Two
   tools' labels arriving in the same band is a mapping statement about this
-  dataset's schema and nothing else.
+  dataset's schema and nothing else. That one producer states a `level` where two
+  others do not is a fact about the artifacts, recorded because it decides which
+  field the mapping reads, and it is not a judgement about any of the three.
 - It **judges no finding**. Nothing here is called real, important, a false
   positive or a duplicate of another tool's, and **nothing is deduplicated across
   tools**: two tools reporting the same location produce two rows and no comment.

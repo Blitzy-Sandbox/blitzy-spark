@@ -1,0 +1,26 @@
+{
+  "schema": "findings-publication-manifest/1.0.0",
+  "document": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/findings-publication.json",
+  "member_set_id": "2dab6674cc2c22cfefcd4872a8c55274",
+  "member_set_id_method": "sha256 over each published member's role and content sha256 -- NUL-separated within a member, newline-separated between members, in the order the manifest lists them -- truncated to 32 lowercase hex characters. Computable by a consumer from nothing but the files on disk, which is what makes it a completion record: a set missing a member, or assembled from two generations, yields a value matching neither generation's manifest.",
+  "publication_id": "0f99ab0939fb9872672c98609da9b2e4",
+  "publication_id_method": "sha256 over the UTF-8 text 'findings-publication/1.0.0\\n' followed by one '<role>\\t<sha256>\\n' line per member in ascending role order, truncated to its first 32 hex characters. Content-derived, so both members of one publication carry it, two runs over identical rows produce the same value, and a consumer holding the two files can recompute it: a mixed generation yields an identifier that matches neither recorded value.",
+  "member_count": 2,
+  "commit_protocol": "Every content member is staged in its target's own directory, fsynced, and measured by reading the staged bytes back through a descriptor bound to the inode they were written into. This manifest is then staged the same way. Every content member is renamed onto its target, and this manifest is renamed LAST. Staging before the first rename closes the window before the renames; N renames are N atomic operations rather than one, and POSIX offers no N-way atomic rename, so the window BETWEEN them is closed by this record instead: its presence means every member it names is in place.",
+  "required_of_consumers": "REQUIRED. Before treating the members as one generation a consumer must require this file, re-measure every member it names, and recompute member_set_id from those digests. normalize.emit.require_publication_manifest is that check, and the publication runs it itself immediately after publishing, so a manifest nothing verifies cannot occur on the producing side either.",
+  "self_digest": "absent by construction: a manifest cannot contain its own digest. Its byte size and sha256 are published in the run record's per-file manifest",
+  "members": [
+    {
+      "role": "findings_json",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
+      "bytes": 4411501,
+      "sha256": "a1ef544c45faad1ca0592b4c77cb4b43028308c84342e79445f5d0b7e0c3f358"
+    },
+    {
+      "role": "findings_csv",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
+      "bytes": 2083744,
+      "sha256": "895cf6a887dcbc16f565cef88e4882ff4cba5ed2ffcedfff94dde2c6a81088e7"
+    }
+  ]
+}

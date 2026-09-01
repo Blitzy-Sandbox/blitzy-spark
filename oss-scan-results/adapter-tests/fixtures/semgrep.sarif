@@ -1,217 +1,1955 @@
 {
-  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
   "version": "2.1.0",
   "runs": [
     {
       "invocations": [
         {
-          "executionSuccessful": true
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.endpoints.insecure-http-request:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.injection.soql-injection-unescaped-param:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.endpoints.named-credentials-constant-match:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.sharing.specify-sharing-level:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.injection.soql-injection-unescaped-url-param:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.system.system-debug:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.best-practice.enum_map_into:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.best-practice.deprecated_use_bitwise:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.best-practice.ncino.urls.absolute-urls:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.encryption.bad-crypto:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.best-practice.ncino.accessModifiers.global-access-modifiers:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.dml.apex-csrf-constructor:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.endpoints.named-credentials-string-match:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.dml.dml-native-statements:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.best-practice.enum_map_join:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.best-practice.deprecated_bnot_operator:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.best-practice.deprecated_calendar_iso_day_of_week_3:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.best-practice.deprecated_bxor_operator:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.correctness.atom_exhaustion:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.ai.ai-best-practices.llm-api-key-in-source.llm-api-key-in-source-javascript on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.ai.typescript.detect-vercel-ai on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.audit.detect-replaceall-sanitization on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.insecure-document-method on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.insecure-innerhtml on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.insufficient-postmessage-origin-validation on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.raw-html-join on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.audit.express-path-join-resolve-traversal on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.audit.express-ssrf on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.audit.remote-property-injection on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.audit.res-render-injection on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.cors-misconfiguration on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.express-data-exfiltration on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.express-insecure-template-usage on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.injection.raw-html-format on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.injection.tainted-sql-string on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.require-request on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.x-frame-options-misconfiguration on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.jquery.security.audit.jquery-insecure-method on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.jquery.security.audit.jquery-insecure-selector on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.jquery.security.audit.prohibit-jquery-html on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.best-practice.assigned-undefined on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.best-practice.lazy-load-module on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.correctness.eqeq-is-bad on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.correctness.missing-template-string-indicator on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.correctness.no-stringify-keys on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.correctness.useless-assignment on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-require on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-redos on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.incomplete-sanitization on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.path-traversal.path-join-resolve-traversal on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.prototype-pollution.prototype-pollution-assignment on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.sqli.node-postgres-sqli on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.unknown-value-with-script-tag on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.unsafe-dynamic-method on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.html-in-template-string on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.insecure-object-assign on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.problem-based-packs.insecure-transport.js-node.http-request on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.problem-based-packs.insecure-transport.js-node.using-http-server on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.lang.correctness.useless-ternary on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.best-practice.react-legacy-component on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.best-practice.react-props-spreading on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.portability.i18next.i18next-key-format on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.portability.i18next.jsx-not-internationalized on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.security.react-insecure-request on core/src/main/resources/org/apache/spark/ui/static/d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.ai.ai-best-practices.llm-api-key-in-source.llm-api-key-in-source-javascript on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.ai.typescript.detect-vercel-ai on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.angular.security.detect-angular-element-methods on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.angular.security.detect-angular-element-taint on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.audit.detect-replaceall-sanitization on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.aws-lambda.security.tainted-eval on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.aws-lambda.security.tainted-html-string on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.aws-lambda.security.tainted-sql-string on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.dom-based-xss on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.eval-detected on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.insecure-document-method on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.insecure-innerhtml on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.insufficient-postmessage-origin-validation on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.js-open-redirect-from-function on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.raw-html-concat on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.browser.security.raw-html-join on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.audit.express-check-csurf-middleware-usage on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.audit.express-path-join-resolve-traversal on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.audit.express-ssrf on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.audit.remote-property-injection on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.audit.res-render-injection on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.audit.xss.direct-response-write on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.cors-misconfiguration on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.express-data-exfiltration on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.express-insecure-template-usage on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.express-wkhtmltoimage-injection on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.injection.raw-html-format on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.injection.tainted-sql-string on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.require-request on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.express.security.x-frame-options-misconfiguration on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.jquery.security.audit.jquery-insecure-method on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.jquery.security.audit.jquery-insecure-selector on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.jquery.security.audit.prohibit-jquery-html on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.best-practice.assigned-undefined on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.best-practice.lazy-load-module on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.correctness.eqeq-is-bad on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.correctness.missing-template-string-indicator on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.correctness.no-stringify-keys on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.correctness.useless-assignment on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.code-string-concat on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-fs-filename on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-require on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-redos on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.incomplete-sanitization on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.path-traversal.path-join-resolve-traversal on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.prototype-pollution.prototype-pollution-assignment on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.prototype-pollution.prototype-pollution-loop on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.unknown-value-with-script-tag on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.unsafe-dynamic-method on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.unsafe-formatstring on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.detect-eval-with-expression on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.html-in-template-string on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.insecure-object-assign on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.problem-based-packs.insecure-transport.js-node.bypass-tls-verification on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.problem-based-packs.insecure-transport.js-node.http-request on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.problem-based-packs.insecure-transport.js-node.using-http-server on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.lang.correctness.useless-ternary on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.best-practice.react-legacy-component on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.best-practice.react-props-spreading on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.portability.i18next.i18next-key-format on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.portability.i18next.jsx-label-not-i18n on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.portability.i18next.jsx-not-internationalized on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.security.audit.react-href-var on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.security.audit.react-unsanitized-method on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.typescript.react.security.react-insecure-request on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/resources/org/apache/spark/ui/static/executorspage-template.html:20:\n When parsing a snippet as JavaScript for metavariable-pattern in rule 'opt.blitzy-harness.rules.semgrep-rules.html.security.audit.eval-detected', `class` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/resources/org/apache/spark/ui/static/executorspage-template.html:20:\n When parsing a snippet as JavaScript for metavariable-pattern in rule 'opt.blitzy-harness.rules.semgrep-rules.html.security.audit.insecure-document-method', `class` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/resources/org/apache/spark/ui/static/historypage-template.html:19:\n When parsing a snippet as JavaScript for metavariable-pattern in rule 'opt.blitzy-harness.rules.semgrep-rules.html.security.audit.eval-detected', `<table id=\"history-summary-table\" class=\"table table-striped compact\">\n  <thead>\n    <tr>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"Spark version of this application.\">\n          Version\n        </span>\n      </th>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"ID of this application.\">\n          App ID\n        </span>\n      </th>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"Name of this application.\">\n          App Name\n        </span>\n      </th>\n      {{#hasMultipleAttempts}}\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"The attempt ID of this application since one application might be launched several times\">\n          Attempt ID\n        </span>\n      </th>\n      {{/hasMultipleAttempts}}\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"Started time of this application.\">\n          Started\n        </span>\n      </th>\n      {{#showCompletedColumns}}\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"The completed time of this application.\">\n          Completed\n        </span>\n      </th>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"The duration time of this application.\">\n          Duration\n        </span>\n      </th>\n      {{/showCompletedColumns}}\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"The Spark user of this application\">\n          Spark User\n        </span>\n      </th>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"The timestamp of the last updating on this application\">\n          Last Updated\n        </span>\n      </th>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"Download the event log for this application\">\n          Event Log\n        </span>\n      </th>\n  </thead>\n  <tbod... (truncated 38 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/resources/org/apache/spark/ui/static/historypage-template.html:19:\n When parsing a snippet as JavaScript for metavariable-pattern in rule 'opt.blitzy-harness.rules.semgrep-rules.html.security.audit.insecure-document-method', `<table id=\"history-summary-table\" class=\"table table-striped compact\">\n  <thead>\n    <tr>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"Spark version of this application.\">\n          Version\n        </span>\n      </th>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"ID of this application.\">\n          App ID\n        </span>\n      </th>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"Name of this application.\">\n          App Name\n        </span>\n      </th>\n      {{#hasMultipleAttempts}}\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"The attempt ID of this application since one application might be launched several times\">\n          Attempt ID\n        </span>\n      </th>\n      {{/hasMultipleAttempts}}\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"Started time of this application.\">\n          Started\n        </span>\n      </th>\n      {{#showCompletedColumns}}\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"The completed time of this application.\">\n          Completed\n        </span>\n      </th>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"The duration time of this application.\">\n          Duration\n        </span>\n      </th>\n      {{/showCompletedColumns}}\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"The Spark user of this application\">\n          Spark User\n        </span>\n      </th>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"The timestamp of the last updating on this application\">\n          Last Updated\n        </span>\n      </th>\n      <th>\n        <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"Download the event log for this application\">\n          Event Log\n        </span>\n      </th>\n  </the... (truncated 49 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/resources/org/apache/spark/ui/static/stagespage-template.html:20:\n When parsing a snippet as JavaScript for metavariable-pattern in rule 'opt.blitzy-harness.rules.semgrep-rules.html.security.audit.eval-detected', `class` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/resources/org/apache/spark/ui/static/stagespage-template.html:20:\n When parsing a snippet as JavaScript for metavariable-pattern in rule 'opt.blitzy-harness.rules.semgrep-rules.html.security.audit.insecure-document-method', `class` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-require on core/src/main/resources/org/apache/spark/ui/static/vis-timeline-graph2d.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/deploy/history/HistoryPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.deploy.history\n\nimport scala.xml.{Node, Unparsed}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.status.api.v1.ApplicationInfo\nimport org.apache.spark.ui.{UIUtils, WebUIPage}\nimport org.apache.spark.ui.UIUtils.formatImportJavaScript\n\nprivate[history] class HistoryPage(parent: HistoryServer) extends WebUIPage(\"\") {\n\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val requestedIncomplete = Option(request.getParameter(\"showIncomplete\"))\n      .getOrElse(\"false\").toBoolean\n\n    val displayApplications = shouldDisplayApplications(requestedIncomplete)\n    val eventLogsUnderProcessCount = parent.getEventLogsUnderProcess()\n    val lastUpdatedTime = parent.getLastUpdatedTime()\n    val providerConfig = parent.getProviderConfig()\n\n    val summary =\n      <div class=\"container-fluid\">\n        <ul class=\"list-unstyled\">\n          {providerConfig.map { case (k, v) => <li><strong>{k}:</strong> {v}</li> }}\n        </ul>\n        {\n          if (eventLogsUnderProcessCount > 0) {\n          <p>There are {eventLogsUnderProcessCount} event log(s) currently being\n            processed which may result in additional applications getting listed on this page.\n            Refresh the page ... (truncated 2675 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/deploy/history/HistoryServer.scala:78:\n `protected override def doGet(req: HttpServletRequest, res: HttpServletResponse): Unit = {\n\n      res.setContentType(\"text/html;charset=utf-8\")\n\n      // Parse the URI created by getAttemptURI(). It contains an app ID and an optional\n      // attempt ID (separated by a slash).\n      val parts = Option(req.getPathInfo()).getOrElse(\"\").split(\"/\")\n      if (parts.length < 2) {\n        res.sendRedirect(\"/\")\n      }\n\n      val appId = parts(1)\n      var shouldAppendAttemptId = false\n      val attemptId = if (parts.length >= 3) {\n        Some(parts(2))\n      } else {\n        val lastAttemptId = provider.getApplicationInfo(appId).flatMap(_.attempts.head.attemptId)\n        if (lastAttemptId.isDefined) {\n          shouldAppendAttemptId = true\n          lastAttemptId\n        } else {\n          None\n        }\n      }\n\n      // Since we may have applications with multiple attempts mixed with applications with a\n      // single attempt, we need to try both. Try the single-attempt route first, and if an\n      // error is raised, then try the multiple attempt route.\n      if (!loadAppUi(appId, None) && (attemptId.isEmpty || !loadAppUi(appId, attemptId))) {\n        val msg = <div class=\"row\">Application {appId} not found.</div>\n        res.setStatus(HttpServletResponse.SC_NOT_FOUND)\n        UIUtils.basicSparkPage(req, msg, \"Not Found\").foreach { n =>\n          res.getWriter().write(n.toString)\n        }\n        return\n      }\n\n      // Note we don't use the UI retrieved from the cache; the cache loader above will register\n      // the app's UI, and all we need to do is redirect the user to the same URI that was\n      // requested, and the proper data should be served at that point.\n      // Also, make sure that the redirect url contains the query string present in the request.\n      val redirect = if (shouldAppendAttemptId) {\n        req.getRequestURI.stripSuffix(\"/\") + \"/\" + attemptId.get + \"/\"\n      } else {\n        req.getRequestURI.stripSuffix(\"/\") + \"/\"\n      }\n      val query = Option(req.getQueryString).map(\"?\" + _).getOr... (truncated 316 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/deploy/history/LogPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.deploy.history\n\nimport scala.xml.{Node, Unparsed}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.SparkConf\nimport org.apache.spark.deploy.Utils.{getLog, DEFAULT_BYTES}\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.ui.{UIUtils, WebUIPage}\n\nprivate[history] class LogPage(conf: SparkConf) extends WebUIPage(\"logPage\") with Logging {\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val logDir = sys.env.getOrElse(\"SPARK_LOG_DIR\", \"logs/\")\n    val logType = request.getParameter(\"logType\")\n    val offset = Option(request.getParameter(\"offset\")).map(_.toLong)\n    val byteLength = Option(request.getParameter(\"byteLength\")).map(_.toInt)\n      .getOrElse(DEFAULT_BYTES)\n    val (logText, startByte, endByte, logLength) =\n      getLog(conf, logDir, logType, offset, byteLength)\n    val curLogLength = endByte - startByte\n    val range =\n      <span id=\"log-data\">\n        Showing {curLogLength} Bytes: {startByte.toString} - {endByte.toString} of {logLength}\n      </span>\n\n    val moreButton =\n      <button type=\"button\" onclick={\"loadMore()\"} class=\"log-more-btn btn btn-secondary\">\n        Load More\n      </button>\n\n    val newButton =\n      <button type=\"button\"... (truncated 989 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/deploy/master/ui/ApplicationPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.deploy.master.ui\n\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.deploy.DeployMessages.{MasterStateResponse, RequestMasterState}\nimport org.apache.spark.deploy.ExecutorState\nimport org.apache.spark.deploy.StandaloneResourceUtils.{formatResourceRequirements, formatResourcesAddresses}\nimport org.apache.spark.deploy.master.ExecutorDesc\nimport org.apache.spark.ui.{ToolTips, UIUtils, WebUIPage}\nimport org.apache.spark.util.Utils\n\nprivate[ui] class ApplicationPage(parent: MasterWebUI) extends WebUIPage(\"app\") {\n\n  private val master = parent.masterEndpointRef\n\n  /** Executor details for a particular application */\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val appId = request.getParameter(\"appId\")\n    val state = master.askSync[MasterStateResponse](RequestMasterState)\n    val app = state.activeApps.find(_.id == appId)\n      .getOrElse(state.completedApps.find(_.id == appId).orNull)\n    if (app == null) {\n      val msg = <div class=\"row\">No running application with ID {appId}</div>\n      return UIUtils.basicSparkPage(request, msg, \"Not Found\")\n    }\n\n    val executorHeaders = Seq(\"ExecutorID\", \"Worker\", \"Cores\", \"Memory\", \"Resource Profile Id\"... (truncated 5133 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/deploy/master/ui/EnvironmentPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.deploy.master.ui\n\nimport scala.jdk.CollectionConverters._\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.{SparkConf, SparkEnv}\nimport org.apache.spark.deploy.SparkHadoopUtil\nimport org.apache.spark.internal.config.UI.MASTER_UI_VISIBLE_ENV_VAR_PREFIXES\nimport org.apache.spark.ui._\nimport org.apache.spark.util.Utils\n\nprivate[ui] class EnvironmentPage(\n    parent: MasterWebUI,\n    conf: SparkConf) extends WebUIPage(\"Environment\") {\n\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val details = SparkEnv.environmentDetails(conf, SparkHadoopUtil.get.newConfiguration(conf),\n      \"\", Seq.empty, Seq.empty, Seq.empty, Map.empty)\n    val jvmInformation = details(\"JVM Information\").sorted\n    val sparkProperties = Utils.redact(conf, details(\"Spark Properties\")).sorted\n    val hadoopProperties = Utils.redact(conf, details(\"Hadoop Properties\")).sorted\n    val systemProperties = Utils.redact(conf, details(\"System Properties\")).sorted\n    val metricsProperties = Utils.redact(conf, details(\"Metrics Properties\")).sorted\n    val classpathEntries = details(\"Classpath Entries\").sorted\n    val prefixes = conf.get(MASTER_UI_VISIBLE_ENV_VAR_PREFIXES)\n    val envir... (truncated 5416 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/deploy/master/ui/LogPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.deploy.master.ui\n\nimport scala.xml.{Node, Unparsed}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.deploy.Utils.{getLog, DEFAULT_BYTES}\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.ui.{UIUtils, WebUIPage}\n\nprivate[ui] class LogPage(parent: MasterWebUI) extends WebUIPage(\"logPage\") with Logging {\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val logDir = sys.env.getOrElse(\"SPARK_LOG_DIR\", \"logs/\")\n    val logType = request.getParameter(\"logType\")\n    val offset = Option(request.getParameter(\"offset\")).map(_.toLong)\n    val byteLength = Option(request.getParameter(\"byteLength\")).map(_.toInt)\n      .getOrElse(DEFAULT_BYTES)\n    val (logText, startByte, endByte, logLength) =\n      getLog(parent.master.conf, logDir, logType, offset, byteLength)\n    val curLogLength = endByte - startByte\n    val range =\n      <span id=\"log-data\">\n        Showing {curLogLength} Bytes: {startByte.toString} - {endByte.toString} of {logLength}\n      </span>\n\n    val moreButton =\n      <button type=\"button\" onclick={\"loadMore()\"} class=\"log-more-btn btn btn-secondary\">\n        Load More\n      </button>\n\n    val newButton =\n      <button type=\"button\" onclick={\"loadNew(... (truncated 959 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/deploy/master/ui/MasterPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.deploy.master.ui\n\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\nimport org.json4s.JValue\n\nimport org.apache.spark.deploy.DeployMessages.{KillDriverResponse, MasterStateResponse, RequestKillDriver, RequestMasterState}\nimport org.apache.spark.deploy.JsonProtocol\nimport org.apache.spark.deploy.StandaloneResourceUtils._\nimport org.apache.spark.deploy.master._\nimport org.apache.spark.internal.config.UI.MASTER_UI_TITLE\nimport org.apache.spark.ui.{UIUtils, WebUIPage}\nimport org.apache.spark.util.Utils\n\nprivate[ui] class MasterPage(parent: MasterWebUI) extends WebUIPage(\"\") {\n  private val master = parent.masterEndpointRef\n  private val title = parent.master.conf.get(MASTER_UI_TITLE)\n  private val jsonFieldPattern = \"/json/([a-zA-Z]+).*\".r\n\n  def getMasterState: MasterStateResponse = {\n    master.askSync[MasterStateResponse](RequestMasterState)\n  }\n\n  override def renderJson(request: HttpServletRequest): JValue = {\n    jsonFieldPattern.findFirstMatchIn(request.getRequestURI()) match {\n      case None => JsonProtocol.writeMasterState(getMasterState)\n      case Some(m) if m.group(1) == \"clusterutilization\" =>\n        JsonProtocol.writeClusterUtilization(getMasterState)\n      case Some(m)... (truncated 13855 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/deploy/worker/ui/LogPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.deploy.worker.ui\n\nimport java.io.File\n\nimport scala.xml.{Node, Unparsed}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.internal.LogKeys.{LOG_TYPE, PATH}\nimport org.apache.spark.ui.{UIUtils, WebUIPage}\nimport org.apache.spark.util.Utils\nimport org.apache.spark.util.logging.RollingFileAppender\n\nprivate[ui] class LogPage(parent: WorkerWebUI) extends WebUIPage(\"logPage\") with Logging {\n  private val worker = parent.worker\n  private val workDir = new File(parent.workDir.toURI.normalize().getPath)\n  private val supportedLogTypes = Set(\"stderr\", \"stdout\", \"out\")\n  private val defaultBytes = 100 * 1024\n\n  def renderLog(request: HttpServletRequest): String = {\n    val appId = Option(request.getParameter(\"appId\"))\n    val executorId = Option(request.getParameter(\"executorId\"))\n    val driverId = Option(request.getParameter(\"driverId\"))\n    val self = Option(request.getParameter(\"self\"))\n    val logType = request.getParameter(\"logType\")\n    val offset = Option(request.getParameter(\"offset\")).map(_.toLong)\n    val byteLength = Option(request.getParameter(\"byteLength\")).map(_.toInt)\n      .getOrElse(defaultBytes)\n\n    val logDir = (appId, executor... (truncated 5344 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/deploy/worker/ui/WorkerPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.deploy.worker.ui\n\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\nimport org.json4s.JValue\n\nimport org.apache.spark.deploy.{ExecutorState, JsonProtocol}\nimport org.apache.spark.deploy.DeployMessages.{RequestWorkerState, WorkerStateResponse}\nimport org.apache.spark.deploy.StandaloneResourceUtils.{formatResourcesAddresses, formatResourcesDetails}\nimport org.apache.spark.deploy.master.DriverState\nimport org.apache.spark.deploy.worker.{DriverRunner, ExecutorRunner}\nimport org.apache.spark.resource.ResourceInformation\nimport org.apache.spark.ui.{UIUtils, WebUIPage}\nimport org.apache.spark.util.Utils\n\nprivate[ui] class WorkerPage(parent: WorkerWebUI) extends WebUIPage(\"\") {\n  private val workerEndpoint = parent.worker.self\n\n  override def renderJson(request: HttpServletRequest): JValue = {\n    val workerState = workerEndpoint.askSync[WorkerStateResponse](RequestWorkerState)\n    JsonProtocol.writeWorkerState(workerState)\n  }\n\n  private def formatWorkerResourcesDetails(workerState: WorkerStateResponse): String = {\n    val totalInfo = workerState.resources\n    val usedInfo = workerState.resourcesUsed\n    val freeInfo = totalInfo.map { case (rName, rInfo) =>\n      val freeAddresses = if (u... (truncated 7529 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/DriverLogPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\npackage org.apache.spark.ui\n\nimport scala.xml.{Node, Unparsed}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.SparkConf\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.internal.LogKeys.{LOG_TYPE, PATH}\nimport org.apache.spark.internal.config.DRIVER_LOG_LOCAL_DIR\nimport org.apache.spark.util.Utils\nimport org.apache.spark.util.logging.DriverLogger.DRIVER_LOG_FILE\nimport org.apache.spark.util.logging.RollingFileAppender\n\n/**\n * Live Spark Driver Log UI Page.\n *\n * This is similar with Spark worker's LogPage class.\n */\nprivate[ui] class DriverLogPage(\n    parent: DriverLogTab,\n    conf: SparkConf)\n  extends WebUIPage(\"\") with Logging {\n  require(conf.get(DRIVER_LOG_LOCAL_DIR).nonEmpty, s\"Please specify ${DRIVER_LOG_LOCAL_DIR.key}.\")\n\n  private val supportedLogTypes = Set(DRIVER_LOG_FILE, \"stderr\", \"stdout\")\n  private val defaultBytes = 100 * 1024\n  private val logDir = conf.get(DRIVER_LOG_LOCAL_DIR).get\n\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val logType = Option(request.getParameter(\"logType\")).getOrElse(DRIVER_LOG_FILE)\n    val offset = Option(request.getParameter(\"offset\")).map(_.toLong)\n    val byteLength = Option(request.getParameter(\"byteLength\")).map(_.toInt)\n... (truncated 3757 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/GraphUIData.scala:82:\n `id={timelineDivId}></div>` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/PagedTable.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui\n\nimport java.net.{URLDecoder, URLEncoder}\nimport java.nio.charset.StandardCharsets.UTF_8\n\nimport scala.jdk.CollectionConverters._\nimport scala.xml.{Node, Unparsed}\n\nimport com.google.common.base.Splitter\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.util.Utils\n\n/**\n * A data source that provides data for a page.\n *\n * @param pageSize the number of rows in a page\n */\nprivate[spark] abstract class PagedDataSource[T](val pageSize: Int) {\n\n  /**\n   * Return the size of all data.\n   */\n  protected def dataSize: Int\n\n  /**\n   * Slice a range of data.\n   */\n  protected def sliceData(from: Int, to: Int): collection.Seq[T]\n\n  /**\n   * Slice the data for this page\n   */\n  def pageData(page: Int): PageData[T] = {\n    // Display all the data in one page, if the pageSize is less than or equal to zero.\n    val pageTableSize = if (pageSize <= 0) {\n      dataSize\n    } else {\n      pageSize\n    }\n    val totalPages = (dataSize + pageTableSize - 1) / pageTableSize\n\n    val pageToShow = if (page <= 0) {\n      1\n    } else if (page > totalPages) {\n      totalPages\n    } else {\n      page\n    }\n\n    val (from, to) = ((pageToShow - 1) * pageSize, dataSize.min(pageToShow * pageTableSize))\n\n    ... (truncated 10361 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/UIUtils.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui\n\nimport java.{util => ju}\nimport java.lang.{Long => JLong}\nimport java.net.URLDecoder\nimport java.nio.charset.StandardCharsets.UTF_8\nimport java.time.{Instant, ZoneId}\nimport java.time.format.DateTimeFormatter\nimport java.util.{Date, Locale, TimeZone}\n\nimport scala.jdk.CollectionConverters._\nimport scala.util.control.NonFatal\nimport scala.xml._\nimport scala.xml.transform.{RewriteRule, RuleTransformer}\n\nimport jakarta.servlet.http.HttpServletRequest\nimport jakarta.ws.rs.core.{MediaType, MultivaluedMap, Response}\nimport org.glassfish.jersey.internal.util.collection.MultivaluedStringMap\n\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.ui.scope.RDDOperationGraph\n\n/** Utility functions for generating XML pages with spark content. */\nprivate[spark] object UIUtils extends Logging {\n  val TABLE_CLASS_NOT_STRIPED = \"table table-bordered table-sm\"\n  val TABLE_CLASS_STRIPED = TABLE_CLASS_NOT_STRIPED + \" table-striped\"\n  val TABLE_CLASS_STRIPED_SORTABLE = TABLE_CLASS_STRIPED + \" sortable\"\n\n  private val dateTimeFormatter = DateTimeFormatter\n    .ofPattern(\"yyyy/MM/dd HH:mm:ss\", Locale.US)\n    .withZone(ZoneId.systemDefault())\n\n  def formatDate(date: Date): String = dateTimeFormatter.format(dat... (truncated 26902 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/env/EnvironmentPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui.env\n\nimport scala.collection.mutable.StringBuilder\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.SparkConf\nimport org.apache.spark.resource.{ExecutorResourceRequest, TaskResourceRequest}\nimport org.apache.spark.status.AppStatusStore\nimport org.apache.spark.ui._\nimport org.apache.spark.util.Utils\n\nprivate[ui] class EnvironmentPage(\n    parent: EnvironmentTab,\n    conf: SparkConf,\n    store: AppStatusStore) extends WebUIPage(\"\") {\n\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val appEnv = store.environmentInfo()\n    val jvmInformation = Map(\n      \"Java Version\" -> appEnv.runtime.javaVersion,\n      \"Java Home\" -> appEnv.runtime.javaHome,\n      \"Scala Version\" -> appEnv.runtime.scalaVersion)\n\n    def constructExecutorRequestString(execReqs: Map[String, ExecutorResourceRequest]): String = {\n      execReqs.map {\n        case (_, execReq) =>\n          val execStr = new StringBuilder(s\"\\t${execReq.resourceName}: [amount: ${execReq.amount}\")\n          if (execReq.discoveryScript.nonEmpty) {\n            execStr ++= s\", discovery: ${execReq.discoveryScript}\"\n          }\n          if (execReq.vendor.nonEmpty) {\n            execStr ++= s\", vendor... (truncated 6702 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/exec/ExecutorHeapHistogramPage.scala:43:\n `=>\n      val rows = heapHistogram.map { row =>\n        row match {\n          case pattern(rank, instances, bytes, name, module) =>\n            <tr class=\"accordion-heading\">\n              <td>{rank}</td>\n              <td>{instances}</td>\n              <td>{bytes}</td>\n              <td>{name}</td>\n              <td>{module}</td>\n            </tr>\n          case pattern(rank, instances, bytes, name) =>\n            <tr class=\"accordion-heading\">\n              <td>{rank}</td>\n              <td>{instances}</td>\n              <td>{bytes}</td>\n              <td>{name}</td>\n              <td></td>\n            </tr>\n          case _ =>\n            // Ignore the first two lines and the last line\n            //\n            //  num     #instances         #bytes  class name (module)\n            // -------------------------------------------------------\n            // ...\n            // Total       1267867       72845688\n        }\n      }\n      <div class=\"row\">\n        <div class=\"col-12\">\n          <p>Updated at {UIUtils.formatDate(time)}</p>\n          <table class={UIUtils.TABLE_CLASS_STRIPED + \" accordion-group\" + \" sortable\"}>\n            <thead>\n              <th>Rank</th>\n              <th>Instances</th>\n              <th>Bytes</th>\n              <th>Class Name</th>\n              <th>Module</th>\n            </thead>\n            <tbody>{rows}</tbody>\n          </table>\n        </div>\n      </div>` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/exec/ExecutorThreadDumpPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui.exec\n\nimport scala.xml.{Node, Text, Unparsed}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.SparkContext\nimport org.apache.spark.internal.config.UI.UI_FLAMEGRAPH_ENABLED\nimport org.apache.spark.status.api.v1.ThreadStackTrace\nimport org.apache.spark.ui.{SparkUITab, UIUtils, WebUIPage}\nimport org.apache.spark.ui.UIUtils.{formatImportJavaScript, prependBaseUri}\nimport org.apache.spark.ui.flamegraph.FlamegraphNode\n\nprivate[ui] class ExecutorThreadDumpPage(\n    parent: SparkUITab,\n    sc: Option[SparkContext]) extends WebUIPage(\"threadDump\") {\n\n  private val flamegraphEnabled = sc.isDefined && sc.get.conf.get(UI_FLAMEGRAPH_ENABLED)\n\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val executorId = Option(request.getParameter(\"executorId\")).map { executorId =>\n      UIUtils.decodeURLParameter(executorId)\n    }.getOrElse {\n      throw new IllegalArgumentException(s\"Missing executorId parameter\")\n    }\n    val time = System.currentTimeMillis()\n    val maybeThreadDump = sc.get.getExecutorThreadDump(executorId)\n\n    val content = maybeThreadDump.map { threadDump =>\n      val dumpRows = threadDump.map { thread =>\n        val threadId = thread.threadId\n        val blocked... (truncated 5958 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/exec/ExecutorsTab.scala:69:\n `=\"active-executors\"></div> ++\n        <script type=\"module\" src={UIUtils.prependBaseUri(request, \"/static/utils.js\")}></script> ++\n        <script type=\"module\"\n                src={UIUtils.prependBaseUri(request, \"/static/executorspage.js\")}></script> ++\n        <script type=\"module\">{Unparsed(js)}</script>` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/jobs/AllJobsPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui.jobs\n\nimport java.net.URLEncoder\nimport java.nio.charset.StandardCharsets.UTF_8\nimport java.util.{Date, Locale}\n\nimport scala.collection.mutable.ListBuffer\nimport scala.xml._\n\nimport jakarta.servlet.http.HttpServletRequest\nimport org.apache.commons.text.StringEscapeUtils\n\nimport org.apache.spark.JobExecutionStatus\nimport org.apache.spark.internal.config.SCHEDULER_MODE\nimport org.apache.spark.internal.config.UI._\nimport org.apache.spark.scheduler._\nimport org.apache.spark.status.AppStatusStore\nimport org.apache.spark.status.api.v1\nimport org.apache.spark.ui._\nimport org.apache.spark.util.Utils\n\n/** Page showing list of all ongoing and recently finished jobs */\nprivate[ui] class AllJobsPage(parent: JobsTab, store: AppStatusStore) extends WebUIPage(\"\") {\n\n  import ApiHelper._\n\n  private val TIMELINE_ENABLED = parent.conf.get(UI_TIMELINE_ENABLED)\n  private val MAX_TIMELINE_JOBS = parent.conf.get(UI_TIMELINE_JOBS_MAXIMUM)\n  private val MAX_TIMELINE_EXECUTORS = parent.conf.get(UI_TIMELINE_EXECUTORS_MAXIMUM)\n\n  private val JOBS_LEGEND =\n    <div class=\"legend-area\"><svg width=\"150px\" height=\"85px\">\n      <rect class=\"succeeded-job-legend\"\n        x=\"5px\" y=\"5px\" width=\"20px\" height=\"15px\" rx=\"2px\" ry=\"2px... (truncated 20216 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/jobs/AllStagesPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui.jobs\n\nimport scala.xml.{Attribute, Elem, Node, NodeSeq, Null, Text}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.scheduler.Schedulable\nimport org.apache.spark.status.{AppSummary, PoolData}\nimport org.apache.spark.status.api.v1.{StageData, StageStatus}\nimport org.apache.spark.ui.{UIUtils, WebUIPage}\n\n/** Page showing list of all ongoing and recently finished stages and pools */\nprivate[ui] class AllStagesPage(parent: StagesTab) extends WebUIPage(\"\") {\n  private val sc = parent.sc\n  private val subPath = \"stages\"\n\n  def render(request: HttpServletRequest): Seq[Node] = {\n    // For now, pool information is only accessible in live UIs\n    val pools = sc.map(_.getAllPools).getOrElse(Seq.empty[Schedulable]).map { pool =>\n      val uiPool = parent.store.asOption(parent.store.pool(pool.name)).getOrElse(\n        new PoolData(pool.name, Set()))\n      pool -> uiPool\n    }.toMap\n    val poolTable = new PoolTable(pools, parent)\n\n    val allStatuses = Seq(StageStatus.ACTIVE, StageStatus.PENDING, StageStatus.COMPLETE,\n      StageStatus.SKIPPED, StageStatus.FAILED)\n\n    val allStages = parent.store.stageList(null)\n    val appSummary = parent.store.appSummary()\n\n    val (summaries, table... (truncated 3834 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/jobs/JobPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui.jobs\n\nimport java.util.Locale\n\nimport scala.collection.mutable.{Buffer, ListBuffer}\nimport scala.xml.{Node, NodeSeq, Unparsed, Utility}\n\nimport jakarta.servlet.http.HttpServletRequest\nimport org.apache.commons.text.StringEscapeUtils\n\nimport org.apache.spark.JobExecutionStatus\nimport org.apache.spark.internal.config.UI._\nimport org.apache.spark.resource.ResourceProfile\nimport org.apache.spark.status.AppStatusStore\nimport org.apache.spark.status.api.v1\nimport org.apache.spark.ui._\n\n/** Page showing statistics and stage list for a given job */\nprivate[ui] class JobPage(parent: JobsTab, store: AppStatusStore) extends WebUIPage(\"job\") {\n\n  private val TIMELINE_ENABLED = parent.conf.get(UI_TIMELINE_ENABLED)\n  private val MAX_TIMELINE_STAGES = parent.conf.get(UI_TIMELINE_STAGES_MAXIMUM)\n  private val MAX_TIMELINE_EXECUTORS = parent.conf.get(UI_TIMELINE_EXECUTORS_MAXIMUM)\n\n  private val STAGES_LEGEND =\n    <div class=\"legend-area\"><svg width=\"150px\" height=\"85px\">\n      <rect class=\"completed-stage-legend\"\n        x=\"5px\" y=\"5px\" width=\"20px\" height=\"15px\" rx=\"2px\" ry=\"2px\"></rect>\n      <text x=\"35px\" y=\"17px\">Completed</text>\n      <rect class=\"failed-stage-legend\"\n        x=\"5px\" y=\"30px\" width=\"20px\" h... (truncated 17696 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/jobs/PoolPage.scala:51:\n `{\n      content ++=\n        <span class=\"collapse-aggregated-poolActiveStages collapse-table\"\n            onClick=\"collapseTable('collapse-aggregated-poolActiveStages',\n            'aggregated-poolActiveStages')\">` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/jobs/PoolTable.scala:34:\n `def toNodeSeq(request: HttpServletRequest): Seq[Node] = {\n    <table class=\"table table-bordered table-striped table-sm sortable table-fixed\">\n      <thead>\n        <tr>\n          <th>Pool Name</th>\n          <th>\n            <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"Pool's minimum share of CPU\n             cores\">Minimum Share</span>\n          </th>\n          <th>\n            <span data-toggle=\"tooltip\" data-placement=\"top\" title=\"Pool's share of cluster\n             resources relative to others\">Pool Weight</span>\n          </th>\n          <th>Active Stages</th>\n          <th>Running Tasks</th>\n          <th>SchedulingMode</th>\n        </tr>\n      </thead>\n      <tbody>\n        {pools.map { case (s, p) => poolRow(request, s, p) }}\n      </tbody>\n    </table>\n  }\n\n  ` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/jobs/StagePage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui.jobs\n\nimport java.util.Date\n\nimport scala.collection.mutable.HashSet\nimport scala.xml.{Node, Unparsed}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.internal.config.UI._\nimport org.apache.spark.scheduler.TaskLocality\nimport org.apache.spark.status._\nimport org.apache.spark.status.api.v1._\nimport org.apache.spark.ui._\nimport org.apache.spark.ui.UIUtils.formatImportJavaScript\nimport org.apache.spark.util.Utils\n\n/** Page showing statistics and task list for a given stage */\nprivate[ui] class StagePage(parent: StagesTab, store: AppStatusStore) extends WebUIPage(\"stage\") {\n  import ApiHelper._\n\n  private val TIMELINE_ENABLED = parent.conf.get(UI_TIMELINE_ENABLED)\n\n  private val TIMELINE_LEGEND = {\n    <div class=\"legend-area\">\n      <svg>\n        {\n          val legendPairs = List((\"scheduler-delay-proportion\", \"Scheduler Delay\"),\n            (\"deserialization-time-proportion\", \"Task Deserialization Time\"),\n            (\"shuffle-read-time-proportion\", \"Shuffle Read Time\"),\n            (\"executor-runtime-proportion\", \"Executor Computing Time\"),\n            (\"shuffle-write-time-proportion\", \"Shuffle Write Time\"),\n            (\"serialization-time-proportion\", \"Result Serializatio... (truncated 21938 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/jobs/StageTable.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui.jobs\n\nimport java.net.URLEncoder\nimport java.nio.charset.StandardCharsets.UTF_8\nimport java.util.Date\n\nimport scala.xml._\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.status.AppStatusStore\nimport org.apache.spark.status.api.v1\nimport org.apache.spark.ui._\nimport org.apache.spark.util.Utils\n\nprivate[ui] class StageTableBase(\n    store: AppStatusStore,\n    request: HttpServletRequest,\n    stages: Seq[v1.StageData],\n    tableHeaderID: String,\n    stageTag: String,\n    basePath: String,\n    subPath: String,\n    isFairScheduler: Boolean,\n    killEnabled: Boolean,\n    isFailedStage: Boolean) {\n\n  val stagePage = Option(request.getParameter(stageTag + \".page\")).map(_.toInt).getOrElse(1)\n\n  val currentTime = System.currentTimeMillis()\n\n  val toNodeSeq = try {\n    new StagePagedTable(\n      store,\n      stages,\n      tableHeaderID,\n      stageTag,\n      basePath,\n      subPath,\n      isFairScheduler,\n      killEnabled,\n      currentTime,\n      isFailedStage,\n      request\n    ).table(stagePage)\n  } catch {\n    case e @ (_ : IllegalArgumentException | _ : IndexOutOfBoundsException) =>\n      <div class=\"alert alert-error\">\n        <p>Error while rendering stage table:</p>\n        <... (truncated 10866 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/jobs/TaskThreadDumpPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui.jobs\n\nimport scala.xml.{Node, Text}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.SparkContext\nimport org.apache.spark.ui.{SparkUITab, UIUtils, WebUIPage}\n\nprivate[spark] class TaskThreadDumpPage(\n    parent: SparkUITab,\n    sc: Option[SparkContext]) extends WebUIPage(\"taskThreadDump\") {\n\n  private def executorThreadDumpUrl(\n      request: HttpServletRequest,\n      executorId: String,\n      blockingThreadId: Long): String = {\n    val uiRoot = UIUtils.prependBaseUri(request, parent.basePath)\n    s\"$uiRoot/executors/?executorId=$executorId#${blockingThreadId}_td_id\"\n  }\n\n  override def render(request: HttpServletRequest): Seq[Node] = {\n    val executorId = Option(request.getParameter(\"executorId\")).map { executorId =>\n      UIUtils.decodeURLParameter(executorId)\n    }.getOrElse {\n      throw new IllegalArgumentException(s\"Missing executorId parameter\")\n    }\n    val taskId = Option(request.getParameter(\"taskId\")).map { taskId =>\n      val decoded = UIUtils.decodeURLParameter(taskId)\n      decoded.toLong\n    }.getOrElse {\n      throw new IllegalArgumentException(s\"Missing taskId parameter\")\n    }\n\n    val time = System.currentTimeMillis()\n    val maybeThreadDump = sc.get.get... (truncated 1873 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/storage/RDDPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui.storage\n\nimport java.net.URLEncoder\nimport java.nio.charset.StandardCharsets.UTF_8\n\nimport scala.xml.{Node, Unparsed}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.status.AppStatusStore\nimport org.apache.spark.status.api.v1.{ExecutorSummary, RDDDataDistribution, RDDPartitionInfo}\nimport org.apache.spark.ui._\nimport org.apache.spark.util.Utils\n\n/** Page showing storage details for a given RDD */\nprivate[ui] class RDDPage(parent: SparkUITab, store: AppStatusStore) extends WebUIPage(\"rdd\") {\n\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val parameterId = request.getParameter(\"id\")\n    require(parameterId != null && parameterId.nonEmpty, \"Missing id parameter\")\n\n    val blockPage = Option(request.getParameter(\"block.page\")).map(_.toInt).getOrElse(1)\n\n    val rddId = parameterId.toInt\n    val rddStorageInfo = try {\n      store.rdd(rddId)\n    } catch {\n      case _: NoSuchElementException =>\n        // Rather than crashing, render an \"RDD Not Found\" page\n        return UIUtils.headerSparkPage(request, \"RDD Not Found\", Seq.empty[Node], parent)\n    }\n\n    // Worker table\n    val workerTable = UIUtils.listingTable(workerHeader, workerRow,\n      rddStorageInfo.dataD... (truncated 6808 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line core/src/main/scala/org/apache/spark/ui/storage/StoragePage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.ui.storage\n\nimport scala.collection.SortedMap\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.status.{AppStatusStore, StreamBlockData}\nimport org.apache.spark.status.api.v1\nimport org.apache.spark.ui._\nimport org.apache.spark.ui.storage.ToolTips._\nimport org.apache.spark.util.Utils\n\n/** Page showing list of RDD's currently stored in the cluster */\nprivate[ui] class StoragePage(parent: SparkUITab, store: AppStatusStore) extends WebUIPage(\"\") {\n\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val content = rddTable(request, store.rddList()) ++\n      receiverBlockTables(store.streamBlocksList())\n    UIUtils.headerSparkPage(request, \"Storage\", content, parent)\n  }\n\n  private[storage] def rddTable(\n      request: HttpServletRequest,\n      rdds: Seq[v1.RDDStorageInfo]): Seq[Node] = {\n    if (rdds.isEmpty) {\n      // Don't show the rdd table if there is no RDD persisted.\n      Nil\n    } else {\n      <div>\n        <span class=\"collapse-aggregated-rdds collapse-table\"\n            onClick=\"collapseTable('collapse-aggregated-rdds','aggregated-rdds')\">\n          <h4>\n            <span class=\"collapse-table-arrow arrow-open\"></span>\n            <a>RDDs ({... (truncated 5642 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line resource-managers/kubernetes/docker/src/main/dockerfiles/spark/entrypoint.sh:20:\n `set -ex\n\n# Check whether there is a passwd entry for the container UID\nmyuid=$(id -u)\nmygid=$(id -g)\n# turn off -e for getent because it will return error code in anonymous uid case\nset +e\nuidentry=$(getent passwd $myuid)\nset -e\n\n# If there is no passwd entry for the container UID, attempt to create one\nif [ -z \"$uidentry\" ] ; then\n    if [ -w /etc/passwd ] ; then\n        echo \"$myuid:x:$myuid:$mygid:${SPARK_USER_NAME:-anonymous uid}:$SPARK_HOME:/bin/false\" >> /etc/passwd\n    else\n        echo \"Container ENTRYPOINT failed to add passwd entry for anonymous UID\"\n    fi\nfi\n\nif [ -z \"$JAVA_HOME\" ]; then\n  JAVA_HOME=$(java -XshowSettings:properties -version 2>&1 > /dev/null | grep 'java.home' | awk '{print $3}')\nfi\n\nSPARK_CLASSPATH=\"$SPARK_CLASSPATH:${SPARK_HOME}/jars/*\"\nenv | grep SPARK_JAVA_OPT_ | sort -t_ -k4 -n | sed 's/[^=]*=\\(.*\\)/\\1/g' > java_opts.txt\nif [ \"$(command -v readarray)\" ]; then\n  readarray -t SPARK_EXECUTOR_JAVA_OPTS < java_opts.txt\nelse\n  SPARK_EXECUTOR_JAVA_OPTS=(\"${(@f)$(< java_opts.txt)}\")\nfi\n\nif [ -n \"$SPARK_EXTRA_CLASSPATH\" ]; then\n  SPARK_CLASSPATH=\"$SPARK_CLASSPATH:$SPARK_EXTRA_CLASSPATH\"\nfi\n\nif ! [ -z ${PYSPARK_PYTHON+x} ]; then\n    export PYSPARK_PYTHON\nfi\nif ! [ -z ${PYSPARK_DRIVER_PYTHON+x} ]; then\n    export PYSPARK_DRIVER_PYTHON\nfi\n\n# If HADOOP_HOME is set and SPARK_DIST_CLASSPATH is not set, set it here so Hadoop jars are available to the executor.\n# It does not set SPARK_DIST_CLASSPATH if already set, to avoid overriding customizations of this value from elsewhere e.g. Docker/K8s.\nif [ -n \"${HADOOP_HOME}\"  ] && [ -z \"${SPARK_DIST_CLASSPATH}\"  ]; then\n  export SPARK_DIST_CLASSPATH=\"$($HADOOP_HOME/bin/hadoop classpath)\"\nfi\n\nif ! [ -z ${HADOOP_CONF_DIR+x} ]; then\n  SPARK_CLASSPATH=\"$HADOOP_CONF_DIR:$SPARK_CLASSPATH\";\nfi\n\nif ! [ -z ${SPARK_CONF_DIR+x} ]; then\n  SPARK_CLASSPATH=\"$SPARK_CONF_DIR:$SPARK_CLASSPATH\";\nelif ! [ -z ${SPARK_HOME+x} ]; then\n  SPARK_CLASSPATH=\"$SPARK_HOME/conf:$SPARK_CLASSPATH\";\nfi\n\n# SPARK-43540: add current working directory into executor classpath\nSPARK_CLASSPA... (truncated 1119 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/analysis/resolver/DelegatesResolutionToExtensions.scala:50:\n `=>` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line sql/catalyst/src/main/scala/org/apache/spark/sql/connector/catalog/CatalogManager.scala:69:\n `= {\n    Catalogs.load(SESSION_CATALOG_NAME, conf) match {\n      case extension: CatalogExtension =>\n        extension.setDelegateCatalog(defaultSessionCatalog)\n        extension\n      case other => other` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line sql/connect/server/src/main/scala/org/apache/spark/sql/connect/ui/SparkConnectServerPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.sql.connect.ui\n\nimport java.net.URLEncoder\nimport java.nio.charset.StandardCharsets.UTF_8\n\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.sql.connect.ui.ToolTips._\nimport org.apache.spark.ui._\nimport org.apache.spark.ui.UIUtils._\nimport org.apache.spark.util.Utils\n\n/** Page for Spark UI that shows statistics for a Spark Connect Server. */\nprivate[ui] class SparkConnectServerPage(parent: SparkConnectServerTab)\n    extends WebUIPage(\"\")\n    with Logging {\n\n  private val store = parent.store\n  private val startTime = parent.startTime\n\n  /** Render the page */\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val content = store.synchronized { // make sure all parts in this page are consistent\n      generateBasicStats() ++\n        <br/> ++\n        <h4>\n          {store.getOnlineSessionNum}\n          session(s) are online,\n          running\n          {store.getTotalRunning}\n          Request(s)\n        </h4> ++\n        generateSessionStatsTable(request) ++\n        generateSQLStatsTable(request)\n    }\n    UIUtils.headerSparkPage(request, \"Spark Connect\", content, parent)\n  }\n\n  /** Generate basic stats of the... (truncated 15693 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line sql/connect/server/src/main/scala/org/apache/spark/sql/connect/ui/SparkConnectServerSessionPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.sql.connect.ui\n\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.ui._\nimport org.apache.spark.ui.UIUtils._\nimport org.apache.spark.util.Utils\n\n/** Page for Spark UI that contains information pertaining to a single Spark Connect session */\nprivate[ui] class SparkConnectServerSessionPage(parent: SparkConnectServerTab)\n    extends WebUIPage(\"session\")\n    with Logging {\n\n  val store = parent.store\n  private val startTime = parent.startTime\n\n  /** Render the page */\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val sessionId = request.getParameter(\"id\")\n    require(sessionId != null && sessionId.nonEmpty, \"Missing id parameter\")\n\n    val content = store.synchronized { // make sure all parts in this page are consistent\n      store\n        .getSession(sessionId)\n        .map { sessionStat =>\n          generateBasicStats(sessionId) ++\n            <br/> ++\n            <h4>\n            User\n            {sessionStat.userId}\n            ,\n            Session created at\n            {formatDate(sessionStat.startTimestamp)}\n            ,\n            Total run\n            {sessionStat.totalExecution}\n            Req... (truncated 2468 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line sql/core/src/main/scala/org/apache/spark/sql/execution/QueryExecution.scala:441:\n `${extension.title}) ==` was unexpected"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line sql/core/src/main/scala/org/apache/spark/sql/execution/ui/AllExecutionsPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.sql.execution.ui\n\nimport java.net.URLEncoder\nimport java.nio.charset.StandardCharsets.UTF_8\n\nimport scala.collection.mutable\nimport scala.xml.{Node, NodeSeq}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.JobExecutionStatus\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.internal.config.UI.UI_SQL_GROUP_SUB_EXECUTION_ENABLED\nimport org.apache.spark.sql.errors.QueryExecutionErrors\nimport org.apache.spark.ui.{PagedDataSource, PagedTable, UIUtils, WebUIPage}\nimport org.apache.spark.util.Utils\n\nprivate[ui] class AllExecutionsPage(parent: SQLTab) extends WebUIPage(\"\") with Logging {\n\n  private val sqlStore = parent.sqlStore\n  private val groupSubExecutionEnabled = parent.conf.get(UI_SQL_GROUP_SUB_EXECUTION_ENABLED)\n\n  override def render(request: HttpServletRequest): Seq[Node] = {\n    val currentTime = System.currentTimeMillis()\n    val running = new mutable.ArrayBuffer[SQLExecutionUIData]()\n    val completed = new mutable.ArrayBuffer[SQLExecutionUIData]()\n    val failed = new mutable.ArrayBuffer[SQLExecutionUIData]()\n    val executionIdToSubExecutions =\n      new mutable.HashMap[Long, mutable.ArrayBuffer[SQLExecutionUIData]]()\n\n    sqlStore.executionsList().foreac... (truncated 18037 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line sql/core/src/main/scala/org/apache/spark/sql/execution/ui/ExecutionPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.sql.execution.ui\n\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\nimport org.json4s.JNull\nimport org.json4s.JsonAST.{JBool, JString}\nimport org.json4s.jackson.JsonMethods.parse\n\nimport org.apache.spark.JobExecutionStatus\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.internal.config.UI.UI_SQL_GROUP_SUB_EXECUTION_ENABLED\nimport org.apache.spark.ui.{UIUtils, WebUIPage}\n\nclass ExecutionPage(parent: SQLTab) extends WebUIPage(\"execution\") with Logging {\n\n  private val pandasOnSparkConfPrefix = \"pandas_on_Spark.\"\n\n  private val sqlStore = parent.sqlStore\n  private val groupSubExecutionEnabled = parent.conf.get(UI_SQL_GROUP_SUB_EXECUTION_ENABLED)\n\n\n  override def render(request: HttpServletRequest): Seq[Node] = {\n    val parameterExecutionId = request.getParameter(\"id\")\n    require(parameterExecutionId != null && parameterExecutionId.nonEmpty,\n      \"Missing execution id parameter\")\n\n    val executionId = parameterExecutionId.toLong\n    val content = sqlStore.execution(executionId).map { executionUIData =>\n      val currentTime = System.currentTimeMillis()\n      val duration = executionUIData.completionTime.map(_.getTime()).getOrElse(currentTime) -\n        executionUID... (truncated 7594 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line sql/core/src/main/scala/org/apache/spark/sql/streaming/ui/StreamingQueryPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.sql.streaming.ui\n\nimport java.net.URLEncoder\nimport java.nio.charset.StandardCharsets.UTF_8\n\nimport scala.collection.mutable\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.sql.streaming.ui.UIUtils._\nimport org.apache.spark.ui.{PagedDataSource, PagedTable, UIUtils => SparkUIUtils, WebUIPage}\nimport org.apache.spark.util.Utils\n\nprivate[ui] class StreamingQueryPage(parent: StreamingQueryTab)\n    extends WebUIPage(\"\") with Logging {\n\n  override def render(request: HttpServletRequest): Seq[Node] = {\n    val content = generateStreamingQueryTable(request)\n    SparkUIUtils.headerSparkPage(request, \"Streaming Query\", content, parent)\n  }\n\n  private def generateStreamingQueryTable(request: HttpServletRequest): Seq[Node] = {\n    val (activeQueries, inactiveQueries) =\n      parent.store.allQueryUIData.partition(_.summary.isActive)\n\n    val content = mutable.ListBuffer[Node]()\n    // show active queries table only if there is at least one active query\n    if (activeQueries.nonEmpty) {\n      // scalastyle:off\n      content ++=\n        <span id=\"active\" class=\"collapse-aggregated-activeQueries collapse-table\"\n            onClick... (truncated 7809 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line sql/core/src/main/scala/org/apache/spark/sql/streaming/ui/StreamingQueryStatisticsPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.sql.streaming.ui\n\nimport java.{util => ju}\nimport java.lang.{Long => JLong}\nimport java.util.Locale\n\nimport scala.jdk.CollectionConverters._\nimport scala.xml.{Node, NodeBuffer, Unparsed}\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.sql.execution.streaming.state.StateStoreProvider\nimport org.apache.spark.sql.internal.SQLConf.STATE_STORE_PROVIDER_CLASS\nimport org.apache.spark.sql.internal.StaticSQLConf.ENABLED_STREAMING_UI_CUSTOM_METRIC_LIST\nimport org.apache.spark.sql.streaming.ui.UIUtils._\nimport org.apache.spark.ui.{GraphUIData, JsCollector, UIUtils => SparkUIUtils, WebUIPage}\nimport org.apache.spark.util.ArrayImplicits._\n\nprivate[ui] class StreamingQueryStatisticsPage(parent: StreamingQueryTab)\n  extends WebUIPage(\"statistics\") with Logging {\n\n  // State store provider implementation mustn't do any heavyweight initialiation in constructor\n  // but in its init method.\n  private val supportedCustomMetrics = StateStoreProvider.create(\n    parent.parent.conf.get(STATE_STORE_PROVIDER_CLASS)).supportedCustomMetrics\n  logDebug(s\"Supported custom metrics: $supportedCustomMetrics\")\n\n  private val enabledCustomMetrics =\n    parent.parent.con... (truncated 22480 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line sql/hive-thriftserver/src/main/scala/org/apache/spark/sql/hive/thriftserver/ui/ThriftServerPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.sql.hive.thriftserver.ui\n\nimport java.net.URLEncoder\nimport java.nio.charset.StandardCharsets.UTF_8\n\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.sql.hive.thriftserver.ui.ToolTips._\nimport org.apache.spark.ui._\nimport org.apache.spark.ui.UIUtils._\nimport org.apache.spark.util.Utils\n\n/** Page for Spark Web UI that shows statistics of the thrift server */\nprivate[ui] class ThriftServerPage(parent: ThriftServerTab) extends WebUIPage(\"\") with Logging {\n  private val store = parent.store\n  private val startTime = parent.startTime\n\n  /** Render the page */\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val content = store.synchronized { // make sure all parts in this page are consistent\n      generateBasicStats() ++\n          <br/> ++\n        <h4>\n          {store.getOnlineSessionNum}\n          session(s) are online,\n          running\n          {store.getTotalRunning}\n          SQL statement(s)\n        </h4> ++\n        generateSessionStatsTable(request) ++\n        generateSQLStatsTable(request)\n    }\n    UIUtils.headerSparkPage(request, \"JDBC/ODBC Server\", content, parent)\n  }\n\n  /** Generate basic stats... (truncated 13261 more characters)"
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Syntax error"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Syntax error at line sql/hive-thriftserver/src/main/scala/org/apache/spark/sql/hive/thriftserver/ui/ThriftServerSessionPage.scala:1:\n `/*\n * Licensed to the Apache Software Foundation (ASF) under one or more\n * contributor license agreements.  See the NOTICE file distributed with\n * this work for additional information regarding copyright ownership.\n * The ASF licenses this file to You under the Apache License, Version 2.0\n * (the \"License\"); you may not use this file except in compliance with\n * the License.  You may obtain a copy of the License at\n *\n *    http://www.apache.org/licenses/LICENSE-2.0\n *\n * Unless required by applicable law or agreed to in writing, software\n * distributed under the License is distributed on an \"AS IS\" BASIS,\n * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n * See the License for the specific language governing permissions and\n * limitations under the License.\n */\n\npackage org.apache.spark.sql.hive.thriftserver.ui\n\nimport scala.xml.Node\n\nimport jakarta.servlet.http.HttpServletRequest\n\nimport org.apache.spark.internal.Logging\nimport org.apache.spark.ui._\nimport org.apache.spark.ui.UIUtils._\nimport org.apache.spark.util.Utils\n\n/** Page for Spark Web UI that shows statistics of jobs running in the thrift server */\nprivate[ui] class ThriftServerSessionPage(parent: ThriftServerTab)\n  extends WebUIPage(\"session\") with Logging {\n  val store = parent.store\n  private val startTime = parent.startTime\n\n  /** Render the page */\n  def render(request: HttpServletRequest): Seq[Node] = {\n    val parameterId = request.getParameter(\"id\")\n    require(parameterId != null && parameterId.nonEmpty, \"Missing id parameter\")\n\n    val content = store.synchronized { // make sure all parts in this page are consistent\n        val sessionStat = store.getSession(parameterId).orNull\n        require(sessionStat != null, \"Invalid sessionID[\" + parameterId + \"]\")\n\n        generateBasicStats() ++\n        <br/> ++\n        <h4>\n        User {sessionStat.userName},\n        IP {sessionStat.ip},\n        Session created at {formatDate(sessionStat.startTimestamp)},\n        Total run {sessionStat.totalExecution} SQL\n        </h4> ... (truncated 2204 more characters)"
+              }
+            }
+          ]
         }
       ],
-      "originalUriBaseIds": {
-        "%SRCROOT%": {
-          "uri": "file:///opt/spark-src/"
-        }
-      },
       "results": [
         {
           "fingerprints": {
             "matchBasedId/v1": "requires login"
           },
-          "level": "error",
           "locations": [
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+                  "uri": "common/network-common/src/main/java/org/apache/spark/network/buffer/FileSegmentManagedBuffer.java",
                   "uriBaseId": "%SRCROOT%"
                 },
                 "region": {
-                  "endColumn": 49,
-                  "endLine": 76,
+                  "endColumn": 8,
+                  "endLine": 114,
                   "snippet": {
-                    "text": "s\"Attempting to put block $blockId\""
-                  },
-                  "startColumn": 14,
-                  "startLine": 76
-                }
-              }
-            }
-          ],
-          "message": {
-            "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
-          },
-          "properties": {},
-          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.tainted-sql-string"
-        },
-        {
-          "fingerprints": {
-            "matchBasedId/v1": "requires login"
-          },
-          "level": "warning",
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "endColumn": 85,
-                  "endLine": 86,
-                  "snippet": {
-                    "text": "      BlockPushReturnCode pushResponse =\n        (BlockPushReturnCode) BlockTransferMessage.Decoder.fromByteBuffer(response);"
+                    "text": "      if (shouldClose) {\n        JavaUtils.closeQuietly(is);\n      }"
                   },
                   "startColumn": 7,
-                  "startLine": 85
+                  "startLine": 112
                 }
               }
             }
           ],
           "message": {
-            "text": "Found object deserialization using ObjectInputStream. Deserializing entire Java objects is dangerous because malicious actors can create Java object streams with unintended consequences. Ensure that the objects being deserialized are not user-controlled. If this must be done, consider using HMACs to sign the data stream to make sure it is not tampered with, or consider only transmitting object fields and populating a new object."
+            "text": "This if statement will always have the same behavior and is therefore unnecessary."
           },
           "properties": {},
-          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.object-deserialization"
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.java.lang.correctness.hardcoded-conditional"
         },
         {
           "fingerprints": {
             "matchBasedId/v1": "requires login"
           },
-          "level": "note",
           "locations": [
             {
               "physicalLocation": {
                 "artifactLocation": {
-                  "uri": "python/pyspark/ml/tests/test_evaluation.py",
+                  "uri": "core/src/main/resources/org/apache/spark/ui/static/historypage.js",
                   "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "endColumn": 69,
-                  "endLine": 59,
-                  "snippet": {
-                    "text": "tempfile.TemporaryDirectory(prefix=\"ranking_evaluator\")"
-                  },
-                  "startColumn": 14,
-                  "startLine": 59
-                }
-              }
-            }
-          ],
-          "message": {
-            "text": "Use tempfile.NamedTemporaryFile instead. From the official Python documentation: THIS FUNCTION IS UNSAFE AND SHOULD NOT BE USED. The file name may refer to a file that did not exist at some point, but by the time you get around to creating it, someone else may have beaten you to the punch."
-          },
-          "properties": {},
-          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-insecure"
-        },
-        {
-          "fingerprints": {
-            "matchBasedId/v1": "requires login"
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "python/pyspark/ml/tests/test_evaluation.py",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "endColumn": 88,
-                  "endLine": 157,
-                  "snippet": {
-                    "text": "tempfile.TemporaryDirectory(prefix=\"multi_class_classification_evaluator\")"
-                  },
-                  "startColumn": 14,
-                  "startLine": 157
-                }
-              }
-            }
-          ],
-          "message": {
-            "text": "Use tempfile.NamedTemporaryFile instead. From the official Python documentation: THIS FUNCTION IS UNSAFE AND SHOULD NOT BE USED. The file name may refer to a file that did not exist at some point, but by the time you get around to creating it, someone else may have beaten you to the punch."
-          },
-          "properties": {},
-          "ruleIndex": 4
-        },
-        {
-          "fingerprints": {
-            "matchBasedId/v1": "requires login"
-          },
-          "level": "warning",
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
-                  "uriBaseId": "%SRCROOT%"
-                },
-                "region": {
-                  "endColumn": 6,
-                  "endLine": 85,
-                  "snippet": {
-                    "text": "    if (shuffleServiceFetchRddEnabled) {\n      diskManager.createWorldReadableFile(file)\n    }"
-                  },
-                  "startColumn": 5,
-                  "startLine": 83
-                }
-              }
-            }
-          ],
-          "message": {
-            "text": "Fixture finding for multi-valued CVE selection: the rule metadata lists three CVE identifiers out of ascending order."
-          },
-          "properties": {},
-          "ruleId": "fixture.adapter-tests.semgrep.multi-cve-tag-ordering"
-        },
-        {
-          "fingerprints": {
-            "matchBasedId/v1": "requires login"
-          },
-          "locations": [
-            {
-              "physicalLocation": {
-                "artifactLocation": {
-                  "uri": "python/pyspark/ml/tests/test_evaluation.py"
                 },
                 "region": {
                   "endColumn": 56,
-                  "endLine": 337,
+                  "endLine": 49,
                   "snippet": {
-                    "text": "tempfile.TemporaryDirectory(prefix=\"save\")"
+                    "text": "  var regex = new RegExp(\"[\\\\?&]\" + name + \"=([^&#]*)\"),"
                   },
-                  "startColumn": 14,
-                  "startLine": 337
+                  "startColumn": 15,
+                  "startLine": 49
                 }
               }
             }
           ],
           "message": {
-            "text": "Using 'tmp_dir.name' without '.flush()' or '.close()' may cause an error because the file may not exist when 'tmp_dir.name' is used. Use '.flush()' or close the file before using 'tmp_dir.name'."
+            "text": "RegExp() called with a `name` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as https://www.npmjs.com/package/recheck to verify that the regex does not appear vulnerable to ReDoS."
           },
           "properties": {},
-          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-without-flush"
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/broadcast/TorrentBroadcast.scala",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 25,
+                  "endLine": 27,
+                  "snippet": {
+                    "text": "import scala.util.Random"
+                  },
+                  "startColumn": 1,
+                  "startLine": 27
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Flags the use of a predictable random value from `scala.util.Random`. This can lead to vulnerabilities when used in security contexts, such as in a CSRF token, password reset token, or any other secret value. To fix this, use java.security.SecureRandom instead."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.insecure-random"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python/pyspark/cloudpickle/cloudpickle.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 58,
+                  "endLine": 197,
+                  "snippet": {
+                    "text": "        return _pickle_getattribute(obj, name.split('.'))"
+                  },
+                  "startColumn": 16,
+                  "startLine": 197
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.python.lang.security.deserialization.avoid-pickle"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python/pyspark/ml/connect/classification.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 17,
+                  "endLine": 90,
+                  "snippet": {
+                    "text": "    import torch"
+                  },
+                  "startColumn": 5,
+                  "startLine": 90
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Possibly found usage of AI tooling: PyTorch"
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.ai.python.detect-pytorch"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python/pyspark/tests/test_appsubmit.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 29,
+                  "endLine": 58,
+                  "snippet": {
+                    "text": "        with open(path, \"w\") as f:"
+                  },
+                  "startColumn": 14,
+                  "startLine": 58
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Missing 'encoding' parameter. 'open()' uses device locale encodings by default, corrupting files with special characters. Specify the encoding to ensure cross-platform support when opening files in text mode (e.g. encoding=\"utf-8\")."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.python.lang.best-practice.unspecified-open-encoding"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 42,
+                  "endLine": 20,
+                  "snippet": {
+                    "text": "FROM ${java_image_name}:${java_image_tag}"
+                  },
+                  "startColumn": 1,
+                  "startLine": 20
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "To ensure reproducible builds, pin Dockerfile `FROM` commands to a specific hash. You can find the hash by running `docker pull ${java_image_name}` and then  specify it with `${java_image_name}:${java_image_tag}@sha256:<hash goes here>`"
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.dockerfile.audit.dockerfile-source-not-pinned"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 4,
+                  "endLine": 98,
+                  "snippet": {
+                    "text": "  public static void sendRedirect(HttpServletRequest request,\n      HttpServletResponse response,\n      String target)\n      throws IOException {\n    LOG.debug(\"Redirecting {} {} to {}\",\n          request.getMethod(),\n          request.getRequestURI(),\n          target);\n    String location = response.encodeRedirectURL(target);\n    response.setStatus(HttpServletResponse.SC_FOUND);\n    response.setHeader(LOCATION, location);\n    response.setContentType(MimeType.HTML);\n    PrintWriter writer = response.getWriter();\n    Page p = new Page(writer);\n    p.html()\n      .head().title(\"Moved\").__()\n      .body()\n      .h1(\"Moved\")\n      .div()\n        .__(\"Content has moved \")\n        .a(location, \"here\").__()\n      .__().__();\n    writer.close();\n  }"
+                  },
+                  "startColumn": 3,
+                  "startLine": 75
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.url-rewriting"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "sql/core/src/main/resources/org/apache/spark/sql/execution/ui/static/spark-sql-viz.js",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 36,
+                  "endLine": 229,
+                  "snippet": {
+                    "text": "        $(this).append(newTexts[2]);"
+                  },
+                  "startColumn": 9,
+                  "startLine": 229
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "User controlled data in a jQuery's `.append(...)` is an anti-pattern that can lead to XSS vulnerabilities"
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.javascript.jquery.security.audit.jquery-insecure-method"
         }
       ],
       "tool": {
         "driver": {
-          "informationUri": "https://semgrep.dev",
           "name": "Semgrep OSS",
           "rules": [
             {
               "defaultConfiguration": {
-                "level": "error"
+                "level": "note"
               },
               "fullDescription": {
-                "text": "Using '$F.name' without '.flush()' or '.close()' may cause an error because the file may not exist when '$F.name' is used. Use '.flush()' or close the file before using '$F.name'."
+                "text": "Possibly found usage of AI tooling: PyTorch"
               },
-              "id": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-without-flush",
-              "name": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-without-flush",
+              "help": {
+                "markdown": "Possibly found usage of AI tooling: PyTorch\n\n<b>References:</b>\n - [https://semgrep.dev/blog/2024/detecting-shadow-ai](https://semgrep.dev/blog/2024/detecting-shadow-ai)\n",
+                "text": "Possibly found usage of AI tooling: PyTorch"
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.ai.python.detect-pytorch",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.ai.python.detect-pytorch",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "LOW CONFIDENCE"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.ai.python.detect-pytorch"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "fullDescription": {
+                "text": "To ensure reproducible builds, pin Dockerfile `FROM` commands to a specific hash. You can find the hash by running `docker pull $IMAGE` and then  specify it with `$IMAGE:$VERSION@sha256:<hash goes here>`"
+              },
+              "help": {
+                "markdown": "To ensure reproducible builds, pin Dockerfile `FROM` commands to a specific hash. You can find the hash by running `docker pull $IMAGE` and then  specify it with `$IMAGE:$VERSION@sha256:<hash goes here>`\n\n<b>References:</b>\n - [https://stackoverflow.com/a/33511811/4965](https://stackoverflow.com/a/33511811/4965)\n",
+                "text": "To ensure reproducible builds, pin Dockerfile `FROM` commands to a specific hash. You can find the hash by running `docker pull $IMAGE` and then  specify it with `$IMAGE:$VERSION@sha256:<hash goes here>`"
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.dockerfile.audit.dockerfile-source-not-pinned",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.dockerfile.audit.dockerfile-source-not-pinned",
               "properties": {
                 "precision": "very-high",
                 "tags": []
               },
               "shortDescription": {
-                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-without-flush"
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.dockerfile.audit.dockerfile-source-not-pinned"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "This if statement will always have the same behavior and is therefore unnecessary."
+              },
+              "help": {
+                "markdown": "This if statement will always have the same behavior and is therefore unnecessary.",
+                "text": "This if statement will always have the same behavior and is therefore unnecessary."
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.java.lang.correctness.hardcoded-conditional",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.java.lang.correctness.hardcoded-conditional",
+              "properties": {
+                "precision": "very-high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.java.lang.correctness.hardcoded-conditional"
               }
             },
             {
@@ -219,10 +1957,120 @@
                 "level": "warning"
               },
               "fullDescription": {
-                "text": "Found object deserialization using ObjectInputStream. Deserializing entire Java objects is dangerous because malicious actors can create Java object streams with unintended consequences. Ensure that the objects being deserialized are not user-controlled. If this must be done, consider using HMACs to sign the data stream to make sure it is not tampered with, or consider only transmitting object fields and populating a new object."
+                "text": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties."
               },
-              "id": "opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.object-deserialization",
-              "name": "opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.object-deserialization",
+              "help": {
+                "markdown": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties.\n\n<b>References:</b>\n - [Semgrep Rule](https://find-sec-bugs.github.io/bugs.htm#URL_REWRITING)\n - [https://owasp.org/Top10/A01_2021-Broken_Access_Control](https://owasp.org/Top10/A01_2021-Broken_Access_Control)\n",
+                "text": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties."
+              },
+              "helpUri": "https://find-sec-bugs.github.io/bugs.htm#URL_REWRITING",
+              "id": "opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.url-rewriting",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.url-rewriting",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor",
+                  "LOW CONFIDENCE",
+                  "OWASP-A01:2021 - Broken Access Control",
+                  "OWASP-A01:2025 - Broken Access Control",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.url-rewriting"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "User controlled data in a jQuery's `.$METHOD(...)` is an anti-pattern that can lead to XSS vulnerabilities"
+              },
+              "help": {
+                "markdown": "User controlled data in a jQuery's `.$METHOD(...)` is an anti-pattern that can lead to XSS vulnerabilities\n\n<b>References:</b>\n - [https://owasp.org/www-community/attacks/xss/](https://owasp.org/www-community/attacks/xss/)\n - [https://bugs.jquery.com/ticket/9521](https://bugs.jquery.com/ticket/9521)\n",
+                "text": "User controlled data in a jQuery's `.$METHOD(...)` is an anti-pattern that can lead to XSS vulnerabilities"
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.javascript.jquery.security.audit.jquery-insecure-method",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.javascript.jquery.security.audit.jquery-insecure-method",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')",
+                  "LOW CONFIDENCE",
+                  "OWASP-A03:2021 - Injection",
+                  "OWASP-A05:2025 - Injection",
+                  "OWASP-A07:2017 - Cross-Site Scripting (XSS)",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.javascript.jquery.security.audit.jquery-insecure-method"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "RegExp() called with a `$ARG` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as https://www.npmjs.com/package/recheck to verify that the regex does not appear vulnerable to ReDoS."
+              },
+              "help": {
+                "markdown": "RegExp() called with a `$ARG` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as https://www.npmjs.com/package/recheck to verify that the regex does not appear vulnerable to ReDoS.\n\n<b>References:</b>\n - [Semgrep Rule](https://github.com/nodesecurity/eslint-plugin-security/blob/master/rules/detect-non-literal-regexp.js)\n - [https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS](https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS)\n",
+                "text": "RegExp() called with a `$ARG` function argument, this might allow an attacker to cause a Regular Expression Denial-of-Service (ReDoS) within your application as RegExP blocks the main thread. For this reason, it is recommended to use hardcoded regexes instead. If your regex is run on user-controlled input, consider performing input validation or use a regex checking/sanitization library such as https://www.npmjs.com/package/recheck to verify that the regex does not appear vulnerable to ReDoS."
+              },
+              "helpUri": "https://github.com/nodesecurity/eslint-plugin-security/blob/master/rules/detect-non-literal-regexp.js",
+              "id": "opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-1333: Inefficient Regular Expression Complexity",
+                  "LOW CONFIDENCE",
+                  "OWASP-A02:2025 - Security Misconfiguration",
+                  "OWASP-A05:2021 - Security Misconfiguration",
+                  "OWASP-A06:2017 - Security Misconfiguration",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-regexp"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "Missing 'encoding' parameter. 'open()' uses device locale encodings by default, corrupting files with special characters. Specify the encoding to ensure cross-platform support when opening files in text mode (e.g. encoding=\"utf-8\")."
+              },
+              "help": {
+                "markdown": "Missing 'encoding' parameter. 'open()' uses device locale encodings by default, corrupting files with special characters. Specify the encoding to ensure cross-platform support when opening files in text mode (e.g. encoding=\"utf-8\").\n\n<b>References:</b>\n - [https://www.python.org/dev/peps/pep-0597/](https://www.python.org/dev/peps/pep-0597/)\n - [https://docs.python.org/3/library/functions.html#open](https://docs.python.org/3/library/functions.html#open)\n",
+                "text": "Missing 'encoding' parameter. 'open()' uses device locale encodings by default, corrupting files with special characters. Specify the encoding to ensure cross-platform support when opening files in text mode (e.g. encoding=\"utf-8\")."
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.python.lang.best-practice.unspecified-open-encoding",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.python.lang.best-practice.unspecified-open-encoding",
+              "properties": {
+                "precision": "very-high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.python.lang.best-practice.unspecified-open-encoding"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format."
+              },
+              "help": {
+                "markdown": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.\n\n<b>References:</b>\n - [https://docs.python.org/3/library/pickle.html](https://docs.python.org/3/library/pickle.html)\n",
+                "text": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format."
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.python.lang.security.deserialization.avoid-pickle",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.python.lang.security.deserialization.avoid-pickle",
               "properties": {
                 "precision": "very-high",
                 "tags": [
@@ -235,65 +2083,7 @@
                 ]
               },
               "shortDescription": {
-                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.object-deserialization"
-              }
-            },
-            {
-              "defaultConfiguration": {
-                "level": "error"
-              },
-              "fullDescription": {
-                "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
-              },
-              "id": "opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.tainted-sql-string",
-              "name": "opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.tainted-sql-string",
-              "properties": {
-                "precision": "very-high",
-                "tags": [
-                  "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
-                  "MEDIUM CONFIDENCE",
-                  "OWASP-A01:2017 - Injection",
-                  "OWASP-A03:2021 - Injection",
-                  "OWASP-A05:2025 - Injection",
-                  "security"
-                ]
-              },
-              "shortDescription": {
-                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.tainted-sql-string"
-              }
-            },
-            {
-              "defaultConfiguration": {
-                "level": "note"
-              },
-              "fullDescription": {
-                "text": "This expression is always True: `$X == $X` or `$X != $X`. If testing for floating point NaN, use `math.isnan($X)`, or `cmath.isnan($X)` if the number is complex."
-              },
-              "id": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.useless-eqeq",
-              "name": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.useless-eqeq",
-              "properties": {
-                "precision": "very-high",
-                "tags": []
-              },
-              "shortDescription": {
-                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.useless-eqeq"
-              }
-            },
-            {
-              "defaultConfiguration": {
-                "level": "error"
-              },
-              "fullDescription": {
-                "text": "Use tempfile.NamedTemporaryFile instead. From the official Python documentation: THIS FUNCTION IS UNSAFE AND SHOULD NOT BE USED. The file name may refer to a file that did not exist at some point, but by the time you get around to creating it, someone else may have beaten you to the punch."
-              },
-              "id": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-insecure",
-              "name": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-insecure",
-              "properties": {
-                "precision": "very-high",
-                "tags": []
-              },
-              "shortDescription": {
-                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-insecure"
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.python.lang.security.deserialization.avoid-pickle"
               }
             },
             {
@@ -301,30 +2091,33 @@
                 "level": "warning"
               },
               "fullDescription": {
-                "text": "Fixture rule authored for oss-scan-results/adapter-tests, not part of the pinned Semgrep ruleset. Its metadata tags carry three CVE identifiers listed out of ascending order so that the shared SARIF adapter's ascending numeric selection - year first, then sequence - is asserted rather than assumed."
+                "text": "Flags the use of a predictable random value from `scala.util.Random`. This can lead to vulnerabilities when used in security contexts, such as in a CSRF token, password reset token, or any other secret value. To fix this, use java.security.SecureRandom instead."
               },
-              "id": "fixture.adapter-tests.semgrep.multi-cve-tag-ordering",
-              "name": "fixture.adapter-tests.semgrep.multi-cve-tag-ordering",
+              "help": {
+                "markdown": "Flags the use of a predictable random value from `scala.util.Random`. This can lead to vulnerabilities when used in security contexts, such as in a CSRF token, password reset token, or any other secret value. To fix this, use java.security.SecureRandom instead.\n\n<b>References:</b>\n - [https://owasp.org/Top10/A02_2021-Cryptographic_Failures](https://owasp.org/Top10/A02_2021-Cryptographic_Failures)\n",
+                "text": "Flags the use of a predictable random value from `scala.util.Random`. This can lead to vulnerabilities when used in security contexts, such as in a CSRF token, password reset token, or any other secret value. To fix this, use java.security.SecureRandom instead."
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.insecure-random",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.insecure-random",
               "properties": {
                 "precision": "very-high",
                 "tags": [
-                  "CWE-1104: Use of Unmaintained Third Party Components",
-                  "CVE-2024-31000",
-                  "CVE-2023-40167",
-                  "CVE-2023-40168",
+                  "CWE-330: Use of Insufficiently Random Values",
                   "LOW CONFIDENCE",
+                  "OWASP-A02:2021 - Cryptographic Failures",
+                  "OWASP-A04:2025 - Cryptographic Failures",
                   "security"
                 ]
               },
               "shortDescription": {
-                "text": "Fixture Finding: fixture.adapter-tests.semgrep.multi-cve-tag-ordering"
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.insecure-random"
               }
             }
           ],
-          "semanticVersion": "1.173.0",
-          "version": "1.173.0"
+          "semanticVersion": "1.173.0"
         }
       }
     }
-  ]
+  ],
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json"
 }

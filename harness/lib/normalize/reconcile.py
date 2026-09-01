@@ -56,6 +56,20 @@ Three exclusions in that table are load-bearing rather than incidental:
   zero.  Shape detection and halting on an unrecognised artifact belong to
   ``shape.py``; this module counts.
 
+  What that division must not be read as is a claim that such a document is
+  *acceptable*.  It used to be: a ``checkov.json`` holding ``{}`` or a ``joern.json``
+  holding ``{"findings": null}`` counted zero here, adapted to zero rows and zero
+  rejections there, and balanced the identity at ``0 = 0 + 0`` with parse status
+  ``clean`` -- a malformed artifact indistinguishable from a scan that found nothing.
+  ``shape.NATIVE_SIGNATURES`` closes that: a document that is not the named writer's
+  native shape halts in ``shape.route`` before any adapter or any counter is reached
+  (AAP 0.5.4, AAP 0.9.2).  The zero-rather-than-raise reading below is unchanged and is
+  deliberately **not** hardened into a second shape test -- a second copy of that test
+  could disagree with the first, and this traversal's whole value is that it shares no
+  code and no judgement with the row builder.  It stays correct for what it is now
+  reached with: a container legitimately absent inside a document of the right shape,
+  such as a SARIF run carrying no ``results`` or a Trivy target carrying no section.
+
 The identity
 ------------
 For each artifact::
@@ -253,7 +267,11 @@ def _as_mapping(value: Any) -> Mapping[str, Any]:
 
     A non-mapping where a mapping was expected contributes zero rather than
     raising: a bare array top level is legitimate for two of the nine shapes, and a
-    malformed container is ``shape.py``'s halt to make, not this traversal's.
+    malformed container is ``shape.py``'s halt to make, not this traversal's.  That
+    halt now exists for the per-writer case too -- ``shape.NATIVE_SIGNATURES`` refuses a
+    document that is not the named writer's shape -- so the zero here is reached by a
+    legitimately absent inner container rather than by a malformed artifact that slipped
+    through.
     """
     return value if isinstance(value, Mapping) else {}
 
@@ -1358,4 +1376,3 @@ def run_three_stage_validation(
     if raise_on_failure:
         report.raise_for_failures()
     return report
-

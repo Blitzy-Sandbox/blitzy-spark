@@ -1,0 +1,13 @@
+{
+  "SchemaVersion": 2,
+  "CreatedAt": "2026-08-24T00:00:00Z",
+  "ArtifactName": "example-scan-root",
+  "ArtifactType": "filesystem",
+  "Results": {
+    "example-target": {
+      "Class": "secret",
+      "Type": "",
+      "Secrets": []
+    }
+  }
+}

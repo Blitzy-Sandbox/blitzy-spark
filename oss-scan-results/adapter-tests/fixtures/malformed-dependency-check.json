@@ -1,0 +1,10 @@
+{
+  "reportSchema": "1.1",
+  "scanInfo": {
+    "engineVersion": "0.0.0-example"
+  },
+  "projectInfo": {
+    "name": "example-project",
+    "reportDate": "2026-08-24T00:00:00Z"
+  }
+}
