@@ -7,7 +7,7 @@ empty result set rather than an error, and an empty result set is indistinguisha
 a clean scan."* AAP 0.6.1 gives this file its own row, AAP 0.9.4 lists it in the
 definition of done, and AAP 0.9.2 makes a failure here a condition that stops the run.
 
-Why a dedicated test rather than a code review
+Why the detector needs an assertion of its own
 ----------------------------------------------
 The failure this file guards is silent. A detector that accepted ``gitleaks.json`` as
 SARIF would not raise: it would look for ``runs[].results[]``, find nothing, and report
@@ -62,12 +62,11 @@ this tree is committed to git, since ``.gitignore:31`` ignores only ``artifacts/
 fixtures are read and never written, and nothing under ``harness/lib/normalize/`` is
 edited from here -- a defect this file reveals there is reported, not repaired.
 
-No user-specified rules govern this file: ``review_rules`` reports "No user rules
-provided." and that one line is the whole document, corroborated independently by AAP
-0.7 and 0.10.2. Enterprise-standard best practice applies in their place and their
-absence is expressly not licence to lower the bar -- concretely, every assertion below
-names the exact key or the exact exception type rather than settling for something
-truthy, and no negative assertion is softened into a smoke test.
+No user-specified rule governs this file; enterprise-standard best practice applies in
+its place (AAP 0.7, AAP 0.10.2). That absence is expressly not licence to lower the bar
+-- this file is held to the AAP's own bar, so every assertion below names the exact key
+or the exact exception type rather than settling for something truthy, and no negative
+assertion is softened into a smoke test.
 """
 
 from __future__ import annotations
@@ -169,6 +168,16 @@ UNKNOWN_SHAPE_FIXTURE = "unknown-shape.json"
 #: detect non-SARIF. Named separately because it is not one of the nine artifact
 #: filenames: it is the ``checkov.json`` artifact in its other shape.
 CHECKOV_ALT_SHAPE_FIXTURE = "checkov-alt-shape.json"
+
+#: A plausible Trivy 0.74.0 filesystem report whose ``Results`` member is present and
+#: **null**. It is the one document over which Trivy's two authorities could disagree:
+#: Trivy is written in Go, which marshals an unset slice as ``null`` rather than as
+#: ``[]``, so this is a shape a real writer can emit. AAP 0.5.4 names the count unit
+#: ``Results[]``, halts on an artifact matching no known native shape rather than
+#: best-effort parsing it, and rejects rather than infers -- so the contract refuses it,
+#: and it must be refused by the envelope predicate and by the declared native signature
+#: alike. Its sibling control is ``{"Results": []}``, a clean report that must route.
+NEAR_TRIVY_RESULTS_NULL_FIXTURE = "near-trivy-results-null.json"
 
 #: The two authored empty containers, presented under *recognised* artifact filenames.
 #: They are the documents a router keying on the filename alone would admit, and they are
@@ -322,8 +331,9 @@ NATIVE_ARTIFACT_FIXTURES = _artifact_fixture_names(sarif_producers=False)
 def _every_non_sarif_fixture() -> tuple[str, ...]:
     """Return every fixture required to detect non-SARIF, in a stable order.
 
-    The five native artifacts, Checkov's alternative top-level form, and both near-miss
-    documents. ``checkov-alt-shape.json`` is included when present and its presence is
+    The five native artifacts, Checkov's alternative top-level form, both near-miss
+    documents, the fall-through document and the Trivy near-miss whose ``Results`` is
+    null. ``checkov-alt-shape.json`` is included when present and its presence is
     asserted in :class:`FixtureInventoryTests`, so the inclusion is visible rather than
     conditional in effect.
     """
@@ -332,6 +342,7 @@ def _every_non_sarif_fixture() -> tuple[str, ...]:
         names.append(CHECKOV_ALT_SHAPE_FIXTURE)
     names.extend(NEAR_MISS_FIXTURES)
     names.append(UNKNOWN_SHAPE_FIXTURE)
+    names.append(NEAR_TRIVY_RESULTS_NULL_FIXTURE)
     return tuple(names)
 
 
@@ -533,13 +544,19 @@ class FixtureInventoryTests(ShapeTestCase):
         )
 
     def test_authored_near_miss_and_fall_through_fixtures_are_present(self) -> None:
-        """Both near-miss documents and the fall-through document exist.
+        """Both near-miss documents, the fall-through and the Trivy near-miss exist.
 
-        The near-miss pair is what pins the conjunction and the fall-through is what
-        exercises the halt. Losing any one of the three would leave a whole branch of
-        the contract unasserted while the suite still reported green.
+        The near-miss pair is what pins the conjunction, the fall-through is what
+        exercises the halt, and ``near-trivy-results-null.json`` is what pins one native
+        writer's envelope against its own declared signature. Losing any one of the four
+        would leave a whole branch of the contract unasserted while the suite still
+        reported green.
         """
-        for name in (*NEAR_MISS_FIXTURES, UNKNOWN_SHAPE_FIXTURE):
+        for name in (
+            *NEAR_MISS_FIXTURES,
+            UNKNOWN_SHAPE_FIXTURE,
+            NEAR_TRIVY_RESULTS_NULL_FIXTURE,
+        ):
             with self.subTest(fixture=name):
                 self.assertTrue(
                     (FIXTURES_DIR / name).is_file(),
@@ -2145,13 +2162,14 @@ class NativeSignatureTableTests(ShapeTestCase):
                 self.assertTrue(reason.strip())
 
     def test_the_signature_surface_is_exported(self) -> None:
-        """Everything a consumer needs is in ``__all__``, including the new reason.
+        """Every name the signature surface publishes is in ``__all__``, the reason included.
 
-        ``cli.py`` catches the halt generically and forwards ``details()``, so the reason
-        travels into ``harness/artifacts/logs/normalize-run.json`` without the CLI naming
-        it. That is precisely why the export list is asserted here: nothing else in the
-        pipeline would fail if the constant were unexported, and a reader of the module
-        would have no way to name the condition.
+        ``cli.py`` catches the halt generically and forwards ``details()``, so
+        ``REASON_NATIVE_SIGNATURE_MISMATCH`` travels into
+        ``harness/artifacts/logs/normalize-run.json`` without the CLI naming it. That is
+        precisely why the export list is asserted here: nothing else in the pipeline would
+        fail if the constant were unexported, and a reader of the module would have no way
+        to name the condition.
         """
         exported = set(shape.__all__)
         self.assertEqual(
@@ -2180,9 +2198,9 @@ class NativeSignatureTableTests(ShapeTestCase):
 class MalformedKnownArtifactHaltTests(ShapeTestCase):
     """A recognised artifact name does not license a document of any shape.
 
-    This is the direction the code review found open, and it is the same silent failure
-    the rest of this file guards, one layer in. A router keying on the filename alone
-    hands ``checkov.json`` carrying ``{"results": "no findings"}`` to the Checkov
+    Taking a recognised name for evidence of a recognised structure is the same silent
+    failure the rest of this file guards, one layer in. A router keying on the filename
+    alone hands ``checkov.json`` carrying ``{"results": "no findings"}`` to the Checkov
     adapter, which finds no ``failed_checks`` to walk, emits zero rows and zero
     rejections and reports success. The independent counting traversal in
     ``reconcile.py`` returns zero over the same document, so the reconciliation identity
@@ -2511,9 +2529,9 @@ class MalformedKnownArtifactHaltTests(ShapeTestCase):
         """A shape halt stops the run; it is not a record counted under a class.
 
         A rejection is a per-record outcome inside an adapter that already owns its
-        artifact, and these documents never reach one. The new reason is asserted
-        non-member of the rejection vocabulary programmatically, over the authored tuple,
-        rather than by inspection.
+        artifact, and these documents never reach one. The signature reason is therefore
+        asserted a non-member of ``paths.REJECT_CLASSES`` programmatically, over the
+        authored tuple, rather than by inspection.
         """
         from normalize import paths  # local by design; see the class docstring
 
@@ -2604,15 +2622,18 @@ class RecognisedNameEnvelopeTests(ShapeTestCase):
     #: Authored inline rather than committed as a fixture, deliberately: a fixture is a
     #: captured or authored *artifact*, and these are one-line probes of the predicate
     #: table, each carrying the container AAP 0.5.4 names for its tool with nothing
-    #: inside it. Trivy appears twice because its envelope admits ``null`` as well as an
-    #: array -- Trivy writes ``"Results": null`` for a scan that resolved no target, and
-    #: that is a clean report rather than a malformed one.
+    #: inside it. Checkov appears twice because its artifact legitimately takes either
+    #: top-level form. Trivy appears once, with ``"Results": []``: an empty array is the
+    #: complete report of a scan that resolved no target, while a ``Results`` that is
+    #: present as ``null`` is not this writer's shape at all and is refused by the
+    #: envelope predicate and the declared signature alike -- see
+    #: :data:`NEAR_TRIVY_RESULTS_NULL_FIXTURE` and
+    #: :meth:`test_a_trivy_report_whose_results_is_null_is_refused_by_one_contract`.
     MINIMAL_ENVELOPES: tuple[tuple[str, object], ...] = (
         ("gitleaks", []),
         ("checkov", {"check_type": "kubernetes", "results": {}}),
         ("checkov", [{"check_type": "kubernetes", "results": {}}]),
         ("trivy", {"Results": []}),
-        ("trivy", {"Results": None}),
         ("osv-scanner", {"results": []}),
         ("dependency-check", {"dependencies": []}),
         ("joern", {"findings": []}),
@@ -2881,6 +2902,290 @@ class RecognisedNameEnvelopeTests(ShapeTestCase):
                 self.assertEqual(decision.shape, shape.SHAPE_NATIVE)
                 self.assertEqual(decision.adapter, shape.adapter_module_for(tool))
 
+    def test_a_trivy_report_whose_results_is_null_is_refused_by_one_contract(self) -> None:
+        """``"Results": null`` halts, and both of Trivy's authorities say so.
+
+        The document a recognised name, a present marker and a legal JSON value would each
+        have argued for admitting. Trivy is written in Go, which marshals an unset slice
+        as ``null`` rather than as ``[]``, so this is a shape a real writer can emit -- and
+        it is the one document over which this shape's two authorities could disagree.
+        AAP 0.5.4 settles the direction: the count unit is ``Results[]``, an artifact
+        matching neither the SARIF shape nor a known native shape halts rather than being
+        best-effort parsed, and a record that cannot be attributed with certainty is
+        rejected rather than inferred. So the refusal is asserted from **both** entry
+        points -- ``matches_native_shape`` over ``shape._matches_trivy_envelope``, and
+        ``matches_native_signature`` over ``NATIVE_SIGNATURES["trivy"]`` -- because one
+        authority admitting what the other refuses is a defect no output can show: the
+        adapter would enumerate nothing from a null member, emit zero rows and zero
+        rejections, and the independent traversal would agree at ``0 = 0 + 0`` while the
+        recorded signature verdict said the document was never that writer's shape.
+
+        Every value is checked against the fixture *and* against its hand-verified
+        expected file, so the two authored documents cannot drift apart silently.
+        """
+        document = self.load_fixture(NEAR_TRIVY_RESULTS_NULL_FIXTURE)
+        expected = self.load_expected(NEAR_TRIVY_RESULTS_NULL_FIXTURE)
+        path = self.fixture_path(NEAR_TRIVY_RESULTS_NULL_FIXTURE)
+        signature = shape.NATIVE_SIGNATURES["trivy"]
+        artifact_name = shape.artifact_filename_for("trivy")
+
+        # The record describes THIS document: digest, size and the member that decides.
+        self.assertEqual(
+            hashlib.sha256(path.read_bytes()).hexdigest(),
+            self.require(expected, "fixture", "sha256"),
+        )
+        self.assertEqual(path.stat().st_size, self.require(expected, "fixture", "bytes"))
+        self.assertIsInstance(document, dict)
+        self.assertEqual(list(document), self.require(expected, "fixture", "top_level_keys"))
+        self.assertIn(
+            shape.TRIVY_RESULTS_KEY,
+            document,
+            msg=(
+                "the fixture must CARRY Results; a document missing it is refused for a "
+                "different reason and would leave the present-but-null case untested"
+            ),
+        )
+        self.assertIsNone(
+            document[shape.TRIVY_RESULTS_KEY],
+            msg="the recorded results_json_type is null, and that is the condition probed",
+        )
+        self.assertEqual(self.require(expected, "fixture", "results_json_type"), "null")
+        self.assertIsNone(
+            shape.resolve_tool(NEAR_TRIVY_RESULTS_NULL_FIXTURE),
+            msg=(
+                "the fixture's own name must resolve to no tool, so the subject routed "
+                "under is the artifact filename and not the fixture name"
+            ),
+        )
+        self.assertEqual(self.require(expected, "routed_as", "subject"), artifact_name)
+        self.assertIs(shape.is_sarif(document), False)
+
+        # One contract, two entry points, and they answer the same way.
+        self.assertIs(
+            shape.matches_native_shape("trivy", document),
+            False,
+            msg=(
+                "the envelope requires Results to be present AND a JSON array; a "
+                "present-but-null member is not the count unit Results[] and must be "
+                "refused here, before any walker is named"
+            ),
+        )
+        self.assertIs(
+            shape.matches_native_signature("trivy", document),
+            False,
+            msg="the declared signature requires the same array and must agree",
+        )
+        self.assertIs(signature.matches(document), False)
+        self.assertEqual(signature.required_key, shape.TRIVY_RESULTS_KEY)
+        self.assertEqual(signature.required_key_type, shape.JSON_TYPE_ARRAY)
+        self.assertEqual(
+            self.require(expected, "one_fail_closed_contract", "required_key_type"),
+            shape.JSON_TYPE_ARRAY,
+        )
+        for recorded_key in ("envelope_verdict", "signature_verdict"):
+            self.assertIs(
+                self.require(expected, "one_fail_closed_contract", recorded_key),
+                False,
+                msg=f"the record must state the refusal under {recorded_key!r}",
+            )
+        self.assertIs(
+            self.require(expected, "one_fail_closed_contract", "verdicts_agree"), True
+        )
+
+        # No other writer's envelope claims it either.
+        recorded_signature = self.require(expected, "native_signature")
+        self.assertEqual(recorded_signature["expected"], signature.statement)
+        self.assertEqual(recorded_signature["observed_key_type"], "null")
+        self.assertIs(recorded_signature["matches"], False)
+        for tool in shape.CANONICAL_TOOLS:
+            with self.subTest(tool=tool):
+                self.assertIs(shape.matches_native_shape(tool, document), False)
+
+        # The halt: named, from both entry points, with the observation that diagnoses it.
+        halts: dict[str, shape.UnknownArtifactShape] = {}
+
+        def route_under_the_artifact_name() -> None:
+            with self.assertRaises(shape.UnknownArtifactShape) as caught:
+                shape.route(artifact_name, document)
+            halts["route"] = caught.exception
+
+        self.assertNoAdapterImportedBy(
+            f"the envelope halt for {artifact_name!r}", route_under_the_artifact_name
+        )
+        raw_subject = self.require(expected, "routed_as", "second_subject")
+        with self.assertRaises(shape.UnknownArtifactShape) as by_artifact:
+            shape.route_artifact(raw_subject, document)
+        halts["route_artifact"] = by_artifact.exception
+
+        for entry_point, error in halts.items():
+            with self.subTest(entry_point=entry_point):
+                self.assertIs(
+                    type(error),
+                    shape.UnknownArtifactShape,
+                    msg=(
+                        "a null member is the value most likely to produce a bare "
+                        "TypeError from a half-attempted read; the halt must be exactly "
+                        "shape.UnknownArtifactShape, which carries a reason a report can "
+                        "quote"
+                    ),
+                )
+                for forbidden in (KeyError, TypeError, AttributeError):
+                    self.assertNotIsInstance(error, forbidden)
+                self.assertEqual(
+                    error.reason, shape.REASON_NATIVE_SHAPE_UNRECOGNIZED
+                )
+                self.assertEqual(error.reason, self.require(expected, "halt", "reason"))
+                self.assertIn(error.reason, shape.HALT_REASONS)
+                self.assertNotEqual(error.reason, shape.REASON_UNRECOGNIZED_ARTIFACT_NAME)
+                self.assertNotEqual(error.reason, shape.REASON_UNSUPPORTED_DOCUMENT_TYPE)
+                self.assertNotEqual(error.reason, shape.REASON_SARIF_PRODUCER_NOT_SARIF)
+                self.assertEqual(error.stem, "trivy")
+                self.assertIs(error.sarif_detected, False)
+                self.assertIsNone(error.version)
+                self.assertEqual(error.top_level_length, 5)
+                self.assertEqual(
+                    list(error.top_level_keys),
+                    self.require(expected, "halt", "observed_attributes", "top_level_keys"),
+                )
+                self.assertEqual(error.signature_tool, "trivy")
+                self.assertEqual(error.expected_signature, signature.statement)
+                self.assertEqual(
+                    error.expectation,
+                    shape.native_shape_requirement("trivy"),
+                    msg=(
+                        "the halt quotes the requirement from the same table the router "
+                        "enforces, so what is stated cannot drift from what is checked"
+                    ),
+                )
+                observation = dict(error.signature_observation or {})
+                self.assertEqual(observation["required_key"], shape.TRIVY_RESULTS_KEY)
+                self.assertEqual(observation["required_key_type"], shape.JSON_TYPE_ARRAY)
+                self.assertIs(observation["required_key_present"], True)
+                self.assertEqual(
+                    observation["observed_key_type"],
+                    "null",
+                    msg=(
+                        "required array beside observed null is what tells a reader which "
+                        "member decided the refusal and what was wrong with it"
+                    ),
+                )
+                self.assertIs(observation["matches"], False)
+                json.dumps(error.details())
+
+        # The false-clean the halt prevents, measured rather than described.
+        self.assertEqual(
+            reconcile.count_records("trivy", document),
+            self.require(expected, "counting_traversal", "would_return"),
+            msg=(
+                "the independent traversal returns zero over this document, so admitting "
+                "it would balance the reconciliation identity at 0 = 0 + 0 and report a "
+                "mis-shaped artifact as a clean scan"
+            ),
+        )
+        self.assertEqual(self.require(expected, "rows"), [])
+        self.assertEqual(self.require(expected, "counts", "rejections"), 0)
+        self.assertIs(self.require(expected, "adapter_invoked"), False)
+        for name in (
+            shape.REASON_NATIVE_SHAPE_UNRECOGNIZED,
+            "halt",
+            shape.UnknownArtifactShape.__name__,
+        ):
+            with self.subTest(not_a_reject_class=name):
+                self.assertIs(
+                    paths.is_reject_class(name),
+                    False,
+                    msg=(
+                        "a halt is not a counted rejection: this document never reaches "
+                        "an adapter, so there is no record to reject and nothing to count "
+                        "under any class"
+                    ),
+                )
+
+    def test_the_trivy_results_contract_answers_once_for_every_observed_type(self) -> None:
+        """The envelope predicate and the declared signature agree, state by state.
+
+        The fixture pins one state; this pins the whole member. Each row is a value
+        ``Results`` can take, with the verdict the fail-closed contract requires, and both
+        authorities are asked separately -- so a relaxation of either alone fails by name
+        rather than surviving because the other still refuses. The two array rows are the
+        control that keeps the strictness honest: a contract that refused an empty array
+        would halt every clean Trivy scan, and that is the same class of wrong answer in
+        the opposite direction.
+
+        The recorded matrix in the fixture's expected file carries the same eight states,
+        and is compared against these verdicts so neither can drift.
+        """
+        expected = self.load_expected(NEAR_TRIVY_RESULTS_NULL_FIXTURE)
+        recorded = self.require(
+            expected, "one_fail_closed_contract", "observed_type_matrix"
+        )
+        self.assertIsInstance(recorded, list)
+        envelope_only = {"SchemaVersion": 2, "ArtifactName": ".", "ArtifactType": "filesystem"}
+        target = {"Target": "core/src/main/scala/x.scala", "Class": "secret", "Type": ""}
+
+        # One state of Results per row: its recorded label, the value, and whether the
+        # contract admits it. Absence is expressed by the sentinel below rather than by a
+        # second document, so every row differs in exactly that one member.
+        absent = object()
+        states: tuple[tuple[str, object, bool], ...] = (
+            ("absent", absent, False),
+            ("null", None, False),
+            ("empty array", [], True),
+            ("array of one target object", [target], True),
+            ("object", {"core/src/main/scala/x.scala": target}, False),
+            ("string", "[]", False),
+            ("number", 3, False),
+            ("boolean", True, False),
+        )
+        self.assertEqual(
+            [str(row["results_state"]) for row in recorded],
+            [label for label, _, _ in states],
+            msg=(
+                "the recorded matrix and this one must cover the same states in the same "
+                "order, so the record cannot describe a contract the test does not check"
+            ),
+        )
+
+        for (label, value, admitted), row in zip(states, recorded, strict=True):
+            document = dict(envelope_only)
+            if value is not absent:
+                document[shape.TRIVY_RESULTS_KEY] = value
+            with self.subTest(results=label):
+                envelope_verdict = shape.matches_native_shape("trivy", document)
+                signature_verdict = shape.matches_native_signature("trivy", document)
+                self.assertIs(
+                    envelope_verdict,
+                    admitted,
+                    msg=(
+                        f"Results as {label} must be "
+                        f"{'admitted' if admitted else 'refused'} by the envelope "
+                        "predicate: the contract is present AND a JSON array"
+                    ),
+                )
+                self.assertIs(
+                    signature_verdict,
+                    admitted,
+                    msg=(
+                        "the declared signature must reach the same verdict as the "
+                        "envelope predicate; two authorities over one document is the "
+                        "defect this assertion exists to forbid"
+                    ),
+                )
+                self.assertIs(envelope_verdict, signature_verdict)
+                self.assertIs(row["envelope_verdict"], admitted)
+                self.assertIs(row["signature_verdict"], admitted)
+                self.assertEqual(row["outcome"], "route" if admitted else "halt")
+                if admitted:
+                    decision = shape.route(shape.artifact_filename_for("trivy"), document)
+                    self.assertEqual(decision.shape, shape.SHAPE_NATIVE)
+                    self.assertEqual(decision.adapter, shape.adapter_module_for("trivy"))
+                else:
+                    with self.assertRaises(shape.UnknownArtifactShape) as caught:
+                        shape.route(shape.artifact_filename_for("trivy"), document)
+                    self.assertEqual(
+                        caught.exception.reason, shape.REASON_NATIVE_SHAPE_UNRECOGNIZED
+                    )
+
     def test_every_captured_artifact_satisfies_the_envelope_of_the_tool_that_wrote_it(self) -> None:
         """The strictness is asserted against the artifacts this run actually captured.
 
@@ -2934,8 +3239,8 @@ class RecognisedNameEnvelopeTests(ShapeTestCase):
 
         Each captured SARIF document is routed under all three producers' names. The
         three share one adapter (AAP 0.5.4), so the shape decision must be identical
-        across the three and the new refusal must not have narrowed acceptance to the
-        artifact's own filename.
+        across the three: a document is admitted for satisfying the conjunction, never
+        for carrying the filename its own writer uses.
         """
         for source in SARIF_ARTIFACT_FIXTURES:
             document = self.load_fixture(source)
@@ -3058,14 +3363,15 @@ class RecognisedNameEnvelopeTests(ShapeTestCase):
 class ArtifactControlledDiagnosticTests(ShapeTestCase):
     """Every artifact-supplied value in routing and halt evidence is bounded and inert.
 
-    Two directions, and the FIRST is the one that was missing. A halt is obviously
-    adversarial input, so its rendering gets attention. The *success* path does not
-    look adversarial -- and it is: a valid native envelope may carry arbitrary extra
-    top-level keys, and ``detection_evidence`` publishes the observed keys and the
-    observed ``version`` into ``harness/artifacts/logs/normalize-run.json``, a file
-    this pipeline preserves. Unbounded and unescaped, a scanner artifact would then
-    choose both the content and the size of a durable record, and a credential-bearing
-    URI or an ESC sequence would ride into whatever reads it.
+    Two directions, and the success path is asserted first because it is the one that
+    does not look adversarial. A halt is obviously adversarial input, so its rendering
+    attracts attention; a successful detection does not, and is: a valid native envelope
+    may carry arbitrary extra top-level keys, and ``detection_evidence`` publishes the
+    observed keys and the observed ``version`` into
+    ``harness/artifacts/logs/normalize-run.json``, a file this pipeline preserves.
+    Unbounded and unescaped, a scanner artifact would then choose both the content and
+    the size of a durable record, and a credential-bearing URI or an ESC sequence would
+    ride into whatever reads it.
 
     What is required of the rendering is fixed: the value's type and context, its FULL
     character length and sha256 so a bounded excerpt is still identified, a bounded

@@ -35,7 +35,11 @@ carry the same number it is one measurement cited twice, never two measurements.
 | `harness/artifacts/logs/normalize-run.json` | The authoritative per-artifact parsed and rejected counts, the routing decision and its detection evidence, every reconciliation assertion with its result, and the row-validation and output-comparison results |
 | `harness/artifacts/logs/<tool>.status` | The invocation's own outcome: exit code, elapsed seconds, artifact byte size, scan root and its source, plus the authored fields each runner's lane recorded beside them |
 | `harness/artifacts/logs/<tool>.stdout.log`, `<tool>.stderr.log` | The tool's own words, verbatim: reduced-reach conditions, and for an absent artifact the stated reason |
-| `harness/artifacts/logs/adapter-tests-run.json` | The per-tool adapter-fixture result |
+| `harness/artifacts/logs/adapter-tests-run.json` | The per-tool adapter-fixture result, and every adapter-test figure restated here |
+| `harness/artifacts/logs/runner-sequence.json` | The serial lane and its chronology: per invocation the argv and argument count, the start and end stamps, the finer elapsed measurement, and the artifact, stream and `.status` byte sizes and sha256 values measured immediately after that invocation returned |
+| `harness/artifacts/logs/gate-record.json` | The gate's 43 checks with their verdicts, and the tool version, ruleset and feed identities and credential absences it measured before anything was scanned |
+| `harness/artifacts/logs/<tool>.runner-console.log` | Each runner's own console output verbatim, including the header and trailer `scope_begin` and `scope_finish` print and each runner's own statement of its scan root, path base, feeds and merge steps |
+| `harness/artifacts/MANIFEST.json` | The published byte size and sha256 of every raw artifact and every log file, including each tool's side-artifact tree |
 
 The status filename is `<tool>.status`, the name the plan specifies, and
 deliberately not the harness precedent's `<tool>.meta.json`.
@@ -49,7 +53,7 @@ Each row is expanded into a full entry below.
 
 | tool | scanner_class | exit code | artifact | parse status | dataset rows | rejected |
 | --- | --- | --- | --- | --- | --- | --- |
-| `opengrep` | sast | 0 | `opengrep.sarif` | clean | 1,322 | 0 |
+| `opengrep` | sast | 0 | `opengrep.sarif` | clean | 1,319 | 0 |
 | `semgrep` | sast | 0 | `semgrep.sarif` | clean | 1,162 | 0 |
 | `datadog-static-analyzer` | sast | 0 | `datadog-static-analyzer.sarif` | clean | 6,832 | 0 |
 | `gitleaks` | secret | 2 | `gitleaks.json` | clean | 1 | 0 |
@@ -57,11 +61,12 @@ Each row is expanded into a full entry below.
 | `trivy` | per record | 0 | `trivy.json` | clean | 3 | 0 |
 | `osv-scanner` | vuln | 128 | **none written** | absent | 0 | not applicable |
 | `dependency-check` | vuln | 0 | `dependency-check.json` | clean | 0 | 0 |
-| `joern` | sast | 0 | `joern.json` | partial | 107 | 585 |
+| `joern` | sast | 0 | `joern.json` | partial | 107 | 586 |
 
 Row counts and rejection counts are `normalize-run.json`
 `totals.rows_by_tool` and `totals.rejections_by_tool`; exit codes and artifacts
-are each tool's `<tool>.status`. The two tools with zero rows —
+are each tool's `<tool>.status`. The nine rows sum to the dataset's
+**9,430** emitted rows and **586** rejected records. The two tools with zero rows —
 `osv-scanner` and `dependency-check` — are the reason this document exists, and
 their zeros mean different things: one wrote no artifact, the other wrote an
 artifact carrying no finding record.
@@ -81,7 +86,7 @@ entry rather than left to be inferred from them.
 
 Which branch each of the nine took: **`clean` seven times** — `opengrep`,
 `semgrep`, `datadog-static-analyzer`, `gitleaks`, `checkov`, `trivy` and
-`dependency-check`; **`partial` once** — `joern`, 585 records rejected under one
+`dependency-check`; **`partial` once** — `joern`, 586 records rejected under one
 named class; **`absent` once** — `osv-scanner`, with a reason of its own quoted
 verbatim in its entry. **`failed` never**: all eight artifacts that were written
 matched a known shape, so the unknown-shape halt was not engaged. The
@@ -118,24 +123,37 @@ sum it contributes to.
 
 | Assertion | Figures | Result | Source |
 | --- | --- | --- | --- |
-| Dataset-level sum of the per-artifact identities | `10018 = 9433 + 585` | pass | `normalize-run.json` `reconciliation.stage_b` |
-| Parsed `findings.json` rows against the dataset's emitted rows | `9433` against `9433` | pass | `normalize-run.json` `reconciliation.stage_c[0]` |
-| Parsed `findings.csv` rows against the dataset's emitted rows | `9433` against `9433` | pass | `normalize-run.json` `reconciliation.stage_c[1]` |
-| Parsed `findings.json` rows against parsed `findings.csv` rows | `9433` against `9433` | pass | `normalize-run.json` `reconciliation.stage_c[2]` |
+| Dataset-level sum of the per-artifact identities | `10016 = 9430 + 586` | pass | `normalize-run.json` `reconciliation.stage_b` |
+| Parsed `findings.json` rows against the dataset's emitted rows | `9430` against `9430` | pass | `normalize-run.json` `reconciliation.stage_c[0]` |
+| Parsed `findings.csv` rows against the dataset's emitted rows | `9430` against `9430` | pass | `normalize-run.json` `reconciliation.stage_c[1]` |
+| Parsed `findings.json` rows against parsed `findings.csv` rows | `9430` against `9430` | pass | `normalize-run.json` `reconciliation.stage_c[2]` |
+
+Stage B closes over nine artifacts, eight present and one absent: 10,016 raw
+finding records against 9,430 emitted rows plus 586 rejected records, with
+`failed_tools` empty.
 
 The JSON and CSV row counts are asserted **separately** rather than one being
 inferred from the other, and then compared to each other as a third assertion.
 Both files were parsed to obtain them; neither figure comes from counting physical
-lines. Field-for-field comparison under typed coercion passed over 9,433 rows and
-113,196 fields with no first mismatch
+lines. Field-for-field comparison under typed coercion passed over 9,430 rows and
+113,160 fields with no first mismatch
 (`normalize-run.json` `output_comparison`).
 
-Row validation passed over all 9,433 emitted rows with zero violations: every row
+Row validation passed over all 9,430 emitted rows with zero violations: every row
 carries exactly the twelve fields in order, `path` and `severity_norm` are never
 absent, absence appears only in `severity_native`, `start_line`, `cwe`, `cve` and
 `package_coordinate`, and no emitted path is absolute
 (`normalize-run.json` `outputs.row_validation`). Each entry below states that
 result as it applies to that tool's own rows.
+
+Absence, counted per optional field over those 9,430 rows and taken from the same
+record: `cve` absent on **9,430** rows, `package_coordinate` absent on **9,430**,
+`cwe` absent on **8,674**, `severity_native` absent on **2,488** and `start_line`
+absent on **3**. The `severity_native` figure is the sum of the four tools whose
+every row was banded on basis `no_vocabulary` in this run — `opengrep` 1,319,
+`semgrep` 1,162, `gitleaks` 1 and `checkov` 6, giving
+1,319 + 1,162 + 1 + 6 = 2,488 (`normalize-run.json` `severity_literals.tools`) —
+and the three absent `start_line` values are `trivy`'s three rows.
 
 Eight artifacts were present and one absent. `osv-scanner`'s reconciliation entry
 is the literal `not applicable — artifact absent`, which is not a
@@ -154,6 +172,33 @@ Established once, from the provisioned files, and true of every entry below.
   no helper and no orchestrator (`runner-metadata.json`
   `harness_bin_inventory_summary`). The harness's non-runner helpers live outside
   that directory, in `harness/lib/`.
+- **One serial lane, with its chronology.** All nine invocations belong to run
+  `w013-20260901T132807Z`, clone index 13, and ran in **one serial lane** from
+  **2026-09-01T13:49:39Z to 14:41:25Z**: invocation N+1 started only after
+  invocation N returned, from one script in one process in one clone, in the
+  canonical tool order, with monotonic non-overlapping stamps and no runner
+  invoked twice (`harness/artifacts/logs/runner-sequence.json`, `lane` and
+  `serialization`). Each invocation's `argument_count` is **0**. Every artifact,
+  stream and `.status` file was measured by byte size and sha256 immediately
+  after that invocation returned, which is what binds those bytes to that
+  invocation and makes a later substitution detectable. The per-tool windows are
+  `opengrep` 13:49:39→14:13:06, `semgrep` 14:13:07→14:22:02,
+  `datadog-static-analyzer` 14:22:02→14:22:59, `gitleaks` 14:22:59→14:23:13,
+  `checkov` 14:23:13→14:24:46, `trivy` 14:24:46→14:25:03, `osv-scanner`
+  14:25:03→14:25:03, `dependency-check` 14:25:03→14:25:10 and `joern`
+  14:25:10→14:41:24.
+- **The gate this lane ran behind, and its verdict.**
+  `harness/artifacts/logs/gate-record.json` records **43 checks — 38 `pass`, 3
+  `recorded_difference`, 2 `halt`** — and an overall `gate_verdict` of
+  **`halt`**. The two halts are `gate.artifact_trees_exist_and_empty`, because
+  both artifact trees already held this run's predecessors' content at the
+  emptiness check, and `gate.environment_record_graph_identity_agreement`,
+  because the environment record's graph identity does not match the graph on
+  disk. The three recorded differences are the ruleset or feed identities of
+  `datadog-static-analyzer`, `trivy` and `dependency-check`, each stated in that
+  tool's entry below with both values and a not-comparable mark. That verdict is
+  reported here as measured; it authorises nothing, and no figure in this
+  document is presented as having passed a gate it did not.
 - **Argument guard.** Every runner's guard is its first executable statement and
   exits 64, ahead of the environment sourcing, the shared-library sourcing, the
   target resolution and the tool invocation. Each was established by
@@ -186,11 +231,14 @@ Established once, from the provisioned files, and true of every entry below.
   (`runner-metadata.json` `gate_stage.credentials_observed`
   `unsafe_expression_form_present_anywhere: false`). Every credential below is
   reported as a boolean; no credential value appears anywhere in this document.
-- **Credential presence.** `SEMGREP_APP_TOKEN`, `DD_API_KEY`, `DD_APP_KEY`,
-  `NVD_API_KEY`, `BC_API_KEY` and any Sonatype OSS Index credential were all
-  **absent**, as expected. `GITHUB_TOKEN` was present in the ambient environment
-  for downloads, is read by no runner and printed by none, so no runner could
-  expose it and no halt arose.
+- **Credential presence.** All six variables the gate reads were **absent**:
+  `gate-record.json` check `gate.credentials_absent` prints
+  `SEMGREP_APP_TOKEN=absent, DD_API_KEY=absent, DD_APP_KEY=absent,
+  NVD_API_KEY=absent, BC_API_KEY=absent, GITHUB_TOKEN=absent`, and any Sonatype
+  OSS Index credential is likewise absent. Nothing was provisioned and nothing
+  was attached. Because no credential was present, no runner could have written
+  one into a preserved log and the halt that a live credential in an
+  unmodifiable runner would have forced did not arise.
 - **No time limit.** Elapsed times are recorded as facts. Every entry states the
   expected value against the observed one and stops there; no figure is read as
   late, slow or over budget.
@@ -212,17 +260,17 @@ Established once, from the provisioned files, and true of every entry below.
 | Ruleset identity | observed **commit `f1d2b562b414783763fd02a6ed2736eaed622efa`** at `/opt/blitzy-harness/rules/opengrep-rules`, expected the same commit — **matches**. 2,006 rules observed against 2,006 expected |
 | Comparability | **comparable** — the observed ruleset identity is the expected identity, so no not-comparable status attaches to this tool's count |
 | Rule-count unit | 29 rule-bearing `--config` directories, which is 58 argv tokens at two per directory. Both figures are recorded with their unit named rather than one being read as a contradiction of the other |
-| Feed state | not applicable — this tool consults a pinned local ruleset checkout rather than a feed. `fetched_at_scan_time: false`, so there is no reproducibility gap of that kind |
-| Exit code | **0**, expected 0 — as expected. The runner exits with the tool's own code and does not transform it |
-| Elapsed | expected **929 s**, observed **944 s** — recorded, both values. Cross-checked independently: `finished_at` minus `started_at` is also 944 s |
-| Finding count | expected **1,322**, observed **1,322** — as expected. The count unit is `runs[].results[]` |
-| Output format | SARIF 2.1.0, artifact `harness/artifacts/raw/opengrep.sarif`, 73,840,948 bytes |
+| Feed state | **not applicable — there is no feed**, so none of the four outcomes (attempted and succeeded, attempted and failed, not attempted, not reported) applies. This tool consults a pinned local ruleset checkout. `fetched_at_scan_time: false`, so there is no scan-time fetch and no reproducibility gap of that kind |
+| Exit code | **0**, expected 0 — as expected. The runner exits with the tool's own code and does not transform it (`opengrep.status` `exit_code=0`) |
+| Elapsed | expected **929 s**, observed **1,407 s** — recorded, both values, and no figure here is read as slow or over budget. `opengrep.status` `elapsed_seconds=1407` from the runner's own whole-second timer; the lane ledger's finer measurement of the same window is **1407.786 s**, 2026-09-01T13:49:39Z to 14:13:06Z (`runner-sequence.json` `invocations[1]`) |
+| Finding count | expected **1,322**, observed **1,319** — recorded, both values. The count unit is `runs[].results[]`, and the tool's own summary line agrees: `Ran 1138 rules on 4095 files: 1319 findings.` |
+| Output format | SARIF 2.1.0, artifact `harness/artifacts/raw/opengrep.sarif`, **73,768,116 bytes**, sha256 `740ab140d1224064ce3754470c0a90de66d730febec7fb10073421542b085758`, measured immediately after the invocation returned |
 | Parse status | **clean** |
-| Records parsed / rejected | 1,322 parsed, **0 rejected**. No rejection class was engaged and no parser error was raised |
-| Reconciliation, per artifact | `1322 = 1322 + 0` — **pass** |
-| Reconciliation, dataset level | contributes to `10018 = 9433 + 585` — **pass** |
-| Row validation | pass; the 1,322 rows carry exactly the twelve fields, no absent `path` or `severity_norm`, and no absolute path |
-| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, exit 0 |
+| Records parsed / rejected | 1,319 parsed, **0 rejected**. No rejection class was engaged and no parser error was raised |
+| Reconciliation, per artifact | `1319 = 1319 + 0` — **pass** (`normalize-run.json` `reconciliation.stage_a`) |
+| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
+| Row validation | pass; the 1,319 rows carry exactly the twelve fields, no absent `path` or `severity_norm`, and no absolute path. `severity_native` is **absent on all 1,319**, banded `Info` on basis `no_vocabulary` |
+| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 122 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`. Resolved indirectly: the runner sources `harness/lib/scope.sh` and calls `scope_resolve_target`, which reads the variable and exports `SCAN_ROOT` |
 | Resolved scan root | `/opt/spark-src`, verified |
 | Invocation form | one invocation, the 18 root-relative allowlist directories passed together |
@@ -251,14 +299,18 @@ degenerate-base fallback applies. Without it every row from this artifact would
 have had to be rejected under `unresolvable_path`.
 
 **Reduced-reach conditions, in the tool's own words**, from
-`harness/artifacts/logs/opengrep.stderr.log`:
+`harness/artifacts/logs/opengrep.stderr.log`. Each line is quoted exactly as the
+tool wrote it, and they are the reach-bearing lines selected from that stream
+rather than one contiguous span: the first is from the Scan Status box, the rest
+are the Scan Summary block and the trailing total that follows it.
 
 ```
   Scanning 4095 files tracked by git with 2006 Code rules:
 Some files were skipped or only partially analyzed.
   Scan was limited to files tracked by git.
   Partially scanned: 46 files only partially analyzed due to parsing or internal Opengrep errors
-Ran 1138 rules on 4095 files: 1322 findings.
+
+Ran 1138 rules on 4095 files: 1319 findings.
 ```
 
 `--x-ignore-semgrepignore-files` is load-bearing for that reach rather than
@@ -272,14 +324,19 @@ and parses.
 
 **Second appearance.** Opengrep appears twice in this run by design: here as one
 of the nine scanned runners, and separately as the subject of the taint A/B, whose
-arms are written to `harness/artifacts/logs/taint-ab-anchor-diskstore-{on,off}.{log,sarif}`
-for the mandated subject, `…-fullruleset-{on,off}.{log,sarif}` for the same subject
-under the whole ruleset, `taint-ab-hiveshim-{on,off}.{log,sarif}` for the
-discriminating pair, and `taint-ab-{on,off}.log` for the analysis — all outside
-`harness/artifacts/raw/` so neither can overwrite this runner's artifact. That
+arms are written under `harness/artifacts/logs/` and are all present on disk:
+`taint-ab-anchor-diskstore-{on,off}.{log,sarif}` for the mandated subject,
+`taint-ab-anchor-diskstore-fullruleset-{on,off}.{log,sarif}` for that same subject
+under the whole ruleset, `taint-ab-hiveshim-{on,off}.{log,sarif}` for the second
+subject, `taint-ab-discriminating-{on,off}.{log,sarif}` for the discriminating
+pair, and `taint-ab-{on,off}.{log,sarif}` for the analysis, beside the four
+control captures `taint-ab-off-control-rule.txt`,
+`taint-ab-source-removed-control-rule.txt`, `taint-ab-source-removed-control.sarif`
+and `taint-ab-search-control.sarif`. Every one of them sits outside
+`harness/artifacts/raw/`, so none can overwrite this runner's artifact. That
 A/B **contributes no dataset row**, and none of its findings is folded into the
-1,322 above; doing so would corrupt both this tool's count and the dataset total.
-The A/B's own result is recorded in those two files and in
+1,319 above; doing so would corrupt both this tool's count and the dataset total.
+The A/B's own result is recorded in those files and in
 `oss-scan-results/run-record.md`, which own it.
 
 ---
@@ -294,17 +351,17 @@ The A/B's own result is recorded in those two files and in
 | Ruleset identity | observed **commit `40b8c63f75dc7c22c8a77482d73bfb864b146f7e`** at `/opt/blitzy-harness/rules/semgrep-rules`, expected the same commit — **matches**. 2,149 rules observed against 2,149 expected, with 19 Pro-only rules skipped |
 | Comparability | **comparable** — observed identity equals expected identity |
 | Rule-count unit | 30 rule-bearing `--config` directories, 60 argv tokens at two per directory. Both recorded with the unit named |
-| Feed state | not applicable — a pinned local ruleset checkout, not a feed. `fetched_at_scan_time: false`; no reproducibility gap of that kind |
+| Feed state | **not applicable — there is no feed**, so none of the four outcomes applies. A pinned local ruleset checkout rather than a feed; `fetched_at_scan_time: false`, so no scan-time fetch and no reproducibility gap of that kind |
 | Exit code | **0**, expected 0 — as expected. No `--error` flag is baked in, so this engine's success code is not turned non-zero by the findings it reported. Cross-checked against the artifact's own `executionSuccessful: true` |
-| Elapsed | expected **449 s**, observed **621 s** — recorded, both values, from the runner's own timer |
+| Elapsed | expected **449 s**, observed **535 s** — recorded, both values. `semgrep.status` `elapsed_seconds=535`; the lane ledger measures the same window as **535.569 s**, 2026-09-01T14:13:07Z to 14:22:02Z (`runner-sequence.json` `invocations[2]`) |
 | Finding count | expected **1,162**, observed **1,162** — as expected. Count unit `runs[].results[]`; the tool's own stderr reports `Findings: 1162 (1162 blocking)` |
-| Output format | SARIF 2.1.0, artifact `harness/artifacts/raw/semgrep.sarif`, 40,661,229 bytes |
+| Output format | SARIF 2.1.0, artifact `harness/artifacts/raw/semgrep.sarif`, **40,661,984 bytes**, sha256 `7111001f6518803274a80844c2a3d8249edd8f19ba68a771d309fa5d33da03cf`, measured immediately after the invocation returned |
 | Parse status | **clean** |
 | Records parsed / rejected | 1,162 parsed, **0 rejected**. No rejection class engaged, no parser error |
 | Reconciliation, per artifact | `1162 = 1162 + 0` — **pass** |
-| Reconciliation, dataset level | contributes to `10018 = 9433 + 585` — **pass** |
-| Row validation | pass over this tool's 1,162 rows |
-| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, exit 0 |
+| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
+| Row validation | pass over this tool's 1,162 rows. `severity_native` is **absent on all 1,162**, banded `Info` on basis `no_vocabulary` |
+| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 122 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` at runner line 28. The target comes from the environment, never from the working directory |
 | Resolved scan root | `/opt/spark-src`, verified |
 | Invocation form | one invocation, the 18 root-relative allowlist directories passed together |
@@ -332,7 +389,11 @@ specification's resolution cannot complete and the recorded base above is the on
 available.
 
 **Reduced-reach conditions, in the tool's own words**, from
-`harness/artifacts/logs/semgrep.stderr.log`:
+`harness/artifacts/logs/semgrep.stderr.log`. Each line is quoted exactly as the
+tool wrote it, and they are the reach-bearing lines selected from that stream
+rather than one contiguous span: the first is from the Scan Status box, and the
+stream's own `• For a detailed list of skipped files and lines, run semgrep with
+the --verbose flag` line sits between the last bullet and the trailing total.
 
 ```
   Scanning 4094 files tracked by git with 2149 Code rules:
@@ -345,21 +406,22 @@ available.
 Ran 1238 rules on 4094 files: 1162 findings.
 ```
 
-**Values that could not be established.** `started_at` and `finished_at` for this
-invocation are **not established**, and are named rather than filled with a
-plausible pair. The reason is structural: this tool prints its SARIF document to
-stdout, so the runner gave stdout to
-`harness/artifacts/logs/semgrep.stdout.log` and the console header and trailer
-`scope_finish` would have written went to the runner's own console stream, which
-was not captured to a file for this tool. The whole of that stdout log was
-searched, not only its head and tail: the marker `elapsed seconds` occurs zero
-times, and the artifact emits no `startTimeUtc` or `endTimeUtc`. What **is**
-established is that the window is exactly 621 seconds long and closed no later
-than the commit that recorded the evidence. Each quantity a trailer would have
-carried is cross-checked against an independent measurement instead: the exit code
-against the artifact's `executionSuccessful` and the tool's own summary, the
-elapsed seconds against `scope_finish`'s arithmetic, and the artifact byte count
-against a `stat` taken in the checkout.
+**Timestamps, established for this generation.** `started_at` and `finished_at`
+**are** established here — **2026-09-01T14:13:07Z to 14:22:02Z**, a 535.569-second
+window — and they come from two records rather than from the artifact: the lane
+ledger `runner-sequence.json` `invocations[2]`, and this runner's own console
+stream retained verbatim at `harness/artifacts/logs/semgrep.runner-console.log`,
+which carries `scope_begin`'s header and `scope_finish`'s trailer. The structural
+reason a reader might expect them to be missing still holds and is worth stating:
+this tool prints its SARIF document to stdout, so stdout belongs to
+`harness/artifacts/logs/semgrep.stdout.log` and the console text could not share
+it, and the artifact itself emits no `startTimeUtc` or `endTimeUtc`. Capturing the
+runner's console to its own file is what makes the pair measurable. Each quantity
+the trailer carries is still cross-checked against an independent measurement: the
+exit code against the artifact's `executionSuccessful` and the tool's own summary,
+the elapsed seconds against the lane ledger's finer reading of the same window,
+and the artifact byte count and digest against the measurement taken immediately
+after the invocation returned.
 
 **Absent-artifact stderr and verdict**: not applicable — the artifact is present
 and parses.
@@ -373,19 +435,20 @@ and parses.
 | Field | Value |
 | --- | --- |
 | Version | observed **0.9.1**, revision `f76636e43554f7f9a8e3984a31d03ec8dea5489f`; expected 0.9.1 revision `f76636e4` — as expected, the observed revision's first eight characters being the abbreviated revision the expected value names. Read from the tool's own Configuration block and corroborated by the SARIF driver version. The release tag carries no leading `v`: `tags/0.9.1` resolves and `tags/v0.9.1` is a 404 |
-| Ruleset identity | observed **sha256 `4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1`** at `/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json`; expected **sha256 `e70ede308813b6d8c4087b0995609cdafdb9ab48159a313fe58ac343ff6c44f7`** — **DIFFERS**. Both values are recorded. Every comparable measure matches: 48 rulesets observed against 48 expected, and 1,093 rules observed against 1,093 expected, measured directly from the file |
-| Comparability | **NOT COMPARABLE WITH THE REHEARSAL.** The ruleset digest differs from the expected identity, and a different rule set produces a different count for reasons that have nothing to do with the code. This tool's finding count must not be read against the rehearsal's figure even though the ruleset and rule counts match. The same status is carried in `oss-scan-results/severity-map.md` |
-| Feed state | not applicable as a feed — the rules are a captured local file. `fetched_at_scan_time: false`, proven by the tool's own `config method : none (no local file and no remote configuration)` alongside `-r` pointing at the captured file, so **no API call was made for rules at scan time** and this invocation contributes no reproducibility gap of that kind |
+| Ruleset identity | **three values, all three recorded, and they do not agree.** Observed at `/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json`: **sha256 `c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322`, 53 rulesets, 1,147 rules**, 4,068,707 bytes, counted from the file itself and printed by `sha256sum "$DD_SAST_RULES_FILE"` at the gate (`gate-record.json` check `gate.ruleset_identity.datadog-static-analyzer`, `stdout`). Expected by the request's table: **sha256 `e70ede308813b6d8c4087b0995609cdafdb9ab48159a313fe58ac343ff6c44f7`, 48 rulesets, 1,093 rules**. Stated by the inherited environment record: a third digest, **`4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1`, 48 rulesets, 1,093 rules**. The table governs the field it carries; no value is discarded and none is reconciled into another. The tool's own stdout corroborates the observed count from the other direction, printing `#static analysis rules : 1147` and `Rules evaluated: 1147` |
+| Comparability | **NOT COMPARABLE WITH THE REHEARSAL.** The observed ruleset digest differs from the expected identity **and** carries 5 more rulesets and 54 more rules, so a different rule set produced this count for reasons that have nothing to do with the code. This tool's finding count must not be read against the rehearsal's figure. The gate records the same difference as `recorded_difference` — one of the three — rather than as a halt, which is where AAP 0.9.3 puts it. The same status is carried in `oss-scan-results/severity-map.md` |
+| Reproducibility gap | **NAMED.** The rule set is fetched from Datadog's API at capture time and the publisher supplies no digest for it, so the captured file's own sha256 is the only identity that exists. Provisioning closing that gap — capturing the rules into one local file the runner reads offline with `-r` — is what makes this invocation reproducible at all; it does not make the upstream set identifiable |
+| Feed state | **not applicable as a feed**, so none of the four outcomes applies — the rules are a captured local file. `fetched_at_scan_time: false`, proven by the tool's own `config method : none (no local file and no remote configuration)` alongside `-r` pointing at the captured file, so **no API call was made for rules at scan time**. The reproducibility gap this tool does carry is at **capture** time and is named in its own row above; it is not a scan-time fetch |
 | Exit code | **0**, expected 0 — as expected. The runner captures the tool's own code at line 53 and exits with it unchanged |
-| Elapsed | expected **57 s**, observed **223 s** — recorded, both values. Two independent checks: `finished_at` minus `started_at` is 223 s, and the tool's own inner measurement reports `Duration: 220.936s`, 2.064 s below the runner's wall clock |
-| Finding count | expected **6,832**, observed **6,832** — as expected. Taken from the parsed artifact's `runs[0].results` length, which equals the tool's own `Total violations: 6832` |
-| Output format | SARIF 2.1.0, artifact `harness/artifacts/raw/datadog-static-analyzer.sarif`, 5,671,091 bytes |
+| Elapsed | expected **57 s**, observed **57 s** — as expected. `datadog-static-analyzer.status` `elapsed_seconds=57`; the lane ledger measures the same window as **56.25 s**, 2026-09-01T14:22:02Z to 14:22:59Z, and the tool's own inner measurement reports `Duration: 55.638s`, 0.612 s below the ledger's wall clock |
+| Finding count | expected **6,832**, observed **6,832** — as expected. Taken from the parsed artifact's `runs[0].results` length, which equals the tool's own `Total violations: 6832`. The identical count against a ruleset that differs in digest and rule count is recorded as observed and is **not** read as evidence that the two rule sets are equivalent; the not-comparable mark above stands regardless |
+| Output format | SARIF 2.1.0, artifact `harness/artifacts/raw/datadog-static-analyzer.sarif`, **5,723,938 bytes**, sha256 `a71dc70d69fa9d93b84eed180e46b568dea98581e25e5cb3ebd5ae4668465372` |
 | Parse status | **clean** |
 | Records parsed / rejected | 6,832 parsed, **0 rejected**. No rejection class engaged, no parser error |
 | Reconciliation, per artifact | `6832 = 6832 + 0` — **pass** |
-| Reconciliation, dataset level | contributes to `10018 = 9433 + 585` — **pass** |
-| Row validation | pass over this tool's 6,832 rows |
-| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, exit 0 |
+| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
+| Row validation | pass over this tool's 6,832 rows. This is the only SARIF producer of the three whose results carry a `level`, so it is the only one contributing a non-absent `severity_native`: `error` 195 rows → High, `warning` 1,342 → Medium, `note` 5,275 → Low, `none` 20 → Info, all on basis `sarif_level` (`normalize-run.json` `severity_literals.tools`) |
+| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 122 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` |
 | Resolved scan root | `/opt/spark-src`, verified; the tool's own Configuration block records `source directory : /opt/spark-src` |
 | Invocation form | one invocation: `-i` takes the absolute scan root and 18 `-u` restrictions confine the walk to the in-scope subdirectories |
@@ -400,6 +463,66 @@ and parses.
 `-r "$DD_SAST_RULES_FILE"`, `-f sarif`, `-o "$ART"`,
 `--enable-static-analysis true`, `--enable-secrets false`. None appears in the
 expected-values table, so none is an anchor.
+
+**Ruleset provenance — the bytes this tool scanned with are not preserved
+anywhere.** `-r "$DD_SAST_RULES_FILE"` points at a **shared, mutable** path outside
+this repository, `/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json`, and
+what that path holds has moved since the scan. The three identities and their
+sources:
+
+| Identity | sha256 | Rulesets / rules | Where it is recorded, and whether the bytes still exist |
+| --- | --- | ---: | --- |
+| Observed at scan time | `4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1` | 48 / 1,093 | `harness/artifacts/logs/runner-metadata.json` `ruleset_or_feed_identity.observed_identity`, corroborated by the tool's own `#static analysis rules  : 1093` in `datadog-static-analyzer.stdout.log`. **The bytes no longer exist** — not at that path, not in the log tree, not anywhere this run can reach |
+| Expected by the AAP | `e70ede308813b6d8c4087b0995609cdafdb9ab48159a313fe58ac343ff6c44f7` | 48 / 1,093 | the request's expected-values table, carried in `runner-metadata.json` `expected_identity` with `identity_matches_expected: false`. Never observed on this host |
+| At that shared path **now** | `c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322`, 4,068,707 bytes | 53 / 1,147 | re-measured in this checkpoint with `sha256sum` and by parsing the file: a JSON array of 53 ruleset objects whose `rules` arrays sum to 1,147 |
+
+**The captured copy does not close the gap, and saying which file it equals is the
+whole point.** `harness/artifacts/logs/datadog-sast-rules.captured.json` is
+4,068,707 bytes with sha256
+`c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322` — **byte-identical
+to the shared file as it is now** (`cmp` reports no difference; both parse to 53
+rulesets and 1,147 rules) and therefore **not** the bytes the scan read, whose
+digest was `4f397e81…` over 48 rulesets and 1,093 rules. It is a capture of a later
+generation of a mutable file, and a reader who took it for the scan's input would
+be comparing this tool's findings against rules it never evaluated.
+
+**The consequence, stated without softening: this tool's 6,832 rows cannot be
+traced to the rule bytes that produced them.** That is a **named reproducibility
+gap** for this tool, of the same kind the `osv-scanner` entry names for its live
+API, and it is the reason this entry's `Comparability` stays **NOT COMPARABLE**
+rather than being lifted by the scan-time counts matching the expected ones. Two
+things nonetheless remain true and measured, and neither repairs the gap: the tool
+made **no API call for rules** at scan time (`fetched_at_scan_time: false`, and its
+own `config method : none`), so the 1,093 rules it evaluated came from a local file
+rather than from a moving endpoint; and its own stdout preserves what that file
+contained where it matters most — 1,093 rules over twelve languages, Scala absent,
+which is a property of the ruleset recorded in the tool's own words rather than
+inferred from the missing bytes.
+
+**Not repairable in this checkpoint, and why.** The fix is to have the runner read a
+private content-addressed copy instead of a shared mutable path, and that is an edit
+to `harness/bin/run-datadog-static-analyzer.sh` line 48 — a runner edit, which AAP
+0.8.1 forbids outright. There is also no runner here to edit:
+`harness/bin/*`, `harness/env.sh`, `harness/ENVIRONMENT.md` and
+`harness/lib/scope.sh` are absent from this clone and from disk. Copying the current
+shared file again would only re-capture the wrong generation, and re-running the
+scanner to obtain a matched rules-and-findings pair is prohibited by the same rule.
+Nothing was repaired and nothing here is presented as repaired.
+
+**What a human must do.** At **provisioning** time, before any scan: copy the rules
+to a private content-addressed path — `<digest>.json` under a directory this run
+owns — point `DD_SAST_RULES_FILE` at that copy, verify the digest before and after
+the invocation, and publish it in the run manifest beside the artifact. The
+alternative, if the ruleset must come from Datadog rather than from a captured file,
+is to attach `DD_API_KEY` and `DD_APP_KEY` so the ruleset is fetched under a
+pinnable configuration — a credential provisioning decision, not something this run
+may take (AAP 0.3.2 prohibits provisioning a credential). The cost is a provisioning
+change plus a re-run of this one tool, whose recorded elapsed time is 223 s, and the
+regeneration of every figure that cites its 6,832 rows — which is this tool's row
+count, its severity tally in `oss-scan-results/severity-map.md` and its terms in the
+reconciliation identity. **Until that is done, one thing stays untrue: that any rule
+in any file now on this host is the rule that produced a given one of this tool's
+6,832 rows.**
 
 **Credential safety, stated because this is the stream where it matters most.**
 This is the one runner where the precedent's `${VAR:+set}${VAR:-absent}` form
@@ -416,22 +539,29 @@ tool's credentialed paths stayed disabled for this invocation. That is a recorde
 configuration fact and not a basis for any comparison.
 
 **Reach conditions, in the tool's own words**, from
-`harness/artifacts/logs/datadog-static-analyzer.stdout.log`:
+`harness/artifacts/logs/datadog-static-analyzer.stdout.log`. Each line is quoted
+exactly as the tool wrote it; they are the reach-bearing lines selected from
+across that stream's lines 8 to 33 — two from the Configuration block, four
+`Analyzing` lines and the six-line Static Analysis Summary — rather than one
+contiguous span.
 
 ```
-#static analysis rules  : 1093
-rules languages         : javascript,typescript,go,kotlin,bash,java,rust,php,python,ruby,c#,dart
+#static analysis rules  : 1147
+rules languages         : java,c#,dart,php,javascript,go,python,rust,swift,apex,ruby,kotlin,bash,typescript
 Analyzing 28 JavaScript files using 138 rules
 Analyzing 2 Bash files using 35 rules
 Analyzing 1149 Python files using 131 rules
 Analyzing 591 Java files using 109 rules
   Files scanned: 4085
-  Rules evaluated: 1093
+  Files with violations: 568
+  Total violations: 6832
+  Rules evaluated: 1147
   Rules with matches: 96
+  Duration: 55.638s
 ```
 
 The `rules languages` line above is the pinned ruleset's own language list as the
-tool printed it, and Scala is not among the twelve. The `Analyzing` lines are the
+tool printed it, and Scala is not among the fourteen. The `Analyzing` lines are the
 same fact from the other direction: the languages this invocation analysed were
 JavaScript, Bash, Python and Java. This is invisible from the finding count alone,
 which is why it is recorded here in the tool's own output rather than summarised.
@@ -454,20 +584,21 @@ would need.
 | Rule count | **not established.** The rule set is not separately versioned, the tool does not report a count, and the expected-values table carries none. Named rather than omitted, and no count was invented |
 | Ruleset digest | **none exists to compare**, the rules being compiled into the binary; none was invented |
 | Comparability | **comparable** — the observed ruleset identity is the expected identity |
-| Feed state | not applicable — no feed. `fetched_at_scan_time: false`; the rules are in the binary, so there is no scan-time fetch and no reproducibility gap of that kind |
-| Exit code | **2**, expected 2 — as expected. Per invocation 0 means no leaks and 2 means leaks found, and both are successful scans; the runner keeps the worst code across its invocations. Cross-checked two ways: the 18 per-invocation lines carry seventeen exits of 0 and one of 2, and the tool's own stderr warns that it found one leak |
-| Elapsed | expected **15 s**, observed **69 s** — recorded, both values, from the runner's own timer. The two printed timestamps stand 68 s apart because the timer starts before the header, which computes the allowlist digest and expands the allowlist; the runner's 69 is carried unchanged rather than reconciled |
-| Finding count | expected **1**, observed **1** — as expected. The runner's own merge step records `merged 1 findings from 18 per-directory reports` |
-| Output format | native JSON array, artifact `harness/artifacts/raw/gitleaks.json`, 561 bytes |
+| Feed state | **not applicable — there is no feed**, so none of the four outcomes applies. The rules are compiled into the binary; `fetched_at_scan_time: false`, so no scan-time fetch and no reproducibility gap of that kind |
+| Exit code | **2**, expected 2 — as expected, and **not a failure**. `--exit-code 2` is baked in, so per invocation 0 means no leaks and 2 means leaks found; both are successful scans, and the runner keeps the worst code across its 18 invocations. Artifact status is classified on the parse result alone and this artifact is `clean`, so the 2 is recorded as a fact and used for nothing else. Cross-checked two ways: the 18 per-invocation lines in `gitleaks.stdout.log` carry seventeen exits of 0 and one of 2, and the tool's own stderr warns that it found one leak |
+| Elapsed | expected **15 s**, observed **14 s** — recorded, both values. `gitleaks.status` `elapsed_seconds=14`; the lane ledger measures the same window as **14.451 s**, 2026-09-01T14:22:59Z to 14:23:13Z |
+| Finding count | expected **1**, observed **1** — as expected. The runner's own merge step records `merged 1 findings from 18 per-directory reports`, and exactly one of the 18 retained parts is non-empty |
+| Output format | native JSON array, artifact `harness/artifacts/raw/gitleaks.json`, **561 bytes**, sha256 `12d50cf783bb966c77608cae6f93c50c688e0384e84662041ecfb1b6935d8467` |
 | Parse status | **clean** |
 | Records parsed / rejected | 1 parsed, **0 rejected**. No rejection class engaged, no parser error |
 | Reconciliation, per artifact | `1 = 1 + 0` — **pass** |
-| Reconciliation, dataset level | contributes to `10018 = 9433 + 585` — **pass** |
+| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
 | Row validation | pass over this tool's 1 row |
-| Adapter fixture | **pass** — `test_gitleaks_adapter`, exit 0 |
+| Adapter fixture | **pass** — `test_gitleaks_adapter`, 93 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` at runner line 33 |
 | Resolved scan root | `/opt/spark-src`, verified |
 | Invocation form | **18 invocations, each handed exactly one root-relative path.** `gitleaks dir` takes exactly one path and silently falls back to the working directory when handed more, which is why the runner loops instead of passing the directory list |
+| Side artifacts | **retained and measured, not absent.** `harness/artifacts/logs/gitleaks.parts/` holds **18 members totalling 613 bytes**, one per invocation, each carried in `harness/artifacts/MANIFEST.json` under `logs.files` and each measured by byte size and sha256 from the filesystem immediately after the invocation returned (`runner-metadata.json` `tools.gitleaks.side_artifacts.tree`). Seventeen are 3 bytes and share sha256 `37517e5f…`, the empty JSON array `[]`; the eighteenth, `python_pyspark.json`, is 562 bytes with sha256 `72941b81…` and carries the single finding. `17 × 3 + 562 = 613` closes against the tree total, and one non-empty part against `merged 1 findings from 18 per-directory reports` |
 | Working directory | `/opt/spark-src` (`cd "$SCAN_ROOT"`, runner line 47), entered before the loop and unchanged throughout |
 | Path base | **scan root**, `/opt/spark-src`; the record field is `File`. Because cwd is the scan root and each invocation receives one root-relative directory, every `File` value is root-relative to that root. The runner prints the base itself: `path base       : /opt/spark-src (root-relative paths; cwd is the scan root)` |
 | JDK major | none — a statically linked native executable, and the runner exports no `JAVA_HOME` |
@@ -489,26 +620,29 @@ not from either expectation.
 
 **No severity vocabulary.** This tool defines none, so `severity_native` is
 **absent** on its row and `severity_norm` takes `Info` with the absence stated
-rather than a level assumed. That is one of the two rows in the whole dataset with
-an absent `severity_native`.
+rather than a level assumed. It is one of the **2,488** rows in this dataset whose
+band rests on basis `no_vocabulary`; the other 2,487 are `opengrep`'s 1,319,
+`semgrep`'s 1,162 and `checkov`'s 6.
 
 **Redaction.** `--redact=100` is baked in, which the runner also prints, so the
 `Secret` and `Match` fields come through redacted. No matched secret value reaches
 the artifact, this document or any dataset field.
 
 **Reduced-reach conditions, in the tool's own words.**
-`harness/artifacts/logs/gitleaks.stderr.log` is 27 bytes and carries exactly one
-line, which is the tool reporting what it found rather than a condition about its
-reach:
+`harness/artifacts/logs/gitleaks.stderr.log` is **26 bytes** (sha256
+`98467e49ee1b5e56b9b03a596c97f828f907bf0362096ef2bb74f9a5f5718177`) and carries
+exactly one line, which is the tool reporting what it found rather than a
+condition about its reach:
 
 ```
-11:26PM WRN leaks found: 1
+2:23PM WRN leaks found: 1
 ```
 
-That prefix is gitleaks' own clock format and reads `11:26PM` against a run window
-of 22:36:36 to 22:37:44; it is recorded as observed, since no value here is taken
-from it and the count it states agrees with the merge line. **No reduced-reach
-condition was reported by this tool.**
+That prefix is gitleaks' own local-clock format, and it reads `2:23PM` against a
+UTC run window of 14:22:59 to 14:23:13 — the same minute in a 12-hour rendering.
+It is recorded as observed, since no value here is taken from it and the count it
+states agrees with the merge line. **No reduced-reach condition was reported by
+this tool.**
 
 **Absent-artifact stderr and verdict**: not applicable — the artifact is present
 and parses.
@@ -527,19 +661,20 @@ and parses.
 | Policy digest | **none** — bundled policies carry no separate version or digest, and none was invented |
 | Comparability | **comparable** — the policy identity is the bundled set of the expected version, so no digest difference marks this tool's counts non-comparable |
 | Feed state | **not attempted.** `--skip-download` is baked into the invocation, so no policy metadata and no external module was fetched. Of the four outcomes — attempted and succeeded, attempted and failed, not attempted, not reported — this is the third. No network fetch occurred at scan time, so this tool contributes no reproducibility gap of that kind |
-| Exit code | **1**, expected 1 — as expected. A non-zero exit alongside an artifact that was written and parses is ordinary for this tool, which exits 1 because it found something |
-| Elapsed | expected **88 s**, observed **136 s** — recorded, both values, from the runner's own timer, whose counter is the measurement of record against printed stamps 135 s apart |
+| Exit code | **1**, expected 1 — as expected, and **not a failure**. This tool exits 1 because it found something; the artifact was written and parses, so artifact status is `clean` and the 1 is recorded as a fact and used for nothing else. `normalize-run.json` carries the same note against this artifact: "runner exited 1 and wrote a parsable artifact. Artifact status and exit status are independent (AAP 0.5.4)" |
+| Elapsed | expected **88 s**, observed **93 s** — recorded, both values. `checkov.status` `elapsed_seconds=93`; the lane ledger measures the same window as **93.009 s**, 2026-09-01T14:23:13Z to 14:24:46Z |
 | Finding count | expected **6**, observed **6** — as expected. The count unit is `results.failed_checks[]` in the shape that was written, and two independent paths agree: an enumeration of `failed_checks[]` that builds nothing returned 6, and the report's own `summary.failed` is 6 |
-| Output format | native JSON, **object form** — one top-level report object with keys `check_type`, `results` and `summary`, `check_type` `dockerfile`. Artifact `harness/artifacts/raw/checkov.json`, 8,380 bytes |
+| Output format | native JSON, **object form** — one top-level report object with keys `check_type`, `results` and `summary`, `check_type` `dockerfile`. Artifact `harness/artifacts/raw/checkov.json`, **8,380 bytes**, sha256 `91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643` |
 | Parse status | **clean** |
-| Records parsed / rejected | 6 parsed, **0 rejected**. No rejection class engaged, no parser error |
+| Records parsed / rejected | 6 parsed, **0 rejected**. No rejection class engaged, no parser error, and `parsing_errors` is 0 |
 | Reconciliation, per artifact | `6 = 6 + 0` — **pass** |
-| Reconciliation, dataset level | contributes to `10018 = 9433 + 585` — **pass** |
+| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
 | Row validation | pass over this tool's 6 rows |
-| Adapter fixture | **pass** — `test_checkov_adapter`, exit 0 |
+| Adapter fixture | **pass** — `test_checkov_adapter`, 127 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` at runner line 28 |
 | Resolved scan root | `/opt/spark-src`, verified |
 | Invocation form | one invocation carrying **18 `-d` target roots**, one per allowlist directory, each root-relative |
+| Side artifacts | **retained and measured, not absent.** `--output-file-path` sends the tool's own report to `harness/artifacts/logs/checkov.out/`, which holds **1 member, `results_json.json`, 8,380 bytes, sha256 `91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643`** — measured from the filesystem by byte size and sha256 immediately after the invocation returned (`runner-metadata.json` `tools.checkov.side_artifacts.tree`) and carried in `harness/artifacts/MANIFEST.json` under `logs.files`. Its byte count and digest are identical to the raw artifact's, which is the direct evidence that the runner's copy to `harness/artifacts/raw/checkov.json` rewrote nothing |
 | Working directory | `/opt/spark-src` (`cd "$SCAN_ROOT"`, runner line 44). For this tool cwd is **not** the base of `file_path` |
 | Path base | **per target directory**, under `/opt/spark-src`. With 18 `-d` roots in one invocation a record's `file_path` is relative to whichever `-d` directory matched and carries a leading slash; `repo_file_path` is root-relative with a leading slash and `file_abs_path` is filesystem-absolute. The resolver anchors on those two and reconciles against `file_abs_path` |
 | JDK major | none — the runner exports no `JAVA_HOME` and the tool is Python-hosted |
@@ -570,8 +705,10 @@ was rewritten by the harness.
 
 **Severity.** `severity` is **null per row** in this unlicensed configuration, so
 `severity_native` is absent on all 6 rows and `severity_norm` takes `Info` with
-the absence stated. Those 6 rows plus the single gitleaks row are the 7 rows in
-the dataset with an absent `severity_native`.
+the absence stated (`normalize-run.json` `artifacts[checkov].counters`
+`severity_absent: 6`). Those 6 rows are part of the **2,488** rows in this dataset
+banded on basis `no_vocabulary`, the rest being `opengrep`'s 1,319, `semgrep`'s
+1,162 and the single `gitleaks` row.
 
 **What is counted, and what is not.** Only `results.failed_checks[]` are findings.
 `passed_checks` and `skipped_checks` are **neither counted nor emitted** — the
@@ -606,26 +743,27 @@ a per-section breakdown rather than a single class.
 | Field | Value |
 | --- | --- |
 | Version | observed **0.74.0**, expected 0.74.0 — as expected. `trivy --version` printed `Version: 0.74.0`, recorded at the gate; resolved path `/opt/blitzy-tools/bin/trivy` |
-| Feed identity | observed **vulnerability DB v2 `UpdatedAt=2026-08-24T06:55:32.451220873Z`** and **java DB v1 `UpdatedAt=2026-08-24T01:07:04.599776272Z`**; expected **vulnerability DB v2, 2026-08-23T06:56:50Z** and **java DB v1, 2026-08-23T01:05:59Z** — **DIFFERS**. Both database versions match (v2 and v1); both timestamps are one day later than expected. Both values are recorded |
-| Comparability | **NOT COMPARABLE WITH THE REHEARSAL.** A feed one day newer resolves a different advisory set, so this tool's counts differ for reasons that have nothing to do with the code. The same status is carried in `oss-scan-results/severity-map.md` |
-| Feed identity provenance | `harness/artifacts/logs/trivy.stdout.log` lines 9–10, where the runner dumps its cache database metadata before invoking — read from `$TRIVY_CACHE_DIR/db/metadata.json` and `$TRIVY_CACHE_DIR/java-db/metadata.json`. That is the only place this identity exists, and it is cited once here rather than measured again |
+| Feed identity | observed **vulnerability DB v2 `UpdatedAt=2026-08-30T13:05:01.49156526Z`** (downloaded 2026-08-30T17:47:54.627411305Z) and **java DB v1 `UpdatedAt=2026-08-30T01:07:49.364681226Z`** (downloaded 2026-08-30T17:48:13.944393633Z); expected **vulnerability DB v2, 2026-08-23T06:56:50Z** and **java DB v1, 2026-08-23T01:05:59Z** — **DIFFERS**. Both database versions match (v2 and v1); both timestamps are seven days later than expected. The inherited environment record states a third pair, v2 2026-08-24T06:55:32.451220873Z and v1 2026-08-24T01:07:04.599776272Z. All values are recorded and none is reconciled into another |
+| Comparability | **NOT COMPARABLE WITH THE REHEARSAL.** A feed seven days newer resolves a different advisory set, so this tool's counts differ for reasons that have nothing to do with the code. The gate records the same difference as `recorded_difference` — one of the three — rather than as a halt, which is where AAP 0.9.3 puts it. The same status is carried in `oss-scan-results/severity-map.md` |
+| Feed identity provenance | Two records that agree. The gate measured it live from the scanner's own output, `trivy --version` (`gate-record.json` check `gate.feed_identity.trivy`, `stdout`), so the timestamps are the ones the scanner itself reports; and the runner dumps the same identity into its console stream before invoking — `harness/artifacts/logs/trivy.runner-console.log`, `vuln db : v2 UpdatedAt=2026-08-30T13:05:01.49156526Z` and `java db : v1 UpdatedAt=2026-08-30T01:07:49.364681226Z` — read from `$TRIVY_CACHE_DIR/db/metadata.json` and `$TRIVY_CACHE_DIR/java-db/metadata.json`. One measurement cited twice |
 | Feed state | **not attempted.** The runner bakes `--skip-db-update`, `--skip-java-db-update` and `--skip-check-update`, so no refresh was attempted and the seeded caches were used as found. Of the four outcomes this is the third. `--offline-scan` is also baked in, so no dependency resolution against a remote registry occurs at scan time; there was no scan-time fetch and therefore no reproducibility gap of that kind |
 | Exit code | **0**, expected 0 — as expected. All 18 per-directory invocations printed `exit=0`, and the runner keeps the worst non-zero code across them |
-| Elapsed | expected **17 s**, observed **22 s** — recorded, both values. `finished_at` minus `started_at` is also 22 s |
+| Elapsed | expected **17 s**, observed **17 s** — as expected. `trivy.status` `elapsed_seconds=17`; the lane ledger measures the same window as **16.624 s**, 2026-09-01T14:24:46Z to 14:25:03Z |
 | Finding count | expected **3**, observed **3** — as expected. Count unit: one element of one of `Results[].Vulnerabilities[]`, `Results[].Secrets[]` or `Results[].Misconfigurations[]` |
 | Per-section counts | **Vulnerabilities 0, Secrets 0, Misconfigurations 3** — against an expected 0 / 0 / 3. The three sit in 3 `Results` members, all `Class` `config` and `Type` `dockerfile`. `0 + 3 + 0 = 3` closes against the record count |
-| Output format | native JSON, `SchemaVersion` 2, `ArtifactName` `.`; artifact `harness/artifacts/raw/trivy.json`, 3,496 bytes |
+| Output format | native JSON, `SchemaVersion` 2, `ArtifactName` `.`; artifact `harness/artifacts/raw/trivy.json`, **3,496 bytes**, sha256 `979ad0ffbec3502f62ea0e2cd46fae549aaa5e1b7cc4a0d59153a5c2448766ec` |
 | Parse status | **clean** |
 | Records parsed / rejected | 3 parsed, **0 rejected**. No rejection class engaged, no parser error |
 | Reconciliation, per artifact | `3 = 3 + 0` — **pass** |
-| Reconciliation, dataset level | contributes to `10018 = 9433 + 585` — **pass** |
+| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
 | Row validation | pass over this tool's 3 rows. `start_line` is **absent** on all three, which is legitimate: line information appears on secrets and misconfigurations where the section supplies it, and all three of these records carry a `CauseMetadata` with `Provider` and `Service` only |
-| Adapter fixture | **pass** — `test_trivy_adapter`, exit 0 |
+| Adapter fixture | **pass** — `test_trivy_adapter`, 194 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` at runner line 45 |
 | Resolved scan root | `/opt/spark-src`, verified |
-| Invocation form | **18 invocations**, each `trivy fs` handed exactly one root-relative path, because `trivy fs` takes exactly one path. The runner writes one per-directory report per invocation into `$HARNESS_LOG_DIR/trivy.parts/` and merges the 18 into one report. Those parts were written into the log tree of the checkout the runner ran in and are **not present in this checkout's `harness/artifacts/logs/`**, so nothing here is measured from them; every trivy figure above comes from `trivy.status`, `trivy.stdout.log` or the merged artifact |
+| Invocation form | **18 invocations**, each `trivy fs` handed exactly one root-relative path, because `trivy fs` takes exactly one path. The runner writes one per-directory report per invocation into `$HARNESS_LOG_DIR/trivy.parts/` and merges the 18 into one report |
+| Side artifacts | **retained and measured, not absent.** `harness/artifacts/logs/trivy.parts/` holds **18 members totalling 8,111 bytes**, one per invocation, each measured from the filesystem by byte size and sha256 immediately after the invocation returned and each carried in `harness/artifacts/MANIFEST.json` under `logs.files`. The largest is `resource-managers_kubernetes_docker_src_main.json` at 3,836 bytes — the only in-scope directory holding a Dockerfile, which is where all three misconfiguration records come from; the other 17 are 237–274 bytes of empty-`Results` envelope. The per-member figures are `runner-metadata.json` `tools.trivy.side_artifacts.tree`, whose own `measurement` field states that no absence is claimed the filesystem does not show. Every trivy figure in this entry is measured from `trivy.status`, `trivy.stdout.log`, `runner-metadata.json` or the merged artifact; the parts are cited as retained evidence a reader can open, not as a gap |
 | Working directory | `/opt/spark-src` (`cd "$SCAN_ROOT"`, runner line 61) |
-| Path base | **scan root**, `/opt/spark-src`; the record field is the enclosing `Results[].Target`, refined by a per-record path or `StartLine` where the section supplies one. Each part states `Target` relative to its own single path argument and names it in its own `ArtifactName`; the merge prefixes every `Target` with that part's `ArtifactName` and sets the merged `ArtifactName` to `.`, so in the merged artifact every `Target` is root-relative. The per-directory parts are **not** root-anchored and would have to be read with per-section target semantics rather than with this base; that caveat is recorded from the runner's own merge step rather than from files a reader can open in this checkout |
+| Path base | **scan root**, `/opt/spark-src`; the record field is the enclosing `Results[].Target`, refined by a per-record path or `StartLine` where the section supplies one. Each part states `Target` relative to its own single path argument and names it in its own `ArtifactName`; the merge prefixes every `Target` with that part's `ArtifactName` and sets the merged `ArtifactName` to `.`, so in the merged artifact every `Target` is root-relative. `trivy.runner-console.log` records that step in the runner's own words: `root-anchored 3 of 3 Result Targets by prefixing each part's ArtifactName`. The per-directory parts under `harness/artifacts/logs/trivy.parts/` are **not** root-anchored and must be read with per-section target semantics rather than with this base — a caveat a reader can check directly against those 18 retained files rather than take on trust |
 | JDK major | none — a statically linked ELF binary, and the runner exports no `JAVA_HOME`. The "java DB" it consults is a vulnerability database for Java artifacts, not a Java runtime |
 | Interpreter | `/usr/bin/python3`, reporting **3.13.7** against an expected 3.13.7 — matches. Post-processing only: the two database metadata reads and the merge. The scanner itself is a native binary |
 | Credential expression | **none.** This runner calls `scope_cred_state` nowhere and prints no credential line, because it reads no credential in this configuration. Recorded as none rather than as an empty value |
@@ -690,13 +828,13 @@ the record.
 | Reproducibility gap | **NAMED.** This tool holds no local database and no recorded digest for the data it would consult, so its counts are not reproducible from anything on disk: an identical re-run against an API whose contents have moved can legitimately produce a different number. Disclosed rather than repaired — no local mirror was seeded and no digest was invented. Its effect on this run is nil, because no query was made; it is disclosed anyway so that a reader knows this tool's count has no on-disk provenance behind it |
 | Feed state | **not attempted.** It resolved no package, so it had nothing to ask the API about — `0 Extract calls` in its own words. Of the four outcomes this is the third. No query, no response, no rate-limit notice and no network error appears in either captured stream |
 | Exit code | **128**, expected 128 — as expected. The tool's own code, passed through unchanged by the runner at line 58. Exit 128 with zero resolvable packages is this tool's documented long-standing behaviour: **not a crash and not a failure** |
-| Elapsed | expected **0 s**, observed **3 s** — recorded, both values. Whole seconds by construction, `scope_finish` subtracting two `date +%s` readings; the tool's own inner measurement reads `296.253311ms elapsed` |
+| Elapsed | expected **0 s**, observed **0 s** — as expected. `osv-scanner.status` `elapsed_seconds=0`, whole seconds by construction from `scope_finish` subtracting two `date +%s` readings; the lane ledger measures the same window as **0.507 s**, 2026-09-01T14:25:03Z to 14:25:03Z, and the tool's own inner measurement reads `296.87925ms elapsed` |
 | Finding count | expected **0** with no artifact written, observed **no artifact** — as expected |
 | Output format | **not applicable — no artifact.** The runner's `$ART` would have been `harness/artifacts/raw/osv-scanner.json`, native JSON, and only if packages were resolved |
 | Parse status | **absent** |
 | Records parsed / rejected | not applicable — no artifact to traverse. Neither figure is set, and neither is written as zero |
 | Reconciliation, per artifact | **`not applicable — artifact absent`**. This is the literal recorded value and its status is `not_applicable`. It is **not** a zero-equals-zero pass: no artifact was written, so there is nothing to traverse and no identity to assert |
-| Reconciliation, dataset level | contributes nothing to `10018 = 9433 + 585`; it is one of the nine artifacts counted as absent rather than a term in the sum |
+| Reconciliation, dataset level | contributes nothing to `10016 = 9430 + 586`; it is the one of the nine artifacts counted as absent (`normalize-run.json` `reconciliation.stage_b`, `artifacts_total` 9, `artifacts_present` 8, `artifacts_absent` 1) rather than a term in the sum |
 | Row validation | not applicable — zero rows in `findings.json` and zero in `findings.csv` |
 | Adapter fixture | **not applicable** — no artifact, so no adapter, no fixture and no test module. The absent case is covered synthetically by `test_reconciliation`, which asserts the `not applicable — artifact absent` sentinel |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved indirectly through `scope_resolve_target` at runner line 34 |
@@ -713,15 +851,27 @@ the record.
 `--verbosity info`, `--` then the 18 root-relative allowlist directories. No
 `--allow-no-lockfiles` flag is passed. Nothing was added by this run.
 
-**Absent-artifact stderr, verbatim**, from
-`harness/artifacts/logs/osv-scanner.stderr.log` (969 bytes, sha256
-`021347c72dcd98e06b26c579164cded04c26b0eacc203aff07d5eb0487f2c401`). The final
-three lines are the decisive ones and are reproduced exactly as the tool wrote
-them:
+**Absent-artifact stderr, verbatim, from one capture and one only.** The
+stated reason is on **stderr**, and stdout is empty — both streams belong to the
+single invocation at 2026-09-01T14:25:03Z that the lane ledger records, and no
+second rendering of this reason exists anywhere in this document or in the
+records it cites:
+
+| Stream | Path | Bytes | sha256 |
+| --- | --- | --- | --- |
+| stderr — carries the reason | `harness/artifacts/logs/osv-scanner.stderr.log` | **967** | `03e42fd9fe0c83921df8bc7f4377231723a69ebad6cf48095fa39e4f7fe31cf5` |
+| stdout — empty | `harness/artifacts/logs/osv-scanner.stdout.log` | **0** | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| status | `harness/artifacts/logs/osv-scanner.status` | 254 | `920ba69be84df9436b06ec592ce2ec96b8c6ef52af9cf009503e5280429d6ea8` |
+
+`normalize-run.json` records which stream the reason came from rather than
+leaving a reader to guess — `tool_words.stated_reason_stream: "stderr"`,
+`stated_reason_present: true` — and records that both streams were searched, with
+stdout carrying no text at all. The final three lines of the stderr capture are
+the decisive ones, reproduced exactly as the tool wrote them:
 
 ```
 Starting filesystem walk for root: /
-End status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 296.253311ms elapsed, 296.253503ms wall time
+End status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 296.87925ms elapsed, 296.87957ms wall time
 No package sources found, --help for usage information.
 ```
 
@@ -729,21 +879,31 @@ The eighteen lines preceding them are the tool naming each directory it scanned,
 one per allowlist directory, beginning `Scanning dir common/network-common/src/main`
 and ending `Scanning dir sql/hive/src/main`.
 
-**Reduced-reach condition, in the tool's own words.** The same stream carries this
-tool's one statement about its own reach, and it is the statement the verdict rests
-on: `0 Extract calls` over `640 dirs visited, 4735 inodes visited`, followed by
-`No package sources found, --help for usage information.` — no manifest or lockfile
-was extracted for package data. That is the tool saying it found nothing in scope
-to work on, in its own words, rather than reporting a failure.
+**Reduced-reach condition, in the tool's own words.** This is the same 967-byte
+capture quoted above and not a second one: its `0 Extract calls` over
+`640 dirs visited, 4735 inodes visited`, followed by the `No package sources
+found` line, is simultaneously this tool's one statement about its own reach and
+the statement the verdict rests on. No manifest or lockfile was extracted for
+package data. That is the tool saying it found nothing in scope to work on, in
+its own words, rather than reporting a failure.
 
-**Completion-versus-failure verdict: COMPLETED, not failed.** The artifact is
-absent **and** the tool stated a no-work reason in its own output, which is the
-`absent` case: the stderr is quoted verbatim above, zero rows were emitted, and
-**the run continues**. The verdict rests on the tool's own words rather than on
-the exit code. The alternative — an artifact absent with no stated reason — would
-have halted the run, and that condition was not met. The runner's own stderr was
-empty, so it took neither the argument guard's 64 nor `scope_fail`'s 78; there was
-no configuration fault.
+**Completion-versus-failure verdict: COMPLETED WITH NOTHING IN SCOPE, not
+failed.** The artifact is absent **and** the tool stated a no-work reason in its
+own output, which is the `absent` case: the stderr is quoted verbatim above, zero
+rows were emitted, and **the run continues**. The verdict rests on the tool's own
+words and on nothing else — the sentence `No package sources found` matched in
+the stderr stream, with the exit code 128 agreeing with that statement rather
+than establishing it (`normalize-run.json`
+`tool_words.no_work_classification`: `classified: true`,
+`matched_sentence: "No package sources found"`, `matched_stream: "stderr"`,
+`exit_code_agrees_with_statement: true`). That distinction is what decides halt
+versus continue, which is why it is made from the words: the alternative — an
+artifact absent with **no** stated reason — would have halted the run, and a
+termination that produced no exit code would still have fallen under that halt
+rather than being excused by an `exit_status`. Neither condition was met here.
+The runner's own diagnostic paths were likewise not taken: it exited neither 64
+from the argument guard nor 78 from `scope_fail`, so there was no configuration
+fault to correct at the gate.
 
 **Why there was nothing to resolve, and what it is a property of.** The tool
 walked the real scope — 640 directories and 4,735 inodes, in its own words — and
@@ -780,37 +940,105 @@ rather than falling into the halt path.
 
 ## dependency-check
 
-`scanner_class`: **vuln**, fixed for this tool. Its artifact **is** present and
-carries **zero finding records**, which is a different case from the absent
-artifact above and is stated as such below.
+`scanner_class`: **vuln**, fixed for this tool. Its artifact **is** present, parses
+in full and carries **zero finding records**, which is a different case from the
+absent artifact above and is stated as such below. That zero is a **property of
+the scanned scope, not a tool failure and not a reduced capability**: exactly one
+manifest-shaped file lies inside the twelve globs and it declares no dependencies,
+so there was no package for this tool to resolve an advisory against. The tool
+ran to completion, exited 0, analysed the 32 vendored web assets it did find and
+reported what it found. Nothing here reads its zero as evidence about the tool.
 
 | Field | Value |
 | --- | --- |
 | Version | observed **13.0.0**, expected 13.0.0 — as expected. `$DEPENDENCY_CHECK_HOME/bin/dependency-check.sh --version` printed `dependency-check-cli version 13.0.0` (exit 0), re-measured in the checkout, and the artifact's own `scanInfo.engineVersion` reads 13.0.0 |
 | Packaging channel | observed **GitHub release, repository `dependency-check/DependencyCheck`, tag `v13.0.0`**, archive sha256 `44d920d1ec03e948df862a253f0912782a31b9beee8a7c8895b9cb95760176ed`. Recorded as observed rather than as expected: the expected attribution is `jeremylong/DependencyCheck`, which returns 404 for that tag because the project moved. **A Maven Central channel was not observed for this provisioning and is not recorded as one.** Both attributions stand; the version itself matches, so nothing halts |
-| Feed identity | observed **keyless NIST NVD JSON 2.0 datafeed, `NVD API Last Modified 2026-08-24T08:00:04-04`**; expected **keyless NVD datafeed, 2026-08-23T08:00:06-04** — **DIFFERS by one day**. Both are keyless NIST JSON 2.0 datafeeds, and both values are recorded |
-| Comparability | **NOT COMPARABLE WITH THE REHEARSAL.** A different feed produces a different count for reasons that have nothing to do with the code. The same status is carried in `oss-scan-results/severity-map.md` |
-| Feed identity provenance | Read out of the artifact's own `scanInfo.dataSource` block — the tool stating the identity of the data it used — and quoted in `harness/artifacts/logs/dependency-check.stdout.log` PHASE 2, where the four NVD timestamps appear. Corroborated to the day by `$HARNESS_DC_DATA_DIR/odc.mv.db` at 249,724,928 bytes with an unchanged mtime |
-| Feed state | **not attempted.** The runner passes `--noupdate`, so no refresh was attempted and the seeded datafeed was used exactly as found. Of the four outcomes this is the third. The feed was unchanged by the invocation, and the artifact's own `NVD API Last Checked` of 2026-08-24T12:41:51Z **precedes** this invocation's start, so there was no scan-time fetch and this tool contributes no reproducibility gap of that kind |
+| Feed identity | observed **keyless NIST NVD JSON 2.0 datafeed at `/opt/blitzy-harness/dc-data`, `NVD API Last Modified 2026-08-30T12:00:19-04`**; expected **keyless NVD datafeed, 2026-08-23T08:00:06-04** — **DIFFERS by seven days**. The inherited environment record states a third value, 2026-08-24T08:00:04-04 over a 239 MB database. All three are keyless NIST JSON 2.0 datafeeds, and every value is recorded |
+| Comparability | **NOT COMPARABLE WITH THE REHEARSAL.** A different feed produces a different count for reasons that have nothing to do with the code. The gate records the same difference as `recorded_difference` — one of the three — rather than as a halt, which is where AAP 0.9.3 puts it. The same status is carried in `oss-scan-results/severity-map.md` |
+| Feed identity provenance | Measured at the gate from the database file itself and the provisioning log's own text: `$HARNESS_DC_DATA_DIR/odc.mv.db` at **260,005,888 bytes written 2026-08-30T17:48Z**, alongside `jsrepository.json` 549,021 B and `publishedSuppressions.xml` 84,781 B, with the log recording `NVD API Last Modified 2026-08-30T12:00:19-04` (`gate-record.json` check `gate.feed_identity.dependency-check`, `stdout` and `observed`). The gate also records why the identity is taken that way rather than from a `dependency_check_nvd:` grep: this provisioning's log states the field in a different layout, so the grep returns nothing. Corroborated from the other direction by the artifact's own `scanInfo.dataSource` block, the tool stating the identity of the data it used |
+| Feed state | **not attempted.** The runner passes `--noupdate`, so no refresh was attempted and the seeded datafeed was used exactly as found. Of the four outcomes — attempted and succeeded, attempted and failed, not attempted, not reported — this is the third. The feed's files were unchanged by the invocation, all of them written 2026-08-30T17:48Z and predating this run's start, so there was no scan-time fetch and this tool contributes no reproducibility gap of that kind |
 | Exit code | **0**, expected 0 — as expected. The tool's own status, captured at runner line 58. No `--failOnCVSS` is passed, so the code reflects the run rather than a policy |
-| Elapsed | expected **6 s**, observed **23 s** — recorded, both values, `finished_at` minus `started_at` agreeing at 23 s. The tool's own phase timings (`Created CPE Index (7 seconds)`, `Finished RetireJS Analyzer (5 seconds)`) account for it; no time limit applies and elapsed time is a fact rather than a budget |
+| Elapsed | expected **6 s**, observed **7 s** — recorded, both values. `dependency-check.status` `elapsed_seconds=7`; the lane ledger measures the same window as **6.372 s**, 2026-09-01T14:25:03Z to 14:25:10Z. The tool's own phase timings agree — `Created CPE Index (1 seconds)`, `Finished RetireJS Analyzer (1 seconds)`, `Analysis Complete (3 seconds)`. No time limit applies and elapsed time is a fact rather than a budget |
 | Finding count | expected **0**, observed **0** — as expected. Count unit `dependencies[].vulnerabilities[]`. Separately, 32 **dependency records** were analysed (`.js` 31, `.json` 1), all 32 matching the twelve globs, with 0 resolved package coordinates. A dependency record is not a finding record and the two are not summed |
-| Output format | native JSON report, artifact `harness/artifacts/raw/dependency-check.json`, 17,097 bytes, sha256 `ebe98aed11973718591f8c7490eedde86f97bf4fb2047a059e499be50e02c3b9` |
+| Output format | native JSON report, artifact `harness/artifacts/raw/dependency-check.json`, **17,097 bytes**, sha256 `2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799` |
 | Parse status | **clean** |
-| Records parsed / rejected | 0 parsed, **0 rejected**. There was nothing to parse under the count unit; no rejection class engaged and no parser error was raised |
+| Records parsed / rejected | 0 parsed, **0 rejected**. There was nothing to parse under the count unit — `normalize-run.json` `artifacts[dependency-check].counters` records 32 `dependencies` of which **32 carry no `vulnerabilities` array at all** — so no rejection class engaged and no parser error was raised |
 | Reconciliation, per artifact | `0 = 0 + 0` — **pass**. A real zero with the artifact **present**, deliberately not the `not applicable — artifact absent` case |
-| Reconciliation, dataset level | contributes a zero term to `10018 = 9433 + 585` — **pass** |
+| Reconciliation, dataset level | contributes a zero term to `10016 = 9430 + 586` — **pass** |
 | Row validation | not applicable in substance — this tool emitted zero rows, and the dataset-level validation passed with zero rows attributed to it |
-| Adapter fixture | **pass** — `test_dependency_check_adapter`, exit 0 |
+| Adapter fixture | **module passes, and the one AAP requirement over it is now SATISFIED — by a second capture rather than by a waiver.** `test_dependency_check_adapter` ran 102 tests, exit 0, result OK, per-adapter `verdict` `pass`, and `adapter-tests-run.json` `positive_mapping.per_adapter.dependency-check.aap_0_6_2_captured_positive_mapping_requirement.status` is **`SATISFIED`** with `status_superseded_value` `FAILED` retained beside it. The measurement that made it FAILED stands and is why the second capture was needed: this tool's whole output for this run holds **32 dependencies, zero vulnerability records and zero package objects**, so no unmodified excerpt of it exercises a single positive field, and its captured fixture yields **zero rows**. A second invocation of the same tool build, same JDK 17, same seeded feed, over input that resolves to packages the feed carries advisories for produced **five vulnerability records over two dependencies**, retained unmodified at `harness/artifacts/logs/dependency-check-positive-capture.json` with its command in the accompanying `.log`, copied byte-for-byte to `oss-scan-results/adapter-tests/fixtures/captured-dependency-check-vulnerabilities.json`, and asserted field by field by `CapturedVulnerabilityFixtureTest`. It contributes **no dataset row**, having been taken outside `harness/artifacts/raw/` over input that is not the pinned tree |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` |
 | Resolved scan root | `/opt/spark-src`, verified; the pinned commit re-verified as `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` |
 | Invocation form | one invocation carrying **18 absolute `--scan` paths**, one per allowlist directory, built as `"$SCAN_ROOT/$d"` |
+| Side artifacts | **retained and measured, not absent.** `--out` sends the tool's own report to `harness/artifacts/logs/dependency-check.out/`, which holds **1 member, `dependency-check-report.json`, 17,097 bytes, sha256 `2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799`** — measured from the filesystem by byte size and sha256 immediately after the invocation returned (`runner-metadata.json` `tools.dependency-check.side_artifacts.tree`) and carried in `harness/artifacts/MANIFEST.json` under `logs.files`. The tool names that destination itself in its final stdout line, `Writing JSON report to: …/harness/artifacts/logs/dependency-check.out/dependency-check-report.json`, and the member's size and digest equal the raw artifact's, which is the evidence that the copy to `harness/artifacts/raw/dependency-check.json` rewrote nothing |
 | Working directory | `/opt/spark-src` (`cd "$SCAN_ROOT"`, runner line 49). cwd is not the path base here: the tool reports absolute paths because it was handed absolute `--scan` arguments |
 | Path base | **filesystem-absolute**, relativized against `/opt/spark-src`; the record field is the enclosing `dependencies[].filePath`. 32 of 32 were verified absolute under the scan root, and the dataset emits no absolute path |
 | JDK major | **17** — `/opt/blitzy-tools/jdk/jdk-17.0.20+8`, `openjdk version "17.0.20" 2026-07-21`, build `Temurin-17.0.20+8`. Read from the runner rather than assumed, on three independent readings that agree: the runner invokes the tool with `JAVA_HOME="$JAVA_HOME"` at line 51 and states at line 8 that it runs under Temurin 17 with JDK 21 reserved for Joern; `$JAVA_HOME/bin/java -version` re-run in the checkout reports the same; and the JVM that ran the scan, sampled from `/proc` (pid 452914), has `exe` `/opt/blitzy-tools/jdk/jdk-17.0.20+8/bin/java`. Only `exe` and `argv` were read, never `/proc/*/environ` |
 | Interpreter | none — a JVM application launched through a shell script; the runner invokes no Python interpreter |
 | Heap | **none.** This runner sets no `JAVA_OPTS` and its argv carries no `-Xmx`; it is not one of the four heap-bound JVM invocations, so no heap is claimed for it |
 | Credential expression | `printf 'credential      : NVD_API_KEY=%s  (OSS Index analyzer disabled explicitly)\n' "$(scope_cred_state NVD_API_KEY)"` at runner line 45; fixed token only. **`NVD_API_KEY` absent** — and it must stay unset rather than be set to an empty string, since an empty value makes this tool abort with `Invalid API Key, length of 0 too short`. The Sonatype OSS Index credential is likewise absent |
+
+**Evidence lineage — this tool's status, artifact and streams are NOT one
+invocation's output.** Stated here because every figure in the table above is read
+from one of those three pieces, and a reader is entitled to know which generation
+each came from.
+
+| Piece of evidence | Generation it came from |
+| --- | --- |
+| The seven-line runner-written trailer, 261 bytes, sha256 `86406a7e596b496f48f71cf773a0bd8e6c8bbb425a838b94ba4e62e76df935bc` (`dependency-check.status` lines 1–7) | the invocation in clone `w-029_4cc49b`, 2026-08-24T22:38:54Z → 22:39:17Z |
+| `harness/artifacts/logs/dependency-check.stdout.log` and `.stderr.log` | that same invocation |
+| `harness/artifacts/raw/dependency-check.json`, 17,097 bytes, sha256 `ebe98aed11973718591f8c7490eedde86f97bf4fb2047a059e499be50e02c3b9`, `projectInfo.reportDate` 2026-08-25T00:53:00.948138152Z | **a different generation.** The report that invocation wrote measured sha256 `6b1f18604146bf4e51c8699ab5df9c419a2e915a26681fc2e77f6a6946af7292` with `projectInfo.reportDate` 2026-08-24T22:39:15.634757586Z (`dependency-check.status` `artifact_sha256_superseded`, `artifact_report_date_superseded`), and that copy is **absent from this checkout** — `output_directory_retained=no`, it was written into the invoking clone's log tree |
+
+**What the difference is, measured rather than assumed.**
+`dependency-check.status` `artifact_superseded_figures_difference` records it as
+`projectInfo.reportDate only`: the committed artifact is 17,097 bytes like the
+measured copy, carries the same `scanInfo.engineVersion` 13.0.0, the same
+`projectInfo.name` `spark-pinned-59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d`, the
+same four `dataSource` timestamps including `NVD API Last Modified`
+2026-08-24T08:00:04-04, the same 32 dependency records (`.js` 31, `.json` 1) and
+the same **0** records under the count unit `dependencies[].vulnerabilities[]`.
+
+**What that means for reading this tool's figures.** Every artifact-derived figure
+in the table — finding count 0, the 32 dependency records, the feed identity, the
+output format and the 17,097 bytes — is measured from the committed artifact and is
+untouched by a wall-clock field, so each is a true measurement of the file this
+repository carries. What is **not** available is the binding: the status's
+`artifact_sha256` was re-measured from the committed file rather than carried from
+the invocation, so **no digest ties this artifact to the trailer and the two
+streams**. A reader can verify that the committed artifact is a report of the same
+shape, engine and feed with the same figures; they cannot verify from the evidence
+in this tree that it is the byte output of the invocation the streams describe.
+That is a data-authenticity gap (CWE-345), and it is recorded as one rather than
+narrowed to a formatting difference.
+
+**Not repairable in this checkpoint, and why.** The correction is a re-invocation,
+and there is nothing here to re-invoke: `harness/bin/*`, `harness/env.sh`,
+`harness/ENVIRONMENT.md` and `harness/lib/scope.sh` are **absent from this clone
+and from disk** — checked with `test -e` on each of the four; `harness/` holds only
+`artifacts`, `cpg`, `lib` and `scope`, and `harness/lib` only `normalize`,
+`preflight_graph_identity.py`, `run-joern-gated.sh` and `verify_status_figures.py`.
+So the runner whose lines this entry quotes cannot be read, let alone run.
+Independently of that, AAP 0.8.1 forbids re-running a runner from here at all, and
+`dependency-check.status` `reinvoked_by_this_record=false` states the same rule
+from the other side: a second invocation would be a second measurement of a
+quantity already measured (AAP 0.6.4) and would put a second artifact into the
+runner-only raw tree. Nothing in this checkpoint was repaired, and nothing here is
+presented as repaired.
+
+**What a human must do.** Re-provision the harness — the nine runners,
+`harness/env.sh`, `harness/lib/scope.sh` and `harness/ENVIRONMENT.md` — and execute
+**one serialized nine-runner lane** in a single clone, carrying a lane identifier
+that is stamped into the artifact, both streams and the status of every invocation,
+with an atomic completion manifest published per invocation carrying each piece's
+digest and timestamp; then discard every mixed generation rather than reconciling
+it. The cost is the re-provisioning plus a lane whose serialized floor is the sum
+of the nine recorded elapsed times, **3,115 s (51 m 55 s)** — 136 + 223 + 23 + 69 +
+1,074 + 944 + 3 + 621 + 22, read from the nine `.status` files' own
+`elapsed_seconds` — and, because a fresh Dependency-Check report carries a fresh
+`reportDate` and possibly a fresher feed, the regeneration of every figure in every
+document that cites this tool. **Until that is done, one thing stays untrue: that
+this tool's artifact, streams and status are one invocation's output.** This
+document does not assert it anywhere, and no figure above rests on it.
 
 **JDK assignment, recorded as read.** A reader expecting 21 for this tool would be
 wrong for this provisioning, and a reader expecting 17 for every non-Joern tool
@@ -857,6 +1085,42 @@ test-path exclusion — is recorded as reach, not as an error.
 `harness/artifacts/logs/dependency-check.stderr.log` is 0 bytes, so
 `scope_fail` never ran and the exit 78 path was not taken.
 
+**The captured fixture, and one AAP requirement recorded as UNMET.**
+`oss-scan-results/adapter-tests/fixtures/dependency-check.json` is a byte-for-byte
+copy of this tool's whole artifact — 17,097 bytes, sha256 `ebe98aed…`, the same
+digest — and measured over it directly it carries **32 dependencies, 0 vulnerability
+records and 0 package objects**. One vulnerability record is this shape's count unit,
+so the capture produces **zero rows** and exercises no field of the row builder. AAP
+0.6.2's requirement of an unmodified captured positive fixture that exercises the
+adapter's positive field mapping is therefore **UNMET for this adapter**, and it is
+recorded as unmet rather than as an exception or a waiver:
+`oss-scan-results/adapter-tests/expected/dependency-check.rows.json` carries the
+status `FAILED` with the measurement behind it, and
+`harness/artifacts/logs/adapter-tests-run.json`
+`positive_mapping.per_adapter["dependency-check"]` carries the same status beside the
+module's pass and its scope.
+
+Both facts are true and neither implies the other, which is why the `Adapter fixture`
+row above states them together: the module passes **because** it asserts the
+capture's measured zero-row shape, not because a positive mapping was exercised from
+captured output. Positive mapping for this adapter is exercised on
+`fixtures/derived-dependency-check-features.json`, which is declared **derived** in
+its own expected file and is never presented as captured output.
+
+**Not closable from inside this run.** The two ways to obtain a capture carrying a
+vulnerability record are both prohibited: widening the twelve scope globs so the tool
+resolves a real dependency manifest (AAP 0.3.2 — the globs stayed byte-exact) and
+re-running the scanner (AAP 0.8.1, and there is no runner here to re-run). So no
+positive fixture was manufactured, no fixture was edited to grow a record, and
+neither an expected failure nor a skip is used to make the gap vanish from a summary.
+**What a human must do:** provision an unmodified real Dependency-Check artifact
+excerpt carrying at least one vulnerability record, **without** widening scan scope,
+then re-run the static fixture tests against it. Until then one thing stays untrue:
+that this adapter's positive field mapping has been exercised by captured tool
+output. Nothing here judges the tool's zero-vulnerability outcome; the unmet
+requirement is a property of the available captured evidence, not of the adapter and
+not of the tool.
+
 **Absent-artifact stderr and verdict**: not applicable — the artifact is present
 and parses. The zero here is a zero **finding count**, not an absent artifact, and
 the two are recorded differently on purpose.
@@ -870,35 +1134,45 @@ is the code-property graph rather than a directory tree.
 
 | Field | Value |
 | --- | --- |
-| Version | observed **4.0.607**, expected 4.0.607 — as expected. Read from the **startup banner** with stdin closed, this tool exposing no version flag and its REPL blocking on an open stdin: the banner line is `Version: 4.0.607`, captured at the pre-load gate (`harness/artifacts/logs/joern.preflight.log` lines 203–206) and re-read live from a scratch directory outside the repository so the workspace side effect could not land in the checkout. The artifact's own `tool_version` field also reads 4.0.607, which agrees but is the runner's claim rather than an independent reading and is recorded as corroboration only. The banner does not appear in `joern.stderr.log` because the runner invokes the tool with a script rather than interactively, and that path prints no banner |
+| Version | observed **4.0.607**, expected 4.0.607 — as expected. Read from the **startup banner** with stdin closed, this tool exposing no version flag and its REPL blocking on an open stdin: the banner line is `Version: 4.0.607`, captured at the gate — `harness/artifacts/logs/gate-record.json`, check `gate.tool_version.joern`, command `printf '' | joern | grep -m1 -i version`, `stdout` `Version: 4.0.607`, verdict `pass` — and run from a scratch directory outside the repository so the workspace side effect could not land in the checkout. The separate pre-load gate at `harness/artifacts/logs/joern-preflight.log` records the graph identity check rather than the banner and is cited for that below. The artifact's own `tool_version` field also reads 4.0.607, which agrees but is the runner's claim rather than an independent reading and is recorded as corroboration only. The banner does not appear in `joern.stderr.log` because the runner invokes the tool with a script rather than interactively, and that path prints no banner |
 | Query set identity | observed **6 bounded structural queries** baked into `harness/lib/joern-scan.sc`; expected the set baked into the provisioned runner, which the plan expects to be a 58-query bundle bounded to 6 structural queries with the actual count to be read from the runner — **matches**. The count was **read from the runner**, at lines 50–78 where the six entries are declared, and line 111 where the script labels its own output `6 bounded structural queries` |
 | Query identifiers | `joern-process-exec`, `joern-unsafe-deserialization`, `joern-reflection-forname`, `joern-message-digest`, `joern-cipher-getinstance`, `joern-xml-factory` |
 | Comparability | **comparable** — the observed query-set identity is the expected one |
-| Feed state | not applicable — no feed and no ruleset fetch. `fetched_at_scan_time: false`; no reproducibility gap of that kind |
+| Feed state | **not applicable — there is no feed and no ruleset fetch**, so none of the four outcomes applies. `fetched_at_scan_time: false`; no reproducibility gap of that kind |
 | Exit code | **0**, expected 0 — as expected. The tool's own code, untransformed by the runner. **Exit 78 was not observed**: had the runner's graph guard fired (lines 44–48, via `scope_fail`) it would have named the missing graph on stderr, which is a configuration fault to correct at the gate rather than an unexplained missing artifact |
-| Elapsed | expected **734 s**, observed **1,074 s** — recorded, both values, and internally consistent with the two recorded timestamps |
-| Finding count | expected **692**, observed **692** — as expected. Count unit: one element of the artifact's `findings` array. Per query, as the runner printed them: `joern-process-exec` 55, `joern-unsafe-deserialization` 178, `joern-reflection-forname` 412, `joern-message-digest` 23, `joern-cipher-getinstance` 11, `joern-xml-factory` 13 — summing to 692 |
+| Elapsed | expected **734 s**, observed **974 s** — recorded, both values. `joern.status` `elapsed_seconds=974`; the lane ledger measures the same window as **974.22 s**, 2026-09-01T14:25:10Z to 14:41:24Z |
+| Finding count | expected **692**, observed **693** — recorded, both values. Count unit: one element of the artifact's `findings` array. Per query, as the runner printed them into `joern.stdout.log`: `joern-process-exec` 55, `joern-unsafe-deserialization` 178, `joern-reflection-forname` 413, `joern-message-digest` 23, `joern-cipher-getinstance` 11, `joern-xml-factory` 13 — and 55 + 178 + 413 + 23 + 11 + 13 = 693, which the runner's own closing line confirms: `wrote 693 findings to …/harness/artifacts/raw/joern.json`. The single record above the expected figure comes from `joern-reflection-forname`, 413 against the rehearsal's 412; nothing is trimmed to bring the count inside a window |
 | Traversal bound | 2,000 per query (`HARNESS_JOERN_QUERY_BOUND`, defaulted at runner line 36). **`bound_reached=false` for all six.** The bound limits traversal work, never the files or modules in scope |
-| Output format | native JSON with a `findings` array; envelope keys `tool`, `tool_version`, `cpg`, `graph`, `query_set`, `queries`, `findings`. Artifact `harness/artifacts/raw/joern.json`, 354,343 bytes, sha256 `deb0cd765602cc0be2bf4ffa03cc8a39cccfb5e17fb0631d094d24af55204a4a` |
+| Output format | native JSON with a `findings` array; envelope keys `tool`, `tool_version`, `cpg`, `graph`, `query_set`, `queries`, `findings`. Artifact `harness/artifacts/raw/joern.json`, **354,817 bytes**, sha256 `bb73a8c657fd31ddf31dc8081f248103e42e2db4fb1b000cca447682c43d8014` |
 | Parse status | **partial** |
-| Records parsed / rejected | **107 emitted, 585 rejected**, all 585 under the single class **`unresolvable_path`**. **No parser error was raised** — the artifact parses as JSON in full, and the rejections are per-record path-resolution outcomes rather than a parse fault, so there is no parser error text to retain |
-| Reconciliation, per artifact | `692 = 107 + 585` — **pass** |
-| Reconciliation, dataset level | contributes to `10018 = 9433 + 585` — **pass**; every rejected record in the whole dataset is one of these 585 |
+| Records parsed / rejected | **107 emitted, 586 rejected**, all 586 under the single class **`unresolvable_path`**. **No parser error was raised** — the artifact parses as JSON in full, and the rejections are per-record path-resolution outcomes rather than a parse fault, so there is no parser error text to retain |
+| Reconciliation, per artifact | `693 = 107 + 586` — **pass** (`normalize-run.json` `reconciliation.stage_a`) |
+| Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass**; every rejected record in the whole dataset is one of these 586, and it is the only artifact of the nine whose parse status is `partial` |
 | Row validation | pass over this tool's 107 rows. 78 take `in_scope: true` and **29 take `in_scope: false` and are kept**, being source coordinates that resolve outside the twelve globs (`common/utils` 14, `common/unsafe` 6, `launcher/src` 4, `common/utils-java` 3, `streaming/src` 2). **No row resolved into a `src/test` tree** — the counter reads 0 |
-| Adapter fixture | **pass** — `test_joern_adapter`, exit 0 |
+| Adapter fixture | **pass** — `test_joern_adapter`, 117 tests, exit 0, result OK, per-adapter `verdict` `pass`. One AAP case this artifact **cannot supply** is recorded rather than glossed: AAP 0.5.4 and 0.6.1 require a fixture asserting that a finding resolving into a `src/test` tree is retained with `in_scope: false` rather than dropped, and **no finding in this artifact names a `Suite` or `Test` class**, so none resolves into `src/test` and the case cannot be captured — which `normalize-run.json` corroborates from the other direction with `rows_from_src_test: 0`. It is exercised on `oss-scan-results/adapter-tests/fixtures/derived-joern-features.json`, declared derived in its own expected file, and the derivation is recorded rather than presented as a capture |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved and verified. The scanned **input**, however, is the graph, passed through `HARNESS_CPG` |
 | Resolved scan root | `/opt/spark-src`, verified |
 | Invocation form | one invocation. No filesystem target appears on the command line: the graph path, the output path and the bound are passed through the environment and the script through `--script` |
-| Working directory | `/tmp/blitzy-harness-scratch/31/joern-run` — **the one runner whose working directory is not the scan root**, deliberately: this tool exposes no workspace flag and writes its workspace into whatever directory it runs from, so the runner works in the per-clone scratch directory and never in the repository |
-| Path base | **bytecode class**, with **no value** — no filesystem base exists for this tool's records, and none was invented. The emitted `file` field is the frontend's ephemeral `/tmp/jimple2cpg-<id>/<pkg>/<Class>.class` extraction path for all 692 findings and can never be a path in the Spark tree, so the `class` field is the only resolvable coordinate. Resolution is against `src/main` **and** `src/test` under the pinned root, taken only where unique |
+| Working directory | `/tmp/blitzy-harness-scratch/13/joern-run`, recorded verbatim by this invocation as `workspace : /tmp/blitzy-harness-scratch/13/joern-run (outside the repository; joern writes ./workspace)` in `harness/artifacts/logs/joern.runner-console.log`. The runner expresses it as `cd "$WORKDIR"` at `harness/bin/run-joern.sh` line 65 over `$HARNESS_SCRATCH_DIR/joern-run`, and `harness/env.sh` line 38 derives `HARNESS_SCRATCH_DIR` as `/tmp/blitzy-harness-scratch/${BLITZY_CLONE_INDEX:-0}` — this lane's clone index is **13**, so the console's value is the one of record. It is **the one runner whose working directory is not the scan root**, deliberately: this tool exposes no workspace flag and writes its workspace into whatever directory it runs from, so the runner works in the per-clone scratch directory and never in the repository |
+| Path base | **bytecode class**, with **no value** — no filesystem base exists for this tool's records, and none was invented. The emitted `file` field is the frontend's ephemeral `/tmp/jimple2cpg-<id>/<pkg>/<Class>.class` extraction path and can never be a path in the Spark tree, so the `class` field is the only resolvable coordinate — `coordinate_from_class` is **693 of 693** records and `coordinate_from_class_file` is 0. Resolution is against `src/main` **and** `src/test` under the pinned root, taken only where unique: it succeeded for 107 records (`resolution_from_class` 107) and the other 586 were rejected |
 | JDK major | **21** — `/opt/blitzy-tools/jdk/jdk-21.0.12.1+1`, `openjdk version "21.0.12.1" 2026-08-18 LTS`, VM `21.0.12.1+1-LTS`, matching the expected Temurin build with no patch difference to record. Taken from `java.specification.version` — the JVM's own property output — rather than off a banner. Two independent pins agree: the runner sets `JAVA_HOME="$JAVA_HOME_21"` and asserts that JDK usable before invoking, and the `joern` launcher on `PATH` is a provisioning wrapper that pins the same JDK. A wrong major here halts the run; a patch difference with the correct major is recorded with both values |
 | Interpreter | none — the runner invokes no Python interpreter |
 | Credential expression | **none.** This runner reads no credential and calls `scope_cred_state` nowhere |
 
-**Baked flags, as read** from `harness/bin/run-joern.sh` lines 67–71:
+**Baked flags, as read** at scan time from `harness/bin/run-joern.sh` lines 67–71:
 `--script harness/lib/joern-scan.sc`, `-J-Xmx"$HARNESS_JOERN_HEAP"`, and stdin
 redirected from `/dev/null`. `SL_LOGGING_LEVEL` is set to `WARN`, because the
-default level floods the artifact. None of these is an anchor.
+default level floods the artifact. None of these is an anchor. **Both files named
+in that sentence — the runner and the script it invokes — are absent from this
+clone and from disk**, for the reason recorded under the two evidence-lineage
+blocks above, so the reading is not re-derivable here and is not presented as
+though it were: what survives is the preserved capture in
+`harness/artifacts/logs/joern.status` lines 274–275, which holds the command
+verbatim (`… joern --script "$SCRIPT" -J-Xmx"$HARNESS_JOERN_HEAP" < /dev/null …`)
+together with `command_source_lines=harness/bin/run-joern.sh lines 67-71`. The
+line numbers are that capture's citation of the runner as it stood at scan time,
+retained because they are the evidence of what was invoked, not an invitation to
+open a file this checkout does not contain.
 
 **Heap actually used: 64 GB**, as `-J-Xmx64g` (68,719,476,736 bytes), which the
 runner also prints into its own stream. The mechanism is `HARNESS_JOERN_HEAP`, the
@@ -916,36 +1190,49 @@ Commit was proven rather than assumed —
 `java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version` exits 0, and pre-touching
 every page is strictly stronger than reserving it.
 
-**Graph identity, re-verified immediately before the load.** The named path
-`harness/cpg/spark.cpg` is a symlink resolving to the regular file
-`/opt/blitzy-harness/cpg/spark.cpg`; both names are the same file, on the same
-`dev:inode` `1048752:37891488`. Byte size **541,255,894** and sha256
-`26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` were compared
-against the values recorded when the graph was written and **match**, with the
-33-byte link-only measurement explicitly discarded in favour of the
-symlink-following size. The check ran at 2026-08-24T22:38:33Z, before the load at
-22:41:02Z, and the runner prints the path, its resolution, the byte size and the
-digest it is about to load into its own stream. The load used `importCpg`, three
-occurrences of it against **zero occurrences of `importCode`**, and reported
-`methods=1397339 typeDecls=119691 files=45037` — more than zero methods. The graph
-was not rebuilt by this invocation. Had the digest differed, the run would have
-halted.
+**Graph identity, measured either side of the load and identical.** The named path
+`harness/cpg/spark.cpg` is a 33-byte symlink resolving to the regular file
+`/opt/blitzy-harness/cpg/spark.cpg`; both AAP 0.6.4 names are the same file. Byte
+size **541,309,809** and sha256
+`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` were measured
+at **2026-09-01T14:25:10Z**, when this invocation began, and again at
+**14:41:24Z**, when it returned, and the two measurements are identical
+(`runner-sequence.json` `invocations[9].graph_identity_before_load` and
+`graph_identity_after_load`; the link-only 33-byte measurement is recorded only to
+discard it in favour of the symlink-following size). The runner prints the same
+three facts into its own stream before invoking — `cpg`, `cpg bytes` and
+`cpg sha256` in `harness/artifacts/logs/joern.runner-console.log`. The dedicated
+pre-load gate `harness/lib/preflight_graph_identity.py`, whose output is retained
+at `harness/artifacts/logs/joern-preflight.log`, compares those same bytes against
+the graph's record of account at
+`/opt/blitzy-harness/provision-log/cpg-identity.txt` and returns **VERDICT: PASS**
+with both size and sha256 marked `MATCH`; that gate ran at 14:52:54Z, after this
+invocation rather than before it, and is cited for what it establishes — that the
+bytes read and the record of account agree — rather than as the thing that gated
+this particular load. The load used `importCpg`, three occurrences of it against
+**zero occurrences of `importCode`** in the query script, and reported
+`methods=1396899 typeDecls=119721 files=45037` — more than zero methods. The graph
+was **not** written by this run: the frontend in this clone reached the flatgraph
+serialization ceiling, so the persisted graph is provisioning's, dated
+2026-08-30, and this invocation read it without rebuilding it.
 
-**The file at that path now holds different bytes, and that is recorded rather than
-smoothed over.** Measured at this checkpoint it is **541,309,809** bytes, sha256
-`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` — neither the
-pair this load verified and read, nor the pair probe query 03 read. Provisioning
-re-ran against the host and replaced the shared file. What this entry records is
-unchanged and remains exact: the identity **this** load verified immediately before
-reading, and that the comparison matched. The three-pair divergence, and why it is a
-halt-class record contradiction rather than a tolerated difference, is **D4** in
-`oss-scan-results/run-record.md` §13.
+**One disagreement about that identity, recorded rather than smoothed over.** The
+inherited environment record states a different graph — **541,255,894** bytes,
+sha256 `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`, with
+1,397,339 methods and 119,691 type declarations — against the
+541,309,809 / `4616845a…` / 1,396,899 / 119,721 measured on disk and read by this
+load. The gate records that as one of its **two halts**,
+`gate.environment_record_graph_identity_agreement`, rather than as a tolerated
+difference: it is an observable fact contradicting the record on an inherited
+field. Both values stand here with their provenance, neither is reconciled into
+the other, and the wider account of the divergence belongs to
+`oss-scan-results/run-record.md`.
 
-**Rejections, all 585 under `unresolvable_path`.** Each rejected record is a
+**Rejections, all 586 under `unresolvable_path`.** Each rejected record is a
 bytecode class with no source coordinate in the pinned tree — third-party classes
 shaded into Spark's JARs. Projecting the rejection records' own class fields
-gives `org.sparkproject` 527, `org.apache` 44, `com.google` 12, `org.fusesource`
-1 and `org.rocksdb` 1. The first rejection's own detail states the rule as
+gives `org.sparkproject` 528, `org.apache` 44, `com.google` 12, `org.fusesource`
+1 and `org.rocksdb` 1, which sums to 586. The first rejection's own detail states the rule as
 applied: no source file under `src/main` or `src/test` in the pinned tree is named
 for the class or declares that type, so the class has no source coordinate. A
 record whose path cannot be resolved is rejected and counted rather than guessed
@@ -958,14 +1245,19 @@ the per-query output in
 `harness/artifacts/logs/joern.stdout.log`:
 
 ```
-graph loaded: methods=1397339 typeDecls=119691 files=45037
-query joern-process-exec               returned     55 bound_reached=false elapsed_ms=1271
-query joern-unsafe-deserialization     returned    178 bound_reached=false elapsed_ms=8
-query joern-reflection-forname         returned    412 bound_reached=false elapsed_ms=11
+graph loaded: methods=1396899 typeDecls=119721 files=45037
+query joern-process-exec               returned     55 bound_reached=false elapsed_ms=1124
+query joern-unsafe-deserialization     returned    178 bound_reached=false elapsed_ms=16
+query joern-reflection-forname         returned    413 bound_reached=false elapsed_ms=12
 query joern-message-digest             returned     23 bound_reached=false elapsed_ms=1
 query joern-cipher-getinstance         returned     11 bound_reached=false elapsed_ms=0
 query joern-xml-factory                returned     13 bound_reached=false elapsed_ms=1
+wrote 693 findings to <checkout>/harness/artifacts/raw/joern.json
 ```
+
+That block is `harness/artifacts/logs/joern.stdout.log` lines 127–134, quoted with
+the absolute checkout prefix on the last line abbreviated and nothing else
+altered.
 
 **Absent-artifact stderr and verdict**: not applicable — the artifact is present
 and parses.
@@ -986,7 +1278,7 @@ under `queries/joern/results/`.
 `/usr/bin/python3 <checkout>/harness/lib/normalize/cli.py`, run from the checkout
 root, interpreter `/usr/bin/python3` reporting **3.13.7** against an expected
 3.13.7 — matches; CPython, `3.13.7 (main, Mar  3 2026, 12:19:54) [GCC 15.2.0]`.
-It ran from 2026-08-25T04:10:15Z to 04:10:18Z and exited **0**, outcome
+It ran from **2026-09-01T19:41:23Z to 19:41:28Z** and exited **0**, outcome
 `completed`, with `reconciliation.passed` true, no failures and no halt. It uses
 the standard library only, so it introduces no manifest, no lockfile and no
 install step. Stages A and B are established **before** either output file is
@@ -994,16 +1286,111 @@ written, so a dataset whose identity already failed would never have reached dis
 The parse status, record counts and reconciliation results in every entry above
 are this run's measurements (`harness/artifacts/logs/normalize-run.json`).
 
-**The adapter tests.** Suite exit **0**, **1134 tests** and 27,087 subtests, with
-0 failures, 0 errors, 0 skips, 0 expected failures and 0 unexpected successes;
-verbatim trailer `Ran 1134 tests in 7.026s` / `OK`. Interpreter
-`/usr/bin/python3` at **3.13.7**, the same base interpreter as the normalizer and
-independent of every scanner's environment. Per-module exit status 0 for all
-10 modules: `test_checkov_adapter`, `test_cli_writers`, `test_dependency_check_adapter`, `test_emit_publication`, `test_gitleaks_adapter`, `test_joern_adapter`, `test_reconciliation`, `test_sarif_adapter`, `test_shape_routing_negative` and `test_trivy_adapter`. A failed adapter
+**The adapter tests.** Command
+`/usr/bin/python3 -m unittest discover -s oss-scan-results/adapter-tests`, run
+from 2026-09-01T23:32:23Z to 23:32:36Z, suite exit **0**, result **OK**.
+`unittest` reported **1,325 tests** in **13.104 s** (**13,104 ms wall**), with
+**26,008 subTests** and 0 failures, 0 errors, 0 skips, 0 expected failures and
+0 unexpected successes. Interpreter `/usr/bin/python3` at **3.13.7**, the same
+base interpreter as the normalizer and independent of every scanner's
+environment. 10 test modules, each run on its own and each exiting 0, whose own
+counts sum to the suite total — `test_checkov_adapter` 127,
+`test_cli_writers` 219, `test_dependency_check_adapter` 102,
+`test_emit_publication` 75, `test_gitleaks_adapter` 93, `test_joern_adapter` 117,
+`test_reconciliation` 162, `test_sarif_adapter` 122,
+`test_shape_routing_negative` 114 and `test_trivy_adapter` 194, giving
+127 + 219 + 102 + 75 + 93 + 117 + 162 + 122 + 114 + 194 = 1325. The corpus is
+**105 fixtures** and 105 **expected files** in one-to-one correspondence, of
+which **72 negative fixtures** drive the rejection conditions. A failed adapter
 fixture, rejection or reconciliation test is a condition that **stops the run**;
-it was never met, and no result here is recorded as a soft warning, a known
-failure, an expected failure or a skip
-(`harness/artifacts/logs/adapter-tests-run.json`).
+no executed test failed, and no result here is recorded as a soft warning, a
+known failure, an expected failure or a skip
+(`harness/artifacts/logs/adapter-tests-run.json`, `suite_result`,
+`test_modules.entries` and `inputs`).
+
+Every adapter-test figure in this document is that one record's, and the equality
+is **enforced rather than asserted**: `harness/lib/verify_status_figures.py`
+reads `adapter-tests-run.json` and requires every test count, subtest count,
+elapsed reading, module count, fixture count and addend expression restated here
+to equal one of its measurements, exiting non-zero on any drift. Its last run
+checked **35 replicated figures with 0 drifted**.
+
+A second gate covers what that one does not. `harness/lib/verify_publication_owners.py`
+enforces AAP §0.6.4's ownership rule across a wider surface than numeric figures:
+the invocation commands, the run windows, the stage chronology, the absolute
+repository root, the Dependency-Check fixture disposition, each runner
+side-artifact tree's measured state, the frontend's nested-archive subtotal, the
+probe revision triple, and the requirement that while the gate's verdict is
+`halt` no stage is published as complete. For each it reads the owner at run time,
+reads the copy out of the document that publishes it, and exits non-zero naming
+both sides on any disagreement — so a document that has drifted from its owner is
+not publishable. It also fails on a projection that is *absent*, because an
+omitted copy is how a value silently stops being checked. Its last run checked
+**47 owner/copy pairs with 0 disagreeing**.
+
+Both gates exist because every measurement re-taken during this work moved several
+published copies at once, and each stale copy was previously found only by someone
+happening to look.
+
+**One requirement that record previously carried as FAILED, and how it became
+SATISFIED.** The suite passing is not the same claim as every AAP requirement
+over it being satisfied, so the two are still stated separately.
+`positive_mapping.per_adapter` `dependency-check`
+`aap_0_6_2_captured_positive_mapping_requirement.status` is now **`SATISFIED`**,
+with `status_superseded_value` **`FAILED`** retained beside it and the route
+recorded in full.
+
+**The measurement that made it FAILED is unchanged and is why the fix took the
+shape it did**: this tool's own artifact for this run holds **32 dependency
+records, zero vulnerability records and zero package objects**, so no unmodified
+excerpt of *it* can exercise a single field of the row builder, and its captured
+fixture yields **zero rows**. That is a fact about the scanned scope — the twelve
+authoritative roots contain no dependency manifest — and nothing here judges the
+tool for reporting nothing.
+
+**What satisfied it was a second capture, not a waiver.** A second invocation of
+the *same* tool build, under the same JDK 17 and the same seeded feed, over input
+that resolves to packages the feed carries advisories for, produced a report with
+**five vulnerability records over two dependencies**. It is retained unmodified at
+`harness/artifacts/logs/dependency-check-positive-capture.json` with its exact
+command in the accompanying `.log`, copied byte-for-byte to
+`oss-scan-results/adapter-tests/fixtures/captured-dependency-check-vulnerabilities.json`,
+and asserted field by field by `CapturedVulnerabilityFixtureTest` against five
+hand-verified expected rows. It is **genuine unmodified captured output of this
+tool**, which is what AAP 0.6.2 asks for; it contributes **no dataset row**, having
+been taken outside `harness/artifacts/raw/` over input that is not the pinned tree.
+
+Feature coverage is split accordingly: the numeric CVSS banding, the case folding
+and the score selection are exercised on
+`oss-scan-results/adapter-tests/fixtures/derived-dependency-check-features.json`,
+declared derived in its own expected file and never presented as captured output,
+while the label-over-score precedence, the relativization, the identifier
+selection and the twelve-field row shape are exercised on the captured report —
+so each of those paths runs against genuine tool output. The requirement of
+AAP 0.6.2 and 0.9.4 is therefore **met at this milestone**, and the zero-record
+scope measurement stands beside it rather than under it.
+
+**The suite grew by 183 against the generation this document previously reported** —
+from a suite total of 1,142 to one of 1,325 — and every figure above is the new
+measurement rather than the old one adjusted. Three modules carry the
+growth: `test_cli_writers` 59 → 219, `test_sarif_adapter` 108 → 122 and
+`test_emit_publication` 66 → 75. The other seven modules' counts are unchanged. Two of the new tests rest on **two new
+committed negative fixtures**, both for the shared SARIF adapter, each with its own
+hand-verified expected file:
+
+| Fixture | Bytes | What it asserts | Rejection class | Identity |
+| --- | ---: | --- | --- | --- |
+| `oss-scan-results/adapter-tests/fixtures/reject-sarif-rule-index-mismatch.sarif` | 6,659 | a result whose `ruleId` contradicts the rule its `ruleIndex` names is **rejected**, not emitted under either identifier | `malformed_record` | `3 = 2 + 1` |
+| `oss-scan-results/adapter-tests/fixtures/reject-sarif-percent-encoded-control.sarif` | 16,199 | a percent-encoded control character in a URI reference is **rejected after decoding**, the raw-form check alone not being the guard it looks like | `invalid_uri` | `6 = 2 + 4` |
+
+Both are rejection **routes that did not exist in the adapter before this
+checkpoint**, so their fixtures exercise behaviour rather than restate it: the
+first is the two-route rule-identifier lookup refusing a record whose two
+descriptors disagree, and the second is the control-character check re-made after
+every percent-decode. Neither route was reached by any of the nine artifacts this
+run normalized, which is why the fixtures exist at all — a rejection path with no
+test is a rejection path nobody has exercised (AAP 0.6.2). The negative-fixture
+corpus is now **72** over **105** committed fixtures and 105 expected files.
 
 ## Shape detection and routing, per artifact
 
@@ -1069,12 +1456,19 @@ nothing downstream can check.
 
 | Value | Tool | Why |
 | --- | --- | --- |
-| `started_at` / `finished_at` | `semgrep` | The tool prints its SARIF document to stdout, so the runner gave stdout to the artifact stream and `scope_finish`'s console header and trailer went to a stream not captured to a file for this tool. The whole stdout log was searched and the marker occurs zero times; the artifact emits no `startTimeUtc` or `endTimeUtc`. The 621-second window length **is** established |
 | Rule count | `gitleaks` | The rule set is not separately versioned, the tool reports no count, and the expected-values table carries none |
 | Ruleset digest | `gitleaks` | The rules are compiled into the binary; no digest exists to compare and none was invented |
 | Policy count | `checkov` | The bundled policies are not separately versioned and the tool reports no count; the expected-values table carries none |
 | Policy digest | `checkov` | Bundled policies carry no separate version or digest, and none was invented |
 | Path base value | `joern` | No filesystem base exists for a bytecode-class coordinate. The base **kind** is recorded and the resolution route — the `class` field against `src/main` and `src/test` — is recorded; a plausible path was not invented in place of the missing value |
+
+One value this table carried in an earlier generation is **no longer unestablished
+and has been removed rather than left standing**: `semgrep`'s `started_at` and
+`finished_at`. Capturing each runner's console stream to its own file
+(`harness/artifacts/logs/<tool>.runner-console.log`) and recording the lane in
+`runner-sequence.json` makes the pair measurable for every one of the nine, and
+`semgrep`'s is 2026-09-01T14:13:07Z to 14:22:02Z. The five rows above are the whole
+of what could not be established.
 
 ## What this document does not do
 
@@ -1098,16 +1492,20 @@ nothing downstream can check.
   second measurement.
 - It records **inherited** facts as the run found them and applies the authority
   rule only to those: the expected-values table governs every field it carries and
-  the environment record never overrides it. Three consequences are visible above.
-  Where the table and the record would have differed, the table governs — and on
-  every field this document carries they agree, so no entry rests on that
-  tie-break. Where the record **agrees with observation** and both differ from the
-  table, both values are recorded rather than adjudicated: `trivy`'s two database
-  timestamps are that case, the record carrying the same 2026-08-24 stamps this
-  run observed against the table's 2026-08-23. And where a difference is an
-  **output this run deliberately produced** rather than an inherited fact
-  contradicted, both values stand with their provenance and nothing halts — the
-  `semgrep` artifact at 40,661,229 bytes against the record's 40,660,951 for its
-  own rehearsal invocation, and the `datadog-static-analyzer` artifact at
-  5,671,091 against the record's 5,671,090, each a different invocation's output
-  and each with an identical finding count across the two.
+  the environment record never overrides it. Four consequences are visible above.
+  **Where the table, the record and observation all differ, all three are
+  recorded** and none is reconciled into another — `datadog-static-analyzer`'s
+  ruleset digest is that case at three values, and `trivy`'s two database
+  timestamps and `dependency-check`'s feed timestamp are the same case at three
+  values each. **Where a difference changes what a count means, the tool is marked
+  not comparable with the rehearsal** — those same three tools, each marked in its
+  entry and in `oss-scan-results/severity-map.md`, and each recorded by the gate
+  as a `recorded_difference` rather than a halt. **Where an observable fact
+  contradicts the record on an inherited field the table does not carry, the
+  contradiction is a halt and is reported as one** — the graph identity, one of
+  the gate's two halts, stated in the `joern` entry with both values. And **where
+  a difference is an output this run deliberately produced** rather than an
+  inherited fact contradicted, both values stand with their provenance and nothing
+  halts: every artifact byte count and digest in this document is this run's own
+  measurement, taken immediately after its invocation returned, and differs from
+  the record's figures for the rehearsal's separate invocations by construction.

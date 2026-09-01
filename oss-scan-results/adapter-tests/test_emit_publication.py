@@ -32,9 +32,10 @@ What is asserted, and where
 10. a disagreeing pair publishes neither .......... :class:`AtomicPublicationTests`
 11. the neutralisation is exactly reversible ...... :class:`CsvNeutralisationTests`
 12. the schema survives it unchanged ............. :class:`CsvNeutralisationTests`
-13. the real 9,433-row dataset round-trips ....... :class:`CommittedDatasetTests`
+13. the real 9,430-row dataset round-trips ....... :class:`CommittedDatasetTests`
 14. the run record is published under the same protocol :class:`RunRecordPublicationTests`
 15. every named file the record carries is measured :class:`RunRecordMeasurementTests`
+16. every published file is 0o644, verified after promotion :class:`PublishedFileModeTests`
 
 How to run it
 -------------
@@ -49,15 +50,24 @@ places and only there — to make a renderer fail part way through a publication
 the one condition that cannot be arranged from outside the module and is exactly the
 condition the atomicity contract exists for.
 
-Two white-box assertions, and why they are white-box
-----------------------------------------------------
+The white-box assertions, and why they are white-box
+---------------------------------------------------
 :meth:`SecureStagingTests.test_a_pre_planted_staging_path_cannot_be_written_through`
 patches ``emit._temporary_name`` so the staging name becomes predictable, which is the
 only way to plant a symlink at it: an unpredictable name is itself half the defence, so
 the test removes that half in order to prove the other half — exclusive, no-follow
 creation — carries the guarantee on its own. The mid-publication failure tests patch
-``emit._render_csv`` for the same reason. Both are deliberate and both are named here so
-a reader does not mistake them for reaching into internals out of convenience.
+``emit._render_csv`` for the same reason.
+
+:class:`PublishedFileModeTests` adds two more, both for conditions that cannot be
+arranged from outside the module. ``os.fchmod`` is replaced with a no-op so that the
+``os.open`` mode request is all that remains and a restrictive umask can reduce it,
+which is what proves the ``fchmod`` is the assignment rather than decoration; and
+``emit._OutputDirectory.replace`` is wrapped to widen the target the instant the rename
+completes, which is the post-promotion race the published-mode measurement exists for.
+
+Every one of these is deliberate and all of them are named here so a reader does not
+mistake them for reaching into internals out of convenience.
 
 What this file deliberately does not do
 ---------------------------------------
@@ -86,6 +96,9 @@ from __future__ import annotations
 #   os, stat      -- the filesystem facts the security assertions are about: symlinks,
 #                    inodes and permission bits;
 #   pathlib       -- locations derived from __file__, never from the working directory;
+#   re            -- counting the module-level bindings of the staged-file mode constant
+#                    in emit.py's own source, which is the only way to assert that a
+#                    second binding has not been reintroduced (F10);
 #   sys           -- the sys.path bootstrap;
 #   tempfile      -- every write in this file lands in a temporary directory;
 #   unittest      -- the runner, so the suite needs no third-party plugin;
@@ -96,6 +109,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import stat
 import sys
 import tempfile
@@ -126,7 +140,7 @@ FINDINGS_CSV = REPO_ROOT / "oss-scan-results" / "findings.csv"
 
 #: The row count AAP-side reconciliation established for the committed dataset. Asserted
 #: rather than derived, so a dataset that silently changed size is caught here too.
-COMMITTED_ROW_COUNT = 9433
+COMMITTED_ROW_COUNT = 9430
 
 
 def build_row(**overrides: Any) -> dict[str, Any]:
@@ -387,6 +401,187 @@ class SecureStagingTests(TemporaryOutputMixin):
         )
         self.assertTrue((nested / "findings.json").is_file())
         self.assertTrue((nested / "findings.csv").is_file())
+
+
+class PublishedFileModeTests(TemporaryOutputMixin):
+    """Every published file carries exactly ``0o644``, whatever the umask is (F10).
+
+    The defect this class exists for was not a wrong constant but a **second** one:
+    ``emit.py`` carried ``_STAGED_FILE_MODE = 0o644`` with a comment promising an
+    explicit mode, and a later module-level binding of the same name set it to
+    ``0o666``.  Python resolves a module global when the function runs, so every
+    staging open requested ``0o666 & ~umask`` — under a permissive umask a published
+    deliverable became group- and world-writable and could be altered after its digest
+    was recorded, which is the whole of CWE-732 in one line.
+
+    So four things are asserted, and each catches something the others cannot:
+
+    1. the attribute is ``0o644``;
+    2. the **source** contains exactly one module-level binding of the name, which is
+       what fails if a second one is ever reintroduced — an attribute assertion alone
+       passes as soon as the last binding happens to be right;
+    3. a published file is ``0o644`` on disk under a deliberately permissive umask
+       (``0o000``) and under a restrictive one (``0o077``), which is the observable
+       consequence of the ``fchmod`` assignment rather than of the ``os.open`` request;
+    4. the mode is **measured and required** rather than assumed — with the ``fchmod``
+       removed, or with the mode widened between the rename and the measurement, the
+       publication fails and publishes nothing.
+
+    The umask is process-global, so every test here restores the process's own umask in
+    a ``finally`` and no test leaves it changed.
+    """
+
+    #: The one mode every file this module publishes must carry.  Written as a literal
+    #: rather than read from ``emit`` so that a change to the constant fails this test
+    #: instead of being ratified by it.
+    PROMISED_MODE = 0o644
+
+    #: A module-level binding of the mode constant: the name at column zero followed by
+    #: ``=``.  Matched over ``emit.py``'s own source in MULTILINE mode, so a reference
+    #: inside a function body, a comment or an f-string cannot be mistaken for one.
+    MODE_BINDING_RE = re.compile(r"^_STAGED_FILE_MODE\s*=", re.MULTILINE)
+
+    def publish_under_umask(self, mask: int) -> emit.PublicationResult:
+        """Publish the dataset with the process umask set to ``mask``, then restore it."""
+        previous = os.umask(mask)
+        try:
+            return emit.publish_findings([build_row()], self.json_path, self.csv_path)
+        finally:
+            os.umask(previous)
+
+    def test_the_module_promises_exactly_one_mode_and_it_is_0o644(self) -> None:
+        """The attribute itself: the value every consumer in the module resolves."""
+        self.assertEqual(emit._STAGED_FILE_MODE, self.PROMISED_MODE)
+        self.assertEqual(
+            emit.staging_protocol()["file_mode"], f"0o{self.PROMISED_MODE:o}"
+        )
+
+    def test_the_source_carries_exactly_one_binding_of_the_mode_constant(self) -> None:
+        """A second binding would win at call time, so its absence is asserted directly.
+
+        Asserted against the source because the defect is invisible in the attribute:
+        two bindings leave one value, and the value left is whichever came last.
+        """
+        source = Path(emit.__file__).read_text(encoding="utf-8")
+        bindings = self.MODE_BINDING_RE.findall(source)
+        self.assertEqual(
+            len(bindings),
+            1,
+            "emit.py must contain exactly one module-level binding of "
+            f"_STAGED_FILE_MODE; found {len(bindings)}. A later binding wins at call "
+            "time and every staging open would request its value instead.",
+        )
+
+    def test_a_published_member_is_0o644_under_a_permissive_umask(self) -> None:
+        """umask 0o000 is the condition under which the request alone yields 0o666."""
+        self.publish_under_umask(0o000)
+        for path in (self.json_path, self.csv_path):
+            with self.subTest(path=path.name):
+                mode = stat.S_IMODE(path.stat().st_mode)
+                self.assertEqual(
+                    mode,
+                    self.PROMISED_MODE,
+                    f"{path.name} is 0o{mode:o} under umask 0o000; the mode is assigned "
+                    "with fchmod precisely so the umask cannot widen it",
+                )
+                self.assertEqual(mode & (stat.S_IWGRP | stat.S_IWOTH), 0)
+
+    def test_a_published_member_is_0o644_under_a_restrictive_umask(self) -> None:
+        """umask 0o077 is the other direction: the mode may not be REDUCED either.
+
+        A deliverable the reconciler cannot read is not a safe deliverable, it is an
+        unverifiable one, so ``0o644`` is a requirement in both directions rather than
+        a ceiling.
+        """
+        self.publish_under_umask(0o077)
+        for path in (self.json_path, self.csv_path):
+            with self.subTest(path=path.name):
+                self.assertEqual(stat.S_IMODE(path.stat().st_mode), self.PROMISED_MODE)
+
+    def test_a_document_published_on_its_own_carries_the_same_mode(self) -> None:
+        """``publish_document`` is the run record's path, and it is the same protocol."""
+        target = self.output / "normalize-run.json"
+        previous = os.umask(0o000)
+        try:
+            member = emit.publish_document(
+                target, lambda handle: handle.write("{}\n"), role="a_test_document"
+            )
+        finally:
+            os.umask(previous)
+        self.assertEqual(stat.S_IMODE(target.stat().st_mode), self.PROMISED_MODE)
+        self.assertEqual(member.mode, self.PROMISED_MODE)
+
+    def test_every_published_member_records_the_mode_it_actually_carries(self) -> None:
+        """The record carries a measurement, so a wrong mode is visible not assumed."""
+        publication = self.publish_under_umask(0o000)
+        for member in publication.members:
+            with self.subTest(role=member.role):
+                on_disk = stat.S_IMODE(Path(member.path).stat().st_mode)
+                self.assertEqual(member.mode, on_disk)
+                rendered = member.as_dict()
+                self.assertEqual(rendered["mode"], on_disk)
+                self.assertEqual(rendered["mode_octal"], f"0o{on_disk:o}")
+                self.assertEqual(
+                    rendered["mode_promised_octal"], f"0o{self.PROMISED_MODE:o}"
+                )
+        # And the publication survives json.dumps, because it is published inside
+        # normalize-run.json.
+        json.dumps(publication.as_dict())
+
+    def test_the_mode_is_asserted_rather_than_hoped_for(self) -> None:
+        """Without the ``fchmod`` the umask decides, and the staged check refuses it.
+
+        White-box on purpose, and the only way to arrange the condition: ``fchmod`` is
+        replaced with a no-op so that the ``os.open`` request is all that is left, and
+        a umask of ``0o077`` reduces it to ``0o600``.  The publication must refuse that
+        file rather than publish a deliverable whose permissions the record misstates.
+        """
+        previous = os.umask(0o077)
+        try:
+            with mock.patch("os.fchmod", lambda *_args, **_kwargs: None):
+                with self.assertRaises(emit.EmitError) as raised:
+                    emit.publish_findings([build_row()], self.json_path, self.csv_path)
+        finally:
+            os.umask(previous)
+        self.assertIn("0o600", str(raised.exception))
+        self.assertIn(f"0o{self.PROMISED_MODE:o}", str(raised.exception))
+        self.assertFalse(self.json_path.exists())
+        self.assertFalse(self.csv_path.exists())
+        self.assert_no_staging_residue()
+
+    def test_a_mode_widened_after_the_rename_fails_the_publication(self) -> None:
+        """The post-promotion measurement, which is the one ``os.replace`` requires.
+
+        ``os.replace`` preserves the mode, so the staged check would be enough if
+        nothing else touched the file — the check after promotion is what catches
+        something that does.  Arranged by widening the target the instant the rename
+        completes, which is exactly the race the measurement exists for (CWE-367).
+        """
+        real_replace = emit._OutputDirectory.replace
+
+        def replace_then_widen(
+            directory: Any, source_name: str, target_name: str
+        ) -> None:
+            real_replace(directory, source_name, target_name)
+            os.chmod(directory.path / target_name, 0o666)
+
+        with mock.patch.object(emit._OutputDirectory, "replace", replace_then_widen):
+            with self.assertRaises(emit.EmitError) as raised:
+                emit.publish_findings([build_row()], self.json_path, self.csv_path)
+
+        message = str(raised.exception)
+        self.assertIn("0o666", message)
+        self.assertIn(f"0o{self.PROMISED_MODE:o}", message)
+        self.assertIn("was published", message)
+
+    def test_the_protocol_states_the_assignment_and_the_verification(self) -> None:
+        """The run record has to carry why the mode is what it is, not only its value."""
+        protocol = emit.staging_protocol()
+        self.assertIn("fchmod", protocol["file_mode_assignment"])
+        self.assertIn("umask", protocol["file_mode_assignment"])
+        self.assertIn("AFTER the rename", protocol["file_mode_verification"])
+        self.assertIn("0o600", protocol["file_mode_rationale"])
+        json.dumps(protocol)
 
 
 class AtomicPublicationTests(TemporaryOutputMixin):
@@ -961,18 +1156,35 @@ class RunRecordPublicationTests(TemporaryOutputMixin):
         self.assertEqual(self.names_in_output(), ["normalize-run.json"])
 
     def test_a_symlink_at_the_record_path_is_refused_and_named(self) -> None:
-        """Refused, its destination untouched, and the link named in the refusal."""
+        """Refused, its destination untouched, and the link named in the refusal.
+
+        Both refusal paths are exercised, because the writer has two and they refuse
+        for different reasons. With no owner root declared the descriptor-bound
+        publisher refuses the target itself ("the target path is a symlink"); with one
+        declared, the containment predicate refuses the component first ("is a symbolic
+        link", CWE-73). Either way the canary the link points at is untouched, which is
+        the property that matters: a record is never written through a link.
+        """
         canary = self.output / "canary.json"
         canary.write_text("untouched\n", encoding="utf-8")
         target = self.output / "normalize-run.json"
         target.symlink_to(canary)
 
-        with self.assertRaises(cli.RunRecordNotPersisted) as caught:
-            cli._write_run_record(target, cli._new_record([], "2026-01-01T00:00:00Z"))
-
-        self.assertEqual(canary.read_text(encoding="utf-8"), "untouched\n")
-        self.assertIn("could not be written", str(caught.exception))
-        self.assertIn("symbolic link", str(caught.exception))
+        for owner, expected in ((None, "the target path is a symlink"),
+                                (self.output, "is a symbolic link")):
+            with self.subTest(owner=str(owner)):
+                with self.assertRaises(cli.RunRecordNotPersisted) as caught:
+                    cli._write_run_record(
+                        target,
+                        cli._new_record([], "2026-01-01T00:00:00Z"),
+                        owner=owner,
+                    )
+                message = str(caught.exception)
+                self.assertIn("could not be written", message)
+                self.assertIn(expected, message)
+                self.assertIn(str(target), message)
+                self.assertEqual(canary.read_text(encoding="utf-8"), "untouched\n")
+                self.assertTrue(target.is_symlink())
 
     def test_a_symlinked_directory_component_is_refused_and_named(self) -> None:
         """The record never lands outside the directory the run says it wrote it to."""
@@ -1236,7 +1448,7 @@ class CommittedDatasetTests(unittest.TestCase):
     """The real dataset, read and re-rendered — the proof the change costs nothing (F55).
 
     The adversarial corpus above proves the rule works. This class proves the rule leaves
-    the committed deliverable exactly as it is: no cell in the 9,433 committed rows begins
+    the committed deliverable exactly as it is: no cell in the 9,430 committed rows begins
     with a trigger, so re-rendering them produces the same bytes, and the CSV that was
     written before the rule existed still round-trips under the reader that now reverses
     it. Nothing here writes to the deliverables.
@@ -1260,7 +1472,7 @@ class CommittedDatasetTests(unittest.TestCase):
         self.assertEqual(self.json_rows, self.csv_rows)
 
     def test_the_committed_dataset_carries_the_recorded_row_count(self) -> None:
-        """9,433 rows, counted by parsing rather than by counting lines."""
+        """9,430 rows, counted by parsing rather than by counting lines."""
         self.assertEqual(len(self.json_rows), COMMITTED_ROW_COUNT)
         self.assertEqual(len(self.csv_rows), COMMITTED_ROW_COUNT)
         physical_lines = len(FINDINGS_CSV.read_text(encoding="utf-8").splitlines())

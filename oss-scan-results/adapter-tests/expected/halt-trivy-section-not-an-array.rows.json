@@ -22,7 +22,7 @@
     "kind": "derived",
     "derived_from": {
       "fixture": "oss-scan-results/adapter-tests/fixtures/trivy.json",
-      "that_fixture_is": "the byte-for-byte capture of harness/artifacts/raw/trivy.json, sha256 4551d6ca435ad71aa2306bd03aa45ce92ba95d5f9ee03f304767f9f791878eba, 3,496 bytes, three Results[] elements each holding exactly one DS-0026 Misconfigurations record",
+      "that_fixture_is": "the byte-for-byte capture of harness/artifacts/raw/trivy.json, sha256 979ad0ffbec3502f62ea0e2cd46fae549aaa5e1b7cc4a0d59153a5c2448766ec, 3,496 bytes, three Results[] elements each holding exactly one DS-0026 Misconfigurations record",
       "what_changed": "a Vulnerabilities member was inserted into Results[1], directly after its MisconfSummary, holding an OBJECT keyed \"0\" and \"1\" rather than the array report.go declares. That is the shape a lossy JSON transform produces when it rewrites an array as an index-keyed object, so the malformation is a realistic one rather than an invented type.",
       "derivation_check": "diff fixtures/trivy.json against this file: the only difference is the inserted Vulnerabilities object on the second element. Its two values are objects carrying VulnerabilityID, PkgName, InstalledVersion and Severity, so the content is record-shaped and a reader would say the artifact 'has vulnerabilities' -- while no traversal in this pipeline can reach them.",
       "nothing_else_changed": "the report envelope, all three Targets, all three MisconfSummary objects and all three DS-0026 records are the capture's, byte for byte.",

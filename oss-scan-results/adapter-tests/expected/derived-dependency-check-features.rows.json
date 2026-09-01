@@ -19,7 +19,7 @@
     "dependencies_carrying_a_vulnerabilities_key": 7,
     "vulnerability_records": 8,
     "provenance": "DERIVED. This fixture is not captured tool output and is not an unmodified excerpt of any artifact.",
-    "derived_from": "harness/artifacts/raw/dependency-check.json (17,097 bytes, sha256 ebe98aed11973718591f8c7490eedde86f97bf4fb2047a059e499be50e02c3b9): its report shape, its member names and five of its dependency envelopes were used as the model. The raw artifact itself is committed verbatim as fixtures/dependency-check.json and is asserted byte-for-byte against harness/artifacts/raw/dependency-check.json by test_dependency_check_adapter.py's RawArtifactProvenanceTest.",
+    "derived_from": "harness/artifacts/raw/dependency-check.json (17,097 bytes, sha256 2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799): its report shape, its member names and five of its dependency envelopes were used as the model. The raw artifact itself is committed verbatim as fixtures/dependency-check.json and is asserted byte-for-byte against harness/artifacts/raw/dependency-check.json by test_dependency_check_adapter.py's RawArtifactProvenanceTest.",
     "how_it_was_derived": [
       "the reportSchema, scanInfo (all four NVD dataSource timestamps) and projectInfo members were taken over from the raw artifact unchanged, so the envelope the adapter reads is the one the tool writes",
       "the dependency envelopes at indices 0, 1, 2, 3 and 7 reuse the raw artifact's own entries for the same fileName -- isVirtual, fileName, filePath, md5, sha1, sha256 and evidenceCollected",

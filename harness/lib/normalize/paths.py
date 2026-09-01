@@ -5,9 +5,8 @@ metadata, the bounded uriBaseId chain walk, Checkov's leading slash, dual
 src/main/src/test bytecode resolution, the non-filesystem coordinate serialization,
 and the in_scope matcher with true zero-or-more-directories ** semantics."*
 
-No user-specified rule governs this file: ``review_rules`` returns exactly one line,
-``No user rules provided.``, corroborated by AAP 0.7 and AAP 0.10.2.  Enterprise
-best practice applies in their place, held to the AAP's own bar -- verification
+No user-specified rule governs this file (AAP 0.7, AAP 0.10.2), so enterprise-standard
+best practice applies in its place, held to the AAP's own bar -- verification
 independent of the thing verified, reject rather than infer, and a documented
 decision for every case rather than a permissive fallback.  Everything cited below
 is an AAP *requirement*, never a rule.
@@ -216,16 +215,16 @@ Both are recorded rather than repaired, per the AAP's authority rule.
 ``severity``, ``message``, ``callee``, ``class``, ``method``, ``file`` and ``line``.
 The coordinate is therefore ``class`` -- a **dotted** type full name -- and ``file``
 is the frontend's ephemeral ``/tmp/jimple2cpg-<id>/<pkg>/<Class>.class`` extraction
-path for 692 of 692 findings, which the runner metadata names explicitly as
+path for 693 of 693 findings, which the runner metadata names explicitly as
 ``record_path_field_to_ignore``.  :func:`class_key` therefore accepts *either* a
 dotted full name or a class-file path, which is the same
 "do-not-assume-one-shape" instruction applied to the shape that is actually written.
 Where a collector explanation *is* present it is retained in the rejection's detail
 and never in a dataset field.
 
-*Union uniqueness, not index precedence.*  The historical collector resolved
-ambiguity with ``setdefault`` -- first wins in ``os.walk`` order, silently.  This
-module takes the resolution **only where the union of candidates across both key
+*Union uniqueness, not index precedence.*  Resolving ambiguity with ``setdefault`` would
+keep whichever candidate ``os.walk`` reached first and discard the rest, silently.  This
+module instead takes the resolution **only where the union of candidates across both key
 schemes and both source trees is exactly one distinct path**.  Measured at the pin:
 ``org/apache/spark/SparkContext`` is unique under ``by_filename`` (core) but has two
 distinct candidates once ``by_decl`` is included (core and
@@ -242,6 +241,7 @@ import hashlib
 import json
 import os
 import re
+import sys
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -272,7 +272,19 @@ class RunnerMetadataError(PathPolicyError):
     AAP 0.6.1: missing metadata for a tool that wrote an artifact is a hard error
     the caller surfaces, never a silent default to the root -- *"Guessing a base is
     exactly how every row for that tool gets a wrong path."*
+
+    Structured detail travels with the message (CWE-703).  The caller records this as a
+    configuration fault in ``normalize-run.json``, and a record that says only *"cannot be
+    used"* cannot say at which step the document failed or against which measured cap.  So
+    a raise site may attach ``details``: a mapping of JSON-serialisable facts --
+    ``stage``, the observed value, the cap it crossed -- which ``cli._load_metadata``
+    forwards into the fault's own details.  ``details`` defaults to an empty mapping, so
+    every existing raise site that passes a message alone is unaffected.
     """
+
+    def __init__(self, message: str, *, details: Mapping[str, Any] | None = None) -> None:
+        super().__init__(message)
+        self.details: Mapping[str, Any] = MappingProxyType(dict(details or {}))
 
 
 # --------------------------------------------------------------------------- #
@@ -639,7 +651,7 @@ class SafeDiagnostic:
     userinfo_redactions: int = 0
 
     def __str__(self) -> str:
-        """Render as one line, for interpolation where ``{value!r}`` used to be.
+        """Render as one line, for a site that would otherwise interpolate ``{value!r}``.
 
         The order is type, context, length, digest, excerpt -- structure first,
         content last -- so a reader who stops at the first clause still knows what
@@ -1008,12 +1020,20 @@ def normalise_reported_path(value: str) -> str:
     * empty interior segments (from ``//``) are dropped, since a POSIX path gives
       them no meaning.
 
-    The **leading slash run is preserved exactly**: a single leading ``/`` stays one
-    and a leading ``//`` stays two.  Both are meaningful and neither is this module's
-    to flatten -- one leading slash is either filesystem-absolute or, per SARIF
-    errata issue 480, an archive-distinguishing relative reference, while two are a
-    URI authority, which :func:`parse_uri_reference` must still be able to see and
-    :func:`strip_single_leading_slash` must leave visible.
+    The **leading slash run is rendered in exactly three forms**, since what the run
+    means saturates at two slashes:
+
+    * **no** leading slash -- the path keeps none;
+    * **exactly one** -- preserved as one, because a single leading slash is either
+      filesystem-absolute or, per SARIF errata issue 480, an archive-distinguishing
+      relative reference, and the two readings are the caller's to decide between
+      (:func:`resolve_sarif_location`); :func:`strip_single_leading_slash` must
+      therefore still find it;
+    * **two or more** -- rendered as exactly ``//``.  Two leading slashes are the URI
+      authority form, which :func:`parse_uri_reference` must still be able to see, and
+      a third or later slash adds an empty segment, which POSIX gives no meaning and
+      the interior-empty-segment rule above drops.  So ``///a`` and ``////a//b``
+      render as ``//a`` and ``//a/b``.
 
     Everything else is left exactly as reported.  In particular a ``..`` segment is
     **never** cancelled: the SARIF 2.1.0 errata (the section 3.10.2 amendment) forbid
@@ -1068,8 +1088,15 @@ def match_glob(pattern: str, path: str) -> bool:
     pattern.
 
     The implementation is an explicit segment-wise walk memoised on
-    ``(pattern_index, path_index)``, which makes the zero-or-more branch cheap and
-    bounds the work at ``len(pattern) * len(path)``.
+    ``(pattern_index, path_index)``, and the memo is what keeps the zero-or-more branch
+    from running away.  Two bounds, distinct and both worth stating with ``P`` for
+    ``len(pattern)`` and ``L`` for ``len(path)``: the key space is
+    ``(P + 1) * (L + 1)``, so there are ``O(P * L)`` distinct memoised **states** and
+    none is ever recomputed; but a ``**`` state probes every split point from its own
+    position to the end of the path, up to ``L + 1`` probes, so worst-case
+    **operations** are ``O(P * L**2)``.  Recursion depth stays bounded by ``P + L`` --
+    a handful of segments each -- because every recursive step advances one index or
+    the other.
 
     Examples
     --------
@@ -1097,8 +1124,10 @@ def _match_segments(pattern: Sequence[str], path: Sequence[str]) -> bool:
     def walk(i: int, j: int) -> bool:
         """Whether ``pattern[i:]`` matches ``path[j:]``; memoised on ``(i, j)``.
 
-        Recursion depth is bounded by ``len(pattern) + len(path)`` -- a handful of
-        segments each -- so the zero-or-more branch cannot run away.
+        The memo is what stops the zero-or-more branch running away: each ``(i, j)``
+        is decided once, however many split points reach it.  Recursion depth is
+        bounded separately, by ``len(pattern) + len(path)`` -- a handful of segments
+        each -- since every step advances one index or the other.
         """
         key = (i, j)
         cached = memo.get(key)
@@ -1198,10 +1227,11 @@ def in_scope(
     2. a coordinate that **leaves the root** at any segment is never in scope, tested
        here through :func:`analyse_containment` rather than trusted from ``kind``.
        This is not redundant with rule 1: ``kind`` is an argument, so a caller that
-       defaulted it -- or that resolved the path before the running-depth walk existed
-       -- would otherwise get ``True`` for ``core/src/main/../../../../etc/passwd``,
-       which matches ``core/src/main/**`` on its segments while naming a location four
-       levels above the tree.  Deciding it here as well means the two disagree nowhere;
+       defaulted it, or that classified the path on its first segment alone, would
+       otherwise get ``True`` for ``core/src/main/../../../../etc/passwd``, which
+       matches ``core/src/main/**`` on its segments while naming a location one level
+       above the tree (three concrete segments, four ``..``).  Deciding it here as
+       well means the two disagree nowhere;
     3. a path containing the literal ``src/test`` is out of scope, and this
        **overrides** a positive glob match.  Both spellings are tested -- the reported
        one and the canonical shadow -- so ``sql/core/src/main/../test/X.scala``, whose
@@ -1210,10 +1240,10 @@ def in_scope(
     4. otherwise the path is in scope exactly where it matches one of ``globs``.  The
        reported spelling is matched first, and the canonical shadow only where it is a
        different string and the reported spelling did not match.  That order makes the
-       rule **monotone**: it can add a match a first-segment reading missed -- for
-       ``a/../core/src/main/X.scala``, which lexically names a file under
-       ``core/src/main`` -- and can never take one away, so no path without a ``..``
-       or an interior ``.`` is decided differently than before.
+       rule **monotone**: it can add a match a reported-spelling-only reading misses --
+       for ``a/../core/src/main/X.scala``, which lexically names a file under
+       ``core/src/main`` -- and can never take one away, so a path carrying no ``..``
+       and no interior ``.`` has one spelling and one verdict.
 
     ``in_scope`` is decided by the allowlist alone (AAP 0.6.4).  A row from a
     directory a runner reached but the allowlist does not cover -- the pin's 47
@@ -1480,7 +1510,582 @@ def expand_scope_directories(
     return tuple(sorted(found))
 
 
-def load_runner_metadata(path: str | os.PathLike[str]) -> Mapping[str, Any]:
+# --------------------------------------------------------------------------- #
+# The pre-parse lexical gate on an untrusted JSON document                    #
+# (CWE-400, CWE-674, CWE-770)                                                 #
+#                                                                             #
+# ONE IMPLEMENTATION, ON EVERY ROUTE.  This gate lives here rather than in    #
+# the caller because the two things it must sit between -- the text and       #
+# ``json.loads`` -- meet in THIS module for ``runner-metadata.json``:         #
+# :func:`load_runner_metadata` owns that read and that parse, and it is       #
+# exported, so a caller reaching it directly gets the same protection the     #
+# composed pipeline gets.  ``cli`` needs the identical scan for a scanner     #
+# artifact, and it consumes these functions rather than restating them: two   #
+# implementations of one bound is the defect where the last one silently      #
+# wins and no reader can see which is in force.                              #
+#                                                                             #
+# One regular expression finds the next token; the string scanner below finds  #
+# the end of a string. Both are deliberate:                                    #
+#                                                                             #
+#  * The token pattern matches ONE token and never spans a string, so it       #
+#    carries no unbounded quantifier over an alternation and cannot backtrack  #
+#    superlinearly (CWE-1333). Driving it with .search(text, position) skips   #
+#    whitespace and anything else uninteresting at C speed, so the Python-level#
+#    loop runs once per token rather than once per character -- 0.51s over the #
+#    73,840,948-byte opengrep.sarif, against 0.27s for json.loads on the same  #
+#    file.                                                                    #
+#  * The string scanner is index arithmetic over str.find rather than a regex, #
+#    because the two obvious regex spellings of a JSON string are both         #
+#    QUADRATIC on an unterminated one. Measured on this interpreter: both      #
+#    '"(?:[^"\\]|\\.)*"' and the unrolled '"[^"\\]*(?:\\.[^"\\]*)*"' run for   #
+#    over 300 seconds on '"' followed by 200,000 '\"' sequences, which is a    #
+#    denial of service inside the guard that exists to prevent one. The scan   #
+#    below is linear on that input (0.03s) because each str.find starts where  #
+#    the previous one stopped, so the scans partition the text.                #
+#  * NO TOKEN IS EVER MATERIALISED. The scan works on match SPANS and single   #
+#    characters: end() minus start() is a token's length without a copy, so a  #
+#    byte-cap-sized numeric or bare-word token is refused on its span before    #
+#    anything the size of the document is allocated. A copy taken to measure a  #
+#    token is the amplification the narrow bound exists to stop.                #
+#                                                                             #
+# The scan does not adjudicate well-formedness. It is lenient in exactly the   #
+# direction that is safe: where its lexing differs from json's, it counts MORE #
+# than json will parse (an unknown character is skipped, a bare word is a      #
+# value, a region json rejects as a string is still bounded by its quotes), so #
+# an accepted document is never one whose real node count is higher. The       #
+# invalid-JSON verdict stays with json.loads, which is the only thing in this  #
+# package that has ever produced it.                                          #
+# --------------------------------------------------------------------------- #
+
+#: The most digits an untrusted numeric literal may carry before it is refused as a
+#: number, and the single source of truth for it: ``cli.STATUS_NUMERIC_DIGIT_LIMIT`` is
+#: assigned from this name rather than restating the number, for the reason
+#: :data:`METADATA_BYTE_LIMIT` states -- two bindings of one cap is the defect where the
+#: last binding wins and no reader can see which is in force (CWE-732 by analogy).
+#:
+#: CPython raises ``ValueError`` from ``int()`` above 4,300 digits (the
+#: ``sys.set_int_max_str_digits`` limit), which ``str.isdigit()`` does not predict, so a
+#: guard that tests only for digits and then converts is a ``ValueError`` waiting for a
+#: hostile document.  This is the package's ONE digit bound and it has three enforcement
+#: points sharing this single number: a ``<tool>.status`` field, through the
+#: digit-bounded predicate in ``cli`` that reads it; every numeric literal in an
+#: untrusted artifact, through ``cli``'s call to :func:`validate_document_bounds`; and
+#: every numeric literal in ``runner-metadata.json``, through this module's own call to
+#: it inside :func:`load_runner_metadata`.  The longest literal any committed JSON input
+#: carries is 9 digits (``runner-metadata.json``); 7 is the artifact maximum, and 11 is
+#: the longest in any committed status file.
+STATUS_NUMERIC_DIGIT_LIMIT: Final[int] = 64
+
+#: The bound names :func:`validate_document_bounds` can raise, as published strings rather
+#: than as literals restated at each raise site.  ``cli`` maps each to the halt reason its
+#: own closed vocabulary carries for that bound, and asserts the mapping is total against
+#: :data:`DOCUMENT_BOUNDS`, so a bound added here cannot reach a caller with no halt name.
+DOCUMENT_BOUND_DEPTH: Final[str] = "nesting depth"
+DOCUMENT_BOUND_NODES: Final[str] = "node count"
+DOCUMENT_BOUND_STRING: Final[str] = "longest string"
+DOCUMENT_BOUND_MEMBER_NAME: Final[str] = "longest object member name"
+DOCUMENT_BOUND_NUMERIC_DIGITS: Final[str] = "numeric literal digit count"
+DOCUMENT_BOUND_LITERAL_TOKEN: Final[str] = "bare literal token length"
+
+#: Every bound name above, in the order the scan can reach them.  The tuple exists so a
+#: consumer can be checked total against it rather than against a list it restated.
+DOCUMENT_BOUNDS: Final[tuple[str, ...]] = (
+    DOCUMENT_BOUND_DEPTH,
+    DOCUMENT_BOUND_NODES,
+    DOCUMENT_BOUND_STRING,
+    DOCUMENT_BOUND_MEMBER_NAME,
+    DOCUMENT_BOUND_NUMERIC_DIGITS,
+    DOCUMENT_BOUND_LITERAL_TOKEN,
+)
+
+
+class DocumentBoundExceeded(Exception):
+    """One structural cap crossed by an untrusted JSON document.
+
+    Raised by :func:`validate_document_bounds` over a document's *text*, before it is
+    parsed, and by ``cli._measure_document`` over the parsed document afterwards.  Both
+    are pure measurements with no tool, no artifact path and no business composing a
+    halt: the caller adds that context and converts this into its own named halt -- the
+    same division of labour as :class:`RunnerMetadataError`'s own raise sites and as
+    ``shape.UnknownArtifactShape``.
+
+    ``bound`` is one of :data:`DOCUMENT_BOUNDS`, so a caller can map it to the halt
+    reason its vocabulary carries without parsing the message.  ``limit`` is the cap that
+    was in force and ``observed`` the value that crossed it, both of which a record must
+    carry for the refusal to be actionable rather than merely categorical.
+    """
+
+    def __init__(self, bound: str, limit: int, observed: int) -> None:
+        super().__init__(
+            f"the artifact's {bound} is {observed}, above the cap of {limit}"
+        )
+        self.bound = bound
+        self.limit = limit
+        self.observed = observed
+
+    def details(self) -> dict[str, Any]:
+        """Return the bound as halt details: which cap, its value, and what was observed."""
+        return {
+            "bound": self.bound,
+            "bound_cap": self.limit,
+            "bound_observed": self.observed,
+        }
+
+
+#: One JSON token, or the opening quote of a string.  A string's *extent* is found by
+#: :func:`string_token_end` rather than by this pattern, for the reason above; the ``"``
+#: branch matches the delimiter alone.  ``[A-Za-z]+`` covers ``true``, ``false`` and
+#: ``null`` -- and any other bare word, which is a value for counting purposes and a syntax
+#: error for ``json.loads`` to name.
+_JSON_TOKEN: Final[re.Pattern[str]] = re.compile(
+    r'"|[{}\[\],:]|-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?|[A-Za-z]+'
+)
+
+#: What the innermost open container is, and for an object which half of a member it is
+#: expecting.  The distinction is what keeps an object's member NAME out of the node count:
+#: a name is length-checked like any other string and is not itself a node, which is the
+#: definition ``cli._measure_document`` and ``cli.INGESTION_BOUNDS`` both use.
+_CONTAINER_ARRAY: Final[int] = 0
+_CONTAINER_OBJECT_KEY: Final[int] = 1
+_CONTAINER_OBJECT_VALUE: Final[int] = 2
+
+#: The keys :func:`validate_document_bounds` returns for the three quantities a walk over
+#: the *parsed* document can also measure, so a caller comparing the two verdicts does not
+#: have to restate them.
+STRUCTURAL_MEASUREMENT_KEYS: Final[tuple[str, ...]] = (
+    "depth",
+    "nodes",
+    "longest_string",
+)
+
+
+def string_token_end(text: str, opening: int) -> int:
+    """Return the index just past the string opening at ``opening``, or ``-1``.
+
+    ``text[opening]`` is the opening quote.  A quote ends the string unless it is escaped,
+    and JSON's escape rule is positional rather than character-class based: a backslash
+    escapes whatever follows it, so ``\\\\"`` ends a string and ``\\"`` does not.  The scan
+    therefore looks for the next quote and then asks whether a backslash between here and
+    there claims it.
+
+    LINEAR BY CONSTRUCTION
+    ----------------------
+    Every ``str.find`` starts at ``position``, which only ever moves forward, so the
+    regions the two searches examine partition the string rather than overlapping it.  A
+    hostile string of nothing but escapes costs one iteration per escape and no rescanning
+    -- 0.08s for a run of a million backslashes -- where the regex spellings this replaces
+    are quadratic on the same input.
+
+    Returns:
+        The index one past the closing quote, or ``-1`` where the string is unterminated.
+        An unterminated string is not this function's verdict to give: it stops the scan
+        and leaves ``json.loads`` to raise the ``JSONDecodeError`` that names it.
+    """
+    position = opening + 1
+    quote = text.find('"', position)
+    while quote >= 0:
+        backslash = text.find("\\", position, quote)
+        if backslash < 0:
+            # No escape between here and that quote, so that quote closes the string.
+            return quote + 1
+        # The backslash consumes the character after it, which may be the quote itself.
+        position = backslash + 2
+        if position > quote:
+            quote = text.find('"', position)
+    return -1
+
+
+def _numeric_literal_digits(text: str, start: int, end: int) -> int:
+    """Return how many digits the numeric token at ``text[start:end]`` carries.
+
+    WITHOUT MATERIALISING THE TOKEN.  The token pattern admits a leading ``-``, at most
+    one ``.``, at most one ``e``/``E`` and at most one exponent sign, and digits
+    everywhere else -- so the digit count is the span minus however many of those four
+    characters are present, and each is located with a bounded ``str.find`` or a
+    single-character index rather than by copying the token and counting over it.  Asking
+    the match object for its matched text here would allocate a second copy of a token
+    that can be as long as the whole document, which is exactly the amplification the
+    digit cap exists to refuse (CWE-400, CWE-770).
+
+    Every digit in the literal counts, which is stricter than CPython's own limit on the
+    integer part alone -- the conservative direction.
+    """
+    digits = end - start
+    if text[start] == "-":
+        digits -= 1
+    if text.find(".", start, end) >= 0:
+        digits -= 1
+    exponent = text.find("e", start, end)
+    if exponent < 0:
+        exponent = text.find("E", start, end)
+    if exponent >= 0:
+        digits -= 1
+        # The pattern requires at least one digit after the exponent, so this index is
+        # inside the token whether or not a sign is present.
+        if text[exponent + 1] in "+-":
+            digits -= 1
+    return digits
+
+
+def validate_document_bounds(
+    text: str,
+    *,
+    depth_limit: int,
+    node_limit: int,
+    string_limit: int,
+    digit_limit: int,
+) -> dict[str, int]:
+    """Bound an untrusted JSON document's structure BEFORE it is parsed.
+
+    This is the gate a byte cap cannot be: a byte cap bounds the file, and the object
+    graph a file of that size encodes is bounded by nothing at all -- a compact document
+    well inside the cap can carry tens of millions of values, and ``json.loads``
+    allocates every one of them.  A depth, node or string cap applied to the *parsed*
+    document therefore names an exhaustion that has already happened; catching
+    ``MemoryError`` afterwards is a diagnosis rather than a limit (CWE-400, CWE-770).
+
+    So all four caps are enforced here, over the decoded text, in one left-to-right token
+    scan that never materialises a value:
+
+    * **nesting depth** on an explicit integer -- ``len(stack) + 1`` for the value about to
+      be counted -- so nothing recurses and no document is deep enough to overflow the
+      stack while being measured (CWE-674);
+    * **node count** on the same definition ``cli._measure_document`` uses: every JSON
+      value is one node, and an object member name is length-checked but is not a node;
+    * **string length** on the RAW token, escapes included.  A raw token is never shorter
+      than the string it decodes to (``\\uD83D\\uDE00`` is twelve characters of text and one
+      of value), so this bound is conservative in the safe direction and the two walks'
+      figures relate by ``decoded <= raw`` rather than by equality;
+    * **literal token length**, on the match SPAN and before any copy of the token exists:
+      a numeric literal is refused on its digit count -- so a 4,300-digit integer, valid
+      JSON and an ``int()`` CPython refuses, is refused before the conversion is reached --
+      and a bare word is refused on its span, since ``[A-Za-z]+`` can match as far as the
+      byte cap allows and the longest legal one is five characters.
+
+    Well-formedness is deliberately out of scope: see the comment block above.  A document
+    this function accepts may still be invalid JSON, and ``json.loads`` remains the only
+    thing that decides that.
+
+    Args:
+        text: The decoded document.  Nothing is read or written; the caller owns the file.
+        depth_limit: Deepest nesting permitted.  ``cli.JSON_DEPTH_LIMIT`` for an artifact,
+            :data:`METADATA_DEPTH_LIMIT` for the runner metadata.
+        node_limit: Most JSON values permitted.
+        string_limit: Longest raw string token permitted, member names included.
+        digit_limit: Most digits a single numeric literal may carry, and the span a bare
+            literal token may reach.  :data:`STATUS_NUMERIC_DIGIT_LIMIT` on every route.
+
+    Returns:
+        ``depth``, ``nodes`` and ``longest_string`` -- the same three keys
+        ``cli._measure_document`` returns, so the two verdicts can be compared directly --
+        plus ``numeric_literal_digits``, which only this walk can measure because the parsed
+        document no longer carries the literal.
+
+    Raises:
+        DocumentBoundExceeded: A cap was crossed.  Raised at the crossing, so a document
+            already refused is not scanned to the end, and naming the bound from
+            :data:`DOCUMENT_BOUNDS` so the caller can map it to its own halt reason.
+    """
+    nodes = 0
+    max_depth = 0
+    longest = 0
+    max_digits = 0
+    # One entry per open container, so this walk's own memory is bounded by the depth cap
+    # rather than by the document's breadth -- the same property _measure_document has.
+    stack: list[int] = []
+    position = 0
+    end_of_text = len(text)
+    search = _JSON_TOKEN.search
+
+    while position < end_of_text:
+        match = search(text, position)
+        if match is None:
+            # No token in the remainder: whitespace, or characters no JSON token begins
+            # with. Either way there is nothing left to count.
+            break
+        # The token is identified by its lead character and measured by its SPAN. Nothing
+        # here copies it: asking the match object for its matched text, on a token that can
+        # be as long as the document, is the allocation the caps below exist to prevent.
+        token_start = match.start()
+        token_end = match.end()
+        lead = text[token_start]
+        position = token_end
+        raw_length = 0
+
+        if lead == '"':
+            string_end = string_token_end(text, token_start)
+            if string_end < 0:
+                # Unterminated. json.loads will refuse the document; this walk stops here
+                # rather than lexing the remainder of a string as structure.
+                break
+            position = string_end
+            # The delimiters are not part of the string, and the escapes inside it are
+            # measured as written: see the string-length note in this docstring.
+            raw_length = string_end - token_start - 2
+            if stack and stack[-1] == _CONTAINER_OBJECT_KEY:
+                # A member name: bounded like any other string, and not a node.
+                if raw_length > longest:
+                    longest = raw_length
+                    if longest > string_limit:
+                        raise DocumentBoundExceeded(
+                            DOCUMENT_BOUND_MEMBER_NAME, string_limit, longest
+                        )
+                continue
+        elif lead == "}" or lead == "]":
+            if stack:
+                stack.pop()
+            continue
+        elif lead == ",":
+            if stack and stack[-1] != _CONTAINER_ARRAY:
+                stack[-1] = _CONTAINER_OBJECT_KEY
+            continue
+        elif lead == ":":
+            if stack and stack[-1] != _CONTAINER_ARRAY:
+                stack[-1] = _CONTAINER_OBJECT_VALUE
+            continue
+
+        # Everything reaching here is a value: a string in value position, a container, a
+        # number, or a literal word. The enclosing object has now had its value, so the
+        # next string it carries is a member name again.
+        if stack and stack[-1] == _CONTAINER_OBJECT_VALUE:
+            stack[-1] = _CONTAINER_OBJECT_KEY
+
+        nodes += 1
+        if nodes > node_limit:
+            raise DocumentBoundExceeded(DOCUMENT_BOUND_NODES, node_limit, nodes)
+        depth = len(stack) + 1
+        if depth > max_depth:
+            max_depth = depth
+            if max_depth > depth_limit:
+                raise DocumentBoundExceeded(
+                    DOCUMENT_BOUND_DEPTH, depth_limit, max_depth
+                )
+
+        if lead == '"':
+            if raw_length > longest:
+                longest = raw_length
+                if longest > string_limit:
+                    raise DocumentBoundExceeded(
+                        DOCUMENT_BOUND_STRING, string_limit, longest
+                    )
+        elif lead == "{":
+            stack.append(_CONTAINER_OBJECT_KEY)
+        elif lead == "[":
+            stack.append(_CONTAINER_ARRAY)
+        elif lead == "-" or lead.isdigit():
+            # The span bounds the digit count from above and below -- the pattern admits at
+            # most four non-digit characters -- so a token whose span alone puts it past the
+            # cap is refused here, and the exact count is computed by index arithmetic
+            # rather than by copying the token (see _numeric_literal_digits).
+            digits = _numeric_literal_digits(text, token_start, token_end)
+            if digits > max_digits:
+                max_digits = digits
+                if max_digits > digit_limit:
+                    raise DocumentBoundExceeded(
+                        DOCUMENT_BOUND_NUMERIC_DIGITS, digit_limit, max_digits
+                    )
+        else:
+            # A bare word: ``true``, ``false``, ``null`` -- or a run of letters as long as
+            # the pattern can reach, which json.loads will refuse as syntax but which this
+            # scan must not copy in order to say so. Its SPAN is the whole measurement, and
+            # the digit cap is the bound: the longest legal bare word is five characters, so
+            # 64 is already three orders of magnitude of headroom.
+            span = token_end - token_start
+            if span > digit_limit:
+                raise DocumentBoundExceeded(
+                    DOCUMENT_BOUND_LITERAL_TOKEN, digit_limit, span
+                )
+
+    return {
+        "depth": max_depth,
+        "nodes": nodes,
+        "longest_string": longest,
+        "numeric_literal_digits": max_digits,
+    }
+
+
+#: The byte cap on the runner-metadata document, and the single source of truth for it:
+#: ``cli.RUNNER_METADATA_BYTE_LIMIT`` is assigned from this name rather than restating the
+#: number, because two bindings of one cap is exactly the defect that let a 0o666 file mode
+#: override a 0o644 one in `emit.py` (CWE-732) -- the last binding wins and no reader can
+#: see which one is in force.  The committed metadata is 117,676 bytes, so 64 MiB is a
+#: factor of 570; a document that size is not a longer account of nine runners.
+METADATA_BYTE_LIMIT: Final[int] = 64 * 1024 * 1024
+
+#: Nesting depth the metadata document may reach.  Measured: the committed document reaches
+#: 7, so 32 is a factor of 4.5.  Bounded because a document nested past the interpreter's
+#: own limit turns a parse into a ``RecursionError`` (CWE-674), and one nested just inside
+#: it turns every later traversal into a stack risk this module cannot recover from.
+METADATA_DEPTH_LIMIT: Final[int] = 32
+
+#: JSON values the metadata document may hold.  Measured: the committed document holds
+#: 1,315, so 200,000 is a factor of 152.  Bounded so a document inside the byte cap cannot
+#: still allocate an unbounded number of small objects (CWE-400, CWE-770).
+METADATA_NODE_LIMIT: Final[int] = 200_000
+
+#: Characters any single string -- value or member name -- in the metadata document may
+#: carry.  Measured: the longest in the committed document is 1,421, so 1 MiB is a factor
+#: of 737.  Bounded for the same reason as the node cap, in the other dimension.
+METADATA_STRING_LIMIT: Final[int] = 1024 * 1024
+
+
+def _metadata_shape_violation(document: Any) -> str | None:
+    """Return why ``document`` exceeds a shape cap, or ``None`` where it does not.
+
+    ITERATIVE, NEVER RECURSIVE (CWE-674)
+    ------------------------------------
+    The walk keeps its own explicit stack, so measuring a deeply nested document cannot
+    itself exhaust the interpreter's stack -- a recursive check would raise the very error
+    it exists to prevent, at a depth it could not then report.
+
+    The three caps are checked in one pass because they are three dimensions of the same
+    hazard: :data:`METADATA_DEPTH_LIMIT` on nesting, :data:`METADATA_NODE_LIMIT` on how
+    many values the document holds, and :data:`METADATA_STRING_LIMIT` on any single string,
+    a member name included.  The first crossing is returned with the observed value and its
+    cap, so the caller's diagnostic names a measurement rather than a category.
+    """
+    nodes = 0
+    stack: list[tuple[Any, int]] = [(document, 1)]
+    while stack:
+        value, depth = stack.pop()
+        nodes += 1
+        if depth > METADATA_DEPTH_LIMIT:
+            return (
+                f"it nests to at least {depth} levels, above the "
+                f"{METADATA_DEPTH_LIMIT}-level cap on this input"
+            )
+        if nodes > METADATA_NODE_LIMIT:
+            return (
+                f"it holds more than {METADATA_NODE_LIMIT} JSON values, above the cap on "
+                "this input"
+            )
+        if isinstance(value, Mapping):
+            for name, member in value.items():
+                if isinstance(name, str) and len(name) > METADATA_STRING_LIMIT:
+                    return (
+                        f"it carries a member name of {len(name)} characters, above the "
+                        f"{METADATA_STRING_LIMIT}-character cap on this input"
+                    )
+                stack.append((member, depth + 1))
+        elif isinstance(value, (list, tuple)):
+            for member in value:
+                stack.append((member, depth + 1))
+        elif isinstance(value, str) and len(value) > METADATA_STRING_LIMIT:
+            return (
+                f"it carries a string of {len(value)} characters, above the "
+                f"{METADATA_STRING_LIMIT}-character cap on this input"
+            )
+    return None
+
+
+def _metadata_bound_violation(error: DocumentBoundExceeded) -> str:
+    """Return the shape sentence for a bound the PRE-parse scan crossed.
+
+    One document must not be adjudicated two ways, so each bound is worded exactly as
+    :func:`_metadata_shape_violation` words the same bound over the parsed document: the
+    two walks are the same policy at two moments, and a reader comparing a refusal from
+    either must not have to decide whether two sentences mean one thing.  The two bounds
+    only the text can carry -- a numeric literal's digits and a bare literal token's span
+    -- take the same shape of sentence.
+    """
+    if error.bound == DOCUMENT_BOUND_DEPTH:
+        return (
+            f"it nests to at least {error.observed} levels, above the "
+            f"{error.limit}-level cap on this input"
+        )
+    if error.bound == DOCUMENT_BOUND_NODES:
+        return (
+            f"it holds more than {error.limit} JSON values, above the cap on "
+            "this input"
+        )
+    if error.bound == DOCUMENT_BOUND_MEMBER_NAME:
+        return (
+            f"it carries a member name of {error.observed} characters, above the "
+            f"{error.limit}-character cap on this input"
+        )
+    if error.bound == DOCUMENT_BOUND_STRING:
+        return (
+            f"it carries a string of {error.observed} characters, above the "
+            f"{error.limit}-character cap on this input"
+        )
+    if error.bound == DOCUMENT_BOUND_NUMERIC_DIGITS:
+        return (
+            f"it carries a numeric literal of {error.observed} digits, above the "
+            f"{error.limit}-digit cap on this input"
+        )
+    return (
+        f"it carries a bare literal token of {error.observed} characters, above the "
+        f"{error.limit}-character cap on this input"
+    )
+
+
+def _validate_metadata_text(text: str, location: str, observed_bytes: int) -> None:
+    """Enforce the shape caps on metadata TEXT, before anything parses it.
+
+    THE GATE LIVES WHERE THE PARSE LIVES (CWE-400, CWE-674, CWE-770)
+    ----------------------------------------------------------------
+    :func:`_parse_and_shape_check_metadata` calls this as its first step, and every route
+    into this module's metadata parse goes through that function -- the bounded read and
+    the caller-supplied ``validated_text`` alike.  So the caps are enforced on the exact
+    text ``json.loads`` is about to be handed, on every route, including a direct call
+    from a test or a later consumer.  A post-parse check can only diagnose an amplified
+    document after the object graph exists; this is the bound.
+
+    ``validated_text`` therefore saves a second READ and never a check: a caller's label
+    is not evidence, and a document handed over as validated is scanned here exactly as a
+    document read here is.
+
+    Raises:
+        RunnerMetadataError: a cap was crossed, under the ``shape`` stage this module has
+            always used for a shape refusal and worded as :func:`_metadata_shape_violation`
+            words the same bound.  The halt vocabulary does not grow for the moment at
+            which the same policy was applied.
+    """
+    try:
+        validate_document_bounds(
+            text,
+            depth_limit=METADATA_DEPTH_LIMIT,
+            node_limit=METADATA_NODE_LIMIT,
+            string_limit=METADATA_STRING_LIMIT,
+            digit_limit=STATUS_NUMERIC_DIGIT_LIMIT,
+        )
+    except DocumentBoundExceeded as error:
+        violation = _metadata_bound_violation(error)
+        raise RunnerMetadataError(
+            f"runner metadata at {location!r} was refused on shape rather than on size: "
+            f"{violation}. The committed document reaches depth 7, holds 1,315 values and "
+            "carries no string longer than 1,421 characters",
+            details={
+                "stage": "shape",
+                "violation": violation,
+                "depth_cap": METADATA_DEPTH_LIMIT,
+                "node_cap": METADATA_NODE_LIMIT,
+                "string_cap": METADATA_STRING_LIMIT,
+                "digit_cap": STATUS_NUMERIC_DIGIT_LIMIT,
+                "observed_bytes": observed_bytes,
+                "enforced_before_the_parse": True,
+                **error.details(),
+            },
+        ) from error
+    except MemoryError as error:
+        # The scan holds one entry per open container and materialises no token, so this
+        # is the host's available memory rather than a walk that grows with the document.
+        raise RunnerMetadataError(
+            f"runner metadata at {location!r} exhausted the host's memory while its shape "
+            f"was being measured, at {observed_bytes} bytes: {type(error).__name__}",
+            details={
+                "stage": "shape",
+                "error": type(error).__name__,
+                "observed_bytes": observed_bytes,
+            },
+        ) from error
+
+
+def load_runner_metadata(
+    path: str | os.PathLike[str],
+    *,
+    validated_text: str | None = None,
+) -> Mapping[str, Any]:
     """Read ``harness/artifacts/logs/runner-metadata.json`` and return it read-only.
 
     The direction is fixed and must not be inverted (AAP 0.6.4): Stage 1 writes
@@ -1495,20 +2100,179 @@ def load_runner_metadata(path: str | os.PathLike[str]) -> Mapping[str, Any]:
     invocation form and working directory, the path base, the JDK major, the
     interpreter path and version, the baked flags and the credential expression.
 
+    BOUNDED ON SIZE *AND* ON SHAPE, BEFORE THE PARSE (CWE-400, CWE-674, CWE-770)
+    ----------------------------------------------------------------------------
+    This document is a file the module did not write, so it is read under the same
+    discipline as a scanner artifact rather than trusted for being Stage 1's own output.
+    The read is bounded to the cap plus one byte; :func:`_validate_metadata_text` then
+    enforces the depth, node, string and literal caps on the TEXT, so an amplified
+    document is refused before ``json.loads`` allocates its object graph rather than
+    diagnosed afterwards; the parse's ``RecursionError``, ``MemoryError`` and
+    ``ValueError`` become this module's own error rather than escaping as a traceback; and
+    :func:`_metadata_shape_violation` measures the parsed document as an independent
+    second opinion before it is handed back to a resolver.
+
+    ONE GATE, EVERY ROUTE -- ``validated_text`` SAVES A READ, NEVER A CHECK (CWE-367)
+    --------------------------------------------------------------------------------
+    The lexical gate lives in :func:`_parse_and_shape_check_metadata`, which is the one
+    place this module parses this document, so both routes into the parse pass through it:
+    the bounded read above, and the ``validated_text`` a composed caller supplies.  A
+    caller's label is not evidence, so handed-over text is scanned here exactly as text
+    read here is -- and a direct caller that omits the parameter gets the identical
+    protection rather than the unbounded parse this defect used to leave it (F12).
+
+    What ``validated_text`` still buys is the second READ: ``cli._load_metadata`` reads the
+    file under the same bounded reader, validates it, and hands those exact bytes over, so
+    the bytes parsed are the bytes that side accepted and a replacement between two reads
+    has no window to land in.
+
     Raises
     ------
     RunnerMetadataError
-        If the document is not a JSON object, or carries no ``tools`` object.  Either
-        way a resolver would have no base to work from, and AAP 0.6.1 makes that a
-        hard error rather than a default to the root.
+        If the document cannot be measured or read; if it exceeds the byte cap or any of
+        the three shape caps; if it is not valid UTF-8 or not valid JSON; if the parse
+        exhausts the stack or the host's memory; if it is not a JSON object; or if it
+        carries no ``tools`` object.  In every case a resolver would have no base it could
+        trust, and AAP 0.6.1 makes that a hard error rather than a default to the root.
     """
     location = os.fspath(path)
+    if validated_text is not None:
+        # The caller read these exact bytes, so re-reading here would parse bytes nobody
+        # validated (CWE-367): the text is taken as given and its size restated for the
+        # diagnostics below. Its STRUCTURE is not taken as given -- the gate inside
+        # _parse_and_shape_check_metadata runs on it exactly as it runs on a read of our
+        # own, because a caller's label is not a measurement.
+        text = validated_text
+        observed_bytes = len(text.encode("utf-8"))
+        if observed_bytes > METADATA_BYTE_LIMIT:
+            raise RunnerMetadataError(
+                f"runner metadata at {location!r} is {observed_bytes} bytes, above the "
+                f"{METADATA_BYTE_LIMIT}-byte cap on this input, so it was refused "
+                "before it was parsed",
+                details={
+                    "stage": "size",
+                    "observed_bytes": observed_bytes,
+                    "byte_cap": METADATA_BYTE_LIMIT,
+                    "source": "validated_text",
+                },
+            )
+        return _parse_and_shape_check_metadata(text, location, observed_bytes)
     try:
-        document = json.loads(Path(location).read_text(encoding="utf-8"))
+        observed_bytes = os.stat(location).st_size
+    except OSError as error:
+        raise RunnerMetadataError(
+            f"runner metadata at {location!r} cannot be measured: "
+            f"{type(error).__name__}: {error}",
+            details={"stage": "measure", "error": f"{type(error).__name__}: {error}"},
+        ) from error
+    if observed_bytes > METADATA_BYTE_LIMIT:
+        raise RunnerMetadataError(
+            f"runner metadata at {location!r} is {observed_bytes} bytes, above the "
+            f"{METADATA_BYTE_LIMIT}-byte cap on this input, so it was refused before any "
+            "of it was read",
+            details={
+                "stage": "size",
+                "observed_bytes": observed_bytes,
+                "byte_cap": METADATA_BYTE_LIMIT,
+            },
+        )
+    try:
+        with open(location, "rb") as handle:
+            raw = handle.read(METADATA_BYTE_LIMIT + 1)
+    except OSError as error:
+        raise RunnerMetadataError(
+            f"runner metadata at {location!r} cannot be read: "
+            f"{type(error).__name__}: {error}",
+            details={"stage": "read", "error": f"{type(error).__name__}: {error}"},
+        ) from error
+    if len(raw) > METADATA_BYTE_LIMIT:
+        raise RunnerMetadataError(
+            f"runner metadata at {location!r} grew past the {METADATA_BYTE_LIMIT}-byte cap "
+            "between being measured and being read, so what was read is not what was "
+            "measured and neither can be relied on",
+            details={
+                "stage": "read",
+                "observed_bytes": observed_bytes,
+                "byte_cap": METADATA_BYTE_LIMIT,
+            },
+        )
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise RunnerMetadataError(
+            f"runner metadata at {location!r} is not valid UTF-8: {error}",
+            details={"stage": "decode", "error": f"{type(error).__name__}: {error}"},
+        ) from error
+    return _parse_and_shape_check_metadata(text, location, observed_bytes)
+
+
+def _parse_and_shape_check_metadata(
+    text: str, location: str, observed_bytes: int
+) -> Mapping[str, Any]:
+    """Validate, parse and shape-check metadata text, for both routes above.
+
+    Shared by the ``validated_text`` route and the standalone read so that one
+    document cannot be adjudicated two ways.  Every verdict, message and detail key
+    is the one :func:`load_runner_metadata` has always raised.
+
+    THE ORDER IS THE PROPERTY.  The lexical gate runs first, over the text, so no route
+    into this parse can reach ``json.loads`` with a document whose depth, node count,
+    string length or literal length has not been bounded (F12, CWE-400, CWE-674,
+    CWE-770).  Because this is the only function here that parses, placing the gate at its
+    head is what makes "every route" a structural fact rather than a convention each
+    caller has to remember.  The post-parse walk that follows is then the independent
+    second opinion it was always meant to be.
+    """
+    _validate_metadata_text(text, location, observed_bytes)
+    try:
+        document = json.loads(text)
     except json.JSONDecodeError as error:
         raise RunnerMetadataError(
-            f"runner metadata at {location!r} is not valid JSON: {error}"
+            f"runner metadata at {location!r} is not valid JSON: {error}",
+            details={"stage": "parse", "parser_error": str(error)},
         ) from error
+    except RecursionError as error:
+        raise RunnerMetadataError(
+            f"runner metadata at {location!r} nests too deeply for the parser and "
+            f"exhausted the interpreter's stack: {type(error).__name__}",
+            details={
+                "stage": "parse",
+                "error": type(error).__name__,
+                "recursion_limit": sys.getrecursionlimit(),
+            },
+        ) from error
+    except MemoryError as error:
+        raise RunnerMetadataError(
+            f"runner metadata at {location!r} exhausted the host's memory while being "
+            f"parsed, at {observed_bytes} bytes: {type(error).__name__}",
+            details={
+                "stage": "parse",
+                "error": type(error).__name__,
+                "observed_bytes": observed_bytes,
+            },
+        ) from error
+    except ValueError as error:
+        # A numeric literal too long to convert raises ValueError rather than a
+        # JSONDecodeError, so it arrives here and must be named rather than escape.
+        raise RunnerMetadataError(
+            f"runner metadata at {location!r} carries a literal the parser could not "
+            f"convert: {type(error).__name__}: {error}",
+            details={"stage": "parse", "error": f"{type(error).__name__}: {error}"},
+        ) from error
+    violation = _metadata_shape_violation(document)
+    if violation is not None:
+        raise RunnerMetadataError(
+            f"runner metadata at {location!r} was refused on shape rather than on size: "
+            f"{violation}. The committed document reaches depth 7, holds 1,315 values and "
+            "carries no string longer than 1,421 characters",
+            details={
+                "stage": "shape",
+                "violation": violation,
+                "depth_cap": METADATA_DEPTH_LIMIT,
+                "node_cap": METADATA_NODE_LIMIT,
+                "string_cap": METADATA_STRING_LIMIT,
+            },
+        )
     if not isinstance(document, Mapping):
         raise RunnerMetadataError(
             f"runner metadata at {location!r} must be a JSON object; observed "
@@ -1561,7 +2325,80 @@ _URI_SCHEME_RE: Final[re.Pattern[str]] = re.compile(r"\A([A-Za-z][A-Za-z0-9+.\-]
 _WINDOWS_DRIVE_RE: Final[re.Pattern[str]] = re.compile(r"\A[A-Za-z]:(?:[\\/]|\Z)")
 
 #: Any C0 or C1 control character, which no valid URI reference may carry.
+#:
+#: Deliberately *not* the same predicate as :func:`_is_escapable_control`, which
+#: exempts tab and newline because this dataset's ``message`` field legitimately
+#: carries embedded newlines (AAP 0.5.4) and escaping them would rewrite evidence.
+#: A **path** is a different field with a different contract: RFC 3986 admits no C0
+#: or C1 control in a URI reference at all, and no path in the scanned tree carries
+#: one, so every control is refused here including tab and newline.  Conflating the
+#: two predicates would let ``%0a`` through into the ``path`` column of a CSV.
 _CONTROL_CHARACTER_RE: Final[re.Pattern[str]] = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+
+#: How many control characters a description names individually before summarising.
+#: Small on purpose: the description is a diagnostic, and a hostile value carrying
+#: hundreds of controls must not turn one rejection detail into a wall of text.
+_CONTROL_DESCRIPTION_LIMIT: Final[int] = 3
+
+
+def describe_control_characters(value: str) -> str | None:
+    """Describe the control characters ``value`` carries, or return ``None``.
+
+    The description names each control by its Unicode code point and its index --
+    ``U+001B at index 12`` -- and **never reproduces the character itself**.  That is
+    the whole point of having a describer rather than interpolating the value: a
+    diagnostic composed from a control-bearing value is written to
+    ``harness/artifacts/logs/``, to ``normalize-run.json`` and into the Markdown
+    records, and an ESC or a CR reaching any of those is log injection (CWE-117) even
+    when the record that carried it was rejected.  ``repr()`` would escape a control
+    too, but only incidentally: it escapes for readability rather than for safety, so
+    relying on it would make the safety property a side effect of a formatting choice.
+
+    Used for two different guards, and it is the same predicate in both because the
+    two are the same question asked at different moments (F16):
+
+    * after every percent-decode in :func:`parse_uri_reference`, because the raw
+      check that precedes them cannot see what ``%00``, ``%0d`` or ``%1b`` becomes;
+    * immediately before a resolved path is emitted, in
+      :func:`assert_relative_path` and in :func:`_emitted_path_or_refusal`, because a
+      reported path field can carry a literal control with no URI decoding involved
+      at all -- a Gitleaks ``File`` or a Dependency-Check ``filePath`` reaches
+      :func:`relativize_to_root` directly.
+
+    Returns
+    -------
+    str | None
+        A sentence beginning ``"carries the control character..."``, or ``None`` where
+        the value carries none.  ``None`` is the answer for every path in this
+        provisioning's dataset: measured over every row of
+        ``oss-scan-results/findings.json``, no ``path`` field carries a control
+        character or even a ``%``, so both guards are a defence against a future
+        artifact rather than a change to this one.  No row count is quoted here on
+        purpose -- the dataset is regenerated, so a figure in this docstring would be
+        stale by construction, and the measurement is a property of the paths rather
+        than of any one generation's size.
+    """
+    if not isinstance(value, str):
+        return None
+    found = [
+        (index, char)
+        for index, char in enumerate(value)
+        if _CONTROL_CHARACTER_RE.match(char)
+    ]
+    if not found:
+        return None
+    named = ", ".join(
+        f"U+{ord(char):04X} at index {index}"
+        for index, char in found[:_CONTROL_DESCRIPTION_LIMIT]
+    )
+    if len(found) > _CONTROL_DESCRIPTION_LIMIT:
+        return (
+            f"carries {len(found)} control characters, the first "
+            f"{_CONTROL_DESCRIPTION_LIMIT} being {named}"
+        )
+    if len(found) == 1:
+        return f"carries the control character {named}"
+    return f"carries {len(found)} control characters: {named}"
 
 
 def split_segments(value: str) -> tuple[str, ...]:
@@ -1669,12 +2506,12 @@ class ContainmentAnalysis:
 
     The question ``..`` makes hard is *containment*, and it cannot be answered by
     looking at the first segment.  ``core/src/main/../../../../etc/passwd`` carries no
-    leading ``..`` at all, yet it names a location four levels above the root, and a
-    first-segment test both classifies it ``tree_file`` and lets it match the
-    allowlist glob ``core/src/main/**`` on its segments alone -- an out-of-tree
-    coordinate reported as an in-scope file in the scanned tree.  This analysis
-    replaces that test with a segment-wise walk that notices the escape wherever it
-    happens.
+    leading ``..`` at all, yet it names a location one level above the root -- three
+    concrete segments against four ``..`` -- and a first-segment test would both
+    classify it ``tree_file`` and let it match the allowlist glob ``core/src/main/**``
+    on its segments alone, reporting an out-of-tree coordinate as an in-scope file in
+    the scanned tree.  This analysis is a segment-wise walk instead, which notices the
+    escape wherever it happens.
 
     Two spellings, and the distinction between them is the whole design:
 
@@ -1803,8 +2640,8 @@ def analyse_containment(value: str) -> ContainmentAnalysis:
 
     The depth going below zero at **any** index is the escape, recorded with that
     index.  The final depth is reported too, because a coordinate can return inside
-    the root after leaving it and the finding this replaces was precisely a test
-    that looked in one place instead of every place.
+    the root after leaving it (``a/../../b/c``), so a test that inspected one position
+    rather than every position would call such a coordinate contained.
 
     An archive reference is split at its first ``!`` by
     :func:`split_archive_reference` and the **container** is walked: a member's
@@ -1904,16 +2741,17 @@ def path_kind_for(relative_path: str) -> str:
     ``outside_root`` -- both are non-filesystem coordinates and both take
     ``in_scope: false``, so the choice moves which counter increments and nothing
     else, and ``archive_member`` is the more specific truth.
-    :meth:`ContainmentAnalysis.escapes_root` still reports the container's escape for
+    :attr:`ContainmentAnalysis.escapes_root` still reports the container's escape for
     any caller that needs it, which is why the two are computed by one walk.
 
     The escape test is :func:`analyse_containment`, not a test of the first segment.
-    A first-segment test answered the containment question in one place instead of
-    every place: ``core/src/main/../../../../etc/passwd`` carries no leading ``..``,
-    so it was classified ``tree_file`` and then matched ``core/src/main/**`` on its
-    segments -- a path four levels above the root reported as an in-scope file.  The
-    emitted spelling is untouched by the change; only the kind, and the ``in_scope``
-    verdict that follows from it, differ.
+    A first-segment test inspects one position instead of every position:
+    ``core/src/main/../../../../etc/passwd`` carries no leading ``..``, so such a test
+    would classify it ``tree_file`` and it would then match ``core/src/main/**`` on
+    its segments -- a path one level above the root (three concrete segments, four
+    ``..``) reported as an in-scope file.  The walk decides only the kind, and the
+    ``in_scope`` verdict that follows from it; the emitted spelling is whatever was
+    reported.
     """
     analysis = analyse_containment(relative_path)
     if analysis.is_archive_reference:
@@ -1932,9 +2770,20 @@ def assert_relative_path(value: str) -> str:
     it.
 
     Refused: a leading ``/``, a leading backslash or UNC prefix, a Windows drive
-    prefix, any URI form, and -- as a second opinion on a shape the explicit checks
-    did not anticipate -- anything ``PurePosixPath`` or ``PureWindowsPath`` calls
-    absolute.
+    prefix, any URI form, a C0 or C1 control character anywhere in the value, and --
+    as a second opinion on a shape the explicit checks did not anticipate -- anything
+    ``PurePosixPath`` or ``PureWindowsPath`` calls absolute.
+
+    The control check is the second of F16's two guards, placed here because this is
+    the one function every emitted path passes through: a resolver could reach a
+    control-bearing path by a route ``parse_uri_reference`` never sees, and a reported
+    path field is exactly that route -- a Gitleaks ``File`` or a Dependency-Check
+    ``filePath`` carrying a literal control byte is relativized and emitted with no
+    URI decoding anywhere in its history.  It is refused rather than escaped because
+    the ``path`` field is a coordinate a consumer joins onto a root, and a value this
+    module rewrote would no longer name what the tool reported (AAP 0.5.4's
+    reject-rather-than-infer rule).  The reason names the control by code point and
+    never reproduces it, so putting the reason in a rejection detail is safe.
 
     Accepted, because each is a legitimate coordinate rather than a defect: the
     archive form ``<container>!<member>`` with exactly one ``!``, and a path carrying
@@ -1948,6 +2797,16 @@ def assert_relative_path(value: str) -> str:
     if not isinstance(value, str) or not value:
         raise PathPolicyError(
             f"an emitted path must be a non-empty str; observed {value!r}"
+        )
+    control = describe_control_characters(value)
+    if control is not None:
+        # Named first among the shape checks and reported without the value, because
+        # every message below interpolates ``value`` -- and while repr() happens to
+        # escape a control, a diagnostic's safety must not rest on that.
+        raise PathPolicyError(
+            f"an emitted path {control}, which no path in the scanned tree does; "
+            "emitting it would carry the control into findings.json, findings.csv, "
+            "the Markdown records rendered from them and the run logs"
         )
     if value.startswith("/"):
         raise PathPolicyError(
@@ -2087,6 +2946,70 @@ class ResolvedPath:
         }
 
 
+def _emitted_path_or_refusal(
+    path: str,
+    *,
+    kind: str,
+    basis: str,
+    tool: str,
+    reject_class: str,
+    identity: Mapping[str, Any] | None,
+    context: str,
+    corroboration: str | None = None,
+) -> ResolvedPath | Rejection:
+    """Return the :class:`ResolvedPath` for ``path``, or the rejection it earns.
+
+    The reject-rather-than-emit half of F16's second guard.
+    :func:`assert_relative_path` already refuses a control-bearing path, and
+    :meth:`ResolvedPath.__post_init__` calls it, so nothing can be emitted past it --
+    but it *raises*, and a raise is the wrong outcome for artifact content: an escaped
+    :class:`PathPolicyError` is a whole-artifact fault in ``cli.py``, which would let
+    one hostile record deny the other several thousand.  AAP 0.5.4 is explicit that a
+    record which cannot be attributed with certainty is *"rejected and the rejection
+    recorded as a class with its count"*, so a resolver calls this and returns the
+    counted rejection instead.
+
+    The two are not redundant, they are a pair.  This function is the per-record
+    outcome every resolver goes through; the raise inside
+    :func:`assert_relative_path` stays as the backstop a resolver added later cannot
+    bypass, in exactly the way the absoluteness invariant already works.
+
+    Only the control check is turned into a rejection here.  The other
+    :class:`PathPolicyError` conditions -- an unknown ``kind``, an empty ``basis``, an
+    empty ``tool`` -- are caller faults rather than artifact content, and absorbing
+    those into a rejection count would hide a defect in this pipeline behind a number
+    that reads like a defect in a scanner's output.  They still raise.
+
+    Args:
+        reject_class: ``invalid_uri`` where the path came from a URI reference, and
+            ``malformed_record`` where it came from a native tool's own path field --
+            the same split the surrounding resolvers already use for their other
+            rejections, so a reader counting classes sees one vocabulary.
+        context: What resolved, named for the detail, so a reader can tell a
+            control in a container from one in a member.
+    """
+    control = describe_control_characters(path)
+    if control is not None:
+        return Rejection(
+            reject_class=reject_class,
+            tool=tool,
+            detail=(
+                f"{context} resolves to a path that {control}; the record is rejected "
+                "rather than emitted, because a control character in the path field "
+                "would reach findings.json, findings.csv, the Markdown records "
+                "rendered from them and the run logs"
+            ),
+            record_identity=dict(identity or {}),
+        )
+    return ResolvedPath(
+        path=path,
+        kind=kind,
+        basis=basis,
+        tool=tool,
+        corroboration=corroboration,
+    )
+
+
 @dataclass
 class PathKindTally:
     """A running count of resolved path kinds, for the proportion run-record.md reports.
@@ -2120,8 +3043,12 @@ class PathKindTally:
         Replaying that number as ``count`` separate :meth:`add` calls -- which is what
         ``for _ in range(count): tally.add(kind)`` does -- re-enumerates every one of the
         dataset's resolutions, twice over: once to build the per-artifact tally and once
-        to fold it into the dataset tally.  At 9,466 rows that is ~18,900 method calls
-        and 18,900 dict lookups to compute a sum that was already known.
+        to fold it into the dataset tally.  That is two method calls and two dict lookups
+        per emitted row, however many rows a generation emits, to compute a sum that was
+        already known.  No row count is quoted here on purpose: the dataset is
+        regenerated, so a figure in this docstring would be stale by construction, and
+        the cost this method avoids scales with the rows rather than being a property of
+        any one generation.
 
         The validation is not weakened to buy that: the kind is checked against the same
         closed set :meth:`add` checks it against, and the count must be a non-negative
@@ -2231,6 +3158,14 @@ def archive_member_path(container: str, member: str, root: str, *, tool: str) ->
         serialization describes one container and one member, so a caller turns this
         into a counted ``malformed_record`` rejection rather than inventing a second
         separator the invariant forbids.
+
+        Also where the serialized ``<container>!<member>`` carries a control
+        character, which :func:`assert_relative_path` refuses on construction of the
+        :class:`ResolvedPath` below -- F16's second guard reaching the non-filesystem
+        archive serialization.  No separate check is written here on purpose: all
+        three call sites already convert a :class:`PathPolicyError` from this function
+        into a counted rejection, so the refusal is already reject-rather-than-emit,
+        and a second check would be a second place to keep in step with the first.
     """
     normalised_member = normalise_reported_path(member).lstrip("/")
     if not normalised_member:
@@ -2297,6 +3232,52 @@ class UriReference:
     detail: str | None = None
 
 
+def _decoded_control_refusal(
+    raw: str,
+    decoded: str,
+    *,
+    component: str,
+    scheme: str | None = None,
+) -> UriReference | None:
+    """Return the ``invalid`` reference a control-bearing decode earns, or ``None``.
+
+    The post-decode half of the control-character guard (F16).  The check that runs
+    on the raw reference cannot see what percent-encoding conceals: ``%00``, ``%0d``
+    and ``%1b`` are four perfectly ordinary URI characters each until
+    :func:`urllib.parse.unquote` turns them into NUL, CR and ESC, and the decoded
+    value is what becomes a row's ``path`` -- reaching ``findings.json``,
+    ``findings.csv``, every Markdown record rendered from them and the run logs
+    (CWE-176 for the decode, CWE-117 for where it arrives).  So every decode in
+    :func:`parse_uri_reference` is followed by this, and there are four of them: an
+    archive member behind a scheme, a ``file:`` URI's path, an archive member with no
+    scheme, and the general relative-or-absolute decode.
+
+    ``value`` on the returned reference is the **raw** input, exactly as the
+    pre-decode branches do: the raw form is still percent-encoded, so it carries no
+    control character to propagate, while the decoded form would.  ``detail`` names
+    the control by code point through :func:`describe_control_characters` and never
+    reproduces it.
+
+    The refusal is the ``invalid`` form rather than a silently stripped or escaped
+    value, because AAP 0.5.4 makes ``invalid_uri`` its own rejection condition and
+    forbids inference: a reference whose decoding is not a path cannot be repaired
+    into one, and the caller counts it under ``invalid_uri`` rather than guessing.
+    """
+    control = describe_control_characters(decoded)
+    if control is None:
+        return None
+    return UriReference(
+        form=URI_FORM_INVALID,
+        value=raw,
+        scheme=scheme,
+        detail=(
+            f"the {component} decodes to a value that {control}; a percent-encoded "
+            "control character is still a control character once decoded, and no path "
+            "in the scanned tree carries one"
+        ),
+    )
+
+
 def parse_uri_reference(raw: str) -> UriReference:
     """Parse ``raw`` into a :class:`UriReference`, classifying rather than repairing.
 
@@ -2305,10 +3286,21 @@ def parse_uri_reference(raw: str) -> UriReference:
     * ``invalid`` -- empty, carrying a control character, or something
       :func:`urllib.parse.urlsplit` cannot parse.  AAP 0.5.4 makes this its own
       rejection class (``invalid_uri``), separate from an unresolvable path.
-    * ``file-uri`` -- a ``file:`` URI.  Its path is percent-decoded and treated as
-      filesystem-absolute.  A non-empty, non-``localhost`` authority is *invalid*
-      here rather than absolute: it names another host, and this pipeline has no way
-      to express that as a path in the tree.
+      The control-character test is made **twice**: once on ``raw`` before anything
+      is decoded, and once on each decoded value through
+      :func:`_decoded_control_refusal`.  The raw test alone is not the guard it looks
+      like -- ``%1b`` carries no control character and decodes to one -- and this
+      function's whole output is decoded, so a single pre-decode check leaves every
+      percent-encoded control to arrive in a row's ``path`` (F16, CWE-176).
+    * ``file-uri`` -- a ``file:`` URI.  Its path component is percent-decoded into
+      ``value`` and returned as it stands: absolute for the ordinary ``file:///p`` and
+      ``file:/p`` forms, and **relative** for a rootless reference such as
+      ``file:relative/x.txt``, which is accepted rather than repaired or rejected.
+      :func:`resolve_sarif_location` relativizes either against the root, which leaves
+      a rootless value unchanged and so reads it as already root-relative.  A
+      non-empty, non-``localhost`` authority is *invalid* here rather than absolute: it
+      names another host, and this pipeline has no way to express that as a path in the
+      tree.  An empty path component is *invalid* too, since it names no location.
     * ``archive-uri`` -- a ``jar:``/``zip:``/``tar:`` URI, or any reference carrying
       ``!``.  The container and the member are returned separately for
       :func:`archive_member_path` to serialize.
@@ -2363,10 +3355,26 @@ def parse_uri_reference(raw: str) -> UriReference:
                 scheme=scheme,
                 detail=f"the container of the {scheme!r} URI is invalid: {container.detail}",
             )
+        # The container came back from a recursive parse, so its own decode was
+        # already checked on the way out of that call and the branch above refused it.
+        # It is re-checked here all the same: this function has four decode sites and
+        # one of them is behind a recursion, and a guard that holds only because
+        # another function happened to run first is a guard nobody can verify locally.
+        refusal = _decoded_control_refusal(
+            raw, container.value, component=f"container of the {scheme!r} URI", scheme=scheme
+        )
+        if refusal is not None:
+            return refusal
+        decoded_member = unquote(member)
+        refusal = _decoded_control_refusal(
+            raw, decoded_member, component=f"member of the {scheme!r} URI", scheme=scheme
+        )
+        if refusal is not None:
+            return refusal
         return UriReference(
             form=URI_FORM_ARCHIVE_URI,
             value=container.value,
-            member=unquote(member),
+            member=decoded_member,
             scheme=scheme,
         )
 
@@ -2398,6 +3406,11 @@ def parse_uri_reference(raw: str) -> UriReference:
                 scheme=scheme,
                 detail="the file URI carries no path component",
             )
+        refusal = _decoded_control_refusal(
+            raw, decoded, component="path of the file URI", scheme=scheme
+        )
+        if refusal is not None:
+            return refusal
         return UriReference(form=URI_FORM_FILE_URI, value=decoded, scheme=scheme)
 
     if scheme is not None:
@@ -2422,13 +3435,27 @@ def parse_uri_reference(raw: str) -> UriReference:
                 value=raw,
                 detail=f"the container of the archive reference is invalid: {container.detail}",
             )
+        refusal = _decoded_control_refusal(
+            raw, container.value, component="container of the archive reference"
+        )
+        if refusal is not None:
+            return refusal
+        decoded_member = unquote(member)
+        refusal = _decoded_control_refusal(
+            raw, decoded_member, component="member of the archive reference"
+        )
+        if refusal is not None:
+            return refusal
         return UriReference(
             form=URI_FORM_ARCHIVE_URI,
             value=container.value,
-            member=unquote(member),
+            member=decoded_member,
         )
 
     decoded = unquote(raw)
+    refusal = _decoded_control_refusal(raw, decoded, component="URI reference")
+    if refusal is not None:
+        return refusal
     if decoded.startswith("//") or _WINDOWS_DRIVE_RE.match(decoded):
         return UriReference(form=URI_FORM_ABSOLUTE_PATH, value=decoded)
     return UriReference(form=URI_FORM_RELATIVE, value=decoded)
@@ -2608,9 +3635,10 @@ class ToolPathBase:
 
         The distinction the Gitleaks base turns on: one path per invocation makes the
         record's paths relative to that path, while several paths in one invocation
-        makes them relative to the process working directory.  Read here rather than
-        assumed, because this provisioning invokes Gitleaks once per scope directory
-        while its historical precedent passed all eighteen at once.
+        makes them relative to the process working directory.  Both shapes are
+        provisionable -- one invocation per scope directory, or all eighteen
+        directories in a single invocation -- so the count is read from the document
+        rather than assumed from the tool.
         """
         candidate = self.invocation_form.get("invocations_per_run")
         return candidate if isinstance(candidate, int) else None
@@ -2751,11 +3779,18 @@ def tool_path_base(document: Mapping[str, Any], tool: str) -> ToolPathBase:
 # The bounded uriBaseId chain walk (AAP 0.5.4; SARIF 2.1.0 sections 3.4.3/3.4.4/3.14.14)
 # --------------------------------------------------------------------------- #
 
-#: The chain depth beyond which the walk stops.  A small constant on purpose: the
-#: specification's own example chains two levels (``SRCROOT`` through
-#: ``PROJECTROOT``), and nothing legitimate needs eight.  A deeper chain is a
-#: producer defect or a cycle the visited set did not catch, and either way the walk
-#: terminates and the record is rejected with the reason named.
+#: The chain depth beyond which the walk stops.  This is **this pipeline's** resource
+#: bound, not a SARIF validity rule: the specification imposes no ceiling on how deep
+#: an ``originalUriBaseIds`` chain may go, and its own section 3.14.14 example chains
+#: two levels (``SRCROOT`` through ``PROJECTROOT``).  Eight is a small constant chosen
+#: so that an adversarial or pathological base map cannot make the walk unbounded,
+#: over and above the visited-identifier set that already stops a cycle.  The
+#: trade-off is stated rather than hidden: a chain that is legitimately deeper than
+#: eight is not resolved through its own base map.  It terminates under
+#: :data:`BASE_OUTCOME_OVER_DEPTH`, which carries the bound and the traversed chain in
+#: its detail, and the record then takes AAP 0.5.4's case 1 -- the runner-recorded base
+#: where the metadata supplies an explicit one for that tool, and otherwise a rejection
+#: under ``unresolvable_path`` naming the outcome.
 SARIF_BASE_CHAIN_MAX_DEPTH: Final[int] = 8
 
 SARIF_URI_KEY: Final[str] = "uri"
@@ -2856,12 +3891,22 @@ def resolve_uri_base(
 ) -> BaseResolution:
     """Walk ``base_id`` through ``original_uri_base_ids`` and return the base it names.
 
-    Implements the consumer procedure of SARIF 2.1.0 section 3.4.4 for the part this
-    pipeline owns: resolve the identifier from ``run.originalUriBaseIds``.  (The
-    procedure's first branch -- a value the end user configured for the identifier --
-    is this pipeline's *runner-recorded* base, applied by
-    :func:`resolve_sarif_location` when this walk cannot complete, so that the
-    fallback stays visibly a fallback.)
+    Implements the second half of the consumer procedure SARIF 2.1.0 section 3.4.4
+    lays down.  That procedure has two branches, and they are different kinds of thing:
+
+    * **normative, first** -- use a value the *end user* configured for that specific
+      ``uriBaseId``.  This pipeline configures no per-identifier value, so the branch
+      selects nothing here and the procedure falls through to the second.
+    * **normative, second** -- otherwise resolve the identifier from
+      ``run.originalUriBaseIds``.  That is what this function does, chain and all.
+
+    The runner-recorded base is neither branch: it is *project policy* (AAP 0.5.4),
+    applied by :func:`resolve_sarif_location` only after this walk has failed to
+    complete, only for the outcomes in
+    :data:`BASE_OUTCOMES_ELIGIBLE_FOR_METADATA_FALLBACK`, and only where
+    :attr:`ToolPathBase.has_explicit_base` -- with no explicit base for that tool the
+    record is rejected under ``unresolvable_path`` instead.  Keeping the two apart is
+    what stops a project fallback being read as the specification's own first branch.
 
     Chains are followed, because they are real: the specification's own section
     3.14.14 example carries a ``uriBaseId`` on a base entry so that ``SRCROOT`` is
@@ -3073,7 +4118,10 @@ def _resolve_relative_against_base(
     tool: str,
     basis: str,
     corroboration: str | None = None,
-) -> ResolvedPath:
+    reject_class: str,
+    identity: Mapping[str, Any] | None,
+    context: str,
+) -> ResolvedPath | Rejection:
     """Join a relative reference onto ``base``, relativize to ``root``, classify.
 
     The one place a relative reference becomes a row's ``path``, so the kind is read
@@ -3081,15 +4129,28 @@ def _resolve_relative_against_base(
     archive member, and a running segment depth that goes below zero anywhere makes it
     outside the root -- ``path_kind_for`` walks the whole coordinate, so a ``..`` that
     a base joined into the middle of the path is caught exactly like a leading one.
+
+    Because it is that one place, it is also where F16's second guard has to sit for
+    the five relative branches that reach it, and the return type therefore widens to
+    ``ResolvedPath | Rejection``: the serialized result is checked for a control
+    character immediately before it becomes a row's ``path``, and a control-bearing
+    one is a counted rejection rather than an emitted value.  Every caller already
+    returns whatever this returns straight to an adapter that handles both, so the
+    widening changes no call site's control flow -- and ``reject_class``, ``identity``
+    and ``context`` are required rather than defaulted so a new caller has to say
+    which class its records are counted under instead of inheriting one silently.
     """
     joined = posix_join(base, value)
     relative = relativize_to_root(joined, root)
-    return ResolvedPath(
-        path=relative,
+    return _emitted_path_or_refusal(
+        relative,
         kind=path_kind_for(relative),
         basis=basis,
         tool=tool,
         corroboration=corroboration,
+        reject_class=reject_class,
+        identity=identity,
+        context=context,
     )
 
 
@@ -3212,11 +4273,14 @@ def resolve_sarif_location(
 
     if reference.form in (URI_FORM_FILE_URI, URI_FORM_ABSOLUTE_PATH):
         relative = relativize_to_root(reference.value, root)
-        return ResolvedPath(
-            path=relative,
+        return _emitted_path_or_refusal(
+            relative,
             kind=path_kind_for(relative),
             basis=BASIS_ABSOLUTE_RELATIVIZED,
             tool=tool_name,
+            reject_class=REJECT_INVALID_URI,
+            identity=identity,
+            context=f"the uri {uri!r} read as filesystem-absolute",
         )
 
     # From here the reference is relative in SARIF's sense.  A single leading slash
@@ -3227,11 +4291,17 @@ def resolve_sarif_location(
         normalised_root = normalise_reported_path(root).rstrip("/")
         if value == normalised_root or value.startswith(normalised_root + "/"):
             relative = relativize_to_root(value, root)
-            return ResolvedPath(
-                path=relative,
+            return _emitted_path_or_refusal(
+                relative,
                 kind=path_kind_for(relative),
                 basis=BASIS_ABSOLUTE_RELATIVIZED,
                 tool=tool_name,
+                reject_class=REJECT_INVALID_URI,
+                identity=identity,
+                context=(
+                    f"the uri {uri!r}, whose single leading slash names a location "
+                    "under the recorded scan root"
+                ),
                 corroboration=(
                     "read as filesystem-absolute because the single leading slash "
                     "names a location under the recorded scan root; the errata-480 "
@@ -3261,6 +4331,9 @@ def resolve_sarif_location(
                 walk.base,
                 root,
                 tool=tool_name,
+                reject_class=REJECT_INVALID_URI,
+                identity=identity,
+                context=f"the uri {uri!r} resolved through its {SARIF_URI_BASE_ID_KEY} chain",
                 basis=leading_slash_basis or BASIS_SARIF_BASE_CHAIN,
                 corroboration=(
                     None
@@ -3312,6 +4385,9 @@ def resolve_sarif_location(
             base,
             root,
             tool=tool_name,
+            reject_class=REJECT_INVALID_URI,
+            identity=identity,
+            context=f"the uri {uri!r} resolved against the runner-recorded base",
             basis=leading_slash_basis or BASIS_SARIF_METADATA_BASE,
             corroboration=(
                 f"{walk.outcome}: {walk.detail}; resolved through the runner-recorded "
@@ -3338,6 +4414,12 @@ def resolve_sarif_location(
         base,
         root,
         tool=tool_name,
+        reject_class=REJECT_INVALID_URI,
+        identity=identity,
+        context=(
+            f"the uri {uri!r}, which carries no {SARIF_URI_BASE_ID_KEY}, resolved "
+            "against the runner-recorded base"
+        ),
         basis=leading_slash_basis or BASIS_SARIF_NO_BASE_ID,
     )
 
@@ -3453,11 +4535,14 @@ def resolve_recorded_path(
 
     if is_absolute_path(value):
         relative = relativize_to_root(value, root)
-        return ResolvedPath(
-            path=relative,
+        return _emitted_path_or_refusal(
+            relative,
             kind=path_kind_for(relative),
             basis=basis or BASIS_ABSOLUTE_RELATIVIZED,
             tool=tool_name,
+            reject_class=REJECT_MALFORMED_RECORD,
+            identity=identity,
+            context=f"the record's absolute path {value!r} relativized to the root",
         )
 
     if tool_base.kind == PATH_BASE_KIND_PER_SECTION_TARGET:
@@ -3477,6 +4562,9 @@ def resolve_recorded_path(
             section_base,
             root,
             tool=tool_name,
+            reject_class=REJECT_MALFORMED_RECORD,
+            identity=identity,
+            context=f"the record's path {value!r} resolved against its section base",
             basis=basis or BASIS_RESOLVED_AGAINST_BASE,
         )
 
@@ -3505,6 +4593,9 @@ def resolve_recorded_path(
         base,
         root,
         tool=tool_name,
+        reject_class=REJECT_MALFORMED_RECORD,
+        identity=identity,
+        context=f"the record's path {value!r} resolved against the recorded base",
         basis=basis or default_basis,
     )
 
@@ -3640,11 +4731,14 @@ def resolve_checkov_path(
         )
         if file_path_note is not None:
             notes.append(file_path_note)
-        return ResolvedPath(
-            path=relative,
+        return _emitted_path_or_refusal(
+            relative,
             kind=path_kind_for(relative),
             basis=_CHECKOV_ANCHOR_BASIS.get(anchor, BASIS_RESOLVED_AGAINST_BASE),
             tool=tool,
+            reject_class=REJECT_MALFORMED_RECORD,
+            identity=identity,
+            context=f"the failed check's {anchor}",
             corroboration="; ".join(notes) if notes else None,
         )
 
@@ -3663,11 +4757,14 @@ def resolve_checkov_path(
     if tool_base.kind == PATH_BASE_KIND_SCAN_ROOT:
         # A single -d target equal to the scan root: the stripped file_path really is
         # root-relative, and saying so is not a guess.
-        return ResolvedPath(
-            path=corroborator,
+        return _emitted_path_or_refusal(
+            corroborator,
             kind=path_kind_for(corroborator),
             basis=BASIS_CHECKOV_FILE_PATH,
             tool=tool,
+            reject_class=REJECT_MALFORMED_RECORD,
+            identity=identity,
+            context=f"the failed check's {CHECKOV_FILE_PATH_FIELD}",
             corroboration=(
                 "resolved from file_path alone: no anchor field was present, and the "
                 "recorded path_base.kind is 'scan_root', so the stripped file_path is "
@@ -3770,9 +4867,10 @@ def resolve_gitleaks_path(
     relative to the working directory -- so it is read from
     :class:`ToolPathBase` rather than assumed.  In this provisioning the runner cds to
     the scan root and hands over one directory per invocation, so the recorded kind is
-    ``scan_root``; its historical precedent passed all eighteen at once, which is the
-    other shape.  A differing base is a condition to record, never a runner to repair
-    (AAP 0.3.2 forbids any runner edit or reconfiguration).
+    ``scan_root``; a runner passing all eighteen scope directories in a single
+    invocation is the other shape, and its base is the working directory.  A differing
+    base is a condition to record, never a runner to repair (AAP 0.3.2 forbids any
+    runner edit or reconfiguration).
 
     No secret value is read from the record, and none can reach a path field: only the
     ``File`` field (or whatever ``record_path_field`` the metadata names) is consulted.
@@ -3883,11 +4981,14 @@ def resolve_trivy_path(
     refinement = normalise_reported_path(per_record_path)
     if is_absolute_path(refinement):
         relative = relativize_to_root(refinement, root)
-        return ResolvedPath(
-            path=relative,
+        return _emitted_path_or_refusal(
+            relative,
             kind=path_kind_for(relative),
             basis=BASIS_TRIVY_PER_RECORD_PATH,
             tool=tool,
+            reject_class=REJECT_MALFORMED_RECORD,
+            identity=identity,
+            context=f"the absolute per-record path {per_record_path!r}",
         )
     if refinement == resolved_target.path or resolved_target.path.endswith("/" + refinement):
         return resolved_target
@@ -3906,11 +5007,17 @@ def resolve_trivy_path(
                 ),
                 record_identity=identity,
             )
-        return ResolvedPath(
-            path=member.path,
+        return _emitted_path_or_refusal(
+            member.path,
             kind=member.kind,
             basis=BASIS_TRIVY_PER_RECORD_PATH,
             tool=tool,
+            reject_class=REJECT_MALFORMED_RECORD,
+            identity=identity,
+            context=(
+                f"the per-record path {per_record_path!r} serialized as a member of "
+                f"the container {resolved_target.path!r}"
+            ),
             corroboration=(
                 f"the enclosing Target {resolved_target.path!r} names a container, so "
                 "the per-record path is serialized as a member of it"
@@ -3932,6 +5039,9 @@ def resolve_trivy_path(
         base,
         root,
         tool=tool,
+        reject_class=REJECT_MALFORMED_RECORD,
+        identity=identity,
+        context=f"the per-record path {per_record_path!r} resolved against its section target",
         basis=BASIS_TRIVY_PER_RECORD_PATH,
     )
 
@@ -3949,7 +5059,8 @@ SOURCE_EXTENSIONS: Final[tuple[str, ...]] = (".scala", ".java")
 #: Both source trees.  AAP 0.5.4 requires resolution against ``src/main`` **and**
 #: ``src/test``, because every ``-tests`` artifact the build emitted is in the graph
 #: input, so a Joern finding can legitimately name bytecode compiled from a test
-#: tree.  The provisioned collector walks only ``src/main``; this closes that gap.
+#: tree.  The provisioned collector indexes ``src/main`` alone, so its coordinate
+#: space is narrower than the one a finding can name.
 SOURCE_TREES: Final[tuple[str, ...]] = ("main", "test")
 
 #: Directory names never walked when building the index: build output, VCS metadata
@@ -3965,7 +5076,7 @@ CLASS_FILE_SUFFIX: Final[str] = ".class"
 _JIMPLE_PREFIX_RE: Final[re.Pattern[str]] = re.compile(r"\A.*?(?:\A|/)jimple2cpg-\d+/")
 
 #: This run stages the frontend's input under ``harness/artifacts/cpg-input/``, so a
-#: class-file path may carry that prefix instead of the historical one.
+#: class-file path may carry that prefix instead of the ``jimple2cpg-<digits>/`` one.
 CPG_INPUT_STAGING_SEGMENT: Final[str] = "cpg-input"
 
 #: A Java identifier: what every segment of a package path is, and what no staging
@@ -3996,13 +5107,13 @@ _DECLARATION_PATTERNS: Final[Mapping[str, re.Pattern[str]]] = MappingProxyType(
 def class_key(identifier: str) -> str:
     """Reduce a bytecode class identifier to ``<package path>/<outer type name>``.
 
-    Two input shapes are accepted, because two are written.  This provisioning's
-    collector (``harness/lib/joern-scan.sc``) emits ``class`` as a **dotted type full
-    name** -- ``org.apache.spark.sql.connect.SparkSession$$anon$2`` -- while its
-    historical precedent emitted a class-**file path**.  The metadata names the
-    ephemeral ``file`` field as the one to ignore precisely because it is the
-    frontend's extraction path rather than a location in the tree, so no assumption
-    is made about which shape arrives:
+    Two input shapes are accepted, because a collector may write either.  This
+    provisioning's collector (``harness/lib/joern-scan.sc``) emits ``class`` as a
+    **dotted type full name** -- ``org.apache.spark.sql.connect.SparkSession$$anon$2``
+    -- and a collector that emits a class-**file path** is the other shape.  The
+    metadata names the ephemeral ``file`` field as the one to ignore precisely because
+    it is the frontend's extraction path rather than a location in the tree, so no
+    assumption is made about which shape arrives:
 
     * a value containing ``/`` or ending in ``.class`` is read as a path.  A
       ``jimple2cpg-<digits>/`` prefix is stripped; failing that, everything up to and
@@ -4062,7 +5173,7 @@ def _strip_staging_prefix(path: str) -> str:
     """Strip a frontend or staging prefix from a class-file path.
 
     Three rules, tried in order and each documented at :func:`class_key`: the
-    historical ``jimple2cpg-<digits>/`` extraction directory, this run's
+    frontend's ``jimple2cpg-<digits>/`` extraction directory, this run's
     ``cpg-input/`` staging directory, and -- where neither applies -- the
     longest all-Java-identifier suffix, which is the package path by definition.
     """
@@ -4369,11 +5480,11 @@ def _append_unique(index: dict[str, list[str]], key: str, value: str) -> None:
 def _declared_type_names(path: str, pattern: re.Pattern[str]) -> tuple[str, ...]:
     """Return the top-level type names declared in the file at ``path``.
 
-    **A read failure propagates.**  It used to be swallowed and reported as *no
-    declarations*, which is the same silence as a file that genuinely declares nothing:
-    the declaration scheme is the only route to eighteen of the pinned run's hundred and
-    seven Joern resolutions -- ``ProcessBuilderLike`` in ``DriverRunner.scala``,
-    ``RangePartitioner`` in ``Partitioner.scala`` -- so a file dropped this way removes
+    **A read failure propagates.**  Swallowing it would report *no declarations*, which
+    is the same silence as a file that genuinely declares nothing: the declaration
+    scheme is the only route to eighteen of the pinned run's hundred and seven Joern
+    resolutions -- ``ProcessBuilderLike`` in ``DriverRunner.scala``,
+    ``RangePartitioner`` in ``Partitioner.scala`` -- so a file dropped that way removes
     resolutions the index is supposed to make and converts each affected record into an
     ``unresolvable_path`` rejection that reads as an ordinary shaded-class outcome.  The
     count is then unreproducible, and AAP 0.9.2 halts on a condition that makes a count
@@ -4381,7 +5492,7 @@ def _declared_type_names(path: str, pattern: re.Pattern[str]) -> tuple[str, ...]
     :class:`OSError` carries the offending filename and reaches
     ``cli._build_source_index``, which names it in a configuration fault.
 
-    Decoding errors are still replaced rather than raised, and that is not the same
+    Decoding errors *are* replaced rather than raised, and that is not the same
     decision: a declaration line is ASCII even where a comment elsewhere in the file is
     not, so replacement loses nothing the pattern could have matched, whereas an
     unreadable file loses every declaration it holds.
@@ -4401,9 +5512,9 @@ def resolve_bytecode_class(
 ) -> ResolvedPath | Rejection:
     """Resolve a bytecode class identifier to a unique source path in the tree.
 
-    The one genuinely new piece of work in this module, and the two gaps it closes are
-    both in :class:`SourceIndex`: the index spans ``src/main`` **and** ``src/test``,
-    and ambiguity is rejected rather than first-won.
+    Two properties of :class:`SourceIndex` carry the resolution: the index spans
+    ``src/main`` **and** ``src/test``, and ambiguity is rejected rather than
+    first-won.
 
     Outcomes:
 
@@ -4417,7 +5528,7 @@ def resolve_bytecode_class(
       the detail so a reader can see the collision rather than the count alone;
     * none -- ``unresolvable_path``.  This is the ordinary outcome for a third-party
       class shaded into Spark's JARs, and it is a counted rejection rather than a row
-      with an invented path.  Measured over the 692 findings the provisioning's own
+      with an invented path.  Measured over the 693 findings the provisioning's own
       run produced: 585 unresolvable -- exactly the count of shaded third-party
       classes it recorded -- 0 ambiguous, and **107** resolved, against the 89 its
       ``src/main``-only, filename-only resolver managed.  The extra 18 are precisely
@@ -4433,9 +5544,10 @@ def resolve_bytecode_class(
     that dropped it would lose the collector's own account of the failure exactly where a
     reader of ``tool-status.md`` looks for it, while the rejection still counted.  The
     composition runs through :func:`_with_collector_explanation`, which returns the detail
-    unchanged where no explanation was supplied, so a record carrying none reads exactly
-    as it did before.  This provisioning's collector emits no such field, so the parameter
-    is usually ``None``; it is honoured because the historical shape carries one.
+    unchanged where no explanation was supplied, so a record carrying none reads as the
+    adapter composed it.  This provisioning's collector emits no such field, so the
+    parameter is usually ``None``; it is honoured because a collector that emits one
+    supplies the only account of a resolution it could not make.
     """
     identity = dict(record_identity or {})
     identity.setdefault("class", identifier)
@@ -4626,6 +5738,24 @@ __all__ = [
     "scope_glob_bases",
     "expand_scope_directories",
     "load_runner_metadata",
+    # The bounds the runner-metadata read enforces (CWE-400, CWE-674, CWE-770)
+    "METADATA_BYTE_LIMIT",
+    "METADATA_DEPTH_LIMIT",
+    "METADATA_NODE_LIMIT",
+    "METADATA_STRING_LIMIT",
+    # The one pre-parse lexical gate, shared with cli's artifact route
+    "STATUS_NUMERIC_DIGIT_LIMIT",
+    "DOCUMENT_BOUND_DEPTH",
+    "DOCUMENT_BOUND_NODES",
+    "DOCUMENT_BOUND_STRING",
+    "DOCUMENT_BOUND_MEMBER_NAME",
+    "DOCUMENT_BOUND_NUMERIC_DIGITS",
+    "DOCUMENT_BOUND_LITERAL_TOKEN",
+    "DOCUMENT_BOUNDS",
+    "STRUCTURAL_MEASUREMENT_KEYS",
+    "DocumentBoundExceeded",
+    "string_token_end",
+    "validate_document_bounds",
     # Relativization and serialization
     "ARCHIVE_SEPARATOR",
     "ARCHIVE_EXTENSIONS",

@@ -230,17 +230,80 @@ val QUERY_ID = "01-callgraph-unguarded-driver-launch"
 /** The probe's own scratch workspace, repo-relative as the AAP names it. */
 val WORKSPACE_PATH = "queries/joern/.workspace"
 
+/** This run's own workspace, created fresh under the AAP-named root above and
+ *  never reused: the prefix and the query id make it readable, the random suffix
+ *  makes the name unique so `createDirectory` fails rather than inheriting a
+ *  previous run's project state, and the lock file inside it is what stops two
+ *  Joern processes in one clone from writing one workspace. */
+val WORKSPACE_RUN_DIR_PREFIX = "run-"
+val WORKSPACE_RUN_RANDOM_BYTES = 12
+val WORKSPACE_LOCK_FILENAME = ".lock"
+
 /** Repo-relative output paths. Resolved against the repository root below. */
 val RESULTS_DIR = "queries/joern/results"
 val LOG_DIR = "harness/artifacts/logs"
 
-/** The graph, and the record that fixes its identity. */
+/**
+ * The graph, and the records that can fix its identity.
+ *
+ * The record of account is resolved by PROVENANCE - who wrote the bytes - and
+ * never by which candidate happens to match, in the same fixed order
+ * `harness/lib/preflight_graph_identity.py` uses for the Stage 3 gate, so the
+ * probe and that gate adjudicate a load against one record under one
+ * convention:
+ *
+ *   1. `CPG_FRONTEND_RECORD_PATH`, the in-checkout frontend log, WHEN it
+ *      carries exactly one strict `bytes:`/`sha256:` pair. Such a pair exists
+ *      only if this checkout's frontend wrote a graph, so where it exists it
+ *      governs. This checkout's own frontend invocation terminated in
+ *      serialization and produced no accepted graph (run-record.md divergence
+ *      D1), so that log records a REJECTED partial and carries no such pair -
+ *      which is a fact about the record rather than a failure, and is exactly
+ *      why the order below has a second entry.
+ *   2. Otherwise the provisioning record of account beside the RESOLVED graph:
+ *      `<the graph's directory>/../<CPG_PROVISION_RECORD_DIR>/`, holding the
+ *      two named records. The directory is DERIVED from the graph this load
+ *      will actually open rather than hardcoded, so a clone whose
+ *      `$HARNESS_CPG` points elsewhere is adjudicated against that graph's own
+ *      record instead of against this one's.
+ *
+ * Every candidate that exists is read. More than one distinct pair inside one
+ * record, or two records that disagree, halts the run: ambiguity is refused
+ * rather than resolved, because a check that accepts whichever candidate
+ * matches is not a check.
+ */
 val CPG_ENV_VAR = "HARNESS_CPG"
 val CPG_PATH_DEFAULT = "harness/cpg/spark.cpg"
-val CPG_RECORD_PATH = "harness/artifacts/logs/cpg-frontend.log"
+val CPG_FRONTEND_RECORD_PATH = "harness/artifacts/logs/cpg-frontend.log"
+val CPG_PROVISION_RECORD_DIR = "provision-log"
+val CPG_PROVISION_RECORD_NAMES = List("cpg-identity.txt", "cpg-record.txt")
+
+/**
+ * Where the private, immutable copy of the graph is made, and how it is named.
+ *
+ * The identity comparison is worthless unless the bytes it measured are the
+ * bytes `importCpg` reads. The graph itself is a host-shared read-only file
+ * reached through a symlink, so measuring it and then handing its path to
+ * `importCpg` leaves a window in which the path could resolve elsewhere. This
+ * query therefore copies it ONCE into a directory it creates itself, digests
+ * it IN THE SAME PASS as the copy, verifies that digest against the record of
+ * account, imports only the copy, and re-measures the copy's digest and inode
+ * after the load.
+ */
+val CPG_PRIVATE_INPUT_DIR_PREFIX = "probe-graph-input-"
+val CPG_PRIVATE_INPUT_FILENAME = "spark.cpg"
+val CPG_PRIVATE_INPUT_RANDOM_BYTES = 12
+val CPG_COPY_CHUNK_BYTES = 8388608
 
 /** The repository root, and the environment variable that names it. */
 val REPO_ROOT_ENV_VAR = "HARNESS_REPO_ROOT"
+
+/** The clone-private scratch root `harness/env.sh` exports. The private graph
+ *  copy is made under it because it is per-clone by construction
+ *  (`/tmp/blitzy-harness-scratch/<clone index>`) and outside the checkout, so a
+ *  half-gigabyte copy never enters a git-collected tree. Where the variable is
+ *  unset the query falls back to the system temporary directory and says so. */
+val SCRATCH_ROOT_ENV_VAR = "HARNESS_SCRATCH_DIR"
 
 // --------------------------------------------------------------- the bounds
 /** Maximum call-graph hops walked from an entry point. */
@@ -262,8 +325,17 @@ val MAX_EXPANSIONS_PER_WALK = 3200000
 val MAX_TOTAL_RETURNS = 256
 /** Maximum entry points traversed; the remainder are counted as truncated. */
 val MAX_ENTRY_POINTS = 16
-/** Cap on the indexed call-name sweeps used to find sink and message call sites. */
+/** Cap on the indexed call-name sweeps: the sink sweep, the predicate call-site
+ *  sweep and the two message call-site sweeps. Every sweep it governs publishes
+ *  its own observed count and truncation flag, and the cap's reported reached
+ *  flag is the disjunction over all of them. */
 val MAX_CALL_SCAN = 200000
+/** Cap on the keyed type and method lookups - the entry-point, predicate,
+ *  message, thread and JDK-launch selections. Each is a lookup on an exact name
+ *  or a type regex rather than a graph sweep, so it returns a handful of nodes at
+ *  this pin; the cap exists so that "no traversal in this query materializes
+ *  without a cap" is literally true rather than true of the big ones. */
+val MAX_TYPE_SCAN = 100000
 
 // ------------------------------------------------------------- the heap floor
 /** 64 GiB. Measured, not requested: the query halts below this. */
@@ -324,6 +396,16 @@ val THREAD_BODY_METHOD = "run"
  * handler does pass an authorization or ACL predicate before reaching the sink.
  * The selectors that constitute those predicates are named here and repeated in
  * the report. This judges THE QUERY, not Spark.
+ *
+ * The four constants below, and nothing else, are the predicate block: they are
+ * intended to be the same text in all three queries of the probe, because the
+ * three spurious counts are only comparable while the definition of "spurious"
+ * is the same text. That sameness is not asserted here - it is MEASURED: the
+ * four are named in the formulation identity block, stage J reads each sibling
+ * source's own literals by those names, and the outcome is published per
+ * sibling as `predicate_selector_literals_identical`. The route surface that
+ * used to sit inside this block is a property of one query's own route rather
+ * than of the shared definition, so it is declared separately below.
  */
 val PREDICATE_TYPE = "org.apache.spark.SecurityManager"
 val PREDICATE_NAME_REGEX = """^(check.*Permissions|acls.*|isAuthenticationEnabled)$"""
@@ -336,13 +418,53 @@ val PREDICATE_NAMED_FIVE = List(
   "checkModifyPermissions",
   "checkUIViewPermissions",
   "isAuthenticationEnabled")
-/** The types whose methods carry this route, used to establish the structural
- *  basis for the expected-spurious absence. Synthetic `$$anonfun$` classes of
- *  these types are included by prefix. */
+
+// -------------------------------------------------- the route surface, DERIVED
+/**
+ * The types whose methods carry THIS query's route, used to establish the
+ * structural basis for the expected-spurious absence. Synthetic `$$anonfun$`
+ * and `$$anon$` classes of these types are included by prefix.
+ *
+ * DERIVED from this query's own route rather than declared as a set that merely
+ * looks plausible, and every entry names the role it plays:
+ *
+ *   - `HANDLER_TYPE` owns the entry points (stage E);
+ *   - `MESSAGE_RELAY_HOST_TYPE` owns the consumer end of the RPC hop measured
+ *     as boundary B1 - the handler that receives the launch message and creates
+ *     the runner - so it is the relay the route passes through;
+ *   - `SINK_HOST_RUNNER_TYPE` and `SINK_HOST_LAUNCHER_TYPE` are the two hosts
+ *     `SINK_HOST_TYPE_REGEX` admits, and are where the privileged launch call
+ *     sites actually sit (stage E and boundary B3).
+ *
+ * This is deliberately NOT part of the byte-identical predicate block above.
+ * The predicate constants define the term "spurious" and are compared across
+ * the three sources under the names the formulation identity block declares, so
+ * they must be the same text in all three. A route surface is a property of one
+ * query's own route: query 03's second pair enters at
+ * `org.apache.spark.deploy.rest.StandaloneRestServer`, which is not on this
+ * query's route at all, and carrying that type here would search a surface this
+ * route does not cross while omitting the two hosts it does. Stage F asserts
+ * that every route end this query MEASURED is covered by the surface below, and
+ * publishes per-prefix reach evidence, so the derivation is checked rather than
+ * claimed.
+ */
+val MESSAGE_RELAY_HOST_TYPE = "org.apache.spark.deploy.worker.Worker"
+val SINK_HOST_RUNNER_TYPE = "org.apache.spark.deploy.worker.DriverRunner"
+val SINK_HOST_LAUNCHER_TYPE = "org.apache.spark.deploy.worker.ProcessBuilderLike"
 val ROUTE_SURFACE_TYPE_PREFIXES = List(
-  "org.apache.spark.deploy.master.Master",
-  "org.apache.spark.deploy.rest.StandaloneRestServer",
-  "org.apache.spark.deploy.worker.DriverRunner")
+  HANDLER_TYPE,
+  MESSAGE_RELAY_HOST_TYPE,
+  SINK_HOST_RUNNER_TYPE,
+  SINK_HOST_LAUNCHER_TYPE)
+/** The role each prefix plays on this route, published beside the reach
+ *  evidence so a reader sees why each one is in the surface. */
+val ROUTE_SURFACE_TYPE_ROLES = List(
+  HANDLER_TYPE -> "entry-point owner: the handler the walks start from",
+  MESSAGE_RELAY_HOST_TYPE ->
+    "relay: the consumer end of the RPC hop measured as boundary B1",
+  SINK_HOST_RUNNER_TYPE -> "sink host: the runner that holds the launch call site",
+  SINK_HOST_LAUNCHER_TYPE ->
+    "sink host: the launcher surface the privileged start is declared on")
 
 // --------------------------------------------------- the sibling query slugs
 /** The other two queries of the probe. Their sources sit beside this one. */
@@ -355,34 +477,54 @@ val QUERY_SOURCE_DIR = "queries/joern"
 
 // ------------------------------------------------------ reproducing this run
 /**
- * The COMPLETE command this query is reproduced by - every element it genuinely
- * needs and nothing it does not. Each element earns its place:
+ * The COMPLETE command this query is reproduced by - runnable as written, with
+ * every element it genuinely needs and nothing it does not. Each element earns
+ * its place:
  *
- *   - the working directory is outside the repository because joern eagerly
- *     creates ./workspace in its own working directory and exposes no flag to
- *     move it, and nothing named workspace is ignored by the repository's root
- *     .gitignore;
+ *   - the working directory is `$HARNESS_SCRATCH_DIR`, outside the repository,
+ *     because joern eagerly creates ./workspace in its own working directory
+ *     and exposes no flag to move it, and nothing named workspace is ignored by
+ *     the repository's root .gitignore. It is per-clone by construction, which
+ *     is what keeps two clones' Joern processes from corrupting one workspace;
  *   - HARNESS_REPO_ROOT is REQUIRED by that choice: with the working directory
  *     outside the repository, it is the only thing that tells the query where
  *     the graph, the identity record, the results directory and the log
  *     directory are;
+ *   - HARNESS_CPG is named EXPLICITLY, because it selects the graph bytes the
+ *     query loads. Omitting it published a command whose most consequential
+ *     input was invisible: a reader who had it set to another graph would
+ *     reproduce a different load and read this envelope as describing it;
  *   - JAVA_HOME selects the JDK major the pinned Joern release documents;
  *   - JAVA_TOOL_OPTIONS is what actually raises the heap, because joern
  *     --script forks a child JVM and does not forward -J-Xmx to it;
  *   - stdin is closed because joern's REPL blocks on an open one.
  *
+ * The three `HARNESS_*` values are written as variable references rather than
+ * as literal paths for one reason: an absolute path is a property of a checkout
+ * rather than of the measurement, and the envelope and the report are held to
+ * byte-identity across checkouts. Sourcing `harness/env.sh` in the checkout -
+ * with BLITZY_CLONE_INDEX set, as the clone's own instructions require - exports
+ * all three, which is why the precondition is published beside the command.
+ *
  * No other environment variable changes what this query loads or what it
- * publishes: the graph path may be overridden by $HARNESS_CPG, and where it is
- * not, the repo-relative default is used and reported. There is no override for
- * the identity record - the record of account is the repo-relative one, so a
- * load is never adjudicated by a record the published command does not name.
+ * publishes. In particular there is still no override for the identity record:
+ * the record of account is resolved by provenance from the in-checkout frontend
+ * log and the provisioning record beside the resolved graph, both reached from
+ * values this command names, so a load can never be adjudicated by a record
+ * this command does not reach.
  */
+val REPRODUCTION_COMMAND_PRECONDITION =
+  "run from a checkout of this branch after `BLITZY_CLONE_INDEX=<this clone's index> ; " +
+    ". harness/env.sh`, which exports $" + REPO_ROOT_ENV_VAR + ", $" + CPG_ENV_VAR +
+    " and $" + SCRATCH_ROOT_ENV_VAR + " - the three values the command below reads"
 val REPRODUCTION_COMMAND =
-  "cd <a scratch directory outside the repository> && " +
-    REPO_ROOT_ENV_VAR + "=<the repository root> JAVA_HOME=\"$JAVA_HOME_21\" " +
+  "cd \"$" + SCRATCH_ROOT_ENV_VAR + "\" && " +
+    REPO_ROOT_ENV_VAR + "=\"$" + REPO_ROOT_ENV_VAR + "\" " +
+    CPG_ENV_VAR + "=\"$" + CPG_ENV_VAR + "\" " +
+    "JAVA_HOME=\"$JAVA_HOME_21\" " +
     "JAVA_TOOL_OPTIONS=-Xmx64g SL_LOGGING_LEVEL=WARN joern --script " +
-    "<the repository root>/" + QUERY_SOURCE_DIR + "/" + QUERY_ID +
-    ".sc -J-Xmx64g < /dev/null"
+    "\"$" + REPO_ROOT_ENV_VAR + "/" + QUERY_SOURCE_DIR + "/" + QUERY_ID +
+    ".sc\" -J-Xmx64g < /dev/null"
 
 // ------------------------------------------------ JVM argument reporting
 /**
@@ -578,14 +720,37 @@ val ROUTE_SURFACE_WORKING_CHECKOUT_OFFSET =
  */
 val QUERY_REVISIONS_CONVENTION =
   "commits touching queries/joern/" + QUERY_ID +
-    ".sc from its first appearance to the end of the probe, counted at run time " +
-    "from the repository's own history. The commit that publishes these result " +
-    "files is necessarily NOT among them: it cannot exist while the run that " +
-    "writes them is still in progress"
+    ".sc in the history of the HEAD this run measured at, newest first, counted at run " +
+    "time from the repository's own history. ONE convention, with three parts that " +
+    "make the number reproducible: the range is HEAD's own ancestry, named explicitly " +
+    "rather than defaulted, and the HEAD and the branch it was on are published beside " +
+    "the count; every commit returned is verified to be an ancestor of that HEAD, so a " +
+    "commit reachable only from another ref cannot enter the count - which is what " +
+    "happened to earlier figures once per-clone branches were reconciled and the " +
+    "commits a previous run had listed stopped being ancestors of the branch carrying " +
+    "its files; and the commit that PUBLISHES these result files is necessarily not " +
+    "among them, because it cannot exist while the run that writes them is still in " +
+    "progress. A later reader whose git log shows one more commit than the count " +
+    "reconciles against that window rather than against a bare number"
 /** How the revision count is measured. The command is named rather than
  *  inlined, it is given a bound so a stuck child cannot stall the probe, and
  *  its output is validated against the shape a commit identifier has. */
-val GIT_EXECUTABLE = "git"
+/** The APPROVED ABSOLUTE executables this query will invoke, and nothing else.
+ *  A bare program name is resolved through the inherited PATH, so a substituted
+ *  `git` earlier on it would be executed by a probe that runs as root
+ *  (CWE-426, CWE-427). Each candidate is checked to be an absolute path, a
+ *  regular file and executable, and is then required to identify itself as git
+ *  within the bounded wait below; the first candidate that satisfies all of
+ *  those is used and the rest are refused with the reason recorded. Where none
+ *  qualifies the revision measurement is reported as NOT ESTABLISHED rather
+ *  than taken from an unverified program. */
+val GIT_EXECUTABLE_CANDIDATES = List("/usr/bin/git", "/bin/git", "/usr/local/bin/git")
+/** Published output names the executable by ROLE, never by path: a candidate
+ *  path in a preserved stream discloses host layout for no benefit. */
+val GIT_EXECUTABLE_LABEL = "the approved absolute git executable"
+val GIT_VERSION_PREFIX = "git version"
+/** Why each rejected candidate was rejected, in candidate order. */
+val gitExecutableRefusals = scala.collection.mutable.ArrayBuffer.empty[String]
 val GIT_WAIT_SECONDS = 30L
 val GIT_COMMIT_SHA_REGEX = """^[0-9a-f]{40}$"""
 val GIT_OUTPUT_LINES_REPORTED = 4
@@ -651,9 +816,280 @@ val MARKER_FAILURE = "---BLITZY-FAILURE---"
 /** Every console line this query prints, in order, for the canonical log. */
 val consoleLines = scala.collection.mutable.ArrayBuffer.empty[String]
 
+/** The five markers, in the order a successful run must print them exactly
+ *  once. The console stream is parsed on these markers by every consumer of
+ *  this log, so the protocol is validated before the log is published rather
+ *  than assumed from the fact that the code prints them. */
+val MARKER_TOKENS = List(
+  MARKER_START, MARKER_RESULT_BEGIN, MARKER_RESULT_END, MARKER_OK, MARKER_FAILURE)
+/** The common prefix of every marker. A line of untrusted text beginning with it
+ *  is neutralised rather than dropped, so nothing is lost and nothing forged. */
+val MARKER_PREFIX = "---BLITZY-"
+val MARKER_NEUTRALISED_PREFIX = "[quoted]"
+val CONTROL_CHARACTER_ESCAPES =
+  "CR as \\r, LF as \\n, TAB as \\t and every other control character as \\u<4 hex digits>"
+
+/**
+ * Neutralise one line of text for a marker-parsed, verbatim-preserved stream.
+ *
+ * Two hazards, both from data this query does not author: a path, a git
+ * diagnostic or an exception message can contain a newline, and it can begin
+ * with one of the marker tokens. A raw newline turns one logged line into two,
+ * so a value ending in "\n---BLITZY-OK---" would forge a completion marker in a
+ * log that never completed; and a value that merely STARTS with the marker
+ * prefix forges one without needing a newline at all. Both are closed here,
+ * centrally, so no call site has to remember:
+ *
+ *   - every control character is escaped, which makes a line exactly one line;
+ *   - a line whose text would begin with the marker prefix is prefixed with
+ *     MARKER_NEUTRALISED_PREFIX, so it can still be read but can no longer be
+ *     parsed as a marker.
+ *
+ * The markers this query itself emits go through `logMarker`, which is the only
+ * writer allowed to produce a bare marker line.
+ */
+def sanitizeForLog(line: String): String = {
+  val escaped = line.flatMap {
+    case '\n' => "\\n"
+    case '\r' => "\\r"
+    case '\t' => "\\t"
+    case c if c.isControl => "\\u%04x".format(c.toInt)
+    case c => c.toString
+  }
+  if (escaped.startsWith(MARKER_PREFIX)) MARKER_NEUTRALISED_PREFIX + " " + escaped
+  else escaped
+}
+
+/** The characters that open a BLOCK construct when a value begins a line, and
+ *  that `mdSafe`'s per-character pass has not already neutralised. `>` (block
+ *  quote), `|` (table row), backtick and `~` (fences) and `*` (bullet) are
+ *  neutralised there, so only these four remain to be escaped at position 0. */
+val MD_LINE_BLOCK_OPENERS: Set[Char] = Set('#', '-', '+', '=')
+
+/** The two delimiters that turn a leading digit run into an ordered-list marker. */
+val MD_ORDERED_LIST_DELIMITERS: Set[Char] = Set('.', ')')
+
+/** CommonMark's shortest fence, and the floor `mdFence` never goes below. */
+val MD_FENCE_MINIMUM_BACKTICKS = 3
+
+/**
+ * One untrusted value, made safe for a PLAIN-TEXT stream (CWE-117).
+ *
+ * Every control character is replaced by its Unicode code point and nothing else
+ * is touched, so the value stays as readable as it was. The replacement DESCRIBES
+ * the character rather than reproducing it, which is the whole point: a bare CR
+ * rewrites the line an operator is reading, an ESC introduces a terminal control
+ * sequence, a NUL truncates the line for some readers and a LF forges a new one
+ * in a stream whose lines are its records. `Char.isControl` is
+ * `Character.isISOControl`, which is exactly U+0000-U+001F, U+007F and
+ * U+0080-U+009F - the set that acts rather than prints. A tab is inside it and is
+ * replaced too: this query writes no column-aligned console field that a tab
+ * belongs in, so nothing is lost, and exempting one control on the grounds that
+ * it is usually harmless is the kind of exception this boundary exists to avoid.
+ *
+ * A `null` renders as `"null"` rather than throwing, and that is a compatibility
+ * requirement rather than defensiveness. Every call site of this helper and of
+ * `mdSafe` replaced a direct `${...}` interpolation, and Scala's interpolator
+ * renders a null reference as the four characters `null`; an escaper that threw
+ * where the code it replaced printed would have introduced a new failure mode -
+ * an unhandled NullPointerException part-way through writing a report - in the
+ * name of fixing an output-encoding one. No value reaching either helper is
+ * expected to be null: a Joern string property is non-null by the CPG schema,
+ * and the one genuinely nullable value in this source, `Throwable.getMessage`,
+ * is already put through `String.valueOf` at its own call site. The guard is
+ * here so the expectation is not load-bearing.
+ */
+def plainSafe(untrusted: String): String =
+  if (untrusted == null) "null"
+  else if (!untrusted.exists(_.isControl)) untrusted
+  else untrusted.flatMap(c => if (c.isControl) f"U+${c.toInt}%04X" else c.toString)
+
+/**
+ * One untrusted value, made safe for the CommonMark report (CWE-116, CWE-117).
+ *
+ * The result is safe to interpolate INLINE, inside a CODE SPAN or inside a TABLE
+ * CELL, which is what lets one helper serve every untrusted call site in the
+ * report rather than a set of context-specific ones a later editor would have to
+ * choose between correctly.
+ *
+ * Controls go first, through `plainSafe`, because a LF or a CR would otherwise
+ * break the report's line and table structure before any punctuation rule got a
+ * chance to matter. Then each character that can change CommonMark's meaning is
+ * neutralised, and the mechanism differs for exactly one of them:
+ *
+ *   - a BACKTICK is REPLACED by its code point, not backslash-escaped, because a
+ *     backslash escape is not processed inside a code span - so a backtick that
+ *     survived would still close the span and hand the rest of the value to the
+ *     document as markup. It is also the character that terminates a fence, which
+ *     is the second half of the same hazard;
+ *   - everything else is BACKSLASH-ESCAPED, which CommonMark defines for every
+ *     ASCII punctuation character: `\` so it cannot consume the next character,
+ *     `<` and `>` because they open raw HTML and autolinks and close them, `&`
+ *     because it opens an entity, `|` because GFM splits a table cell on it even
+ *     inside a code span, `[` and `]` because they label a link or an image, `*`
+ *     because it can open emphasis intraword, and `~` because a pair of them
+ *     opens GFM strikethrough.
+ *
+ * `_` is deliberately NOT escaped: CommonMark's left-flanking rule means an
+ * intraword `_` cannot open emphasis, and the worst a flanking pair could do is
+ * italicise part of a line - a formatting effect rather than an escape from the
+ * context. Escaping it would put a backslash into every bytecode identifier that
+ * carries one, which is a large, permanent cost against no hazard. `!` is not
+ * escaped either, because it only means anything immediately before a `[`, and
+ * `[` is escaped.
+ *
+ * Finally, a value that starts a LINE can open a block construct with its first
+ * character, so a leading `#`, `-`, `+` or `=` is escaped, a leading digit run
+ * followed by `.` or `)` has that delimiter escaped, and a leading space run is
+ * described rather than reproduced - four or more of them open an indented code
+ * block, and a space is the one opener a backslash cannot escape. The check runs
+ * unconditionally rather than only at the call sites that begin a line: a value
+ * that reaches the report mid-line is unharmed by it, and a later editor moving
+ * a call site does not have to remember which rule applied.
+ *
+ * THE ONE COSMETIC COST, stated rather than hidden: inside a code span a
+ * backslash escape is not processed, so a value that really does carry a `<`
+ * shows with its backslash in the report. It is paid only by the values that
+ * carry those characters, and the safety property does not depend on the context,
+ * because the only character that can end a code span is replaced rather than
+ * escaped.
+ */
+def mdSafe(untrusted: String): String = {
+  val neutralised = plainSafe(untrusted).flatMap {
+    case '`'  => "U+0060"
+    case '\\' => "\\\\"
+    case '<'  => "\\<"
+    case '>'  => "\\>"
+    case '&'  => "\\&"
+    case '|'  => "\\|"
+    case '['  => "\\["
+    case ']'  => "\\]"
+    case '*'  => "\\*"
+    case '~'  => "\\~"
+    case c    => c.toString
+  }
+  val indent = neutralised.takeWhile(_ == ' ').length
+  val body = neutralised.drop(indent)
+  val described = List.fill(indent)("U+0020").mkString
+  val opened =
+    if (body.isEmpty) body
+    else if (MD_LINE_BLOCK_OPENERS.contains(body.charAt(0))) "\\" + body
+    else {
+      val digits = body.takeWhile(_.isDigit)
+      if (digits.nonEmpty && body.length > digits.length &&
+        MD_ORDERED_LIST_DELIMITERS.contains(body.charAt(digits.length)))
+        digits + "\\" + body.substring(digits.length)
+      else body
+    }
+  described + opened
+}
+
+/**
+ * The fence for one fenced block, MEASURED from the payload (CWE-116).
+ *
+ * A fixed three-backtick fence is terminated by any three-backtick run inside
+ * the payload, which ends the block early and publishes the remainder of the
+ * payload as document markup. CommonMark closes a fence only on a run at least
+ * as long as the one that opened it, so the opening run is chosen one backtick
+ * longer than the longest run the payload actually carries, with three as the
+ * floor. The same string opens and closes the block.
+ *
+ * Used for EVERY fenced block in the report, including one whose payload is
+ * composed only from literals declared in this source: the point is that the
+ * fence length stays a measurement of the payload rather than an assumption
+ * about it. Today's single payload is measured to carry no backtick at all, so
+ * the chosen fence is the minimum three and the published bytes are unchanged.
+ *
+ * A `null` payload yields the minimum fence, for the same reason `plainSafe`
+ * renders one as text: the helper must not be the thing that fails while a
+ * report is half written. There is no run in which it can happen today - the
+ * only payload is a literal declared in this source - so this is a guard on an
+ * expectation rather than a handler for an observed case.
+ */
+def mdFence(payload: String): String = {
+  if (payload == null) return List.fill(MD_FENCE_MINIMUM_BACKTICKS)("`").mkString
+  var longestRun = 0
+  var currentRun = 0
+  payload.foreach { c =>
+    if (c == '`') {
+      currentRun += 1
+      if (currentRun > longestRun) longestRun = currentRun
+    } else currentRun = 0
+  }
+  List.fill(math.max(MD_FENCE_MINIMUM_BACKTICKS, longestRun + 1))("`").mkString
+}
+
 def log(line: String): Unit = {
-  consoleLines += line
-  println(line)
+  val safe = sanitizeForLog(line)
+  consoleLines += safe
+  println(safe)
+}
+
+/** The only writer that may emit a bare marker line. Refuses anything that is
+ *  not one of the five declared tokens, so a marker cannot be printed by
+ *  accident from a string that happened to look like one. */
+def logMarker(marker: String): Unit = {
+  if (!MARKER_TOKENS.contains(marker)) {
+    throw new IllegalStateException(
+      s"refusing to print '$marker' as a marker: it is not one of the declared tokens " +
+        MARKER_TOKENS.mkString(", "))
+  }
+  consoleLines += marker
+  println(marker)
+}
+
+/**
+ * Validate the marker protocol over the lines about to be published, and return
+ * the count of each marker found. A console log is evidence only while its
+ * markers mean what a consumer reads them to mean, so the check is made on the
+ * exact lines that will be written, immediately before they are staged - not on
+ * the code's intent to write them.
+ *
+ * `expectedOk` distinguishes the two legitimate shapes: a completed run prints
+ * START, RESULT_BEGIN, RESULT_END and OK exactly once each, in that order, and
+ * no FAILURE; a failed run prints START and FAILURE exactly once each, no OK,
+ * and no result region at all - a partial result region looks like a completed
+ * run, which is why its absence is checked rather than hoped for.
+ */
+def validateMarkerProtocol(lines: Seq[String], expectedOk: Boolean): List[(String, Int)] = {
+  val counts = MARKER_TOKENS.map(t => t -> lines.count(_ == t))
+  val byToken = counts.toMap
+  def positionOf(token: String): Int = lines.indexOf(token)
+  val required =
+    if (expectedOk) List(MARKER_START, MARKER_RESULT_BEGIN, MARKER_RESULT_END, MARKER_OK)
+    else List(MARKER_START, MARKER_FAILURE)
+  val forbidden =
+    if (expectedOk) List(MARKER_FAILURE)
+    else List(MARKER_RESULT_BEGIN, MARKER_RESULT_END, MARKER_OK)
+  val problems = scala.collection.mutable.ArrayBuffer.empty[String]
+  required.foreach { t =>
+    if (byToken.getOrElse(t, 0) != 1) {
+      problems += s"$t appears ${byToken.getOrElse(t, 0)} time(s), expected exactly 1"
+    }
+  }
+  forbidden.foreach { t =>
+    if (byToken.getOrElse(t, 0) != 0) {
+      problems += s"$t appears ${byToken.getOrElse(t, 0)} time(s), expected none"
+    }
+  }
+  if (problems.isEmpty) {
+    val ordered = required.map(positionOf)
+    if (ordered != ordered.sorted) {
+      problems += "the markers appear out of order: " +
+        required.zip(ordered).map { case (t, i) => s"$t at line ${i + 1}" }.mkString(", ")
+    }
+  }
+  if (problems.nonEmpty) {
+    throw new IllegalStateException(
+      "the console stream about to be published does not satisfy the marker protocol " +
+        s"for an ${if (expectedOk) "completed" else "failed"} run: " +
+        problems.mkString("; ") +
+        ". Every line of untrusted text is escaped and marker-prefix-neutralised by " +
+        "sanitizeForLog, so a violation here is this query's own emission rather than " +
+        "injected content, and publishing it would hand a consumer a log whose markers " +
+        "do not mean what they say")
+  }
+  counts
 }
 
 /** The stage name a failure is attributed to. Named, never guessed. */
@@ -778,9 +1214,11 @@ def redactJvmArgument(arg: String): String =
  *
  * The member-set identifier is derived from MEMBER BYTES, deliberately, and is
  * distinct from `publicationId`, which is derived from the query, its source
- * and the graph. The latter answers "which run produced this"; only the former
- * can answer "is this set complete and self-consistent", because an identifier
- * computed before the members exist cannot depend on them.
+ * and the graph. The latter answers "which query, source and graph produced
+ * this" - repeatably, so two invocations over an unchanged source and graph share
+ * it and it names no execution; only the former can answer "is this set complete
+ * and self-consistent", because an identifier computed before the members exist
+ * cannot depend on them.
  */
 /** Shortest absolute path the determinism check searches the rendered envelope
  *  for. A two- or three-character prefix matches ordinary prose, so a path
@@ -859,11 +1297,162 @@ var mixedGenerationRisk = false
 var lastPublicationMemberSetId: Option[String] = None
 var lastPublicationManifest: Option[String] = None
 
+// ------------------------------------- descriptor-relative publication access
+/**
+ * One open directory DESCRIPTOR per publication directory, and every operation
+ * on that directory performed relative to it.
+ *
+ * WHY. Validating a path and then using the path is two resolutions of the same
+ * name, and between them any ancestor component can be replaced - by a link, or
+ * by another directory - by anything running as this user. The validation then
+ * describes a directory that is no longer the one being written to. Java's
+ * `SecureDirectoryStream` closes that gap: it is bound to an open descriptor, so
+ * `newByteChannel`, `move`, `deleteFile` and `getFileAttributeView` on it are
+ * resolved against THAT directory rather than against a name, whatever happens
+ * to the path afterwards.
+ *
+ * HOW A DIRECTORY IS REACHED. The descent starts at the resolved repository root
+ * and opens each component with `newDirectoryStream(name, NOFOLLOW_LINKS)`,
+ * which refuses a symbolic link outright (ELOOP) rather than following it. So no
+ * component is ever resolved by a full pathname, and containment in the
+ * repository root is a property of where the descent STARTED rather than a
+ * string comparison made afterwards.
+ *
+ * FAIL CLOSED. `Files.newDirectoryStream` is only required to return a
+ * `SecureDirectoryStream` on platforms that support it. Where it does not, this
+ * query stops: publishing through pathnames while claiming descriptor-relative
+ * writes would be a false claim, and the alternative - falling back silently -
+ * is the defect this closes.
+ */
+type SecureDir = java.nio.file.SecureDirectoryStream[Path]
+
+/** Cast one directory stream to a secure one, or stop. */
+def asSecureDir(dir: Path, stream: java.nio.file.DirectoryStream[Path]): SecureDir =
+  stream match {
+    case secure: java.nio.file.SecureDirectoryStream[_] =>
+      secure.asInstanceOf[SecureDir]
+    case other =>
+      try other.close() catch { case _: Throwable => () }
+      abortRun(s"this platform's directory stream for $dir is " +
+        s"${other.getClass.getName}, not a SecureDirectoryStream, so a write cannot be " +
+        "bound to an open descriptor and every publication would be resolved by " +
+        "pathname. Failing closed rather than publishing through names while claiming " +
+        "otherwise")
+  }
+
+/** Every directory descriptor opened for publication, keyed by absolute path, so
+ *  one directory is descended to ONCE per run and every later operation on it
+ *  reuses that descriptor rather than re-resolving the name. */
+val publicationDirDescriptors = scala.collection.mutable.LinkedHashMap.empty[String, SecureDir]
+
+/** Close every publication descriptor. Called on the way out of the run. */
+def closePublicationDescriptors(): Unit = {
+  publicationDirDescriptors.values.foreach { d =>
+    try d.close() catch { case _: Throwable => () }
+  }
+  publicationDirDescriptors.clear()
+}
+
+/**
+ * Descend to `absolute` from the resolved repository root by descriptor,
+ * creating any missing component one at a time, and return the open descriptor.
+ *
+ * Creation is still by name - `SecureDirectoryStream` exposes no directory
+ * creation - so each component is created and then IMMEDIATELY re-entered by
+ * descriptor with NOFOLLOW, which is what refuses a component that was replaced
+ * by a link in between. Every publication directory this query uses already
+ * exists in the checkout, so the creation path is a corner case rather than the
+ * normal one; it is kept because a checkout could legitimately lack the results
+ * directory.
+ */
+def openPublicationDescriptor(absolute: Path): SecureDir =
+  publicationDirDescriptors.getOrElseUpdate(absolute.toString, {
+    val root = repoRootRealPath.getOrElse(
+      abortRun(s"the repository root is not resolved yet, so the descent to $absolute " +
+        "has no verified starting point"))
+    if (!absolute.startsWith(root)) {
+      abortRun(s"refusing to publish outside the repository root: $absolute is not " +
+        s"inside $root")
+    }
+    var current: SecureDir =
+      asSecureDir(root, Files.newDirectoryStream(root))
+    val relative = root.relativize(absolute)
+    var index = 0
+    while (index < relative.getNameCount) {
+      val name = relative.getName(index)
+      index += 1
+      val asPath = Paths.get(name.toString)
+      // Create the component if it is absent. The existence test and the
+      // creation are both descriptor-relative: the attribute view throws when
+      // the name does not exist, and createDirectory is by name because there is
+      // no descriptor-relative form - which is why the very next step re-enters
+      // the component by descriptor with NOFOLLOW and refuses a link.
+      val exists =
+        try {
+          current
+            .getFileAttributeView(asPath, classOf[java.nio.file.attribute.BasicFileAttributeView],
+              LinkOption.NOFOLLOW_LINKS)
+            .readAttributes()
+          true
+        } catch {
+          case _: java.nio.file.NoSuchFileException => false
+        }
+      if (!exists) {
+        val byName = (0 until index).foldLeft(root)((acc, i) => acc.resolve(relative.getName(i)))
+        try Files.createDirectory(byName)
+        catch { case _: java.nio.file.FileAlreadyExistsException => () }
+      }
+      val next =
+        try asSecureDir(absolute, current.newDirectoryStream(asPath, LinkOption.NOFOLLOW_LINKS))
+        catch {
+          case t: java.nio.file.FileSystemException =>
+            try current.close() catch { case _: Throwable => () }
+            abortRun(s"refusing to publish through $name on the path to $absolute: " +
+              s"${t.getClass.getSimpleName} on a no-follow descent, which is what a " +
+              "symbolic link or a non-directory component produces. A write through it " +
+              "would land wherever the link points rather than at the path this run " +
+              "records")
+        }
+      try current.close() catch { case _: Throwable => () }
+      current = next
+    }
+    // The descriptor's own inode, compared against the pathname's. Equality is
+    // what lets the directory fsync below - which has no descriptor-relative
+    // form - be attributed to the directory that was descended to.
+    val throughDescriptor = current
+      .getFileAttributeView(Paths.get("."),
+        classOf[java.nio.file.attribute.BasicFileAttributeView], LinkOption.NOFOLLOW_LINKS)
+      .readAttributes()
+    val throughName =
+      Files.readAttributes(absolute, classOf[BasicFileAttributes], LinkOption.NOFOLLOW_LINKS)
+    if (throughDescriptor.fileKey != throughName.fileKey) {
+      try current.close() catch { case _: Throwable => () }
+      abortRun(s"the directory $absolute reached by descriptor is inode " +
+        s"${throughDescriptor.fileKey} while the same path resolves to " +
+        s"${throughName.fileKey}, so a component was replaced during the descent")
+    }
+    current
+  })
+
+/** The descriptor for a member's parent directory. */
+def publicationDescriptorOf(target: Path): SecureDir = {
+  val parent = Option(target.getParent).getOrElse(
+    abortRun(s"a publication target must name a parent directory: $target"))
+  openPublicationDescriptor(parent.toAbsolutePath.normalize())
+}
+
 /**
  * Validate where a member is about to be published and return the parent
  * directory's real path. Refuses rather than repairs: a link at the target or
  * at its parent, or a parent that resolves outside the repository root, stops
  * the run instead of writing somewhere the record does not name.
+ *
+ * This remains the containment and no-link check on the PATH. It is no longer
+ * what the write is bound to: `openPublicationDescriptor` above descends to the
+ * same directory by descriptor and every create, read, rename and delete below
+ * goes through that descriptor. The two are kept together deliberately - the
+ * path check produces the diagnostic a reader can act on, and the descriptor
+ * produces the guarantee.
  */
 def publicationParentOf(target: Path): Path = {
   val parent = Option(target.getParent).getOrElse(
@@ -938,8 +1527,11 @@ def publicationParentOf(target: Path): Path = {
  * taken from the file, never from the string that was handed to the writer.
  */
 def measureFileNoFollow(p: Path): (Int, String) = {
-  val channel = java.nio.channels.FileChannel.open(
-    p, java.nio.file.StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)
+  val dir = publicationDescriptorOf(p)
+  val channel = dir.newByteChannel(
+    Paths.get(p.getFileName.toString),
+    java.util.Set.of[java.nio.file.OpenOption](
+      java.nio.file.StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS))
   try {
     val digest = MessageDigest.getInstance("SHA-256")
     val buffer = java.nio.ByteBuffer.allocate(PUBLICATION_VERIFY_CHUNK_BYTES)
@@ -956,12 +1548,71 @@ def measureFileNoFollow(p: Path): (Int, String) = {
   } finally channel.close()
 }
 
+/** A file's whole contents, read through its directory's descriptor with
+ *  NOFOLLOW. Used for the members this query reads back - the completion
+ *  manifest and the published envelope - all of which are a few kilobytes. */
+def readFileNoFollow(p: Path): Array[Byte] = {
+  val dir = publicationDescriptorOf(p)
+  val channel = dir.newByteChannel(
+    Paths.get(p.getFileName.toString),
+    java.util.Set.of[java.nio.file.OpenOption](
+      java.nio.file.StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS))
+  try {
+    val out = new java.io.ByteArrayOutputStream()
+    val buffer = java.nio.ByteBuffer.allocate(PUBLICATION_VERIFY_CHUNK_BYTES)
+    var read = channel.read(buffer)
+    while (read > 0) {
+      out.write(buffer.array(), 0, read)
+      buffer.clear()
+      read = channel.read(buffer)
+    }
+    out.toByteArray
+  } finally channel.close()
+}
+
+/** True when `p` is a regular file, tested through its directory's descriptor
+ *  with NOFOLLOW so the answer is about the file the later read will open. */
+def isRegularFileNoFollow(p: Path): Boolean =
+  try {
+    publicationDescriptorOf(p)
+      .getFileAttributeView(Paths.get(p.getFileName.toString),
+        classOf[java.nio.file.attribute.BasicFileAttributeView], LinkOption.NOFOLLOW_LINKS)
+      .readAttributes()
+      .isRegularFile
+  } catch {
+    case _: java.nio.file.NoSuchFileException => false
+  }
+
+/**
+ * Rename a staged temporary onto its target within one directory, relative to
+ * that directory's open descriptor.
+ *
+ * `SecureDirectoryStream.move` between the SAME stream is a rename(2) within one
+ * directory, which is atomic on this filesystem - the property the publication
+ * protocol depends on - and neither name is resolved through the path's
+ * ancestors. Both must sit in the same directory for that to hold, which is
+ * guaranteed by construction (`stageMember` creates the temporary beside its
+ * target) and asserted here rather than assumed.
+ */
+def moveWithinPublicationDir(temp: Path, target: Path): Unit = {
+  val tempParent = Option(temp.getParent).map(_.toAbsolutePath.normalize())
+  val targetParent = Option(target.getParent).map(_.toAbsolutePath.normalize())
+  if (tempParent != targetParent) {
+    abortRun(s"refusing to publish $target from $temp: a descriptor-relative rename " +
+      "requires both names in one directory, and these are in two")
+  }
+  val dir = publicationDescriptorOf(target)
+  dir.move(
+    Paths.get(temp.getFileName.toString), dir, Paths.get(target.getFileName.toString))
+}
+
 /**
  * Write one member to a private temporary beside its target, fsync it, and
  * remember it. Nothing is visible at the target until the whole set publishes.
  */
 def stageMember(target: Path, content: String): StagedMember = {
   val realParent = publicationParentOf(target)
+  val dir = publicationDescriptorOf(target)
   val bytes = content.getBytes(StandardCharsets.UTF_8)
   var channel: java.nio.channels.FileChannel = null
   var temp: Path = null
@@ -974,15 +1625,31 @@ def stageMember(target: Path, content: String): StagedMember = {
     }
     val suffix = new Array[Byte](PUBLICATION_TEMP_RANDOM_BYTES)
     publicationRandom.nextBytes(suffix)
-    val candidate = realParent.resolve(
+    val candidateName =
       PUBLICATION_TEMP_PREFIX + target.getFileName.toString + "." +
-        suffix.map("%02x".format(_)).mkString + PUBLICATION_TEMP_SUFFIX)
+        suffix.map("%02x".format(_)).mkString + PUBLICATION_TEMP_SUFFIX
+    val candidate = realParent.resolve(candidateName)
     try {
-      channel = java.nio.channels.FileChannel.open(
-        candidate,
-        java.nio.file.StandardOpenOption.CREATE_NEW,
-        java.nio.file.StandardOpenOption.WRITE,
-        LinkOption.NOFOLLOW_LINKS)
+      // Created RELATIVE TO THE DIRECTORY DESCRIPTOR, so the file lands in the
+      // directory that was descended to whatever happened to the pathname since.
+      // CREATE_NEW keeps the name exclusive and NOFOLLOW_LINKS refuses a link
+      // planted at it; the channel is a FileChannel on this platform, which is
+      // what makes force(true) below - the durability the manifest asserts -
+      // available at all. Anything else fails closed.
+      channel = dir.newByteChannel(
+        Paths.get(candidateName),
+        java.util.Set.of[java.nio.file.OpenOption](
+          java.nio.file.StandardOpenOption.CREATE_NEW,
+          java.nio.file.StandardOpenOption.WRITE,
+          LinkOption.NOFOLLOW_LINKS)) match {
+        case fc: java.nio.channels.FileChannel => fc
+        case other =>
+          try other.close() catch { case _: Throwable => () }
+          try dir.deleteFile(Paths.get(candidateName)) catch { case _: Throwable => () }
+          abortRun(s"the descriptor-relative channel for $candidateName is " +
+            s"${other.getClass.getName}, which exposes no force(): the durability this " +
+            "publication asserts could not be established, so nothing is written")
+      }
       temp = candidate
     } catch {
       case _: java.nio.file.FileAlreadyExistsException => channel = null
@@ -1009,7 +1676,7 @@ def stageMember(target: Path, content: String): StagedMember = {
     // left a `.publish-*.tmp` sibling behind forever. It is removed on the way
     // out, and the original throwable is re-raised rather than replaced.
     case t: Throwable =>
-      try Files.deleteIfExists(temp)
+      try deleteStagedTemp(temp)
       catch { case _: Throwable => () }
       throw t
   } finally channel.close()
@@ -1021,7 +1688,7 @@ def stageMember(target: Path, content: String): StagedMember = {
   val intendedDigest = sha256OfBytes(bytes)
   val (stagedSize, stagedDigest) = measureFileNoFollow(temp)
   if (stagedSize != bytes.length || stagedDigest != intendedDigest) {
-    try Files.deleteIfExists(temp) catch { case _: Throwable => () }
+    try deleteStagedTemp(temp) catch { case _: Throwable => () }
     abortRun(s"the staged temporary for $target does not hold the bytes that were " +
       s"written: measured $stagedSize bytes / sha256 $stagedDigest against an " +
       s"intended ${bytes.length} bytes / sha256 $intendedDigest. Nothing is published")
@@ -1031,15 +1698,20 @@ def stageMember(target: Path, content: String): StagedMember = {
   member
 }
 
+/** Remove one staged temporary, relative to its directory's descriptor. */
+def deleteStagedTemp(temp: Path): Unit =
+  try publicationDescriptorOf(temp).deleteFile(Paths.get(temp.getFileName.toString))
+  catch { case _: java.nio.file.NoSuchFileException => () }
+
 /** Remove every staged temporary. Called when a set will not be published, so
  *  a failure leaves neither a mixed generation nor litter behind. */
 def discardStagedMembers(): Unit = {
   stagedMembers.toList.foreach { m =>
-    try Files.deleteIfExists(m.temp)
+    try deleteStagedTemp(m.temp)
     catch {
       case t: Throwable =>
-        System.err.println(s"could not remove the staged temporary ${m.temp}: " +
-          s"${t.getMessage}")
+        System.err.println(sanitizeForLog(
+          s"could not remove the staged temporary ${m.temp}: ${t.getMessage}"))
     }
   }
   stagedMembers.clear()
@@ -1058,6 +1730,23 @@ def fsyncPublicationDirs(dirs: List[Path]): Unit = dirs.foreach { dir =>
   // is built to detect. Every directory this run publishes into was verified to
   // support it before this was made fatal.
   try {
+    // A directory fsync has no descriptor-relative form in Java, so the pathname
+    // open is unavoidable - and it is BOUND to the descriptor that was descended
+    // to: the inode reached by name must equal the inode the descriptor holds,
+    // or the sync would be attributed to a directory this run never validated.
+    val descriptor = openPublicationDescriptor(dir.toAbsolutePath.normalize())
+    val throughDescriptor = descriptor
+      .getFileAttributeView(Paths.get("."),
+        classOf[java.nio.file.attribute.BasicFileAttributeView], LinkOption.NOFOLLOW_LINKS)
+      .readAttributes()
+    val throughName =
+      Files.readAttributes(dir, classOf[BasicFileAttributes], LinkOption.NOFOLLOW_LINKS)
+    if (throughDescriptor.fileKey != throughName.fileKey) {
+      abortRun(s"refusing to fsync $dir by name: the name resolves to inode " +
+        s"${throughName.fileKey} while the validated descriptor holds " +
+        s"${throughDescriptor.fileKey}, so the durability would be established for a " +
+        "directory other than the one the members were written into")
+    }
     val ch = java.nio.channels.FileChannel.open(
       dir, java.nio.file.StandardOpenOption.READ)
     try ch.force(true) finally ch.close()
@@ -1065,7 +1754,7 @@ def fsyncPublicationDirs(dirs: List[Path]): Unit = dirs.foreach { dir =>
     case t: Throwable =>
       val note = s"could not fsync the publication directory $dir: ${t.getMessage}"
       System.err.println(note)
-      consoleLines += s"[publication] $note"
+      consoleLines += sanitizeForLog(s"[publication] $note")
       abortRun(s"$note. Durability of the renames in that directory is therefore " +
         "not established, so no completion manifest is published for this set: a " +
         "manifest asserting members a crash could lose is worse than none")
@@ -1090,13 +1779,15 @@ def requirePublicationManifest(
   expectedPaths: Map[String, String] = Map.empty,
   expectedPublicationId: Option[String] = None
 ): Int = {
-  if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) {
+  if (!isRegularFileNoFollow(path)) {
     abortRun(s"the completion manifest $path is absent or is not a regular file, so " +
       "the published set cannot be established as one generation. A publication that " +
       "failed between its renames leaves exactly this state")
   }
-  val text = new String(
-    java.nio.file.Files.readAllBytes(path), StandardCharsets.UTF_8)
+  // Read through the directory's own descriptor rather than by pathname: this is
+  // the check a later consumer would run, and it must not be the one operation
+  // in the publication that a swapped ancestor could redirect.
+  val text = new String(readFileNoFollow(path), StandardCharsets.UTF_8)
   if (!text.contains(PUBLICATION_MANIFEST_SCHEMA)) {
     abortRun(s"$path does not carry the $PUBLICATION_MANIFEST_SCHEMA schema, so it is " +
       "not a completion manifest for this publication")
@@ -1143,7 +1834,7 @@ def requirePublicationManifest(
   val root = repoRootRealPath
   paths.zip(sizes).zip(shas).foreach { case ((rel, size), sha) =>
     val abs = root.map(_.resolve(rel)).getOrElse(Path.of(rel))
-    if (!Files.isRegularFile(abs, LinkOption.NOFOLLOW_LINKS)) {
+    if (!isRegularFileNoFollow(abs)) {
       abortRun(s"the completion manifest $path names $rel, which is not a regular " +
         "file. The published set is incomplete")
     }
@@ -1240,7 +1931,8 @@ def manifestJsonString(value: String): String = {
  *
  * Derived from MEMBER BYTES, which is the property `publicationId` cannot have:
  * that one is computed from the query, its source and the graph before any
- * member exists, so it identifies the run and can say nothing about whether the
+ * member exists, so it identifies only that input tuple - repeatably, across
+ * separate invocations - and can say nothing about whether the
  * set on disk is complete. This one changes if any member's bytes change, if a
  * member is missing, or if the members came from two different generations.
  */
@@ -1334,9 +2026,11 @@ def publishStagedMembers(writeManifest: Boolean = true): List[StagedMember] = {
     case _ => None
   }
 
-  contentMembers.foreach { m =>
-    Files.move(m.temp, m.target, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
-  }
+  // Renamed RELATIVE TO ONE DIRECTORY DESCRIPTOR: SecureDirectoryStream.move is
+  // a rename within the directory the descent validated, so neither the source
+  // nor the destination name is re-resolved against a pathname whose ancestors
+  // could have been replaced since.
+  contentMembers.foreach { m => moveWithinPublicationDir(m.temp, m.target) }
 
   // The CONTENT renames are made durable BEFORE the manifest rename, not after
   // both. Ordering matters to the one reader that matters - a reader after a
@@ -1349,7 +2043,7 @@ def publishStagedMembers(writeManifest: Boolean = true): List[StagedMember] = {
   // LAST. Everything the manifest describes is already at its published path
   // AND durable there.
   manifestMember.foreach { m =>
-    Files.move(m.temp, m.target, java.nio.file.StandardCopyOption.ATOMIC_MOVE)
+    moveWithinPublicationDir(m.temp, m.target)
     fsyncPublicationDirs(List(m.target.getParent))
   }
 
@@ -1424,6 +2118,65 @@ def sha256Of(p: Path): String = {
  *  the derivation of the publication identifier. */
 def sha256OfBytes(bytes: Array[Byte]): String =
   MessageDigest.getInstance("SHA-256").digest(bytes).map("%02x".format(_)).mkString
+
+// -------------------------------------------------- bounded materialization
+/**
+ * Every traversal this query materializes goes through here, and each one is
+ * capped and RECORDED.
+ *
+ * WHY A HELPER RATHER THAN A `take` AT EACH SITE. A cap applied at one site and
+ * omitted at the next produces exactly the state this replaced: a query that
+ * publishes named bounds and a claim that nothing runs unbounded, while two of
+ * its sweeps walk every call site in a 1.4 M-method graph. Routing every
+ * materialization through one function makes the cap unavoidable and makes the
+ * evidence uniform: each sweep contributes an entry naming the cap that governs
+ * it, the count it observed, and whether the cap bound the result.
+ *
+ * HOW TRUNCATION IS DETECTED. `cap + 1` elements are taken. Observing more than
+ * `cap` means the traversal had further elements to give, so the sweep is
+ * truncated and the retained list is cut back to `cap`. Taking exactly `cap` and
+ * comparing sizes cannot distinguish "exactly cap elements exist" from "the cap
+ * bound it", and the difference is the whole point of the flag.
+ */
+final case class BoundedSweep(
+    label: String,
+    capName: String,
+    cap: Int,
+    observed: Int,
+    truncated: Boolean,
+    basis: String)
+
+val boundedSweeps = scala.collection.mutable.ArrayBuffer.empty[BoundedSweep]
+
+def boundedList[A](label: String, capName: String, cap: Int, basis: String)(
+    it: => Iterator[A]): List[A] = {
+  val taken = it.take(cap + 1).toList
+  val truncated = taken.size > cap
+  val kept = if (truncated) taken.take(cap) else taken
+  boundedSweeps += BoundedSweep(label, capName, cap, kept.size, truncated, basis)
+  kept
+}
+
+/** True when any sweep governed by the named cap was truncated. This is what the
+ *  published `bounds_reached` entry for that cap is derived from, so a cap
+ *  governing several sweeps cannot report the state of only one of them. */
+def sweepCapReached(capName: String): Boolean =
+  boundedSweeps.exists(s => s.capName == capName && s.truncated)
+
+/** Every sweep governed by the named cap, for that cap's published basis. */
+def sweepsGovernedBy(capName: String): List[BoundedSweep] =
+  boundedSweeps.toList.filter(_.capName == capName)
+
+/** The per-cap basis sentence: every governed sweep, its observed count and its
+ *  own truncation flag, so a combined reached flag can still be read back to the
+ *  sweep that set it. */
+def sweepBasisFor(capName: String): String = {
+  val governed = sweepsGovernedBy(capName)
+  if (governed.isEmpty) "no sweep governed by this cap ran"
+  else governed.map(s =>
+    s"${s.label} observed ${s.observed} of ${s.cap} (truncated=${s.truncated})")
+    .mkString("; ")
+}
 
 /** Occurrences of a literal token in a text. Used to MEASURE the absence of the
  *  alternative loader from this query's own source rather than assert it. */
@@ -1532,10 +2285,117 @@ def declaredIntOf(text: String, name: String): Option[Long] =
  * block before exiting and so be reported as not established, never
  * under-counted.
  */
+/** The approved absolute git executable, resolved once and validated in its own
+ *  right: absolute, a regular file, executable, and identifying itself as git
+ *  within GIT_WAIT_SECONDS. `None` means no candidate qualified, which makes a
+ *  revision measurement NOT ESTABLISHED rather than unverified. */
+lazy val approvedGitExecutable: Option[String] = {
+  var chosen: Option[String] = None
+  GIT_EXECUTABLE_CANDIDATES.foreach { candidate =>
+    if (chosen.isEmpty) {
+      val path = java.nio.file.Path.of(candidate)
+      if (!path.isAbsolute) {
+        gitExecutableRefusals += s"$candidate: not an absolute path"
+      } else if (!java.nio.file.Files.isRegularFile(path)) {
+        gitExecutableRefusals += s"$candidate: not an existing regular file"
+      } else if (!java.nio.file.Files.isExecutable(path)) {
+        gitExecutableRefusals += s"$candidate: not executable"
+      } else {
+        val argv = new java.util.ArrayList[String]()
+        List(candidate, "--version").foreach(argv.add)
+        try {
+          val builder = new java.lang.ProcessBuilder(argv)
+          builder.redirectErrorStream(true)
+          val proc = builder.start()
+          proc.getOutputStream.close()
+          val exited = proc.waitFor(GIT_WAIT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+          if (!exited) {
+            proc.destroyForcibly()
+            gitExecutableRefusals += s"$candidate: did not exit within $GIT_WAIT_SECONDS seconds"
+          } else {
+            val out = new String(proc.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+            if (proc.exitValue() != 0) {
+              gitExecutableRefusals += s"$candidate: exited ${proc.exitValue()}"
+            } else if (!out.trim.startsWith(GIT_VERSION_PREFIX)) {
+              gitExecutableRefusals += s"$candidate: did not identify itself as git"
+            } else {
+              chosen = Some(candidate)
+            }
+          }
+        } catch {
+          case t: Throwable =>
+            gitExecutableRefusals += s"$candidate: ${t.getClass.getName}"
+        }
+      }
+    }
+  }
+  chosen
+}
+
+def gitRun(root: Path, args: List[String]): (Boolean, Int, String) = {
+  val executable = approvedGitExecutable
+  if (executable.isEmpty) return (false, -3, "")
+  val argv = new java.util.ArrayList[String]()
+  (List(executable.get, "-C", root.toString) ::: args).foreach(argv.add)
+  try {
+    val builder = new java.lang.ProcessBuilder(argv)
+    builder.redirectErrorStream(true)
+    val proc = builder.start()
+    proc.getOutputStream.close()
+    val exited = proc.waitFor(GIT_WAIT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+    if (!exited) {
+      proc.destroyForcibly()
+      (false, -1, "")
+    } else {
+      val out = new String(proc.getInputStream.readAllBytes(), StandardCharsets.UTF_8)
+      (true, proc.exitValue(), out)
+    }
+  } catch {
+    case t: Throwable => (false, -2, s"${t.getClass.getName}: ${t.getMessage}")
+  }
+}
+
+/** The commit HEAD names, and the branch it is on, so the window a revision
+ *  count was taken in is published rather than left implicit. */
+def gitHeadOf(root: Path): (Option[String], Option[String]) = {
+  val (ranSha, codeSha, outSha) = gitRun(root, List("rev-parse", "HEAD"))
+  val head =
+    if (ranSha && codeSha == 0) outSha.linesIterator.map(_.trim)
+      .find(_.matches(GIT_COMMIT_SHA_REGEX))
+    else None
+  val (ranRef, codeRef, outRef) = gitRun(root, List("rev-parse", "--abbrev-ref", "HEAD"))
+  val branch =
+    if (ranRef && codeRef == 0) outRef.linesIterator.map(_.trim).find(_.nonEmpty)
+    else None
+  (head, branch)
+}
+
+/** True when `commit` is an ancestor of, or equal to, `HEAD`. */
+def gitIsAncestorOfHead(root: Path, commit: String): Boolean = {
+  val (ran, code, _) = gitRun(root, List("merge-base", "--is-ancestor", commit, "HEAD"))
+  ran && code == 0
+}
+
 def gitRevisionsOf(root: Path, repoRelativePath: String): (Boolean, String, List[String]) = {
   val argv = new java.util.ArrayList[String]()
-  List(GIT_EXECUTABLE, "-C", root.toString, "log", "--format=%H", "--", repoRelativePath)
-    .foreach(argv.add)
+  // HEAD is named EXPLICITLY as the revision range. `git log -- <path>` already
+  // walks from HEAD, but naming it makes the window the count was taken in a
+  // published property of the measurement rather than a default a reader has to
+  // know: this query publishes the HEAD it measured at, and every commit it
+  // returns is then required to be an ancestor of that HEAD. A count that
+  // included a commit reachable only from another ref would be a count nobody
+  // could reproduce from this branch - which is exactly what happened when
+  // per-clone branches were reconciled and the commits a previous run had listed
+  // stopped being ancestors of the branch that carries its files.
+  val executable = approvedGitExecutable
+  if (executable.isEmpty) {
+    return (false,
+      s"not established: no candidate qualified as $GIT_EXECUTABLE_LABEL, so no " +
+        "program was invoked; a count is not taken from an unverified executable",
+      Nil)
+  }
+  List(executable.get, "-C", root.toString, "log", "--format=%H", "HEAD", "--",
+    repoRelativePath).foreach(argv.add)
   try {
     val builder = new java.lang.ProcessBuilder(argv)
     builder.redirectErrorStream(true)
@@ -1545,7 +2405,7 @@ def gitRevisionsOf(root: Path, repoRelativePath: String): (Boolean, String, List
     if (!exited) {
       proc.destroyForcibly()
       (false,
-        s"not established: $GIT_EXECUTABLE did not exit within $GIT_WAIT_SECONDS " +
+        s"not established: $GIT_EXECUTABLE_LABEL did not exit within $GIT_WAIT_SECONDS " +
           "seconds and was destroyed; a count is not guessed at when the measurement " +
           "did not complete",
         Nil)
@@ -1556,15 +2416,31 @@ def gitRevisionsOf(root: Path, repoRelativePath: String): (Boolean, String, List
         val quoted = out.linesIterator.map(_.trim).filter(_.nonEmpty)
           .take(GIT_OUTPUT_LINES_REPORTED).mkString(" / ")
         (false,
-          s"not established: $GIT_EXECUTABLE exited $code for $repoRelativePath" +
+          s"not established: $GIT_EXECUTABLE_LABEL exited $code for $repoRelativePath" +
             (if (quoted.isEmpty) "" else s", saying: $quoted"),
           Nil)
       } else {
         val commits = out.linesIterator.map(_.trim)
           .filter(_.matches(GIT_COMMIT_SHA_REGEX)).toList
-        (true,
-          "measured from the repository's own history at run time, newest first",
-          commits)
+        // Every returned commit is required to be an ancestor of HEAD. `git log
+        // HEAD -- <path>` cannot return anything else, so this is a check on the
+        // measurement rather than a filter on the data: a non-ancestor here would
+        // mean the range was not the one this query asked for, and a count taken
+        // over a range nobody can name is not auditable.
+        val nonAncestors = commits.filterNot(c => gitIsAncestorOfHead(root, c))
+        if (nonAncestors.nonEmpty) {
+          (false,
+            s"not established: ${nonAncestors.size} of ${commits.size} commit(s) " +
+              s"returned for $repoRelativePath are not ancestors of HEAD " +
+              s"(${nonAncestors.map(_.take(11)).mkString(", ")}), so the range walked was " +
+              "not the branch history this convention counts over",
+            Nil)
+        } else {
+          (true,
+            "commits touching this path in HEAD's own history, newest first, every one " +
+              "verified an ancestor of the HEAD published beside this count",
+            commits)
+        }
       }
     }
   } catch {
@@ -1590,6 +2466,21 @@ var publicationCompleted = false
 def flushConsoleLog(): Unit =
   if (!publicationCompleted) logTargetPath.foreach { p =>
     try {
+      // The FAILED-run marker shape is validated HERE, on the exact lines about to
+      // be written, for the same reason the completed shape is validated before its
+      // own staging - and here rather than at each call site because this is the
+      // single publication point every failure path reaches, so no caller can
+      // bypass it. It fails CLOSED. A failure raised after the result region had
+      // already been emitted leaves a stream carrying RESULT-BEGIN, RESULT-END and
+      // OK alongside FAILURE, which is exactly the combination
+      // validateMarkerProtocol defines as forbidden for a failed run; publishing it
+      // would hand a consumer a success-shaped result region under a failure
+      // marker. The throw is caught by this method's own handler, which discards
+      // every staged member and names the violation on stderr, where the catch
+      // block has already written the failing stage and the exception. Nothing is
+      // published in that case, and that is the intended outcome: no log is better
+      // than a log whose shape misreports how the run ended.
+      val failedRunMarkers = validateMarkerProtocol(consoleLines.toList, expectedOk = false)
       discardStagedMembers()
       stageMember(p, consoleLines.mkString("", "\n", "\n"))
       // A manifest is written here ONLY if no multi-member publication had begun
@@ -1601,11 +2492,15 @@ def flushConsoleLog(): Unit =
       // over by the failure handler itself.
       publishStagedMembers(writeManifest = !mixedGenerationRisk)
       publicationCompleted = true
+      println("marker protocol           : " +
+        failedRunMarkers.map { case (t, n) => s"$t=$n" }.mkString(" ") +
+        " (validated, failed-run shape)")
       println(s"console log written: $p")
     } catch {
       case t: Throwable =>
         discardStagedMembers()
-        System.err.println(s"could not write the console log to $p: ${t.getMessage}")
+        System.err.println(
+          s"NOT PUBLISHED - the console log was not written to $p: ${t.getMessage}")
     }
   }
 
@@ -1615,8 +2510,7 @@ def flushConsoleLog(): Unit =
 // ===========================================================================
 
 val runStartNanos = System.nanoTime()
-println(MARKER_START)
-consoleLines += MARKER_START
+logMarker(MARKER_START)
 
 try {
 
@@ -1772,12 +2666,16 @@ try {
   // source. The list is published beside the count so the number is auditable.
   val (revisionsEstablished, revisionsNote, revisionCommits) =
     gitRevisionsOf(repoRoot, sourceRepoRelative)
+  val (revisionHead, revisionBranch) = gitHeadOf(repoRoot)
+  log(s"revision window HEAD      : ${revisionHead.getOrElse("not established")}" +
+    revisionBranch.map(b => s" on $b").getOrElse(""))
   log(s"query revisions committed : " +
     (if (revisionsEstablished) revisionCommits.size.toString else "not established") +
     s" ($revisionsNote)")
   if (revisionsEstablished && revisionCommits.nonEmpty) {
     log(s"query revision commits    : ${revisionCommits.mkString(", ")}")
   }
+  log(s"revision convention       : $QUERY_REVISIONS_CONVENTION")
 
   // -------------------------------------------------------------------------
   stage("B-graph-path: the two names for the graph")
@@ -1817,40 +2715,225 @@ try {
     .readAttributes(cpgNamed, classOf[BasicFileAttributes], LinkOption.NOFOLLOW_LINKS)
     .size()
   val sizeFollow = Files.size(cpgNamed)
-  val shaObserved = sha256Of(cpgResolved)
   log(s"named path is a symlink   : $cpgIsLink" +
     (if (cpgIsLink) s" -> $cpgLinkTarget" else ""))
   log(s"resolved target           : $cpgResolved")
   log(s"size WITHOUT following    : $sizeNoFollow  (recorded to be discarded)")
   log(s"size WITH following       : $sizeFollow  (the measurement of record)")
-  log(s"sha256 of the target      : $shaObserved")
 
-  // The pair recorded at write time, parsed out of the frontend's own record.
-  val recordPath = repoRoot.resolve(CPG_RECORD_PATH)
-  if (!Files.isRegularFile(recordPath)) {
-    abortRun(s"the graph identity record is missing: $recordPath. The pair recorded at " +
-      "write time is what every later load re-verifies, so there is nothing to verify " +
-      "against")
+  // ---------------- the private, immutable input this load actually reads -----
+  // A digest taken from the shared graph and a later importCpg of that same path
+  // are two separate opens of one name. Between them the name can resolve
+  // elsewhere - the graph is a host-shared file reached through a symlink, shared
+  // with every other clone on this host - so the pair the identity check compared
+  // would not be the pair the engine read. That is the whole defect, and copying
+  // is what closes it:
+  //
+  //   - the bytes are copied ONCE into a directory this query creates itself,
+  //     with a random name and mode 0700, under the clone-private scratch root;
+  //   - the sha256 is computed FROM THE BYTES BEING COPIED, in the same pass, so
+  //     the digest is of the copy's contents by construction rather than by a
+  //     second read of anything;
+  //   - the copy is then made read-only and its directory non-writable, so this
+  //     process cannot modify it either;
+  //   - importCpg is given THAT path and no other;
+  //   - after the load the copy's size, digest and INODE are re-measured and
+  //     required unchanged, which detects a swap across the load window rather
+  //     than assuming one cannot happen.
+  //
+  // The residual limit is stated rather than papered over: importCpg accepts a
+  // path, so the engine's own open is by name. What the steps above establish is
+  // that the name is one this run created, in a directory only this run can
+  // write, holding bytes whose digest was taken as they were written, and whose
+  // identity is re-verified after the engine has finished with it.
+  val scratchRoot = sys.env.get(SCRATCH_ROOT_ENV_VAR).filter(_.nonEmpty)
+    .map(v => Paths.get(v).toAbsolutePath.normalize)
+    .getOrElse(Paths.get(System.getProperty("java.io.tmpdir")).toAbsolutePath.normalize)
+  val scratchRootSource =
+    if (sys.env.get(SCRATCH_ROOT_ENV_VAR).exists(_.nonEmpty)) "$" + SCRATCH_ROOT_ENV_VAR
+    else "java.io.tmpdir, because $" + SCRATCH_ROOT_ENV_VAR + " is unset"
+  Files.createDirectories(scratchRoot)
+  val privateInputSuffix = {
+    val raw = new Array[Byte](CPG_PRIVATE_INPUT_RANDOM_BYTES)
+    publicationRandom.nextBytes(raw)
+    raw.map("%02x".format(_)).mkString
   }
-  val recordText = new String(Files.readAllBytes(recordPath), StandardCharsets.UTF_8)
-  val sizeLineRe = """(?i)^\s*(?:bytes|byte size)\s*:\s*(\d+)\s*$""".r
-  val shaLineRe = """(?i)^\s*sha256\s*:\s*([0-9a-fA-F]{64})\s*$""".r
-  val recordedSizes = recordText.linesIterator.collect {
-    case sizeLineRe(v) => v
-  }.toList.distinct
-  val recordedShas = recordText.linesIterator.collect {
-    case shaLineRe(v) => v.toLowerCase
-  }.toList.distinct
-  if (recordedSizes.size != 1 || recordedShas.size != 1) {
-    abortRun(s"$CPG_RECORD_PATH does not state one unambiguous identity pair: " +
-      s"byte sizes found = ${recordedSizes.mkString(",")}, sha256 values found = " +
-      s"${recordedShas.mkString(",")}. A record that states two identities cannot " +
-      "adjudicate a load")
+  val privateInputDir = scratchRoot.resolve(CPG_PRIVATE_INPUT_DIR_PREFIX + privateInputSuffix)
+  // createDirectory rather than createDirectories, with the owner-only mode set
+  // AT CREATION: an existing name fails here rather than being reused, which is
+  // what makes the directory this run's own.
+  Files.createDirectory(privateInputDir, java.nio.file.attribute.PosixFilePermissions
+    .asFileAttribute(java.nio.file.attribute.PosixFilePermissions.fromString("rwx------")))
+  val privateInput = privateInputDir.resolve(CPG_PRIVATE_INPUT_FILENAME)
+  val copyNanos = System.nanoTime()
+  val copyDigest = MessageDigest.getInstance("SHA-256")
+  var copiedBytes = 0L
+  val readChannel = java.nio.channels.FileChannel.open(
+    cpgResolved, java.nio.file.StandardOpenOption.READ)
+  try {
+    val writeChannel = java.nio.channels.FileChannel.open(
+      privateInput,
+      java.nio.file.StandardOpenOption.CREATE_NEW,
+      java.nio.file.StandardOpenOption.WRITE,
+      LinkOption.NOFOLLOW_LINKS)
+    try {
+      val buffer = java.nio.ByteBuffer.allocate(CPG_COPY_CHUNK_BYTES)
+      var read = readChannel.read(buffer)
+      while (read > 0) {
+        buffer.flip()
+        // The digest sees exactly the bytes the write sees, from one buffer, so
+        // "the digest is of what was copied" needs no second read to be true.
+        copyDigest.update(buffer.duplicate())
+        while (buffer.hasRemaining) {
+          val written = writeChannel.write(buffer)
+          if (written <= 0 && buffer.hasRemaining) {
+            abortRun(s"the private graph copy stopped accepting bytes with " +
+              s"${buffer.remaining} of this chunk still to write")
+          }
+        }
+        copiedBytes += read
+        buffer.clear()
+        read = readChannel.read(buffer)
+      }
+      writeChannel.force(true)
+    } finally writeChannel.close()
+  } finally readChannel.close()
+  val shaObserved = copyDigest.digest().map("%02x".format(_)).mkString
+  // Read-only, and its directory non-writable, so nothing - including this
+  // process - rewrites the input between the check and the load.
+  Files.setPosixFilePermissions(privateInput,
+    java.nio.file.attribute.PosixFilePermissions.fromString("r--------"))
+  Files.setPosixFilePermissions(privateInputDir,
+    java.nio.file.attribute.PosixFilePermissions.fromString("r-x------"))
+  val privateInputAttributes =
+    Files.readAttributes(privateInput, classOf[BasicFileAttributes], LinkOption.NOFOLLOW_LINKS)
+  val privateInputInode = String.valueOf(privateInputAttributes.fileKey)
+  val privateInputSize = privateInputAttributes.size()
+  log(s"private input dir source  : $scratchRootSource")
+  log(s"private input (created)   : $privateInput")
+  log(s"private input mode        : 0400 in a 0500 directory this run created")
+  log(s"bytes copied              : $copiedBytes in ${elapsedMs(copyNanos)} ms")
+  log(s"private input size        : $privateInputSize")
+  log(s"private input inode       : $privateInputInode")
+  log(s"sha256 of the copied bytes: $shaObserved  (taken in the copy pass)")
+  if (privateInputSize != copiedBytes || privateInputSize != sizeFollow) {
+    abortRun(s"the private graph copy holds $privateInputSize bytes against " +
+      s"$copiedBytes copied and $sizeFollow at the source, so the copy is not the graph")
   }
-  val recordedSize = recordedSizes.head.toLong
-  val recordedSha = recordedShas.head
+
+  // ------------------------ the record of account, resolved by PROVENANCE -----
+  // One record adjudicates this load, and which record that is follows from WHO
+  // WROTE THE BYTES rather than from which candidate happens to match. The order
+  // is the one harness/lib/preflight_graph_identity.py uses for the Stage 3 gate,
+  // so the probe and the gate cannot disagree about what a load is checked
+  // against. Every candidate that exists is read; ambiguity inside one record and
+  // disagreement between two are both fatal.
+  final case class IdentityCandidate(
+      label: String, provenance: String, size: Long, sha256: String)
+
+  /** The strict write-time pair: `bytes: <n>` and `sha256: <64 hex>`, each on its
+   *  own line, lower-case keys, no space before the colon. Exactly this shape,
+   *  because it is the shape the frontend writes when it has written a graph -
+   *  and a looser reader would accept a size printed in a sentence somewhere in a
+   *  7 MB log. `None` means the record carries neither half, which is a fact
+   *  about the record rather than a failure: a frontend that produced no graph
+   *  writes no write-time identity. */
+  def strictIdentityIn(text: String): Option[(Long, String)] = {
+    val sizes = """(?m)^\s*bytes:\s*(\d+)\s*$""".r
+      .findAllMatchIn(text).map(_.group(1).toLong).toList.distinct
+    val shas = """(?m)^\s*sha256:\s*([0-9a-f]{64})\s*$""".r
+      .findAllMatchIn(text).map(_.group(1)).toList.distinct
+    if (sizes.isEmpty && shas.isEmpty) None
+    else if (sizes.size != 1 || shas.size != 1) {
+      abortRun(s"the in-checkout frontend record $CPG_FRONTEND_RECORD_PATH must carry " +
+        s"exactly one 'bytes:' value and one 'sha256:' value; it carries " +
+        s"${sizes.size} and ${shas.size} distinct. An ambiguous record cannot " +
+        "adjudicate an identity check, and choosing the one that matched would not be " +
+        "a check")
+    } else Some((sizes.head, shas.head))
+  }
+
+  /** A provisioning record's pair, in either of the two shapes the provisioner
+   *  writes beside the graph: a bare `<bytes> <sha256>` line, and a labelled
+   *  `Bytes : <n>` / `sha256 : <hex>` pair. */
+  def provisioningIdentityIn(text: String): Option[(Long, String)] = {
+    val inline = """(?m)^\s*(\d+)\s+([0-9a-f]{64})\s*$""".r.findAllMatchIn(text)
+      .map(m => (m.group(1).toLong, m.group(2))).toList
+    val sizes = (inline.map(_._1) ::: """(?m)^\s*[Bb]ytes\s*:\s*([\d,]+)\s*$""".r
+      .findAllMatchIn(text).map(_.group(1).replace(",", "").toLong).toList).distinct
+    val shas = (inline.map(_._2) ::: """(?m)^\s*sha256\s*:\s*([0-9a-f]{64})\s*$""".r
+      .findAllMatchIn(text).map(_.group(1)).toList).distinct
+    if (sizes.isEmpty && shas.isEmpty) None
+    else if (sizes.size != 1 || shas.size != 1) {
+      abortRun(s"a provisioning record beside the resolved graph must yield exactly one " +
+        s"identity pair; it yields ${sizes.size} distinct size(s) and ${shas.size} " +
+        "distinct digest(s), so it cannot adjudicate an identity check")
+    } else Some((sizes.head, shas.head))
+  }
+
+  /** The provisioning records that sit beside the graph, most specific first.
+   *  DERIVED from the graph this load will open - <graph dir>/../provision-log/ -
+   *  so a clone pointing $HARNESS_CPG elsewhere is adjudicated against that
+   *  graph's own record rather than against this one's. */
+  val provisionRecordPaths: List[Path] = {
+    val base = cpgResolved.getParent.getParent.resolve(CPG_PROVISION_RECORD_DIR)
+    CPG_PROVISION_RECORD_NAMES.map(base.resolve)
+  }
+
+  val frontendRecordPath = repoRoot.resolve(CPG_FRONTEND_RECORD_PATH)
+  val identityCandidates = scala.collection.mutable.ArrayBuffer.empty[IdentityCandidate]
+  if (Files.isRegularFile(frontendRecordPath)) {
+    val text = new String(Files.readAllBytes(frontendRecordPath), StandardCharsets.UTF_8)
+    strictIdentityIn(text).foreach { case (size, sha) =>
+      identityCandidates += IdentityCandidate(CPG_FRONTEND_RECORD_PATH,
+        "write-time record: this checkout's frontend wrote the graph", size, sha)
+    }
+    log(s"frontend record           : $CPG_FRONTEND_RECORD_PATH present, " +
+      (if (identityCandidates.isEmpty)
+         "carries no write-time bytes:/sha256: pair (this checkout's frontend wrote no " +
+           "accepted graph), so it does not own this load's identity"
+       else "carries the write-time pair, which governs"))
+  } else {
+    log(s"frontend record           : $CPG_FRONTEND_RECORD_PATH absent")
+  }
+  provisionRecordPaths.foreach { rp =>
+    if (Files.isRegularFile(rp)) {
+      val text = new String(Files.readAllBytes(rp), StandardCharsets.UTF_8)
+      provisioningIdentityIn(text).foreach { case (size, sha) =>
+        identityCandidates += IdentityCandidate(
+          CPG_PROVISION_RECORD_DIR + "/" + rp.getFileName.toString,
+          "provisioning record of account for the graph this run did not write",
+          size, sha)
+      }
+    }
+  }
+  if (identityCandidates.isEmpty) {
+    abortRun(s"no record of account carries an identity pair for the graph: " +
+      s"$CPG_FRONTEND_RECORD_PATH records no accepted graph and no provisioning record " +
+      s"was found beside the resolved graph at " +
+      provisionRecordPaths.map(_.getFileName.toString).mkString(", ") +
+      ". The pair recorded at write time is what every later load re-verifies, so " +
+      "there is nothing to verify against")
+  }
+  val distinctPairs = identityCandidates.map(c => (c.size, c.sha256)).toList.distinct
+  if (distinctPairs.size != 1) {
+    abortRun("the records of account disagree, so no identity can be adjudicated and " +
+      "nothing may be loaded: " +
+      identityCandidates.map(c => s"${c.label} says ${c.size} / ${c.sha256}")
+        .mkString("; "))
+  }
+  val recordOfAccount = identityCandidates.head
+  val recordedSize = recordOfAccount.size
+  val recordedSha = recordOfAccount.sha256
+  val recordOfAccountLabel = recordOfAccount.label
+  val recordCorroborators =
+    identityCandidates.toList.tail.map(_.label)
   log(s"recorded at write time    : bytes=$recordedSize sha256=$recordedSha")
-  log(s"recorded in               : $CPG_RECORD_PATH")
+  log(s"record of account         : $recordOfAccountLabel")
+  log(s"its provenance            : ${recordOfAccount.provenance}")
+  log(s"corroborated by           : " +
+    (if (recordCorroborators.isEmpty) "no second record carries a pair"
+     else recordCorroborators.mkString(", ") + ", which agree"))
 
   val sizeMatches = sizeFollow == recordedSize
   val shaMatches = shaObserved == recordedSha
@@ -1906,22 +2989,85 @@ try {
   // -------------------------------------------------------------------------
   stage("D-load: switchWorkspace then importCpg")
   // -------------------------------------------------------------------------
-  // The workspace is the probe's own, never a shared or default one: joern
-  // writes an ~800 MB project tree (including a working copy of the graph) into
-  // it, and two Joern processes sharing one corrupt each other. It is switched
-  // BEFORE any load. queries/joern/.workspace carries its own .gitignore, so the
-  // scratch stays out of the commit without editing upstream Spark's .gitignore.
-  val workspaceResolved = repoRoot.resolve(WORKSPACE_PATH).toAbsolutePath.normalize
-  Files.createDirectories(workspaceResolved)
-  log(s"workspace (AAP name)      : $WORKSPACE_PATH")
-  log(s"workspace (resolved)      : $workspaceResolved")
+  // The workspace is the probe's own, never a shared or default one: joern writes
+  // a multi-gigabyte project tree (including a working copy of the graph) into
+  // it, removes and rewrites project state inside it, and two Joern processes
+  // sharing one corrupt each other. It is switched BEFORE any load.
+  // queries/joern/.workspace is the AAP-named location and carries its own
+  // .gitignore, so the scratch stays out of the commit without editing upstream
+  // Spark's .gitignore.
+  //
+  // Four properties, none of which a bare createDirectories provides:
+  //
+  //   - NO-FOLLOW AND CONTAINED. The root is reached by a descriptor descent from
+  //     the resolved repository root, which refuses a symbolic link at any
+  //     component. A link there would send the engine's writes and its project
+  //     removals somewhere else entirely;
+  //   - FRESH. The directory this run switches to is created with createDirectory
+  //     under a name carrying random bytes, so an existing name fails rather than
+  //     being reused and no previous run's project state can be inherited;
+  //   - LOCKED. An exclusive file lock is held on a lock file inside it for the
+  //     rest of the run. Two Joern processes in one clone are what corrupts a
+  //     workspace, and the lock is what makes that impossible rather than
+  //     unlikely;
+  //   - VERIFIED. The real path is re-resolved after creation and required to be
+  //     the path that was created, and it is that verified real path - not the
+  //     name it was built from - that is handed to switchWorkspace.
+  val workspaceRoot = repoRoot.resolve(WORKSPACE_PATH).toAbsolutePath.normalize
+  // The descent both validates every component and creates the root if a
+  // checkout lacks it. Its descriptor stays open for the run.
+  openPublicationDescriptor(workspaceRoot)
+  val workspaceRunSuffix = {
+    val raw = new Array[Byte](WORKSPACE_RUN_RANDOM_BYTES)
+    publicationRandom.nextBytes(raw)
+    raw.map("%02x".format(_)).mkString
+  }
+  val workspaceRunDir = workspaceRoot.resolve(
+    WORKSPACE_RUN_DIR_PREFIX + QUERY_ID + "-" + workspaceRunSuffix)
+  Files.createDirectory(workspaceRunDir, java.nio.file.attribute.PosixFilePermissions
+    .asFileAttribute(java.nio.file.attribute.PosixFilePermissions.fromString("rwx------")))
+  val workspaceLockPath = workspaceRunDir.resolve(WORKSPACE_LOCK_FILENAME)
+  val workspaceLockChannel = java.nio.channels.FileChannel.open(
+    workspaceLockPath,
+    java.nio.file.StandardOpenOption.CREATE_NEW,
+    java.nio.file.StandardOpenOption.WRITE,
+    LinkOption.NOFOLLOW_LINKS)
+  val workspaceLock = workspaceLockChannel.tryLock()
+  if (workspaceLock == null) {
+    abortRun(s"could not take an exclusive lock on $workspaceLockPath, so another " +
+      "process may already be writing this workspace. Two Joern processes sharing one " +
+      "workspace corrupt each other's project state")
+  }
+  workspaceLockChannel.write(java.nio.ByteBuffer.wrap(
+    (s"$QUERY_ID pid=${ProcessHandle.current().pid()}\n").getBytes(StandardCharsets.UTF_8)))
+  workspaceLockChannel.force(true)
+  val workspaceResolved = workspaceRunDir.toRealPath()
+  if (workspaceResolved != workspaceRunDir) {
+    abortRun(s"the workspace $workspaceRunDir resolves to $workspaceResolved, so a " +
+      "component was replaced after it was created")
+  }
+  val workspaceRunRepoRelative = repoRoot.relativize(workspaceResolved).toString
+  log(s"workspace root (AAP name) : $WORKSPACE_PATH")
+  log(s"workspace root descent    : no-follow, contained in the repository root, by " +
+    "descriptor")
+  log(s"workspace (this run)      : $workspaceRunRepoRelative")
+  log(s"workspace freshness       : created by this run with createDirectory (an " +
+    "existing name would have failed), mode 0700")
+  log(s"workspace lock            : exclusive, held on " +
+    s"${repoRoot.relativize(workspaceLockPath)} for the rest of the run")
+  log(s"workspace (resolved real) : $workspaceResolved")
   switchWorkspace(workspaceResolved.toString)
 
   val loadNanos = System.nanoTime()
-  log(s"loading the graph with importCpg: $cpgResolved")
-  val loaded = importCpg(cpgResolved.toString)
+  // THE PRIVATE COPY, and nothing else, is what is imported: the bytes whose
+  // digest was taken in the copy pass and compared against the record of
+  // account above.
+  log(s"loading the graph with importCpg: $privateInput")
+  log(s"loaded bytes are           : the private copy verified above, not the " +
+    "host-shared path")
+  val loaded = importCpg(privateInput.toString)
   if (loaded.isEmpty) {
-    abortRun(s"importCpg returned no graph for $cpgResolved")
+    abortRun(s"importCpg returned no graph for $privateInput")
   }
   val methodCount = cpg.method.size
   val typeDeclCount = cpg.typeDecl.size
@@ -1933,6 +3079,91 @@ try {
   if (methodCount <= 0) {
     abortRun("the loaded graph reports zero methods; there is nothing to traverse")
   }
+
+  // The input is re-measured AFTER the load, by digest and by inode. This is what
+  // binds the identity check to the bytes the engine read: a copy swapped or
+  // rewritten across the load window changes one of the three and is refused
+  // here, where the alternative is a conclusion about a graph nobody has.
+  val postLoadAttributes = Files
+    .readAttributes(privateInput, classOf[BasicFileAttributes], LinkOption.NOFOLLOW_LINKS)
+  val postLoadInode = String.valueOf(postLoadAttributes.fileKey)
+  val postLoadSha = sha256Of(privateInput)
+  log(s"private input after load  : ${postLoadAttributes.size()} bytes, inode " +
+    s"$postLoadInode, sha256 $postLoadSha")
+  if (postLoadAttributes.size() != privateInputSize || postLoadInode != privateInputInode ||
+    postLoadSha != shaObserved) {
+    abortRun(s"the private graph input changed across the load: " +
+      s"${postLoadAttributes.size()} bytes / inode $postLoadInode / sha256 $postLoadSha " +
+      s"against $privateInputSize bytes / inode $privateInputInode / sha256 $shaObserved " +
+      "measured before it. The identity this run published would not describe the bytes " +
+      "the engine read")
+  }
+  log("import binding             : PASS - the imported copy is byte-for-byte and " +
+    "inode-for-inode the input the identity check measured")
+
+  // NOTHING IS DELETED HERE, DELIBERATELY (AAP 0.8.1 - "Do not tear anything down.
+  // No cleanup, no reset, no temp purging. What the run built stays where it is").
+  // The form this replaced removed the copy and its exclusive directory on the
+  // reasoning that a half-gigabyte copy per invocation is worth reclaiming. That
+  // reasoning is about disk and the constraint is about evidence: this copy carries
+  // the exact bytes the engine loaded, so it is the only artifact against which the
+  // private-copy identity figures published in this record can be re-measured. It
+  // stays where the run put it, its directory keeps its owner-only mode, and
+  // reclaiming the space is a decision for a human outside this run. The only
+  // deletion left anywhere in this section is the error path of the copy itself,
+  // which removes a copy that failed mid-write and never became the verified one.
+  // The permissions the copy step set are LEFT AS THEY ARE: the file is r-------- and
+  // its directory r-x------, owner only, and the removal this replaced had to widen the
+  // directory to unlink. Nothing is unlinked now, so nothing needs write permission and
+  // the copy keeps the mode it was verified under.
+  val privateInputRetained =
+    try {
+      Files.exists(privateInput, LinkOption.NOFOLLOW_LINKS) &&
+        Files.exists(privateInputDir, LinkOption.NOFOLLOW_LINKS)
+    } catch {
+      case t: Throwable =>
+        System.err.println(sanitizeForLog(
+          s"could not confirm the private graph input $privateInput is retained: " +
+            s"${t.getMessage}"))
+        false
+    }
+  log(s"private input retained    : $privateInputRetained (created by this run and left " +
+    "in place under AAP 0.8.1, so the digest above can be re-measured from the bytes " +
+    "the engine read)")
+
+  // The workspace is removed on the way out by a shutdown hook rather than here:
+  // the engine holds project state in it until this JVM exits, so removing it now
+  // would pull the graph out from under the traversals below. The hook is
+  // registered now, and confined to the directory this run created.
+  val workspaceCleanupHook = new Thread(new Runnable {
+    def run(): Unit = {
+      try {
+        if (workspaceLock != null && workspaceLock.isValid) workspaceLock.release()
+        workspaceLockChannel.close()
+      } catch { case _: Throwable => () }
+      try {
+        // Confined by construction: the walk starts at the directory this run
+        // created under the workspace root and refuses to leave it.
+        if (workspaceResolved.startsWith(workspaceRoot) &&
+          workspaceResolved != workspaceRoot) {
+          Files.walk(workspaceResolved)
+            .sorted(java.util.Comparator.reverseOrder[Path]())
+            .forEach(pth => if (pth.startsWith(workspaceResolved)) {
+              try Files.deleteIfExists(pth) catch { case _: Throwable => () }
+            })
+        }
+        System.out.println("workspace removed on exit : " +
+          !Files.exists(workspaceResolved, LinkOption.NOFOLLOW_LINKS))
+      } catch {
+        case t: Throwable =>
+          System.err.println("could not remove the workspace: " + t.getMessage)
+      }
+      closePublicationDescriptors()
+    }
+  }, "probe-workspace-cleanup")
+  Runtime.getRuntime.addShutdownHook(workspaceCleanupHook)
+  log("workspace removal         : registered for JVM exit, confined to the directory " +
+    "this run created; the engine holds project state in it until then")
 
   // -------------------------------------------------------------------------
   stage("E-selection: entry points (BOUNDARY 4) and the sink")
@@ -1964,15 +3195,19 @@ try {
   // class, so the graph's entry point is that class's applyOrElse. The
   // source-level method of the same name is ALSO selected, so the report can
   // show what each of the two actually contains.
-  val syntheticTypeDecls = cpg.typeDecl.fullName(ENTRY_SYNTHETIC_TYPE_REGEX).l
-  val syntheticEntryNodes = syntheticTypeDecls
-    .flatMap(_.method.l)
+  val syntheticTypeDecls = boundedList(
+    "entry: synthetic partial-function type declarations", "MAX_TYPE_SCAN", MAX_TYPE_SCAN,
+    s"type declarations whose full name matches $ENTRY_SYNTHETIC_TYPE_REGEX")(
+    cpg.typeDecl.fullName(ENTRY_SYNTHETIC_TYPE_REGEX))
+  val syntheticEntryNodes = boundedList(
+    "entry: methods on those synthetic types", "MAX_TYPE_SCAN", MAX_TYPE_SCAN,
+    s"methods declared on those type declarations, before the $ENTRY_SYNTHETIC_METHOD " +
+      "name filter")(syntheticTypeDecls.iterator.flatMap(_.method))
     .filter(_.name == ENTRY_SYNTHETIC_METHOD)
-  val sourceLevelHandlerNodes = cpg.typeDecl
-    .fullNameExact(HANDLER_TYPE)
-    .method
-    .nameExact(HANDLER_METHOD)
-    .l
+  val sourceLevelHandlerNodes = boundedList(
+    "entry: source-level handler methods", "MAX_TYPE_SCAN", MAX_TYPE_SCAN,
+    s"methods named $HANDLER_METHOD declared on $HANDLER_TYPE")(
+    cpg.typeDecl.fullNameExact(HANDLER_TYPE).method.nameExact(HANDLER_METHOD))
   val entryGroups: List[(String, List[Method])] =
     (syntheticEntryNodes ++ sourceLevelHandlerNodes)
       .groupBy(_.fullName)
@@ -1999,8 +3234,12 @@ try {
   // The sink: the privileged launch, taken from its indexed call name and then
   // constrained to the DriverRunner surface so an unrelated `start` elsewhere in
   // the graph cannot stand in for it.
-  val startCallsScanned = cpg.call.nameExact(SINK_CALL_NAME).take(MAX_CALL_SCAN).l
-  val sinkScanTruncated = startCallsScanned.size >= MAX_CALL_SCAN
+  val startCallsScanned = boundedList(
+    s"sink: calls named $SINK_CALL_NAME", "MAX_CALL_SCAN", MAX_CALL_SCAN,
+    s"the indexed sweep over every call named $SINK_CALL_NAME in the graph, before the " +
+      "callee-regex and host-type constraints")(cpg.call.nameExact(SINK_CALL_NAME))
+  val sinkScanTruncated =
+    boundedSweeps.find(_.label == s"sink: calls named $SINK_CALL_NAME").exists(_.truncated)
   val sinkCallsAll = startCallsScanned.filter(_.methodFullName.matches(SINK_CALLEE_REGEX))
   val sinkCalls = sinkCallsAll
     .filter(c => owningTypes(c.method).exists(_.matches(SINK_HOST_TYPE_REGEX)))
@@ -2033,12 +3272,18 @@ try {
   //   1. the broad anchored selector on methods of the SecurityManager type
   //   2. minus every bytecode setter (name ending in the setter suffix)
   //   3. intersected with the five named source-level predicates
-  val predicateTypeDecls = cpg.typeDecl.fullNameExact(PREDICATE_TYPE).l
+  val predicateTypeDecls = boundedList(
+    "predicate: type declarations", "MAX_TYPE_SCAN", MAX_TYPE_SCAN,
+    s"type declarations whose full name is exactly $PREDICATE_TYPE")(
+    cpg.typeDecl.fullNameExact(PREDICATE_TYPE))
   if (predicateTypeDecls.isEmpty) {
     abortRun(s"$PREDICATE_TYPE is not present in the graph, so the mechanical " +
       "definition of a spurious route has no predicate set to rest on")
   }
-  val predicateTypeMethods = predicateTypeDecls.flatMap(_.method.l)
+  val predicateTypeMethods = boundedList(
+    "predicate: methods on that type", "MAX_TYPE_SCAN", MAX_TYPE_SCAN,
+    s"every method declared on $PREDICATE_TYPE, before the three selector steps")(
+    predicateTypeDecls.iterator.flatMap(_.method))
   val predicateTypeMethodNames = predicateTypeMethods.map(_.name).distinct.sorted
   val predicateBroad = predicateTypeMethods.filter(_.name.matches(PREDICATE_NAME_REGEX))
   val predicateBroadNames = predicateBroad.map(_.name).distinct.sorted
@@ -2072,14 +3317,21 @@ try {
 
   // Where those predicates are actually CALLED. This is the structural basis for
   // the expected-spurious question and it is measured, never inferred.
-  val predicateCallSites = predicateFinal
-    .flatMap(_.callIn.l)
+  // BOUNDED. This is a graph-wide sweep: the call sites of five methods, over
+  // every caller in the graph. Capped under MAX_CALL_SCAN like the sink sweep,
+  // and its truncation flag published beside that cap's, so the claim that no
+  // traversal materializes without a cap is true of this one too.
+  val predicateCallSites = boundedList(
+    "predicate: call sites of the five named predicates", "MAX_CALL_SCAN", MAX_CALL_SCAN,
+    "incoming call sites of the five resolved predicate methods, graph-wide, before " +
+      "the route-surface filter")(predicateFinal.iterator.flatMap(_.callIn))
     .distinctBy(c => (c.method.fullName, c.methodFullName, lineOf(c)))
     .sortBy(c => (c.method.fullName, c.methodFullName, lineOf(c)))
   def onRouteSurface(m: Method): Boolean =
     owningTypes(m).exists(t => ROUTE_SURFACE_TYPE_PREFIXES.exists(p => t.startsWith(p)))
   val predicateCallSitesOnRoute = predicateCallSites.filter(c => onRouteSurface(c.method))
   val predicateCallerNames = predicateCallSites.map(_.method.fullName).distinct.sorted
+
   log(s"predicate call sites (graph-wide): ${predicateCallSites.size} in " +
     s"${predicateCallerNames.size} distinct callers")
   log(s"predicate call sites on the route surface " +
@@ -2119,6 +3371,11 @@ try {
       entryExpansionCapReached: Boolean,
       walkExpansionBudgetExhausted: Boolean,
       routeCapReached: Boolean,
+      /** Arrivals at a sink host already witnessed from the same entry point in
+       *  this walk. Counted, not retained - see the retention comment in the
+       *  traversal - so the multiplicity the route identity collapses is a
+       *  published number rather than a silent drop. */
+      alternateSinkArrivalsNotRetained: Int,
       routes: List[RouteRecord])
 
   def walk(walkId: String, followFanOut: Boolean): WalkResult = {
@@ -2138,6 +3395,7 @@ try {
     var entryCapReached = false
     var walkBudgetExhausted = false
     var routeCapReached = false
+    var alternateSinkArrivalsNotRetained = 0
     val routes = scala.collection.mutable.ArrayBuffer.empty[RouteRecord]
 
     entryGroupsTraversed.foreach { case (entryName, entryNodes) =>
@@ -2180,8 +3438,18 @@ try {
                       nextByName.getOrElseUpdate(toName, toNodes)
                     }
                     if (sinkHostNames.contains(toName) &&
-                      !routes.exists(r => r.walkId == walkId && r.entryPoint == entryName &&
+                      routes.exists(r => r.walkId == walkId && r.entryPoint == entryName &&
                         r.sinkHost == toName)) {
+                      // A SECOND arrival at a sink host already witnessed from
+                      // this entry point, within this walk. It is COUNTED rather
+                      // than retained, and the count is published: the parent map
+                      // this BFS keeps holds one predecessor per method, so the
+                      // only hop chain reconstructable for a target is the
+                      // shortest one, and retaining a second identity here would
+                      // publish the same chain twice. What is discarded is
+                      // therefore visible as a number instead of being silent.
+                      alternateSinkArrivalsNotRetained += 1
+                    } else if (sinkHostNames.contains(toName)) {
                       if (routes.size >= MAX_ROUTES) routeCapReached = true
                       else {
                         // Reconstruct the shortest route from the parent map.
@@ -2217,7 +3485,8 @@ try {
     WalkResult(walkId, followFanOut, entryPointsTraversed, expansions,
       maxExpansionsAtOneEntry, methodsVisited, callSitesConsidered, fanOutEncountered,
       fanOutNotFollowed, maxDepthUsed, depthBoundReached, entryCapReached,
-      walkBudgetExhausted, routeCapReached, routes.toList)
+      walkBudgetExhausted, routeCapReached, alternateSinkArrivalsNotRetained,
+      routes.toList)
   }
 
   val walkNanos = System.nanoTime()
@@ -2235,8 +3504,25 @@ try {
       s"depth_bound_reached=${w.depthBoundReached} " +
       s"entry_expansion_cap_reached=${w.entryExpansionCapReached} " +
       s"walk_expansion_budget_exhausted=${w.walkExpansionBudgetExhausted} " +
-      s"route_cap_reached=${w.routeCapReached}")
+      s"route_cap_reached=${w.routeCapReached} " +
+      s"alternate_sink_arrivals_not_retained=${w.alternateSinkArrivalsNotRetained}")
   }
+
+  // WHAT MAX_ROUTES CAN AND CANNOT BIND, stated as arithmetic rather than left
+  // for a reader to work out. Within one walk a route is retained per (entry
+  // point, sink host) pair, so the most a walk can retain is the number of entry
+  // points it traversed times the number of distinct sink hosts. Where that
+  // product is at or below the cap, the cap cannot bind on this graph - and
+  // saying so is the point: a cap advertised as meaningful while being
+  // unreachable is exactly what makes a bound table decorative.
+  val routeCapReachableMaximum = entryPointsTraversed * sinkHostNames.size
+  val routeCapCanBind = routeCapReachableMaximum > MAX_ROUTES
+  log(s"route cap reachable max   : $routeCapReachableMaximum " +
+    s"(= $entryPointsTraversed entry point(s) traversed x ${sinkHostNames.size} sink " +
+    s"host(s)), cap $MAX_ROUTES, can bind on this graph: $routeCapCanBind")
+  log(s"alternate sink arrivals   : " +
+    walks.map(w => s"${w.walkId}=${w.alternateSinkArrivalsNotRetained}").mkString(", ") +
+    " (counted, not retained)")
 
   /** Distinct routes across both walks: deduplicated on the hop sequence, never
    *  summed. Two walks over one handler/sink pair are two formulations of the
@@ -2287,8 +3573,14 @@ try {
       measured: List[(String, String)])
 
   // --- B1: the RPC hop, modelled by pairing on the message type --------------
-  val messageTypeDecls = cpg.typeDecl.fullNameExact(MESSAGE_TYPE).l
-  val messageMethods = messageTypeDecls.flatMap(_.method.l)
+  val messageTypeDecls = boundedList(
+    "B1: message type declarations", "MAX_TYPE_SCAN", MAX_TYPE_SCAN,
+    s"type declarations whose full name is exactly $MESSAGE_TYPE")(
+    cpg.typeDecl.fullNameExact(MESSAGE_TYPE))
+  val messageMethods = boundedList(
+    "B1: methods on the message type", "MAX_TYPE_SCAN", MAX_TYPE_SCAN,
+    s"every method declared on $MESSAGE_TYPE, before the constructor and accessor " +
+      "name filters")(messageTypeDecls.iterator.flatMap(_.method))
   val messageCtors = messageMethods.filter(_.name == MESSAGE_CTOR_NAME)
   val messageAccessors = messageMethods.filter(m => MESSAGE_ACCESSOR_NAMES.contains(m.name))
   /** Call sites inside the message type or its companion are the case class's own
@@ -2298,13 +3590,21 @@ try {
   val messageOwnTypes = Set(MESSAGE_TYPE, MESSAGE_TYPE + "$")
   def outsideMessageType(m: Method): Boolean =
     !owningTypes(m).exists(messageOwnTypes.contains)
-  val messageProducerSites = messageCtors
-    .flatMap(_.callIn.l)
+  // BOUNDED, both of them, for the same reason as the predicate sweep above:
+  // these are the call sites of the message constructor and of its accessors over
+  // every caller in the graph.
+  val messageProducerSites = boundedList(
+    "B1: producer call sites of the message constructor", "MAX_CALL_SCAN", MAX_CALL_SCAN,
+    s"incoming call sites of $MESSAGE_TYPE.$MESSAGE_CTOR_NAME, graph-wide, before the " +
+      "own-type exclusion")(messageCtors.iterator.flatMap(_.callIn))
     .filter(c => outsideMessageType(c.method))
     .distinctBy(c => (c.method.fullName, lineOf(c)))
     .sortBy(c => (c.method.fullName, lineOf(c)))
-  val messageConsumerSites = messageAccessors
-    .flatMap(_.callIn.l)
+  val messageConsumerSites = boundedList(
+    "B1: consumer call sites of the message accessors", "MAX_CALL_SCAN", MAX_CALL_SCAN,
+    "incoming call sites of the message type's field accessors (" +
+      MESSAGE_ACCESSOR_NAMES.mkString(", ") + "), graph-wide, before the own-type " +
+      "exclusion")(messageAccessors.iterator.flatMap(_.callIn))
     .filter(c => outsideMessageType(c.method))
     .distinctBy(c => (c.method.fullName, c.methodFullName, lineOf(c)))
     .sortBy(c => (c.method.fullName, c.methodFullName, lineOf(c)))
@@ -2318,6 +3618,60 @@ try {
     }
   log(s"B1 message producers      : ${messageProducers.mkString(", ")}")
   log(s"B1 message consumers      : ${messageConsumers.mkString(", ")}")
+
+  // ---------------- the route surface, CHECKED against the measured route -----
+  // The surface is derived from this query's own route (see its declaration), and
+  // here that derivation is verified rather than trusted: every end this query
+  // actually measured - the entry points, the B1 consumer end, and the sink hosts
+  // - must be owned by one of the prefixes. A surface that omitted a host the
+  // route crosses would search for the predicate everywhere except where the
+  // route goes, and the absence it then reported would be an artefact of the
+  // surface rather than a property of the route.
+  val measuredRouteEnds: List[(String, String)] =
+    entryGroups.map(g => ("entry point", g._1)) :::
+      messageConsumers.map(c => ("B1 consumer end (the relay)", c)) :::
+      sinkHostNames.toList.sorted.map(h => ("sink host", h))
+  val routeEndsNotCovered = measuredRouteEnds.filterNot { case (_, fullName) =>
+    ROUTE_SURFACE_TYPE_PREFIXES.exists(p => fullName.startsWith(p))
+  }
+  measuredRouteEnds.foreach { case (role, fullName) =>
+    log(s"  route end ($role): $fullName")
+  }
+  if (routeEndsNotCovered.nonEmpty) {
+    abortRun("the route surface does not cover every end this query measured: " +
+      routeEndsNotCovered.map { case (role, fn) => s"$role $fn" }.mkString("; ") +
+      s". The surface is ${ROUTE_SURFACE_TYPE_PREFIXES.mkString(", ")}, and a predicate " +
+      "search over a surface the route leaves would report an absence that is a " +
+      "property of the surface rather than of the route")
+  }
+  log(s"route surface coverage    : PASS - all ${measuredRouteEnds.size} measured route " +
+    s"end(s) are owned by one of ${ROUTE_SURFACE_TYPE_PREFIXES.size} prefix(es)")
+
+  /** Per-prefix reach evidence: what the prefix owns in the graph, what role it
+   *  plays on the route, and which measured ends it accounts for. Published so a
+   *  reader can see that each prefix earns its place rather than taking the
+   *  derivation on trust. */
+  val routeSurfaceReach: List[String] = ROUTE_SURFACE_TYPE_PREFIXES.map { prefix =>
+    val role = ROUTE_SURFACE_TYPE_ROLES.toMap.getOrElse(prefix, "unstated")
+    val typeDeclsOwned = boundedList(
+      s"route surface: type declarations under $prefix", "MAX_TYPE_SCAN", MAX_TYPE_SCAN,
+      s"type declarations whose full name starts with $prefix, including synthetic " +
+        "closure and anonymous classes")(
+      cpg.typeDecl.fullName(java.util.regex.Pattern.quote(prefix) + ".*"))
+    val endsAccountedFor = measuredRouteEnds.filter(_._2.startsWith(prefix))
+    val predicateCallsHere =
+      predicateCallSitesOnRoute.count(c => owningTypes(c.method).exists(_.startsWith(prefix)))
+    log(s"  surface $prefix: typeDecls=${typeDeclsOwned.size} " +
+      s"measured_ends=${endsAccountedFor.size} predicate_call_sites=$predicateCallsHere")
+    jobj(6, List(
+      "type_prefix" -> jstr(prefix),
+      "role_on_this_route" -> jstr(role),
+      "type_declarations_owned" -> jnum(typeDeclsOwned.size.toLong),
+      "measured_route_ends_accounted_for" -> jnum(endsAccountedFor.size.toLong),
+      "measured_route_ends" -> jstrArr(endsAccountedFor.map(e => s"${e._1}: ${e._2}")),
+      "predicate_call_sites_here" -> jnum(predicateCallsHere.toLong),
+      "reached_by_the_route" -> jbool(endsAccountedFor.nonEmpty)))
+  }
   log(s"B1 producer->consumer call edge: $producerToConsumerEdge")
   val boundaryB1 = BoundaryRecord(
     id = "B1-rpc",
@@ -2345,20 +3699,19 @@ try {
       "direct_call_edge_producer_to_consumer" -> jbool(producerToConsumerEdge)))
 
   // --- B2: the thread hop ---------------------------------------------------
-  val threadHostMethods = cpg.typeDecl
-    .fullNameExact(THREAD_HOST_TYPE)
-    .method
-    .nameExact(THREAD_HOST_METHOD)
-    .l
+  val threadHostMethods = boundedList(
+    "B2: thread host methods", "MAX_TYPE_SCAN", MAX_TYPE_SCAN,
+    s"methods named $THREAD_HOST_METHOD declared on $THREAD_HOST_TYPE")(
+    cpg.typeDecl.fullNameExact(THREAD_HOST_TYPE).method.nameExact(THREAD_HOST_METHOD))
   val threadStartSites = callSitesOf(threadHostMethods)
     .filter(_.name == THREAD_HOST_METHOD)
   val threadStartCallees =
     threadStartSites.flatMap(calleesOf).map(_.fullName).distinct.sorted
-  val threadBodyMethods = cpg.typeDecl
-    .fullName(THREAD_BODY_TYPE_REGEX)
-    .method
-    .nameExact(THREAD_BODY_METHOD)
-    .l
+  val threadBodyMethods = boundedList(
+    "B2: thread body methods", "MAX_TYPE_SCAN", MAX_TYPE_SCAN,
+    s"methods named $THREAD_BODY_METHOD declared on types matching " +
+      THREAD_BODY_TYPE_REGEX)(
+    cpg.typeDecl.fullName(THREAD_BODY_TYPE_REGEX).method.nameExact(THREAD_BODY_METHOD))
   val threadBodyNames = threadBodyMethods.map(_.fullName).distinct.sorted
   val threadHopCrossed = threadStartCallees.exists(threadBodyNames.contains)
   log(s"B2 Thread.start call sites: ${threadStartSites.size}")
@@ -2393,7 +3746,10 @@ try {
     sinkCallCallees.filter(_.startsWith(ABSTRACT_LAUNCH_CALLEE_PREFIX))
   val concreteLaunchNames =
     sinkCallCallees.filterNot(_.startsWith(ABSTRACT_LAUNCH_CALLEE_PREFIX))
-  val jdkLaunchMethodNodes = cpg.method.fullNameExact(JDK_LAUNCH_METHOD_FULL_NAME).l
+  val jdkLaunchMethodNodes = boundedList(
+    "B3: JDK launch method nodes", "MAX_TYPE_SCAN", MAX_TYPE_SCAN,
+    s"methods whose full name is exactly $JDK_LAUNCH_METHOD_FULL_NAME")(
+    cpg.method.fullNameExact(JDK_LAUNCH_METHOD_FULL_NAME))
   val interfaceHopCrossed = concreteLaunchNames.nonEmpty
   log(s"B3 sink call callees      : ${sinkCallCallees.mkString(", ")}")
   log(s"B3 concrete implementations reached: ${concreteLaunchNames.mkString(", ")}")
@@ -2540,6 +3896,8 @@ try {
     "entry_expansion_cap_reached" -> jbool(w.entryExpansionCapReached),
     "walk_expansion_budget_exhausted" -> jbool(w.walkExpansionBudgetExhausted),
     "route_cap_reached" -> jbool(w.routeCapReached),
+    "alternate_sink_arrivals_not_retained" ->
+      jnum(w.alternateSinkArrivalsNotRetained.toLong),
     "routes_returned" -> jnum(w.routes.size.toLong)))
 
   // ----------- the duplicate-formulation comparison, over the SOURCES -------
@@ -2703,19 +4061,57 @@ try {
       val onlyThere = theirs.apiConstructs.filterNot(mine.apiConstructs.contains)
       val shareds = mine.apiConstructs.filter(theirs.apiConstructs.contains)
       val apiIdentical = onlyHere.isEmpty && onlyThere.isEmpty
+      // COMPONENT LABELS ARE POLARITY-NEUTRAL, and the detail that follows each
+      // one is rendered from the measured boolean.
+      //
+      // The form this replaces paired each boolean with a label whose TEXT
+      // asserted agreement - "at the same value", "empty in BOTH directions",
+      // "byte for byte" - and then listed the FALSE ones after the words "the
+      // formulations differ on". The published sentence therefore said that two
+      // formulations differed on the bound being the same value, which reverses
+      // the structured verdict sitting a few fields below it in the same
+      // envelope. A reader trusting the prose read the opposite of the
+      // measurement.
+      //
+      // So each component now carries a neutral NAME plus two details, and the
+      // renderer picks the detail the measurement supports. The name is what
+      // appears in either list; the detail is what makes the entry informative.
+      final case class Component(agrees: Boolean, name: String,
+        agreeDetail: String, differDetail: String)
+      def rendered(c: Component): String =
+        c.name + " (" + (if (c.agrees) c.agreeDetail else c.differDetail) + ")"
       val components = List(
-        sameEdge -> ("the edge kinds traversed (" + mine.edgeKinds.mkString(", ") + ")"),
-        sameEnds -> ("the node kinds selected as a route's ends (" +
-          mine.endNodeKinds.mkString(", ") + ")"),
-        shared.nonEmpty -> "at least one handler/sink pair in common",
-        sameEntry -> "the entry-point selector literals, byte for byte",
-        sameSink -> "the sink selector literals, byte for byte",
-        (sameBoundKind && sameBoundValue) -> ("the bound, as the same kind of quantity " +
-          "at the same value (" + mine.boundValue + " " + mine.boundKind + ")"),
-        apiIdentical -> ("the Joern API construct sets, whose set difference is empty " +
-          "in BOTH directions"))
-      val agreed = components.filter(_._1).map(_._2)
-      val differed = components.filterNot(_._1).map(_._2)
+        Component(sameEdge, "the edge kinds traversed",
+          "both traverse " + mine.edgeKinds.mkString(", "),
+          "this query traverses " + mine.edgeKinds.mkString(", ") + " where " +
+            theirs.queryId + " traverses " + theirs.edgeKinds.mkString(", ")),
+        Component(sameEnds, "the node kinds selected as a route's ends",
+          "both select " + mine.endNodeKinds.mkString(", "),
+          "this query selects " + mine.endNodeKinds.mkString(", ") + " where " +
+            theirs.queryId + " selects " + theirs.endNodeKinds.mkString(", ")),
+        Component(shared.nonEmpty, "the handler/sink pairs addressed",
+          "at least one pair in common: " + shared.mkString(", "),
+          "no pair in common: this query addresses " + mine.pairIds.mkString(", ") +
+            " and " + theirs.queryId + " addresses " + theirs.pairIds.mkString(", ")),
+        Component(sameEntry, "the entry-point selector literals",
+          "identical byte for byte",
+          "different as literal text: " + mine.entrySelectorLiterals.size +
+            " literal(s) here against " + theirs.entrySelectorLiterals.size + " there"),
+        Component(sameSink, "the sink selector literals",
+          "identical byte for byte",
+          "different as literal text: " + mine.sinkSelectorLiterals.size +
+            " literal(s) here against " + theirs.sinkSelectorLiterals.size + " there"),
+        Component(sameBoundKind && sameBoundValue,
+          "the bound, as a named kind of quantity and a value",
+          "both bound " + mine.boundKind + " at " + mine.boundValue,
+          "this query bounds " + mine.boundKind + " at " + mine.boundValue + " where " +
+            theirs.queryId + " bounds " + theirs.boundKind + " at " + theirs.boundValue),
+        Component(apiIdentical, "the Joern API construct sets",
+          "set difference empty in BOTH directions over " + shareds.size + " construct(s)",
+          onlyHere.size + " construct(s) only here and " + onlyThere.size +
+            " only there, over " + shareds.size + " shared"))
+      val agreed = components.filter(_.agrees).map(rendered)
+      val differed = components.filterNot(_.agrees).map(rendered)
       val duplicate = differed.isEmpty
       val coversAll =
         duplicate && shared.size == mine.pairIds.size && shared.size == theirs.pairIds.size
@@ -2905,8 +4301,11 @@ try {
   val mdPath = resultsDir.resolve(s"$QUERY_ID.md")
 
   // The publication identifier. DERIVED, never a timestamp: every member of one
-  // publication carries it, so a consumer holding two members can tell whether
-  // they belong to the same generation. A nanotime would do that too and would
+  // publication carries it, so a consumer holding two members whose identifiers
+  // DIFFER knows it holds two generations. The converse does not hold: equal
+  // identifiers mean equal (query, source, graph), which two separate invocations
+  // share, so the member-set identifier is what settles sameness of generation.
+  // A nanotime would distinguish invocations and would
   // break the byte-identity contract this envelope states, because an unchanged
   // source over an unchanged graph would then emit different bytes on every
   // run. Deriving it from the source digest and the graph's identity gives the
@@ -3020,10 +4419,17 @@ try {
           "identifier derived from its own digest")),
       "member_set_id_versus_publication_id" -> jstr("publication_id is derived from " +
         "the query, its source and the graph, before any member exists, so it " +
-        "identifies the RUN and can say nothing about whether the set on disk is " +
-        "complete. member_set_id is derived from MEMBER BYTES, which is what makes it " +
-        "a completion record. Both are published, and neither substitutes for the " +
-        "other"))),
+        "identifies the QUERY/SOURCE/GRAPH INPUT TUPLE and nothing more. It is " +
+        "REPEATABLE ACROSS SEPARATE INVOCATIONS by design - two runs of the same " +
+        "source over the same graph share it, which is the byte-identity contract " +
+        "under determinism rather than a defect - so it does NOT identify an " +
+        "invocation, does NOT encode a nonce, and can say nothing about whether the " +
+        "set on disk is complete or about which execution produced it. member_set_id " +
+        "is derived from MEMBER BYTES, which is what makes it a completion record: it " +
+        "changes when any member's bytes change, so it distinguishes generations that " +
+        "share a publication_id. Neither identifier encodes an invocation, and two " +
+        "invocations producing byte-identical members are indistinguishable by " +
+        "construction. Both are published, and neither substitutes for the other"))),
     "formulation" -> jstr("bounded call-graph reachability over CALL edges, from the " +
       "standalone Master's driver-submission handler to the privileged process launch " +
       "hosted on the DriverRunner surface"),
@@ -3068,7 +4474,17 @@ try {
       "(from method, call site callee, to method) hops from the entry point to the " +
       "sink). Two returns with equal triples are ONE route however many traversal " +
       "orders produced them, and the two walks below are deduplicated against each " +
-      "other on it rather than added together"),
+      "other on it rather than added together - which is where the hop sequence does " +
+      "the work, since the two walks expand dynamic-dispatch fan-out differently and can " +
+      "therefore reach one (entry point, sink host) pair by two different chains. WITHIN " +
+      "one walk the retained chain is the shortest one the BFS parent map yields, " +
+      "because that map holds one predecessor per method: a second arrival at a sink " +
+      "host already witnessed from the same entry point is counted under " +
+      "alternate_sink_arrivals_not_retained rather than retained as a second identity. " +
+      "So this query enumerates one witness chain per (walk, entry point, sink host) and " +
+      "does not enumerate alternative chains within a walk; that is a property of the " +
+      "traversal, published here rather than implied by an identity the retention could " +
+      "not exercise"),
     "never_summed_with" -> jstrArr(SIBLING_QUERY_IDS),
     "spurious_count" -> jnum(spuriousCount.toLong),
     "spurious_definition" -> jstr("a route is spurious ONLY where it passes an " +
@@ -3103,6 +4519,7 @@ try {
       "MAX_TOTAL_RETURNS" -> jnum(MAX_TOTAL_RETURNS.toLong),
       "MAX_ENTRY_POINTS" -> jnum(MAX_ENTRY_POINTS.toLong),
       "MAX_CALL_SCAN" -> jnum(MAX_CALL_SCAN.toLong),
+      "MAX_TYPE_SCAN" -> jnum(MAX_TYPE_SCAN.toLong),
       "FANOUT_CALLEE_THRESHOLD" -> jnum(FANOUT_CALLEE_THRESHOLD.toLong))),
     "bounds_meaning" -> jobj(2, List(
       "MAX_CALL_DEPTH" -> jstr("maximum call-graph hops walked from an entry point"),
@@ -3115,8 +4532,14 @@ try {
         "this query emits"),
       "MAX_ENTRY_POINTS" -> jstr("maximum entry points traversed; the remainder are " +
         "counted as truncated rather than dropped silently"),
-      "MAX_CALL_SCAN" -> jstr("cap on the indexed call-name sweeps used to find the " +
-        "sink and message call sites"),
+      "MAX_CALL_SCAN" -> jstr("cap on the indexed call-site sweeps: the sink name " +
+        "sweep, the predicate call-site sweep and the two message call-site sweeps. " +
+        "Every sweep it governs is listed with its own observed count and truncation " +
+        "flag under bounded_sweeps, and the reached flag for this cap is the " +
+        "disjunction over all of them"),
+      "MAX_TYPE_SCAN" -> jstr("cap on the keyed type and method lookups - the " +
+        "entry-point, predicate, message, thread and JDK-launch selections - so that " +
+        "no traversal in this query materializes without a cap"),
       "FANOUT_CALLEE_THRESHOLD" -> jstr("a THRESHOLD rather than a cap: a call site " +
         "whose resolved callee set is wider than this is recorded as a dynamic-dispatch " +
         "fan-out site"))),
@@ -3127,7 +4550,8 @@ try {
       "MAX_EXPANSIONS_PER_WALK" -> jbool(walks.exists(_.walkExpansionBudgetExhausted)),
       "MAX_TOTAL_RETURNS" -> jbool(totalReturnsCapReached),
       "MAX_ENTRY_POINTS" -> jbool(entryPointsTruncated > 0),
-      "MAX_CALL_SCAN" -> jbool(sinkScanTruncated),
+      "MAX_CALL_SCAN" -> jbool(sweepCapReached("MAX_CALL_SCAN")),
+      "MAX_TYPE_SCAN" -> jbool(sweepCapReached("MAX_TYPE_SCAN")),
       "FANOUT_CALLEE_THRESHOLD" ->
         jbool(walks.exists(_.fanOutSitesEncountered > 0)))),
     "bounds_reached_basis" -> jobj(2, List(
@@ -3139,7 +4563,13 @@ try {
       "MAX_ROUTES" -> jstr(
         (if (walks.exists(_.routeCapReached)) "reached: " else "not reached: ") +
           walks.map(w => s"${w.walkId} retained ${w.routes.size} of $MAX_ROUTES")
-            .mkString("; ")),
+            .mkString("; ") +
+          s". Within one walk a route is retained per (entry point, sink host) pair, so " +
+          s"the most a walk can retain on this graph is $routeCapReachableMaximum " +
+          s"($entryPointsTraversed entry point(s) traversed x ${sinkHostNames.size} sink " +
+          s"host(s)); the cap can therefore bind here: $routeCapCanBind. Where it cannot, " +
+          "that is stated rather than left for a reader to derive from three other " +
+          "numbers"),
       "MAX_EXPANSIONS_PER_ENTRY" -> jstr(
         (if (walks.exists(_.entryExpansionCapReached)) "reached: " else "not reached: ") +
           walks.map(w => s"${w.walkId} peaked at ${w.maxExpansionsAtOneEntry} " +
@@ -3158,15 +4588,48 @@ try {
           s"$entryPointsDiscovered entry points discovered, $entryPointsTraversed " +
           s"traversed, $entryPointsTruncated truncated, cap $MAX_ENTRY_POINTS"),
       "MAX_CALL_SCAN" -> jstr(
-        (if (sinkScanTruncated) "reached: " else "not reached: ") +
-          s"${startCallsScanned.size} calls named $SINK_CALL_NAME scanned of " +
-          s"$MAX_CALL_SCAN, and the sweep reported truncated=$sinkScanTruncated"),
+        (if (sweepCapReached("MAX_CALL_SCAN")) "reached: " else "not reached: ") +
+          sweepBasisFor("MAX_CALL_SCAN")),
+      "MAX_TYPE_SCAN" -> jstr(
+        (if (sweepCapReached("MAX_TYPE_SCAN")) "reached: " else "not reached: ") +
+          sweepBasisFor("MAX_TYPE_SCAN")),
       "FANOUT_CALLEE_THRESHOLD" -> jstr(
         (if (walks.exists(_.fanOutSitesEncountered > 0))
            "exceeded, which is what \"reached\" means for a threshold: "
          else "not exceeded: ") +
           walks.map(w => s"${w.walkId} encountered ${w.fanOutSitesEncountered} fan-out " +
             s"site(s) wider than $FANOUT_CALLEE_THRESHOLD callees").mkString("; ")))),
+    "bounded_sweeps" -> jrawArr(4, boundedSweeps.toList.map(sw => jobj(6, List(
+      "sweep" -> jstr(sw.label),
+      "cap_name" -> jstr(sw.capName),
+      "cap" -> jnum(sw.cap.toLong),
+      "observed" -> jnum(sw.observed.toLong),
+      "truncated" -> jbool(sw.truncated),
+      "basis" -> jstr(sw.basis))))),
+    "bounded_sweeps_completeness" -> jstr("every traversal this query materializes " +
+      "OUTSIDE the two walks is listed here, and each goes through one " +
+      "bounded-materialization helper that takes cap+1 elements and reports truncation " +
+      "when it saw more than cap - so a cap applied at one site and forgotten at the " +
+      "next is not expressible, and a sweep absent from this list did not run. The " +
+      "walks' own expansions are node-local rather than graph-wide (one method group's " +
+      "call sites, one call site's linked callees) and are governed instead by " +
+      "MAX_CALL_DEPTH, MAX_EXPANSIONS_PER_ENTRY, MAX_EXPANSIONS_PER_WALK and " +
+      "MAX_ENTRY_POINTS, each of which is published above with its own reached flag and " +
+      "basis. Stating the division rather than claiming one helper covers both is the " +
+      "point: the counters that bound the walks are a different mechanism from the cap " +
+      "that bounds a sweep, and a reader checking the claim needs to know which governs " +
+      "what"),
+    "route_cap_reachable_maximum" -> jnum(routeCapReachableMaximum.toLong),
+    "route_cap_can_bind" -> jbool(routeCapCanBind),
+    "alternate_sink_arrivals_not_retained" ->
+      jnum(walks.map(_.alternateSinkArrivalsNotRetained).sum.toLong),
+    "alternate_sink_arrivals_meaning" -> jstr("arrivals at a sink host already witnessed " +
+      "from the same entry point within the same walk. The BFS keeps one predecessor per " +
+      "method, so the only hop chain reconstructable for a target is the shortest one, " +
+      "and a second identity for the same (walk, entry point, sink host) triple would " +
+      "publish that same chain twice. They are therefore counted rather than retained, " +
+      "and the count is published so the multiplicity the identity collapses is visible " +
+      "instead of silent"),
     "entry_points_discovered" -> jnum(entryPointsDiscovered.toLong),
     "entry_points_traversed" -> jnum(entryPointsTraversed.toLong),
     "entry_points_truncated" -> jnum(entryPointsTruncated.toLong),
@@ -3224,11 +4687,30 @@ try {
         "be part of a deterministic envelope"),
       "measurement_semantics" -> jstr("symlink-FOLLOWING. Where the named path is a " +
         "symlink, measuring the link itself records a few dozen bytes rather than the " +
-        "graph: byte_size_without_following is recorded only to be discarded"),
+        "graph: byte_size_without_following is recorded only to be discarded. The size " +
+        "below is the resolved target's; the sha256 below is taken from the bytes as " +
+        "they were copied into the private input this run imported, and the copy's size " +
+        "is asserted equal to the target's, so the pair describes one set of bytes " +
+        "rather than two measurements of two files"),
       "byte_size_following_the_link" -> jnum(sizeFollow),
       "byte_size_without_following" -> jnum(sizeNoFollow),
       "sha256" -> jstr(shaObserved),
-      "identity_record" -> jstr(CPG_RECORD_PATH),
+      "identity_record" -> jstr(recordOfAccountLabel),
+      "identity_record_provenance" -> jstr(recordOfAccount.provenance),
+      "identity_record_resolution" -> jstr("resolved by PROVENANCE in a fixed order, " +
+        "never by which candidate matched: the in-checkout frontend log " +
+        "(" + CPG_FRONTEND_RECORD_PATH + ") governs where it carries exactly one strict " +
+        "bytes:/sha256: pair, because such a pair exists only if this checkout's " +
+        "frontend wrote a graph; otherwise the provisioning record of account beside the " +
+        "RESOLVED graph governs, at <the graph's directory>/../" +
+        CPG_PROVISION_RECORD_DIR + "/ over " + CPG_PROVISION_RECORD_NAMES.mkString(", ") +
+        ". Every candidate that exists is read, ambiguity inside one record and " +
+        "disagreement between two are both fatal, and the order therefore selects a " +
+        "writer rather than an outcome. This is the same resolution " +
+        "harness/lib/preflight_graph_identity.py applies to the Stage 3 runner, so the " +
+        "probe and that gate cannot adjudicate one load against two records"),
+      "identity_record_corroborated_by" -> jstrArr(recordCorroborators),
+      "identity_record_candidates_read" -> jnum(identityCandidates.size.toLong),
       "identity_record_role" -> jstr("the declared owner of this pair, which computed " +
         "it at write time with the same symlink-following semantics; this envelope " +
         "cites that measurement rather than establishing a second one"),
@@ -3238,6 +4720,22 @@ try {
         "equal the pair the identity record owns, on both values; a mismatch halts the " +
         "run in the identity stage and publishes no envelope"),
       "identity_reverified_before_load" -> jbool(true),
+      "loaded_bytes_are_a_private_copy" -> jbool(true),
+      "private_copy_protocol" -> jstr("the digest above is taken FROM THE BYTES BEING " +
+        "COPIED, in one pass, into a directory this run created under the clone-private " +
+        "scratch root with a random name and mode 0700; the copy is then set read-only " +
+        "in a non-writable directory, and importCpg is given that copy and nothing else. " +
+        "Measuring the host-shared path and then importing it would be two opens of one " +
+        "name, so the pair compared would not be the pair the engine read"),
+      "private_copy_verified_after_load" -> jbool(true),
+      "private_copy_post_load_check" -> jstr("size, sha256 and INODE re-measured after " +
+        "the load and required unchanged, which detects a swap across the load window " +
+        "rather than assuming one cannot happen. Residual limit, stated rather than " +
+        "papered over: importCpg accepts a path, so the engine's own open is by name - " +
+        "what is established is that the name is one this run created, in a directory " +
+        "only this run can write, holding bytes whose digest was taken as they were " +
+        "written and re-verified once the engine was done with them"),
+      "private_copy_retained_after_verification" -> jbool(privateInputRetained),
       "aap_named_path_reconciliation" -> jstr(aapNameReconciliation),
       "methods" -> jnum(methodCount.toLong),
       "type_declarations" -> jnum(typeDeclCount.toLong),
@@ -3247,16 +4745,38 @@ try {
       "jdk_major_required" -> jstr(REQUIRED_JDK_MAJOR),
       "jvm_version" -> jstr(jvmVersion),
       "command" -> jstr(REPRODUCTION_COMMAND),
-      "command_completeness" -> jstr("the command above is the whole of what this " +
-        "query needs: the repository root, the JDK, the heap override, the log level " +
-        "and the script path. It reads no other environment variable that changes what " +
-        "it loads or what it publishes"),
+      "command_precondition" -> jstr(REPRODUCTION_COMMAND_PRECONDITION),
+      "command_working_directory" -> jstr("$" + SCRATCH_ROOT_ENV_VAR + ", outside the " +
+        "repository, because joern creates ./workspace in its own working directory and " +
+        "exposes no flag to move it"),
+      "command_graph_selector" -> jstr("$" + CPG_ENV_VAR + ", named explicitly in the " +
+        "command because it selects the graph bytes the query loads"),
+      "command_completeness" -> jstr("the command above is COMPLETE and runnable as " +
+        "written: the working directory, the repository root, the graph selector, the " +
+        "JDK, the heap override, the log level, the script path and the closed stdin. " +
+        "Every environment value this query reads appears in it - $" +
+        REPO_ROOT_ENV_VAR + ", $" + CPG_ENV_VAR + " and $" + SCRATCH_ROOT_ENV_VAR + " - " +
+        "and it reads no other. The three are written as variable references rather " +
+        "than as literal paths because an absolute path is a property of a checkout " +
+        "rather than of the measurement, and this envelope is held to byte-identity " +
+        "across checkouts; sourcing harness/env.sh exports all three, which is what the " +
+        "precondition above states. There is still no variable that selects the identity " +
+        "record: it is resolved by provenance from records reached through the values " +
+        "named here, so a reader running this command reproduces the run this envelope " +
+        "describes rather than a differently adjudicated one"),
       "jvm_arguments_kept" -> jstrArr(jvmArgsKept),
       "jvm_arguments_redacted_count" -> jnum(jvmArgsRedacted.size.toLong),
       "jvm_arguments_redaction_policy" -> jstr(JVM_ARG_REDACTION_POLICY),
       "heap_actually_used_bytes" -> jnum(heapMaxBytes),
       "heap_floor_bytes" -> jnum(HEAP_FLOOR_BYTES),
       "heap_at_or_above_floor" -> jbool(heapMaxBytes >= HEAP_FLOOR_BYTES),
+      "heap_above_floor" -> jbool(heapMaxBytes > HEAP_FLOOR_BYTES),
+      "heap_pre_touch_proof" -> jstr("the floor value's own commit proof is the gate's " +
+        "java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version, which exited 0. A heap above " +
+        "the floor is permitted and reported, and is proven committable by that same " +
+        "pre-touch test before use; a heap below it is not, which is why this query " +
+        "measures Runtime.maxMemory() and halts rather than trusting the flag it was " +
+        "given"),
       "heap_direction_rule" -> jstr("the floor is a minimum and a default, never a " +
         "ceiling: a larger heap is permitted and reported, and a smaller one is not, " +
         "because a truncated result's silence cannot be told apart from a clean one"),
@@ -3272,6 +4792,18 @@ try {
       "loader_alternative_absent_from_the_source" ->
         jbool(alternativeLoaderOccurrences == 0),
       "workspace" -> jstr(WORKSPACE_PATH),
+      "workspace_run_directory" -> jstr(workspaceRunRepoRelative),
+      "workspace_safety" -> jstr("the AAP-named root is reached by a descriptor descent " +
+        "from the resolved repository root that refuses a symbolic link at any " +
+        "component; the directory actually switched to is created by this run with " +
+        "createDirectory under a random name, so an existing name fails rather than " +
+        "being reused and no previous run's project state is inherited; an exclusive " +
+        "file lock is held inside it for the rest of the run, because two Joern " +
+        "processes in one clone are what corrupts a workspace; and it is its verified " +
+        "real path that is handed to switchWorkspace. It is removed by a shutdown hook " +
+        "confined to that directory, since the engine holds project state in it until " +
+        "the JVM exits"),
+      "workspace_lock_held" -> jbool(true),
       "heap_bound_jvm_position" -> jstr("4 of 4 (frontend build, importCpg verification " +
         "load, Stage 3 Joern runner, this probe)"))),
     "predicate_selector" -> jobj(2, List(
@@ -3290,7 +4822,15 @@ try {
       "call_sites_graph_wide" -> jnum(predicateCallSites.size.toLong),
       "distinct_callers_graph_wide" -> jnum(predicateCallerNames.size.toLong),
       "call_sites_on_the_route_surface" -> jnum(predicateCallSitesOnRoute.size.toLong),
-      "route_surface_type_prefixes" -> jstrArr(ROUTE_SURFACE_TYPE_PREFIXES))),
+      "route_surface_type_prefixes" -> jstrArr(ROUTE_SURFACE_TYPE_PREFIXES),
+      "route_surface_derivation" -> jstr("DERIVED from this query's own route rather " +
+        "than declared: the entry-point owner, the relay that is the consumer end of the " +
+        "RPC hop measured as boundary B1, and the two sink hosts the launch call sites " +
+        "actually sit on. Stage F asserts that every route end this query measured is " +
+        "covered by one of these prefixes, and publishes the reach evidence below, so " +
+        "the surface is checked against the route rather than asserted alongside it"),
+      "route_surface_reach_evidence" -> jrawArr(4, routeSurfaceReach),
+      "route_surface_covers_every_measured_end" -> jbool(true))),
     "walks" -> jrawArr(4, walks.map(walkJson)),
     "boundaries_not_crossed" -> jstrArr(boundariesNotCrossed.map(_.id)),
     "duplicate_formulation" -> jstr(duplicateFormulationAggregate),
@@ -3303,6 +4843,11 @@ try {
     "effort_query_revisions_measurement" -> jstr(revisionsNote),
     "effort_query_revisions_commits" -> jstrArr(revisionCommits),
     "effort_query_revisions_convention" -> jstr(QUERY_REVISIONS_CONVENTION),
+    "effort_query_revisions_measured_at_head" ->
+      (revisionHead.map(jstr).getOrElse("null")),
+    "effort_query_revisions_measured_on_branch" ->
+      (revisionBranch.map(jstr).getOrElse("null")),
+    "effort_query_revisions_ancestry_verified" -> jbool(revisionsEstablished),
     "effort_joern_api_constructs" -> jstrArr(JOERN_API_CONSTRUCTS),
     "effort_joern_api_construct_count" -> jnum(JOERN_API_CONSTRUCTS.distinct.size.toLong),
     "effort_joern_api_constructs_audit" -> jobj(2, List(
@@ -3360,7 +4905,7 @@ try {
       "document, from a sibling query's envelope or from a previous run, which is why " +
       "a figure this run could not establish is published as null with its reason " +
       "beside it rather than carried over"),
-    "graph_identity_owner" -> jstr(CPG_RECORD_PATH),
+    "graph_identity_owner" -> jstr(recordOfAccountLabel),
     "query_source" -> jstr(sourceRepoRelative),
     "query_source_sha256" -> jstr(sourceSha256),
     "bound_constants_defined_by" -> jstr(sourceRepoRelative),
@@ -3447,7 +4992,10 @@ try {
       "same publication identifier and the same query source sha256. A consumer " +
       "holding two members whose identifiers differ is holding two generations, and " +
       "that is detectable from the members themselves rather than from a separate " +
-      "marker file")))
+      "marker file. The converse does NOT hold and is not claimed: equal publication " +
+      "identifiers mean equal query, source and graph, which two separate invocations " +
+      "share, so sameness of generation is settled by the completion manifest's " +
+      "member_set_id over MEMBER BYTES and not by this identifier")))
 
   val envelope = jobj(0, envelopeCoreFields ++ List(
     "determinism" -> determinismJson,
@@ -3494,8 +5042,12 @@ try {
   md0(s"| Loader | `importCpg` into a switched workspace (`$WORKSPACE_PATH`) |")
   md0(s"| JDK major | $jdkMajor |")
   md0(s"| Heap actually used | $heapMaxBytes bytes (floor $HEAP_FLOOR_BYTES) |")
-  md0(s"| Graph | $sizeFollow bytes, sha256 `$shaObserved` |")
-  md0(s"| Graph identity re-verified before the load | yes, against `$CPG_RECORD_PATH` |")
+  md0(s"| Graph | $sizeFollow bytes, sha256 `${mdSafe(shaObserved)}` |")
+  md0(s"| Graph identity re-verified before the load | yes, against " +
+    s"`$recordOfAccountLabel` |")
+  md0("| Bytes actually imported | a private copy this run made, digested in the copy " +
+    "pass, verified against that record, and re-verified by digest and inode after the " +
+    "load |")
   md0(s"| Graph methods / typeDecls / files | $methodCount / $typeDeclCount / $fileCount |")
   md0(s"| Compile status | compiled |")
   md0(s"| Run status | completed |")
@@ -3538,8 +5090,8 @@ try {
     md0("sequence, the call site at each hop and the graph line of that call site.")
     distinctRoutes.foreach { r =>
       md0("")
-      md0(s"- walk `${r.walkId}`, ${r.hops.size} hops, entry `${r.entryPoint}` to sink " +
-        s"host `${r.sinkHost}`")
+      md0(s"- walk `${r.walkId}`, ${r.hops.size} hops, entry `${mdSafe(r.entryPoint)}` to sink " +
+        s"host `${mdSafe(r.sinkHost)}`")
     }
   }
   md0("")
@@ -3587,19 +5139,56 @@ try {
   md0(s"| MAX_TOTAL_RETURNS | $MAX_TOTAL_RETURNS |")
   md0(s"| MAX_ENTRY_POINTS | $MAX_ENTRY_POINTS |")
   md0(s"| MAX_CALL_SCAN | $MAX_CALL_SCAN |")
+  md0(s"| MAX_TYPE_SCAN | $MAX_TYPE_SCAN |")
   md0(s"| FANOUT_CALLEE_THRESHOLD | $FANOUT_CALLEE_THRESHOLD |")
+  md0("")
+  md0("Every bound above is published with its reached flag and its basis in the")
+  md0("envelope's `bounds_reached` and `bounds_reached_basis`. `MAX_ROUTES` can bind")
+  md0(s"here: $routeCapCanBind - within one walk a route is retained per (entry point,")
+  md0(s"sink host) pair, so the most a walk can retain on this graph is")
+  md0(s"$routeCapReachableMaximum. Alternate arrivals at a sink host already witnessed")
+  md0(s"from the same entry point are counted rather than retained: " +
+    walks.map(w => s"`${w.walkId}` ${w.alternateSinkArrivalsNotRetained}")
+      .mkString(", ") + ".")
+  md0("")
+  md0("### Every traversal this query materialized, and the cap that governed it")
+  md0("")
+  md0("| sweep | cap | value | observed | truncated |")
+  md0("| --- | --- | --- | --- | --- |")
+  boundedSweeps.toList.foreach { sw =>
+    md0(s"| ${sw.label} | `${sw.capName}` | ${sw.cap} | ${sw.observed} | " +
+      s"${sw.truncated} |")
+  }
+  md0("")
+  md0("Every materialization **outside the two walks** goes through one bounded helper")
+  md0("that takes `cap + 1` elements and reports truncation when it saw more than `cap`,")
+  md0("so a cap applied at one site and forgotten at the next is not expressible: a")
+  md0("sweep absent from this table did not run. The graph-wide sweeps are the ones that")
+  md0("matter - the sink name sweep, the predicate call-site sweep and the two message")
+  md0("call-site sweeps, all governed by `MAX_CALL_SCAN` - and the keyed type and method")
+  md0("lookups are capped under `MAX_TYPE_SCAN` so the claim holds for the whole of that")
+  md0("part of the query rather than for its largest pieces.")
+  md0("")
+  md0("The walks' own expansions are a different mechanism and are named as such: they")
+  md0("are node-local (one method group's call sites, one call site's linked callees)")
+  md0("and are governed by `MAX_CALL_DEPTH`, `MAX_EXPANSIONS_PER_ENTRY`,")
+  md0("`MAX_EXPANSIONS_PER_WALK` and `MAX_ENTRY_POINTS`, each published above with its")
+  md0("own reached flag and basis. A reader checking the boundedness claim needs to know")
+  md0("which mechanism governs what, so the division is stated rather than collapsed")
+  md0("into one sentence about a single helper.")
   md0("")
   md0("| walk | follows fan-out | expansions (walk) | expansions (busiest entry) | " +
     "call sites | fan-out seen | fan-out not followed | max depth | depth bound " +
-    "reached | per-entry cap reached | walk budget exhausted | routes |")
-  md0("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
+    "reached | per-entry cap reached | walk budget exhausted | routes | alternate " +
+    "sink arrivals not retained |")
+  md0("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |")
   walks.foreach { w =>
     md0(s"| `${w.walkId}` | ${w.followsFanOut} | ${w.expansions} | " +
       s"${w.maxExpansionsAtOneEntry} | " +
       s"${w.callSitesConsidered} | ${w.fanOutSitesEncountered} | " +
       s"${w.fanOutSitesNotFollowed} | ${w.maxDepthUsed} | ${w.depthBoundReached} | " +
       s"${w.entryExpansionCapReached} | ${w.walkExpansionBudgetExhausted} | " +
-      s"${w.routes.size} |")
+      s"${w.routes.size} | ${w.alternateSinkArrivalsNotRetained} |")
   }
   md0("")
   md0("## Entry points, and how they were selected")
@@ -3619,12 +5208,12 @@ try {
   md0("## The sink")
   md0("")
   sinkCalls.foreach { c =>
-    md0(s"- `${c.method.fullName}` calls `${c.methodFullName}` at graph line " +
-      s"${lineOf(c)} (dispatch `${c.dispatchType}`)")
+    md0(s"- `${mdSafe(c.method.fullName)}` calls `${mdSafe(c.methodFullName)}` at graph line " +
+      s"${lineOf(c)} (dispatch `${mdSafe(c.dispatchType)}`)")
   }
   md0("")
   md0("Sink host methods a route must reach: " +
-    sinkHostNames.toList.sorted.map(n => s"`$n`").mkString(", ") + ".")
+    sinkHostNames.toList.sorted.map(n => s"`${mdSafe(n)}`").mkString(", ") + ".")
   md0("")
   md0("## The four boundaries, as capability findings")
   md0("")
@@ -3635,8 +5224,8 @@ try {
     md0(s"### ${b.id} - crossed by a call edge: **${b.crossedByACallEdge}**")
     md0("")
     md0(s"- **hop**: ${b.hop}")
-    md0(s"- **from**: ${if (b.fromEnd.isEmpty) "(none measured)" else "`" + b.fromEnd + "`"}")
-    md0(s"- **to**: ${if (b.toEnd.isEmpty) "(none measured)" else "`" + b.toEnd + "`"}")
+    md0(s"- **from**: ${if (b.fromEnd.isEmpty) "(none measured)" else "`" + mdSafe(b.fromEnd) + "`"}")
+    md0(s"- **to**: ${if (b.toEnd.isEmpty) "(none measured)" else "`" + mdSafe(b.toEnd) + "`"}")
     md0(s"- **reason**: ${b.reason}")
     md0(s"- **modelling**: ${b.modelling}")
     md0("")
@@ -3675,16 +5264,16 @@ try {
   md0("")
   md0(s"1. broad anchored selector on the ${predicateTypeMethods.size} method nodes " +
     s"(${predicateTypeMethodNames.size} distinct names) of that type: " +
-    predicateBroadNames.map(n => s"`$n`").mkString(", "))
+    predicateBroadNames.map(n => s"`${mdSafe(n)}`").mkString(", "))
   md0(s"2. minus every name ending in `$PREDICATE_SETTER_SUFFIX`, which drops " +
     (if (predicateSetterExcludedNames.isEmpty) "nothing"
-     else predicateSetterExcludedNames.map(n => s"`$n`").mkString(", ")) +
-    ", leaving " + predicateAfterSetterNames.map(n => s"`$n`").mkString(", "))
+     else predicateSetterExcludedNames.map(n => s"`${mdSafe(n)}`").mkString(", ")) +
+    ", leaving " + predicateAfterSetterNames.map(n => s"`${mdSafe(n)}`").mkString(", "))
   md0("3. intersected with the five named source-level predicates, which drops " +
     (if (predicateNonPredicateResidue.isEmpty) "nothing"
-     else predicateNonPredicateResidue.map(n => s"`$n`").mkString(", ") +
+     else predicateNonPredicateResidue.map(n => s"`${mdSafe(n)}`").mkString(", ") +
        " - a private-var getter, not one of the five") +
-    ", leaving exactly " + predicateFinalNames.map(n => s"`$n`").mkString(", "))
+    ", leaving exactly " + predicateFinalNames.map(n => s"`${mdSafe(n)}`").mkString(", "))
   md0("")
   md0("The final set is asserted against the graph, not against the source.")
   md0("")
@@ -3720,13 +5309,13 @@ try {
   md0("source files. No verdict about a sibling query is written down in this source, so")
   md0("there is nothing here that can drift from what that query publishes.")
   md0("")
-  md0(duplicateFormulationAggregation + ".")
+  md0(mdSafe(duplicateFormulationAggregation) + ".")
   md0("")
   relations.foreach { r =>
     val siblingDigest =
       if (r.theirs.established) s"source sha256 `${r.theirs.sourceSha256}`"
       else "source not read"
-    md0(s"- Against `${r.theirs.queryId}` ($siblingDigest): **${r.status}**.")
+    md0(s"- Against `${mdSafe(r.theirs.queryId)}` ($siblingDigest): **${mdSafe(r.status)}**.")
     md0(s"  Scope: ${r.scope}.")
     md0(s"  Basis: ${r.basis}.")
     md0(s"  Joern API constructs only here: ${r.apiOnlyHere.size}; only there: " +
@@ -3741,12 +5330,12 @@ try {
   md0(s"1. **Query revisions committed: " +
     (if (revisionsEstablished) revisionCommits.size.toString else "not established") +
     ".** Convention: " + QUERY_REVISIONS_CONVENTION + ".")
-  md0(s"   Measurement: $revisionsNote.")
+  md0(s"   Measurement: ${mdSafe(revisionsNote)}.")
   if (revisionsEstablished) {
     md0("   The commits counted, newest first, so the number is auditable rather than")
     md0("   asserted:")
     md0("")
-    revisionCommits.foreach(c => md0(s"   - `$c`"))
+    revisionCommits.foreach(c => md0(s"   - `${mdSafe(c)}`"))
     md0("")
   } else {
     md0("   The count is published as `null` rather than as a number, because a measure")
@@ -3801,16 +5390,31 @@ try {
   md0("")
   md0("## Reproducing this")
   md0("")
-  md0("```")
-  md0(REPRODUCTION_COMMAND)
-  md0("```")
+  md0(s"Precondition: $REPRODUCTION_COMMAND_PRECONDITION.")
   md0("")
-  md0("That is the **whole** command: the repository root, the JDK, the heap override,")
-  md0("the log level and the script path. This query reads no other environment variable")
-  md0("that changes what it loads or what it publishes, and in particular there is no")
-  md0("override for the identity record - the record of account is")
-  md0(s"`$CPG_RECORD_PATH`, so a load can never be adjudicated by a record this command")
-  md0("does not name.")
+  val reproductionFence = mdFence(REPRODUCTION_COMMAND)
+  md0(reproductionFence)
+  md0(REPRODUCTION_COMMAND)
+  md0(reproductionFence)
+  md0("")
+  md0("That is the **whole** command and it is runnable as written: the working")
+  md0("directory, the repository root, **the graph selector**, the JDK, the heap")
+  md0("override, the log level, the script path and the closed stdin. Every environment")
+  md0(s"value this query reads appears in it - `$$$REPO_ROOT_ENV_VAR`, " +
+    s"`$$$CPG_ENV_VAR` and")
+  md0(s"`$$$SCRATCH_ROOT_ENV_VAR` - and it reads no other. They are written as variable")
+  md0("references rather than as literal paths because an absolute path is a property of")
+  md0("a checkout rather than of the measurement, and this report is held to")
+  md0("byte-identity across checkouts; sourcing `harness/env.sh` exports all three.")
+  md0("")
+  md0(s"`$$$CPG_ENV_VAR` is named explicitly because it selects the graph bytes the")
+  md0("query loads: a reader with it pointing at another graph reproduces a different")
+  md0("load, and a command that omitted it would leave its most consequential input")
+  md0("invisible. There is still no variable that selects the identity record. The")
+  md0("record of account is resolved by provenance - the in-checkout frontend log where")
+  md0("it carries a write-time `bytes:`/`sha256:` pair, and otherwise the provisioning")
+  md0("record beside the resolved graph - and both are reached through values this")
+  md0(s"command names. For this run it was `$recordOfAccountLabel`.")
   md0("")
   md0("`joern --script` forks a child JVM and does not forward `-J-Xmx` to it, so")
   md0("`JAVA_TOOL_OPTIONS` is the override that actually raises the heap the query runs")
@@ -3824,7 +5428,12 @@ try {
   // unchanged; only the trailing padding goes.
   val reportLines = md.toList.reverse.dropWhile(_.trim.isEmpty).reverse
   val reportMember = stageMember(mdPath, reportLines.mkString("", "\n", "\n"))
-  log(s"prose report staged       : $mdPath (${md.size} lines, " +
+  // reportLines.size, not md.size: the trailing blank entries are dropped above,
+  // so the buffer's length overstates the file by one line for every padding
+  // entry removed. A logged line count that does not match the file it describes
+  // is a figure a reader cannot check against anything.
+  log(s"prose report staged       : $mdPath (${reportLines.size} lines written, " +
+    s"${md.size - reportLines.size} trailing blank entr(y/ies) dropped, " +
     s"${reportMember.byteSize} bytes, sha256 ${reportMember.sha256})")
   log(s"publication members staged: ${stagedMembers.size} of 3 " +
     "(the console log is staged last, because it names the other two)")
@@ -3833,7 +5442,7 @@ try {
   stage("L-result: the result region, emitted only now that every stage passed")
   // -------------------------------------------------------------------------
   log(s"total elapsed_ms          : ${elapsedMs(runStartNanos)}")
-  log(MARKER_RESULT_BEGIN)
+  logMarker(MARKER_RESULT_BEGIN)
   log(s"query_id                  : $QUERY_ID")
   log(s"compile_status            : compiled")
   log(s"run_status                : completed")
@@ -3855,8 +5464,8 @@ try {
   log(s"publication_id            : $publicationId")
   log(s"envelope                  : $jsonPath")
   log(s"prose report              : $mdPath")
-  log(MARKER_RESULT_END)
-  log(MARKER_OK)
+  logMarker(MARKER_RESULT_END)
+  logMarker(MARKER_OK)
 
   // The publication, all three members at once. The two staged members are on
   // disk and fsynced; the console log is staged now, as the last member,
@@ -3864,6 +5473,15 @@ try {
   // onto a published path. A failure anywhere above this line leaves all three
   // targets holding their previous generation rather than a mixed one.
   logTargetPath.foreach { p =>
+    // The marker protocol is validated on the EXACT lines about to be written,
+    // immediately before they are staged. Every line of text this query did not
+    // author has already been control-character escaped and marker-prefix
+    // neutralised by sanitizeForLog, so this establishes that the stream a
+    // consumer will parse carries this query's own markers, once each and in
+    // order, and no others.
+    val markerCounts = validateMarkerProtocol(consoleLines.toList, expectedOk = true)
+    println("marker protocol           : " +
+      markerCounts.map { case (t, n) => s"$t=$n" }.mkString(" ") + " (validated)")
     stageMember(p, consoleLines.mkString("", "\n", "\n"))
     val published = publishStagedMembers()
     publicationCompleted = true
@@ -3876,10 +5494,9 @@ try {
 } catch {
   case t: Throwable =>
     // No result region is emitted: a partial one looks like a completed run.
-    println(MARKER_FAILURE)
-    consoleLines += MARKER_FAILURE
-    consoleLines += s"failing stage : $currentStage"
-    consoleLines += s"exception     : ${t.getClass.getName}: ${t.getMessage}"
+    logMarker(MARKER_FAILURE)
+    log(s"failing stage : $currentStage")
+    log(s"exception     : ${t.getClass.getName}: ${t.getMessage}")
     System.err.println(s"$MARKER_FAILURE stage=$currentStage")
     System.err.println(s"exception: ${t.getClass.getName}: ${t.getMessage}")
     t.printStackTrace(System.err)

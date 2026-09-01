@@ -88,11 +88,10 @@ repaired here.
 
 Rules
 -----
-No user-specified rules govern this file: ``review_rules`` reports "No user rules
-provided.", which AAP 0.7 and AAP 0.10.2 corroborate.  Enterprise-standard best practice
-applies in their place and the absence is not licence to lower the bar -- which is why the
-independence above is established structurally and every mandated rejection path is
-asserted rather than assumed.
+No user-specified rule governs this file; enterprise-standard best practice applies in its
+place (AAP 0.7, AAP 0.10.2).  That absence is not licence to lower the bar -- this file is
+held to the AAP's own bar, which is why the independence above is established structurally
+and every mandated rejection path is asserted rather than assumed.
 
 Running it
 ----------
@@ -517,9 +516,10 @@ def adapt_mixed() -> Adapted:
 
 #: A message carrying an embedded newline, a comma and a double quote -- the three
 #: characters that make a CSV field span physical lines and need quoting. Derived for the
-#: line-count assertion rather than taken from an artifact: no committed fixture's message
-#: carries a newline, and the precedent dataset's did (10,178 parsed rows across 12,760
-#: physical lines). It carries no secret and no tool's real output.
+#: line-count assertion rather than taken from an artifact, because no committed fixture's
+#: message carries a newline while the dataset's do: ``findings.csv`` holds 9,430 rows over
+#: 9,439 physical lines, so a row count taken from lines is wrong by construction. It
+#: carries no secret and no tool's real output.
 MULTILINE_MESSAGE = (
     'the finding message continues on a second line, with a comma\n'
     'and a "quoted" fragment, and then a third line\n'
@@ -1196,7 +1196,39 @@ class MixedArtifactIdentityTest(unittest.TestCase):
 
         # The reason is kept verbatim: the expected file states stable substrings of the
         # retained text, so the assertion checks the reason without pinning whole prose.
-        for expectation in self.expected["rejections"]["expectations"]:
+        #
+        # ``rejections`` is the ordered array the adapters return -- one element per
+        # rejected record, in record order -- and the aggregates live beside it under
+        # ``rejected_records`` and ``rejections_by_class``, the names
+        # ``reconcile.ArtifactReconciliation`` uses for the same two values.  Both are
+        # asserted here so the expectation's own shape is checked against production's
+        # rather than the other way round.
+        expectations = self.expected["rejections"]
+        self.assertIsInstance(
+            expectations,
+            list,
+            "the expected rejections are an ordered array, as every adapter returns and "
+            "as every other expected file records",
+        )
+        self.assertEqual(len(expectations), len(self.adapted.rejections))
+        self.assertEqual(self.expected["rejected_records"], len(self.adapted.rejections))
+        self.assertEqual(
+            self.expected["rejections_by_class"], self.adapted.rejections_by_class
+        )
+        self.assertEqual(
+            sum(self.expected["rejections_by_class"].values()),
+            self.expected["rejected_records"],
+            "the per-class breakdown and the total are one measurement, so they add up",
+        )
+        self.assertEqual(
+            [entry["locator"]["result_index"] for entry in expectations],
+            [
+                rejection.record_identity["result_index"]
+                for rejection in self.adapted.rejections
+            ],
+            "the array is in the order the adapter produced the rejections",
+        )
+        for expectation in expectations:
             index = expectation["locator"]["result_index"]
             matching = [
                 rejection
@@ -1482,7 +1514,7 @@ class OutputFileAgreementTest(unittest.TestCase):
         )
 
     def test_an_embedded_newline_defeats_a_line_count_but_not_a_parse(self) -> None:
-        """The 10,178-rows-across-12,760-lines lesson, encoded as an assertion.
+        """A row spanning several physical lines, encoded as an assertion.
 
         A message carrying a newline makes its CSV row span several physical lines. Both
         files still parse to the same number of rows; a line tally does not, and this test
@@ -3334,10 +3366,10 @@ class CliOutputWriteTests(CliTestCase):
     """``cli._write_outputs``: both files from one row list, then proven equal by parsing.
 
     Neither file is derived from the other after writing, and equality is asserted by
-    parsing both and coercing the CSV cells to the types their fields carry. Counting lines
-    would over-report by about a quarter on this dataset, because ``message`` fields carry
-    embedded newlines -- the precedent dataset held 10,178 parsed rows over 12,762 physical
-    lines.
+    parsing both and coercing the CSV cells to the types their fields carry. A row count is
+    established by parsing and never by counting lines, because ``message`` fields carry
+    embedded newlines: ``findings.csv`` holds 9,430 rows over 9,439 physical lines, and the
+    gap widens with every multi-line message a scanner reports.
     """
 
     def _rows(self, workspace: "CliWorkspace") -> list[dict[str, object]]:
@@ -3785,9 +3817,12 @@ class CliEndToEndTests(CliTestCase):
     def test_a_complete_run_over_every_captured_artifact_exits_zero(self) -> None:
         """The success path, asserted against the dataset and the record it published.
 
-        Eight artifacts present and one legitimately absent, which is the observed outcome
-        this checkpoint records: OSV-Scanner resolved no package and said so, so it holds
-        its entry with zero rows rather than disappearing.
+        Eight artifacts present and one legitimately absent, which is a complete run rather
+        than a degraded one: a tool that resolves no package source writes nothing and
+        states that reason in its own words, and it still holds its entry with zero rows
+        rather than disappearing from the record. Its reconciliation reads
+        ``reconcile.NOT_APPLICABLE_ABSENT`` and never ``0 = 0 + 0``, which would be a
+        passing assertion over an artifact nobody looked at.
         """
         workspace = self.workspace()
         exit_code, stdout, stderr = workspace.run()
@@ -3917,12 +3952,34 @@ class CliEndToEndTests(CliTestCase):
         )
 
     def test_a_required_input_missing_is_a_configuration_fault_naming_every_gap(self) -> None:
-        """Exit 78 with the whole list, because reporting one gap at a time wastes a run."""
+        """Exit 78 with the whole list, because reporting one gap at a time wastes a run.
+
+        The environment is emptied of every name ``cli.py`` consults for the duration of
+        the call, because this case is about what happens when **nothing** supplies an
+        input. Read from the ambient environment instead, a session that has sourced
+        ``harness/env.sh`` supplies a real log tree and a real raw tree, and the run then
+        halts on the containment of ``--run-record`` against that log tree -- a different,
+        earlier fault, which would leave the gap list this case exists to assert
+        unexercised. Isolating the environment is what makes the assertion mean the same
+        thing whether or not the harness environment happens to be loaded.
+        """
         with self.temporary_directory() as directory:
             record_path = directory / "normalize-run.json"
             stdout, stderr = io.StringIO(), io.StringIO()
+            isolated = {
+                name: ""
+                for name in (
+                    "HARNESS_REPO_ROOT",
+                    "HARNESS_LOG_DIR",
+                    "HARNESS_RAW_DIR",
+                    "HARNESS_SCOPE_FILE",
+                    "SPARK_SRC",
+                    "HARNESS_SMOKE_TARGET",
+                )
+            }
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                exit_code = cli.main(["--run-record", str(record_path)])
+                with unittest.mock.patch.dict(os.environ, isolated):
+                    exit_code = cli.main(["--run-record", str(record_path)])
             self.assertEqual(exit_code, cli.EXIT_CONFIG)
             self.assertIn(cli.HALT_MISSING_INPUT, stderr.getvalue())
             record = json.loads(record_path.read_text(encoding="utf-8"))
@@ -4052,8 +4109,8 @@ class PathsNotOnDiskMeasurementTest(unittest.TestCase):
     and counted by the second.
 
     A zero is the expected result for this dataset, which is exactly why the denominator
-    matters: ``count 0`` beside ``rows_examined 9433`` states that nothing was found among
-    9,433 rows, whereas an absent field states nothing at all.
+    matters: ``count 0`` beside ``rows_examined 9430`` states that nothing was found among
+    9,430 rows, whereas an absent field states nothing at all.
     """
 
     def setUp(self) -> None:
@@ -4816,19 +4873,19 @@ class PathKindBulkTallyTest(unittest.TestCase):
     """Path-kind counts are folded in one validated step per kind, never replayed.
 
     An adapter's counters are already aggregated: it reports ``path_kind_tree_file: 1322``,
-    not 1,322 observations.  Expanding that number back into 1,322 ``add`` calls
-    re-enumerates every resolution in the dataset to recompute a sum that was already
-    known, and the normalizer did it twice -- once for the per-artifact tally and once to
-    fold it into the dataset tally.  ``PathKindTally.add_many`` is the validated bulk
-    operation that replaces both replays.
+    not 1,322 observations.  ``PathKindTally.add_many`` folds such a number in one step, and
+    this class holds that step to the count it stands for: a bulk fold agrees with adding
+    the kind one at a time, both in the per-artifact tally and in the dataset tally it is
+    merged into.  Expanding an aggregate back into ``add`` calls would re-enumerate every
+    resolution in the dataset to recompute a sum already known, twice over.
 
-    Validation is the reason it is a method on the tally rather than a dict update in
+    Validation is the reason the fold is a method on the tally rather than a dict update in
     ``cli.py``: the kind is checked against the same closed set ``add`` checks it against,
-    so the tally still cannot drift from ``paths.NON_FILESYSTEM_PATH_KINDS``.
+    so the tally cannot drift from ``paths.NON_FILESYSTEM_PATH_KINDS``.
     """
 
     def test_add_many_is_equivalent_to_that_many_add_calls(self) -> None:
-        """The optimisation must be an identity, asserted against the replay it replaces."""
+        """One fold of ``count`` equals ``count`` separate ``add`` calls, kind by kind."""
         counts = {"tree_file": 1322, "outside_root": 7, "archive_member": 3}
         replayed = paths.PathKindTally()
         for kind, count in counts.items():
@@ -4862,8 +4919,10 @@ class PathKindBulkTallyTest(unittest.TestCase):
     def test_add_many_refuses_a_negative_or_non_integer_count(self) -> None:
         """A tally that can go backwards can be balanced by two opposite mistakes.
 
-        The replay it replaces clamped a negative count to zero silently, which made the
-        reported non-filesystem proportion wrong with nothing recording why.
+        So a negative count is refused rather than clamped to zero: a clamp keeps counting
+        and leaves the reported non-filesystem proportion wrong with nothing recording why.
+        A non-``int`` is refused for the same reason, ``bool`` included, since
+        ``add_many(kind, True)`` reads as a flag rather than as a count of one.
         """
         tally = paths.PathKindTally()
         for count in (-1, -1322):
@@ -5073,7 +5132,7 @@ class SharedRowWriterContractTest(unittest.TestCase):
     AAP 0.6.1 requires *"both writers consume the same validated rows"*, which is what makes
     the typed re-parse comparison an assertion about one row set rather than about two. A
     defensive copy in either writer would quietly weaken it, and a gratuitous copy of the
-    9,433-row list buys nothing: the writers only read.
+    9,430-row list buys nothing: the writers only read.
     """
 
     def setUp(self) -> None:

@@ -1,4 +1,4 @@
-[00.08][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
+[00.10][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
                
                
 ┌─────────────┐
@@ -28,4 +28,4 @@ Some files were skipped or only partially analyzed.
   Scan was limited to files tracked by git.
   Partially scanned: 46 files only partially analyzed due to parsing or internal Opengrep errors
 
-Ran 1138 rules on 4095 files: 1322 findings.
+Ran 1138 rules on 4095 files: 1319 findings.

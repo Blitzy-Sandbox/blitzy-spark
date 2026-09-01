@@ -5,12 +5,11 @@ non-SARIF artifact written"*.  It serves exactly one tool, ``checkov``, whose
 ``scanner_class`` AAP 0.5.4's class table fixes at ``misconfig`` and which never
 varies -- unlike ``trivy``, the single tool whose class is decided per record.
 
-No user-specified rule governs this file.  ``review_rules`` returns exactly one
-line, ``No user rules provided.``, corroborated by AAP 0.7 and AAP 0.10.2.
-Enterprise best practice applies in their place, held to the AAP's own methodology
-bar (AAP 0.1.3): verification independent of the thing verified, **reject rather
-than infer**, and a policy fixed before any output is observed.  Everything cited
-below is an AAP *requirement*; none of it is a rule, and inventing one would be
+No user-specified rule governs this file; enterprise-standard best practice applies
+in its place (AAP 0.7, AAP 0.10.2), held to the AAP's own methodology bar (AAP
+0.1.3): verification independent of the thing verified, **reject rather than
+infer**, and a policy fixed before any output is observed.  Everything cited below
+is an AAP *requirement*; none of it is a rule, and inventing one would be
 fabrication.
 
 Position in the normalizer
@@ -100,8 +99,8 @@ rejected**, because ``reconcile._count_checkov`` reads it through its own
 the direction hardest to notice.  ``adapters/sarif.py`` treats a non-object ``runs``
 element the same way and for the same reason.
 
-Two of those container shapes no longer reach this module in a run
-------------------------------------------------------------------
+Two of those container shapes cannot reach this module in a run
+---------------------------------------------------------------
 ``shape.NATIVE_SIGNATURES["checkov"]`` requires a ``checkov.json`` to be *either* a
 JSON object carrying a ``results`` **object**, *or* a JSON array whose **every**
 element is a JSON object carrying a ``results`` object.  ``shape.route`` halts on
@@ -109,7 +108,7 @@ anything else with ``shape.REASON_NATIVE_SIGNATURE_MISMATCH`` (AAP 0.5.4: an art
 matching neither the SARIF shape nor a known native shape is a halt rather than a
 best-effort parse; AAP 0.9.2 lists it among the conditions that stop the run).  So
 two rows of the table above -- an array element that is not an object, and a
-``results`` that is not an object -- are now **unreachable from ``cli.py``**: such a
+``results`` that is not an object -- are **unreachable from ``cli.py``**: such a
 document stops the run before an adapter is named.  A ``failed_checks`` that is not an
 array still reaches here, because the signature deliberately does not read inside
 ``results``: an empty or absent ``failed_checks`` is a legitimate report and a
@@ -397,9 +396,14 @@ NEVER_EMITTED_RESULT_SECTIONS: Final[tuple[str, ...]] = (
 #: finding and never a rejection -- see this module's docstring.
 PARSING_ERRORS_KEY: Final[str] = "parsing_errors"
 
-#: The report's own summary object (``passed``/``failed``/``skipped``/
-#: ``parsing_errors``/``resource_count``), returned verbatim by
-#: :func:`report_summaries` for ``tool-status.md``.
+#: The report's own summary object, returned verbatim by :func:`report_summaries`
+#: for ``tool-status.md``.  The measured 3.3.12 artifact carries six keys --
+#: ``checkov_version``, ``passed``, ``failed``, ``skipped``, ``parsing_errors`` and
+#: ``resource_count`` -- and the object is passed through whole rather than read key
+#: by key, so a seventh key a newer Checkov emits travels with it untouched.  It is
+#: the tool's own statement about itself and is treated as status evidence only: no
+#: count in it is ever read as the record count, which comes from walking
+#: :data:`EMITTED_RESULT_SECTION`, and none of it reaches a dataset row.
 SUMMARY_KEY: Final[str] = "summary"
 
 #: Which framework produced a report object.  Preserved per report for the rejection
@@ -660,9 +664,9 @@ def _non_empty_string(value: Any) -> str | None:
     The blank test is on ``strip()`` while the returned value is the original: a
     field is present or it is not, and the content that reaches the dataset is what
     the producer wrote.  Nothing is trimmed, because a ``check_name`` may legitimately
-    carry embedded newlines -- the historical dataset's 10,178 rows spanned 12,760
-    physical lines for exactly that reason, which is why equality between the two
-    output files is asserted by parsing rather than by counting lines.
+    carry embedded newlines, so a single row can span several physical lines, which is
+    why equality between the two output files is asserted by parsing rather than by
+    counting lines.
     """
     if isinstance(value, str) and value.strip():
         return value
@@ -1229,9 +1233,9 @@ def _adapt_failed_check(
     converted into a rejection count that would satisfy reconciliation while hiding a
     defect.
     """
-    # Step 1 -- the shape.  paths.resolve_checkov_path would classify a non-object
-    # the same way; it is checked here first so that every later step can read the
-    # record as a mapping, and so the class does not depend on how far the record got.
+    # paths.resolve_checkov_path would classify a non-object the same way; it is
+    # checked here first so that every check after it can read the record as a
+    # mapping, and so the class does not depend on how far the record got.
     check_object = _json_object(check)
     if check_object is None:
         return paths.make_rejection(
@@ -1244,7 +1248,6 @@ def _adapt_failed_check(
             check_type=check_type,
         )
 
-    # Step 2 -- the rule identifier.
     rule_id, rule_id_failure = _rule_id(check_object)
     if rule_id_failure is not None:
         reject_class, detail = rule_id_failure
@@ -1257,7 +1260,6 @@ def _adapt_failed_check(
             check_type=check_type,
         )
 
-    # Step 3 -- the message.
     message, message_failure = _message(check_object)
     if message_failure is not None:
         reject_class, detail = message_failure
@@ -1277,15 +1279,15 @@ def _adapt_failed_check(
     if _has_second_location(check_object):
         counters[COUNTER_MULTI_LOCATION] += 1
 
-    # Step 4 -- the path.  Every base decision is delegated to paths.py: the leading
-    # slash off `file_path`, the anchor order recorded in the runner metadata, the
-    # anchor-against-anchor reconciliation and the `file_path` corroboration all live
-    # there.  See this module's docstring for why the reconciliation is the reliable
-    # route rather than a cross-check: with eighteen `-d` roots in one invocation, a
-    # slash-stripped `file_path` is relative to whichever root matched, so a
-    # strip-and-join against the tree root is wrong even once the slash is handled --
-    # and read as filesystem-absolute the same value relativizes to a long `../`
-    # chain and the row silently takes `in_scope: false`.
+    # Every base decision is delegated to paths.py: the leading slash off `file_path`,
+    # the anchor order recorded in the runner metadata, the anchor-against-anchor
+    # reconciliation and the `file_path` corroboration all live there.  See this
+    # module's docstring for why the reconciliation is the reliable route rather than
+    # a cross-check: with eighteen `-d` roots in one invocation, a slash-stripped
+    # `file_path` is relative to whichever root matched, so a strip-and-join against
+    # the tree root is wrong even once the slash is handled -- and read as
+    # filesystem-absolute the same value relativizes to a long `../` chain and the row
+    # silently takes `in_scope: false`.
     try:
         resolved = paths.resolve_checkov_path(check_object, root, tool_base, tool=tool)
     except paths.RunnerMetadataError:
@@ -1320,7 +1322,6 @@ def _adapt_failed_check(
         # exactly the guess AAP 0.1.3 forbids.
         return resolved
 
-    # Step 5 -- start_line.
     start_line, start_line_failure = _start_line(check_object)
     if start_line_failure is not None:
         reject_class, detail = start_line_failure

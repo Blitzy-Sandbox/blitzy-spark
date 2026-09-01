@@ -1,14 +1,20 @@
+# datadog-static-analyzer runner console, captured by the Stage 3 sequence ledger
+# run_id=w013-20260901T132807Z clone_index=13
+# argv=["./harness/bin/run-datadog-static-analyzer.sh"]
+# started=2026-09-01T14:22:02Z ended=2026-09-01T14:22:59Z elapsed_seconds=56.25 exit_status=0
+--- stdout ---
 tool            : datadog-static-analyzer
-scan root       : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src (from SPARK_SRC)
-raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/raw
-log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs
-allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scan root       : /opt/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
 scope dirs      : 18
-start           : 2026-08-31T10:05:46+00:00
+start           : 2026-09-01T14:22:02+00:00
 rules file      : /opt/blitzy-harness/rules/datadog/datadog-sast-rules.json (sha256 c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322)
 credential      : DD_API_KEY=absent DD_APP_KEY=absent
 secrets scanner : disabled (requires Datadog API keys)
 exit code       : 0
 elapsed seconds : 57
-artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/raw/datadog-static-analyzer.sarif (5723938 bytes)
-end             : 2026-08-31T10:06:43+00:00
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/datadog-static-analyzer.sarif (5723938 bytes)
+end             : 2026-09-01T14:22:59+00:00
+--- stderr ---

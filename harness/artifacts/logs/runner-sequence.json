@@ -1,168 +1,620 @@
 {
- "schema_version": 1,
+ "schema_version": "runner-sequence/2.0.0",
  "document": "harness/artifacts/logs/runner-sequence.json",
  "stage": "Stage 3 - the nine runners",
- "purpose": "The interval each runner occupied, so 'one at a time, exactly once each, in one lane' is checkable rather than asserted (review findings F9, F10, F11). The predecessor's status files carried overlapping intervals across five tools and evidence of more than one clone; both are measurable here.",
- "written_at_utc": "2026-08-31T16:14:39Z",
- "lane": {
-  "clone": "blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001",
-  "clone_index": 1,
-  "scan_root": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src",
-  "orchestrator_used": false,
-  "invocation": "each runner called directly as ./harness/bin/run-<tool>.sh with no arguments"
- },
- "sequence": [
+ "run_id": "w013-20260901T132807Z",
+ "clone_index": 13,
+ "repository_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b",
+ "scan_root_expected": "/opt/spark-src",
+ "lane": "one serial lane: each runner invoked directly with no arguments, one at a time, in the canonical tool order, by this script and by nothing else",
+ "started_at_utc": "2026-09-01T13:49:39Z",
+ "invocations": [
   {
-   "sequence_index": 1,
    "tool": "opengrep",
-   "started_at": "2026-08-31T09:39:43+00:00",
-   "finished_at": "2026-08-31T09:57:44+00:00",
-   "started_epoch": 1788169183,
-   "finished_epoch": 1788170264,
-   "runner_exit_code": 0,
-   "invocation": "./harness/bin/run-opengrep.sh (no arguments)"
+   "runner": "harness/bin/run-opengrep.sh",
+   "argv": [
+    "./harness/bin/run-opengrep.sh"
+   ],
+   "argument_count": 0,
+   "invocation_index": 1,
+   "started_at_utc": "2026-09-01T13:49:39Z",
+   "ended_at_utc": "2026-09-01T14:13:06Z",
+   "elapsed_seconds": 1407.786,
+   "exit_status": 0,
+   "artifact": {
+    "path": "harness/artifacts/raw/opengrep.sarif",
+    "bytes": 73768116,
+    "sha256": "740ab140d1224064ce3754470c0a90de66d730febec7fb10073421542b085758"
+   },
+   "artifact_expected_name": "harness/artifacts/raw/opengrep.sarif",
+   "stdout_log": {
+    "path": "harness/artifacts/logs/opengrep.stdout.log",
+    "bytes": 73768117,
+    "sha256": "6f2a5746ed9eacde51b2dd3a1ece47bedefc6c7c1d9874bf5222fdec766407b0"
+   },
+   "stderr_log": {
+    "path": "harness/artifacts/logs/opengrep.stderr.log",
+    "bytes": 2560,
+    "sha256": "f683d85f35d12b6ec790c4a0df65b6e4124c96aba9ecca4c061b11791548e938"
+   },
+   "status_file": {
+    "path": "harness/artifacts/logs/opengrep.status",
+    "bytes": 251,
+    "sha256": "65507e366b7f8ea3e1c301cad20f6336714fcd9a21759ae170b6449ab5d8184d"
+   },
+   "side_artifacts": [],
+   "graph_identity_before_load": null,
+   "graph_identity_after_load": null,
+   "runner_console_log": {
+    "path": "harness/artifacts/logs/opengrep.runner-console.log",
+    "bytes": 1305,
+    "sha256": "dcdb7a627385d9b2d946569c78348aa57b008046581ba10ed6fb85a4449da519"
+   }
   },
   {
-   "sequence_index": 2,
    "tool": "semgrep",
-   "started_at": "2026-08-31T09:57:44+00:00",
-   "finished_at": "2026-08-31T10:05:46+00:00",
-   "started_epoch": 1788170264,
-   "finished_epoch": 1788170746,
-   "runner_exit_code": 0,
-   "invocation": "./harness/bin/run-semgrep.sh (no arguments)"
+   "runner": "harness/bin/run-semgrep.sh",
+   "argv": [
+    "./harness/bin/run-semgrep.sh"
+   ],
+   "argument_count": 0,
+   "invocation_index": 2,
+   "started_at_utc": "2026-09-01T14:13:07Z",
+   "ended_at_utc": "2026-09-01T14:22:02Z",
+   "elapsed_seconds": 535.569,
+   "exit_status": 0,
+   "artifact": {
+    "path": "harness/artifacts/raw/semgrep.sarif",
+    "bytes": 40661984,
+    "sha256": "7111001f6518803274a80844c2a3d8249edd8f19ba68a771d309fa5d33da03cf"
+   },
+   "artifact_expected_name": "harness/artifacts/raw/semgrep.sarif",
+   "stdout_log": {
+    "path": "harness/artifacts/logs/semgrep.stdout.log",
+    "bytes": 40661985,
+    "sha256": "c4294a7251f0fe2cdea4375ec19d43a910ddd8ec9b1a5b7ec4c46e7288b4e881"
+   },
+   "stderr_log": {
+    "path": "harness/artifacts/logs/semgrep.stderr.log",
+    "bytes": 5079,
+    "sha256": "d282ddb8cf484139e1294aebf3feb4933a1b8beeb20a0fb59e3313bc3387dd79"
+   },
+   "status_file": {
+    "path": "harness/artifacts/logs/semgrep.status",
+    "bytes": 248,
+    "sha256": "47f12c9714d377477fdc968156a0a31f6d4356464eb2845e893f7a7eee811974"
+   },
+   "side_artifacts": [],
+   "graph_identity_before_load": null,
+   "graph_identity_after_load": null,
+   "runner_console_log": {
+    "path": "harness/artifacts/logs/semgrep.runner-console.log",
+    "bytes": 1277,
+    "sha256": "508196dcd40d9a3f82efb9d899b54b679803716041f72558ff64c1e255a48efe"
+   }
   },
   {
-   "sequence_index": 3,
    "tool": "datadog-static-analyzer",
-   "started_at": "2026-08-31T10:05:46+00:00",
-   "finished_at": "2026-08-31T10:06:43+00:00",
-   "started_epoch": 1788170746,
-   "finished_epoch": 1788170803,
-   "runner_exit_code": 0,
-   "invocation": "./harness/bin/run-datadog-static-analyzer.sh (no arguments)"
+   "runner": "harness/bin/run-datadog-static-analyzer.sh",
+   "argv": [
+    "./harness/bin/run-datadog-static-analyzer.sh"
+   ],
+   "argument_count": 0,
+   "invocation_index": 3,
+   "started_at_utc": "2026-09-01T14:22:02Z",
+   "ended_at_utc": "2026-09-01T14:22:59Z",
+   "elapsed_seconds": 56.25,
+   "exit_status": 0,
+   "artifact": {
+    "path": "harness/artifacts/raw/datadog-static-analyzer.sarif",
+    "bytes": 5723938,
+    "sha256": "a71dc70d69fa9d93b84eed180e46b568dea98581e25e5cb3ebd5ae4668465372"
+   },
+   "artifact_expected_name": "harness/artifacts/raw/datadog-static-analyzer.sarif",
+   "stdout_log": {
+    "path": "harness/artifacts/logs/datadog-static-analyzer.stdout.log",
+    "bytes": 4043,
+    "sha256": "a311e2d20e16173649c38602a4ed684daea77a4dba92298b8813bc1621e62ae1"
+   },
+   "stderr_log": {
+    "path": "harness/artifacts/logs/datadog-static-analyzer.stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "status_file": {
+    "path": "harness/artifacts/logs/datadog-static-analyzer.status",
+    "bytes": 278,
+    "sha256": "7c6de52302804bb0b9ca052ad1fb4bfd88a851df0cce5e48e8c4fdaff5dac6f2"
+   },
+   "side_artifacts": [],
+   "graph_identity_before_load": null,
+   "graph_identity_after_load": null,
+   "runner_console_log": {
+    "path": "harness/artifacts/logs/datadog-static-analyzer.runner-console.log",
+    "bytes": 1424,
+    "sha256": "88833bae69cb756008d5070520bf81a8381a918915bab583bbeaff8393d04a60"
+   }
   },
   {
-   "sequence_index": 4,
    "tool": "gitleaks",
-   "started_at": "2026-08-31T10:06:43+00:00",
-   "finished_at": "2026-08-31T10:06:57+00:00",
-   "started_epoch": 1788170803,
-   "finished_epoch": 1788170817,
-   "runner_exit_code": 2,
-   "invocation": "./harness/bin/run-gitleaks.sh (no arguments)"
+   "runner": "harness/bin/run-gitleaks.sh",
+   "argv": [
+    "./harness/bin/run-gitleaks.sh"
+   ],
+   "argument_count": 0,
+   "invocation_index": 4,
+   "started_at_utc": "2026-09-01T14:22:59Z",
+   "ended_at_utc": "2026-09-01T14:23:13Z",
+   "elapsed_seconds": 14.451,
+   "exit_status": 2,
+   "artifact": {
+    "path": "harness/artifacts/raw/gitleaks.json",
+    "bytes": 561,
+    "sha256": "12d50cf783bb966c77608cae6f93c50c688e0384e84662041ecfb1b6935d8467"
+   },
+   "artifact_expected_name": "harness/artifacts/raw/gitleaks.json",
+   "stdout_log": {
+    "path": "harness/artifacts/logs/gitleaks.stdout.log",
+    "bytes": 1422,
+    "sha256": "461feae54405afc40c7d81025a7859d192654879a5db5fc91a79f3e1b28e5195"
+   },
+   "stderr_log": {
+    "path": "harness/artifacts/logs/gitleaks.stderr.log",
+    "bytes": 26,
+    "sha256": "98467e49ee1b5e56b9b03a596c97f828f907bf0362096ef2bb74f9a5f5718177"
+   },
+   "status_file": {
+    "path": "harness/artifacts/logs/gitleaks.status",
+    "bytes": 243,
+    "sha256": "8afcf8f13b6aaaf29c959a5acb7fb94e3ddc0b9a98b33215c77afe6bcd880f89"
+   },
+   "side_artifacts": [
+    {
+     "path": "harness/artifacts/logs/gitleaks.parts",
+     "member_count": 18,
+     "members": [
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/common_network-common_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/common_network-shuffle_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/common_network-yarn_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/core_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/python_pyspark.json",
+       "bytes": 562,
+       "sha256": "72941b811ee4446d838dded31c9cf09fd1a14850b8d30f9266d9d6061a9bf11e"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/resource-managers_kubernetes_core_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/resource-managers_kubernetes_core_volcano_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/resource-managers_kubernetes_docker_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/resource-managers_yarn_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/sql_catalyst_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/sql_connect_client_jdbc_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/sql_connect_client_jvm_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/sql_connect_common_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/sql_connect_server_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/sql_connect_shims_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/sql_core_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/sql_hive-thriftserver_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+       "path": "harness/artifacts/logs/gitleaks.parts/sql_hive_src_main.json",
+       "bytes": 3,
+       "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      }
+     ]
+    }
+   ],
+   "graph_identity_before_load": null,
+   "graph_identity_after_load": null,
+   "runner_console_log": {
+    "path": "harness/artifacts/logs/gitleaks.runner-console.log",
+    "bytes": 1404,
+    "sha256": "486188813950a03116f379fb8d7f724c1b116fb398e2c4f6590ee1d8d470254e"
+   }
   },
   {
-   "sequence_index": 5,
    "tool": "checkov",
-   "started_at": "2026-08-31T10:06:57+00:00",
-   "finished_at": "2026-08-31T10:08:40+00:00",
-   "started_epoch": 1788170817,
-   "finished_epoch": 1788170920,
-   "runner_exit_code": 1,
-   "invocation": "./harness/bin/run-checkov.sh (no arguments)"
+   "runner": "harness/bin/run-checkov.sh",
+   "argv": [
+    "./harness/bin/run-checkov.sh"
+   ],
+   "argument_count": 0,
+   "invocation_index": 5,
+   "started_at_utc": "2026-09-01T14:23:13Z",
+   "ended_at_utc": "2026-09-01T14:24:46Z",
+   "elapsed_seconds": 93.009,
+   "exit_status": 1,
+   "artifact": {
+    "path": "harness/artifacts/raw/checkov.json",
+    "bytes": 8380,
+    "sha256": "91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643"
+   },
+   "artifact_expected_name": "harness/artifacts/raw/checkov.json",
+   "stdout_log": {
+    "path": "harness/artifacts/logs/checkov.stdout.log",
+    "bytes": 140105,
+    "sha256": "3c1d72a44cfa7d4c7665373b2375e40c4e16f10f208489bd42d829de58ffa854"
+   },
+   "stderr_log": {
+    "path": "harness/artifacts/logs/checkov.stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "status_file": {
+    "path": "harness/artifacts/logs/checkov.status",
+    "bytes": 242,
+    "sha256": "d05f2b35d50da2cd202ccc307857d7a950d9733abe6eb7c5b988f2a6e5924da1"
+   },
+   "side_artifacts": [
+    {
+     "path": "harness/artifacts/logs/checkov.out",
+     "member_count": 1,
+     "members": [
+      {
+       "path": "harness/artifacts/logs/checkov.out/results_json.json",
+       "bytes": 8380,
+       "sha256": "91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643"
+      }
+     ]
+    }
+   ],
+   "graph_identity_before_load": null,
+   "graph_identity_after_load": null,
+   "runner_console_log": {
+    "path": "harness/artifacts/logs/checkov.runner-console.log",
+    "bytes": 1379,
+    "sha256": "1245806c839d4682a392a5483afb24ac536177befb5e8f2b330de72e4f99f18b"
+   }
   },
   {
-   "sequence_index": 6,
    "tool": "trivy",
-   "started_at": "2026-08-31T10:08:40+00:00",
-   "finished_at": "2026-08-31T10:09:07+00:00",
-   "started_epoch": 1788170920,
-   "finished_epoch": 1788170947,
-   "runner_exit_code": 0,
-   "invocation": "./harness/bin/run-trivy.sh (no arguments)"
+   "runner": "harness/bin/run-trivy.sh",
+   "argv": [
+    "./harness/bin/run-trivy.sh"
+   ],
+   "argument_count": 0,
+   "invocation_index": 6,
+   "started_at_utc": "2026-09-01T14:24:46Z",
+   "ended_at_utc": "2026-09-01T14:25:03Z",
+   "elapsed_seconds": 16.624,
+   "exit_status": 0,
+   "artifact": {
+    "path": "harness/artifacts/raw/trivy.json",
+    "bytes": 3496,
+    "sha256": "979ad0ffbec3502f62ea0e2cd46fae549aaa5e1b7cc4a0d59153a5c2448766ec"
+   },
+   "artifact_expected_name": "harness/artifacts/raw/trivy.json",
+   "stdout_log": {
+    "path": "harness/artifacts/logs/trivy.stdout.log",
+    "bytes": 1422,
+    "sha256": "335c28b2e4b984d10259f8e6fd8a9a318a551ef2f4c8e9e76e815fb40519eacb"
+   },
+   "stderr_log": {
+    "path": "harness/artifacts/logs/trivy.stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "status_file": {
+    "path": "harness/artifacts/logs/trivy.status",
+    "bytes": 238,
+    "sha256": "7d9d9df0a15fba5eb6360796d97988400595fe7a6a4a6aa7c5b79bac1866be79"
+   },
+   "side_artifacts": [
+    {
+     "path": "harness/artifacts/logs/trivy.parts",
+     "member_count": 18,
+     "members": [
+      {
+       "path": "harness/artifacts/logs/trivy.parts/common_network-common_src_main.json",
+       "bytes": 254,
+       "sha256": "b4fec4dd67f22aeb7fe08a4377833a59389e728fdc3dd3502a8fdbd8da432318"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/common_network-shuffle_src_main.json",
+       "bytes": 255,
+       "sha256": "39f06e817bb93113e70d15787600ceecbbced1430a7f12b63d05a444a6e81c68"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/common_network-yarn_src_main.json",
+       "bytes": 252,
+       "sha256": "21d14ac3f98f7abcd8de7cd04164a64e779d6901fed1277d1a84e7470f137bb2"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/core_src_main.json",
+       "bytes": 237,
+       "sha256": "ff8fb6172689ce193cf984896e25ecd701520b9621e68cc14ac5f091811cfce4"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/python_pyspark.json",
+       "bytes": 238,
+       "sha256": "da9da6f6f889c8adb82cff7de5d272a884f89078ad0d23432e5d0f0634944324"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/resource-managers_kubernetes_core_src_main.json",
+       "bytes": 266,
+       "sha256": "17f4957e67c60b4d092b07808e8c7f57b1b4eac4889c57657c0476b99be5649b"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/resource-managers_kubernetes_core_volcano_src_main.json",
+       "bytes": 274,
+       "sha256": "045d3ee1de9c4a792f653340c14e74dfac00dfb1a5afe7fecfdebd7bd412a811"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/resource-managers_kubernetes_docker_src_main.json",
+       "bytes": 3836,
+       "sha256": "c997b59aabc4f130e2e29c04f027ca3fe7240eb71957aa8fb0c5692e51d0f2a0"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/resource-managers_yarn_src_main.json",
+       "bytes": 255,
+       "sha256": "36f3fdd5535e5dac548c937788a9d33defb2a1fff3a0bbd05d155f1b96bb0dd8"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/sql_catalyst_src_main.json",
+       "bytes": 245,
+       "sha256": "5c3264ea14575fc07a41d7f811d9658fce4d7ffb86007577b82f07fdcac4dce1"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/sql_connect_client_jdbc_src_main.json",
+       "bytes": 256,
+       "sha256": "5e7a432a1029819c505c65d878d96e6655d123e85168afe8677900654090f57a"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/sql_connect_client_jvm_src_main.json",
+       "bytes": 255,
+       "sha256": "c98af367868f721b6bc0b4b5f5927984ed9f6affa1ad9fceac9b78f39223ef18"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/sql_connect_common_src_main.json",
+       "bytes": 251,
+       "sha256": "11e59f59856b6265d00288445fdb392baf9cb933a193c3664cadd8b25a01194d"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/sql_connect_server_src_main.json",
+       "bytes": 251,
+       "sha256": "55cfad961c4bae21b17d4f63282123350ade0a97a2827a64f9a97f01fd1fa6a9"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/sql_connect_shims_src_main.json",
+       "bytes": 250,
+       "sha256": "44f2cdcd28d5dcc7d54bf3d3138a785dc59fcac024baaab6604af6ca88556736"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/sql_core_src_main.json",
+       "bytes": 241,
+       "sha256": "678fb8ed571f9baa16b99c32434ec82470c1ecd86b272f7faa691cdc8daeb40c"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/sql_hive-thriftserver_src_main.json",
+       "bytes": 254,
+       "sha256": "285f5116389b98ca737dd83e041cba4165a2a1bf1f74e36be67013830d7e88b6"
+      },
+      {
+       "path": "harness/artifacts/logs/trivy.parts/sql_hive_src_main.json",
+       "bytes": 241,
+       "sha256": "581b7d97da2a01a7623ed292f64574bed19e8a5bb162a7ff6ae09a7debc3a6eb"
+      }
+     ]
+    }
+   ],
+   "graph_identity_before_load": null,
+   "graph_identity_after_load": null,
+   "runner_console_log": {
+    "path": "harness/artifacts/logs/trivy.runner-console.log",
+    "bytes": 1606,
+    "sha256": "ea37c5259f9e5ec31c9b0327b259c515f268ed45bf30e421e639941a6271c052"
+   }
   },
   {
-   "sequence_index": 7,
    "tool": "osv-scanner",
-   "started_at": "2026-08-31T10:09:07+00:00",
-   "finished_at": "2026-08-31T10:09:09+00:00",
-   "started_epoch": 1788170947,
-   "finished_epoch": 1788170949,
-   "runner_exit_code": 128,
-   "invocation": "./harness/bin/run-osv-scanner.sh (no arguments)"
+   "runner": "harness/bin/run-osv-scanner.sh",
+   "argv": [
+    "./harness/bin/run-osv-scanner.sh"
+   ],
+   "argument_count": 0,
+   "invocation_index": 7,
+   "started_at_utc": "2026-09-01T14:25:03Z",
+   "ended_at_utc": "2026-09-01T14:25:03Z",
+   "elapsed_seconds": 0.507,
+   "exit_status": 128,
+   "artifact": null,
+   "artifact_expected_name": "harness/artifacts/raw/osv-scanner.json",
+   "stdout_log": {
+    "path": "harness/artifacts/logs/osv-scanner.stdout.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "stderr_log": {
+    "path": "harness/artifacts/logs/osv-scanner.stderr.log",
+    "bytes": 967,
+    "sha256": "03e42fd9fe0c83921df8bc7f4377231723a69ebad6cf48095fa39e4f7fe31cf5"
+   },
+   "status_file": {
+    "path": "harness/artifacts/logs/osv-scanner.status",
+    "bytes": 254,
+    "sha256": "920ba69be84df9436b06ec592ce2ec96b8c6ef52af9cf009503e5280429d6ea8"
+   },
+   "side_artifacts": [],
+   "graph_identity_before_load": null,
+   "graph_identity_after_load": null,
+   "runner_console_log": {
+    "path": "harness/artifacts/logs/osv-scanner.runner-console.log",
+    "bytes": 1281,
+    "sha256": "0503a115a648e5ccead440ab27ea1638832dbd4e6285752783eeafdb178a6f1c"
+   }
   },
   {
-   "sequence_index": 8,
    "tool": "dependency-check",
-   "started_at": "2026-08-31T10:09:09+00:00",
-   "finished_at": "2026-08-31T10:09:20+00:00",
-   "started_epoch": 1788170949,
-   "finished_epoch": 1788170960,
-   "runner_exit_code": 0,
-   "invocation": "./harness/bin/run-dependency-check.sh (no arguments)"
+   "runner": "harness/bin/run-dependency-check.sh",
+   "argv": [
+    "./harness/bin/run-dependency-check.sh"
+   ],
+   "argument_count": 0,
+   "invocation_index": 8,
+   "started_at_utc": "2026-09-01T14:25:03Z",
+   "ended_at_utc": "2026-09-01T14:25:10Z",
+   "elapsed_seconds": 6.372,
+   "exit_status": 0,
+   "artifact": {
+    "path": "harness/artifacts/raw/dependency-check.json",
+    "bytes": 17097,
+    "sha256": "2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799"
+   },
+   "artifact_expected_name": "harness/artifacts/raw/dependency-check.json",
+   "stdout_log": {
+    "path": "harness/artifacts/logs/dependency-check.stdout.log",
+    "bytes": 2067,
+    "sha256": "59a529f2329ff7c64a33671d764486807e5b955203bd3fb2d3b58f45b37ab814"
+   },
+   "stderr_log": {
+    "path": "harness/artifacts/logs/dependency-check.stderr.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+   },
+   "status_file": {
+    "path": "harness/artifacts/logs/dependency-check.status",
+    "bytes": 260,
+    "sha256": "a888d8b4ecb7261c70fff7978b5e16867af0047b2c39983057bc12e93a2765a2"
+   },
+   "side_artifacts": [
+    {
+     "path": "harness/artifacts/logs/dependency-check.out",
+     "member_count": 1,
+     "members": [
+      {
+       "path": "harness/artifacts/logs/dependency-check.out/dependency-check-report.json",
+       "bytes": 17097,
+       "sha256": "2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799"
+      }
+     ]
+    }
+   ],
+   "graph_identity_before_load": null,
+   "graph_identity_after_load": null,
+   "runner_console_log": {
+    "path": "harness/artifacts/logs/dependency-check.runner-console.log",
+    "bytes": 1419,
+    "sha256": "b9669824ed10aa96d0008e2ee518651fe921fa344a242374fe2b78bc66412b3b"
+   }
   },
   {
-   "sequence_index": 9,
    "tool": "joern",
-   "started_at": "2026-08-31T10:09:20+00:00",
-   "finished_at": "2026-08-31T10:31:13+00:00",
-   "started_epoch": 1788170960,
-   "finished_epoch": 1788172273,
-   "runner_exit_code": 0,
-   "invocation": "./harness/bin/run-joern.sh (no arguments)"
+   "runner": "harness/bin/run-joern.sh",
+   "argv": [
+    "./harness/bin/run-joern.sh"
+   ],
+   "argument_count": 0,
+   "invocation_index": 9,
+   "started_at_utc": "2026-09-01T14:25:10Z",
+   "ended_at_utc": "2026-09-01T14:41:24Z",
+   "elapsed_seconds": 974.22,
+   "exit_status": 0,
+   "artifact": {
+    "path": "harness/artifacts/raw/joern.json",
+    "bytes": 354817,
+    "sha256": "bb73a8c657fd31ddf31dc8081f248103e42e2db4fb1b000cca447682c43d8014"
+   },
+   "artifact_expected_name": "harness/artifacts/raw/joern.json",
+   "stdout_log": {
+    "path": "harness/artifacts/logs/joern.stdout.log",
+    "bytes": 14911,
+    "sha256": "3c22ef95664acf10bfdc5225828e17d17eeb1bb513e582f339a0fa67976c19ae"
+   },
+   "stderr_log": {
+    "path": "harness/artifacts/logs/joern.stderr.log",
+    "bytes": 699,
+    "sha256": "1344952be0dea952067d3225a7e4350f654f61a39451a60f754b2092c4b514bd"
+   },
+   "status_file": {
+    "path": "harness/artifacts/logs/joern.status",
+    "bytes": 241,
+    "sha256": "cd94f62129b07e851b35e933e49389231e9b3374527c19cd6f5f983aa8204c05"
+   },
+   "side_artifacts": [],
+   "graph_identity_before_load": {
+    "checked_at_utc": "2026-09-01T14:25:10Z",
+    "aap_named_path": "harness/cpg/spark.cpg",
+    "resolves_to": "/opt/blitzy-harness/cpg/spark.cpg",
+    "bytes": 541309809,
+    "sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7"
+   },
+   "graph_identity_after_load": {
+    "checked_at_utc": "2026-09-01T14:41:24Z",
+    "aap_named_path": "harness/cpg/spark.cpg",
+    "resolves_to": "/opt/blitzy-harness/cpg/spark.cpg",
+    "bytes": 541309809,
+    "sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7"
+   },
+   "runner_console_log": {
+    "path": "harness/artifacts/logs/joern.runner-console.log",
+    "bytes": 1700,
+    "sha256": "47a9d744fb9045a5c981a413ab00a642243be27aa7d828f1c30a88492dc0e266"
+   }
   }
  ],
- "serialization": {
-  "runners_recorded": 9,
-  "distinct_tools": 9,
-  "each_tool_exactly_once": true,
-  "inter_runner_gaps_seconds": [
-   0,
-   0,
-   0,
-   0,
-   0,
-   0,
-   0,
-   0
-  ],
-  "overlapping_intervals": [],
-  "no_two_runners_live_at_once": true,
-  "total_wall_seconds": 3090,
-  "first_start": "2026-08-31T09:39:43+00:00",
-  "last_finish": "2026-08-31T10:31:13+00:00",
-  "additional_live_check": {
-   "what": "Before EVERY start, /proc was scanned for any process executing a runner of THIS clone, and the start was aborted if one was found. The structural serialisation of the driving loop is not the evidence; this is.",
-   "script": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/no_concurrent_runner.py",
-   "scope": "Scoped to this clone's own path: sibling clones on this host legitimately run their own runners at the same time, and their doing so is not an overlap in this lane.",
-   "passes_observed": 9,
-   "expected_passes": 9,
-   "aborts": 0
-  }
- },
- "evidence": {
-  "driver_console": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/evidence/run-scanners.console.log",
-  "per_tool_status_files": [
-   "harness/artifacts/logs/opengrep.status",
-   "harness/artifacts/logs/semgrep.status",
-   "harness/artifacts/logs/datadog-static-analyzer.status",
-   "harness/artifacts/logs/gitleaks.status",
-   "harness/artifacts/logs/checkov.status",
-   "harness/artifacts/logs/trivy.status",
-   "harness/artifacts/logs/osv-scanner.status",
-   "harness/artifacts/logs/dependency-check.status",
-   "harness/artifacts/logs/joern.status"
-  ],
-  "per_tool_streams": [
-   "harness/artifacts/logs/opengrep.stdout.log",
-   "harness/artifacts/logs/opengrep.stderr.log",
-   "harness/artifacts/logs/semgrep.stdout.log",
-   "harness/artifacts/logs/semgrep.stderr.log",
-   "harness/artifacts/logs/datadog-static-analyzer.stdout.log",
-   "harness/artifacts/logs/datadog-static-analyzer.stderr.log",
-   "harness/artifacts/logs/gitleaks.stdout.log",
-   "harness/artifacts/logs/gitleaks.stderr.log",
-   "harness/artifacts/logs/checkov.stdout.log",
-   "harness/artifacts/logs/checkov.stderr.log",
-   "harness/artifacts/logs/trivy.stdout.log",
-   "harness/artifacts/logs/trivy.stderr.log",
-   "harness/artifacts/logs/osv-scanner.stdout.log",
-   "harness/artifacts/logs/osv-scanner.stderr.log",
-   "harness/artifacts/logs/dependency-check.stdout.log",
-   "harness/artifacts/logs/dependency-check.stderr.log",
-   "harness/artifacts/logs/joern.stdout.log",
-   "harness/artifacts/logs/joern.stderr.log"
-  ]
- }
+ "finished_at_utc": "2026-09-01T14:41:25Z",
+ "serialization": "Strictly serial: invocation N+1 started only after invocation N returned, from one script in one process, in one clone. The started/ended stamps are monotonic and non-overlapping, no orchestrator was used, and no runner was invoked more than once.",
+ "evidence": "Each invocation's console output is retained verbatim at harness/artifacts/logs/<tool>.runner-console.log, and the runner's artifact, streams and .status are measured here by byte size and sha256 immediately after the invocation returned \u2014 which is what binds those bytes to that invocation and makes a later substitution detectable."
 }

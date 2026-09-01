@@ -3,8 +3,8 @@
   "query_source": "queries/joern/01-callgraph-unguarded-driver-launch.sc",
   "source_integrity": {
     "query_source": "queries/joern/01-callgraph-unguarded-driver-launch.sc",
-    "query_source_sha256": "dc7ca0fb9f8d7809afcc31602d48d568fd78bf8136a99df55ae6c1e9f6b4180b",
-    "query_source_byte_size": 213224,
+    "query_source_sha256": "79583377ffdc05762226f1437be94d953bf44be1ea94bbc3d9e48f072a27f4ac",
+    "query_source_byte_size": 307625,
     "digested_at": "run time, by the running script, from the file at the path above",
     "self_identification_checked": true,
     "self_identification_basis": "the file digested must declare this query's own id; a digest of any other file is refused rather than published",
@@ -14,7 +14,7 @@
     "contract": "every member of this publication - this envelope, the prose report and the console log - carries this digest, so a member can be checked against the source that wrote it rather than assumed to come from it. A result whose digest does not match the source beside it was not written by that source, and that is a defect in the result rather than a matter of opinion"
   },
   "publication": {
-    "publication_id": "8aed952d64f3ef209fb2ca633cc6c2719f6b1d88b21b82815bfa5032dd2d586a",
+    "publication_id": "282448edaac93a9fcf34a7df351e5ccc32a8d8a5819451687dcd3c5fe87c2c3b",
     "members": ["queries/joern/results/01-callgraph-unguarded-driver-launch.json", "queries/joern/results/01-callgraph-unguarded-driver-launch.md", "harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log"],
     "derivation": "sha256 over the query id, the query source's sha256, the graph's sha256, the graph's byte size and the graph's method count, joined by newlines. Deterministic by construction: two publications sharing this identifier came from the same source over the same graph",
     "why_not_a_timestamp": "a wall-clock or nanotime component would distinguish generations and would also break the byte-identity contract stated under determinism, because an unchanged source over an unchanged graph would then emit different bytes every run",
@@ -23,7 +23,7 @@
     "completion_manifest_role": "the commit record for this member set. It carries each content member's path, byte size and sha256 and a member_set_id derived from those digests, and it is renamed AFTER every content member is in place, so its presence is the completion signal. Absent, or disagreeing with a member on disk, means the set on disk is not one generation",
     "completion_manifest_verified_by_producer": true,
     "member_set_id": "published with the manifest after this envelope's bytes were fixed, so the value is in the manifest rather than here: an envelope cannot carry an identifier derived from its own digest",
-    "member_set_id_versus_publication_id": "publication_id is derived from the query, its source and the graph, before any member exists, so it identifies the RUN and can say nothing about whether the set on disk is complete. member_set_id is derived from MEMBER BYTES, which is what makes it a completion record. Both are published, and neither substitutes for the other"
+    "member_set_id_versus_publication_id": "publication_id is derived from the query, its source and the graph, before any member exists, so it identifies the QUERY/SOURCE/GRAPH INPUT TUPLE and nothing more. It is REPEATABLE ACROSS SEPARATE INVOCATIONS by design - two runs of the same source over the same graph share it, which is the byte-identity contract under determinism rather than a defect - so it does NOT identify an invocation, does NOT encode a nonce, and can say nothing about whether the set on disk is complete or about which execution produced it. member_set_id is derived from MEMBER BYTES, which is what makes it a completion record: it changes when any member's bytes change, so it distinguishes generations that share a publication_id. Neither identifier encodes an invocation, and two invocations producing byte-identical members are indistinguishable by construction. Both are published, and neither substitutes for the other"
   },
   "formulation": "bounded call-graph reachability over CALL edges, from the standalone Master's driver-submission handler to the privileged process launch hosted on the DriverRunner surface",
   "observational_only": true,
@@ -47,7 +47,7 @@
   },
   "distinct_routes": 0,
   "distinct_routes_convention": "routes from both walks deduplicated on (entry point, sink host, hop sequence); the walks' returns are never summed",
-  "distinct_routes_identity_function": "a route identity is the triple (entry point method full name, sink host method full name, the ordered sequence of (from method, call site callee, to method) hops from the entry point to the sink). Two returns with equal triples are ONE route however many traversal orders produced them, and the two walks below are deduplicated against each other on it rather than added together",
+  "distinct_routes_identity_function": "a route identity is the triple (entry point method full name, sink host method full name, the ordered sequence of (from method, call site callee, to method) hops from the entry point to the sink). Two returns with equal triples are ONE route however many traversal orders produced them, and the two walks below are deduplicated against each other on it rather than added together - which is where the hop sequence does the work, since the two walks expand dynamic-dispatch fan-out differently and can therefore reach one (entry point, sink host) pair by two different chains. WITHIN one walk the retained chain is the shortest one the BFS parent map yields, because that map holds one predecessor per method: a second arrival at a sink host already witnessed from the same entry point is counted under alternate_sink_arrivals_not_retained rather than retained as a second identity. So this query enumerates one witness chain per (walk, entry point, sink host) and does not enumerate alternative chains within a walk; that is a property of the traversal, published here rather than implied by an identity the retention could not exercise",
   "never_summed_with": ["02-dataflow-unguarded-driver-launch", "03-parameterized-handler-sink-pairs"],
   "spurious_count": 0,
   "spurious_definition": "a route is spurious ONLY where it passes an authorization or ACL predicate before reaching the sink, the predicate set being exactly the five named selectors below; this judges the query, not Spark",
@@ -66,6 +66,7 @@
     "MAX_TOTAL_RETURNS": 256,
     "MAX_ENTRY_POINTS": 16,
     "MAX_CALL_SCAN": 200000,
+    "MAX_TYPE_SCAN": 100000,
     "FANOUT_CALLEE_THRESHOLD": 32
   },
   "bounds_meaning": {
@@ -75,7 +76,8 @@
     "MAX_EXPANSIONS_PER_WALK": "the whole-walk expansion budget, which bounds one walk across every entry point it traverses",
     "MAX_TOTAL_RETURNS": "the total-returns cap, across every record kind this query emits",
     "MAX_ENTRY_POINTS": "maximum entry points traversed; the remainder are counted as truncated rather than dropped silently",
-    "MAX_CALL_SCAN": "cap on the indexed call-name sweeps used to find the sink and message call sites",
+    "MAX_CALL_SCAN": "cap on the indexed call-site sweeps: the sink name sweep, the predicate call-site sweep and the two message call-site sweeps. Every sweep it governs is listed with its own observed count and truncation flag under bounded_sweeps, and the reached flag for this cap is the disjunction over all of them",
+    "MAX_TYPE_SCAN": "cap on the keyed type and method lookups - the entry-point, predicate, message, thread and JDK-launch selections - so that no traversal in this query materializes without a cap",
     "FANOUT_CALLEE_THRESHOLD": "a THRESHOLD rather than a cap: a call site whose resolved callee set is wider than this is recorded as a dynamic-dispatch fan-out site"
   },
   "bounds_reached": {
@@ -86,18 +88,171 @@
     "MAX_TOTAL_RETURNS": false,
     "MAX_ENTRY_POINTS": false,
     "MAX_CALL_SCAN": false,
+    "MAX_TYPE_SCAN": false,
     "FANOUT_CALLEE_THRESHOLD": true
   },
   "bounds_reached_basis": {
     "MAX_CALL_DEPTH": "reached: A-follows-fan-out used depth 12 of 12 (frontier still non-empty at the bound: true); B-fan-out-recorded used depth 12 of 12 (frontier still non-empty at the bound: true)",
-    "MAX_ROUTES": "not reached: A-follows-fan-out retained 0 of 64; B-fan-out-recorded retained 0 of 64",
+    "MAX_ROUTES": "not reached: A-follows-fan-out retained 0 of 64; B-fan-out-recorded retained 0 of 64. Within one walk a route is retained per (entry point, sink host) pair, so the most a walk can retain on this graph is 4 (2 entry point(s) traversed x 2 sink host(s)); the cap can therefore bind here: false. Where it cannot, that is stated rather than left for a reader to derive from three other numbers",
     "MAX_EXPANSIONS_PER_ENTRY": "not reached: A-follows-fan-out peaked at 25006 expansions at a single entry point, of 200000; B-fan-out-recorded peaked at 5595 expansions at a single entry point, of 200000",
     "MAX_EXPANSIONS_PER_WALK": "not reached: A-follows-fan-out spent 25009 of 3200000 across every entry point; B-fan-out-recorded spent 5598 of 3200000 across every entry point",
     "MAX_TOTAL_RETURNS": "not reached: 4 records of 256",
     "MAX_ENTRY_POINTS": "not reached: 2 entry points discovered, 2 traversed, 0 truncated, cap 16",
-    "MAX_CALL_SCAN": "not reached: 1234 calls named start scanned of 200000, and the sweep reported truncated=false",
+    "MAX_CALL_SCAN": "not reached: sink: calls named start observed 1234 of 200000 (truncated=false); predicate: call sites of the five named predicates observed 36 of 200000 (truncated=false); B1: producer call sites of the message constructor observed 12 of 200000 (truncated=false); B1: consumer call sites of the message accessors observed 36 of 200000 (truncated=false)",
+    "MAX_TYPE_SCAN": "not reached: entry: synthetic partial-function type declarations observed 2 of 100000 (truncated=false); entry: methods on those synthetic types observed 60 of 100000 (truncated=false); entry: source-level handler methods observed 2 of 100000 (truncated=false); predicate: type declarations observed 2 of 100000 (truncated=false); predicate: methods on that type observed 252 of 100000 (truncated=false); B1: message type declarations observed 2 of 100000 (truncated=false); B1: methods on the message type observed 36 of 100000 (truncated=false); route surface: type declarations under org.apache.spark.deploy.master.Master observed 217 of 100000 (truncated=false); route surface: type declarations under org.apache.spark.deploy.worker.Worker observed 156 of 100000 (truncated=false); route surface: type declarations under org.apache.spark.deploy.worker.DriverRunner observed 21 of 100000 (truncated=false); route surface: type declarations under org.apache.spark.deploy.worker.ProcessBuilderLike observed 6 of 100000 (truncated=false); B2: thread host methods observed 2 of 100000 (truncated=false); B2: thread body methods observed 2 of 100000 (truncated=false); B3: JDK launch method nodes observed 1 of 100000 (truncated=false)",
     "FANOUT_CALLEE_THRESHOLD": "exceeded, which is what \"reached\" means for a threshold: A-follows-fan-out encountered 86 fan-out site(s) wider than 32 callees; B-fan-out-recorded encountered 55 fan-out site(s) wider than 32 callees"
   },
+  "bounded_sweeps": [
+      {
+        "sweep": "entry: synthetic partial-function type declarations",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 2,
+        "truncated": false,
+        "basis": "type declarations whose full name matches ^org\\.apache\\.spark\\.deploy\\.master\\.Master\\$\\$anonfun\\$receiveAndReply\\$\\d+$"
+      },
+      {
+        "sweep": "entry: methods on those synthetic types",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 60,
+        "truncated": false,
+        "basis": "methods declared on those type declarations, before the applyOrElse name filter"
+      },
+      {
+        "sweep": "entry: source-level handler methods",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 2,
+        "truncated": false,
+        "basis": "methods named receiveAndReply declared on org.apache.spark.deploy.master.Master"
+      },
+      {
+        "sweep": "sink: calls named start",
+        "cap_name": "MAX_CALL_SCAN",
+        "cap": 200000,
+        "observed": 1234,
+        "truncated": false,
+        "basis": "the indexed sweep over every call named start in the graph, before the callee-regex and host-type constraints"
+      },
+      {
+        "sweep": "predicate: type declarations",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 2,
+        "truncated": false,
+        "basis": "type declarations whose full name is exactly org.apache.spark.SecurityManager"
+      },
+      {
+        "sweep": "predicate: methods on that type",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 252,
+        "truncated": false,
+        "basis": "every method declared on org.apache.spark.SecurityManager, before the three selector steps"
+      },
+      {
+        "sweep": "predicate: call sites of the five named predicates",
+        "cap_name": "MAX_CALL_SCAN",
+        "cap": 200000,
+        "observed": 36,
+        "truncated": false,
+        "basis": "incoming call sites of the five resolved predicate methods, graph-wide, before the route-surface filter"
+      },
+      {
+        "sweep": "B1: message type declarations",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 2,
+        "truncated": false,
+        "basis": "type declarations whose full name is exactly org.apache.spark.deploy.DeployMessages$LaunchDriver"
+      },
+      {
+        "sweep": "B1: methods on the message type",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 36,
+        "truncated": false,
+        "basis": "every method declared on org.apache.spark.deploy.DeployMessages$LaunchDriver, before the constructor and accessor name filters"
+      },
+      {
+        "sweep": "B1: producer call sites of the message constructor",
+        "cap_name": "MAX_CALL_SCAN",
+        "cap": 200000,
+        "observed": 12,
+        "truncated": false,
+        "basis": "incoming call sites of org.apache.spark.deploy.DeployMessages$LaunchDriver.<init>, graph-wide, before the own-type exclusion"
+      },
+      {
+        "sweep": "B1: consumer call sites of the message accessors",
+        "cap_name": "MAX_CALL_SCAN",
+        "cap": 200000,
+        "observed": 36,
+        "truncated": false,
+        "basis": "incoming call sites of the message type's field accessors (driverDesc, driverId, resources), graph-wide, before the own-type exclusion"
+      },
+      {
+        "sweep": "route surface: type declarations under org.apache.spark.deploy.master.Master",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 217,
+        "truncated": false,
+        "basis": "type declarations whose full name starts with org.apache.spark.deploy.master.Master, including synthetic closure and anonymous classes"
+      },
+      {
+        "sweep": "route surface: type declarations under org.apache.spark.deploy.worker.Worker",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 156,
+        "truncated": false,
+        "basis": "type declarations whose full name starts with org.apache.spark.deploy.worker.Worker, including synthetic closure and anonymous classes"
+      },
+      {
+        "sweep": "route surface: type declarations under org.apache.spark.deploy.worker.DriverRunner",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 21,
+        "truncated": false,
+        "basis": "type declarations whose full name starts with org.apache.spark.deploy.worker.DriverRunner, including synthetic closure and anonymous classes"
+      },
+      {
+        "sweep": "route surface: type declarations under org.apache.spark.deploy.worker.ProcessBuilderLike",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 6,
+        "truncated": false,
+        "basis": "type declarations whose full name starts with org.apache.spark.deploy.worker.ProcessBuilderLike, including synthetic closure and anonymous classes"
+      },
+      {
+        "sweep": "B2: thread host methods",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 2,
+        "truncated": false,
+        "basis": "methods named start declared on org.apache.spark.deploy.worker.DriverRunner"
+      },
+      {
+        "sweep": "B2: thread body methods",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 2,
+        "truncated": false,
+        "basis": "methods named run declared on types matching ^org\\.apache\\.spark\\.deploy\\.worker\\.DriverRunner\\$\\$anon\\$\\d+$"
+      },
+      {
+        "sweep": "B3: JDK launch method nodes",
+        "cap_name": "MAX_TYPE_SCAN",
+        "cap": 100000,
+        "observed": 1,
+        "truncated": false,
+        "basis": "methods whose full name is exactly java.lang.ProcessBuilder.start:java.lang.Process()"
+      }
+    ],
+  "bounded_sweeps_completeness": "every traversal this query materializes OUTSIDE the two walks is listed here, and each goes through one bounded-materialization helper that takes cap+1 elements and reports truncation when it saw more than cap - so a cap applied at one site and forgotten at the next is not expressible, and a sweep absent from this list did not run. The walks' own expansions are node-local rather than graph-wide (one method group's call sites, one call site's linked callees) and are governed instead by MAX_CALL_DEPTH, MAX_EXPANSIONS_PER_ENTRY, MAX_EXPANSIONS_PER_WALK and MAX_ENTRY_POINTS, each of which is published above with its own reached flag and basis. Stating the division rather than claiming one helper covers both is the point: the counters that bound the walks are a different mechanism from the cap that bounds a sweep, and a reader checking the claim needs to know which governs what",
+  "route_cap_reachable_maximum": 4,
+  "route_cap_can_bind": false,
+  "alternate_sink_arrivals_not_retained": 0,
+  "alternate_sink_arrivals_meaning": "arrivals at a sink host already witnessed from the same entry point within the same walk. The BFS keeps one predecessor per method, so the only hop chain reconstructable for a target is the shortest one, and a second identity for the same (walk, entry point, sink host) triple would publish that same chain twice. They are therefore counted rather than retained, and the count is published so the multiplicity the identity collapses is visible instead of silent",
   "entry_points_discovered": 2,
   "entry_points_traversed": 2,
   "entry_points_truncated": 0,
@@ -144,16 +299,25 @@
     "named_path_is_symlink": true,
     "resolved_target": "a host-shared read-only file outside the repository root, reached by following the symlink",
     "resolved_target_identification": "no absolute host path is emitted anywhere in this envelope, so the resolved target is identified by the symlink-FOLLOWING byte size and sha256 below rather than by a host path. That pair is the identity of record and is what every load re-verifies; a host path would additionally vary between two checkouts of one branch and so could not be part of a deterministic envelope",
-    "measurement_semantics": "symlink-FOLLOWING. Where the named path is a symlink, measuring the link itself records a few dozen bytes rather than the graph: byte_size_without_following is recorded only to be discarded",
+    "measurement_semantics": "symlink-FOLLOWING. Where the named path is a symlink, measuring the link itself records a few dozen bytes rather than the graph: byte_size_without_following is recorded only to be discarded. The size below is the resolved target's; the sha256 below is taken from the bytes as they were copied into the private input this run imported, and the copy's size is asserted equal to the target's, so the pair describes one set of bytes rather than two measurements of two files",
     "byte_size_following_the_link": 541309809,
     "byte_size_without_following": 33,
     "sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7",
-    "identity_record": "harness/artifacts/logs/cpg-frontend.log",
+    "identity_record": "provision-log/cpg-identity.txt",
+    "identity_record_provenance": "provisioning record of account for the graph this run did not write",
+    "identity_record_resolution": "resolved by PROVENANCE in a fixed order, never by which candidate matched: the in-checkout frontend log (harness/artifacts/logs/cpg-frontend.log) governs where it carries exactly one strict bytes:/sha256: pair, because such a pair exists only if this checkout's frontend wrote a graph; otherwise the provisioning record of account beside the RESOLVED graph governs, at <the graph's directory>/../provision-log/ over cpg-identity.txt, cpg-record.txt. Every candidate that exists is read, ambiguity inside one record and disagreement between two are both fatal, and the order therefore selects a writer rather than an outcome. This is the same resolution harness/lib/preflight_graph_identity.py applies to the Stage 3 runner, so the probe and that gate cannot adjudicate one load against two records",
+    "identity_record_corroborated_by": ["provision-log/cpg-record.txt"],
+    "identity_record_candidates_read": 2,
     "identity_record_role": "the declared owner of this pair, which computed it at write time with the same symlink-following semantics; this envelope cites that measurement rather than establishing a second one",
     "identity_recorded_byte_size": 541309809,
     "identity_recorded_sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7",
     "identity_comparison_result": "match - the observed byte size and sha256 equal the pair the identity record owns, on both values; a mismatch halts the run in the identity stage and publishes no envelope",
     "identity_reverified_before_load": true,
+    "loaded_bytes_are_a_private_copy": true,
+    "private_copy_protocol": "the digest above is taken FROM THE BYTES BEING COPIED, in one pass, into a directory this run created under the clone-private scratch root with a random name and mode 0700; the copy is then set read-only in a non-writable directory, and importCpg is given that copy and nothing else. Measuring the host-shared path and then importing it would be two opens of one name, so the pair compared would not be the pair the engine read",
+    "private_copy_verified_after_load": true,
+    "private_copy_post_load_check": "size, sha256 and INODE re-measured after the load and required unchanged, which detects a swap across the load window rather than assuming one cannot happen. Residual limit, stated rather than papered over: importCpg accepts a path, so the engine's own open is by name - what is established is that the name is one this run created, in a directory only this run can write, holding bytes whose digest was taken as they were written and re-verified once the engine was done with them",
+    "private_copy_retained_after_verification": true,
     "aap_named_path_reconciliation": "same file (equal resolved target)",
     "methods": 1396899,
     "type_declarations": 119721,
@@ -163,20 +327,28 @@
     "jdk_major": "21",
     "jdk_major_required": "21",
     "jvm_version": "21.0.12.1+1-LTS",
-    "command": "cd <a scratch directory outside the repository> && HARNESS_REPO_ROOT=<the repository root> JAVA_HOME=\"$JAVA_HOME_21\" JAVA_TOOL_OPTIONS=-Xmx64g SL_LOGGING_LEVEL=WARN joern --script <the repository root>/queries/joern/01-callgraph-unguarded-driver-launch.sc -J-Xmx64g < /dev/null",
-    "command_completeness": "the command above is the whole of what this query needs: the repository root, the JDK, the heap override, the log level and the script path. It reads no other environment variable that changes what it loads or what it publishes",
+    "command": "cd \"$HARNESS_SCRATCH_DIR\" && HARNESS_REPO_ROOT=\"$HARNESS_REPO_ROOT\" HARNESS_CPG=\"$HARNESS_CPG\" JAVA_HOME=\"$JAVA_HOME_21\" JAVA_TOOL_OPTIONS=-Xmx64g SL_LOGGING_LEVEL=WARN joern --script \"$HARNESS_REPO_ROOT/queries/joern/01-callgraph-unguarded-driver-launch.sc\" -J-Xmx64g < /dev/null",
+    "command_precondition": "run from a checkout of this branch after `BLITZY_CLONE_INDEX=<this clone's index> ; . harness/env.sh`, which exports $HARNESS_REPO_ROOT, $HARNESS_CPG and $HARNESS_SCRATCH_DIR - the three values the command below reads",
+    "command_working_directory": "$HARNESS_SCRATCH_DIR, outside the repository, because joern creates ./workspace in its own working directory and exposes no flag to move it",
+    "command_graph_selector": "$HARNESS_CPG, named explicitly in the command because it selects the graph bytes the query loads",
+    "command_completeness": "the command above is COMPLETE and runnable as written: the working directory, the repository root, the graph selector, the JDK, the heap override, the log level, the script path and the closed stdin. Every environment value this query reads appears in it - $HARNESS_REPO_ROOT, $HARNESS_CPG and $HARNESS_SCRATCH_DIR - and it reads no other. The three are written as variable references rather than as literal paths because an absolute path is a property of a checkout rather than of the measurement, and this envelope is held to byte-identity across checkouts; sourcing harness/env.sh exports all three, which is what the precondition above states. There is still no variable that selects the identity record: it is resolved by provenance from records reached through the values named here, so a reader running this command reproduces the run this envelope describes rather than a differently adjudicated one",
     "jvm_arguments_kept": ["-Xmx64g"],
     "jvm_arguments_redacted_count": 0,
     "jvm_arguments_redaction_policy": "a whitelist: an argument whose key is one of the memory or stack flags the query names is logged as written, because the heap it establishes is the evidence. Every other argument is reduced to its key and its value replaced by <redacted>, and an argument carrying no key/value separator is a key with no value and is logged as the key it is. No value this query has not whitelisted reaches any log, status field or published record, and the count of reduced arguments is reported so the reduction cannot pass unnoticed",
     "heap_actually_used_bytes": 68719476736,
     "heap_floor_bytes": 68719476736,
     "heap_at_or_above_floor": true,
+    "heap_above_floor": false,
+    "heap_pre_touch_proof": "the floor value's own commit proof is the gate's java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version, which exited 0. A heap above the floor is permitted and reported, and is proven committable by that same pre-touch test before use; a heap below it is not, which is why this query measures Runtime.maxMemory() and halts rather than trusting the flag it was given",
     "heap_direction_rule": "the floor is a minimum and a default, never a ceiling: a larger heap is permitted and reported, and a smaller one is not, because a truncated result's silence cannot be told apart from a clean one",
     "heap_override_mechanism": "MEASURED, NOT ASSUMED: joern's --script path forks a child JVM with no JVM options forwarded, so -J-Xmx reaches the launcher only and the child would otherwise run at an ergonomic default. JAVA_TOOL_OPTIONS is inherited by the child and is what actually raises the heap the query runs at, which is why the query measures Runtime.maxMemory() and halts below the floor rather than trusting the flag it was given",
     "loader": "importCpg into a switched workspace; the frontend-then-importCpg route is mandated because the alternative spawns a second JVM at the same heap",
     "loader_is_importcpg_only": true,
     "loader_alternative_absent_from_the_source": true,
     "workspace": "queries/joern/.workspace",
+    "workspace_run_directory": "queries/joern/.workspace/run-01-callgraph-unguarded-driver-launch-7a08e37d1a5c9433e965886d",
+    "workspace_safety": "the AAP-named root is reached by a descriptor descent from the resolved repository root that refuses a symbolic link at any component; the directory actually switched to is created by this run with createDirectory under a random name, so an existing name fails rather than being reused and no previous run's project state is inherited; an exclusive file lock is held inside it for the rest of the run, because two Joern processes in one clone are what corrupts a workspace; and it is its verified real path that is handed to switchWorkspace. It is removed by a shutdown hook confined to that directory, since the engine holds project state in it until the JVM exits",
+    "workspace_lock_held": true,
     "heap_bound_jvm_position": "4 of 4 (frontend build, importCpg verification load, Stage 3 Joern runner, this probe)"
   },
   "predicate_selector": {
@@ -195,7 +367,47 @@
     "call_sites_graph_wide": 18,
     "distinct_callers_graph_wide": 18,
     "call_sites_on_the_route_surface": 0,
-    "route_surface_type_prefixes": ["org.apache.spark.deploy.master.Master", "org.apache.spark.deploy.rest.StandaloneRestServer", "org.apache.spark.deploy.worker.DriverRunner"]
+    "route_surface_type_prefixes": ["org.apache.spark.deploy.master.Master", "org.apache.spark.deploy.worker.Worker", "org.apache.spark.deploy.worker.DriverRunner", "org.apache.spark.deploy.worker.ProcessBuilderLike"],
+    "route_surface_derivation": "DERIVED from this query's own route rather than declared: the entry-point owner, the relay that is the consumer end of the RPC hop measured as boundary B1, and the two sink hosts the launch call sites actually sit on. Stage F asserts that every route end this query measured is covered by one of these prefixes, and publishes the reach evidence below, so the surface is checked against the route rather than asserted alongside it",
+    "route_surface_reach_evidence": [
+      {
+        "type_prefix": "org.apache.spark.deploy.master.Master",
+        "role_on_this_route": "entry-point owner: the handler the walks start from",
+        "type_declarations_owned": 217,
+        "measured_route_ends_accounted_for": 2,
+        "measured_route_ends": ["entry point: org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)", "entry point: org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)"],
+        "predicate_call_sites_here": 0,
+        "reached_by_the_route": true
+      },
+      {
+        "type_prefix": "org.apache.spark.deploy.worker.Worker",
+        "role_on_this_route": "relay: the consumer end of the RPC hop measured as boundary B1",
+        "type_declarations_owned": 156,
+        "measured_route_ends_accounted_for": 1,
+        "measured_route_ends": ["B1 consumer end (the relay): org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)"],
+        "predicate_call_sites_here": 0,
+        "reached_by_the_route": true
+      },
+      {
+        "type_prefix": "org.apache.spark.deploy.worker.DriverRunner",
+        "role_on_this_route": "sink host: the runner that holds the launch call site",
+        "type_declarations_owned": 21,
+        "measured_route_ends_accounted_for": 1,
+        "measured_route_ends": ["sink host: org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)"],
+        "predicate_call_sites_here": 0,
+        "reached_by_the_route": true
+      },
+      {
+        "type_prefix": "org.apache.spark.deploy.worker.ProcessBuilderLike",
+        "role_on_this_route": "sink host: the launcher surface the privileged start is declared on",
+        "type_declarations_owned": 6,
+        "measured_route_ends_accounted_for": 1,
+        "measured_route_ends": ["sink host: org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()"],
+        "predicate_call_sites_here": 0,
+        "reached_by_the_route": true
+      }
+    ],
+    "route_surface_covers_every_measured_end": true
   },
   "walks": [
       {
@@ -213,6 +425,7 @@
         "entry_expansion_cap_reached": false,
         "walk_expansion_budget_exhausted": false,
         "route_cap_reached": false,
+        "alternate_sink_arrivals_not_retained": 0,
         "routes_returned": 0
       },
       {
@@ -230,6 +443,7 @@
         "entry_expansion_cap_reached": false,
         "walk_expansion_budget_exhausted": false,
         "route_cap_reached": false,
+        "alternate_sink_arrivals_not_retained": 0,
         "routes_returned": 0
       }
     ],
@@ -242,11 +456,11 @@
         "against": "02-dataflow-unguarded-driver-launch",
         "status": "not_duplicate",
         "scope_of_the_duplication": "none",
-        "basis": "the formulations differ on the edge kinds traversed (CALL); the node kinds selected as a route's ends (METHOD); the bound, as the same kind of quantity at the same value (12 call-graph hops expanded from an entry point); the Joern API construct sets, whose set difference is empty in BOTH directions, while agreeing on at least one handler/sink pair in common; the entry-point selector literals, byte for byte; the sink selector literals, byte for byte. Neither traversal establishes the other's conclusion, so the two results are reported side by side and never summed",
+        "basis": "the formulations differ on the edge kinds traversed (this query traverses CALL where 02-dataflow-unguarded-driver-launch traverses REACHING_DEF); the node kinds selected as a route's ends (this query selects METHOD where 02-dataflow-unguarded-driver-launch selects METHOD_PARAMETER_IN, EXPRESSION); the bound, as a named kind of quantity and a value (this query bounds call-graph hops expanded from an entry point at 12 where 02-dataflow-unguarded-driver-launch bounds call boundaries the backward data-flow search may expand at 6); the Joern API construct sets (4 construct(s) only here and 19 only there, over 24 shared), while agreeing on the handler/sink pairs addressed (at least one pair in common: pair-one); the entry-point selector literals (identical byte for byte); the sink selector literals (identical byte for byte). Neither traversal establishes the other's conclusion, so the two results are reported side by side and never summed",
         "evidence_relied_on": ["the two sources' declared formulation identity blocks, read at run time", "the entry-point and sink selector literals each source declares, compared as literal text", "the bound each source declares, as a named quantity and a value", "the Joern API construct list each source declares, differenced in both directions"],
         "sibling_source": "queries/joern/02-dataflow-unguarded-driver-launch.sc",
-        "sibling_source_sha256": "546003c5b35a5b1e866a0928b362ab9016fc366d1e4305c3b4d1191e557996de",
-        "sibling_source_byte_size": 267884,
+        "sibling_source_sha256": "902b7ffe8d708d6cb4ddfc057f65b1a2a023fc90c5b55c8d3ba012885dcb3fd1",
+        "sibling_source_byte_size": 369754,
         "sibling_source_read_note": "measured from the source text at run time",
         "same_target_pair": true,
         "pair_ids_here": ["pair-one"],
@@ -277,7 +491,7 @@
         "traversal_semantics_here": "reachability over CALL edges, selecting whole METHOD nodes as its ends",
         "traversal_semantics_there": "interprocedural data-flow reachability over the dataflow layer's reaching-definition edges, selecting PARAMETER and EXPRESSION nodes as its ends",
         "api_constructs_only_here": ["Call.code", "Call.order", "Method.callOut", "NoResolve.getCalledMethodsAsTraversal"],
-        "api_constructs_only_there": ["AstNode.code", "AstNode.label", "AstNode.lineNumber", "Call.argument", "Call.receiver", "CfgNode.method", "EngineConfig.maxCallDepth", "EngineContext.config", "EngineContext.copy", "EngineContext.semantics", "Method.call", "Method.parameter", "MethodParameterIn.index", "MethodParameterIn.method", "MethodParameterIn.name", "MethodParameterIn.typeFullName", "Path.elements", "Traversal.reachableByFlows"],
+        "api_constructs_only_there": ["AstNode.code", "AstNode.label", "AstNode.lineNumber", "Call.argument", "Call.receiver", "CfgNode.method", "EngineConfig.copy", "EngineConfig.maxCallDepth", "EngineContext.config", "EngineContext.copy", "EngineContext.semantics", "Method.call", "Method.parameter", "MethodParameterIn.index", "MethodParameterIn.method", "MethodParameterIn.name", "MethodParameterIn.typeFullName", "Path.elements", "Traversal.reachableByFlows"],
         "api_constructs_shared": 24,
         "api_construct_set_difference_both_directions_empty": false,
         "can_differ_for_some_input": true,
@@ -290,11 +504,11 @@
         "against": "03-parameterized-handler-sink-pairs",
         "status": "duplicate_formulation_on_pair-one",
         "scope_of_the_duplication": "pair-one only; 03-parameterized-handler-sink-pairs additionally addresses pair-two, which this query does not",
-        "basis": "every component of the formulation identity agrees at the scope named above: the edge kinds traversed (CALL); the node kinds selected as a route's ends (METHOD); at least one handler/sink pair in common; the entry-point selector literals, byte for byte; the sink selector literals, byte for byte; the bound, as the same kind of quantity at the same value (12 call-graph hops expanded from an entry point); the Joern API construct sets, whose set difference is empty in BOTH directions. The comparison is over the two SOURCES' own declarations, so it is a property of the two formulations rather than of either run's numbers",
+        "basis": "every component of the formulation identity agrees at the scope named above: the edge kinds traversed (both traverse CALL); the node kinds selected as a route's ends (both select METHOD); the handler/sink pairs addressed (at least one pair in common: pair-one); the entry-point selector literals (identical byte for byte); the sink selector literals (identical byte for byte); the bound, as a named kind of quantity and a value (both bound call-graph hops expanded from an entry point at 12); the Joern API construct sets (set difference empty in BOTH directions over 28 construct(s)). The comparison is over the two SOURCES' own declarations, so it is a property of the two formulations rather than of either run's numbers",
         "evidence_relied_on": ["the two sources' declared formulation identity blocks, read at run time", "the entry-point and sink selector literals each source declares, compared as literal text", "the bound each source declares, as a named quantity and a value", "the Joern API construct list each source declares, differenced in both directions"],
         "sibling_source": "queries/joern/03-parameterized-handler-sink-pairs.sc",
-        "sibling_source_sha256": "685f33f8b27b626778b79e1900095d28b29c90a17ed1a9dd785485285174b5f9",
-        "sibling_source_byte_size": 321780,
+        "sibling_source_sha256": "8f67126c56185bde3221ad760130295cf9f7f64411be528e9fd578a4fbad631e",
+        "sibling_source_byte_size": 428057,
         "sibling_source_read_note": "measured from the source text at run time",
         "same_target_pair": true,
         "pair_ids_here": ["pair-one"],
@@ -335,11 +549,14 @@
         "results_summed": false
       }
     ],
-  "effort_query_revisions_committed": 4,
+  "effort_query_revisions_committed": 3,
   "effort_query_revisions_established": true,
-  "effort_query_revisions_measurement": "measured from the repository's own history at run time, newest first",
-  "effort_query_revisions_commits": ["b166213252d852cd409f3982dafcaf1cc2b04330", "56d4bf10a02adb0e44b2bf59f77e9a2402965979", "b562bca85a5e4a1986607b023650a6e5dcd3476b", "1ac5915ed1535ff1ffece11b6b40b0286be74d45"],
-  "effort_query_revisions_convention": "commits touching queries/joern/01-callgraph-unguarded-driver-launch.sc from its first appearance to the end of the probe, counted at run time from the repository's own history. The commit that publishes these result files is necessarily NOT among them: it cannot exist while the run that writes them is still in progress",
+  "effort_query_revisions_measurement": "commits touching this path in HEAD's own history, newest first, every one verified an ancestor of the HEAD published beside this count",
+  "effort_query_revisions_commits": ["d3bc40ae290877827cbd422ba9025a4f54328ec0", "232d0d9cca3f15d33cedb96fa18dac3c6602668b", "1ac5915ed1535ff1ffece11b6b40b0286be74d45"],
+  "effort_query_revisions_convention": "commits touching queries/joern/01-callgraph-unguarded-driver-launch.sc in the history of the HEAD this run measured at, newest first, counted at run time from the repository's own history. ONE convention, with three parts that make the number reproducible: the range is HEAD's own ancestry, named explicitly rather than defaulted, and the HEAD and the branch it was on are published beside the count; every commit returned is verified to be an ancestor of that HEAD, so a commit reachable only from another ref cannot enter the count - which is what happened to earlier figures once per-clone branches were reconciled and the commits a previous run had listed stopped being ancestors of the branch carrying its files; and the commit that PUBLISHES these result files is necessarily not among them, because it cannot exist while the run that writes them is still in progress. A later reader whose git log shows one more commit than the count reconciles against that window rather than against a bare number",
+  "effort_query_revisions_measured_at_head": "d3bc40ae290877827cbd422ba9025a4f54328ec0",
+  "effort_query_revisions_measured_on_branch": "blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab",
+  "effort_query_revisions_ancestry_verified": true,
   "effort_joern_api_constructs": ["Call.code", "Call.dispatchType", "Call.lineNumber", "Call.method", "Call.methodFullName", "Call.name", "Call.order", "Method.callIn", "Method.callOut", "Method.fullName", "Method.lineNumber", "Method.name", "Method.typeDecl", "NoResolve.getCalledMethodsAsTraversal", "Steps.fullName", "Steps.fullNameExact", "Steps.l", "Steps.nameExact", "Steps.size", "Steps.take", "TypeDecl.fullName", "TypeDecl.method", "cpg.call", "cpg.file", "cpg.method", "cpg.typeDecl", "importCpg", "switchWorkspace"],
   "effort_joern_api_construct_count": 28,
   "effort_joern_api_constructs_audit": {
@@ -363,17 +580,17 @@
     "absolute_host_paths_measurement": "MEASURED, not asserted: the 8 absolute paths this run resolved were each searched for in the rendered envelope, and what is reported is the outcome of that search. Only this determinism block is outside the searched text, and it carries the labels of any path found rather than the paths themselves, so reporting a hit cannot itself emit one. A path shorter than 6 characters is not searched for, because a very short prefix matches ordinary prose",
     "absolute_host_path_labels_found": [],
     "trailing_newline": true,
-    "publication_id": "8aed952d64f3ef209fb2ca633cc6c2719f6b1d88b21b82815bfa5032dd2d586a",
-    "reproduction_command": "cd <a scratch directory outside the repository> && HARNESS_REPO_ROOT=<the repository root> JAVA_HOME=\"$JAVA_HOME_21\" JAVA_TOOL_OPTIONS=-Xmx64g SL_LOGGING_LEVEL=WARN joern --script <the repository root>/queries/joern/01-callgraph-unguarded-driver-launch.sc -J-Xmx64g < /dev/null",
+    "publication_id": "282448edaac93a9fcf34a7df351e5ccc32a8d8a5819451687dcd3c5fe87c2c3b",
+    "reproduction_command": "cd \"$HARNESS_SCRATCH_DIR\" && HARNESS_REPO_ROOT=\"$HARNESS_REPO_ROOT\" HARNESS_CPG=\"$HARNESS_CPG\" JAVA_HOME=\"$JAVA_HOME_21\" JAVA_TOOL_OPTIONS=-Xmx64g SL_LOGGING_LEVEL=WARN joern --script \"$HARNESS_REPO_ROOT/queries/joern/01-callgraph-unguarded-driver-launch.sc\" -J-Xmx64g < /dev/null",
     "reproduction_check_status": "not attempted from inside this run: a run cannot launch and compare a second copy of itself without becoming the thing it is measuring. The contract above is therefore stated as the condition a reproducer checks, and the publication identifier is what makes the check mechanical - two publications sharing it were produced from the same source over the same graph and must be byte-identical",
-    "mixed_generation_detection": "every member of this publication carries the same publication identifier and the same query source sha256. A consumer holding two members whose identifiers differ is holding two generations, and that is detectable from the members themselves rather than from a separate marker file"
+    "mixed_generation_detection": "every member of this publication carries the same publication identifier and the same query source sha256. A consumer holding two members whose identifiers differ is holding two generations, and that is detectable from the members themselves rather than from a separate marker file. The converse does NOT hold and is not claimed: equal publication identifiers mean equal query, source and graph, which two separate invocations share, so sameness of generation is settled by the completion manifest's member_set_id over MEMBER BYTES and not by this identifier"
   },
   "provenance": {
     "measured_values_cited_from": "the graph loaded in this run, this query's own source text, the identity record named above and the repository's own commit history for this source path",
     "measured_values_note": "every number in this envelope was computed during this run from one of those four sources. No figure is transcribed from another document, from a sibling query's envelope or from a previous run, which is why a figure this run could not establish is published as null with its reason beside it rather than carried over",
-    "graph_identity_owner": "harness/artifacts/logs/cpg-frontend.log",
+    "graph_identity_owner": "provision-log/cpg-identity.txt",
     "query_source": "queries/joern/01-callgraph-unguarded-driver-launch.sc",
-    "query_source_sha256": "dc7ca0fb9f8d7809afcc31602d48d568fd78bf8136a99df55ae6c1e9f6b4180b",
+    "query_source_sha256": "79583377ffdc05762226f1437be94d953bf44be1ea94bbc3d9e48f072a27f4ac",
     "bound_constants_defined_by": "queries/joern/01-callgraph-unguarded-driver-launch.sc",
     "line_numbers_verified_against": "the pinned tree at 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, read directly",
     "graph_path_expression": "repo-relative and portable: the graph is named by HARNESS_CPG where that is set and by harness/cpg/spark.cpg otherwise, and the resolved target is identified by its byte size and sha256 rather than by a host path",

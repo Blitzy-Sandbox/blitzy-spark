@@ -11,15 +11,14 @@ asserts, and AAP 0.9.4 puts it in the definition of done.  A failure here is one
 the conditions that stops the run (AAP 0.9.2), so nothing below is weakened to make a
 test pass.
 
-No user-specified rule governs this file.  ``review_rules`` returns exactly one line,
-``No user rules provided.``, and that line is the whole document -- corroborated by
-AAP 0.7 and AAP 0.10.2.  Enterprise best practice applies in their place and the
-absence is not licence to lower the bar, which here means three concrete things: the
-halt is asserted by its exact exception type rather than by a bare ``Exception``,
-``scanner_class`` is asserted per row against the section the record was read from
-rather than in aggregate, and every rejection is asserted by its **class name** taken
-from :data:`normalize.paths.REJECT_CLASSES` rather than by a rejection count.  A test
-that only counts rejections cannot tell one condition from another.
+No user-specified rule governs this file; enterprise-standard best practice applies in
+its place (AAP 0.7, AAP 0.10.2).  That absence is not licence to lower the bar, which
+here means three concrete things: the halt is asserted by its exact exception type
+rather than by a bare ``Exception``, ``scanner_class`` is asserted per row against the
+section the record was read from rather than in aggregate, and every rejection is
+asserted by its **class name** taken from :data:`normalize.paths.REJECT_CLASSES` rather
+than by a rejection count.  A test that only counts rejections cannot tell one
+condition from another.
 
 Why the unsupported-section halt has to be a halt and not a warning
 -------------------------------------------------------------------
@@ -45,7 +44,7 @@ Rejection conditions this adapter can produce, one negative fixture each
 -----------------------------------------------------------------------
 Eight of the ten classes in :data:`normalize.paths.REJECT_CLASSES` are reachable from
 a Trivy artifact, and every one has a committed fixture asserted below whether or not
-this run's own artifact contained the case (AAP 0.9.4): ``absent_path``,
+the measured artifact contained the case (AAP 0.9.4): ``absent_path``,
 ``unresolvable_path``, ``missing_rule_id``, ``missing_message``,
 ``non_integer_start_line``, ``unattributable_section``,
 ``unformable_package_coordinate`` and ``malformed_record``.
@@ -55,8 +54,9 @@ The two sets are asserted to **partition** the closed vocabulary by
 the fixture that produces it, every class it cannot is named with the reason, and the
 two together are asserted equal to :data:`normalize.paths.REJECT_CLASSES` with no
 remainder on either side.  A class that fell out of both sets -- reachable but
-untested -- is what that assertion exists to catch, and it is exactly how
-``absent_path`` went unexercised while this docstring said it was not claimed.
+untested -- is what that assertion exists to catch, and it is why the count and the
+class names in the list above are asserted against the measured sets rather than only
+written down.
 
 Conditions this adapter **cannot** produce, and why
 ---------------------------------------------------
@@ -97,10 +97,10 @@ writes no deliverable -- in particular never ``oss-scan-results/findings.json`` 
 
 Presence is observed, never assumed
 -----------------------------------
-This run wrote ``harness/artifacts/raw/trivy.json``, and ``fixtures/trivy.json`` is a
-byte-for-byte copy of it (AAP 0.6.2).  :class:`CapturedFixtureProvenanceTest` is the
-one class that reads the artifact, and it reads it to prove that provenance: the two
-files' bytes, lengths and digests, then every ``Results`` element and every
+``fixtures/trivy.json`` is a byte-for-byte copy of the runner's own artifact,
+``harness/artifacts/raw/trivy.json`` (AAP 0.6.2).  :class:`CapturedFixtureProvenanceTest`
+is the one class that reads the artifact, and it reads it to prove that provenance: the
+two files' bytes, lengths and digests, then every ``Results`` element and every
 ``Misconfigurations`` record under canonical comparison, then the envelope member by
 member.  Every other assertion in this module is over a committed fixture, so the
 corpus stands on its own even where the artifact tree is absent.
@@ -220,15 +220,15 @@ POSITIVE_FIXTURE = "trivy.json"
 #: Read by ``CapturedFixtureProvenanceTest`` and by nothing else; no test writes to it.
 RAW_ARTIFACT_RELPATH = "harness/artifacts/raw/trivy.json"
 
-#: The derived companion to the capture: the authored multi-section document this
-#: module used as its positive fixture before the capture replaced it, kept verbatim
-#: under a name that states what it is.  It exists because the raw artifact contains no
-#: ``Vulnerabilities`` and no ``Secrets`` section, so the capture cannot exercise
-#: scanner_class variation, section-dependent ``start_line``, secret redaction,
-#: multi-valued CWE/CVE selection or any package-coordinate level.  Its expected file
-#: declares it derived, names what it was derived from, and enumerates the feature
-#: cases it exists to carry.  Every assertion that needs those features runs against
-#: this document; every assertion about provenance runs against the capture.
+#: The derived companion to the capture: an authored multi-section document, carrying a
+#: ``derived-`` name so no fixture claims captured provenance it does not have.  It
+#: exists because the raw artifact contains no ``Vulnerabilities`` and no ``Secrets``
+#: section, so the capture cannot exercise scanner_class variation, section-dependent
+#: ``start_line``, secret redaction, multi-valued CWE/CVE selection or any
+#: package-coordinate level.  Its expected file declares it derived, states separately
+#: where its shape and its records came from, and enumerates the feature cases it exists
+#: to carry.  Every assertion that needs those features runs against this document;
+#: every assertion about provenance runs against the capture.
 FEATURES_FIXTURE = "derived-trivy-features.json"
 
 #: The expected-row stems for the two positive fixtures, so a test can name the pair it
@@ -1062,9 +1062,10 @@ class TrivyAdapterTestCase(unittest.TestCase):
 class FixtureCorpusTest(TrivyAdapterTestCase):
     """The corpus this module asserts over is present, and its absence is reported.
 
-    Presence is observed rather than assumed.  The precedent provisioning wrote no
-    Trivy artifact at all, so a fixture is the only thing this module can assert over
-    and a missing one is a blocking gap rather than a test to skip.
+    Presence is observed rather than assumed.  Every assertion in this module runs over
+    a committed fixture, so one that is silently absent would leave the behaviour it
+    covers unasserted while the suite stayed green: a missing fixture is a blocking gap
+    rather than a test to skip.
     """
 
     def test_every_fixture_this_module_reads_is_committed(self) -> None:
@@ -1105,13 +1106,13 @@ class FixtureCorpusTest(TrivyAdapterTestCase):
                 )
 
     def test_the_scan_root_is_temporary_empty_and_outside_the_repository(self) -> None:
-        """Nothing asserted here can depend on the working checkout or on the run's tree.
+        """Nothing asserted here can depend on the working checkout or on a scanned tree.
 
-        The run's own artifact may or may not exist -- the precedent provisioning wrote
-        none -- so a test whose outcome depended on the tree would pass or fail for a
-        reason that has nothing to do with the adapter.  The root is a temporary
-        directory that exists and holds nothing, which is sufficient because no code
-        path under test reads the tree.
+        The pinned tree is cloned outside this repository and is neither built nor
+        scanned from here, so a test whose outcome depended on a tree being present would
+        pass or fail for a reason that has nothing to do with the adapter.  The root is a
+        temporary directory that exists and holds nothing, which is sufficient because no
+        code path under test reads the tree.
         """
         env = environment()
         root = Path(env.root)
@@ -1776,11 +1777,13 @@ class CallerContractTest(TrivyAdapterTestCase):
     attributable to the one value it changed rather than to the way this class assembles
     a call.
 
-    One documented non-error is covered too: ``Results`` absent or null is ordinary
-    Trivy output, is counted under ``results_absent_or_null``, and must not raise.  It
-    sits beside the negative for ``Results`` present as a non-array, which must -- the
-    pair is what shows the line is drawn where ``_validated_document``'s docstring says
-    it is.
+    One documented non-error is covered too: over a document whose ``Results`` is absent
+    or null this adapter counts ``results_absent_or_null`` and must not raise.  That is
+    defence in depth for a direct call rather than a routed case -- ``shape.py``'s
+    envelope refuses both documents, so neither arrives here through ``shape.route`` --
+    and it sits beside the negative for ``Results`` present as a non-array, which must
+    raise.  The pair is what shows the line is drawn where ``_validated_document``'s
+    docstring says it is.
     """
 
     #: The six validators the public entry runs, in the order it runs them. Iterated by
@@ -2115,10 +2118,16 @@ class CallerContractTest(TrivyAdapterTestCase):
     def test_results_absent_or_null_is_counted_and_never_raised(self) -> None:
         """The documented non-error, asserted as an outcome rather than as an absence.
 
-        An empty Trivy report is ordinary: ``shape.py`` states that a ``trivy.json``
-        carrying no ``Results`` key still routes here, and AAP 0.5.4 makes it so.  The
-        absence is counted so it is visible in ``normalize-run.json`` rather than
-        indistinguishable from a report nobody read.
+        Defence in depth rather than a routed case.  ``shape.py``'s envelope requires
+        ``Results`` to be present **and** to be a JSON array -- AAP 0.5.4 names the count
+        unit ``Results[]`` and halts on an artifact matching no known native shape rather
+        than best-effort parsing it -- so a ``trivy.json`` whose ``Results`` is absent or
+        null never reaches this adapter through ``shape.route``; that refusal is owned by
+        ``fixtures/near-trivy-results-null.json`` and its expected file.  What is asserted
+        here is the direct call: this adapter still returns rather than raising, and it
+        counts the absence so it is visible in ``normalize-run.json`` rather than
+        indistinguishable from a report nobody read.  The empty **array** below is the
+        ordinary routed case, and it is a different count.
         """
         for label, prepare in (
             ("absent", lambda document: document.pop("Results", None)),
@@ -2156,9 +2165,11 @@ class CallerContractTest(TrivyAdapterTestCase):
     def test_every_validator_the_entry_runs_has_a_negative_here(self) -> None:
         """The validator set is closed, and each one is reachable through the public entry.
 
-        Read off the module rather than listed by hand: a seventh validator added to
-        ``adapt`` arrives with a failure naming it instead of going untested, which is
-        how these six came to have no test at all.
+        The declared set is read off the module rather than listed by hand, so a seventh
+        validator added to ``adapt`` arrives with a failure naming it instead of being
+        untested: a hand-kept list is a list nothing updates.  The invocation order is
+        asserted against ``adapt``'s own source for the same reason -- a negative for a
+        later validator can only be attributed to it if no earlier one fires first.
         """
         source = Path(trivy.__file__).read_text(encoding="utf-8")
         declared = {
@@ -2255,7 +2266,7 @@ class PositiveMappingContract:
     hand-verified expectation, and every assertion here reads both from the class --
     nothing in this contract is written for one document.
 
-    The two documents are deliberately different in kind.  The capture is this run's
+    The two documents are deliberately different in kind.  The capture is the runner's
     own artifact byte for byte, so it establishes that the adapter maps what Trivy
     actually emitted; the derived features document carries the vulnerability, secret,
     coordinate and multi-identifier cases the raw artifact does not contain, so it
@@ -5083,12 +5094,18 @@ class UnknownFindingSectionHaltTest(StructuralHaltContract, TrivyAdapterTestCase
                 )
 
     def test_an_unknown_member_holding_an_object_does_not_stop_the_run(self) -> None:
-        """Metadata, not findings: every non-finding member Trivy adds is an object.
+        """Metadata, not findings: an unknown member holding an object does not halt.
 
-        Halting on an unknown object would halt on the next metadata field Trivy
-        introduces, which is not what AAP 0.5.4 asks for.  The section is removed and
-        replaced with an object of the same key name, so the only difference from the
-        raising document is the JSON type of the value.
+        The policy is narrow and is exactly AAP 0.5.4's: a **non-empty finding-shaped
+        array** outside the three supported sections stops the run with the observed
+        structure quoted, and nothing else does.  A value that is a JSON object holds no
+        such array, whatever member name carries it, so it is walked past as metadata.
+        This asserts that policy and claims nothing about Trivy's schema being
+        object-only outside the finding sections -- ``Result`` also declares non-finding
+        arrays, and ``trivy.RESULT_KNOWN_KEYS`` names the ones 0.74.0 emits so they never
+        reach this boundary.  The section is removed and replaced with an object of the
+        same key name, so the only difference from the raising document is the JSON type
+        of the value.
         """
         document = self.document()
         section = self.observed["section"]
@@ -6308,13 +6325,14 @@ class RejectionClassPartitionTest(TrivyAdapterTestCase):
     which is what makes "this adapter cannot produce that" a measured claim rather than
     an assumption nobody rechecked.
 
-    The assertion exists because of a real failure mode rather than a hypothetical one.
-    ``absent_path`` sat outside both sets: the adapter could produce it -- a missing,
-    null or blank ``Results[].Target`` reaches it through
-    :func:`normalize.paths.resolve_trivy_path` -- while this module's own docstring said
-    it was "not exercised here".  Nothing failed, because nothing was looking.  A class
-    that falls out of both sets now fails here, and a tenth class added to
-    ``paths.py`` arrives with a failure naming it rather than silently untested.
+    The failure mode it guards is a class falling out of both sets with nothing looking
+    for it.  ``absent_path`` shows how narrow the margin is: the adapter reaches it from
+    a missing, null or blank ``Results[].Target`` through
+    :func:`normalize.paths.resolve_trivy_path`, so a producible set that omitted it and a
+    reasons map that did not mention it would leave a reachable class untested while
+    every count still balanced.  A class that falls out of both sets fails here, and a
+    tenth class added to ``paths.py`` arrives with a failure naming it rather than
+    silently untested.
     """
 
     def producible_classes(self) -> set[str]:
@@ -6480,10 +6498,11 @@ class RejectionClassPartitionTest(TrivyAdapterTestCase):
     def test_the_module_docstrings_claim_matches_the_measured_partition(self) -> None:
         """The prose at the top of this file is asserted, not merely written.
 
-        A docstring that says which classes are covered is documentation a reader trusts,
-        and it is exactly what was wrong before: it named ``absent_path`` as not claimed
-        while the adapter could produce it.  Asserting the counts against the sets means
-        the prose cannot drift from the code again without a failure.
+        A docstring that names which classes are covered is documentation a reader
+        trusts, and a reader has no way to check it against the adapter.  Holding the
+        count and every class name to the measured producible and unreachable sets is
+        what keeps the prose from drifting from the code: a class that became reachable,
+        or one dropped from the list, fails here rather than misinforming silently.
         """
         docstring = __doc__ or ""
         self.assertIn(

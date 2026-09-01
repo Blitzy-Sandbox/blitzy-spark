@@ -22,7 +22,7 @@
     "kind": "derived",
     "derived_from": {
       "fixture": "oss-scan-results/adapter-tests/fixtures/trivy.json",
-      "that_fixture_is": "the byte-for-byte capture of harness/artifacts/raw/trivy.json, sha256 4551d6ca435ad71aa2306bd03aa45ce92ba95d5f9ee03f304767f9f791878eba, 3,496 bytes, three Results[] elements each holding exactly one DS-0026 Misconfigurations record",
+      "that_fixture_is": "the byte-for-byte capture of harness/artifacts/raw/trivy.json, sha256 979ad0ffbec3502f62ea0e2cd46fae549aaa5e1b7cc4a0d59153a5c2448766ec, 3,496 bytes, three Results[] elements each holding exactly one DS-0026 Misconfigurations record",
       "what_changed": "Results[1]'s Misconfigurations array was emptied -- the single DS-0026 record was removed and the member left in place as [] -- while its MisconfSummary still declares Successes 26 and Failures 1. That is the shape a truncated or post-filtered artifact has: the element's own summary says a check failed and no section holds the failure.",
       "derivation_check": "diff fixtures/trivy.json against this file: the only difference is that Results[1].Misconfigurations is [] where the capture has one record. Both MisconfSummary members are untouched, which is what makes the contradiction internal to the artifact rather than something this file asserts about it.",
       "nothing_else_changed": "the report envelope, all three Targets, all three MisconfSummary objects and the DS-0026 records on Results[0] and Results[2] are the capture's, byte for byte. The empty array is deliberately the present-and-empty shape rather than a removed key: an implementation checking only whether the member exists would miss it.",

@@ -91,21 +91,31 @@ make the second write destroy the first while every count still reconciles.  Fin
 target and every component at or below its owner root are checked with ``lstat``, and a
 symbolic link anywhere among them is refused with the component named (CWE-59).
 
-Every write then goes through ``emit.py``'s discipline, which this module uses rather than
-copies: an exclusive, no-follow staged file with an unguessable name, verified, and promoted
-by an atomic rename with the previously published set restored on failure.  There is no
-working-directory fallback for the run record's location: two sources supply it,
-``--run-record`` and ``$HARNESS_LOG_DIR``, and its absence is a configuration fault rather
-than a record written wherever the run was started from.
+Every write then goes through ONE discipline in ``emit.py``, which this module uses rather
+than copies -- the dataset's two members and ``normalize-run.json`` alike: the parent is
+walked one component at a time with ``O_NOFOLLOW`` and held open as a descriptor, the
+staged file is created in it with ``O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW`` under an
+unguessable name, its mode is assigned with ``fchmod``, the bytes are fsynced, the file is
+measured through a descriptor bound to the inode they were written into, and publication is
+one ``renameat`` against the held descriptor followed by an fsync of the directory.  Every
+member is staged and validated before the first rename, so a fault anywhere before it
+leaves every previously published file exactly as it was, and no staged file survives to be
+mistaken for a deliverable.  There is no working-directory fallback for the run record's
+location: two sources supply it, ``--run-record`` and ``$HARNESS_LOG_DIR``, and its absence
+is a configuration fault rather than a record written wherever the run was started from.
 
 REQUIRED EVIDENCE FAILS CLOSED
 ------------------------------
 ``harness/artifacts/logs/normalize-run.json`` is written on every path out of this module,
 **and a run that could not write and verify it never reports success**.  The record is
-staged, read back from disk, parsed as JSON and only then promoted; where any of that fails
-the diagnostic goes to stderr and the failure becomes the process's outcome with a non-zero
-exit code (CWE-703).  A dataset whose run record was lost is a dataset nobody can trace, so
-the honest outcome is the loss rather than the dataset.
+staged, read back from disk and parsed as a JSON object before anything is renamed, then
+published by that one rename, then read back AGAIN through a descriptor bound to the inode
+the publication verified and parsed once more -- the first read establishes that what is
+about to be published is a document, the second that the document now at the published path
+is that same file rather than whatever the pathname resolves to afterwards (CWE-367).  Where
+any of that fails the diagnostic goes to stderr and the failure becomes the process's
+outcome with a non-zero exit code (CWE-703).  A dataset whose run record was lost is a
+dataset nobody can trace, so the honest outcome is the loss rather than the dataset.
 
 READ ONLY FROM THE RAW DIRECTORY -- an asserted boundary, not an assumption
 --------------------------------------------------------------------------
@@ -175,6 +185,42 @@ This module reads artifacts that already exist.  It writes no Markdown, judges n
 compares no tool against another, deduplicates nothing, and repairs no count to make an
 identity hold.
 
+UNTRUSTED VERBATIM TEXT: A RESIDUAL RISK DISCLOSED AND MEASURED, NOT REMOVED
+(CWE-116, CWE-117)
+---------------------------------------------------------------------------
+``normalize-run.json`` embeds text this pipeline did not author and is **required** not to
+rewrite: a runner's own stream words, its own ``.status`` lines, and the ``stated_reason``
+projected from them.  AAP 0.5.4 requires the parser error *"retained verbatim"* and settles
+the absent-artifact verdict *"using only the tool's own stated words"*; AAP 0.6.1 and 0.6.2
+require an absent artifact's stderr *"verbatim"* and a reduced-reach condition *"in the
+tool's own words"*.  A rewritten byte is a rewritten verdict, so those bytes stay exactly as
+the tool wrote them.
+
+That leaves a real risk, and it is disclosed rather than absorbed.  ``tool-status.md`` is
+rendered from this record, CommonMark permits raw HTML, and a backtick run inside a value
+closes a fence of equal or shorter length -- so untrusted text rendered unescaped can inject
+markup or restructure a document (CWE-116), and a bare CR, LF or ESC reaching a terminal or
+a line-oriented log can overwrite or forge a record (CWE-117).  Three things answer it:
+
+* **The container is safe.**  RFC 8259 section 7 requires every character below U+0020
+  escaped in JSON's encoded form and a parser returns them as data, so no value carried
+  here can break out of this document or add a member to it.  That is why the record can
+  hold these bytes at all, and it is a claim about JSON rather than about the bytes.
+* **The hazard is measured beside every field that carries it.**  A control-character
+  inventory -- which code points occur, how many times each, and what each does to a
+  consumer that renders it unescaped -- published next to the text, never reproducing the
+  character it reports.  ``occurrences: 0`` is a measurement that found none, which is a
+  different fact from ``measured: false``, and both are said.
+* **The obligation is named.**  The run record carries one
+  :data:`UNTRUSTED_TEXT_CONTRACT_KEY` block listing every verbatim field, the AAP clauses
+  that make the retention mandatory, and what a consumer must do before rendering one.
+
+**This module renders none of it.**  It writes no Markdown and emits no fenced block, so it
+has nothing of its own to escape; the three ``queries/joern/*.sc`` reports, which do author
+Markdown and carry no verbatim-retention obligation, take the other route instead -- an
+escaper for untrusted inline and table-cell text and a fence measured one backtick longer
+than the longest run in the payload.
+
 TWO PATH MEASUREMENTS, AND NEITHER SUBSTITUTES FOR THE OTHER
 -----------------------------------------------------------
 ``totals.path_kinds`` classifies every resolved path by its **form** -- a tree file, a
@@ -188,7 +234,7 @@ carry is invisible to the first and counted by the second, which is why both are
 The second is measured **once**, by :func:`_paths_not_on_disk`, against the same root every
 path in the dataset was expressed against, and it is written into the record with its
 denominator, its per-reason and per-tool breakdown and a bounded set of examples -- so a
-count of zero reads as "none of 9,466 rows" rather than as an absent field.  A row counted
+count of zero reads as "none of 9,430 rows" rather than as an absent field.  A row counted
 there is kept, never dropped: an external coordinate, an archive member and a virtual
 reference are legitimate coordinates (AAP 0.9.3).
 
@@ -211,6 +257,75 @@ repository's own source -- while *describing* each exception message rather than
 ``traceback.format_exc()`` is never written to the record: its final line is the exception's
 ``str()``, which on an unexpected error is composed from whatever artifact content was being
 processed at the time.
+
+EVERY FILE IS BOUNDED BEFORE IT IS ALLOCATED
+--------------------------------------------
+Every file this module reads -- nine artifacts, nine status files, eighteen streams, the
+runner metadata -- was written by something else, and the largest of them is 70 MB of JSON.
+Reading one whole and then deciding about it is not a bound: the read is the allocation, so
+a check afterwards runs only for files that were already affordable (CWE-400, CWE-770).
+
+So each read is bounded at its own cap and each cap is a measurement plus a margin, stated
+with the measurement in :data:`INGESTION_BOUNDS` and published in the run record.  An
+artifact is refused by :func:`os.stat` above :data:`ARTIFACT_BYTE_LIMIT` before a byte is
+read; read at ``cap + 1`` bytes so a file that grew since the stat is refused too; decoded
+strictly; **bounded on structure by :func:`_validate_document_bounds` while it is still
+text**; only then parsed; and then measured again by :func:`_measure_document` for depth,
+node count and longest string **before it is routed to a shape**.  A stream is read at the
+excerpt limit plus one character rather than read whole and sliced.  A status file above
+its own cap is measured, retained and named as a defect rather than parsed, and a numeric
+field is converted only through a digit-bounded predicate that actually implies
+convertibility.
+
+THE STRUCTURAL CAPS ARE ENFORCED BEFORE THE PARSE, NOT AFTER IT
+--------------------------------------------------------------
+The byte cap does not bound the object graph, and that gap is the whole reason the depth,
+node, string and digit caps exist: a compact document well inside 512 MiB can encode tens
+of millions of values, and ``json.loads`` allocates every one of them before any check
+over a *parsed* document can run.  A cap that runs after the parse therefore names an
+exhaustion that has already happened rather than preventing it, and ``MemoryError`` is a
+diagnosis, not a limit.
+
+So :func:`_validate_document_bounds` enforces all four caps on the decoded **text**, in one
+bounded left-to-right token scan that never materialises a value: nesting depth on an
+explicit integer counter, node count on the same definition :func:`_measure_document` uses,
+string length on the raw token including its escapes, and the digit count of every numeric
+literal, so a literal above CPython's 4,300-digit conversion limit is refused before
+``int()`` or ``float()`` is reached.  A document it refuses becomes exactly the halt the
+corresponding post-parse bound would have named -- the vocabulary is unchanged -- and a
+document it accepts is one ``json.loads`` can be handed.  Deciding whether a document is
+well-formed JSON is deliberately **not** its business: the invalid-JSON verdict stays with
+``json.loads`` and its ``JSONDecodeError``, so :data:`HALT_ARTIFACT_INVALID_JSON` still
+means what it always meant.
+
+:func:`_measure_document` still runs after the parse, and is now an *independent
+confirmation* rather than the only gate.  Two walks over two representations of one
+document must agree, in one direction: the parse can only lose values (duplicate object
+members collapse onto the last), so the post-parse measurement is at most the pre-parse
+verdict, and a post-parse figure ABOVE it means one of the two walks is wrong.  That is
+checked on the accepted path rather than assumed.
+
+Both traversals are iterative -- one iterator per open container in the parsed walk, one
+integer counter and one container-position stack in the text scan.  A recursive depth check
+against a document deep enough to matter is the stack overflow it is trying to detect, and
+a stack of pending children would grow with the document's breadth rather than its depth
+(CWE-674).
+
+The metadata load takes the same order.  ``paths.load_runner_metadata`` owns the read and
+the parse of ``runner-metadata.json``, so the pre-parse gate sits on this side of that call:
+:func:`_load_metadata` stats the file, reads it under the same bounded reader, validates the
+text against the metadata caps that module publishes, and only then calls it.  That module's
+own post-parse shape check is retained and is the second opinion, exactly as
+:func:`_measure_document` is for an artifact.
+
+Three exceptions are converted rather than left to escape -- ``MemoryError``,
+``RecursionError``, and a ``ValueError`` that is not a ``JSONDecodeError`` (which is what
+CPython raises for an integer literal above its 4,300-digit conversion limit).  All three
+are ``Exception`` subclasses, so the catch-all in :func:`main` would record them either
+way; it would record them under one unnamed ``unexpected-error`` reason, with the message
+described rather than quoted, and a reader could not tell which file, which stage or which
+limit was reached.  Each is instead a named halt with the artifact, the stage and the cap
+in its details, and every one of those names is in :data:`HALT_REASONS`.
 
 Exit codes
 ----------
@@ -259,9 +374,10 @@ enable execute first: a bottom-of-file insertion would run after they had alread
 The test modules under ``oss-scan-results/adapter-tests/`` reach these modules with the
 same two lines.
 
-No user-specified rules govern this file -- ``review_rules`` reports "No user rules
-provided.", corroborated by AAP 0.7 and 0.10.2 -- so enterprise-standard best practice
-applies in their place, held to the AAP's own bar.
+No user-specified rule governs this file (AAP 0.7, 0.10.2), so enterprise-standard best
+practice applies in its place, held to the AAP's own bar: verification independent of the
+thing verified, and a record rejected rather than inferred into a field (AAP 0.1.3), with
+every number this module publishes traceable to a file that exists on disk (AAP 0.6.2).
 """
 
 from __future__ import annotations
@@ -276,7 +392,7 @@ import re
 import shlex
 import sys
 import traceback
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -321,8 +437,25 @@ __all__ = [
     "EXPECTED_INTERPRETER_VERSION",
     "STATUS_DEFECT_DUPLICATE_KEY",
     "STATUS_DEFECT_UNPARSABLE_LINE",
+    "STATUS_DEFECT_FILE_TOO_LARGE",
+    "STATUS_DEFECT_NUMERIC_LITERAL_TOO_LONG",
     "STATUS_LINE_INVALID_KEY",
     "STATUS_LINE_NO_SEPARATOR",
+    "ARTIFACT_BYTE_LIMIT",
+    "JSON_DEPTH_LIMIT",
+    "JSON_NODE_LIMIT",
+    "JSON_STRING_LIMIT",
+    "STATUS_FILE_BYTE_LIMIT",
+    "STATUS_NUMERIC_DIGIT_LIMIT",
+    "RUNNER_METADATA_BYTE_LIMIT",
+    "TOOL_WORDS_EXCERPT_LIMIT",
+    "UNTRUSTED_TEXT_CONTRACT_KEY",
+    "CONTROL_CLASS_C0",
+    "CONTROL_CLASS_DELETE",
+    "CONTROL_CLASS_C1",
+    "CONTROL_CLASS_BIDIRECTIONAL",
+    "BIDIRECTIONAL_FORMATTING_CODE_POINTS",
+    "INGESTION_BOUNDS",
     "ARTIFACT_ORDER",
     "ADAPTER_REGISTRY",
     "CONDITIONAL_ADAPTER_MODULES",
@@ -436,6 +569,28 @@ HALT_RAW_DIRECTORY_MISSING: str = "raw-directory-missing"
 HALT_RAW_DIRECTORY_BOUNDARY: str = "raw-directory-boundary-violation"
 HALT_ARTIFACT_UNREADABLE: str = "artifact-unreadable"
 HALT_ARTIFACT_INVALID_JSON: str = "artifact-invalid-json"
+HALT_ARTIFACT_NOT_UTF8: str = "artifact-not-utf-8"
+#: The four ingestion bounds, one halting reason each.  They are separate names rather
+#: than one "bound exceeded" reason with a discriminating detail because the diagnosis
+#: differs: a 700 MB artifact is a different fault from a 449,681-character string inside
+#: a 5 MB one, and a reader enumerating this vocabulary should not have to open the
+#: details to tell them apart (CWE-400, CWE-674, CWE-770).
+HALT_ARTIFACT_TOO_LARGE: str = "artifact-exceeds-byte-cap"
+HALT_ARTIFACT_TOO_DEEP: str = "artifact-exceeds-depth-cap"
+HALT_ARTIFACT_TOO_MANY_NODES: str = "artifact-exceeds-node-cap"
+HALT_ARTIFACT_STRING_TOO_LONG: str = "artifact-exceeds-string-cap"
+#: The two resource exhaustions that are not a bound this module set but a limit the
+#: interpreter itself imposed.  Both are converted rather than left to escape: they are
+#: ``Exception`` subclasses, so :func:`main` would otherwise record them under the single
+#: unnamed ``unexpected-error`` reason with the message *described* rather than quoted --
+#: a record that cannot say which file, which stage or which limit was reached.
+HALT_ARTIFACT_EXHAUSTED_MEMORY: str = "artifact-ingestion-exhausted-memory"
+HALT_ARTIFACT_EXHAUSTED_STACK: str = "artifact-ingestion-exhausted-stack"
+#: A ``ValueError`` out of ``json.loads`` that is not a ``JSONDecodeError``: the document's
+#: syntax is fine and one of its literals is not convertible.  The documented instance is
+#: an integer literal above CPython's 4,300-digit ``sys.set_int_max_str_digits`` limit,
+#: which is a valid JSON number and an ``int()`` this interpreter refuses.
+HALT_ARTIFACT_LITERAL_UNCONVERTIBLE: str = "artifact-literal-not-convertible"
 HALT_UNKNOWN_ARTIFACT_SHAPE: str = "unknown-artifact-shape"
 HALT_MISSING_ADAPTER_MODULE: str = "missing-adapter-module"
 HALT_ADAPTER_STRUCTURAL: str = "adapter-structural-halt"
@@ -466,6 +621,14 @@ HALT_REASONS: tuple[str, ...] = (
     HALT_RAW_DIRECTORY_BOUNDARY,
     HALT_ARTIFACT_UNREADABLE,
     HALT_ARTIFACT_INVALID_JSON,
+    HALT_ARTIFACT_NOT_UTF8,
+    HALT_ARTIFACT_TOO_LARGE,
+    HALT_ARTIFACT_TOO_DEEP,
+    HALT_ARTIFACT_TOO_MANY_NODES,
+    HALT_ARTIFACT_STRING_TOO_LONG,
+    HALT_ARTIFACT_EXHAUSTED_MEMORY,
+    HALT_ARTIFACT_EXHAUSTED_STACK,
+    HALT_ARTIFACT_LITERAL_UNCONVERTIBLE,
     HALT_UNKNOWN_ARTIFACT_SHAPE,
     HALT_MISSING_ADAPTER_MODULE,
     HALT_ADAPTER_STRUCTURAL,
@@ -494,6 +657,388 @@ TOOL_WORDS_EXCERPT_LIMIT: int = 20_000
 
 #: Bytes read per hashing step.  Artifacts and logs run to tens of megabytes.
 _DIGEST_CHUNK: int = 1 << 20
+
+# --------------------------------------------------------------------------- #
+# Untrusted verbatim text -- the residual risk this module documents and       #
+# measures rather than removes (CWE-116, CWE-117)                             #
+#                                                                             #
+# A handful of fields in this record carry text this pipeline did not author   #
+# and must not rewrite: a runner's own stream words, and its own .status       #
+# lines. AAP 0.5.4 requires the parser error "retained verbatim" and settles   #
+# the absent-artifact verdict "using only the tool's own stated words"; AAP    #
+# 0.6.1 and 0.6.2 require an absent artifact's stderr "verbatim" and a         #
+# reduced-reach condition "in the tool's own words". Escaping those bytes      #
+# here would satisfy a rendering concern by destroying the evidence contract   #
+# three AAP clauses make mandatory -- a rewritten byte is a rewritten verdict. #
+#                                                                             #
+# So this module takes the other route the finding allows: keep the bytes,     #
+# MEASURE the hazard beside them, and state the obligation the consumer        #
+# inherits. The measurement is a control-character inventory -- which code     #
+# points occur and how many times each -- and it never reproduces the          #
+# character it reports, because a record that printed the ESC it warns about   #
+# would carry the hazard into every terminal that cats it.                    #
+#                                                                             #
+# JSON is a safe container for these bytes and that is why the record can      #
+# hold them at all: RFC 8259 section 7 requires every character below U+0020   #
+# escaped in the encoded form, and a parser returns them as data rather than   #
+# as structure, so nothing here can be broken out of by the text it carries.   #
+# Markdown, HTML and a terminal are not safe containers, which is why the      #
+# contract in the run record is addressed to whoever renders them. The three   #
+# queries/joern/*.sc reports take the OTHER route for their own output --      #
+# escape and a measured fence -- because they author the Markdown and are      #
+# under no verbatim-retention obligation.                                     #
+# --------------------------------------------------------------------------- #
+
+#: The run record key carrying the escaping contract for untrusted verbatim text.  A named
+#: constant so an entry that carries such text can point a reader at the contract --
+#: through its own ``text_escaping_contract`` field -- rather than restating it once per
+#: stream, and so a consumer can look the contract up by name instead of by prose.
+UNTRUSTED_TEXT_CONTRACT_KEY: str = "untrusted_verbatim_text"
+
+#: The four classes of character the inventory counts, by name.  A closed vocabulary, so a
+#: consumer branches on the class rather than re-deriving a code point range.
+CONTROL_CLASS_C0: str = "c0-control"
+CONTROL_CLASS_DELETE: str = "delete"
+CONTROL_CLASS_C1: str = "c1-control"
+CONTROL_CLASS_BIDIRECTIONAL: str = "bidirectional-formatting"
+
+#: The bidirectional formatting characters -- Unicode general category ``Cf`` -- that
+#: reorder rendered text while being invisible themselves.  Counted alongside the ``Cc``
+#: controls because they change what a reader *sees* rather than what the bytes *say*,
+#: which is the same defect as an unescaped ESC arriving at a terminal (CWE-451; the
+#: citable instance is the 2021 "Trojan Source" work, CVE-2021-42574).
+BIDIRECTIONAL_FORMATTING_CODE_POINTS: tuple[int, ...] = (
+    0x061C,  # ARABIC LETTER MARK
+    0x200E,  # LEFT-TO-RIGHT MARK
+    0x200F,  # RIGHT-TO-LEFT MARK
+    0x202A,  # LEFT-TO-RIGHT EMBEDDING
+    0x202B,  # RIGHT-TO-LEFT EMBEDDING
+    0x202C,  # POP DIRECTIONAL FORMATTING
+    0x202D,  # LEFT-TO-RIGHT OVERRIDE
+    0x202E,  # RIGHT-TO-LEFT OVERRIDE
+    0x2066,  # LEFT-TO-RIGHT ISOLATE
+    0x2067,  # RIGHT-TO-LEFT ISOLATE
+    0x2068,  # FIRST STRONG ISOLATE
+    0x2069,  # POP DIRECTIONAL ISOLATE
+)
+
+#: The standard abbreviation for every code point the inventory counts: the C0 set
+#: (U+0000-U+001F), DELETE (U+007F), the C1 set (U+0080-U+009F) and the twelve
+#: bidirectional formatting characters above.  A fixed table rather than
+#: ``unicodedata.name``, which raises ``ValueError`` for every one of the sixty-five
+#: controls: Unicode assigns a control character no name at all, only these aliases (ASCII
+#: for C0 and DEL, ISO 6429 for C1).  The abbreviation is what makes an inventory readable
+#: without the character being present in it.
+_CONTROL_ABBREVIATIONS: dict[int, str] = {
+    0x00: "NUL", 0x01: "SOH", 0x02: "STX", 0x03: "ETX",
+    0x04: "EOT", 0x05: "ENQ", 0x06: "ACK", 0x07: "BEL",
+    0x08: "BS", 0x09: "HT", 0x0A: "LF", 0x0B: "VT",
+    0x0C: "FF", 0x0D: "CR", 0x0E: "SO", 0x0F: "SI",
+    0x10: "DLE", 0x11: "DC1", 0x12: "DC2", 0x13: "DC3",
+    0x14: "DC4", 0x15: "NAK", 0x16: "SYN", 0x17: "ETB",
+    0x18: "CAN", 0x19: "EM", 0x1A: "SUB", 0x1B: "ESC",
+    0x1C: "FS", 0x1D: "GS", 0x1E: "RS", 0x1F: "US",
+    0x7F: "DEL",
+    0x80: "PAD", 0x81: "HOP", 0x82: "BPH", 0x83: "NBH",
+    0x84: "IND", 0x85: "NEL", 0x86: "SSA", 0x87: "ESA",
+    0x88: "HTS", 0x89: "HTJ", 0x8A: "VTS", 0x8B: "PLD",
+    0x8C: "PLU", 0x8D: "RI", 0x8E: "SS2", 0x8F: "SS3",
+    0x90: "DCS", 0x91: "PU1", 0x92: "PU2", 0x93: "STS",
+    0x94: "CCH", 0x95: "MW", 0x96: "SPA", 0x97: "EPA",
+    0x98: "SOS", 0x99: "SGC", 0x9A: "SCI", 0x9B: "CSI",
+    0x9C: "ST", 0x9D: "OSC", 0x9E: "PM", 0x9F: "APC",
+    0x061C: "ALM", 0x200E: "LRM", 0x200F: "RLM",
+    0x202A: "LRE", 0x202B: "RLE", 0x202C: "PDF",
+    0x202D: "LRO", 0x202E: "RLO", 0x2066: "LRI",
+    0x2067: "RLI", 0x2068: "FSI", 0x2069: "PDI",
+}
+
+#: What a consumer sees when one of these code points reaches it unescaped.  Present for
+#: the code points with a specific documented effect on a Markdown renderer, an HTML
+#: renderer or a terminal; every other member of the subject set falls back to
+#: :data:`_CONTROL_CLASS_EFFECTS`, which states what is known about its class.
+_CONTROL_RENDERING_EFFECTS: dict[int, str] = {
+    0x00: (
+        "terminates the value in a consumer that reads C strings, so every character "
+        "after it is silently dropped rather than rendered"
+    ),
+    0x07: "rings a terminal bell",
+    0x08: (
+        "moves a terminal cursor back one column, so the text that follows overwrites "
+        "what was already printed"
+    ),
+    0x09: (
+        "advances to the next tab stop; harmless inline, and in a column-aligned log it "
+        "moves the text after it into another column"
+    ),
+    0x0A: (
+        "ends the line: a consumer writing one record per line sees two records, and a "
+        "Markdown table row ends in the middle of a cell (CWE-117)"
+    ),
+    0x0B: (
+        "advances a terminal to the next line while CommonMark treats it as ordinary "
+        "whitespace, so a rendered document and a terminal disagree about where the "
+        "value ends"
+    ),
+    0x0C: (
+        "advances a terminal to the next page while CommonMark treats it as ordinary "
+        "whitespace, with the same disagreement as U+000B"
+    ),
+    0x0D: (
+        "returns a terminal cursor to column zero, so the text that follows overwrites "
+        "the line already printed; paired with U+000A it is a second line ending, which "
+        "is how one record becomes two (CWE-117)"
+    ),
+    0x1A: (
+        "ends the stream for a consumer that reads it as an end-of-file marker, so the "
+        "rest of the value is never seen"
+    ),
+    0x1B: (
+        "introduces an ANSI escape sequence: a consumer printing this text to a terminal "
+        "can have its cursor moved, its colours changed, its window title relabelled or "
+        "its own input buffer written (CWE-117)"
+    ),
+    0x7F: (
+        "is not printable, and terminals disagree about whether to discard it or show a "
+        "placeholder glyph, so two consumers disagree about the value's length"
+    ),
+    0x85: (
+        "is a line ending in ISO 6429 and in Python's own str.splitlines(), so a consumer "
+        "splitting this text into lines sees two records where a byte reader sees one "
+        "(CWE-117)"
+    ),
+    0x9B: (
+        "is the single-character control sequence introducer: it does what U+001B "
+        "followed by '[' does, with no ESC present for a filter to look for (CWE-117)"
+    ),
+}
+
+#: The effect stated for a code point with no entry of its own, by class.  Not a
+#: placeholder standing in for an unwritten value: a C0 transmission control with no
+#: rendering behaviour still has to be escaped, and its class is the whole of what is
+#: known about it.  Total over the four classes, so the lookup cannot fail.
+_CONTROL_CLASS_EFFECTS: dict[str, str] = {
+    CONTROL_CLASS_C0: (
+        "a C0 transmission control with no defined rendering; a consumer must escape it "
+        "like any other control character"
+    ),
+    CONTROL_CLASS_DELETE: (
+        "the DELETE control, which has no defined rendering and must be escaped"
+    ),
+    CONTROL_CLASS_C1: (
+        "a C1 control with no defined rendering here; UTF-8 carries it as two bytes and a "
+        "terminal in an 8-bit mode may still act on it"
+    ),
+    CONTROL_CLASS_BIDIRECTIONAL: (
+        "reorders the rendered text around it while being invisible itself, so what a "
+        "reader sees is not the order of the bytes (CWE-451)"
+    ),
+}
+
+
+def _build_control_table() -> dict[int, tuple[str, str]]:
+    """Build the code point -> ``(class, abbreviation)`` table the inventory counts against.
+
+    The subject set is defined by the RANGES here and the abbreviations by
+    :data:`_CONTROL_ABBREVIATIONS`; building one from the other is what keeps the two from
+    drifting apart.  A code point in the set with no abbreviation raises ``KeyError`` at
+    import, and an abbreviation for a code point outside the set is reported as a spare --
+    both are faults in this table rather than conditions in any input, so both fail when
+    the module loads rather than on the first stream that happens to carry the character.
+    """
+    table: dict[int, tuple[str, str]] = {}
+    for code_point in range(0x00, 0x20):
+        table[code_point] = (CONTROL_CLASS_C0, _CONTROL_ABBREVIATIONS[code_point])
+    table[0x7F] = (CONTROL_CLASS_DELETE, _CONTROL_ABBREVIATIONS[0x7F])
+    for code_point in range(0x80, 0xA0):
+        table[code_point] = (CONTROL_CLASS_C1, _CONTROL_ABBREVIATIONS[code_point])
+    for code_point in BIDIRECTIONAL_FORMATTING_CODE_POINTS:
+        table[code_point] = (
+            CONTROL_CLASS_BIDIRECTIONAL,
+            _CONTROL_ABBREVIATIONS[code_point],
+        )
+    spare = sorted(set(_CONTROL_ABBREVIATIONS) - set(table))
+    if spare:
+        raise AssertionError(
+            "_CONTROL_ABBREVIATIONS carries entries outside the inventory's subject set: "
+            + ", ".join(f"U+{code_point:04X}" for code_point in spare)
+        )
+    return table
+
+
+#: Code point -> ``(class, abbreviation)``, total over the inventory's subject set.
+_CONTROL_TABLE: Mapping[int, tuple[str, str]] = MappingProxyType(_build_control_table())
+
+#: How the inventory names its own subject set.  Carried in every inventory produced, so
+#: the definition of the measurement travels with the numbers rather than living only in
+#: this source: a reader of ``normalize-run.json`` can tell what was counted.
+_CONTROL_SUBJECT_SET: str = (
+    "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the "
+    "C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting "
+    "characters of category Cf that reorder rendered text without being visible"
+)
+
+#: How the inventory is taken.  Named in the record for the same reason as the subject
+#: set, and because the method is what makes the result reproducible: the same text
+#: produces the same inventory on every run, with no timestamp and no ordering by
+#: first appearance.
+_CONTROL_METHOD: str = (
+    "one pass over the distinct characters of the embedded text, then str.count for each "
+    "distinct character that is in the subject set; ordered by code point ascending, so "
+    "the same text produces the same inventory on every run"
+)
+
+# --------------------------------------------------------------------------- #
+# Ingestion bounds (CWE-400, CWE-674, CWE-770)                                #
+#                                                                             #
+# Every file this module reads is provisioning-supplied evidence written by a  #
+# tool this module did not run, and the largest of them is 70 MB of JSON. An   #
+# unbounded read-then-parse of such a file has three failure modes that are    #
+# not hypothetical: a file large enough to exhaust memory (the read allocates  #
+# the whole of it, then json.loads allocates the object graph again), a        #
+# document nested deeply enough that json's own C scanner recurses past the    #
+# interpreter's stack limit, and a single string or numeric literal long       #
+# enough that one field is the allocation. None of the three is a JSON syntax  #
+# error, so the JSONDecodeError arm below sees none of them.                   #
+#                                                                             #
+# So each is bounded, and each bound is a MEASUREMENT plus a margin rather     #
+# than a number chosen to look safe. The measurements below were taken over    #
+# the eight committed artifacts in harness/artifacts/raw/ with the same        #
+# _measure_document walk this module ships (a node is a JSON value; an object  #
+# member name is length-checked but is not itself a node), so the observed     #
+# column and the enforced column are produced by one definition rather than    #
+# by two:                                                                     #
+#                                                                             #
+#   quantity          observed maximum                  cap here      margin  #
+#   ---------------------------------------------------------------------------#
+#   artifact bytes    73,840,948  (opengrep.sarif)       512 MiB       7.3x    #
+#   nesting depth             13  (datadog SARIF)             64       4.9x    #
+#   node count           230,343  (datadog SARIF)      5,000,000      21.7x    #
+#   longest string       449,681  (opengrep, semgrep)     8 MiB       18.6x    #
+#   status file bytes     31,913  (joern.status)           4 MiB      131x     #
+#   numeric literal           11  (heap_used_bytes)            64       5.8x   #
+#                                                                             #
+# The margins are deliberately large: a bound tuned close to today's data      #
+# would halt a legitimate future run, and the point of a cap here is to make   #
+# an ADVERSARIAL input impossible rather than to police a real one. Every cap  #
+# is nonetheless far below what would actually hurt this host, which is the    #
+# other half of the requirement -- 512 MiB of artifact is refused long before  #
+# a 64 GB machine is in trouble, and 64 levels of nesting is refused long      #
+# before CPython's default 1,000-frame recursion limit is.                     #
+#                                                                             #
+# WHERE EACH CAP IS ENFORCED, which is what makes it a bound rather than a     #
+# diagnosis: the byte cap by os.stat and by the bounded read, before any of    #
+# the file is decoded; the depth, node, string and numeric-literal caps by     #
+# _validate_document_bounds over the decoded TEXT, before json.loads is        #
+# called, because the object graph a document allocates is not bounded by its  #
+# byte size and the parse is the allocation; and the same depth, node and      #
+# string caps a second time by _measure_document over the parsed document, as  #
+# an independent confirmation of the first verdict. The status-file caps are   #
+# enforced by the status reader, which never parses JSON at all.               #
+# --------------------------------------------------------------------------- #
+
+#: The largest artifact this module will read at all.  ``os.stat`` decides it before any
+#: allocation happens, and the bounded read that follows re-checks it, because a file can
+#: grow between the two.
+ARTIFACT_BYTE_LIMIT: int = 512 * 1024 * 1024
+
+#: The deepest JSON nesting an artifact may carry.  Checked by an ITERATIVE walk, because
+#: a recursive depth check against a document deep enough to matter is itself the stack
+#: overflow it is trying to detect.
+JSON_DEPTH_LIMIT: int = 64
+
+#: The most JSON values an artifact's document may contain.  This is the bound on the
+#: object graph rather than on the bytes: a compact 5 MB document holds far more nodes
+#: than a pretty-printed 70 MB one, so bytes alone do not bound the traversal that follows.
+JSON_NODE_LIMIT: int = 5_000_000
+
+#: The longest string -- value or object member name -- an artifact may carry.  A single
+#: field this long is not evidence any consumer of this dataset can use, and it reaches
+#: ``paths``, ``severity`` and the rejection records as one value.
+JSON_STRING_LIMIT: int = 8 * 1024 * 1024
+
+#: The largest ``<tool>.status`` file this module will parse.  A status file is the
+#: runner's own key=value account of its invocation, not bulk output; the largest
+#: committed one is 31,913 bytes.  Over this bound the file is recorded as a named defect
+#: and not parsed -- it is log-side evidence, so refusing to parse it costs the record one
+#: measurement rather than costing the run its dataset.
+STATUS_FILE_BYTE_LIMIT: int = 4 * 1024 * 1024
+
+#: The most digits an untrusted numeric literal may carry before it is refused as a
+#: number.  CPython raises ``ValueError`` from ``int()`` above 4,300 digits (the
+#: ``sys.set_int_max_str_digits`` limit), which ``str.isdigit()`` does not predict, so a
+#: guard that tests only for digits and then converts is a ValueError waiting for a
+#: hostile status file.  The longest literal any committed status file carries is 11
+#: digits.
+#:
+#: This is the package's ONE digit bound and it has three enforcement points, deliberately
+#: sharing a single number rather than growing a second one: a ``<tool>.status`` field,
+#: through the digit-bounded predicate that reads it; every numeric literal in an untrusted
+#: artifact, through :func:`_validate_document_bounds` before ``json.loads`` reaches
+#: ``int()`` or ``float()``; and every numeric literal in ``runner-metadata.json``, through
+#: the same walk called inside ``paths.load_runner_metadata``.  The longest literal any
+#: committed JSON input carries is 9 digits (``runner-metadata.json``); 7 is the artifact
+#: maximum.  Two bindings of one cap is the defect F10 recorded in ``emit.py`` -- the last
+#: binding wins and no comment says so -- so the number itself is declared once, by the
+#: module that owns the walk which now enforces it on both documents, and assigned here to
+#: keep the name this module publishes.  Same pattern, same reason, as
+#: :data:`RUNNER_METADATA_BYTE_LIMIT`.
+STATUS_NUMERIC_DIGIT_LIMIT: int = paths.STATUS_NUMERIC_DIGIT_LIMIT
+
+#: The largest ``runner-metadata.json`` this module will hand to ``paths``.  Checked here,
+#: by size, before the read happens: ``paths.load_runner_metadata`` owns the parse and is
+#: another module's file, so the allocation bound belongs on this side of the call.  The
+#: committed metadata is 117,676 bytes.
+#: The byte cap on ``runner-metadata.json``, taken from the module that owns the read
+#: rather than restated here.  ``paths.load_runner_metadata`` enforces the same cap on its
+#: own side, together with the depth, node and string caps this side cannot reach, and one
+#: binding of a cap is the point: two bindings of one constant is what let a 0o666 file mode
+#: silently override a 0o644 one in ``emit.py``, because the last binding wins and nothing
+#: in either comment says so.  Assigning here keeps the name this module publishes while
+#: leaving exactly one number in the package.
+RUNNER_METADATA_BYTE_LIMIT: int = paths.METADATA_BYTE_LIMIT
+
+#: The bounds as the run record publishes them, so a reader sees what was enforced without
+#: reading this source, and a later run's record can be compared against this one's.
+INGESTION_BOUNDS: Mapping[str, Any] = MappingProxyType(
+    {
+        "artifact_bytes": ARTIFACT_BYTE_LIMIT,
+        "json_depth": JSON_DEPTH_LIMIT,
+        "json_nodes": JSON_NODE_LIMIT,
+        "json_string_characters": JSON_STRING_LIMIT,
+        "status_file_bytes": STATUS_FILE_BYTE_LIMIT,
+        "status_numeric_digits": STATUS_NUMERIC_DIGIT_LIMIT,
+        "runner_metadata_bytes": RUNNER_METADATA_BYTE_LIMIT,
+        # The metadata document is bounded on shape as well as on size, by the module that
+        # owns its read; the caps are published here so the record states every bound that
+        # was enforced, not only the ones this module checks itself.
+        "runner_metadata_depth": paths.METADATA_DEPTH_LIMIT,
+        "runner_metadata_nodes": paths.METADATA_NODE_LIMIT,
+        "runner_metadata_string_characters": paths.METADATA_STRING_LIMIT,
+        "tool_words_excerpt_characters": TOOL_WORDS_EXCERPT_LIMIT,
+        "observed_maxima": {
+            "measured_over": "the eight committed artifacts in harness/artifacts/raw/",
+            "artifact_bytes": 73_768_116,
+            "artifact_bytes_file": "opengrep.sarif",
+            "json_depth": 13,
+            "json_nodes": 230_900,
+            "json_depth_and_nodes_file": "datadog-static-analyzer.sarif",
+            "json_string_characters": 449_681,
+            "json_string_characters_files": ["opengrep.sarif", "semgrep.sarif"],
+            "status_file_bytes": 278,
+            "status_file_bytes_file": "datadog-static-analyzer.status",
+            "status_numeric_digits": 8,
+            "runner_metadata_bytes": 175_770,
+            "runner_metadata_depth": 8,
+            "runner_metadata_nodes": 2_164,
+            "runner_metadata_string_characters": 1_396,
+            "node_definition": (
+                "a node is a JSON value; an object member name is length-checked against "
+                "the string cap but is not itself counted as a node"
+            ),
+        },
+    }
+)
 
 #: The adapter registry.  ``shape.py`` deliberately imports no adapter and names one by
 #: string key; this module inverts that direction, which is what keeps the import graph
@@ -780,6 +1325,68 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _read_bounded_text(
+    path: Path,
+    limit: int,
+    *,
+    encoding: str = "utf-8",
+    errors: str | None = None,
+) -> tuple[str, bool]:
+    """Read at most ``limit`` characters of ``path``, and say whether more existed.
+
+    The bound is on the READ, not on a slice taken afterwards.  ``read_text()`` followed
+    by ``text[:limit]`` allocates the whole file first, so a 40 MB stdout log costs 40 MB
+    of memory to produce a 20,000-character excerpt and a hostile one costs whatever it is
+    -- which is the shape of every unbounded ingestion in CWE-400.  Reading ``limit + 1``
+    characters costs the excerpt plus one character and still answers the only question
+    the caller has beyond the text itself: was there more?
+
+    ``limit + 1`` rather than ``limit`` is what makes "was it cut" measurable rather than
+    ambiguous.  A read that returns exactly ``limit`` characters cannot distinguish a file
+    of exactly that length from one that continues, so the extra character is read and
+    then discarded by the caller's slice.
+
+    ``newline=""`` -- NO NEWLINE TRANSLATION, BECAUSE "VERBATIM" MEANS VERBATIM
+    -------------------------------------------------------------------------
+    Python's default (``newline=None``) is universal-newline mode, which rewrites every
+    ``\\r\\n`` and every lone ``\\r`` to ``\\n`` on the way in.  This function feeds the two
+    places that keep a tool's own text byte for byte -- :func:`_stream_record`, whose
+    excerpt AAP 0.5.4 settles the absent-artifact verdict from *"using only the tool's own
+    stated words"* and AAP 0.6.1 and 0.6.2 require *"verbatim"*, and
+    :func:`_runner_status`, whose fields ``tool-status.md`` quotes *"in the tool's own
+    words"* -- so a silent rewrite there is a rewritten verdict, and it was measured rather
+    than supposed: a stream written as ``b"line one\\rOVERWRITTEN..."`` came back as
+    ``b"line one\\nOVERWRITTEN..."``.
+
+    It also decided what the control-character inventory can see.  Carriage return is the
+    primary CWE-117 hazard -- it returns a terminal cursor to column zero so the following
+    text overwrites the line already printed -- and under universal newlines no CR could
+    ever be reported, because the reader had already destroyed it.  ``newline=""`` is what
+    makes the disclosure this module publishes true of the bytes rather than of a
+    translation of them.
+
+    Nothing else changes.  The status parser splits with ``str.splitlines()``, which splits
+    on ``\\r``, ``\\n`` and ``\\r\\n`` alike, so a CRLF status file parses into the same
+    fields it did before; the no-work classifier matches sentences that contain no CR; and
+    no committed stream or status file in this tree carries a CR at all, so the published
+    record is byte-identical either way.  The one difference is arithmetic: a ``\\r\\n``
+    now counts as the two characters it is against ``limit``.
+
+    Returns:
+        The text read, truncated to ``limit`` characters, and whether the file carried
+        more than ``limit`` characters.
+
+    Raises:
+        OSError: the file could not be opened or read.
+        UnicodeDecodeError: ``errors`` is ``None`` and the bytes are not valid ``encoding``.
+    """
+    with path.open("r", encoding=encoding, errors=errors, newline="") as handle:
+        text = handle.read(limit + 1)
+    if len(text) > limit:
+        return text[:limit], True
+    return text, False
+
+
 def _file_record(path: Path) -> dict[str, Any]:
     """Describe one file for the record: its path, byte size and sha256.
 
@@ -825,6 +1432,98 @@ def _file_record(path: Path) -> dict[str, Any]:
     return record
 
 
+def _control_character_inventory(text: str | None) -> dict[str, Any]:
+    """Measure -- without reproducing -- the control characters in untrusted verbatim text.
+
+    The measured half of the residual-risk disclosure this module publishes instead of
+    escaping (CWE-116, CWE-117).  The text this describes is a runner's own words or its
+    own status lines, retained byte for byte because AAP 0.5.4, 0.6.1 and 0.6.2 require
+    exactly that, and this inventory is what turns "these bytes are untrusted" from an
+    assertion into a number a reader can check.
+
+    WHAT IT REPORTS, AND WHAT IT DELIBERATELY DOES NOT
+    -------------------------------------------------
+    Per code point in the subject set: the ``U+XXXX`` form, its class, its standard
+    abbreviation, how many times it occurs, and what it does to a consumer that renders it
+    unescaped.  **The character itself never appears in the result**, which is the point:
+    an inventory that quoted the ESC it is warning about would move the hazard from the
+    stream into the record, and from the record into every terminal that prints it.
+    ``character_reproduced: false`` is that claim stated in the data, and the adapter tests
+    assert it against a stream carrying CR, ESC and NUL.
+
+    It reports and it does not judge.  A stream with no controls at all still gets an
+    inventory -- ``occurrences: 0`` over an empty ``by_code_point`` -- because "measured
+    and none present" and "not measured" are different facts and a reader must be able to
+    tell them apart.  A ``null`` text gets the same shape with ``measured: false`` and a
+    ``null_reason``, matching the convention every other entry in this record follows.
+
+    DETERMINISM AND COST
+    --------------------
+    ``set(text)`` then ``str.count`` per distinct in-set character: one C-level pass to
+    find the distinct characters and at most seventy-seven more, rather than a Python-level
+    loop over every character of a 20,000-character excerpt or a 4 MB status file.  The
+    output is ordered by code point ascending and carries no timestamp, no ordering by
+    first appearance and no host path, so an unchanged input produces a byte-identical
+    inventory -- which is what keeps the run record comparable between runs.
+
+    Args:
+        text: the exact text embedded in the record beside this inventory, or ``None``
+            where the entry embeds no text.
+
+    Returns:
+        The inventory, JSON-serialisable, with the same keys in both cases.
+    """
+    if text is None:
+        return {
+            "measured": False,
+            "characters_measured": None,
+            "occurrences": None,
+            "distinct_code_points": None,
+            "by_code_point": [],
+            "subject_set": _CONTROL_SUBJECT_SET,
+            "method": _CONTROL_METHOD,
+            "character_reproduced": False,
+            "escaping_contract": UNTRUSTED_TEXT_CONTRACT_KEY,
+            "null_reason": (
+                "no text is embedded at this entry, so there is nothing to measure; these "
+                "nulls describe an absent value rather than a measurement that was skipped"
+            ),
+        }
+
+    counts: dict[int, int] = {}
+    for character in set(text):
+        code_point = ord(character)
+        if code_point in _CONTROL_TABLE:
+            counts[code_point] = text.count(character)
+
+    by_code_point: list[dict[str, Any]] = []
+    for code_point in sorted(counts):
+        control_class, abbreviation = _CONTROL_TABLE[code_point]
+        by_code_point.append(
+            {
+                "code_point": f"U+{code_point:04X}",
+                "class": control_class,
+                "abbreviation": abbreviation,
+                "count": counts[code_point],
+                "rendering_effect": _CONTROL_RENDERING_EFFECTS.get(
+                    code_point, _CONTROL_CLASS_EFFECTS[control_class]
+                ),
+            }
+        )
+
+    return {
+        "measured": True,
+        "characters_measured": len(text),
+        "occurrences": sum(counts.values()),
+        "distinct_code_points": len(counts),
+        "by_code_point": by_code_point,
+        "subject_set": _CONTROL_SUBJECT_SET,
+        "method": _CONTROL_METHOD,
+        "character_reproduced": False,
+        "escaping_contract": UNTRUSTED_TEXT_CONTRACT_KEY,
+    }
+
+
 def _stream_record(path: Path, *, with_text: bool) -> dict[str, Any]:
     """Describe one runner stream, optionally carrying the tool's own words verbatim.
 
@@ -839,10 +1538,57 @@ def _stream_record(path: Path, *, with_text: bool) -> dict[str, Any]:
     The excerpt is bounded by :data:`TOOL_WORDS_EXCERPT_LIMIT` and says so when it was
     cut.  Between the bound, the digest and the retained file, a cap can never lose
     evidence without a reader seeing that it did.
+
+    THE BOUND IS ON THE READ (CWE-400)
+    ----------------------------------
+    The excerpt limit used to be applied by slicing text that had already been read whole.
+    The largest stream this run names is a 40,661,230-byte stdout log, so producing a
+    20,000-character excerpt cost 40 MB of memory, and a stream this module did not write
+    is a file whose size it does not control.  :func:`_read_bounded_text` reads
+    ``TOOL_WORDS_EXCERPT_LIMIT + 1`` characters instead: the stored excerpt, the
+    ``text_truncated`` flag and this function's whole observable behaviour are unchanged,
+    and the allocation is now a property of the cap rather than of the file.
+
+    Nothing is lost by the bound that was not already lost by the cap: the size and the
+    sha256 above are measured over the whole file by :func:`_file_record`, the file itself
+    is retained verbatim on disk at the path named, and every consumer of these words --
+    :func:`_classify_no_work` included -- reads the stored excerpt rather than the file.
+
+    THE WORDS ARE KEPT VERBATIM AND THE HAZARD IS MEASURED BESIDE THEM
+    (CWE-116, CWE-117)
+    -----------------------------------------------------------------
+    ``text`` is the single largest piece of untrusted text this record embeds, and it is
+    embedded **unescaped and unrewritten**.  That is mandatory rather than convenient: AAP
+    0.5.4 settles the absent-artifact verdict *"using only the tool's own stated words"*
+    and requires the parser error *"retained verbatim"*, and AAP 0.6.1 and 0.6.2 require an
+    absent artifact's stderr *"verbatim"* and a reduced-reach condition *"in the tool's own
+    words"*.  Escaping here would change the bytes a human adjudicates the halt from, so
+    the byte-for-byte excerpt stays and the risk is disclosed instead.
+
+    Two things carry the disclosure.  ``text_control_characters`` is the measurement --
+    :func:`_control_character_inventory` over exactly the characters stored, naming which
+    control code points occur and how many times each, and never reproducing one.
+    ``text_escaping_contract`` names the run record's own
+    :data:`UNTRUSTED_TEXT_CONTRACT_KEY` block, which states the whole contract in one
+    place: JSON is a safe container for these bytes, and a consumer rendering them into
+    Markdown, HTML or a terminal must escape them first.  **This module renders none of
+    them** -- it writes no Markdown and emits no fenced block -- so the obligation belongs
+    to whatever produces ``tool-status.md`` from this record.
+
+    The residual risk is therefore stated rather than removed: the text is hostile-capable,
+    and nothing here makes it safe to paste into a rendered document.  It is latent rather
+    than live -- no committed stream carries such a payload -- and the inventory is what
+    lets a reader confirm that for themselves instead of taking it on trust.
     """
     record = _file_record(path)
     record["text"] = None
     record["text_truncated"] = False
+    # Every stream entry carries the same two disclosure keys whichever branch below runs,
+    # so a consumer never has to test for the inventory's presence: an entry embedding no
+    # text carries the measured=false form with its null_reason, and the one branch that
+    # does embed text replaces it with the measurement over exactly those characters.
+    record["text_control_characters"] = _control_character_inventory(None)
+    record["text_escaping_contract"] = UNTRUSTED_TEXT_CONTRACT_KEY
     if not with_text:
         record["text_null_reason"] = (
             "the artifact is present, so its classification comes from the artifact "
@@ -857,19 +1603,24 @@ def _stream_record(path: Path, *, with_text: bool) -> dict[str, Any]:
         )
         return record
     try:
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text, truncated = _read_bounded_text(
+            path, TOOL_WORDS_EXCERPT_LIMIT, errors="replace"
+        )
     except OSError as error:
         record["read_error"] = f"{type(error).__name__}: {error}"
         record["text_null_reason"] = (
             f"the stream could not be read: {type(error).__name__}: {error}"
         )
         return record
-    if len(text) > TOOL_WORDS_EXCERPT_LIMIT:
-        record["text"] = text[:TOOL_WORDS_EXCERPT_LIMIT]
+    record["text"] = text
+    # Measured over exactly the characters stored above, so the inventory describes the
+    # embedded excerpt rather than the whole file: a reader escaping what this record
+    # carries needs the hazard in what it carries (CWE-116, CWE-117).
+    record["text_control_characters"] = _control_character_inventory(text)
+    record["text_read_bounded_at"] = TOOL_WORDS_EXCERPT_LIMIT
+    if truncated:
         record["text_truncated"] = True
         record["text_excerpt_limit"] = TOOL_WORDS_EXCERPT_LIMIT
-    else:
-        record["text"] = text
     return record
 
 
@@ -1074,6 +1825,13 @@ def _tool_words(log_dir: Path | None, tool: str, *, with_text: bool) -> dict[str
     zero-package outcome disagree about which one carries the sentence -- the runbook
     reports it on stdout, the environment record on stderr.  Both are described either way,
     and the classifier searches both rather than only the one this function preferred.
+
+    ``stated_reason`` IS one stream's verbatim text, so it inherits that text's residual
+    risk in full: it is untrusted, unescaped, and mandatory to keep that way (AAP 0.5.4,
+    0.6.1, 0.6.2 -- see :func:`_stream_record`).  It is published beside
+    ``stated_reason_control_characters``, which is the chosen stream's inventory projected
+    rather than measured again, and ``stated_reason_escaping_contract``, which names the
+    run record's contract block for a consumer that renders it (CWE-116, CWE-117).
     """
     streams: dict[str, Any] = {}
     for stream in ("stderr", "stdout"):
@@ -1093,6 +1851,11 @@ def _tool_words(log_dir: Path | None, tool: str, *, with_text: bool) -> dict[str
                 ),
                 "text": None,
                 "text_truncated": False,
+                # The same two disclosure keys _stream_record sets, so an entry naming no
+                # file has the same shape as one that does and a consumer reading the
+                # inventory never has to branch on which produced the entry.
+                "text_control_characters": _control_character_inventory(None),
+                "text_escaping_contract": UNTRUSTED_TEXT_CONTRACT_KEY,
                 "text_null_reason": (
                     "no log directory was resolved, so there is no stream to carry"
                 ),
@@ -1116,6 +1879,23 @@ def _tool_words(log_dir: Path | None, tool: str, *, with_text: bool) -> dict[str
         "stated_reason": stated,
         "stated_reason_stream": stated_stream,
         "stated_reason_present": stated is not None,
+        # The stated reason IS one stream's text, so its control-character inventory is
+        # that stream's inventory projected here rather than a second measurement of the
+        # same characters -- the same discipline _network_fetch_disclosure follows for the
+        # status fields it projects. The source is named either way, so a reader can see
+        # which stream the numbers were taken over instead of inferring it (CWE-116,
+        # CWE-117; see UNTRUSTED_TEXT_CONTRACT_KEY in the run record).
+        "stated_reason_control_characters": (
+            _control_character_inventory(None)
+            if stated_stream is None
+            else streams[stated_stream]["text_control_characters"]
+        ),
+        "stated_reason_control_characters_source": (
+            "no stream carried words, so there is no inventory to project"
+            if stated_stream is None
+            else f"streams.{stated_stream}.text_control_characters"
+        ),
+        "stated_reason_escaping_contract": UNTRUSTED_TEXT_CONTRACT_KEY,
     }
 
 
@@ -1142,6 +1922,74 @@ STATUS_LINE_INVALID_KEY: str = "text-before-the-first-equals-is-not-a-field-name
 #: rather than in this parser, and both are recorded with their counts.
 STATUS_DEFECT_DUPLICATE_KEY: str = "duplicate-key"
 STATUS_DEFECT_UNPARSABLE_LINE: str = "unparsable-line"
+#: The status file is larger than :data:`STATUS_FILE_BYTE_LIMIT`, so it was measured and
+#: retained but not parsed.  A defect rather than a halt: a status file is log-side
+#: evidence about one runner, and a file grown to gigabytes says something is wrong with
+#: that runner's stream capture, not with the dataset the artifacts produce (CWE-400).
+STATUS_DEFECT_FILE_TOO_LARGE: str = "file-exceeds-byte-cap"
+#: A field's value is all digits but carries more than :data:`STATUS_NUMERIC_DIGIT_LIMIT`
+#: of them, so it was not converted to an integer.  ``int()`` raises ``ValueError`` above
+#: CPython's 4,300-digit conversion limit, which ``str.isdigit()`` does not predict; the
+#: literal is retained verbatim beside the null and the field is treated exactly as an
+#: unreadable one (CWE-770).
+STATUS_DEFECT_NUMERIC_LITERAL_TOO_LONG: str = "numeric-literal-exceeds-digit-cap"
+
+
+#: What a status field's value must be, exactly, to be converted to an integer: ASCII
+#: digits with an optional leading sign and nothing else.  Deliberately narrower than
+#: ``str.isdigit()``, which the two conversions below used to gate on and which is true for
+#: characters ``int()`` refuses -- ``"\u00b2".isdigit()`` is ``True`` and ``int("\u00b2")``
+#: raises ``ValueError``.  A status file is provisioning-supplied text, so a predicate that
+#: does not imply convertibility is a ValueError waiting for one (CWE-770).
+_STATUS_INTEGER_RE = re.compile(r"-?[0-9]+\Z")
+
+
+def _status_integer(
+    literal: str | None, *, field: str, signed: bool
+) -> tuple[int | None, dict[str, Any] | None]:
+    """Convert one status field's literal to an integer, refusing an unbounded one.
+
+    Three outcomes, and they are different things a reader should be able to tell apart:
+
+    * the literal is absent, or is not a plain ASCII integer -- ``(None, None)``.  There is
+      no number here and no defect either; a status file legitimately carries
+      ``artifact_bytes=MISSING``, and a code that cannot be read is what
+      :data:`EXIT_STATUS_TIMEOUT` already names.
+    * the literal is a plain integer of at most :data:`STATUS_NUMERIC_DIGIT_LIMIT` digits
+      -- ``(value, None)``.
+    * the literal is a plain integer with MORE digits than that -- ``(None, defect)``.  It
+      is not converted, the defect names the observed digit count and the cap, and the
+      literal itself is retained verbatim beside the null by the caller.
+
+    The third case is the bound.  ``int()`` raises ``ValueError`` above CPython's
+    4,300-digit ``sys.set_int_max_str_digits`` limit, and the conversion of a shorter but
+    still enormous literal is quadratic in its length, so a status file carrying a
+    megabyte of digits either crashes the conversion or spends real time on it -- neither
+    of which is a way to read an exit code (CWE-400, CWE-770).  ``signed`` is per field
+    because ``exit_code`` may legitimately be negative and ``elapsed_seconds`` may not, and
+    this function must not widen either.
+    """
+    if literal is None:
+        return None, None
+    candidate = literal.strip()
+    if not _STATUS_INTEGER_RE.fullmatch(candidate):
+        return None, None
+    if not signed and candidate.startswith("-"):
+        return None, None
+    digits = candidate.lstrip("-")
+    if len(digits) > STATUS_NUMERIC_DIGIT_LIMIT:
+        return None, {
+            "class": STATUS_DEFECT_NUMERIC_LITERAL_TOO_LONG,
+            "count": 1,
+            "field": field,
+            "observed_digits": len(digits),
+            "digit_cap": STATUS_NUMERIC_DIGIT_LIMIT,
+            "handling": (
+                "the literal is retained verbatim beside a null value and was not "
+                "converted; the field is treated exactly as an unreadable one"
+            ),
+        }
+    return int(candidate), None
 
 
 def _status_line_excerpt(line: str) -> str:
@@ -1196,6 +2044,33 @@ def _runner_status(log_dir: Path | None, tool: str) -> dict[str, Any]:
     excerpt and the reason, and both conditions are also named in ``defects`` with their
     counts -- so a reader sees "this file has 6 lines that look like fields and are not"
     rather than a field list quietly a few entries longer than the runner's.
+
+    WHAT THIS PARSER REFUSES TO ALLOCATE (CWE-400, CWE-770)
+    ------------------------------------------------------
+    Two bounds, both on a file this module did not write.  A file above
+    :data:`STATUS_FILE_BYTE_LIMIT` is measured, retained and named as a
+    :data:`STATUS_DEFECT_FILE_TOO_LARGE` defect rather than parsed -- the largest committed
+    status file is 31,913 bytes, so a file above 4 MB is a stream capture that went wrong
+    rather than a longer account of one invocation.  And a numeric field is converted only
+    through :func:`_status_integer`, which bounds the literal's digit count: the two
+    conversions here used to gate on ``str.isdigit()`` and then call ``int()``, and that
+    pair raises ``ValueError`` both for a literal above CPython's 4,300-digit conversion
+    limit and for a character like ``"\u00b2"`` that is a digit but not convertible.
+    Neither bound loses evidence: the file's size and sha256 are recorded, the file stays
+    on disk, and a refused literal is retained verbatim beside its null.  A refused file's
+    ``exit_status`` is :data:`EXIT_STATUS_UNRECORDED` -- nothing was recorded *from* it --
+    and the defect beside it is what distinguishes that from the no-file-at-all case.
+
+    THE FIELDS ARE THE RUNNER'S OWN TEXT, KEPT AS WRITTEN (CWE-116, CWE-117)
+    ----------------------------------------------------------------------
+    Every value under ``fields``, every ``unparsed_lines[].excerpt`` and every
+    ``duplicate_fields[].value`` is a string the runner wrote, retained byte for byte
+    because ``tool-status.md`` quotes the runner's own reduced-reach condition *"in the
+    tool's own words"* (AAP 0.6.1, 0.6.2).  So the same disclosure a stream's words carry
+    applies here: ``text_control_characters`` is one inventory over the whole file those
+    strings are cut from, and ``text_escaping_contract`` names the run record's contract
+    block for the consumer that renders them.  This parser escapes nothing and this module
+    writes no Markdown; the obligation is the renderer's.
     """
     path = None if log_dir is None else log_dir / f"{tool}.status"
     record: dict[str, Any] = {
@@ -1222,8 +2097,21 @@ def _runner_status(log_dir: Path | None, tool: str) -> dict[str, Any]:
             "zero (" + _STATUS_KEY_PATTERN + ") not already seen. A duplicate key is a "
             "defect in the status file: the first occurrence is kept and the duplicate is "
             "recorded under duplicate_fields. Every other line carrying an '=' is recorded "
-            "under unparsed_lines rather than becoming a field."
+            "under unparsed_lines rather than becoming a field. A numeric field is "
+            "converted only where its value is ASCII digits with an optional leading sign "
+            f"and at most {STATUS_NUMERIC_DIGIT_LIMIT} of them; a longer literal is "
+            "retained verbatim beside a null value and recorded under defects. A file "
+            f"above {STATUS_FILE_BYTE_LIMIT} bytes is measured and retained but not "
+            "parsed at all."
         ),
+        # The status file is the OTHER untrusted verbatim text this record embeds: every
+        # value under `fields`, every rejected line's `excerpt` and every duplicate's
+        # `value` is a runner-written string kept byte for byte, and tool-status.md is
+        # rendered from them. Measured with the same inventory as a stream's words and
+        # pointed at the same contract, so both sites disclose the same hazard in the same
+        # shape (CWE-116, CWE-117). Set here so every early return below carries the keys.
+        "text_control_characters": _control_character_inventory(None),
+        "text_escaping_contract": UNTRUSTED_TEXT_CONTRACT_KEY,
         "exit_code": None,
         "exit_code_literal": None,
         "exit_status": EXIT_STATUS_UNRECORDED,
@@ -1249,11 +2137,68 @@ def _runner_status(log_dir: Path | None, tool: str) -> dict[str, Any]:
             f"{type(error).__name__}: {error}"
         )
         return record
+
+    # Bounded before it is read (CWE-400). A status file is one runner's key=value account
+    # of its own invocation -- the largest committed one is 31,913 bytes -- so a file above
+    # STATUS_FILE_BYTE_LIMIT is not a bigger status file, it is a stream capture that went
+    # wrong. It is measured and retained above and named as a defect here rather than
+    # parsed, and rather than halting the run: this is log-side evidence about one tool,
+    # and the dataset comes from the artifacts.
+    size = record["bytes"]
+    if isinstance(size, int) and size > STATUS_FILE_BYTE_LIMIT:
+        record["defects"] = [
+            {
+                "class": STATUS_DEFECT_FILE_TOO_LARGE,
+                "count": 1,
+                "observed_bytes": size,
+                "byte_cap": STATUS_FILE_BYTE_LIMIT,
+                "handling": (
+                    "the file was measured by size and sha256 and is retained verbatim on "
+                    "disk at the path named, but it was not parsed: no field, exit code, "
+                    "elapsed time or scan root is taken from it. Every value below is "
+                    "therefore null because the file was refused, not because it was empty."
+                ),
+            }
+        ]
+        record["null_reason"] = (
+            f"the status file is {size} bytes, above the {STATUS_FILE_BYTE_LIMIT}-byte "
+            "cap on a runner's key=value status record, so it was not parsed"
+        )
+        return record
+
     try:
-        text = path.read_text(encoding="utf-8", errors="replace")
+        text, text_truncated = _read_bounded_text(
+            path, STATUS_FILE_BYTE_LIMIT, errors="replace"
+        )
     except OSError as error:
         record["read_error"] = f"{type(error).__name__}: {error}"
         return record
+    if text_truncated:
+        # The file grew past the cap between the stat above and this read. Treated exactly
+        # as the over-cap case: a partially parsed status record would carry fields from a
+        # file whose end nobody saw.
+        record["defects"] = [
+            {
+                "class": STATUS_DEFECT_FILE_TOO_LARGE,
+                "count": 1,
+                "observed_bytes": size,
+                "byte_cap": STATUS_FILE_BYTE_LIMIT,
+                "handling": (
+                    "the file exceeded the cap on read even though its recorded size did "
+                    "not, so it grew between the two; it was not parsed"
+                ),
+            }
+        ]
+        record["null_reason"] = (
+            "the status file exceeded the "
+            f"{STATUS_FILE_BYTE_LIMIT}-byte cap while being read, so it was not parsed"
+        )
+        return record
+
+    # Measured over the text every field, excerpt and duplicate value below is cut from,
+    # so one inventory covers all of them rather than one per string: a consumer escaping
+    # this record's status side needs to know what is in the file it was taken from.
+    record["text_control_characters"] = _control_character_inventory(text)
 
     fields: dict[str, str] = {}
     first_line_of: dict[str, int] = {}
@@ -1337,17 +2282,31 @@ def _runner_status(log_dir: Path | None, tool: str) -> dict[str, Any]:
     record["duplicate_field_count"] = len(duplicates)
     record["defects"] = defects
 
+    # Both conversions go through _status_integer: bounded by digit count, ASCII-only, and
+    # signed only where the field legitimately is. A literal it refuses leaves the value
+    # null and the literal verbatim, which is what the two branches below already did for
+    # an unreadable code -- the bound adds a named defect rather than a new behaviour.
+    numeric_defects: list[dict[str, Any]] = []
     literal = fields.get("exit_code")
     record["exit_code_literal"] = literal
-    if literal is not None and literal.strip().lstrip("-").isdigit():
-        record["exit_code"] = int(literal.strip())
+    exit_code, exit_code_defect = _status_integer(literal, field="exit_code", signed=True)
+    if exit_code_defect is not None:
+        numeric_defects.append(exit_code_defect)
+    if exit_code is not None:
+        record["exit_code"] = exit_code
         record["exit_status"] = EXIT_STATUS_EXITED
     else:
         # A status file with no readable code is a process that ended without one.
         record["exit_status"] = EXIT_STATUS_TIMEOUT
-    elapsed = fields.get("elapsed_seconds")
-    if elapsed is not None and elapsed.strip().isdigit():
-        record["elapsed_seconds"] = int(elapsed.strip())
+    elapsed_seconds, elapsed_defect = _status_integer(
+        fields.get("elapsed_seconds"), field="elapsed_seconds", signed=False
+    )
+    if elapsed_defect is not None:
+        numeric_defects.append(elapsed_defect)
+    if elapsed_seconds is not None:
+        record["elapsed_seconds"] = elapsed_seconds
+    if numeric_defects:
+        record["defects"] = list(record["defects"]) + numeric_defects
     record["artifact_bytes_literal"] = fields.get("artifact_bytes")
     record["scan_root"] = fields.get("scan_root")
     record["scan_root_source"] = fields.get("scan_root_source")
@@ -1384,10 +2343,11 @@ def _network_fetch_disclosure(runner_status: Mapping[str, Any]) -> dict[str, Any
     """Project the runner's own statements about an invocation-time fetch.
 
     AAP 0.5.4 requires the record to disclose *"any network fetch a tool performed at
-    invocation time"*, because a rule set or feed fetched with no recorded digest is a
-    reproducibility gap the dataset must carry rather than absorb -- a prior run had one
-    tool fetch 1,093 rules from its API mid-scan and contribute two thirds of the dataset
-    from a rule set with no digest behind it.
+    invocation time"*, because a rule set or feed fetched with no digest available is a
+    reproducibility gap the dataset must carry rather than absorb.  A tool that assembles
+    its rules from an API mid-scan can contribute a large share of the rows while nothing
+    on disk identifies the rules those rows came from, so the disclosure has to travel
+    beside the count for the count to mean anything later.
 
     The statements are the runner's, not this module's. ``runner_status['fields']`` is
     already carried verbatim in the record; this selects the subset that speaks to what
@@ -2414,6 +3374,621 @@ def _adapter_extras(
     return {}
 
 
+# --------------------------------------------------------------------------- #
+# Bounded artifact ingestion (CWE-400, CWE-674, CWE-770)                      #
+# --------------------------------------------------------------------------- #
+
+
+#: Which of a refusal's halt details are also copied into the artifact's own ``ingestion``
+#: entry.  Measurements only: a byte count, a cap, a stage name.  The prose, the tool
+#: identifier and the underlying error text stay in the halt, which is the one place they
+#: are rendered through the persistence boundary.
+_INGESTION_RECORD_KEYS: frozenset[str] = frozenset(
+    {
+        "observed_bytes",
+        "bytes_read",
+        "measured_bytes_before_read",
+        "byte_cap",
+        "byte_offset",
+        "bound",
+        "bound_cap",
+        "bound_observed",
+        "depth_cap",
+        "node_cap",
+        "recursion_limit",
+        "stage",
+    }
+)
+
+
+#: One ingestion bound was crossed, naming which, by how much.  THE SAME CLASS the shared
+#: lexical gate in ``paths`` raises, bound to this module's own historical name rather than
+#: redefined here: two classes for one condition would mean the artifact route catching one
+#: and the metadata route the other, which is how a bound crossing escapes as an unnamed
+#: error.  Raised by both walks that enforce the structural caps --
+#: :func:`_validate_document_bounds` over a document's text, before it is parsed, and
+#: :func:`_measure_document` over the parsed document afterwards.  Neither carries a halt
+#: reason: the bound is the measurement, and :data:`_BOUND_HALT_REASONS` maps it to the
+#: name from this module's closed vocabulary, because that vocabulary is this module's and
+#: a measurement module has no business composing a halt.
+_IngestionBoundExceeded = paths.DocumentBoundExceeded
+
+#: The artifact-side halt name for each bound the gate can raise.  Total against
+#: ``paths.DOCUMENT_BOUNDS`` -- :func:`_verify_vocabularies` asserts that, so a bound added
+#: to the gate cannot reach this module with no halt name and be recorded under the unnamed
+#: ``unexpected-error`` reason.  Two bounds share one name deliberately: a member name and a
+#: value are both strings, and the vocabulary has always carried one reason for both.
+_BOUND_HALT_REASONS: Mapping[str, str] = MappingProxyType(
+    {
+        paths.DOCUMENT_BOUND_DEPTH: HALT_ARTIFACT_TOO_DEEP,
+        paths.DOCUMENT_BOUND_NODES: HALT_ARTIFACT_TOO_MANY_NODES,
+        paths.DOCUMENT_BOUND_STRING: HALT_ARTIFACT_STRING_TOO_LONG,
+        paths.DOCUMENT_BOUND_MEMBER_NAME: HALT_ARTIFACT_STRING_TOO_LONG,
+        paths.DOCUMENT_BOUND_NUMERIC_DIGITS: HALT_ARTIFACT_LITERAL_UNCONVERTIBLE,
+        paths.DOCUMENT_BOUND_LITERAL_TOKEN: HALT_ARTIFACT_LITERAL_UNCONVERTIBLE,
+    }
+)
+
+
+def _halt_reason_for(error: paths.DocumentBoundExceeded) -> str:
+    """Return the halt reason this module records for the bound ``error`` names.
+
+    The mapping is total against ``paths.DOCUMENT_BOUNDS`` and that totality is asserted in
+    :func:`_verify_vocabularies`, so this cannot silently fall back.  An unmapped bound is
+    :data:`HALT_UNEXPECTED` rather than a ``KeyError``, because a bound crossing that this
+    module failed to name is still a refusal the record has to carry (CWE-703).
+    """
+    return _BOUND_HALT_REASONS.get(error.bound, HALT_UNEXPECTED)
+
+
+def _read_bounded_artifact_text(path: Path, limit: int) -> tuple[str, int, bool]:
+    """Read at most ``limit`` bytes of an untrusted JSON file and decode them as UTF-8.
+
+    Used for an artifact against :data:`ARTIFACT_BYTE_LIMIT`, and for
+    ``runner-metadata.json`` against :data:`RUNNER_METADATA_BYTE_LIMIT`, which is the same
+    contract at a different cap: the caller needs the text in order to bound the document's
+    structure before anything parses it.
+
+    The bound is on the read because the read is the first allocation: ``read_text()``
+    materialises the whole file before anything has a chance to check its size, so a
+    check-then-read-whole-file pair bounds nothing that a hostile file has to respect.
+    ``limit + 1`` bytes are requested so that "the file is over the cap" is measurable from
+    the read itself, which closes the gap between the ``os.stat`` the caller took and this
+    read -- a file that grew in between is refused here rather than ingested.
+
+    Decoding is strict: an artifact this module cannot decode is not an artifact it should
+    guess at, and ``errors="replace"`` would silently substitute replacement characters
+    into rule identifiers, messages and paths that end up in the dataset.
+
+    Returns:
+        The decoded text, the number of bytes read, and whether the file exceeded ``limit``.
+        On exceeding it the text is empty: nothing is decoded, so the second allocation
+        never happens.
+
+    Raises:
+        OSError: the file could not be opened or read.
+        UnicodeDecodeError: the bytes read are not valid UTF-8.
+        MemoryError: the host could not allocate the bytes or their decoding.
+    """
+    with path.open("rb") as handle:
+        data = handle.read(limit + 1)
+    if len(data) > limit:
+        return "", len(data), True
+    return data.decode("utf-8"), len(data), False
+
+
+# --------------------------------------------------------------------------- #
+# The pre-parse structural gate (CWE-400, CWE-674, CWE-770)                   #
+#                                                                             #
+# ONE IMPLEMENTATION, IN ONE PLACE. The token scanner that enforces the depth, #
+# node, string and literal caps on a document's TEXT lives in `paths`, which   #
+# is the module that owns the read and the parse of runner-metadata.json and   #
+# publishes that document's caps. Both routes into a parse therefore reach the #
+# same code: this module's artifact loader through the names below, and        #
+# paths.load_runner_metadata internally, on its own read and on a caller's     #
+# validated_text alike. Two implementations of one bound is the defect where   #
+# the last one silently wins and no reader can see which is in force, which is #
+# why these are bindings rather than a second copy of the algorithm (F12).     #
+#                                                                             #
+# Why the gate exists at all, why its token pattern cannot backtrack           #
+# superlinearly, why the string scanner is index arithmetic rather than either  #
+# quadratic regex spelling, and why no token is ever materialised, are         #
+# documented at the implementation in paths.py -- one account of one algorithm. #
+#                                                                             #
+# The scan does not adjudicate well-formedness, and json.loads remains the     #
+# only thing that has ever produced HALT_ARTIFACT_INVALID_JSON and its message.#
+# --------------------------------------------------------------------------- #
+
+#: The end of the string token opening at an index, or ``-1`` where it is unterminated.
+#: The shared implementation, bound to the name this module has always used for it.
+_string_token_end = paths.string_token_end
+
+#: Bound an untrusted JSON document's structure BEFORE it is parsed: depth, node count,
+#: string length and literal length, over the text, in one left-to-right token scan that
+#: materialises no value.  The shared implementation in ``paths``, bound to the name this
+#: module's artifact loader calls and the tests inspect -- so what is asserted of this name
+#: is asserted of the code every route runs, including the metadata route inside
+#: ``paths.load_runner_metadata`` (F12).  Raises :data:`_IngestionBoundExceeded`, whose
+#: ``bound`` :func:`_halt_reason_for` maps to this module's own halt vocabulary.
+_validate_document_bounds = paths.validate_document_bounds
+
+#: The keys :func:`_validate_document_bounds` returns for the three quantities
+#: :func:`_measure_document` also measures, so a caller comparing the two verdicts does not
+#: have to restate them.  Published by the module that owns the walk.
+_STRUCTURAL_MEASUREMENT_KEYS: tuple[str, ...] = paths.STRUCTURAL_MEASUREMENT_KEYS
+
+
+def _measure_document(document: Any) -> dict[str, int]:
+    """Measure a parsed artifact's shape, refusing it the moment a bound is crossed.
+
+    THE SECOND OPINION, NOT THE GATE
+    --------------------------------
+    :func:`_validate_document_bounds` has already enforced these caps on the document's
+    text, before ``json.loads`` allocated anything, which is what makes them bounds rather
+    than diagnoses.  This walk runs afterwards over the parsed object graph and is an
+    INDEPENDENT CONFIRMATION of that verdict: a different traversal, over a different
+    representation, of the same document.  The two must agree, and the direction of the
+    agreement is fixed -- the parse can only lose values, because duplicate object members
+    collapse onto the last one, so ``measured <= validated`` for all three quantities.  A
+    measured figure ABOVE the pre-parse verdict would mean one of the two walks is wrong,
+    which is why :func:`_ingest_artifact_document` checks it rather than assuming it.
+
+    Three quantities, each with its own cap: nesting depth (:data:`JSON_DEPTH_LIMIT`),
+    node count (:data:`JSON_NODE_LIMIT`) and the longest string (:data:`JSON_STRING_LIMIT`).
+    A node is a JSON value; an object member NAME is checked against the string cap but is
+    not itself counted as a node, because a hostile 100 MB key is as much of an allocation
+    as a hostile 100 MB value and counting it twice would make the node figure mean two
+    things.  That definition is the one the observed maxima in :data:`INGESTION_BOUNDS`
+    were measured with, so the observed column and the enforced column agree.
+
+    THE TRAVERSAL IS ITERATIVE, AND SO IS ITS MEMORY (CWE-674)
+    ---------------------------------------------------------
+    Recursion is not an implementation detail here: a recursive depth check against a
+    document deep enough to matter overflows the stack while measuring it, which is the
+    condition it exists to detect.  So the traversal is an explicit loop.
+
+    The stack holds one ITERATOR per open container rather than one entry per pending
+    child, which bounds the traversal's own memory by the depth cap -- 64 iterators --
+    rather than by the document's breadth.  A stack of pending children would instead grow
+    with the widest array in the document: a 512 MiB artifact can encode on the order of
+    a hundred million array elements, and a per-child stack would allocate a tuple for
+    every one of them, so the bound checker would be the memory exhaustion.
+
+    Returns:
+        ``depth``, ``nodes`` and ``longest_string`` as measured, all three within their caps.
+
+    Raises:
+        _IngestionBoundExceeded: a cap was crossed.  Raised at the crossing, so the walk
+            does not finish traversing a document it has already refused.
+    """
+    nodes = 0
+    max_depth = 0
+    longest = 0
+    # One iterator per container currently open. Bounded by JSON_DEPTH_LIMIT + 1 entries.
+    stack: list[Iterator[Any]] = []
+    value: Any = document
+    depth = 1
+
+    while True:
+        nodes += 1
+        if nodes > JSON_NODE_LIMIT:
+            raise _IngestionBoundExceeded(
+                paths.DOCUMENT_BOUND_NODES, JSON_NODE_LIMIT, nodes
+            )
+        if depth > max_depth:
+            max_depth = depth
+            if max_depth > JSON_DEPTH_LIMIT:
+                raise _IngestionBoundExceeded(
+                    paths.DOCUMENT_BOUND_DEPTH, JSON_DEPTH_LIMIT, max_depth
+                )
+
+        if isinstance(value, str):
+            if len(value) > longest:
+                longest = len(value)
+                if longest > JSON_STRING_LIMIT:
+                    raise _IngestionBoundExceeded(
+                        paths.DOCUMENT_BOUND_STRING, JSON_STRING_LIMIT, longest
+                    )
+        elif isinstance(value, dict):
+            for name in value:
+                # Member names are strings the artifact chose, so they are bounded like
+                # any other string. json guarantees they are str, so len() is safe.
+                if len(name) > longest:
+                    longest = len(name)
+                    if longest > JSON_STRING_LIMIT:
+                        raise _IngestionBoundExceeded(
+                            paths.DOCUMENT_BOUND_MEMBER_NAME,
+                            JSON_STRING_LIMIT,
+                            longest,
+                        )
+            stack.append(iter(value.values()))
+            depth += 1
+        elif isinstance(value, list):
+            stack.append(iter(value))
+            depth += 1
+
+        # Advance to the next value: the next child of the innermost open container, or,
+        # where that container is exhausted, the next child of the one enclosing it.
+        while stack:
+            try:
+                value = next(stack[-1])
+            except StopIteration:
+                stack.pop()
+                depth -= 1
+                continue
+            break
+        else:
+            break
+
+    return {"depth": max_depth, "nodes": nodes, "longest_string": longest}
+
+
+def _ingest_artifact_document(
+    tool: str,
+    artifact_path: Path,
+    *,
+    outcome: ArtifactOutcome,
+) -> Any:
+    """Read, parse and bound one artifact, and record what it measured.
+
+    The whole of the hostile-input surface for an artifact is here, in one order that never
+    allocates before it has checked:
+
+    1. ``os.stat`` -- refused above :data:`ARTIFACT_BYTE_LIMIT` before a byte is read;
+    2. a bounded read of at most ``cap + 1`` bytes, refused again if the file grew;
+    3. a strict UTF-8 decode;
+    4. :func:`_validate_document_bounds` over the decoded TEXT -- depth, node count,
+       longest string and numeric-literal digits, all four refused before anything is
+       allocated for them, because the parse is the allocation and a cap that runs after it
+       names an exhaustion instead of preventing one;
+    5. ``json.loads``;
+    6. :func:`_measure_document` over the parsed document, as an independent confirmation
+       of step 4's verdict, with their agreement checked rather than assumed.
+
+    Every failure becomes a NAMED halt through the same machinery as the JSONDecodeError it
+    sits beside, and that includes the three exceptions that are not this module's own
+    verdict: ``MemoryError``, ``RecursionError`` and a ``ValueError`` that is not a
+    ``JSONDecodeError``.  All three are ``Exception`` subclasses, so :func:`main` would
+    record them either way -- but it would record them under the single unnamed
+    ``unexpected-error`` reason, with the message *described* rather than quoted (it is
+    composed from artifact content) and this repository's frames rendered beside it.  That
+    record cannot say which artifact, which stage or which limit was reached, and a run
+    record that cannot say what stopped the run is the failure this pipeline's evidence
+    discipline exists to prevent (AAP 0.1.1).
+
+    Two of those arms are now defence in depth rather than the first line of it, and they
+    are retained deliberately.  ``RecursionError`` out of ``json``'s C scanner -- which
+    recurses once per nesting level -- and the ``ValueError`` an over-long integer literal
+    provokes are both refused by step 4 before ``json.loads`` sees the document, so neither
+    should be reachable through the depth or digit dimension any more.  Removing the arms
+    on that reasoning would be trusting one function to be correct: they stay, so that a
+    document which reaches the parser by any route this walk did not anticipate is still a
+    named halt rather than an unnamed one.
+
+    Returns:
+        The parsed document, measured and within every bound.
+
+    Raises:
+        ConfigurationFault: the artifact exists and could not be read or measured -- a
+            fault to correct, exit ``78``.
+        NormalizeHalt: the artifact's content was refused -- a halting condition in the
+            data, exit ``1``.  ``outcome.parse_status`` is set to
+            :data:`PARSE_STATUS_FAILED` and ``outcome.artifact["ingestion"]`` records the
+            refusal before either is raised, so the record carries the failure even though
+            the exception is what stops the run.
+    """
+    bounds = {
+        "artifact_bytes": ARTIFACT_BYTE_LIMIT,
+        "json_depth": JSON_DEPTH_LIMIT,
+        "json_nodes": JSON_NODE_LIMIT,
+        "json_string_characters": JSON_STRING_LIMIT,
+    }
+
+    def refuse(
+        reason: str, message: str, /, *, fault: bool = False, **details: Any
+    ) -> NormalizeHalt:
+        """Mark the outcome failed, record the refusal, and build the named halt.
+
+        The measurements are copied into ``outcome.artifact["ingestion"]`` as well as into
+        the halt
+        because the two are read by different readers: the halt is the run's stated reason
+        for stopping, and the artifact's own entry is where a reader looking at that
+        artifact finds what was measured.  Only the measurement keys cross over --
+        :data:`_INGESTION_RECORD_KEYS` -- so the artifact entry does not become a second,
+        divergent copy of the halt's prose.
+
+        ``fault`` preserves the distinction the exit codes draw.  An artifact that exists
+        and cannot be read is a configuration fault to correct (``78``, the same
+        ``EX_CONFIG`` the runners use); an artifact whose *content* is refused is a halting
+        condition in the data (``1``).  Which of the two a given reason is was decided
+        before these bounds existed and is not changed by them.
+        """
+        outcome.parse_status = PARSE_STATUS_FAILED
+        outcome.artifact["ingestion"] = {
+            "bounds": dict(bounds),
+            "refused": True,
+            "refused_reason": reason,
+            **{
+                key: value
+                for key, value in details.items()
+                if key in _INGESTION_RECORD_KEYS
+            },
+        }
+        if fault:
+            return _fault(reason, message, **details)
+        return _halt(reason, message, **details)
+
+    try:
+        size = os.stat(artifact_path).st_size
+    except OSError as error:
+        raise refuse(
+            HALT_ARTIFACT_UNREADABLE,
+            f"{tool}: the artifact at {artifact_path} exists but cannot be measured: "
+            f"{type(error).__name__}: {error}",
+            fault=True,
+            tool=tool,
+            artifact_path=str(artifact_path),
+            error=f"{type(error).__name__}: {error}",
+        ) from error
+
+    if size > ARTIFACT_BYTE_LIMIT:
+        raise refuse(
+            HALT_ARTIFACT_TOO_LARGE,
+            f"{tool}: the artifact at {artifact_path} is {size} bytes, above the "
+            f"{ARTIFACT_BYTE_LIMIT}-byte ingestion cap, so it was refused before any of it "
+            "was read. The largest artifact this pipeline has observed is 73,840,948 "
+            "bytes; a file this size is not a bigger scan result.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            observed_bytes=size,
+            byte_cap=ARTIFACT_BYTE_LIMIT,
+        )
+
+    try:
+        text, bytes_read, over_cap = _read_bounded_artifact_text(
+            artifact_path, ARTIFACT_BYTE_LIMIT
+        )
+    except OSError as error:
+        raise refuse(
+            HALT_ARTIFACT_UNREADABLE,
+            f"{tool}: the artifact at {artifact_path} exists but cannot be read: "
+            f"{type(error).__name__}: {error}",
+            fault=True,
+            tool=tool,
+            artifact_path=str(artifact_path),
+            error=f"{type(error).__name__}: {error}",
+        ) from error
+    except UnicodeDecodeError as error:
+        raise refuse(
+            HALT_ARTIFACT_NOT_UTF8,
+            f"{tool}: the artifact at {artifact_path} is not valid UTF-8 at byte offset "
+            f"{error.start}, so it matches no known shape. It is decoded strictly rather "
+            "than with replacement, because a replacement character substituted into a "
+            "rule identifier, a message or a path would reach the dataset as data.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            decode_error=error.reason,
+            byte_offset=error.start,
+            observed_bytes=size,
+        ) from error
+    except MemoryError as error:
+        raise refuse(
+            HALT_ARTIFACT_EXHAUSTED_MEMORY,
+            f"{tool}: reading the artifact at {artifact_path} ({size} bytes) exhausted "
+            "memory. The read is bounded at "
+            f"{ARTIFACT_BYTE_LIMIT} bytes, so this is the host's available memory rather "
+            "than an unbounded read.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            stage="read",
+            observed_bytes=size,
+            byte_cap=ARTIFACT_BYTE_LIMIT,
+        ) from error
+
+    if over_cap:
+        raise refuse(
+            HALT_ARTIFACT_TOO_LARGE,
+            f"{tool}: the artifact at {artifact_path} exceeded the "
+            f"{ARTIFACT_BYTE_LIMIT}-byte ingestion cap on read, having measured {size} "
+            "bytes a moment earlier, so it grew between the two. Nothing was decoded.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            observed_bytes=bytes_read,
+            measured_bytes_before_read=size,
+            byte_cap=ARTIFACT_BYTE_LIMIT,
+        )
+
+    # STEP 4: the structural caps, on the text, BEFORE json.loads builds anything. The byte
+    # cap above bounds the file and says nothing about the object graph the file encodes, so
+    # this is where depth, node count, string length and numeric-literal digits are decided
+    # (CWE-400, CWE-674, CWE-770). A refusal here is the same named halt the post-parse walk
+    # would have raised, with the same details, so no consumer of the vocabulary changes.
+    try:
+        validated = _validate_document_bounds(
+            text,
+            depth_limit=JSON_DEPTH_LIMIT,
+            node_limit=JSON_NODE_LIMIT,
+            string_limit=JSON_STRING_LIMIT,
+            digit_limit=STATUS_NUMERIC_DIGIT_LIMIT,
+        )
+    except _IngestionBoundExceeded as error:
+        raise refuse(
+            _halt_reason_for(error),
+            f"{tool}: the artifact at {artifact_path} was refused before it was parsed, "
+            f"and therefore before it was routed to a shape: {error}. The caps are "
+            "measurements plus a margin, published in the run record under "
+            "vocabularies.ingestion_bounds, and they are enforced on the document's text "
+            "because the object graph a document allocates is not bounded by its byte "
+            "size.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            stage="validate",
+            observed_bytes=size,
+            **error.details(),
+        ) from error
+    except MemoryError as error:
+        raise refuse(
+            HALT_ARTIFACT_EXHAUSTED_MEMORY,
+            f"{tool}: validating the artifact at {artifact_path} ({size} bytes) exhausted "
+            "memory. The scan holds one entry per open container, bounded by the depth cap "
+            f"of {JSON_DEPTH_LIMIT}, and materialises no value, so this is the host's "
+            "available memory rather than a walk that grows with the document.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            stage="validate",
+            observed_bytes=size,
+            depth_cap=JSON_DEPTH_LIMIT,
+        ) from error
+
+    try:
+        document = json.loads(text)
+    except json.JSONDecodeError as error:
+        raise refuse(
+            HALT_ARTIFACT_INVALID_JSON,
+            f"{tool}: the artifact at {artifact_path} is not valid JSON, so it matches no "
+            f"known shape: {error}",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            parser_error=str(error),
+            line=error.lineno,
+            column=error.colno,
+            character_offset=error.pos,
+        ) from error
+    except RecursionError as error:
+        raise refuse(
+            HALT_ARTIFACT_EXHAUSTED_STACK,
+            f"{tool}: parsing the artifact at {artifact_path} exhausted the interpreter's "
+            "stack. json's scanner recurses once per nesting level, so this document is "
+            f"nested past the recursion limit -- far past the depth cap of "
+            f"{JSON_DEPTH_LIMIT} it would have been refused by had it parsed at all.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            stage="parse",
+            depth_cap=JSON_DEPTH_LIMIT,
+            recursion_limit=sys.getrecursionlimit(),
+            observed_bytes=size,
+        ) from error
+    except MemoryError as error:
+        raise refuse(
+            HALT_ARTIFACT_EXHAUSTED_MEMORY,
+            f"{tool}: parsing the artifact at {artifact_path} ({size} bytes) exhausted "
+            "memory. The object graph a document allocates is not bounded by its byte "
+            "size, which is why the node, depth, string and digit caps are enforced on the "
+            f"text before this point -- this document was inside all four "
+            f"({validated['nodes']} nodes, depth {validated['depth']}, longest string "
+            f"{validated['longest_string']}), so this is the host's available memory rather "
+            "than an unbounded document reaching the parser.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            stage="parse",
+            observed_bytes=size,
+            node_cap=JSON_NODE_LIMIT,
+        ) from error
+    except ValueError as error:
+        # A ValueError from json.loads that is NOT a JSONDecodeError: the syntax is valid
+        # and a literal is not convertible. The documented instance on this interpreter is
+        # an integer literal above the 4,300-digit sys.set_int_max_str_digits limit, which
+        # is a well-formed JSON number and an int() CPython refuses.
+        raise refuse(
+            HALT_ARTIFACT_LITERAL_UNCONVERTIBLE,
+            f"{tool}: the artifact at {artifact_path} is syntactically valid JSON carrying "
+            f"a literal this interpreter refuses to convert: {type(error).__name__}. An "
+            "integer literal above CPython's 4,300-digit conversion limit is the "
+            "documented case; it is a refusal to allocate rather than a syntax error, so "
+            "it is named separately from an invalid document.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            error_type=type(error).__name__,
+            observed_bytes=size,
+        ) from error
+
+    try:
+        # STEP 6: the same three caps again, over the parsed object graph, as an
+        # INDEPENDENT CONFIRMATION of step 4's verdict rather than as the gate. Step 4 is
+        # the gate; this is a second traversal of a second representation, and the two
+        # disagreeing is a defect in one of them rather than a property of the artifact.
+        measurements = _measure_document(document)
+    except _IngestionBoundExceeded as error:
+        raise refuse(
+            _halt_reason_for(error),
+            f"{tool}: the artifact at {artifact_path} was refused before it was routed to "
+            f"a shape: {error}. The caps are measurements plus a margin, published in the "
+            "run record under vocabularies.ingestion_bounds. The pre-parse gate measured "
+            f"{validated['nodes']} nodes, depth {validated['depth']} and longest string "
+            f"{validated['longest_string']} and accepted the document, so a refusal here "
+            "means the two walks disagree and the pre-parse verdict is the one to fix.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            observed_bytes=size,
+            **error.details(),
+        ) from error
+    except MemoryError as error:
+        raise refuse(
+            HALT_ARTIFACT_EXHAUSTED_MEMORY,
+            f"{tool}: measuring the artifact at {artifact_path} ({size} bytes) exhausted "
+            "memory. The walk holds one iterator per open container, bounded by the depth "
+            f"cap of {JSON_DEPTH_LIMIT}, so this is the host's available memory rather "
+            "than a traversal that grows with the document.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            stage="measure",
+            observed_bytes=size,
+            depth_cap=JSON_DEPTH_LIMIT,
+        ) from error
+
+    # THE TWO WALKS MUST AGREE, AND IN ONE DIRECTION.
+    #
+    # The pre-parse scan counts tokens; this walk counts values; and the parse between them
+    # can only LOSE values, because duplicate object members collapse onto the last one and
+    # a decoded string is never longer than the raw token it came from. So a measured figure
+    # at or below the validated one is expected, and a measured figure ABOVE it is arithmetic
+    # neither walk can produce from the same document -- it means one of them is wrong. That
+    # is a defect in this module rather than a fault in the artifact, so it is refused
+    # explicitly here rather than left to a reader to notice in the record. Three integer
+    # comparisons on the accepted path.
+    disagreements = [
+        f"{key}: the pre-parse gate measured {validated[key]} and the confirmation walk "
+        f"measured {measurements[key]}"
+        for key in _STRUCTURAL_MEASUREMENT_KEYS
+        if measurements[key] > validated[key]
+    ]
+    if disagreements:
+        raise refuse(
+            HALT_UNEXPECTED,
+            f"{tool}: the artifact at {artifact_path} measured larger after parsing than "
+            "the pre-parse gate measured before it, which no document can do -- the parse "
+            "only ever collapses duplicate object members and shortens escaped strings. "
+            f"One of the two walks is wrong: {'; '.join(disagreements)}.",
+            tool=tool,
+            artifact_path=str(artifact_path),
+            stage="confirm",
+            observed_bytes=size,
+        )
+
+    # Recorded per artifact rather than asserted once: a bound that was never crossed is
+    # only visible as a measurement beside its cap, and the same figures are what a later
+    # run's record is compared against.
+    outcome.artifact["ingestion"] = {
+        "bounds": dict(bounds),
+        "refused": False,
+        "observed_bytes": size,
+        "bytes_read": bytes_read,
+        "depth": measurements["depth"],
+        "nodes": measurements["nodes"],
+        "longest_string": measurements["longest_string"],
+        "node_definition": (
+            "a node is a JSON value; an object member name is length-checked against the "
+            "string cap but is not itself counted as a node"
+        ),
+        "walk": (
+            "iterative, one iterator per open container, so the traversal's own memory is "
+            "bounded by the depth cap rather than by the document's breadth"
+        ),
+        "measured_before_routing": True,
+    }
+    return document
+
+
 def _process_present_artifact(
     tool: str,
     artifact_path: Path,
@@ -2446,34 +4021,10 @@ def _process_present_artifact(
     # not depend on their content, and one of them can run to hundreds of megabytes.
     outcome.tool_words = _tool_words(log_dir, tool, with_text=False)
 
-    try:
-        text = artifact_path.read_text(encoding="utf-8")
-    except OSError as error:
-        outcome.parse_status = PARSE_STATUS_FAILED
-        raise _fault(
-            HALT_ARTIFACT_UNREADABLE,
-            f"{tool}: the artifact at {artifact_path} exists but cannot be read: "
-            f"{type(error).__name__}: {error}",
-            tool=tool,
-            artifact_path=str(artifact_path),
-            error=f"{type(error).__name__}: {error}",
-        ) from error
-
-    try:
-        document = json.loads(text)
-    except json.JSONDecodeError as error:
-        outcome.parse_status = PARSE_STATUS_FAILED
-        raise _halt(
-            HALT_ARTIFACT_INVALID_JSON,
-            f"{tool}: the artifact at {artifact_path} is not valid JSON, so it matches no "
-            f"known shape: {error}",
-            tool=tool,
-            artifact_path=str(artifact_path),
-            parser_error=str(error),
-            line=error.lineno,
-            column=error.colno,
-            character_offset=error.pos,
-        ) from error
+    # Read, parsed and bounded in one place, before anything routes it: an artifact is
+    # provisioning-supplied input this module did not write, and every one of the bounds
+    # and every one of the named halts is in _ingest_artifact_document.
+    document = _ingest_artifact_document(tool, artifact_path, outcome=outcome)
 
     try:
         decision = shape.route_artifact(artifact_path, document)
@@ -2791,6 +4342,22 @@ def _verify_vocabularies(record: dict[str, Any]) -> None:
         "artifact_filenames": list(shape.ARTIFACT_FILENAMES),
         "reject_classes": list(paths.REJECT_CLASSES),
         "parse_statuses": list(PARSE_STATUSES),
+        # The closed set of halting reasons, published so that a reader can enumerate what
+        # this module can stop for without reading its source -- and so that a halt reason
+        # a record carries is checkable against the vocabulary of the run that wrote it.
+        "halt_reasons": list(HALT_REASONS),
+        "status_defect_classes": [
+            STATUS_DEFECT_DUPLICATE_KEY,
+            STATUS_DEFECT_UNPARSABLE_LINE,
+            STATUS_DEFECT_FILE_TOO_LARGE,
+            STATUS_DEFECT_NUMERIC_LITERAL_TOO_LONG,
+        ],
+        # What was enforced on every file read, with the measurements the caps were set
+        # from. A bound that never fires is only visible here.
+        # dict() rather than the mapping proxy itself: the proxy is not JSON-serialisable,
+        # and a copy is what the record should carry anyway -- publishing the live mapping
+        # would let a later mutation appear to have been what this run enforced.
+        "ingestion_bounds": dict(INGESTION_BOUNDS),
     }
     if len(distinct) != 1:
         raise _fault(
@@ -2821,6 +4388,24 @@ def _verify_vocabularies(record: dict[str, Any]) -> None:
             f"observed {list(shape.ARTIFACT_FILENAMES)}",
             artifact_filenames=list(shape.ARTIFACT_FILENAMES),
         )
+    # The bound-to-halt mapping must be total in both directions against the bounds the
+    # shared gate can raise, and every reason it names must be in the closed vocabulary.
+    # A bound with no halt name would be recorded under the unnamed unexpected-error
+    # reason, which cannot say which cap the document crossed; a reason outside the
+    # vocabulary would raise inside NormalizeHalt at the moment of the refusal. Neither is
+    # published as a new record key: this is an invariant of the source, and the record
+    # already carries both vocabularies it relates.
+    if set(_BOUND_HALT_REASONS) != set(paths.DOCUMENT_BOUNDS) or not set(
+        _BOUND_HALT_REASONS.values()
+    ) <= set(HALT_REASONS):
+        raise _fault(
+            HALT_VOCABULARY_MISMATCH,
+            "the ingestion bounds and the halt reasons they map to do not describe one "
+            f"vocabulary: bounds={list(paths.DOCUMENT_BOUNDS)}, "
+            f"mapped={sorted(_BOUND_HALT_REASONS)}",
+            document_bounds=list(paths.DOCUMENT_BOUNDS),
+            mapped_bounds=sorted(_BOUND_HALT_REASONS),
+        )
 
 
 def _load_metadata(inputs: Inputs, record: dict[str, Any]) -> Mapping[str, Any]:
@@ -2829,15 +4414,196 @@ def _load_metadata(inputs: Inputs, record: dict[str, Any]) -> Mapping[str, Any]:
     AAP 0.6.4 fixes the direction: Stage 1 writes this file, the normalizer reads it, and
     ``tool-status.md`` is rendered afterwards from it joined with these results.  Nothing
     here reads any Markdown.
+
+    BOUNDED BEFORE IT IS PARSED, AND ON BOTH SIDES OF THE CALL (CWE-400, CWE-674, CWE-770)
+    --------------------------------------------------------------------------------------
+    The metadata is the same kind of input as an artifact -- a JSON file this module did
+    not write -- so it gets the same treatment in the same order.  ``os.stat`` against
+    :data:`RUNNER_METADATA_BYTE_LIMIT` first, with the committed metadata at 117,676 bytes
+    for scale.  Then the file is read once through :func:`_read_bounded_artifact_text` and
+    its text is handed to :func:`_validate_document_bounds` against the three shape caps
+    ``paths`` publishes -- ``paths.METADATA_DEPTH_LIMIT`` / ``METADATA_NODE_LIMIT`` /
+    ``METADATA_STRING_LIMIT`` -- plus the package's numeric-literal digit bound.  Only then
+    is ``paths.load_runner_metadata`` called.
+
+    THE GATE IS ON BOTH SIDES, AND IT IS THE SAME GATE.  ``_validate_document_bounds`` is a
+    binding of the walk ``paths`` owns, and ``paths.load_runner_metadata`` runs that same
+    walk internally on whatever text it is about to parse -- its own read or the
+    ``validated_text`` handed here.  So the refusal below is not the only thing standing
+    between a hostile document and ``json.loads``: a document swapped between this side's
+    read and that function's parse is refused there, on the text, before the parse (F12).
+    What this side adds is the fault the run record carries, with the stage and the
+    measurement a reader of ``normalize-run.json`` needs.
+
+    THE FILE IS READ ONCE, ON EVERY ROUTE.  The text this side validated is handed to
+    ``paths.load_runner_metadata`` through its ``validated_text`` parameter, so that
+    function parses those exact bytes instead of reading the file again.  A replacement
+    between a validating read and a parsing read therefore has no window to land in
+    (CWE-367).  That module's post-parse shape check still runs over the parsed document
+    as the second opinion, exactly as :func:`_measure_document` is for an artifact.
+
+    A FAILURE TO DECODE IS ANSWERED HERE, FROM THE BYTES ALREADY HELD.  Handing the path
+    over for a second read after this side's read failed would reopen exactly the window
+    ``validated_text`` closes: a file this side could not decode, replaced with
+    structurally hostile valid JSON, would then be read afresh by another function
+    (CWE-367).  So the decode failure is this module's fault to raise, naming the metadata,
+    its measured size and the decode stage, and no second read of any kind happens.
+
+    All the caps are published in :data:`INGESTION_BOUNDS`, so the record states every bound
+    that was enforced rather than only the ones enforced here.  ``MemoryError``,
+    ``RecursionError`` and a ``ValueError`` raised inside that parse are converted here too,
+    for the same reason the artifact path converts them: all three are ``Exception``
+    subclasses that would otherwise be recorded under the single unnamed ``unexpected-error``
+    reason, which cannot say that it was the metadata that failed or at what size.
     """
     try:
-        document = paths.load_runner_metadata(inputs.runner_metadata)
+        metadata_bytes = os.stat(inputs.runner_metadata).st_size
+    except OSError as error:
+        raise _fault(
+            HALT_RUNNER_METADATA,
+            f"the runner metadata at {inputs.runner_metadata} cannot be measured: "
+            f"{type(error).__name__}: {error}. It is Stage 1's output and this module's "
+            "input; no path base can be established without it.",
+            runner_metadata=str(inputs.runner_metadata),
+            error=f"{type(error).__name__}: {error}",
+        ) from error
+    if metadata_bytes > RUNNER_METADATA_BYTE_LIMIT:
+        raise _fault(
+            HALT_RUNNER_METADATA,
+            f"the runner metadata at {inputs.runner_metadata} is {metadata_bytes} bytes, "
+            f"above the {RUNNER_METADATA_BYTE_LIMIT}-byte cap on this input, so it was "
+            "refused before any of it was read. The committed metadata is 117,676 bytes; "
+            "a file this size is not a longer account of nine runners.",
+            runner_metadata=str(inputs.runner_metadata),
+            observed_bytes=metadata_bytes,
+            byte_cap=RUNNER_METADATA_BYTE_LIMIT,
+        )
+
+    # The structural caps, on the text, before paths.load_runner_metadata parses anything.
+    # The caps are that module's own published numbers -- one binding, read here rather than
+    # restated -- so the two sides cannot enforce two different bounds on one file.
+    try:
+        text, _, grew = _read_bounded_artifact_text(
+            inputs.runner_metadata, RUNNER_METADATA_BYTE_LIMIT
+        )
+    except UnicodeDecodeError as error:
+        # Refused from the bytes already held, and NOT delegated by handing the path over
+        # for a second read: a file this side could not decode, replaced with structurally
+        # hostile but valid JSON before another function reads it, is exactly the
+        # check-then-use window this side exists to close (CWE-367). The verdict keeps the
+        # `decode` stage it has always carried, and the diagnostic keeps naming the
+        # metadata, the size measured a moment earlier, and what was wrong with the bytes.
+        raise _fault(
+            HALT_RUNNER_METADATA,
+            f"the runner metadata at {inputs.runner_metadata} is {metadata_bytes} bytes "
+            f"and is not valid UTF-8: {type(error).__name__}: {error}. It is Stage 1's "
+            "output and this module's input; a document that cannot be decoded cannot be "
+            "bounded or parsed, and it is refused from the bytes this read already holds "
+            "rather than re-read by anything else.",
+            runner_metadata=str(inputs.runner_metadata),
+            stage="decode",
+            observed_bytes=metadata_bytes,
+            error=f"{type(error).__name__}: {error}",
+        ) from error
+    except OSError as error:
+        raise _fault(
+            HALT_RUNNER_METADATA,
+            f"the runner metadata at {inputs.runner_metadata} cannot be read: "
+            f"{type(error).__name__}: {error}. It is Stage 1's output and this module's "
+            "input; no path base can be established without it.",
+            runner_metadata=str(inputs.runner_metadata),
+            stage="read",
+            error=f"{type(error).__name__}: {error}",
+        ) from error
+    except MemoryError as error:
+        raise _fault(
+            HALT_RUNNER_METADATA,
+            f"reading the runner metadata at {inputs.runner_metadata} "
+            f"({metadata_bytes} bytes) exhausted memory. The read is bounded at "
+            f"{RUNNER_METADATA_BYTE_LIMIT} bytes, so this is the host's available memory "
+            "rather than an unbounded read.",
+            runner_metadata=str(inputs.runner_metadata),
+            stage="read",
+            observed_bytes=metadata_bytes,
+            byte_cap=RUNNER_METADATA_BYTE_LIMIT,
+        ) from error
+    else:
+        if grew:
+            raise _fault(
+                HALT_RUNNER_METADATA,
+                f"the runner metadata at {inputs.runner_metadata} exceeded the "
+                f"{RUNNER_METADATA_BYTE_LIMIT}-byte cap on read, having measured "
+                f"{metadata_bytes} bytes a moment earlier, so it grew between the two. "
+                "Nothing was decoded.",
+                runner_metadata=str(inputs.runner_metadata),
+                stage="read",
+                observed_bytes=metadata_bytes,
+                byte_cap=RUNNER_METADATA_BYTE_LIMIT,
+            )
+    # Unconditional: every route out of the read above either raised or produced text, so
+    # there is no arm on which this gate is skipped and no `None` to test for.
+    try:
+        _validate_document_bounds(
+            text,
+            depth_limit=paths.METADATA_DEPTH_LIMIT,
+            node_limit=paths.METADATA_NODE_LIMIT,
+            string_limit=paths.METADATA_STRING_LIMIT,
+            digit_limit=STATUS_NUMERIC_DIGIT_LIMIT,
+        )
+    except _IngestionBoundExceeded as error:
+        # One reason, not a new one: a metadata refusal has always been
+        # HALT_RUNNER_METADATA, and `error.bound` names the cap the document crossed, so it
+        # is the measurement that is forwarded rather than the artifact-side halt name.
+        raise _fault(
+            HALT_RUNNER_METADATA,
+            f"the runner metadata at {inputs.runner_metadata} was refused on shape "
+            f"before it was parsed: its {error.bound} is {error.observed}, above the "
+            f"{error.limit} cap on this input. The caps are enforced on the document's "
+            "text because the object graph a document allocates is not bounded by its "
+            "byte size, and a runner metadata document is a flat record of nine "
+            "runners: the committed one reaches depth 7, holds 1,315 values and carries "
+            "no string longer than 1,421 characters.",
+            runner_metadata=str(inputs.runner_metadata),
+            stage="validate",
+            observed_bytes=metadata_bytes,
+            **error.details(),
+        ) from error
+    except MemoryError as error:
+        raise _fault(
+            HALT_RUNNER_METADATA,
+            f"validating the runner metadata at {inputs.runner_metadata} "
+            f"({metadata_bytes} bytes) exhausted memory. The scan holds one entry per "
+            "open container and materialises no value, so this is the host's available "
+            "memory rather than a walk that grows with the document.",
+            runner_metadata=str(inputs.runner_metadata),
+            stage="validate",
+            observed_bytes=metadata_bytes,
+        ) from error
+    try:
+        # The validated text is handed over rather than the file being read a second
+        # time: the bytes parsed are then exactly the bytes the gate above accepted,
+        # which closes the check-then-use window between the two reads (CWE-367). That
+        # function re-runs this same walk on the text it is handed before it parses it, so
+        # the parameter saves the read and never the check.
+        document = paths.load_runner_metadata(
+            inputs.runner_metadata, validated_text=text
+        )
     except paths.RunnerMetadataError as error:
+        # The raising module attaches its own structured detail -- which step refused the
+        # document, the value it measured and the cap it crossed -- and it is forwarded
+        # rather than flattened into the message, so the record says at which step the
+        # metadata failed whichever module detected it (CWE-703).  `str(error)` is kept
+        # under `error` for a reader who wants the sentence as one line.
         raise _fault(
             HALT_RUNNER_METADATA,
             f"the runner metadata at {inputs.runner_metadata} cannot be used: {error}",
             runner_metadata=str(inputs.runner_metadata),
             error=str(error),
+            **{
+                key: value
+                for key, value in getattr(error, "details", {}).items()
+                if key not in ("runner_metadata", "error")
+            },
         ) from error
     except OSError as error:
         raise _fault(
@@ -2847,6 +4613,47 @@ def _load_metadata(inputs: Inputs, record: dict[str, Any]) -> Mapping[str, Any]:
             "input; no path base can be established without it.",
             runner_metadata=str(inputs.runner_metadata),
             error=f"{type(error).__name__}: {error}",
+        ) from error
+    except RecursionError as error:
+        # json's scanner recurses per nesting level, so a metadata document nested past
+        # the interpreter's limit raises this from inside the parse rather than returning
+        # something a schema check could reject (CWE-674).
+        raise _fault(
+            HALT_RUNNER_METADATA,
+            f"parsing the runner metadata at {inputs.runner_metadata} "
+            f"({metadata_bytes} bytes) exhausted the interpreter's stack: it is nested "
+            "past the recursion limit. A runner metadata document is a flat record of nine "
+            "runners; this one is not that.",
+            runner_metadata=str(inputs.runner_metadata),
+            stage="parse",
+            observed_bytes=metadata_bytes,
+            recursion_limit=sys.getrecursionlimit(),
+        ) from error
+    except MemoryError as error:
+        raise _fault(
+            HALT_RUNNER_METADATA,
+            f"reading the runner metadata at {inputs.runner_metadata} "
+            f"({metadata_bytes} bytes) exhausted memory. The size is bounded at "
+            f"{RUNNER_METADATA_BYTE_LIMIT} bytes, so this is the host's available memory "
+            "rather than an unbounded read.",
+            runner_metadata=str(inputs.runner_metadata),
+            stage="read",
+            observed_bytes=metadata_bytes,
+            byte_cap=RUNNER_METADATA_BYTE_LIMIT,
+        ) from error
+    except ValueError as error:
+        # Every ValueError the parse can raise that paths.py did not convert into its own
+        # RunnerMetadataError: a malformed document, or a literal this interpreter refuses
+        # to convert (an integer above CPython's 4,300-digit limit). Named here rather than
+        # left to main's unnamed unexpected-error arm.
+        raise _fault(
+            HALT_RUNNER_METADATA,
+            f"the runner metadata at {inputs.runner_metadata} could not be parsed: "
+            f"{type(error).__name__}. It is Stage 1's output and this module's input; no "
+            "path base can be established without it.",
+            runner_metadata=str(inputs.runner_metadata),
+            error_type=type(error).__name__,
+            observed_bytes=metadata_bytes,
         ) from error
 
     recorded_tools = list(paths.metadata_tools(document))
@@ -3204,8 +5011,11 @@ def _severity_record(tally: severity.LiteralTally) -> dict[str, Any]:
     invisible in them; ``severity-map.md`` and ``tool-status.md`` are the authoritative
     inventory of all nine (AAP 0.5.4) and are rendered from this.  The tally is seeded with
     every canonical identifier, so a zero-row tool reaches the record with an empty literal
-    list and a row count of zero -- which is not hypothetical: in the precedent dataset one
-    tool contributed zero rows while eight produced 10,178 between them.
+    list and a row count of zero rather than with no entry at all, and every native literal
+    the dataset does carry reaches ``severity-map.md`` with its row count and with the entry
+    that governed its band where a score rather than a label decided it -- so no literal in
+    the dataset is unaccounted for and no tool drops out of the inventory by reporting
+    nothing.
 
     The mapping policy itself lives in ``normalize/severity.py``; only its statement names
     are carried here, so no second copy of the policy text can drift from the first.
@@ -3339,12 +5149,14 @@ def _paths_not_on_disk(
 
     Bounded by construction rather than by row count: the distinct paths are collected
     first and each is classified once, so a dataset in which many rows share a path costs
-    one stat per path rather than one per row. The 9,466-row dataset this run emits carries
-    fewer distinct paths than rows, and the classification is memoised across both.
+    one stat per path rather than one per row. The dataset this run emits carries 9,430 rows
+    over 712 distinct paths, so the memoised classification turns 9,430 row checks into 712
+    filesystem stats, and the verdict a row sees is the same one every other row naming that
+    path saw.
 
     Returns:
         A mapping carrying ``count``, ``rows_examined`` (the denominator, always the real
-        row count so a zero is readable as *"none of 9,466"* rather than as an absence),
+        row count so a zero is readable as *"none of 9,430"* rather than as an absence),
         ``proportion``, ``by_reason``, ``by_tool``, a bounded ``examples`` list in row
         order, ``distinct_paths_examined``, and the ``method`` and ``root`` the figure was
         taken with.
@@ -3579,9 +5391,10 @@ def _write_outputs(
     rows -- neither derived from the other -- stages both in their target directories,
     reads both staged files back from disk, coerces the CSV cells to the types their
     fields carry, compares in order field by field, and only then moves both into place.
-    Nothing counts lines: the precedent dataset held 10,178 parsed rows over 12,762
-    physical lines because ``message`` fields carry embedded newlines, so a line count
-    over-reports by about a quarter.
+    Nothing counts lines: a ``message`` field carrying an embedded newline spans several
+    physical lines, so a row count is established by parsing both written files and never by
+    counting the lines in them -- this dataset's 9,430 parsed rows occupy 9,439 physical CSV
+    lines.
 
     The publication is all-or-nothing on purpose (AAP 0.9.4 -- the two files are one
     dataset): a fault part way through leaves both previous deliverables exactly as they
@@ -3885,6 +5698,107 @@ def _new_record(argv: Sequence[str], started_at: str) -> dict[str, Any]:
             ),
             "text_excerpt_limit": TOOL_WORDS_EXCERPT_LIMIT,
         },
+        # The escaping contract, named rather than implied. The fields below carry text
+        # this pipeline did not author and is required to keep byte for byte, so the
+        # hazard is disclosed and measured here instead of escaped away (CWE-116,
+        # CWE-117). Every claim in it is checkable from the record itself: the field list
+        # against the entries, the measurement against the inventories beside them.
+        UNTRUSTED_TEXT_CONTRACT_KEY: {
+            "what": (
+                "the fields listed below carry text this pipeline did not author -- a "
+                "runner's own stream words and its own .status lines -- byte for byte, "
+                "unescaped and unrewritten"
+            ),
+            "fields": [
+                "artifacts[].tool_words.streams.stderr.text",
+                "artifacts[].tool_words.streams.stdout.text",
+                "artifacts[].tool_words.stated_reason",
+                "artifacts[].runner_status.fields.*",
+                "artifacts[].runner_status.exit_code_literal",
+                "artifacts[].runner_status.artifact_bytes_literal",
+                "artifacts[].runner_status.scan_root",
+                "artifacts[].runner_status.scan_root_source",
+                "artifacts[].runner_status.unparsed_lines[].excerpt",
+                "artifacts[].runner_status.duplicate_fields[].value",
+                "artifacts[].network_fetch.statements.*",
+            ],
+            "why_verbatim": (
+                "AAP 0.5.4 requires the parser error 'retained verbatim' and settles the "
+                "absent-artifact verdict 'using only the tool's own stated words'; AAP "
+                "0.6.1 and AAP 0.6.2 require an absent artifact's stderr 'verbatim' and a "
+                "tool's reduced-reach condition 'in the tool's own words'. A rewritten "
+                "byte is a rewritten verdict, so escaping these fields would satisfy a "
+                "rendering concern by destroying the evidence contract three AAP clauses "
+                "make mandatory. Retention here is required, not preferred."
+            ),
+            "container": (
+                "JSON is a safe container for these bytes: RFC 8259 section 7 requires "
+                "every character below U+0020 to be escaped in the encoded form, and a "
+                "parser returns them as data rather than as structure. No value carried "
+                "here can break out of this document or add a member to it."
+            ),
+            "consumer_obligation": (
+                "a consumer rendering any field above into Markdown, HTML or a terminal "
+                "MUST escape it first. CommonMark permits raw HTML, and a backtick run "
+                "inside a value closes a fence of equal or shorter length, so unescaped "
+                "text can inject markup or restructure the document (CWE-116); a bare CR, "
+                "LF or ESC reaching a terminal or a line-oriented log can overwrite or "
+                "forge a record (CWE-117). The minimum is: neutralise backslash, "
+                "backtick, pipe, less-than, greater-than and ampersand, neutralise the "
+                "characters that open a block construct when a value starts a line, "
+                "describe every control character rather than reproducing it, and choose "
+                "a fence at least one backtick longer than the longest backtick run in "
+                "the payload. queries/joern/*.sc do exactly this for the reports they "
+                "author, in mdSafe, plainSafe and mdFence."
+            ),
+            "measurement": (
+                "each field above is published beside a control-character inventory "
+                "measured over the exact text embedded: which code points occur, how many "
+                "times each, the class and standard abbreviation of each, and what each "
+                "one does to a consumer that renders it unescaped. The inventory never "
+                "reproduces the character it reports -- character_reproduced is false in "
+                "every one -- so a reader sees the hazard without inheriting it. An "
+                "inventory with occurrences 0 is a measurement that found none, which is "
+                "a different fact from measured false, and both are said."
+            ),
+            "measurement_fields": [
+                "artifacts[].tool_words.streams.stderr.text_control_characters",
+                "artifacts[].tool_words.streams.stdout.text_control_characters",
+                "artifacts[].tool_words.stated_reason_control_characters",
+                "artifacts[].runner_status.text_control_characters",
+            ],
+            "subject_set": _CONTROL_SUBJECT_SET,
+            "method": _CONTROL_METHOD,
+            "deliberately_not_listed": (
+                "a halt's message and details, and every rejection, are NOT in the list "
+                "above: they are composed prose rather than retained evidence, and each "
+                "is already neutralised at its own persistence boundary -- "
+                "NormalizeHalt.as_dict through paths.sanitise_diagnostic and "
+                "paths.sanitise_persisted, and paths.Rejection.as_dict through "
+                "sanitise_diagnostic -- with URI userinfo redacted and control characters "
+                "escaped. The list was taken by tracing every string in this record back "
+                "to its author, not by pattern."
+            ),
+            "residual_risk": (
+                "the bytes above are untrusted and are retained, and nothing in this "
+                "module makes them safe to paste into a rendered document. The risk is "
+                "disclosed and measured rather than removed, because removing it is "
+                "prohibited by the AAP clauses named above; the residue is that a hostile "
+                "runner stream could carry markup, a fence-closing backtick run or a "
+                "terminal escape into any consumer that renders it without escaping. It "
+                "is latent rather than live: no committed stream or status file carries "
+                "such a payload, and the inventories are what let a reader confirm that "
+                "rather than take it on trust."
+            ),
+            "not_applicable_here": (
+                "this module writes no Markdown and emits no fenced block of its own, so "
+                "it has nothing to escape on its own output (AAP 0.6.4: 'The Markdown is "
+                "an output of the pipeline, never an input to it'). The obligation is "
+                "the renderer's, and it is stated here because this record is where the "
+                "renderer's input comes from."
+            ),
+            "cwe": ["CWE-116", "CWE-117"],
+        },
         "started_at_utc": started_at,
         "finished_at_utc": None,
         "command": {
@@ -3949,7 +5863,7 @@ class RunRecordNotPersisted(Exception):
 def _write_run_record(
     path: Path, record: Mapping[str, Any], *, owner: Path | None = None
 ) -> dict[str, Any]:
-    """Write ``normalize-run.json`` and verify it, on every path out of this module.
+    """Publish ``normalize-run.json`` and verify it, on every path out of this module.
 
     Not best effort.  ``normalize-run.json`` is required evidence -- AAP 0.6.1 names it,
     AAP 0.9.1 requires the normalizer's run to have a structured status record in the log
@@ -3957,35 +5871,83 @@ def _write_run_record(
     whose record was lost has produced a dataset nobody can trace, so a failure here is the
     process's outcome rather than a line on stderr beside a success (CWE-703).
 
-    Three things happen, in this order, and all three must succeed:
+    THE RECORD IS PUBLISHED THROUGH THE SAME DESCRIPTOR-BOUND PROTOCOL AS THE DATASET.
+    ``emit.publish_document`` is that protocol: the parent directory is walked one
+    component at a time with ``O_NOFOLLOW`` and held open as a descriptor, the staged file
+    is created in it with ``O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW`` under an unguessable name,
+    its mode is assigned with ``fchmod``, the bytes are fsynced, the file is measured
+    through a descriptor bound to the inode they were written into, the rename is issued
+    against the held directory descriptor, and the directory itself is fsynced.  This
+    module previously wrote the record with a pathname-based sequence -- validate the
+    string, ``mkdir(parents=True)``, ``os.open`` the computed path, ``os.replace`` -- which
+    re-resolved the name at every step: a parent or a final component swapped between the
+    check and the open redirects or replaces the publication, and neither is detectable
+    afterwards (CWE-367, CWE-59).  One protocol, one place to audit.
 
-    1.  The record is serialised to a **staged** file through ``emit.stage_text``, which
-        refuses a symlinked target or component and opens an exclusive, no-follow
-        temporary with an unguessable name (CWE-59).
-    2.  The staged file is **read back from disk and parsed** as JSON.  Serialising without
-        re-reading proves the encoder ran, not that the bytes are on the device and are a
-        document -- and this record's own halt fields are the only account of a halt.
-    3.  Only then is it promoted into place, atomically.  A failure at any step discards
-        the staged file, leaves any previously published record untouched, and raises.
+    Five things happen, in this order, and all five must succeed:
+
+    1.  Where an ``owner`` root is declared, containment is asserted first
+        (:func:`emit.assert_safe_output_path`, CWE-73).  This is the *predicate* -- is
+        this path inside the tree that owns it -- and not the write guard; the write
+        guard is the descriptor-bound sequence below, which refuses a symlinked
+        component whether or not an owner was declared.
+    2.  The record is serialised to a string.  A record that cannot be serialised -- a
+        circular reference is the realistic case -- therefore fails before any file
+        exists, rather than leaving a truncated document behind.
+    3.  The bytes are written to a **staged** file beside the target and fsynced.
+    4.  The staged file is **read back from disk and parsed** as a JSON object, before
+        anything is renamed.  Serialising without re-reading proves the encoder ran, not
+        that the bytes are on the device and are a document -- and this record's own halt
+        fields are the only account of a halt.  A failure here publishes nothing: the
+        previously published record is untouched and the staged file is removed.
+    5.  Only then is it renamed into place, atomically, and the **published** bytes are
+        re-read through a descriptor bound to the inode the publication verified
+        (:func:`emit.open_verified_member`) and parsed again.  Step 4 establishes that
+        what is about to be published is a document; step 5 establishes that the document
+        now at the published path is that same file rather than whatever the pathname
+        resolves to afterwards.
 
     Args:
-        path: Where the record is written.
+        path: Where the record is published.
         record: The record to serialise.
         owner: The declared owner root the target must sit inside -- the log tree.
-            ``None`` where the caller has already bound the target (the primitive still
+            ``None`` where the caller has already bound the target (the publisher still
             refuses a symlinked target or component), so containment is enforced once
             rather than assumed twice.
 
     Returns:
-        A JSON-serialisable description of what was written: the target, its byte size and
-        the row of verification that passed.
+        A JSON-serialisable description of what was published: the target, its byte size,
+        its sha256, its measured permission bits, the publication identifier and the two
+        verifications that passed.  It is returned rather than folded into the record
+        because a document cannot contain its own digest -- the record's own measurement
+        is published in the log tree's per-file manifest (AAP 0.1.3) and reported on the
+        console here.
 
     Raises:
-        RunRecordNotPersisted: Where the record could not be serialised, staged, read back,
-            parsed or promoted.  The message names the condition and the path.
+        RunRecordNotPersisted: Where the record could not be serialised, staged, read
+            back, parsed, published or re-read.  The message names the condition and the
+            path.
     """
-    staged: list[emit.StagedWrite] = []
+
+    def parse_object(candidate: Path) -> None:
+        """Read ``candidate`` and require it to parse as a JSON object.
+
+        Used twice: on the staged bytes before the rename, and on the published bytes
+        after it.  The published read goes through ``emit.open_verified_member`` and is
+        bound to the verified inode; this one takes a path because the staged file is not
+        published yet and there is nothing to bind to but the file the publisher just
+        wrote and measured.
+        """
+        parsed = json.loads(candidate.read_text(encoding="utf-8"))
+        if not isinstance(parsed, dict):
+            raise ValueError(
+                f"the record at {candidate} parsed as "
+                f"{type(parsed).__name__} rather than an object"
+            )
+
     try:
+        if owner is not None:
+            emit.assert_safe_output_path(path, boundary=owner)
         text = json.dumps(
             record,
             indent=1,
@@ -3993,26 +5955,50 @@ def _write_run_record(
             ensure_ascii=False,
             default=_json_default,
         )
-        staged.append(emit.stage_text(path, text + "\n", boundary=owner))
-        verified = json.loads(staged[0].temporary.read_text(encoding="utf-8"))
-        if not isinstance(verified, dict):
+        member = emit.publish_document(
+            path,
+            lambda handle: handle.write(text + "\n"),
+            role=RUN_RECORD_ROLE,
+            validate=parse_object,
+        )
+        # The published bytes, bound to the inode the publication measured. Opening the
+        # pathname again would establish nothing: the name can be repointed between the
+        # rename and this read, and a record read through a repointed name is not the
+        # record this run published (CWE-367).
+        with emit.open_verified_member(member.path, member.identity) as handle:
+            republished = json.load(handle)
+        if not isinstance(republished, dict):
             raise ValueError(
-                "the staged record parsed as "
-                f"{type(verified).__name__} rather than an object"
+                f"the published record at {member.path} parsed as "
+                f"{type(republished).__name__} rather than an object"
             )
-        emit.promote_staged(staged)
     except (OSError, TypeError, ValueError, emit.EmitError) as error:
-        emit.discard_staged(staged)
         raise RunRecordNotPersisted(
             f"{RUN_RECORD_DOCUMENT} could not be written and verified at {path}: "
             f"{type(error).__name__}: {error}"
         ) from error
     return {
-        "path": str(path),
-        "bytes_written": staged[0].bytes_written,
+        "path": member.path,
+        "role": member.role,
+        # Named `bytes_written` because that is what it is and what every caller reads,
+        # and measured off the published file rather than taken from the length of the
+        # string that was serialised.
+        "bytes_written": member.size_bytes,
+        "sha256": member.sha256,
+        "mode": member.mode,
+        "mode_octal": f"0o{member.mode:o}",
+        "publication_id": member.publication_id,
         "verified": (
             "the staged file was read back from disk and parsed as a JSON object before "
-            "it was promoted; promotion is an atomic rename"
+            "anything was renamed, and the published file was read back through a "
+            "descriptor bound to the verified inode and parsed again; publication is one "
+            "atomic rename against a held directory descriptor, followed by an fsync of "
+            "that directory"
+        ),
+        "protocol": (
+            "normalize.emit.publish_document -- the same descriptor-bound protocol the "
+            "dataset is published under, reported as data by "
+            "normalize.emit.staging_protocol()"
         ),
     }
 

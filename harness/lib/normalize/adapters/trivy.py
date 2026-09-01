@@ -6,9 +6,8 @@ One adapter per non-SARIF artifact written (AAP 0.6.1), and this is the one for
 defining responsibility: the class is taken from the **section array the record was
 read from** and never from the record's own content (AAP 0.5.4).
 
-No user-specified rule governs this file.  ``review_rules`` returns exactly one line,
-``No user rules provided.``, corroborated by AAP 0.7 and AAP 0.10.2.  Enterprise best
-practice applies in their place, held to the AAP's own bar: verification independent of
+No user-specified rule governs this file; enterprise-standard best practice applies in
+its place (AAP 0.7, AAP 0.10.2), held to the AAP's own bar: verification independent of
 the thing verified, reject rather than infer, and a policy fixed before any output is
 observed.  Everything cited below is an AAP *requirement*; none of it is a rule.
 
@@ -462,14 +461,19 @@ UNSUPPORTED_FINDING_SECTIONS: Final[tuple[str, ...]] = (
     "ExperimentalModifiedFindings",
 )
 
-#: ``Result`` members that are not finding sections, so a non-empty one drops no
-#: finding.  ``Target``, ``Class`` and ``Type`` are the scalars every element carries;
-#: ``MisconfSummary`` is the pass/fail tally object; ``Packages`` is the package
-#: inventory ``--list-all-pkgs`` emits (this runner passes no such flag) and
-#: ``CustomResources`` holds custom resources -- both are object arrays, which is why
-#: they are named rather than left to trip the unknown-section halt.  ``Layer`` is
-#: included because a filesystem report can still carry the field the image scanners
-#: populate.
+#: Keys accepted on a ``Results[]`` element without being read as a finding section,
+#: so a non-empty one drops no finding.  ``Target``, ``Class`` and ``Type`` are the
+#: scalars ``Result`` declares; ``MisconfSummary`` is the pass/fail tally object, whose
+#: own members are ``Successes`` and ``Failures``; ``Packages`` (``[]ftypes.Package``)
+#: is the package inventory ``--list-all-pkgs`` emits (this runner passes no such flag)
+#: and ``CustomResources`` (``[]ftypes.CustomResource``) holds custom resources -- both
+#: are non-finding **arrays** of objects, which is why they are named rather than left
+#: to trip the unknown-section halt.  ``Layer`` is not a ``Result`` member at
+#: ``v0.74.0``: it is declared per finding and per resource, on
+#: ``DetectedVulnerability``, ``DetectedMisconfiguration``, ``ftypes.SecretFinding`` and
+#: ``ftypes.CustomResource``.  It is accepted here anyway so that a report carrying a
+#: layer descriptor at element level is read as the image metadata it is rather than as
+#: an unrecognised finding section.
 KNOWN_NON_FINDING_KEYS: Final[tuple[str, ...]] = (
     "Target",
     "Class",
@@ -480,7 +484,8 @@ KNOWN_NON_FINDING_KEYS: Final[tuple[str, ...]] = (
     "Layer",
 )
 
-#: Every ``Result`` member this adapter knows about.  A key outside this set whose
+#: Every member this adapter recognises on a ``Results[]`` element -- the ``Result``
+#: members it reads, plus the per-finding ``Layer`` above.  A key outside this set whose
 #: value is a non-empty array of objects is treated as an unrecognised finding section
 #: and halts (AAP 0.5.4).
 RESULT_KNOWN_KEYS: Final[frozenset[str]] = frozenset(
@@ -525,10 +530,23 @@ ABSENCE_PERMITTED_FIELDS: Final[frozenset[str]] = frozenset(
 
 
 # --------------------------------------------------------------------------- #
-# Trivy member names.  Every one is a field of ``Result``, ``DetectedVulnerability``,
-# ``DetectedSecret`` (``ftypes.SecretFinding``), ``DetectedMisconfiguration`` or
-# ``ftypes.CauseMetadata`` in ``pkg/types/report.go`` at ``v0.74.0``.  Named as
-# constants so a typo is a NameError at import rather than a silently absent field.
+# Trivy member names at ``v0.74.0``, named as constants so a typo is a NameError at
+# import rather than a silently absent field.  They are declared across several
+# structures rather than one, and which structure declares which member is what a
+# claim about the report shape has to be checked against: ``Results`` belongs to
+# ``Report``, while ``Target``, ``Class``, ``Type``, ``Packages``, ``MisconfSummary``
+# and ``Misconfigurations`` belong to ``Result`` (``pkg/types/report.go``);
+# ``Failures``, with ``Successes``, belongs to ``MisconfSummary``; the vulnerability
+# members belong to ``DetectedVulnerability`` (``pkg/types/vulnerability.go``), which
+# reaches ``Title``, ``Description``, ``Severity``, ``CweIDs`` and ``CVSS`` through the
+# embedded ``trivy-db`` ``types.Vulnerability``; the secret members belong to
+# ``DetectedSecret``, an alias of ``ftypes.SecretFinding``
+# (``pkg/fanal/types/secret.go``); the misconfiguration members belong to
+# ``DetectedMisconfiguration`` (``pkg/types/misconfiguration.go``), with ``StartLine``
+# and ``Occurrences`` inside ``ftypes.CauseMetadata`` (``pkg/fanal/types/misconf.go``);
+# and ``PURL`` belongs to ``ftypes.PkgIdentifier``, nested inside a package's
+# ``Identifier`` or a vulnerability's ``PkgIdentifier``, alongside ``ftypes.Package``'s
+# own ``ID``, ``Name`` and ``Version`` (``pkg/fanal/types/package.go``).
 # --------------------------------------------------------------------------- #
 
 _RESULTS_KEY: Final[str] = "Results"
@@ -590,9 +608,9 @@ _SECTION_RULE_ID_FIELD: Final[Mapping[str, str]] = MappingProxyType(
 #: ``Description`` behind it only so that a secret record lacking a ``Match`` still
 #: carries the words the tool did write instead of being rejected.
 #:
-#: ``Message`` is deliberately **not** consulted for a misconfiguration: it is the
-#: remediation instruction ("Add HEALTHCHECK instruction in your Dockerfile"), not the
-#: finding's message, and AAP 0.5.4 names ``Title`` and ``Description`` as the sources.
+#: ``Message`` is deliberately **not** consulted for a misconfiguration: it carries a
+#: remediation instruction rather than the finding's message, and AAP 0.5.4 names
+#: ``Title`` and ``Description`` as the sources.
 #: For a secret, no field beyond these three is read at all -- ``Code`` carries the
 #: surrounding source lines -- so no secret value can reach a dataset field.
 _SECTION_MESSAGE_FIELDS: Final[Mapping[str, tuple[str, ...]]] = MappingProxyType(
@@ -871,8 +889,8 @@ def _non_empty_string(value: Any) -> str | None:
     The blank test is on ``strip()`` while the returned value is the original: a field
     is present or it is not, and the content that reaches the dataset is what the
     producer wrote.  Nothing is trimmed, because a message may legitimately carry
-    embedded newlines -- the historical dataset's 10,178 rows spanned 12,760 physical
-    lines for exactly that reason.
+    embedded newlines, so a single row can span several physical lines and a row count
+    is only ever the parsed row count.
     """
     if isinstance(value, str) and value.strip():
         return value
@@ -1081,12 +1099,17 @@ def validate_finding_sections(
         #    objects: an unrecognised finding section, treated as one rather than
         #    dropped.  Document order, so the reported key is reproducible.
         #
-        #    The array-of-objects test is the whole test here, unlike condition 1: an
-        #    unknown *object* is metadata rather than findings on the evidence of
-        #    report.go, where every finding section is an array and every non-finding
-        #    member that is not a scalar is an object (``MisconfSummary``, ``Layer``).
-        #    Halting on an unknown object would halt on the next metadata field Trivy
-        #    adds, which is not what AAP 0.5.4 asks for.
+        #    The array-of-objects test is the whole test here, unlike condition 1.
+        #    Every finding section report.go declares is an array of objects, so that
+        #    is the shape an unrecognised finding section arrives as, and a non-empty
+        #    one halts with the observed structure quoted (AAP 0.5.4).  What happens to
+        #    anything else is this project's policy rather than a claim about the
+        #    schema: an unknown member whose value is an object is treated as metadata
+        #    and does not stop the run, because halting on one would halt on the next
+        #    metadata field Trivy adds.  Non-finding arrays exist too -- ``Packages``
+        #    and ``CustomResources`` are both object arrays -- so shape alone cannot
+        #    separate a finding array from a non-finding one, which is why
+        #    RESULT_KNOWN_KEYS names them instead.
         for key in element:
             if key in RESULT_KNOWN_KEYS:
                 continue
@@ -1966,7 +1989,6 @@ def adapt_record(
         "Target": target,
     }
 
-    # Step 1 -- the shape.
     record_object = _json_object(record)
     if record_object is None:
         return paths.make_rejection(
@@ -1977,8 +1999,10 @@ def adapt_record(
             **identity,
         )
 
-    # Step 2 -- the section, and with it the scanner_class.  Bound here and nowhere
-    # else: the record's own fields are never consulted to decide its class (AAP 0.5.4).
+    # The section the record was read from decides the scanner_class, here and nowhere
+    # else: the record's own fields are never consulted to decide its class, and a
+    # section outside SUPPORTED_SECTIONS is rejected under unattributable_section rather
+    # than given a class (AAP 0.5.4).
     klass = scanner_class_for_section(section)
     if klass is None:
         return paths.make_rejection(
@@ -1991,14 +2015,18 @@ def adapt_record(
             **identity,
         )
 
-    # Step 3 -- the rule identifier.
+    # The identifier field is chosen by section -- VulnerabilityID, RuleID or ID -- so
+    # that no record's content is read to decide which kind of record it is; absent or
+    # blank earns missing_rule_id, a non-string malformed_record.
     rule_id, rule_failure = _rule_id(record_object, section)
     if rule_failure is not None:
         reject_class, detail = rule_failure
         return paths.make_rejection(reject_class, tool, detail, **identity)
     identity["rule_id"] = rule_id
 
-    # Step 4 -- the message.
+    # Likewise by section, and no field outside that per-section tuple is consulted,
+    # which is what keeps a secret's surrounding source out of a row; nothing readable
+    # across those fields earns missing_message.
     message, message_failure = _message(record_object, section)
     if message_failure is not None:
         reject_class, detail = message_failure
@@ -2010,10 +2038,10 @@ def adapt_record(
     if _location_count(record_object, section) > 1:
         counters[COUNTER_MULTI_LOCATION] += 1
 
-    # Step 5 -- the path.  Every base decision is delegated to paths.py: the enclosing
-    # Target, the section's own per-record path where the section supplies one, and the
-    # recorded base go in, and a ResolvedPath or a Rejection comes back.  Nothing is
-    # relativized, joined or stripped here.
+    # Every base decision is delegated to paths.py: the enclosing Target, the section's
+    # own per-record path where the section supplies one, and the recorded base go in,
+    # and a ResolvedPath or a Rejection comes back.  Nothing is relativized, joined or
+    # stripped here.
     per_record_field = _SECTION_PER_RECORD_PATH_FIELD.get(section)
     per_record_path = (
         record_object.get(per_record_field) if per_record_field is not None else None
@@ -2035,7 +2063,11 @@ def adapt_record(
     if _non_empty_string(per_record_path) is not None:
         counters[COUNTER_PER_RECORD_PATH_REFINEMENTS] += 1
 
-    # Step 6 -- start_line, section-dependent by the artifact's own shape.
+    # start_line is section-dependent by the artifact's own shape: a secret states it
+    # directly, a misconfiguration inside CauseMetadata, and a vulnerability states none
+    # at all -- an absence that is normal and never a rejection.  A present value that
+    # is not a usable line number is one; a stated 0 is read as an absence and counted,
+    # never emitted as line zero.
     line = _start_line(record_object, section)
     if line.failure is not None:
         reject_class, detail = line.failure
@@ -2045,8 +2077,8 @@ def adapt_record(
     if line.value is None:
         counters[COUNTER_START_LINE_ABSENT] += 1
 
-    # Step 7 -- the package coordinate, and the rejection a dependency-oriented record
-    # earns where none can be formed.
+    # The package coordinate, and the rejection a dependency-oriented record earns
+    # where none can be formed.
     coordinate = _package_coordinate(
         record_object, section=section, packages=packages, ecosystem=ecosystem
     )

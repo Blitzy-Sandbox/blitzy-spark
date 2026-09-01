@@ -6,12 +6,11 @@ only one that depends on an existing harness file, consuming the bytecode-path m
 the harness's Joern collector performs -- and extending it, since a ``-tests``
 artifact's classes resolve into ``src/test`` rather than ``src/main``."*
 
-No user-specified rule governs this file.  ``review_rules`` returns exactly one line,
-``No user rules provided.``, corroborated by AAP 0.7 and AAP 0.10.2.  Enterprise best
-practice applies in their place, held to the AAP's own bar: verification independent of
-the thing verified, **reject rather than infer**, and a policy fixed before any output
-is observed.  Everything cited below is an AAP *requirement*; none of it is a rule, and
-none is invented here.
+No user-specified rule governs this file, so enterprise-standard best practice applies
+in its place (AAP 0.7, AAP 0.10.2), held to the AAP's own bar: verification independent
+of the thing verified, **reject rather than infer**, and a policy fixed before any
+output is observed.  Everything cited below is an AAP *requirement*; none of it is a
+rule, and none is invented here.
 
 The artifact is this harness's own shape, not a tool-native format
 -----------------------------------------------------------------
@@ -43,10 +42,11 @@ it"*.
 ``harness/lib/joern_collect.py`` exists in this provisioning -- the collector is the
 Scala script above -- so this module depends on the *contract* rather than importing a
 collector, and it redeclares locally whatever it needs.  AAP 0.5.2 is explicit that *no
-runner or harness helper is edited*: the two gaps below are closed **here**, never by
-touching the collector.  ``paths.py`` records the same divergence from the other side,
-which is why :func:`normalize.paths.class_key` already accepts either a dotted type
-full name or a class-file path.
+runner or harness helper is edited*: the collector is **read**, and the whole of the
+resolution contract below is satisfied in this module and in ``paths.py``, which records
+the same divergence from the other side -- which is why
+:func:`normalize.paths.class_key` accepts either a dotted type full name or a class-file
+path.
 
 Three consequences of the shape actually written, each load-bearing:
 
@@ -67,7 +67,7 @@ Three consequences of the shape actually written, each load-bearing:
 
 ``findings[].path`` is already root-relative; ``class`` is the raw coordinate
 -------------------------------------------------------------------------------
-The correction a naive reading misses.  Where the documented shape carries ``path``, it
+The distinction a naive reading misses.  Where the documented shape carries ``path``, it
 is **already** ``$SPARK_SRC``-relative -- the collector's own resolved answer -- and is
 emitted **as-is**: not relativized again, not joined onto the root, never made
 absolute.  ``class``/``class_file`` is the separate raw bytecode coordinate, and it is
@@ -76,12 +76,12 @@ the only thing that needs resolving.
 The precedence between them is fixed, and it is not "prefer the collector":
 
 1. **this run's own unique class-to-source resolution is the only thing that produces a
-   row's path.**  The collector reached its answer with ``setdefault`` -- first wins in
-   walk order -- and AAP 0.5.4 requires the resolution be taken *"only where it is
+   row's path.**  A collector answer is reached with ``setdefault`` -- first wins in walk
+   order -- while AAP 0.5.4 requires the resolution be taken *"only where it is
    unique"*;
-2. an **ambiguous** class key is a rejection and is **never** overridden by the
-   collector's path.  That is gap 2 below, and overriding it would reinstate exactly
-   the silent guess the AAP forbids;
+2. an **ambiguous** class key is a rejection under ``ambiguous_source_resolution`` and is
+   **never** overridden by the collector's path: overriding it would put exactly the
+   silent first-wins guess the AAP forbids into the dataset;
 3. where this run can resolve **nothing** -- unresolvable, absent, or the collector's
    ``<unknown>`` sentinel -- the record is a **counted rejection**, and a
    collector-supplied ``path`` does **not** rescue it.  AAP 0.5.4 closes the sentence
@@ -112,27 +112,36 @@ that structural.
 **counted rejection** rather than a row with a null path -- and rather than a row with
 the collector's unverified path standing in for one.
 
-The two collector gaps, closed here
------------------------------------
+Source resolution: both trees, both key schemes, unique only
+------------------------------------------------------------
 AAP 0.5.4: *"The adapter resolves a finding's class file against ``src/main`` **and**
 ``src/test`` under the pinned root, takes the resolution only where it is unique, and
 rejects the ambiguous and the unresolvable."*
 
-*Gap 1 -- the collector walks only* ``src/main``.  Every ``-tests`` artifact the build
-emitted is in the graph input (AAP 0.5.1 retains *"main artifacts, pre-shade and shaded
-siblings, classifier artifacts and ``-tests`` artifacts"*), so a finding can legitimately
-name bytecode compiled from a test tree.  ``paths.SOURCE_TREES`` spans both and
+*Both trees.*  Every ``-tests`` artifact the build emitted is in the graph input (AAP
+0.5.1 retains *"main artifacts, pre-shade and shaded siblings, classifier artifacts and
+``-tests`` artifacts"*), so a finding can legitimately name bytecode compiled from a test
+tree.  ``paths.SOURCE_TREES`` spans ``src/main`` and ``src/test`` and
 :func:`normalize.paths.build_source_index` walks both; this adapter asks for that index
-and never accepts a ``src/main``-only answer.
+and accepts no ``src/main``-only answer.  The provisioned collector indexes ``src/main``
+alone, so its own coordinate space is narrower than the one a finding can name.
 
-*Gap 2 -- the collector resolves ambiguity with* ``setdefault``, first-wins in
-``os.walk`` order and silently.  :func:`normalize.paths.resolve_bytecode_class` takes
-the **union** of both key schemes across both trees and succeeds only where that union
-is exactly one distinct path; two or more is
-``ambiguous_source_resolution`` with every competing candidate named in the detail.
+*Both key schemes.*  A class key is the package directory joined to a source file's base
+name **and** the package directory joined to a type the file declares, because Scala
+permits several top-level types in one file: ``RangePartitioner`` is declared in
+``Partitioner.scala``, so a filename-only index loses it silently.
+:func:`normalize.paths.resolve_bytecode_class` takes the **union** of the two schemes
+across both trees.
 
-Closing gap 1 *increases* ambiguity, which is why closing gap 2 is mandatory rather
-than optional.  Measured by ``build_source_index`` over the pinned tree at
+*Unique only.*  The resolution is taken where that union is exactly one distinct path.
+Two or more is a rejection under ``ambiguous_source_resolution``, with every competing
+candidate named in the detail; none at all is a rejection under ``unresolvable_path``,
+and a coordinate the record never carried is one under ``absent_path``.  All three are
+counted, and none is settled by the ``setdefault`` first-wins pick in ``os.walk`` order
+that a collector answer rests on.
+
+Walking both trees *increases* ambiguity, which is what the uniqueness requirement is
+carrying.  Measured by ``build_source_index`` over the pinned tree at
 ``/opt/spark-src``: 6,759 files indexed, 6,755 ``by_filename`` keys of which **4** are
 ambiguous, and 15,230 ``by_decl`` keys of which **107** are ambiguous.  Four verified
 collisions, each reproducible:
@@ -1133,7 +1142,7 @@ def _resolve_path(
     coordinate_fields: tuple[str, ...],
     record_identity: Mapping[str, Any],
 ) -> _PathOutcome:
-    """Resolve one finding's coordinate, closing both collector gaps.
+    """Resolve one finding's coordinate to a path, or to the rejection it earns.
 
     The precedence this module's docstring fixes, implemented once.  **Exactly one
     branch produces a path**, and every other branch produces a counted rejection:
@@ -1141,10 +1150,11 @@ def _resolve_path(
     1. **this run's own unique class-to-source resolution is the only route to a path.**
        The class coordinate is handed to
        :func:`normalize.paths.resolve_bytecode_class`, which keys both the filename and
-       the declaration schemes over ``src/main`` **and** ``src/test`` (gap 1) and
-       succeeds only where the union of candidates is exactly one distinct path (gap 2).
-       The declaration scheme is not optional: ``RangePartitioner`` is declared in
-       ``Partitioner.scala``, so a filename-only index loses it silently;
+       the declaration schemes over ``src/main`` **and** ``src/test`` and succeeds only
+       where the union of candidates is exactly one distinct path.  The declaration
+       scheme is not optional: Scala permits several top-level types in one file, and
+       ``RangePartitioner`` is declared in ``Partitioner.scala``, so a filename-only
+       index loses it silently;
     2. the collector's ``<unknown>`` sentinel names the absence of a type declaration
        rather than a class, so it is an ``absent_path`` rejection with the sentinel
        named -- never a lookup, and never a substitution;
@@ -1269,11 +1279,11 @@ def _resolve_path(
         )
 
     # A rejection, of whichever class ``paths.py`` named -- ambiguous, unresolvable,
-    # absent or malformed.  All four are treated identically here, and that uniformity
-    # *is* the fix: the collector's own path is read as evidence and refused, never
-    # substituted, so there is no class of failure for which a first-wins guess reaches
-    # the dataset.  An ambiguity was already final (gap 2); AAP 0.5.4 makes the
-    # unresolvable final in the same sentence.
+    # absent or malformed.  All four are treated identically, and the uniformity is what
+    # the contract requires: the collector's own path is read as evidence and refused,
+    # never substituted, so there is no class of failure for which a first-wins guess
+    # reaches the dataset.  AAP 0.5.4 makes the ambiguous and the unresolvable final in
+    # one sentence.
     rejection, refusal_counters = _refuse_collector_path(
         resolved, record, record_identity=identity
     )
@@ -1585,7 +1595,6 @@ def _adapt_finding(
         if name in finding_object:
             identity[name] = finding_object[name]
 
-    # Step 2 -- the rule identifier.
     rule_read, rule_failure = _rule_id(finding_object)
     if rule_failure is not None:
         reject_class, detail = rule_failure
@@ -1595,7 +1604,6 @@ def _adapt_finding(
         counters[f"{COUNTER_RULE_ID_FIELD_PREFIX}{rule_read.field}"] += 1
     identity["rule_id"] = rule_id
 
-    # Step 3 -- the message.
     message, message_failure = _message(finding_object)
     if message_failure is not None:
         reject_class, detail = message_failure
@@ -1614,8 +1622,8 @@ def _adapt_finding(
     if _collector_explanation(finding_object) is not None:
         counters[COUNTER_COLLECTOR_EXPLANATION_PRESENT] += 1
 
-    # Step 4 -- the path.  Delegated in full; see _resolve_path for the precedence and
-    # for why an ambiguity is never broken by the collector's own answer.
+    # The path is delegated in full; see _resolve_path for the precedence and for why
+    # an ambiguity is never broken by the collector's own answer.
     outcome = _resolve_path(
         finding_object,
         tool_base=tool_base,
@@ -1642,7 +1650,6 @@ def _adapt_finding(
             "nor a rejection"
         )
 
-    # Step 5 -- start_line.
     start_line, start_line_field, start_line_failure = _start_line(finding_object)
     if start_line_failure is not None:
         reject_class, detail = start_line_failure

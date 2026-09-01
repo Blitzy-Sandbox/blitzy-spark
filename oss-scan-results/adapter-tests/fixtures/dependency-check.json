@@ -4,21 +4,21 @@
     "engineVersion" : "13.0.0",
     "dataSource" : [ {
       "name" : "NVD API Last Checked",
-      "timestamp" : "2026-08-24T12:41:51Z"
+      "timestamp" : "2026-08-30T17:47:21Z"
     }, {
       "name" : "NVD API Last Modified",
-      "timestamp" : "2026-08-24T08:00:04-04"
+      "timestamp" : "2026-08-30T12:00:19-04"
     }, {
       "name" : "NVD Cache Last Checked",
-      "timestamp" : "2026-08-24T12:41:51Z"
+      "timestamp" : "2026-08-30T17:47:21Z"
     }, {
       "name" : "NVD Cache Last Modified",
-      "timestamp" : "2026-08-24T08:00:04-04"
+      "timestamp" : "2026-08-30T12:00:19-04"
     } ]
   },
   "projectInfo" : {
     "name" : "spark-pinned-59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d",
-    "reportDate" : "2026-08-25T00:53:00.948138152Z",
+    "reportDate" : "2026-09-01T14:25:08.833466245Z",
     "credits" : {
       "NVD" : "This product uses the NVD API but is not endorsed or certified by the NVD. This report contains data retrieved from the National Vulnerability Database: https://nvd.nist.gov",
       "CISA" : "This report may contain data retrieved from the CISA Known Exploited Vulnerability Catalog: https://www.cisa.gov/known-exploited-vulnerabilities-catalog",

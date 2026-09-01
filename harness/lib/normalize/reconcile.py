@@ -57,18 +57,19 @@ Three exclusions in that table are load-bearing rather than incidental:
   ``shape.py``; this module counts.
 
   What that division must not be read as is a claim that such a document is
-  *acceptable*.  It used to be: a ``checkov.json`` holding ``{}`` or a ``joern.json``
-  holding ``{"findings": null}`` counted zero here, adapted to zero rows and zero
-  rejections there, and balanced the identity at ``0 = 0 + 0`` with parse status
+  *acceptable*.  ``shape.NATIVE_SIGNATURES`` is what keeps it from being one: a
+  document that is not the named writer's native shape halts in ``shape.route``
+  before any adapter or any counter is reached (AAP 0.5.4, AAP 0.9.2).  Absent that
+  halt, a ``checkov.json`` holding ``{}`` or a ``joern.json`` holding
+  ``{"findings": null}`` would count zero here, adapt to zero rows and zero
+  rejections there, and balance the identity at ``0 = 0 + 0`` with parse status
   ``clean`` -- a malformed artifact indistinguishable from a scan that found nothing.
-  ``shape.NATIVE_SIGNATURES`` closes that: a document that is not the named writer's
-  native shape halts in ``shape.route`` before any adapter or any counter is reached
-  (AAP 0.5.4, AAP 0.9.2).  The zero-rather-than-raise reading below is unchanged and is
-  deliberately **not** hardened into a second shape test -- a second copy of that test
-  could disagree with the first, and this traversal's whole value is that it shares no
-  code and no judgement with the row builder.  It stays correct for what it is now
-  reached with: a container legitimately absent inside a document of the right shape,
-  such as a SARIF run carrying no ``results`` or a Trivy target carrying no section.
+  The zero-rather-than-raise reading below is deliberately **not** hardened into a
+  second shape test: a second copy of that test could disagree with the first, and
+  this traversal's whole value is that it shares no code and no judgement with the row
+  builder.  What it is reached with is a container legitimately absent inside a
+  document of the right shape, such as a SARIF run carrying no ``results`` or a Trivy
+  target carrying no section.
 
 The identity
 ------------
@@ -103,9 +104,10 @@ The three-stage validation
   against the total emitted rows and total rejections.
 * **Stage C** -- the output files: the parsed ``findings.json`` row count and the
   parsed ``findings.csv`` row count each compared against Stage B **separately**,
-  and to each other.  Never by counting lines: a precedent dataset held 10,178 rows
-  across roughly 12,760 physical lines because message fields carry embedded
-  newlines, so a line count over-reports by about a quarter.  ``emit.py`` owns the
+  and to each other.  Never by counting lines: a ``message`` field carrying an
+  embedded newline spans several physical lines, so a physical-line count is not a
+  row count.  This dataset holds 9,430 rows in ``findings.json`` and 9,430 parsed
+  rows in ``findings.csv``, over 9,439 physical lines.  ``emit.py`` owns the
   field-by-field typed comparison of the two files; this module owns the counts, and
   :func:`count_json_rows` / :func:`count_csv_rows` take them by parsing.
 
@@ -268,7 +270,7 @@ def _as_mapping(value: Any) -> Mapping[str, Any]:
     A non-mapping where a mapping was expected contributes zero rather than
     raising: a bare array top level is legitimate for two of the nine shapes, and a
     malformed container is ``shape.py``'s halt to make, not this traversal's.  That
-    halt now exists for the per-writer case too -- ``shape.NATIVE_SIGNATURES`` refuses a
+    halt covers the per-writer case as well -- ``shape.NATIVE_SIGNATURES`` refuses a
     document that is not the named writer's shape -- so the zero here is reached by a
     legitimately absent inner container rather than by a malformed artifact that slipped
     through.
@@ -1003,9 +1005,9 @@ def count_csv_rows(path: str | Path, has_header: bool = True) -> int:
     """Count the data rows in ``findings.csv`` by parsing it.
 
     Parsed with :mod:`csv`, which is the point: a message field carrying an embedded
-    newline spans several physical lines, so counting lines over-reports.  A precedent
-    dataset held 10,178 rows across roughly 12,760 physical lines -- about a quarter
-    too many -- which is why no count in this module ever comes from a line tally.
+    newline spans several physical lines, so counting lines over-reports.  This
+    dataset's 9,430 rows span 9,439 physical lines, which is why no count in this
+    module ever comes from a line tally.
     The file is opened with ``newline=""`` as :mod:`csv` requires for embedded
     newlines to be read correctly.
 

@@ -41,7 +41,7 @@
     "retained_failed_checks_are_unedited": "All five failed checks are byte-identical members of the raw artifact's six, compared as whole objects under canonical JSON. That equality is a property of those five records and not a claim about the file as a whole; the file-level provenance assertion belongs to the primary fixture and is made in test_checkov_adapter.py's RawArtifactProvenanceTests against harness/artifacts/raw/checkov.json.",
     "not_identical_to_the_raw_artifact": {
       "raw_artifact": "harness/artifacts/raw/checkov.json",
-      "raw_artifact_sha256": "d5e4492ac799875f6cf14c187f9130bc2ad3f8060c320e757c127dfd1fda98fc",
+      "raw_artifact_sha256": "91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643",
       "raw_artifact_bytes": 8380,
       "raw_artifact_failed_checks": 6,
       "raw_artifact_results_buckets": [

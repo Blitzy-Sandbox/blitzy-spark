@@ -11,7 +11,7 @@
   "adapter": "harness/lib/normalize/adapters/trivy.py",
   "fixture": {
     "path": "oss-scan-results/adapter-tests/fixtures/reject-trivy-absent-path.json",
-    "sha256": "97c2db342a01c471c3cc8a9c571cad75da5dfd6be72f62cffc2c23d764eb5973",
+    "sha256": "b42089a95c532b856d9904c961e14fde6d39f94513ce5993ce3ab046f402a5a2",
     "bytes": 3412,
     "lines": 108,
     "schema_version": 2,
@@ -29,7 +29,7 @@
     "kind": "derived",
     "derived_from": {
       "fixture": "oss-scan-results/adapter-tests/fixtures/trivy.json",
-      "that_fixture_is": "the byte-for-byte capture of harness/artifacts/raw/trivy.json, sha256 4551d6ca435ad71aa2306bd03aa45ce92ba95d5f9ee03f304767f9f791878eba, 3,496 bytes",
+      "that_fixture_is": "the byte-for-byte capture of harness/artifacts/raw/trivy.json, sha256 979ad0ffbec3502f62ea0e2cd46fae549aaa5e1b7cc4a0d59153a5c2448766ec, 3,496 bytes",
       "derivation": "one value changed and nothing else: /Results/1/Target, which the capture states as \"resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile\", is the empty string here. Diffing the two files reports exactly one differing line.",
       "derivation_check": "compare the two documents member by member: the envelope, Results[0] and Results[2] are equal object for object, and Results[1] differs in its Target alone -- its Class, Type, MisconfSummary and its single DS-0026 record are the capture's.",
       "formatting": "written with the capture's own one-space JSON indentation and, like the capture, with no trailing newline, so a byte diff shows the changed value and nothing else."

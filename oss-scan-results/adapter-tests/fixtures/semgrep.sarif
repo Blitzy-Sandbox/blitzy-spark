@@ -12,25 +12,16 @@
               },
               "level": "note",
               "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.system.system-debug:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
                 "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.endpoints.insecure-http-request:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
-              }
-            },
-            {
-              "descriptor": {
-                "id": "Missing plugin"
-              },
-              "level": "note",
-              "message": {
-                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.injection.soql-injection-unescaped-param:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
-              }
-            },
-            {
-              "descriptor": {
-                "id": "Missing plugin"
-              },
-              "level": "note",
-              "message": {
-                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.endpoints.named-credentials-constant-match:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
               }
             },
             {
@@ -48,6 +39,15 @@
               },
               "level": "note",
               "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.endpoints.named-credentials-constant-match:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
                 "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.injection.soql-injection-unescaped-url-param:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
               }
             },
@@ -57,7 +57,7 @@
               },
               "level": "note",
               "message": {
-                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.system.system-debug:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.injection.soql-injection-unescaped-param:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
               }
             },
             {
@@ -102,7 +102,25 @@
               },
               "level": "note",
               "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.endpoints.named-credentials-string-match:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
                 "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.best-practice.ncino.accessModifiers.global-access-modifiers:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Missing plugin"
+              },
+              "level": "note",
+              "message": {
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.dml.dml-native-statements:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
               }
             },
             {
@@ -120,7 +138,7 @@
               },
               "level": "note",
               "message": {
-                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.endpoints.named-credentials-string-match:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.best-practice.deprecated_calendar_iso_day_of_week_3:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
               }
             },
             {
@@ -129,7 +147,7 @@
               },
               "level": "note",
               "message": {
-                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.apex.lang.security.ncino.dml.dml-native-statements:\n Missing Semgrep extension needed for parsing Apex target. Try adding `--pro-languages` to your command."
+                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.correctness.atom_exhaustion:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
               }
             },
             {
@@ -156,25 +174,7 @@
               },
               "level": "note",
               "message": {
-                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.best-practice.deprecated_calendar_iso_day_of_week_3:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
-              }
-            },
-            {
-              "descriptor": {
-                "id": "Missing plugin"
-              },
-              "level": "note",
-              "message": {
                 "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.best-practice.deprecated_bxor_operator:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
-              }
-            },
-            {
-              "descriptor": {
-                "id": "Missing plugin"
-              },
-              "level": "note",
-              "message": {
-                "text": "Missing plugin for rule opt.blitzy-harness.rules.semgrep-rules.elixir.lang.correctness.atom_exhaustion:\n Missing Semgrep extension needed for parsing Elixir target. Try adding `--pro-languages` to your command."
               }
             },
             {
@@ -1255,15 +1255,6 @@
               "level": "warning",
               "message": {
                 "text": "Syntax error at line core/src/main/resources/org/apache/spark/ui/static/stagespage-template.html:20:\n When parsing a snippet as JavaScript for metavariable-pattern in rule 'opt.blitzy-harness.rules.semgrep-rules.html.security.audit.insecure-document-method', `class` was unexpected"
-              }
-            },
-            {
-              "descriptor": {
-                "id": "Timeout"
-              },
-              "level": "warning",
-              "message": {
-                "text": "Timeout when running opt.blitzy-harness.rules.semgrep-rules.javascript.lang.security.audit.detect-non-literal-require on core/src/main/resources/org/apache/spark/ui/static/vis-timeline-graph2d.min.js:\n "
               }
             },
             {

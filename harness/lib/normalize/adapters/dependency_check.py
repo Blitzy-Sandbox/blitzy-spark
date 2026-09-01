@@ -12,9 +12,8 @@ is explicit that the identifier is produced mechanically from the runner and
 artifact stem, so it is neither ``OWASP Dependency-Check`` nor ``dependency_check``
 in any emitted field.
 
-No user-specified rule governs this file.  ``review_rules`` returns exactly one
-line, ``No user rules provided.``, corroborated by AAP 0.7 and AAP 0.10.2.
-Enterprise best practice applies in their place, held to the AAP's own bar:
+No user-specified rule governs this file, so enterprise-standard best practice
+applies in its place (AAP 0.7, AAP 0.10.2), held to the AAP's own bar:
 verification independent of the thing verified, reject rather than infer, and a
 policy fixed before any output is observed.  Everything cited below is an AAP
 *requirement*; none of it is a rule.
@@ -154,13 +153,23 @@ Two seams make it checkable:
   :data:`COUNTER_SEVERITY_SELECTED_SCORE_WITH_SOURCE_AND_VERSION`, so the aggregate
   is visible in ``normalize-run.json`` without a per-row side channel.
 
-A CVSS block carries no ``source`` of its own and does not always carry a
-``version``, so :func:`score_candidates` supplies both from facts already in the
-artifact -- the record's own ``source`` (``NVD``, ``RETIREJS``, ``OSSINDEX``…)
-composed with the block's key, and the major version the block's key itself states
-(``cvssv3`` names major 3) -- and only where the block omits them.  Neither is
-invented: a block named ``cvssv3`` *is* a version-3 entry, and the record's
-``source`` *is* the provenance of the scores under it.
+Provenance inside a CVSS block is version-dependent, which is why
+:func:`score_candidates` composes what a block omits rather than assuming every block
+omits it.  ``templates/jsonReport.vsl`` in the pinned
+``dependency-check-core-13.0.0.jar`` emits the ``cvssv2`` block (template lines
+207-225) and the ``cvssv3`` block (227-242) with no ``source`` and no ``type`` member
+and with ``version`` conditional on the metric, while the ``cvssv4`` block (244-257)
+emits ``source`` and ``type`` whenever the underlying metric carries them.  A v2 or
+v3 block therefore states no provenance of its own, so the selected entry's source is
+composed from facts already in the artifact -- the record's own ``source`` (``NVD``,
+``RETIREJS``, ``OSSINDEX``…) joined to the block's key, as ``NVD:cvssv3`` -- and its
+version comes from the major the key itself states (``cvssv3`` names major 3).  A
+block that does carry either field keeps it: each is supplied only where neither
+spelling ``severity.py`` accepts is present, so a ``cvssv4`` ``source`` or ``type``
+is consulted and reported as the selection's own provenance rather than displaced by
+a composed key.  Neither supplied value is invented: a block named ``cvssv3`` *is* a
+version-3 entry, and the record's ``source`` *is* the provenance of the scores under
+it.
 
 Two measured hazards, and why neither is handled locally
 --------------------------------------------------------
@@ -817,11 +826,13 @@ def score_candidates(vulnerability: Mapping[str, Any]) -> list[dict[str, Any]]:
       no source, the block key alone is used.
 
     Both are supplied only when *neither* recognised spelling of the field is present
-    (:data:`normalize.severity` accepts ``source``/``type`` and
+    (:mod:`normalize.severity` accepts ``source``/``type`` and
     ``version``/``cvss_version``), so this can never displace a value the artifact
-    carried.  Everything else in the block is passed through untouched; ``severity.py``
-    owns which key holds the score, which is why ``cvssv2``'s ``score`` and
-    ``cvssv3``'s ``baseScore`` need no special case here.
+    carried -- a ``cvssv4`` block, the one shape the pinned tool emits ``source`` and
+    ``type`` on, keeps its own provenance and its own version precision.  Everything
+    else in the block is passed through untouched; ``severity.py`` owns which key holds
+    the score, which is why ``cvssv2``'s ``score`` and ``cvssv3``'s ``baseScore`` need
+    no special case here.
     """
     record_source = _non_empty_string(vulnerability.get(_SOURCE_KEY))
     keyed: list[tuple[int, str, dict[str, Any]]] = []
@@ -1395,7 +1406,6 @@ def _adapt_vulnerability(
         "filePath": dependency.get(_FILE_PATH_KEY),
     }
 
-    # Step 1 -- the record's shape.
     record = _json_object(vulnerability)
     if record is None:
         return paths.make_rejection(
@@ -1406,7 +1416,6 @@ def _adapt_vulnerability(
             **identity,
         )
 
-    # Step 2 -- the rule identifier.
     rule_id = _non_empty_string(record.get(_NAME_KEY))
     if rule_id is None:
         raw_name = record.get(_NAME_KEY)
@@ -1427,7 +1436,6 @@ def _adapt_vulnerability(
         )
     identity[_NAME_KEY] = rule_id
 
-    # Step 3 -- the message.
     message = _non_empty_string(record.get(_DESCRIPTION_KEY))
     if message is None:
         raw_description = record.get(_DESCRIPTION_KEY)
@@ -1459,8 +1467,8 @@ def _adapt_vulnerability(
     if _is_json_array(related) and len(related) > 0:
         counters[COUNTER_MULTI_LOCATION] += 1
 
-    # Step 4 -- the path.  Every base decision is delegated to paths.py; the only
-    # tool-specific step is inserting the archive separator at the container boundary,
+    # Every base decision about the path is delegated to paths.py; the only
+    # tool-specific work is inserting the archive separator at the container boundary,
     # which prepare_file_path documents in full.
     prepared = prepare_file_path(dependency.get(_FILE_PATH_KEY))
     resolved = paths.resolve_dependency_check_path(
@@ -1478,9 +1486,9 @@ def _adapt_vulnerability(
     if prepared.was_split:
         counters[COUNTER_ARCHIVE_REFERENCES_SPLIT] += 1
 
-    # Step 5 -- the package coordinate.  Unformable is a rejection for this shape
-    # because the record is dependency-oriented (AAP 0.5.4), not a row with a null
-    # field.
+    # A package coordinate that cannot be formed at any of the four candidate levels
+    # is a rejection for this shape, because the record is dependency-oriented (AAP
+    # 0.5.4), rather than a row with a null field.
     coordinate = package_coordinate(record, dependency, rule_id=rule_id)
     if coordinate is None:
         counters[COUNTER_COORDINATE_UNFORMABLE] += 1

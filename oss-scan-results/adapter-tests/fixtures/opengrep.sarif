@@ -26,6 +26,33 @@
             },
             {
               "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.opengrep-rules.javascript.lang.correctness.no-stringify-keys on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.opengrep-rules.javascript.lang.security.audit.detect-non-literal-regexp on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.opengrep-rules.javascript.lang.security.audit.detect-non-literal-require on core/src/main/resources/org/apache/spark/ui/static/dagre-d3.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
                 "id": "Syntax error"
               },
               "level": "warning",
@@ -93,7 +120,25 @@
               },
               "level": "warning",
               "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.opengrep-rules.javascript.express.security.audit.remote-property-injection on core/src/main/resources/org/apache/spark/ui/static/vis-timeline-graph2d.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
                 "text": "Timeout when running opt.blitzy-harness.rules.opengrep-rules.javascript.express.security.injection.raw-html-format on core/src/main/resources/org/apache/spark/ui/static/vis-timeline-graph2d.min.js:\n "
+              }
+            },
+            {
+              "descriptor": {
+                "id": "Timeout"
+              },
+              "level": "warning",
+              "message": {
+                "text": "Timeout when running opt.blitzy-harness.rules.opengrep-rules.javascript.lang.security.audit.detect-non-literal-regexp on core/src/main/resources/org/apache/spark/ui/static/vis-timeline-graph2d.min.js:\n "
               }
             },
             {

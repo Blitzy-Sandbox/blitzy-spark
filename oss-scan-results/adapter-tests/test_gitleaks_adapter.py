@@ -14,14 +14,12 @@ diagnose, not a file to overwrite.
 
 Rules
 -----
-No user-specified rule governs this file. ``review_rules`` returns exactly one line,
-``No user rules provided.``, and that line is the whole document -- not a truncated
-read -- corroborated by AAP 0.7 and AAP 0.10.2. No rule is cited or invented here.
-Enterprise best practice applies in their place and the absence is **not** licence to
-lower the bar: concretely, the no-secret invariant below is asserted *structurally*,
-over every one of the twelve fields of every row and against every sensitive value
-present anywhere in the artifact, rather than spot-checked on the one field a reader
-would think of first.
+No user-specified rule governs this file; enterprise-standard best practice applies in
+its place, as AAP 0.7 and AAP 0.10.2 state, so no rule is cited or invented here and
+the bar this file is held to is the AAP's own. That absence is **not** licence to lower
+it: concretely, the no-secret invariant below is asserted *structurally*, over every one
+of the twelve fields of every row and against every sensitive value present anywhere in
+the artifact, rather than spot-checked on the one field a reader would think of first.
 
 The contract under test
 -----------------------
@@ -118,21 +116,24 @@ the harness would otherwise read a deliberate choice as an error.
 Rejection conditions this adapter can produce -- all six, all asserted
 ---------------------------------------------------------------------
 ``gitleaks.REJECT_CLASSES_PRODUCED`` declares six, every one a member of the closed
-:data:`normalize.paths.REJECT_CLASSES` vocabulary. Five come from committed negative
-fixtures and the sixth from the metadata side:
+:data:`normalize.paths.REJECT_CLASSES` vocabulary. Each has exactly one committed
+fixture, and the last of them is driven under a stated metadata variant rather than
+under the recorded base:
 
 * ``malformed_record`` -- ``reject-gitleaks-malformed-record.json``
 * ``missing_rule_id`` -- ``reject-gitleaks-missing-rule-id.json``
 * ``missing_message`` -- ``reject-gitleaks-missing-message.json``
 * ``non_integer_start_line`` -- ``reject-gitleaks-non-integer-start-line.json``
-* ``absent_path`` -- ``reject-gitleaks-unresolvable-path.json``. The class is
-  ``absent_path`` rather than the ``unresolvable_path`` the filename suggests, and the
-  expectation file's own ``reject_class_divergence`` block sets out why. Every class
-  asserted here is read from the expectation file, never inferred from a filename.
-* ``unresolvable_path`` -- produced where the recorded metadata establishes no base at
-  all, which no committed artifact exhibits. AAP 0.9.4 requires an assertion for every
-  condition an adapter can produce *"whether or not this run's artifacts contained
-  that case"*, so it is exercised from a metadata document rather than left untested.
+* ``absent_path`` -- ``reject-gitleaks-absent-path.json``, whose ``/2`` carries an
+  empty ``File``. Every class asserted here is read from the expectation file, never
+  inferred from a filename.
+* ``unresolvable_path`` -- ``reject-gitleaks-unresolvable-path.json``, four entirely
+  sound records read under a base of kind ``none``. The class is produced where the
+  recorded metadata establishes no base at all, which no *record* content can reach.
+  AAP 0.9.4 requires a committed fixture and an assertion for every condition an
+  adapter can produce *"whether or not this run's artifacts contained that case"*, so
+  the fixture states the variant it is read under and
+  :class:`MetadataVariantFixtureTests` drives it there.
 
 Four conditions in that closed vocabulary this adapter **cannot** produce, with the
 reason each is out of reach -- asserted in
@@ -308,7 +309,6 @@ MAPPING_FIXTURES = (POSITIVE_FIXTURE, *DERIVED_FIXTURES)
 #: adapter treats those routes alike, so each committed route has its own document and each
 #: is driven through the same field-by-field comparison as the others.
 NEGATIVE_FIXTURES = (
-    "reject-gitleaks-unresolvable-path",
     "reject-gitleaks-missing-rule-id",
     "reject-gitleaks-missing-message",
     "reject-gitleaks-non-integer-start-line",
@@ -339,7 +339,14 @@ RAW_ARTIFACT_PATH = REPO_ROOT / "harness" / "artifacts" / "raw" / "gitleaks.json
 #: rows, and these expectations' top-level rows are the outcome under the variant their
 #: ``resolution_context`` names.  :class:`MetadataVariantFixtureTests` drives them under
 #: that variant instead, and asserts the recorded-base contrast the same files record.
-METADATA_VARIANT_FIXTURES = ("reject-gitleaks-unresolvable-path-missing-base",)
+#:
+#: ``reject-gitleaks-unresolvable-path`` is the whole of this tuple, and it is where the
+#: ``unresolvable_path`` class is exercised.  Its document holds four entirely sound
+#: records -- the ``absent_path`` fixture's five elements minus the one whose ``File`` is
+#: empty -- so no rejection it produces can be attributed to anything but the base, and
+#: the two path-family classes have one fixture each rather than two names for one
+#: document.
+METADATA_VARIANT_FIXTURES = ("reject-gitleaks-unresolvable-path",)
 
 #: Every fixture committed for this adapter, whichever context it is asserted under.
 #:
@@ -910,8 +917,9 @@ class DeclaredContractTests(unittest.TestCase):
 
         AAP 0.4.1 permits the standard library only and AAP 0.4.3 adds no dependency in
         any direction, so this run introduces no manifest, no lockfile and no install
-        step. Asserted against this file's own source, so adding an import cannot pass
-        review by being invisible to the test suite.
+        step. The assertion runs over this file's own source, which is what closes the
+        suite's import set: an import added to this module fails here rather than
+        entering the dependency surface unnoticed.
 
         The source is parsed rather than scanned line by line. A textual scan for lines
         beginning ``import`` or ``from`` also matches prose in a docstring -- this
@@ -1105,7 +1113,7 @@ class RawArtifactProvenanceTests(unittest.TestCase):
         An explicit failure rather than a skip. ``adapter-tests-run.json`` reports the
         suite's skipped count as a property of the run, so a provenance assertion that
         skipped itself when the evidence was missing would be indistinguishable from one
-        that passed -- which is the exact failure mode this class exists to close.
+        that passed, and the provenance of the captured fixture would rest on nothing.
         """
         self.assertTrue(
             RAW_ARTIFACT_PATH.is_file(),
@@ -1146,9 +1154,11 @@ class RawArtifactProvenanceTests(unittest.TestCase):
     def test_the_expected_file_records_the_artifacts_digest_and_says_so(self) -> None:
         """The expectation's fixture block states the equality it is entitled to state.
 
-        The digest recorded there has to be the artifact's, and the claim has to be made
-        explicitly -- otherwise a reader cannot tell a captured fixture from a derived one
-        by reading the expected file, which is the confusion this finding was about.
+        ``fixtures/gitleaks.json`` is an unmodified capture of the runner's own artifact,
+        and the expected file states that provenance in the terms it can be checked in:
+        the digest recorded there is the artifact's, and the equality is claimed
+        explicitly, so a captured fixture is distinguishable from a derived one by reading
+        the expected file alone.
         """
         self.raw_document()
         recorded = load_expected(POSITIVE_FIXTURE)["fixture"]
@@ -2463,12 +2473,13 @@ class RejectionTests(GitleaksAdapterTestCase):
     AAP 0.5.4: *"Where a record cannot be attributed with certainty, it is rejected and
     the rejection recorded as a class with its count -- never guessed into a field."*
     Every expectation below is read from the corresponding ``expected/*.rows.json``,
-    including the class name, because two of the fixtures do not produce what their
-    filenames suggest:
+    including the class name and the rejection count, because neither is inferable from
+    a fixture's filename:
 
-    * ``reject-gitleaks-unresolvable-path.json`` produces ``absent_path``. Its
-      expectation carries a ``reject_class_divergence`` block explaining why, and a test
-      that inferred the class from the filename would fail against a correct adapter.
+    * ``reject-gitleaks-absent-path.json`` produces ``absent_path`` from its one
+      element whose ``File`` is empty; ``unresolvable_path`` is not reachable from any
+      record's content under the recorded base, and its own fixture is driven by
+      :class:`MetadataVariantFixtureTests` instead.
     * ``reject-gitleaks-malformed-record.json`` produces **two** rejections and
       ``reject-gitleaks-missing-message.json`` produces **four**. The count comes from
       the expectation, not from an assumption that a negative fixture holds one
@@ -2532,8 +2543,10 @@ class RejectionTests(GitleaksAdapterTestCase):
         renamed on *both* sides at once -- in the adapter and in the expectation -- would
         still fail here.
 
-        ``absent_path`` is in this set and ``unresolvable_path`` is not, which is the
-        divergence between the fixture filenames and the classes they actually reach.
+        ``absent_path`` is in this set and ``unresolvable_path`` is not: no record's
+        content reaches the second class under the recorded base, so its fixture is
+        driven under a metadata variant by :class:`MetadataVariantFixtureTests` and its
+        expectation's top-level rejections are not this tuple's to assert.
         """
         recorded: set[str] = set()
         for stem in NEGATIVE_FIXTURES:
@@ -2621,7 +2634,7 @@ class RejectionTests(GitleaksAdapterTestCase):
         base nobody established.
 
         AAP 0.9.4's committed-fixture obligation for this condition is discharged by
-        ``reject-gitleaks-unresolvable-path-missing-base.json`` and
+        ``reject-gitleaks-unresolvable-path.json`` and
         :class:`MetadataVariantFixtureTests`, which drive the same branch from a file
         under the same variant. This remains as the narrowest statement of the branch --
         one record, one base, one class -- and as the shortest thing to read when the

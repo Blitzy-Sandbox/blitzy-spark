@@ -3,8 +3,8 @@
   "Trivy": {
     "Version": "0.74.0"
   },
-  "ReportID": "01a0574b-0e00-7562-b835-705b8b2a093c",
-  "CreatedAt": "2026-08-31T10:08:51.712355273Z",
+  "ReportID": "01a05d5b-cd79-7564-ba86-6e915477f442",
+  "CreatedAt": "2026-09-01T14:24:52.601355669Z",
   "ArtifactName": "resource-managers/kubernetes/core/src/main",
   "ArtifactType": "filesystem"
 }

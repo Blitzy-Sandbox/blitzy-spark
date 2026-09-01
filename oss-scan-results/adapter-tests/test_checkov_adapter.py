@@ -11,19 +11,18 @@ is softened into a smoke test.
 
 No user-specified rule governs this file
 ----------------------------------------
-``review_rules`` returns exactly one line, ``No user rules provided.``, and that line is
-the whole document -- not a truncated read. AAP 0.7 and AAP 0.10.2 corroborate it
-independently. No rule therefore forces anything into this file's scope, and inventing
-one would be fabrication. Enterprise-standard best practice applies in their place, and
-their absence is expressly **not** licence to lower the bar. Concretely, held to here:
-both top-level shapes are covered by real committed fixtures rather than by one shape
-plus an argument; the positive fixture is the runner's own artifact and is asserted to be,
-against ``harness/artifacts/raw/checkov.json`` rather than against a digest this tree
-records about itself; the passes-and-skips exclusion is asserted from a fixture that
-actually contains three passed checks and one skipped check, and it is named as derived
-because the artifact carries neither bucket; every rejection class is asserted **by name**
-against a member of ``paths.REJECT_CLASSES``; and every row is compared field by field over
-the twelve fields iterated from ``emit.FIELDS`` rather than spot-checked.
+No user-specified rule forces anything into this file's scope, and inventing one would be
+fabrication; enterprise-standard best practice applies in its place, as AAP 0.7 and AAP
+0.10.2 state, so the bar this file is held to is the AAP's own. That absence is expressly
+**not** licence to lower it. Concretely, held to here: both top-level shapes are covered by
+real committed fixtures rather than by one shape plus an argument; the positive fixture is
+the runner's own artifact and is asserted to be, against
+``harness/artifacts/raw/checkov.json`` rather than against a digest this tree records about
+itself; the passes-and-skips exclusion is asserted from a fixture that actually contains
+three passed checks and one skipped check, and it is named as derived because the artifact
+carries neither bucket; every rejection class is asserted **by name** against a member of
+``paths.REJECT_CLASSES``; and every row is compared field by field over the twelve fields
+iterated from ``emit.FIELDS`` rather than spot-checked.
 
 The three positive fixtures, and which claim each one makes
 ----------------------------------------------------------
@@ -279,10 +278,11 @@ AUTHORITATIVE_GLOBS = (
 # that document rather than trusting this restatement of it.
 #
 # The recorded scan root is used as a *string*: neither this adapter nor paths.py reads the
-# filesystem to resolve a path, which :meth:`FilesystemIndependenceTests` establishes by
-# producing byte-identical rows against a materialised temporary tree. That independence is
-# also why a row's `path` may legitimately name something that is not a file on disk -- the
-# count AAP 0.6.1 has run-record.md report.
+# filesystem to resolve a path, which :class:`RootDependenceTests` establishes by producing
+# byte-identical rows under the recorded root, under a materialised temporary tree and under
+# a root that exists on no filesystem at all. That independence is also why a row's `path`
+# may legitimately name something that is not a file on disk -- the count AAP 0.6.1 has
+# run-record.md report.
 # --------------------------------------------------------------------------------------
 RECORDED_METADATA_PATH = REPO_ROOT / "harness" / "artifacts" / "logs" / "runner-metadata.json"
 RECORDED_SCAN_ROOT = "/opt/spark-src"
@@ -407,9 +407,19 @@ POSITIVE_FIXTURES = (CAPTURED_FIXTURE, *DERIVED_FIXTURES)
 #: container (absent, empty, a number, a string, an object) or as a wrong first element
 #: (``true``, ``0``, a negative integer), and those two defects take DIFFERENT classes --
 #: ``malformed_record`` for the container and ``non_integer_start_line`` for the element --
-#: so a corpus carrying one of each cannot show where the boundary lies. Every fixture here
-#: is driven through the same field-by-field comparison, and the class each yields is read
-#: from its own expectation rather than from its slug.
+#: so a corpus carrying one of each cannot show where the boundary lies.
+#: :class:`RejectionTests` drives every fixture here through the same field-by-field row,
+#: counter and reconciliation comparison, and the class each yields is read from its own
+#: expectation rather than from its slug.
+#:
+#: Eight of these fixtures carry a defective ``file_line_range``, and their relationship is
+#: what makes each one attributable. Seven -- the boolean, zero, negative, empty, number,
+#: string and object forms -- are variants of one three-record document differing at exactly
+#: ``/results/failed_checks/1/file_line_range``, so the rejection is the only difference
+#: between any two of them: same two rows, same three bucket counts, same 28 counters. The
+#: eighth, ``reject-checkov-non-integer-start-line``, carries the element defect and three
+#: malformed containers side by side in a single document, which is what holds the class
+#: boundary inside one artifact rather than across two.
 REJECT_FIXTURES = (
     "reject-checkov-unresolvable-path",
     "reject-checkov-missing-rule-id",
@@ -429,17 +439,6 @@ REJECT_FIXTURES = (
 )
 
 ALL_FIXTURES = (*POSITIVE_FIXTURES, *REJECT_FIXTURES)
-
-#: Every committed fixture whose defect is a ``file_line_range``, mapped to the branch of
-#: ``checkov._start_line`` it exercises and the class that branch earns. Eight fixtures over
-#: four branches: the two ``non_integer_start_line`` element branches have two sub-forms
-#: each, and the container branch has two scalar forms and an object form beside the
-#: empty-array one.
-#:
-#: All eight are single-value derivations of ``reject-checkov-non-integer-start-line.json``
-#: at ``/results/failed_checks/1/file_line_range``, so their rows, their three bucket counts
-#: and all 28 of their counters are identical by construction and the rejection is the only
-#: difference between any two of them. :class:`StartLineRouteTests` asserts that.
 
 #: The runner's own artifact, opened read-only by :class:`RawArtifactProvenanceTests`.
 #:
@@ -585,9 +584,10 @@ def failed_check_union(doc) -> list:
 def bucket_counts(doc) -> dict:
     """Return the four ``results`` bucket sizes across the document, summed in order.
 
-    Used to state what a fixture actually contains before anything is asserted about what
-    the adapter did with it: an assertion that passes over a fixture carrying no passed
-    checks would establish nothing about the failures-only contract.
+    What a fixture contains is established from the document itself before anything is
+    asserted about what the adapter did with it, which is what keeps the failures-only
+    contract non-degenerate: an assertion that passed over a fixture carrying no passed
+    checks and no skipped checks would establish nothing at all.
     """
     reports = doc if isinstance(doc, list) else [doc]
     totals = {
@@ -1227,20 +1227,21 @@ class CheckovAdapterTestCase(unittest.TestCase):
 
 
 class FixtureInventoryTests(CheckovAdapterTestCase):
-    """The eight fixtures and their expectations are present, well formed and unchanged.
+    """Every fixture and its expectation is present, well formed and unchanged.
 
     This class precedes every behavioural one for a specific reason: a fixture silently
     absent, or one whose bytes have drifted from the document its expected rows were
     derived from, would let every assertion below pass over an input nobody verified.
 
-    Eight, and every one claimed by this inventory: the capture, the two declared derived
-    files -- the array-form counterpart and the feature fixture -- and the five negative
-    fixtures. A fixture this module reads but its inventory does not claim would be a
-    fixture whose bytes nothing pins.
+    The inventory is ``ALL_FIXTURES`` and it claims all of them: the capture, the two
+    declared derived files -- the array-form counterpart and the feature fixture -- and
+    every negative fixture in ``REJECT_FIXTURES``. A fixture this module reads but its
+    inventory does not claim would be a fixture whose bytes nothing pins, so the counts
+    are taken from the tuples rather than restated here where they could drift from them.
     """
 
     def test_every_fixture_and_expected_file_is_present(self) -> None:
-        """All eight fixtures and all eight expected files exist where they are named."""
+        """Every fixture in the inventory, and its expected file, exists where it is named."""
         for stem in ALL_FIXTURES:
             with self.subTest(fixture=stem):
                 self.assertTrue(
@@ -1504,7 +1505,7 @@ class RawArtifactProvenanceTests(unittest.TestCase):
         An explicit failure rather than a skip. ``adapter-tests-run.json`` reports the
         suite's skipped count as a property of the run, so a provenance assertion that
         skipped itself when the evidence was missing would be indistinguishable from one
-        that passed -- which is the exact failure mode this class exists to close.
+        that passed, and the provenance of the captured fixture would rest on nothing.
         """
         self.assertTrue(
             RAW_ARTIFACT_PATH.is_file(),
@@ -1556,11 +1557,12 @@ class RawArtifactProvenanceTests(unittest.TestCase):
     def test_the_expected_file_records_the_artifacts_digest_and_says_so(self) -> None:
         """The expectation's fixture block states the equality it is entitled to state.
 
-        The digest recorded there has to be the artifact's, and the claim has to be made
-        explicitly -- otherwise a reader cannot tell a captured fixture from a derived one
-        by reading the expected file, which is the confusion this finding was about. The two
-        authored counts are asserted at zero for the same reason: they are the fields that
-        would have to move if anything were ever added to this fixture.
+        ``fixtures/checkov.json`` is an unmodified capture of the runner's own artifact, and
+        the expected file states that provenance in the terms it can be checked in: the
+        digest recorded there is the artifact's, and the equality is claimed explicitly, so
+        a captured fixture is distinguishable from a derived one by reading the expected file
+        alone. The two authored counts are asserted at zero for the same reason: they are the
+        fields that would have to move if anything were ever added to this fixture.
         """
         artifact = self.raw_document()
         recorded = load_expected(CAPTURED_FIXTURE)["fixture"]
@@ -2345,9 +2347,9 @@ class ShapeEquivalenceTests(CheckovAdapterTestCase):
 
     This is the assertion that proves shape handling is *normalization* rather than two
     divergent code paths, and it is the reason both fixtures are committed: it could not be
-    asserted of two forks of the record loop. The alt-shape fixture is the derived file the
-    fixtures agent created by shape transformation alone, never an in-test transformation of
-    the captured one -- a transformation performed here would be testing this file's
+    asserted of two forks of the record loop. The alt-shape fixture is a committed file
+    derived from the capture by shape transformation alone, never an in-test transformation
+    of the captured one -- a transformation performed here would be testing this file's
     arithmetic rather than the adapter's.
 
     What this class does **not** establish is that the two documents carry the same records:
@@ -3395,11 +3397,11 @@ class CountUnitUnionTests(CheckovAdapterTestCase):
     """
 
     def test_the_identity_holds_on_every_committed_fixture(self) -> None:
-        """``raw finding records = dataset rows + rejected records``, eight times over.
+        """``raw finding records = dataset rows + rejected records``, on every fixture.
 
-        Non-degenerate on five of the eight: over an all-valid document the identity collapses
-        to ``raw = rows``, and it is the five reject fixtures that make the right-hand side
-        carry both terms.
+        Non-degenerate on the reject fixtures: over an all-valid document the identity
+        collapses to ``raw = rows``, and it is the fixtures in ``REJECT_FIXTURES`` that make
+        the right-hand side carry both terms.
         """
         for stem in ALL_FIXTURES:
             with self.subTest(fixture=stem):
@@ -4251,14 +4253,15 @@ class RootContainmentTests(CheckovAdapterTestCase):
 
     The emitted spelling is asserted **unchanged** throughout. The SARIF 2.1.0 errata (the
     section 3.10.2 amendment) forbid a consumer normalizing ``..`` out of a path and AAP
-    0.5.4 requires ``../`` segments preserved, so the fix moves the *classification* and
-    nothing about the string that reaches the dataset.
+    0.5.4 requires ``../`` segments preserved, so containment governs the *classification*
+    only, and nothing about the string that reaches the dataset.
     """
 
-    #: The finding's own example: three concrete segments and four ``..``, so the running
-    #: depth is spent by the third and the fourth takes it below the root. Its leading
-    #: segments are exactly ``core/src/main``, which is why a first-segment reading both
-    #: called it a tree file and let it match ``core/src/main/**``.
+    #: Three concrete segments and four ``..``, so the running depth is spent by the third
+    #: and the fourth takes it below the root. Its leading segments are exactly
+    #: ``core/src/main``, so a classification that read only the first segment would call it
+    #: a tree file while ``core/src/main/**`` matched it -- which is why the verdict is a
+    #: walk over every segment rather than a test of the leading one.
     INTERIOR_ESCAPE = "core/src/main/../../../../etc/passwd"
 
     #: An interior ``..`` that stays inside the tree: a real sibling-directory reference.
@@ -4286,13 +4289,13 @@ class RootContainmentTests(CheckovAdapterTestCase):
     )
 
     def test_an_interior_parent_chain_escapes_the_root_and_is_out_of_scope(self) -> None:
-        """The finding's example: classified ``outside_root``, and ``in_scope`` is false.
+        """An interior ``..`` chain: classified ``outside_root``, and ``in_scope`` is false.
 
-        Both halves of the defect are asserted, not just the fix. The glob match is
-        demonstrated first -- ``core/src/main/**`` really does match this path's segments --
-        so the record shows that the containment rule is what excludes the coordinate, and
-        that a matcher change would not have been the fix. AAP 0.5.4: every non-filesystem
-        coordinate takes ``in_scope: false``, is kept, and is counted.
+        The glob match is demonstrated first -- ``core/src/main/**`` really does match this
+        path's segments -- so the record shows that the containment walk is what excludes the
+        coordinate and that no allowlist matcher could, since the coordinate is a legitimate
+        match on its segments. AAP 0.5.4: every non-filesystem coordinate takes
+        ``in_scope: false``, is kept, and is counted.
         """
         globs = recorded_env().globs
         self.assertTrue(
@@ -4448,11 +4451,11 @@ class RootContainmentTests(CheckovAdapterTestCase):
     def test_a_shadow_that_lands_inside_a_glob_is_in_scope_on_the_shadow(self) -> None:
         """``unrelated/../core/src/main/...`` is a file under ``core/src/main``, and says so.
 
-        The mirror image of the finding: the reported spelling matches no glob, so a matcher
-        reading it alone answers ``in_scope: false`` for a coordinate that lexically names an
-        in-scope file. The shadow is consulted only after the reported spelling fails, so the
-        rule can add a match and never remove one, and which spelling matched is recorded
-        rather than left for a reader to guess.
+        The mirror image of the escaping coordinate: the reported spelling matches no glob,
+        so a matcher reading it alone answers ``in_scope: false`` for a coordinate that
+        lexically names an in-scope file. The shadow is consulted only after the reported
+        spelling fails, so the rule can add a match and never remove one, and which spelling
+        matched is recorded rather than left for a reader to guess.
         """
         globs = recorded_env().globs
         analysis = paths.analyse_containment(self.SHADOW_INTO_SCOPE)
@@ -4534,11 +4537,12 @@ class RootContainmentTests(CheckovAdapterTestCase):
         )
 
     def test_every_committed_fixture_row_is_unaffected_by_the_containment_rule(self) -> None:
-        """The regression control: no captured row's spelling or verdict moves.
+        """The containment rule reaches no committed row's spelling or scope verdict.
 
         Every row of every fixture carries no ``..`` at all, so its shadow is its reported
-        spelling and its verdict is decided by exactly the rule that decided it before. This
-        is what makes the change safe to state as "only an escaping coordinate moves".
+        spelling and its verdict is the plain allowlist match. That is what bounds the
+        containment rule to escaping coordinates: it is asserted here over every committed
+        fixture rather than argued from the rule's shape.
         """
         globs = recorded_env().globs
         for stem in ALL_FIXTURES:

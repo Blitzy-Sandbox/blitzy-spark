@@ -7,12 +7,11 @@ implements: ``rule_id`` from ``RuleID``, ``message`` from ``Description``,
 ``severity_native`` **absent** because the tool defines no severity vocabulary,
 ``path`` from ``File`` and ``start_line`` from ``StartLine``.
 
-No user-specified rule governs this file.  ``review_rules`` returns exactly one
-line, ``No user rules provided.``, corroborated by AAP 0.7 and AAP 0.10.2.
-Enterprise best practice applies in their place, held to the AAP's own bar:
-verification independent of the thing verified, reject rather than infer, and a
-policy fixed before any output is observed.  Everything cited below is an AAP
-*requirement*; none of it is a rule, and none is invented here.
+No user-specified rule governs this file; enterprise-standard best practice applies
+in its place (AAP 0.7, AAP 0.10.2), held to the AAP's own bar: verification
+independent of the thing verified, reject rather than infer, and a policy fixed
+before any output is observed.  Everything cited below is an AAP *requirement*; none
+of it is a rule, and none is invented here.
 
 Position in the normalizer
 --------------------------
@@ -315,7 +314,11 @@ _PACKAGE_COORDINATE: Final[None] = None
 # list a reader retyped.
 # --------------------------------------------------------------------------- #
 
-#: The rule identifier.  Source of ``rule_id``.
+#: An absent, null or blank value earns the ``missing_rule_id`` rejection and
+#: nothing is substituted for it -- not the rule ``Description``, and not the rule
+#: name that ``Fingerprint`` happens to carry as its middle segment.  A value that
+#: is present but not a string is ``malformed_record`` instead
+#: (:func:`_text_reject_class`), because something was very much there.
 _RULE_ID_KEY: Final[str] = "RuleID"
 
 #: The **rule's** description.  Source of ``message`` -- see the module docstring
@@ -329,7 +332,10 @@ _DESCRIPTION_KEY: Final[str] = "Description"
 #: only for the record-identity fields on a rejection.
 _FILE_KEY: Final[str] = "File"
 
-#: The line.  Source of ``start_line``.
+#: Gitleaks numbers lines from one, so a value below ``1`` is not a line at all.  A
+#: value that is present but is not a positive integer -- a numeric string among
+#: them -- is the ``non_integer_start_line`` rejection rather than a coerced value,
+#: while an absent or null one is the permitted absence (:func:`_start_line`).
 _START_LINE_KEY: Final[str] = "StartLine"
 
 #: The symlink counterpart of ``File``, read **only** through
@@ -879,9 +885,9 @@ def _adapt_record(
     happens, so a genuine programming error propagates instead of being converted
     into a rejection count that would satisfy reconciliation while hiding a defect.
     """
-    # Step 1 -- the element's shape.  Only the index and the observed type reach the
-    # detail: an element that is a bare string could carry anything, and quoting it
-    # would put record text into a preserved reason (see _safe_value_repr).
+    # Only the index and the observed type reach the detail: an element that is a
+    # bare string could carry anything, and quoting it would put record text into a
+    # preserved reason (see _safe_value_repr).
     record_object = _json_object(record)
     if record_object is None:
         return paths.make_rejection(
@@ -892,7 +898,6 @@ def _adapt_record(
             record_index=record_index,
         )
 
-    # Step 2 -- the rule identifier.
     rule_id, rule_id_failure = _text_field(record_object, _RULE_ID_KEY)
     if rule_id_failure is not None:
         return paths.make_rejection(
@@ -904,11 +909,11 @@ def _adapt_record(
             record_index=record_index,
         )
 
-    # Step 3 -- the message.  `Description` is the RULE description; `Secret` and
-    # `Match` are the captured value and `Message` is a git commit message, so none
-    # of the three is ever a fallback for it.  A missing description is a counted
-    # rejection rather than a row with a substituted message: falling back would both
-    # infer content the tool did not state and risk carrying a secret into the field.
+    # `Description` is the RULE description; `Secret` and `Match` are the captured
+    # value and `Message` is a git commit message, so none of the three is ever a
+    # fallback for it.  A missing description is a counted rejection rather than a row
+    # with a substituted message: falling back would both infer content the tool did
+    # not state and risk carrying a secret into the field.
     message, message_failure = _text_field(record_object, _DESCRIPTION_KEY)
     if message_failure is not None:
         return paths.make_rejection(
@@ -929,9 +934,9 @@ def _adapt_record(
     if _names_more_than_one_location(record_object):
         counters[COUNTER_MULTI_LOCATION] += 1
 
-    # Step 4 -- the path.  Every base decision is delegated to paths.py; see this
-    # module's docstring for why a fixed base would be wrong, and note that the
-    # symlink counterpart is never substituted for an absent or unresolvable File.
+    # Every base decision is delegated to paths.py; see this module's docstring for
+    # why a fixed base would be wrong, and note that the symlink counterpart is never
+    # substituted for an absent or unresolvable File.
     resolved = paths.resolve_gitleaks_path(record_object, root, tool_base, tool=tool)
     if isinstance(resolved, paths.Rejection):
         # Returned as-is: paths.py has already named the class and written the
@@ -939,7 +944,6 @@ def _adapt_record(
         # Rewording it here would lose that.
         return resolved
 
-    # Step 5 -- start_line.
     start_line, start_line_failure = _start_line(record_object)
     if start_line_failure is not None:
         return paths.make_rejection(

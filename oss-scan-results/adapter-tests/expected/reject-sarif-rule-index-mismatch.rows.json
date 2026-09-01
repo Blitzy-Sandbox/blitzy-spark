@@ -1,0 +1,362 @@
+{
+ "description": "The hand-verified expected result for the negative datadog-static-analyzer SARIF fixture that carries one record whose two rule descriptors name different rules. Every value was derived by reading the fixture, the pinned tree and the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/sarif.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. The key names are the ones expected/reject-sarif-unresolvable-path.rows.json established as the template every negative expected file in this folder follows, with one additive block, rule_identifier_consistency, because the agreement SARIF requires between ruleId and ruleIndex is the whole subject of this fixture and no other expected file records it.",
+ "tool": "datadog-static-analyzer",
+ "scanner_class": "sast",
+ "adapter": "harness/lib/normalize/adapters/sarif.py",
+ "fixture": {
+  "path": "oss-scan-results/adapter-tests/fixtures/reject-sarif-rule-index-mismatch.sarif",
+  "sha256": "2a18e0c5e429aff7008b30a012d31aed9702e130207dfbf361f9a4a443af28d2",
+  "bytes": 6659,
+  "sarif_version": "2.1.0",
+  "runs": 1,
+  "results": 3,
+  "driver_rules": 3,
+  "derived_from": "oss-scan-results/adapter-tests/fixtures/datadog-static-analyzer.sarif",
+  "derivation": "A negative fixture is derived from the captured artifact rather than being an excerpt of it, so the provenance is stated as a derivation, record by record. This condition needs a producer that really emits both rule descriptors on one result, and datadog-static-analyzer is the only one of the three that does: measured over harness/artifacts/raw/, all 6832 of its results carry ruleId together with ruleIndex, while opengrep's 1322 and semgrep's 1162 carry ruleId alone. So this is the one reject-sarif-* fixture whose tool is not opengrep, and the choice is forced by the shape under test rather than preferred. /runs/0/results/0 is harness/artifacts/raw/datadog-static-analyzer.sarif results[609] and /runs/0/results/2 is its results[0], each carried over with one edit: their ruleIndex re-pointed from the complete 1093-rule array into this fixture's three-rule one (817 -> 1 and 877 -> 0), which preserves the rule each result names. /runs/0/results/1 is that artifact's results[6224] with the same re-pointing performed WRONGLY on purpose: consistency requires 2, the index of the rule it names, and the fixture states 0. That single integer is the whole defect. Every other member of all three results -- fixes, level, locations, message, partialFingerprints, properties, ruleId -- is byte-identical to the raw record. The three rules are raw rules[877], rules[817] and rules[253] verbatim, in that order, so the metadata the rejected record's own rule carries is present in the fixture and is refused rather than absent. The envelope is the raw artifact's own: runs[0].tool.driver's informationUri, name, properties and version unchanged, and the artifacts array a three-entry subset of raw's 568 naming exactly the files these results address.",
+  "provenance_verification": "Reproducible without this file: parse the fixture and harness/artifacts/raw/datadog-static-analyzer.sarif, match each fixture result to the raw result carrying the same partialFingerprints.DATADOG_FINGERPRINT, and compare json.dumps(record, sort_keys=True) with ruleIndex removed from both sides. All three compare equal. The rules compare equal with nothing removed."
+ },
+ "routing": {
+  "shape": "sarif",
+  "detected_by": "normalize.shape.is_sarif -- a version of \"2.1.0\" together with a runs array; those two together are the whole test",
+  "sarif_version_pointer": "/version",
+  "runs_pointer": "/runs",
+  "adapter_module": "normalize.adapters.sarif",
+  "routing_decision": "normalize.shape.route(\"datadog-static-analyzer\", doc) returns tool \"datadog-static-analyzer\", shape \"sarif\", adapter \"sarif\", scanner_class \"sast\"",
+  "routes_successfully": true,
+  "rejection_is_record_level": true,
+  "not_a_shape_failure": "No normalize.shape.UnknownArtifactShape is expected here. The enclosing document is valid SARIF 2.1.0 and routes cleanly; exactly one record inside it contradicts itself, and the adapter rejects that record while still emitting the others. The fixtures that own shape-detection failure are near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json."
+ },
+ "rule_identifier_consistency": {
+  "why_this_fixture_exists": "To assert the one thing a two-route identifier lookup can get wrong once both routes succeed. reject-sarif-missing-rule-id.sarif covers the case where every route fails; this fixture covers the case where two routes succeed and disagree. A consumer that takes rule_id from ruleId and rule metadata from the indexed rule without comparing them emits a row whose identifier names rule A while its severity_native, cwe and cve come from rule B -- a finding no rule in the artifact reports, produced silently and indistinguishable from a correct row (CWE-345).",
+  "specification_basis": "SARIF 2.1.0 sections 3.27.5 (ruleId) and 3.27.6 (ruleIndex) define the two as references to one reportingDescriptor, so where both are present the indexed rule's id is the identifier ruleId states. A disagreeing pair is a producer contradicting the format it declares, which is why the class is malformed_record rather than missing_rule_id: an identifier was stated twice, not omitted.",
+  "why_neither_descriptor_wins": "Nothing in the artifact says which of the two the producer meant. Preferring ruleId would keep an identifier whose metadata cannot be trusted; preferring the index would rename the finding. Both are inference, which AAP 0.5.4 forbids, so the record is rejected and counted with both identifiers named in the detail.",
+  "reject_class_reuse": "malformed_record is a member of paths.REJECT_CLASSES, the closed set of ten AAP 0.5.4 enumerates, whose last member is 'a malformed record'. No eleventh class is introduced: the class names the condition and the detail carries the sub-reason, exactly as it does for the uriBaseId terminal cases under unresolvable_path.",
+  "counter_reuse": "rule_index_unusable is the adapter's existing counter for what went wrong when the rule metadata could not be reached, and an index naming another rule is precisely an index that cannot be applied. It now covers five reasons -- a non-integer index, an out-of-range index, an array element that is not an object, an index whose toolComponent was not resolved, and this contradiction -- and the rejection's class and detail are what separate this one from the other four, since only it refuses the record.",
+  "neighbouring_shapes_that_are_not_this_condition": [
+   {
+    "shape": "a result carrying ruleIndex and no ruleId",
+    "outcome": "a kept row whose rule_id is the indexed rule's id, counted under rule_id_from_rule_index",
+    "why": "one route produced the identifier, so there is nothing for it to disagree with",
+    "covered_by": "reject-sarif-missing-rule-id.sarif's /runs/0/results/2, and RuleIdentifierResolutionTests.test_rule_id_resolves_through_rule_index_where_rule_id_is_absent"
+   },
+   {
+    "shape": "a result whose rule.toolComponent reference cannot be resolved, so the index was never applied to any rules array",
+    "outcome": "the defensive fall back to ruleId, counted under tool_component_reference_unresolved and rule_index_unusable, and a kept row",
+    "why": "no second identifier was obtained, so no contradiction was observed. Turning this into a rejection would refuse a record whose descriptors were never shown to conflict",
+    "covered_by": "RuleIdentifierResolutionTests.test_an_unresolved_tool_component_falls_back_rather_than_rejecting"
+   },
+   {
+    "shape": "a result whose indexed rule declares no usable id",
+    "outcome": "the index is recorded unusable, its metadata is not read, the identifier from ruleId stands, and the row is kept",
+    "why": "equality is unprovable rather than false. Treating unprovable as equal is the silent attachment this check exists to stop; treating it as a contradiction would reject on an absence",
+    "covered_by": "RuleIdentifierResolutionTests.test_an_indexed_rule_with_no_id_is_unusable_rather_than_a_contradiction"
+   }
+  ],
+  "measured_impact_on_the_dataset": "None. Replayed over the three captured artifacts the comparison is reached 6832 times -- once per datadog result, since opengrep and semgrep emit no ruleIndex -- and refuses nothing: in every one of the 6832 the indexed rule's id is the ruleId. All 9316 SARIF rows of oss-scan-results/findings.json are unchanged, and every counter of all three artifacts is unchanged."
+ },
+ "field_order": [
+  "tool",
+  "scanner_class",
+  "rule_id",
+  "message",
+  "severity_native",
+  "severity_norm",
+  "path",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate",
+  "in_scope"
+ ],
+ "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+ "absence_permitted_fields": [
+  "severity_native",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate"
+ ],
+ "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS.",
+ "severity_norm_vocabulary": [
+  "Critical",
+  "High",
+  "Medium",
+  "Low",
+  "Info"
+ ],
+ "allowlist": {
+  "path": "harness/scope/allowlist.txt",
+  "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+  "globs": 12,
+  "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under row_derivations."
+ },
+ "resolution_context": {
+  "root_independence": "Every uri in this fixture is root-relative, and the recorded path base for datadog-static-analyzer is the scan root itself, so joining onto the base and relativizing back to the root returns the uri unchanged. These rows therefore hold for whatever absolute scan root the adapter is given, and no absolute path appears anywhere in this file. RootIndependenceTests re-runs the fixture under a temporary root to prove it rather than restate it. The rejected record is root-independent for a different reason: it is refused at step 2, before any resolver is consulted, so its perfectly ordinary root-relative uri is never resolved at all.",
+  "path_base_kind": "scan_root",
+  "path_base_equals_scan_root": true,
+  "path_base_source": "harness/artifacts/logs/runner-metadata.json, the datadog-static-analyzer entry's path_base -- read as input, never assumed. It records kind scan_root with an explicit base, sarif_uri_base_id_emitted null and sarif_original_uri_base_ids_emitted false.",
+  "sarif_uri_base_id_observed": null,
+  "sarif_original_uri_base_ids_present": false,
+  "uri_base_id_walk_outcome": "not attempted",
+  "uri_base_id_walk_consequence": "No artifactLocation in this fixture carries a uriBaseId, so there is no base identifier to resolve and no walk to perform. paths.resolve_sarif_location takes its final branch -- the relative reference with no uriBaseId at all -- where the runner-recorded base is the only anchor there is. That branch resolves only because the metadata records an explicit base; with kind none it would be a counted unresolvable_path rejection rather than a default.",
+  "path_basis": "sarif-no-uri-base-id-metadata-base",
+  "path_basis_authority": "harness/lib/normalize/paths.py, BASIS_SARIF_NO_BASE_ID.",
+  "path_kind": "tree_file",
+  "severity_source": "Both emitted rows state their own level, which is the first of the three sources AAP 0.5.4 authorises, so severity_from_level is 2 and both map through the SARIF level table -- error High, note Low.",
+  "cwe_and_cve": "null on both rows. sarif.py collects identifiers from the rule's properties.cwe and properties.tags only, and neither emitted row's rule carries a token matching the CWE or CVE pattern. The no-delete-var rule's tag 'CWE:480' is recorded per row below and does not match: the pattern is CWE-<digits>, and a colon is not a hyphen. That is a property of this producer's tag vocabulary and is stated rather than worked around; nothing here rewrites a producer's token to make it match.",
+  "package_coordinate": "null on both rows. A SARIF result names a code location rather than a package, and this shape supplies no coordinate to carry.",
+  "start_line": "Present on every record, as an integer, in the region of the first location."
+ },
+ "rejection_boundary": {
+  "statement": "A record whose two rule descriptors name different rules is a rejection. A record that reaches its identifier by an awkward route, or whose indexed metadata simply cannot be reached, is a kept row. This fixture's defective record states two identifiers that disagree, which is why it is rejected rather than emitted under either of them.",
+  "why_it_can_only_be_a_rejection": "rule_id is one of emit.REQUIRED_FIELDS, so the row must carry an identifier -- and the only two available are the two in dispute. Emitting either would attach the other rule's metadata to the row or rename the finding, and both are the inference AAP 0.5.4 forbids. Counting the record under a named class is the only outcome that neither drops it nor guesses.",
+  "not_a_rejection": [
+   {
+    "case": "a result whose ruleId and ruleIndex agree",
+    "expected": "a kept row, with the indexed rule's metadata read for severity, cwe and cve",
+    "evidence": "Both emitted rows are exactly this case, and they straddle the rejection: row 0 comes from the record before it and row 1 from the record after it, so a run that abandoned the artifact at the contradiction could not have produced row 1.",
+    "present_in_this_fixture": true
+   },
+   {
+    "case": "a result carrying ruleIndex alone, or ruleId alone",
+    "expected": "a kept row",
+    "evidence": "Only one identifier exists, so no comparison is made. Covered by reject-sarif-missing-rule-id.sarif and by the three captures, none of which is affected by this check.",
+    "present_in_this_fixture": false
+   }
+  ],
+  "document_versus_record_scope": "This document parses. The defect is one record's self-contradiction, not the file's shape, so the outcome is a per-record rejection and a partial parse rather than a halt."
+ },
+ "counts": {
+  "raw_finding_records": 3,
+  "raw_count_unit": "one element of runs[].results[] -- the unit normalize.reconcile.count_records walks independently of row construction",
+  "raw_count_authority": "normalize.reconcile.count_records(\"datadog-static-analyzer\", doc), whose SARIF traversal sums the length of each run's results array and builds no row, resolves no rule, resolves no path and maps no severity. It is the independent half of the identity: a count taken from the traversal that builds the rows would satisfy the assertion while testing nothing.",
+  "rows": 2,
+  "rejections": 1,
+  "rejections_by_class": {
+   "malformed_record": 1
+  },
+  "reconciliation_identity": "raw_finding_records == rows + rejections",
+  "reconciliation_arithmetic": "3 == 2 + 1",
+  "four_reported_counters": {
+   "authority": "AAP 0.5.4 -- the four counts reported per tool",
+   "names": [
+    "multi_location_records",
+    "multi_valued_cwe_records",
+    "multi_valued_cve_records",
+    "non_filesystem_paths"
+   ],
+   "values_live_in": "counters",
+   "all_four_are_zero_for_this_fixture": true,
+   "note": "Named here rather than restated with their values. The counters block below is the single measurement, and a number carried twice inside one document is a number that can drift; counters_note gives the reason each of the four is zero."
+  },
+  "parse_status": "partial",
+  "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = \"partial\", assigned where there are rejections and clean where there are none. Partial is right precisely because the adapter did not abandon the artifact: every parsable record was emitted and the one rejected record is counted under its class, with its reason retained."
+ },
+ "counters": {
+  "runs": 1,
+  "runs_skipped_non_mapping": 0,
+  "runs_without_results_array": 0,
+  "multi_location_records": 0,
+  "multi_valued_cwe_records": 0,
+  "multi_valued_cve_records": 0,
+  "non_filesystem_paths": 0,
+  "rows_in_scope": 2,
+  "rows_out_of_scope": 0,
+  "rule_id_from_rule_id": 2,
+  "rule_id_from_rule_index": 0,
+  "rule_index_unusable": 1,
+  "tool_component_reference_unresolved": 0,
+  "rule_metadata_from_extension": 0,
+  "rule_metadata_unresolved": 0,
+  "severity_from_level": 2,
+  "severity_from_rule_property": 0,
+  "severity_absent": 0,
+  "start_line_absent": 0,
+  "path_kind_tree_file": 2,
+  "path_kind_outside_root": 0,
+  "path_kind_archive_member": 0,
+  "path_kind_bytecode_source": 0,
+  "severity_basis_sarif_level": 2,
+  "severity_basis_label": 0,
+  "severity_basis_cvss_score": 0,
+  "severity_basis_no_vocabulary": 0,
+  "severity_basis_unmapped_literal": 0
+ },
+ "counters_authority": "harness/lib/normalize/adapters/sarif.py, COUNTER_KEYS as returned by new_counters(): nineteen authored keys, one path_kind_* per normalize.paths.PATH_KINDS member and one severity_basis_* per normalize.severity.BASIS_VALUES member, twenty-eight in total.",
+ "counters_note": "Four things a reader must not \"correct\", each of them the classification order made visible. First, rule_id_from_rule_id is 2 rather than 3: it records where a resolved identifier came from, and the rejected record resolved none -- its two candidates disagreed, and an identity in dispute is not an identity -- so it increments neither identifier counter. Second, rule_index_unusable is 1 and rule_metadata_unresolved is 0. The contradiction increments the first, because the index could not be applied; it does not increment the second, because that counter is reached only after a record has passed the consistency check, and this one returns before it. The two emitted rows both reached their rule object, so neither increments it either. Third, the severity and path counters total 2, not 3, because the rejected record never reaches steps 4 and 5: its level of 'note' is never mapped and its uri is never resolved, which is why severity_from_level is 2 and path_kind_tree_file is 2. Fourth, the four counters AAP 0.5.4 has reported per tool are all 0: every result carries exactly one location; neither emitted row's rule yields a CWE or CVE identifier at all, let alone two; and both emitted paths name files inside the tree.",
+ "corroboration": {
+  "source": "oss-scan-results/findings.json, the committed dataset",
+  "records_compared": 2,
+  "fields_compared_per_record": 12,
+  "agreement": "complete",
+  "note": "Both emitted rows come from records the captured artifact also carries, so each has a counterpart in the dataset -- the datadog-static-analyzer rows for sorttable.js:74 and log-view.js:53 -- and all twelve fields of both agree. Recorded after the fact rather than as the source of these values: each was derived from the fixture and the authored contracts. The rejected record has no counterpart to compare, and that is the point of it: raw results[6224] is in the dataset as an ordinary row precisely because the artifact states its index correctly, and it is this fixture's wrong index alone that refuses it here."
+ },
+ "rows": [
+  {
+   "tool": "datadog-static-analyzer",
+   "scanner_class": "sast",
+   "rule_id": "javascript-best-practices/no-delete-var",
+   "message": "Disallow deleting variables",
+   "severity_native": "error",
+   "severity_norm": "High",
+   "path": "core/src/main/resources/org/apache/spark/ui/static/sorttable.js",
+   "start_line": 74,
+   "cwe": null,
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  },
+  {
+   "tool": "datadog-static-analyzer",
+   "scanner_class": "sast",
+   "rule_id": "javascript-code-style/func-names",
+   "message": "Unexpected unnamed function.",
+   "severity_native": "note",
+   "severity_norm": "Low",
+   "path": "core/src/main/resources/org/apache/spark/ui/static/log-view.js",
+   "start_line": 53,
+   "cwe": null,
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  }
+ ],
+ "rows_note": "Two rows, listed in full rather than referred to, and they are not decoration: one precedes the contradiction and one follows it, so the partial-parse outcome is visible rather than inferred -- this artifact produced rows AND a rejection, and a walk that stopped at the defective record could not have produced the second.",
+ "row_derivations": [
+  {
+   "row_index": 0,
+   "result_pointer": "/runs/0/results/0",
+   "raw_artifact_result_index": 609,
+   "rule_pointer": "/runs/0/tool/driver/rules/1",
+   "raw_artifact_rule_index": 817,
+   "rule_id_source": "the result's own ruleId, agreeing with the id of the rule its ruleIndex of 1 names",
+   "rule_id_route": "rule_id",
+   "rule_id_counter": "rule_id_from_rule_id",
+   "descriptor_agreement": "ruleId 'javascript-best-practices/no-delete-var' == /runs/0/tool/driver/rules/1/id. The equality is proven before any property of that rule is read, and only then is its metadata eligible to supply severity, cwe and cve.",
+   "message_source": "/runs/0/results/0/message/text",
+   "severity_native_source": "/runs/0/results/0/level",
+   "severity_native_note": "the result states its own level, the first of the three authorised sources",
+   "severity_basis": "sarif_level",
+   "severity_counter": "severity_from_level",
+   "path_source": "/runs/0/results/0/locations/0/physicalLocation/artifactLocation/uri",
+   "path_kind": "tree_file",
+   "path_basis": "sarif-no-uri-base-id-metadata-base",
+   "start_line_source": "/runs/0/results/0/locations/0/physicalLocation/region/startLine",
+   "locations_in_record": 1,
+   "cwe_source": null,
+   "cwe_absent_reason": "the rule carries no properties.cwe, and no entry of its properties.tags array matches the CWE-<digits> pattern (its 2 entries are 'DATADOG_RULE_TYPE:STATIC_ANALYSIS' and 'CWE:480' -- the second names a weakness in this producer's own colon-separated vocabulary, which is not the token form AAP 0.5.4 fixes)",
+   "distinct_cwe_identifiers": 0,
+   "cve_source": null,
+   "cve_absent_reason": "no string on this rule matches the CVE-<year>-<sequence> pattern",
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": "core/src/main/**",
+   "file_line_count_at_the_pin": 507,
+   "anchor_note": "Real at the pin: line 74 of sorttable.js is 'delete sortbottomrows;', the statement the no-delete-var rule matches, and 74 is within the file's 507 lines. This is the row that proves the check is a comparison rather than a refusal of ruleIndex: the record carries both descriptors, exactly as every datadog result does, and it is kept."
+  },
+  {
+   "row_index": 1,
+   "result_pointer": "/runs/0/results/2",
+   "raw_artifact_result_index": 0,
+   "rule_pointer": "/runs/0/tool/driver/rules/0",
+   "raw_artifact_rule_index": 877,
+   "rule_id_source": "the result's own ruleId, agreeing with the id of the rule its ruleIndex of 0 names",
+   "rule_id_route": "rule_id",
+   "rule_id_counter": "rule_id_from_rule_id",
+   "descriptor_agreement": "ruleId 'javascript-code-style/func-names' == /runs/0/tool/driver/rules/0/id. The same rules[0] the rejected record's index wrongly names, which is what makes the pair falsifiable: the index is not rejected for pointing at rule 0, it is rejected for pointing at a rule whose id is not the record's own ruleId.",
+   "message_source": "/runs/0/results/2/message/text",
+   "severity_native_source": "/runs/0/results/2/level",
+   "severity_native_note": "the result states its own level",
+   "severity_basis": "sarif_level",
+   "severity_counter": "severity_from_level",
+   "path_source": "/runs/0/results/2/locations/0/physicalLocation/artifactLocation/uri",
+   "path_kind": "tree_file",
+   "path_basis": "sarif-no-uri-base-id-metadata-base",
+   "start_line_source": "/runs/0/results/2/locations/0/physicalLocation/region/startLine",
+   "locations_in_record": 1,
+   "cwe_source": null,
+   "cwe_absent_reason": "the rule carries no properties.cwe, and its single properties.tags entry is 'DATADOG_RULE_TYPE:STATIC_ANALYSIS', which matches neither pattern",
+   "distinct_cwe_identifiers": 0,
+   "cve_source": null,
+   "cve_absent_reason": "no string on this rule matches the CVE-<year>-<sequence> pattern",
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": "core/src/main/**",
+   "file_line_count_at_the_pin": 146,
+   "anchor_note": "Real at the pin: line 53 of log-view.js is the window.setTimeout(function () {...}) call whose function expression is unnamed, and 53 is within the file's 146 lines -- 146 rather than 145 because the file carries no trailing newline. The row that carries the traversal proof: it comes from the element after the contradiction, so a run that abandoned the artifact there could not have produced it."
+  }
+ ],
+ "rejections": [
+  {
+   "rejection_index": 0,
+   "result_pointer": "/runs/0/results/1",
+   "run_index": 0,
+   "result_index": 1,
+   "raw_artifact_result_index": 6224,
+   "locator_note": "The pointer and the run_index / result_index pair name the same record. The pair is carried as well because normalize.adapters.sarif passes exactly run_index and result_index into the rejection it builds for this condition, so a produced Rejection's record_identity and this expectation can be compared directly, without translating one coordinate system into the other.",
+   "reject_class": "malformed_record",
+   "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_MALFORMED_RECORD constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten, whose value is the string malformed_record. Written verbatim rather than paraphrased, and asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+   "tool": "datadog-static-analyzer",
+   "classification_step": "step 2 of the adapter's fixed classification order -- shape, rule identifier, message, path, start_line. Step 1 passes: the results element is a JSON object. Step 2 is where it fails, at the consistency test that precedes the missing-identifier test, and steps 3, 4 and 5 are never reached.",
+   "descriptors_in_conflict": {
+    "rule_id": "java-best-practices/array-is-stored-directly",
+    "rule_id_source_pointer": "/runs/0/results/1/ruleId",
+    "rule_index": 0,
+    "rule_index_source_pointer": "/runs/0/results/1/ruleIndex",
+    "component": "tool.driver",
+    "component_source": "the result carries no rule.toolComponent reference, and an absent reference means the driver, which is SARIF's own default, so the component resolves cleanly and tool_component_reference_unresolved stays 0",
+    "indexed_rule_pointer": "/runs/0/tool/driver/rules/0",
+    "indexed_rule_id": "javascript-code-style/func-names",
+    "consistent_index_would_be": 2,
+    "rule_the_record_names_is_present": "/runs/0/tool/driver/rules/2 declares java-best-practices/array-is-stored-directly. The metadata that would have been read is in the fixture and is refused, so the rejection cannot be explained away as the rule being absent."
+   },
+   "metadata_that_must_not_be_read": "Had the pair been accepted with ruleId winning the identifier and the indexed rule supplying the properties, the row would have carried rule_id 'java-best-practices/array-is-stored-directly' with the func-names rule's properties behind its severity, cwe and cve fields. In this fixture both rules happen to yield a null cwe and neither carries a properties severity, so the visible damage would have been nil -- which is exactly why the assertion is on the rejection and not on a corrupted field. A fixture whose two rules disagreed in their tags would demonstrate the damage and prove nothing more about the check.",
+   "expected_detail": "the result's ruleId names 'java-best-practices/array-is-stored-directly' while its ruleIndex 0 names tool.driver.rules[0], whose id is 'javascript-code-style/func-names'; SARIF 2.1.0 sections 3.27.5 and 3.27.6 make the two references to one rule, so the record contradicts the format it declares and no rule metadata is read from either descriptor",
+   "expected_detail_note": "Retained verbatim, as AAP 0.5.4 requires of every rejection's parser reason. The detail is the sub-reason, and it is what distinguishes this record from every other malformed_record: it names both identifiers, the index, and the component the index was scoped to, so a reader can find the contradiction in the artifact without re-deriving it. A test may assert the class exactly and the detail by its distinguishing substrings -- 'ruleId names', 'ruleIndex 0 names', 'whose id is' -- rather than by full-string equality.",
+   "distinguishing_substrings": [
+    "java-best-practices/array-is-stored-directly",
+    "javascript-code-style/func-names",
+    "ruleIndex 0"
+   ],
+   "expected_record_identity_keys": [
+    "run_index",
+    "result_index"
+   ],
+   "expected_record_identity": {
+    "run_index": 0,
+    "result_index": 1
+   },
+   "record_identity_note": "Two keys and no more. rule_id is deliberately absent, and its absence is the finding restated: the adapter carries a rule identifier into an identity only where it resolved one, and here the two candidates disagree, so none was resolved. Putting either into the identity would make the record's identity a choice between the two the record itself leaves open. Both are named in the detail instead, which is where evidence belongs.",
+   "why_not_a_row": "rule_id is one of the seven never-absent fields, and this record supplies two contradictory candidates for it. Every other field is readable -- a real location, a real line, a level -- and that is the trap: the row would have looked entirely ordinary.",
+   "contributes_no_row": true,
+   "contributes_no_counter": "This record reaches exactly one counter, rule_index_unusable. It is not counted for its rule identifier, its severity, its path kind or its scope, because each of those counters is bumped at a step this record never reaches -- which is why rule_id_from_rule_id is 2 rather than 3 and severity_from_level is 2 rather than 3.",
+   "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, so its level of 'note' reaches no entry in severity-map.md. That document reports literals against the rows the dataset contains, and this record contributes none."
+  }
+ ],
+ "behaviours_not_exercised_by_this_fixture": [
+  {
+   "behaviour": "the same contradiction expressed through a rule reporting-descriptor reference -- rule.id against rule.index -- rather than through ruleId and ruleIndex",
+   "why_absent": "no result in any of the three captured artifacts carries a rule reference at all, measured over all 9316 of their results, so a fixture carrying one would be authored shape rather than derived shape",
+   "cover_with": "RuleIdentifierResolutionTests.test_a_rule_reference_id_and_index_are_compared_too, which authors the document in test_sarif_adapter.py"
+  },
+  {
+   "behaviour": "an indexed rule that resolves but declares no id, where equality is unprovable rather than false",
+   "why_absent": "every rule in this fixture is a verbatim datadog rule and every one declares an id",
+   "cover_with": "RuleIdentifierResolutionTests.test_an_indexed_rule_with_no_id_is_unusable_rather_than_a_contradiction"
+  },
+  {
+   "behaviour": "the contradiction reached through an extension component's rules array",
+   "why_absent": "this producer emits no tool.extensions, so the index is scoped to tool.driver by SARIF's own default",
+   "cover_with": "RuleIdentifierResolutionTests.test_an_unresolved_tool_component_falls_back_rather_than_rejecting"
+  },
+  {
+   "behaviour": "visible field damage from accepting a contradicting pair -- a row whose cwe or severity_native came from the wrong rule",
+   "why_absent": "both rules in the conflict yield a null cwe and state no properties severity, as the rejection's metadata_that_must_not_be_read block records",
+   "cover_with": "RuleIdentifierResolutionTests.test_indexed_metadata_is_read_only_once_the_ids_are_equal, which authors two rules whose properties differ and asserts the row takes neither on a mismatch"
+  }
+ ],
+ "prohibitions_observed": {
+  "no_secret_value": "No field in this file carries a secret, a credential or a token. The fixture is datadog-static-analyzer SAST output over source locations and contains none; the rejection carries a run index, a result index and two rule identifiers, and no record content beyond the descriptors that made the record defective.",
+  "no_cross_tool_interpretation": "One tool is named in each row's tool field. datadog-static-analyzer is identified as this fixture's producer because it is the only one of the three whose output carries both descriptors -- a statement about which artifact can exercise the condition, not a comparison of what any tool found or of how the three compare.",
+  "no_deduplication": "Nothing here is merged. Three records in, two rows and one rejection out.",
+  "no_judgement": "Neither emitted row is characterised as real, important, a false positive or a duplicate, and the rejected record is not characterised as a defect in the tool: the contradiction is this fixture's own edit, and the artifact it was derived from states the index correctly in all 6832 of its results."
+ }
+}

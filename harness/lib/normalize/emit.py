@@ -73,9 +73,9 @@ int or ``None``, ``in_scope`` to a bool from the literal written, every empty
 optional field to ``None``, and the spreadsheet neutralisation below reversed) and
 the two are compared in order, row by row and field by field, reporting the FIRST
 mismatch with its row index and field name. Nothing here counts lines, in code or in
-any message: the historical dataset carried 10,178 parsed rows over 12,762 physical
-lines because ``message`` fields carry embedded newlines, so a line count
-over-reports by about a quarter. The comparison is returned as data for ``cli.py`` to
+any message: a ``message`` field carrying an embedded newline spans several physical
+lines, so a physical-line count is not a row count — this dataset's 9,430 parsed rows
+span 9,439 physical lines. The comparison is returned as data for ``cli.py`` to
 serialise into ``harness/artifacts/logs/normalize-run.json``; this module prints
 nothing.
 
@@ -101,6 +101,18 @@ directory followed by an ``fsync`` of the directory itself. On any failure the s
 file is unlinked and the exception propagates — nothing is swallowed and no partial
 file is left behind. :func:`staging_protocol` returns that contract as data so the
 run record publishes it beside the result rather than asserting it in prose.
+
+EVERY PUBLISHED FILE CARRIES 0o644, AND THE MODE IS MEASURED RATHER THAN ASSUMED
+(CWE-732). :data:`_STAGED_FILE_MODE` is the module's single statement of it; the mode is
+requested on the exclusive open and then assigned with ``os.fchmod`` on that descriptor,
+because the ``os.open`` argument is only a request that the process umask reduces. It is
+then measured on the staged file before anything is renamed and measured again on the
+published file after the rename — ``os.replace`` preserves the mode, so the second
+measurement is what catches anything that touched the file in between — and either
+measurement differing from the promised mode fails the publication. Each published
+member carries its measured mode, so the run record states what the deliverable actually
+carries instead of restating the constant. A deliverable another process can rewrite
+after its digest was published is a deliverable whose digest proves nothing.
 
 DIVISION OF LABOUR (AAP 0.6.4). ``reconcile.py`` owns the row counts and compares
 the parsed JSON and parsed CSV counts to the reconciliation identity separately.
@@ -142,6 +154,19 @@ Public API
     read_findings_csv(path)                    -> typed-coerced rows
     compare_outputs(json_path, csv_path)       -> ComparisonResult
     emit_findings(rows, json_path, csv_path)   write both, then compare
+    assert_safe_output_path(path, boundary=)   the containment predicate
+    UnsafeOutputPath                           its refusal
+
+ONE WRITE PATH, NOT TWO. Every file this module puts on disk -- both dataset members,
+the completion manifest, and ``harness/artifacts/logs/normalize-run.json`` through
+:func:`publish_document` -- goes through :func:`_publish_members`. A second,
+pathname-based staging layer (``stage_text``/``promote_staged``/``discard_staged`` and
+their ``StagedWrite``) published the run record until ``cli._write_run_record`` moved
+onto :func:`publish_document`; it was removed with its last caller rather than left as
+public API nothing calls, because two write paths mean two sets of guarantees and a
+reader has no way to tell which one a given file got. :func:`assert_safe_output_path`
+stayed: it is a containment PREDICATE over a pathname, its caller is
+``cli._require_safe_components``, and it is not a write guard.
 """
 
 import csv
@@ -150,12 +175,11 @@ import hashlib
 import json
 import os
 import re
-import secrets
 import stat as stat_module
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field as dataclass_field
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import IO, Any, TextIO
+from typing import IO, Any
 
 __all__ = [
     "CSV_ABSENT",
@@ -205,12 +229,8 @@ __all__ = [
     "write_findings",
     "write_findings_csv",
     "write_findings_json",
-    "StagedWrite",
     "UnsafeOutputPath",
     "assert_safe_output_path",
-    "stage_text",
-    "promote_staged",
-    "discard_staged",
 ]
 
 # The twelve fields, in the request's order (AAP 0.8.2). This tuple is the
@@ -257,8 +277,9 @@ _OPTIONAL_TEXT_FIELDS: frozenset[str] = frozenset(
 )
 
 # The CSV literals, named so no caller has to guess them and no `str(bool)` can
-# leak `True`/`False` into the column (AAP 0.5.4, and the historical dataset's
-# `in_scope` column holds exactly {'true','false'}).
+# leak `True`/`False` into the column. The `in_scope` column is written as exactly
+# these two lowercase literals and read back to a bool from exactly these two, which
+# is what makes AAP 0.5.4's typed comparison of the two files well defined.
 CSV_TRUE = "true"
 CSV_FALSE = "false"
 CSV_ABSENT = ""
@@ -451,9 +472,31 @@ _DIGEST_CHUNK = 1 << 20
 # exclusive no-follow creation below is what makes a guess useless anyway.
 _TEMP_NAME_RANDOM_BYTES = 12
 
-# The permissions a staged file is created with. Set explicitly rather than left to
-# `open()`'s 0o666-and-umask, so a published deliverable is never group- or
-# world-writable however the invoking shell's umask happens to be set.
+# THE ONE MODE EVERY FILE THIS MODULE PUBLISHES CARRIES (CWE-732).
+#
+# 0o644: readable by anyone, writable only by the owner. It is stated here once and
+# this is the ONLY module-level binding of the name -- a second binding further down
+# the module would win at call time, because Python resolves a module global when the
+# function runs rather than when it is defined, and every staging open below would
+# then request whatever that later value said. That is exactly the defect this
+# constant carries a test for: `test_emit_publication.py` asserts both that the
+# attribute is 0o644 and that the source contains exactly one binding of the name.
+#
+# 0o644 rather than 0o600 deliberately. These deliverables are read by other
+# processes than the one that wrote them -- the reconciler, the record renderers, a
+# reviewer and any consumer recomputing a published digest -- and a mode nobody but
+# the writer can read would make the publication unverifiable rather than safe. What
+# has to be excluded is GROUP AND WORLD WRITE: a deliverable another process can
+# rewrite after its digest was published is a deliverable whose digest proves
+# nothing.
+#
+# Set explicitly rather than left to `open()`'s 0o666-and-umask, and then set AGAIN
+# with `os.fchmod` on the descriptor immediately after creation: the mode argument to
+# `os.open` is only a *request*, which the process umask reduces (a umask of 0o022
+# yields 0o644 by luck, 0o000 yields 0o666, and 0o077 yields 0o600). `fchmod` on the
+# descriptor is the assignment, it addresses the file rather than the name, and
+# `os.replace` preserves the mode across publication -- which is why the published
+# mode is re-measured after promotion and required to equal this value.
 _STAGED_FILE_MODE = 0o644
 
 # The open flags every staged file is created with (CWE-59/CWE-367):
@@ -649,6 +692,21 @@ class PublicationMember:
         sha256: The published file's sha256, lowercase hex.
         publication_id: The identifier this member shares with every other member of
             the same publication.
+        mode: The published file's permission bits (``st_mode & 0o7777``) as
+            ``os.fstat`` reported them AFTER the rename. A measurement, not a
+            restatement of :data:`_STAGED_FILE_MODE`: the publication requires the two
+            to be equal and refuses to report a member whose mode is not the promised
+            one, so a wrong mode is visible in the run record rather than assumed away
+            (CWE-732).
+        identity: ``(st_dev, st_ino)`` of the published file, taken through the write
+            descriptor and required again at the post-rename measurement. It is what a
+            caller passes to :func:`open_verified_member` so a re-read is bound to the
+            file that was verified rather than to the pathname it was verified under
+            (CWE-367). Deliberately absent from :meth:`as_dict`: it is a live binding
+            for this process rather than a durable fact -- an inode number differs
+            between runs and between filesystems, and a record carrying one would make
+            two runs over identical inputs disagree for a reason that says nothing
+            about either.
     """
 
     role: str
@@ -656,15 +714,30 @@ class PublicationMember:
     size_bytes: int
     sha256: str
     publication_id: str
+    mode: int
+    identity: tuple[int, int]
 
     def as_dict(self) -> dict[str, Any]:
-        """Return the member as a JSON-serialisable mapping."""
+        """Return the member as a JSON-serialisable mapping.
+
+        ``mode`` is rendered as its octal literal beside the integer, because a
+        permission bit pattern read as decimal in a JSON record is a number nobody
+        interprets correctly at a glance.
+        """
         return {
             "role": self.role,
             "path": self.path,
             "bytes": self.size_bytes,
             "sha256": self.sha256,
             "publication_id": self.publication_id,
+            "mode": self.mode,
+            "mode_octal": f"0o{self.mode:o}",
+            "mode_promised_octal": f"0o{_STAGED_FILE_MODE:o}",
+            "mode_verified": (
+                "measured with fstat on the published file after the rename and "
+                "required to equal the promised mode; a publication whose member does "
+                "not carry it raises rather than reporting the member"
+            ),
         }
 
 
@@ -1118,7 +1191,7 @@ def restore_csv_text(cell: str) -> str:
     The inverse half of the rule: one leading escape character is removed where the
     character after it is a trigger or the escape character, and nothing else changes. A
     cell the rule never touched is returned identically, which is why applying this to
-    every text cell of a file — including one written before the rule existed — is safe.
+    every text cell of a file — escaped or not — is safe.
 
     >>> restore_csv_text("'=cmd|' /c calc'!A0")
     "=cmd|' /c calc'!A0"
@@ -1412,6 +1485,28 @@ def staging_protocol() -> dict[str, Any]:
         "temporary_randomness_bits": _TEMP_NAME_RANDOM_BYTES * 8,
         "open_flags": "O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW",
         "file_mode": f"0o{_STAGED_FILE_MODE:o}",
+        "file_mode_assignment": (
+            f"0o{_STAGED_FILE_MODE:o} is REQUESTED on the exclusive open and then "
+            "ASSIGNED with os.fchmod on the descriptor that call returned, because the "
+            "mode argument to os.open is reduced by the process umask -- under a "
+            "permissive umask the request alone leaves a deliverable group- and "
+            "world-writable, and under a restrictive one it leaves it unreadable by the "
+            "reconciler that has to verify it. fchmod addresses the open file rather "
+            "than the pathname, so nothing can be swapped in between"
+        ),
+        "file_mode_verification": (
+            "the staged file's mode is measured before anything is renamed, and the "
+            "published file's mode is measured again with fstat AFTER the rename (which "
+            "preserves it); either measurement differing from the promised mode fails "
+            "the publication rather than being recorded. Every published member carries "
+            "its measured mode in the publication result"
+        ),
+        "file_mode_rationale": (
+            f"0o{_STAGED_FILE_MODE:o} rather than 0o600: these deliverables are read by "
+            "processes other than the writer -- the reconciler, the record renderers, "
+            "any consumer recomputing a published digest -- so what has to be excluded "
+            "is GROUP AND WORLD WRITE (CWE-732), not all outside access"
+        ),
         "addressing": (
             "openat/renameat/unlinkat against an open descriptor on the validated "
             "directory"
@@ -1649,10 +1744,32 @@ class _OutputDirectory:
         return self.fd
 
     def create_exclusive(self, name: str) -> int:
-        """Create ``name`` in this directory and return its write-only descriptor."""
+        """Create ``name`` in this directory and return its write-only descriptor.
+
+        The mode is requested on the ``os.open`` and then **assigned** with
+        ``os.fchmod`` on the descriptor that call returned. The request alone is not
+        the mode: the process umask reduces it, so a umask of ``0o000`` would leave a
+        published deliverable group- and world-writable and one of ``0o077`` would
+        leave it unreadable by the reconciler that has to verify it (CWE-732).
+        ``fchmod`` addresses the open file rather than the pathname, so nothing can be
+        swapped in between (CWE-367), and ``os.replace`` preserves the mode, which is
+        what makes :data:`_STAGED_FILE_MODE` the mode of the published file and not
+        merely of the staged one.
+        """
         if self.fd is not None:
-            return os.open(name, _STAGING_OPEN_FLAGS, _STAGED_FILE_MODE, dir_fd=self.fd)
-        return os.open(str(self.path / name), _STAGING_OPEN_FLAGS, _STAGED_FILE_MODE)
+            fd = os.open(name, _STAGING_OPEN_FLAGS, _STAGED_FILE_MODE, dir_fd=self.fd)
+        else:
+            fd = os.open(str(self.path / name), _STAGING_OPEN_FLAGS, _STAGED_FILE_MODE)
+        try:
+            os.fchmod(fd, _STAGED_FILE_MODE)
+        except BaseException:
+            # The staged file exists but does not carry the mode this module promises,
+            # so it is removed rather than written into: publishing through it would
+            # put a deliverable on disk whose permissions the record misstates.
+            os.close(fd)
+            self.unlink_quietly(name)
+            raise
+        return fd
 
     def open_for_read(self, name: str) -> int:
         """Open ``name`` in this directory for reading, refusing a symlink at it."""
@@ -1729,13 +1846,19 @@ def _digest_and_size(
     name: str,
     *,
     expect_inode: tuple[int, int] | None = None,
-) -> tuple[int, str, tuple[int, int]]:
-    """Return the byte size, sha256 and ``(st_dev, st_ino)`` of ``name``.
+) -> tuple[int, str, tuple[int, int], int]:
+    """Return the byte size, sha256, ``(st_dev, st_ino)`` and permission bits of ``name``.
 
     Measured from the file rather than from the string that was written, because the
     bytes on the disk are what gets published and what a reader of the manifest will
     hash. Read in bounded chunks so the peak resident size does not track the
     deliverable's size.
+
+    The permission bits (``st_mode & 0o7777``) are taken from the same ``fstat`` as the
+    size and the identity, so the mode reported for a member is a measurement of the
+    file rather than a restatement of :data:`_STAGED_FILE_MODE` (CWE-732). Taking it
+    here is what lets the publication require the promised mode after promotion rather
+    than assume the ``fchmod`` at creation survived.
 
     The identity is returned, and optionally required, because opening by NAME is
     what a re-open does: the staged file is written through one descriptor and then
@@ -1767,6 +1890,7 @@ def _digest_and_size(
                 "Something replaced the file between the write and this measurement."
             )
         size = stat.st_size
+        mode = stat_module.S_IMODE(stat.st_mode)
         digest = hashlib.sha256()
         while True:
             chunk = os.read(fd, _DIGEST_CHUNK)
@@ -1775,7 +1899,7 @@ def _digest_and_size(
             digest.update(chunk)
     finally:
         os.close(fd)
-    return size, digest.hexdigest(), identity
+    return size, digest.hexdigest(), identity, mode
 
 
 def publication_identifier(digests: Mapping[str, str]) -> str:
@@ -1836,6 +1960,11 @@ class _StagedMember:
     #: the write descriptor. A rename preserves it, so it is what binds the staged
     #: file, the pre-publication measurement and the published path to one file.
     identity: tuple[int, int]
+    #: ``st_mode & 0o7777`` measured on the staged file after its mode was assigned
+    #: with ``fchmod``. Recorded so the publication compares two MEASUREMENTS -- the
+    #: staged mode and the published mode -- rather than comparing the published mode
+    #: against the constant twice (CWE-732).
+    mode: int
 
     @property
     def staged_path(self) -> Path:
@@ -1873,7 +2002,7 @@ def _stage_member(plan: _MemberPlan, directory: _OutputDirectory) -> _StagedMemb
             written = os.fstat(handle.fileno())
             written_identity = (written.st_dev, written.st_ino)
             written_size = written.st_size
-        size_bytes, digest, identity = _digest_and_size(
+        size_bytes, digest, identity, mode = _digest_and_size(
             directory, temporary_name, expect_inode=written_identity
         )
         if size_bytes != written_size:
@@ -1882,6 +2011,18 @@ def _stage_member(plan: _MemberPlan, directory: _OutputDirectory) -> _StagedMemb
                 f"write descriptor was closed and is {size_bytes} bytes now, on the "
                 "same inode. Its length changed after it was written, so nothing is "
                 "published."
+            )
+        # The mode is checked HERE, before anything is renamed, because a staged file
+        # whose permissions are not the promised ones must not become a deliverable:
+        # `os.replace` preserves the mode, so publishing it would put a file on disk
+        # that the run record describes as 0o644 and that is something else (CWE-732).
+        if mode != _STAGED_FILE_MODE:
+            raise EmitError(
+                f"the staged file for {plan.target} carries mode 0o{mode:o} rather "
+                f"than the 0o{_STAGED_FILE_MODE:o} this module assigns to every file "
+                "it publishes. os.replace preserves the mode, so nothing is published: "
+                "a deliverable another process can rewrite after its digest was "
+                "recorded is a deliverable whose digest proves nothing."
             )
     except BaseException:
         directory.unlink_quietly(temporary_name)
@@ -1894,6 +2035,7 @@ def _stage_member(plan: _MemberPlan, directory: _OutputDirectory) -> _StagedMemb
         size_bytes=size_bytes,
         sha256=digest,
         identity=identity,
+        mode=mode,
     )
 
 
@@ -2397,7 +2539,7 @@ def _publish_members(
             # Bound to the inode the bytes were written into: a rename preserves it,
             # so requiring it here is what makes "these are the validated bytes" a
             # statement about one file rather than about one pathname.
-            size_bytes, digest, _identity = _digest_and_size(
+            size_bytes, digest, _identity, mode = _digest_and_size(
                 member.directory, member.target_name, expect_inode=member.identity
             )
             if (size_bytes, digest) != (member.size_bytes, member.sha256):
@@ -2407,6 +2549,23 @@ def _publish_members(
                     f"validated ({member.size_bytes} bytes, sha256 {member.sha256}). "
                     "Something else wrote that path during this publication."
                 )
+            # THE PUBLISHED MODE IS VERIFIED HERE, AFTER PROMOTION, NOT ASSUMED.
+            #
+            # `os.replace` preserves the mode, so the promised 0o644 assigned to the
+            # staged descriptor is what the published file must carry -- and the way
+            # to know is to measure it. Recording a mode nobody measured is how a
+            # group-writable deliverable sits behind a record that says otherwise, and
+            # a deliverable another process can rewrite after its digest was published
+            # is a deliverable whose digest proves nothing (CWE-732). The measurement
+            # travels on the member so the run record carries it per published file.
+            if mode != _STAGED_FILE_MODE:
+                raise EmitError(
+                    f"{member.plan.target} was published, but it carries mode "
+                    f"0o{mode:o} rather than the 0o{_STAGED_FILE_MODE:o} this module "
+                    f"assigns to every file it publishes (staged as 0o{member.mode:o}). "
+                    "The publication is reported as failed rather than recorded with a "
+                    "mode nobody promised."
+                )
             published.append(
                 PublicationMember(
                     role=member.plan.role,
@@ -2414,15 +2573,27 @@ def _publish_members(
                     size_bytes=size_bytes,
                     sha256=digest,
                     publication_id=identifier,
+                    mode=mode,
+                    identity=member.identity,
                 )
             )
         completion = None
         if manifest_member is not None:
-            size_bytes, digest, _identity = _digest_and_size(
+            size_bytes, digest, _identity, manifest_mode = _digest_and_size(
                 manifest_member.directory,
                 manifest_member.target_name,
                 expect_inode=manifest_member.identity,
             )
+            # The commit record is a published file like any other, so its mode is
+            # measured and required too: a manifest a second process can rewrite is a
+            # commit record that establishes nothing about the members it names.
+            if manifest_mode != _STAGED_FILE_MODE:
+                raise EmitError(
+                    f"{manifest_member.plan.target} was published, but it carries mode "
+                    f"0o{manifest_mode:o} rather than the 0o{_STAGED_FILE_MODE:o} this "
+                    "module assigns to every file it publishes. The commit record is "
+                    "not reported as verified."
+                )
             # THE PRODUCER IS THE FIRST CONSUMER. Everything the manifest names has
             # just been re-measured from its published path above, so reaching here
             # means the record and the disk agree. A manifest nothing verifies is
@@ -2432,6 +2603,8 @@ def _publish_members(
                 "path": str(manifest_member.plan.target),
                 "bytes": size_bytes,
                 "sha256": digest,
+                "mode": manifest_mode,
+                "mode_octal": f"0o{manifest_mode:o}",
                 "member_set_id": member_set_identifier(content),
                 "renamed": "last, after every member it names was in place",
                 "verified_by_producer": True,
@@ -2527,6 +2700,7 @@ def publish_document(
     *,
     role: str,
     newline: str = "\n",
+    validate: Callable[[Path], None] | None = None,
 ) -> PublicationMember:
     """Publish one text document at ``path`` under this module's write protocol.
 
@@ -2546,18 +2720,39 @@ def publish_document(
             module does not know what document it is publishing.
         newline: The handle's newline translation. ``"\\n"`` pins Unix line endings;
             pass ``""`` where the writer manages its own line terminators.
+        validate: Called with the STAGED file's path once the bytes are on the device
+            and before anything is renamed, so a document that cannot be read back and
+            parsed never becomes the published one. Anything it raises aborts the
+            publication with nothing moved, the staged file removed and any previously
+            published document at ``path`` exactly as it was. ``None`` where the caller
+            has nothing to check beyond the write itself.
 
     Returns:
         The published :class:`PublicationMember`, carrying the document's byte size,
-        its sha256 and the identifier derived from that digest.
+        its sha256, its measured permission bits, the ``(st_dev, st_ino)`` a re-read can
+        bind to, and the identifier derived from that digest.
 
     Raises:
-        EmitError: Where the directory or the target path is refused as unsafe.
+        EmitError: Where the directory or the target path is refused as unsafe, or where
+            the published bytes or mode are not the ones that were validated.
         OSError: Where the document cannot be written.
     """
+    def check_staged(members: Mapping[str, _StagedMember]) -> None:
+        """Hand the caller's validator the STAGED path, before anything is renamed.
+
+        The staged path rather than the target: nothing is at the target yet, which is
+        the whole point of validating here — if this raises, the target still holds the
+        previous generation and the staged file is removed. Returns ``None`` because a
+        single-member publication has no second file to compare against, so there is no
+        :class:`ComparisonResult` to record.
+        """
+        if validate is not None:
+            validate(members[role].staged_path)
+
     publication = _publish_members(
         (_MemberPlan(role=role, target=Path(path), newline=newline, render=render),),
         rows=None,
+        validate=check_staged,
     )
     return publication.member(role)
 
@@ -3093,77 +3288,39 @@ def emit_findings(
 
 
 # ------------------------------------------------------------------------- #
-# Output containment and staged writes (CWE-59, CWE-73, CWE-367)
+# Output containment (CWE-59, CWE-73)
 #
-# The guarded write primitives every document this module publishes goes
-# through, and the containment predicate `cli.py` binds each output to its one
-# owner root with: a target is refused where it escapes that root, where it
-# aliases another output, or where any component of its path is a symlink, and a
-# staged file is created with O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW under a name an
-# attacker cannot predict, fsynced, and moved into place atomically.
+# The containment PREDICATE, and only the predicate: `cli.py` binds each output
+# to its one declared owner root with it, refusing a target that escapes that
+# root, aliases another output, or reaches its destination through a symlinked
+# component. Its one caller is `cli._require_safe_components`, which reports the
+# refusal as a configuration fault naming the component that is wrong.
+#
+# It answers a question about a PATHNAME and is deliberately not a write guard.
+# Every byte this module writes goes through `_publish_members` above, which
+# walks the parent one component at a time with O_NOFOLLOW, holds it open as a
+# descriptor, creates the staged file with O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW
+# under an unguessable name, and renames against that same descriptor -- so a
+# component swapped between the check here and the write there is refused by the
+# write rather than missed by both (CWE-367). A second, pathname-based write path
+# used to live in this section; it published the run record and was removed when
+# `cli._write_run_record` moved onto `publish_document`, because two write paths
+# mean two sets of guarantees and only one of them was the strong one.
 # ------------------------------------------------------------------------- #
 
 class UnsafeOutputPath(EmitError):
     """A target this module refuses to write, naming the component that is wrong.
 
-    Raised before anything is opened, for every condition under "THE WRITE
-    DISCIPLINE" above: a target or an at-or-below-root component that is a
-    symbolic link (CWE-59), a target that exists as something other than a
-    regular file, a target outside the owner root the caller declared (CWE-73),
-    and the two dataset files resolving to one file. A subclass of
-    :class:`EmitError` so a caller that already handles this module's faults
-    handles these too, and distinct so a caller that wants to report a path fault
-    differently from a schema fault can.
+    Raised by :func:`assert_safe_output_path` before anything is opened, for every
+    condition that function documents: a target or an at-or-below-root component
+    that is a symbolic link (CWE-59), a target that exists as something other than
+    a regular file, and a target outside the owner root the caller declared
+    (CWE-73). A subclass of :class:`EmitError` so a caller that already handles
+    this module's faults handles these too, and distinct so a caller that wants to
+    report a path fault differently from a schema fault can — which
+    ``cli._require_safe_components`` does, turning it into a configuration fault
+    with its own exit code.
     """
-
-
-#: Bytes of randomness in a staged file's name. Sixteen hex characters: the name
-#: cannot be predicted, so it cannot be pre-created as a symlink between two runs
-#: the way a deterministic `<name>.partial` sibling could (CWE-59).
-_STAGED_TOKEN_BYTES = 8
-
-
-#: Mode requested when a staged file is created. 0o666 masked by the process
-#: umask is exactly what `open(path, "w")` produced before, so the permissions of
-#: a published deliverable are unchanged by this discipline.
-_STAGED_FILE_MODE = 0o666
-
-
-#: The flags every write in this package uses. O_EXCL so an existing file at the
-#: staged name is an error rather than a target; O_NOFOLLOW so a symlink at that
-#: name is an error rather than a redirection to somewhere else (CWE-59);
-#: O_CLOEXEC where the platform defines it, so a staged descriptor is not
-#: inherited by anything this process starts.
-_STAGED_OPEN_FLAGS = (
-    os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
-)
-
-
-@dataclass(frozen=True)
-class StagedWrite:
-    """One file written in full but not yet visible at its destination.
-
-    Attributes:
-        target: Where the file will appear once the set it belongs to is
-            promoted. Nothing is at this path yet, and the file already published
-            there — if any — is still the published one.
-        temporary: The staged file, complete on disk beside the target.
-        bytes_written: The staged file's byte size as the filesystem reports it,
-            so a caller's record carries a measurement rather than the length of
-            the string it hoped to write.
-    """
-
-    target: Path
-    temporary: Path
-    bytes_written: int
-
-    def as_dict(self) -> dict[str, Any]:
-        """Return the staged write as a JSON-serialisable mapping."""
-        return {
-            "target": str(self.target),
-            "staged_as": str(self.temporary),
-            "bytes_written": self.bytes_written,
-        }
 
 
 def assert_safe_output_path(
@@ -3247,170 +3404,3 @@ def assert_safe_output_path(
             ),
         ],
     }
-
-
-def _stage(
-    target: Path,
-    *,
-    newline: str,
-    boundary: str | Path | None,
-    serialise: Callable[[TextIO], None],
-) -> StagedWrite:
-    """Write one file to an exclusive no-follow temporary beside ``target``.
-
-    The target is checked first, the directory created if it does not exist, and
-    the content written, flushed and fsynced before the descriptor is closed — so
-    a :class:`StagedWrite` that comes back describes bytes that are on the device,
-    not bytes in a buffer. Nothing is visible at ``target``: promotion is
-    :func:`promote_staged`, and a staged file nobody promotes is removed by
-    :func:`discard_staged`.
-    """
-    assert_safe_output_path(target, boundary=boundary)
-    parent = target.parent
-    if str(parent) not in ("", "."):
-        parent.mkdir(parents=True, exist_ok=True)
-    temporary = parent / f".{target.name}.{secrets.token_hex(_STAGED_TOKEN_BYTES)}.partial"
-    descriptor = os.open(temporary, _STAGED_OPEN_FLAGS, _STAGED_FILE_MODE)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8", newline=newline) as handle:
-            serialise(handle)
-            handle.flush()
-            os.fsync(handle.fileno())
-    except BaseException:
-        # The descriptor is closed by the context manager on every path out of
-        # it, including this one; only the file itself has to be removed.
-        temporary.unlink(missing_ok=True)
-        raise
-    return StagedWrite(
-        target=target,
-        temporary=temporary,
-        bytes_written=temporary.stat().st_size,
-    )
-
-
-def stage_text(
-    path: str | Path,
-    text: str,
-    *,
-    newline: str = "\n",
-    boundary: str | Path | None = None,
-) -> StagedWrite:
-    """Stage ``text`` for ``path`` under the write discipline, without publishing it.
-
-    The primitive ``cli.py`` writes ``harness/artifacts/logs/normalize-run.json``
-    with, so the run record and the dataset are written under one set of rules
-    rather than two copies of them. The caller verifies the staged file — re-reads
-    it and parses it — and then calls :func:`promote_staged`, so a record that
-    cannot be read back is never published as this run's evidence.
-
-    Args:
-        path: The intended target.
-        text: The exact content to write, UTF-8 encoded.
-        newline: Passed to the text wrapper. ``"\\n"`` writes the string's
-            newlines verbatim.
-        boundary: The declared owner root, as :func:`assert_safe_output_path`
-            documents.
-
-    Returns:
-        The :class:`StagedWrite` describing the staged file.
-
-    Raises:
-        UnsafeOutputPath: Where the target is refused.
-        OSError: Where the staged file cannot be created or written.
-    """
-    return _stage(
-        Path(os.path.abspath(os.path.expanduser(str(path)))),
-        newline=newline,
-        boundary=boundary,
-        serialise=lambda handle: handle.write(text),
-    )
-
-
-def promote_staged(staged: Sequence[StagedWrite]) -> list[dict[str, Any]]:
-    """Move a whole staged set into place, restoring the previous set on failure.
-
-    Each existing target is moved aside to a backup first, then the staged file is
-    renamed in; both are ``os.replace``, atomic within a directory. A failure at
-    any point in the sequence — a rename that cannot be performed, a target that
-    became unwritable — restores every backup and removes every target promoted
-    so far, so the set that was already published is the set that remains. That is
-    the property a sequential file-by-file publication cannot offer: this run's
-    ``findings.json`` beside the previous run's ``findings.csv`` is not a partial
-    result but a wrong one (CWE-703).
-
-    Args:
-        staged: The staged writes to promote, in the order they are to appear.
-
-    Returns:
-        One record per promoted file, for the caller's own log.
-
-    Raises:
-        OSError: Where any rename fails. Every backup has been restored and every
-            file promoted in this call removed before it propagates.
-        EmitError: Where the rollback itself could not complete, naming the exact
-            backup files left on disk. That is strictly worse than a failed
-            promotion and is reported as its own condition rather than folded into
-            the original error, because it is the one case where a reader has to
-            act on the filesystem by hand.
-    """
-    backups: list[tuple[Path, Path]] = []
-    promoted: list[Path] = []
-    try:
-        for entry in staged:
-            if os.path.lexists(entry.target):
-                backup = entry.target.parent / (
-                    f".{entry.target.name}."
-                    f"{secrets.token_hex(_STAGED_TOKEN_BYTES)}.previous"
-                )
-                os.replace(entry.target, backup)
-                backups.append((entry.target, backup))
-            os.replace(entry.temporary, entry.target)
-            promoted.append(entry.target)
-    except BaseException as error:
-        backed_up = dict(backups)
-        unrestored: list[str] = []
-        for target in reversed(promoted):
-            if target not in backed_up:
-                # Nothing was published here before this call, so the honest
-                # rollback is for nothing to be published here now.
-                try:
-                    os.unlink(target)
-                except OSError:
-                    unrestored.append(
-                        f"{target} was promoted by this call and could not be removed"
-                    )
-        for target, backup in reversed(backups):
-            try:
-                os.replace(backup, target)
-            except OSError:
-                unrestored.append(
-                    f"{target} is missing and its previous version is at {backup}"
-                )
-        if unrestored:
-            raise EmitError(
-                "promotion failed and the previously published set could not be fully "
-                f"restored ({type(error).__name__}: {error}); by hand: "
-                + "; ".join(unrestored)
-            ) from error
-        raise
-    for _, backup in backups:
-        try:
-            backup.unlink(missing_ok=True)
-        except OSError:  # pragma: no cover - the set is published either way
-            pass
-    return [entry.as_dict() for entry in staged]
-
-
-def discard_staged(staged: Iterable[StagedWrite]) -> None:
-    """Remove staged files that will not be promoted, leaving the targets alone.
-
-    Called on every path that decides not to publish — a serialisation failure on
-    the second file of a pair, a comparison that disagreed — so a staged file
-    never survives as litter beside a deliverable, and never as a file a later
-    reader could mistake for output.
-    """
-    for entry in staged:
-        try:
-            entry.temporary.unlink(missing_ok=True)
-        except OSError:  # pragma: no cover - the target is untouched either way
-            pass

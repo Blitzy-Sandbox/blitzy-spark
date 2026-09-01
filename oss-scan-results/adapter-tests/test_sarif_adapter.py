@@ -84,7 +84,7 @@ Assertions 23 and 24 are not in AAP 0.6.1's list of what this file covers; they 
 makes the rest of it mean anything. AAP 0.6.2 defines a positive fixture as *"an
 unmodified captured excerpt"* of the tool's own output and gives the reason -- a
 hand-written fixture tests the adapter against the shape someone believed the tool emits
--- and until these two existed nothing here opened ``harness/artifacts/raw/`` at all. A
+-- and they are the only assertions here that open ``harness/artifacts/raw/`` at all. A
 fixture's sha256, recorded in the expected file that fixture owns, can only show the file
 has not changed since that digest was taken; it cannot show where the bytes came from.
 The captures and the derived fixtures are measured by one shared check
@@ -228,13 +228,11 @@ an expectation cannot describe one file while the assertions run against another
 mutation tripwires and neither is provenance evidence; assertions 23 and 24 are. Nothing under ``harness/lib/normalize/`` is edited from
 here; a defect this file reveals there is reported, not repaired.
 
-No user-specified rules govern this file. ``review_rules`` reports "No user rules
-provided." and that one line is the whole document, corroborated independently by AAP
-0.7 and AAP 0.10.2. Enterprise-standard best practice applies in their place and their
-absence is expressly not licence to lower the bar -- concretely: every one of the twelve
-fields is asserted individually against a hand-verified value rather than by a single
-whole-dict comparison, every rejection class is asserted by name, and no assertion is
-softened to make a test pass.
+No user-specified rule governs this file; enterprise-standard best practice applies in
+its place (AAP 0.7, AAP 0.10.2). That absence is expressly not licence to lower the bar
+-- concretely: every one of the twelve fields is asserted individually against a
+hand-verified value rather than by a single whole-dict comparison, every rejection class
+is asserted by name, and no assertion is softened to make a test pass.
 
 How to run it
 -------------
@@ -341,14 +339,15 @@ POSITIVE_FIXTURES: dict[str, str] = {
 
 #: Derived fixture stem -> the canonical tool identifier whose shape it carries.
 #:
-#: These are **not** captures and never claim to be. Each is the content a positive
-#: fixture path used to hold before it was rebuilt as a true capture, carried over
-#: verbatim under a ``derived-`` name so that the authored feature cases it holds keep a
-#: fixture and an assertion. Two AAP requirements pull against each other on one file
-#: and cannot both be met by it: AAP 0.6.2 requires the positive fixture to be an
-#: unmodified captured excerpt, and AAP 0.9.4 requires every behaviour to keep its
-#: coverage. Splitting the file satisfies both, and the split is declared in each derived
-#: expectation's ``fixture.provenance`` block rather than left to be inferred.
+#: These are **not** captures and never claim to be. Each is an authored document in that
+#: tool's SARIF shape, carrying the feature cases its expected file enumerates, and each
+#: declares itself derived in that expectation's ``fixture.provenance`` block rather than
+#: leaving provenance to be inferred -- so no fixture claims captured provenance it does
+#: not have. One file cannot satisfy both AAP requirements at once: AAP 0.6.2 requires a
+#: positive fixture to be an unmodified captured excerpt, and AAP 0.9.4 requires every
+#: behaviour to keep its coverage. A capture plus a derived companion under a
+#: ``derived-`` name satisfies both, and the ``derived-`` prefix is what makes the two
+#: categories distinguishable from the inventory alone.
 #:
 #: Each one exists because the case it carries is measurably unreachable from captured
 #: output in this provisioning: no raw SARIF artifact here emits
@@ -374,7 +373,16 @@ ROW_FIXTURES: dict[str, str] = {**POSITIVE_FIXTURES, **DERIVED_FIXTURES}
 #: The negative fixtures, one per rejection condition this adapter can produce, plus the
 #: four that separate the ways a record can state no usable location or line: no
 #: ``locations`` array at all, and a ``startLine`` of zero, of a negative value, or of a
-#: boolean. Every one is an ``opengrep`` artifact: the condition under test is a property
+#: boolean, and one that separates the two ways a record can state an identifier the
+#: adapter cannot use -- stating none at all, and stating two that disagree.
+#: Two stems separate the two ways a reference can fail to be a URI: one whose base
+#: entry's ``uri`` is invalid as written, and one whose references are valid as written
+#: and invalid once percent-decoded. The second exists because a control-character check
+#: made only before decoding is not the guard it appears to be -- ``%1b`` is three
+#: ordinary URI characters until ``unquote`` turns it into ESC (AAP 0.5.4's
+#: ``unresolvable_path``/``invalid_uri`` boundary, CWE-176 for the decode and CWE-117 for
+#: where the decoded value arrives).
+#: All but one are ``opengrep`` artifacts: the condition under test is usually a property
 #: of the shared adapter, and one producer's shape is enough to exercise it.
 #: No comparison between producers is implied or made.
 NEGATIVE_FIXTURES: tuple[str, ...] = (
@@ -383,8 +391,10 @@ NEGATIVE_FIXTURES: tuple[str, ...] = (
     "reject-sarif-uribaseid-cycle",
     "reject-sarif-uribaseid-overdepth",
     "reject-sarif-uribaseid-invalid-uri",
+    "reject-sarif-percent-encoded-control",
     "reject-sarif-uribaseid-relative-no-absolute-ancestor",
     "reject-sarif-missing-rule-id",
+    "reject-sarif-rule-index-mismatch",
     "reject-sarif-missing-message",
     "reject-sarif-non-integer-start-line",
     "reject-sarif-malformed-record",
@@ -394,8 +404,39 @@ NEGATIVE_FIXTURES: tuple[str, ...] = (
     "reject-sarif-boolean-start-line",
 )
 
-#: The tool every negative fixture was captured from.
+#: The tool most negative fixtures were derived from, and the default for any stem
+#: :data:`NEGATIVE_FIXTURE_TOOLS` does not name.
 NEGATIVE_FIXTURE_TOOL = "opengrep"
+
+#: The negative fixtures whose producer is *not* :data:`NEGATIVE_FIXTURE_TOOL`, with the
+#: canonical tool identifier each one carries.
+#:
+#: One entry, and its tool is forced by the shape under test rather than preferred.
+#: ``reject-sarif-rule-index-mismatch`` exercises a result whose ``ruleId`` and
+#: ``ruleIndex`` name different rules, which needs a producer that emits both descriptors
+#: on one result. Measured over ``harness/artifacts/raw/``, all 6832
+#: ``datadog-static-analyzer`` results carry both, while every one of ``opengrep``'s 1322
+#: and ``semgrep``'s 1162 carries ``ruleId`` alone -- so an ``opengrep``-shaped fixture
+#: for this condition would be an authored shape claiming to be a derived one. The tool
+#: each expectation records is asserted against this map, so a fixture cannot be adapted
+#: under a tool its own expected file does not name.
+NEGATIVE_FIXTURE_TOOLS: dict[str, str] = {
+    "reject-sarif-rule-index-mismatch": "datadog-static-analyzer",
+}
+
+
+def negative_fixture_tool(stem: str) -> str:
+    """Return the canonical tool identifier a negative fixture is adapted under.
+
+    :data:`NEGATIVE_FIXTURE_TOOLS` where it names ``stem``, and
+    :data:`NEGATIVE_FIXTURE_TOOL` otherwise. Every loop over
+    :data:`NEGATIVE_FIXTURES` goes through this rather than naming the default directly,
+    so adding a fixture from another producer re-points every assertion at once instead of
+    leaving some of them adapting it under the wrong tool -- which would not fail loudly:
+    the shared adapter would still produce rows, and only the ``tool`` field of each row
+    and each rejection would be wrong.
+    """
+    return NEGATIVE_FIXTURE_TOOLS.get(stem, NEGATIVE_FIXTURE_TOOL)
 
 #: The two expected files carrying a ``branches`` array rather than one outcome, because
 #: the record's outcome is decided by the metadata the test supplies rather than by the
@@ -1282,12 +1323,12 @@ class FixtureInventoryTests(SarifAdapterTestCase):
         would sit there untested, and nothing else would notice. Enumerating the directory
         is what closes that.
 
-        Deliberately count-agnostic. An earlier form of this test asserted a fixed
-        inventory size, which turned *adding* coverage into a failure and invited the
-        wrong repair -- deleting the new fixture. What must hold is that the directory and
-        the manifests describe the same set, and that the three manifests are pairwise
-        disjoint: a stem claimed as both a capture and a derived fixture would let the
-        captured-excerpt contract be asserted against authored material.
+        Deliberately count-agnostic: asserting a fixed inventory size would turn *adding*
+        coverage into a failure and invite the wrong repair -- deleting the new fixture.
+        What must hold is that the directory and the manifests describe the same set, and
+        that the three manifests are pairwise disjoint: a stem claimed as both a capture
+        and a derived fixture would let the captured-excerpt contract be asserted against
+        authored material.
         """
         on_disk = {
             path.name[: -len(FIXTURE_SUFFIX)]
@@ -1414,10 +1455,10 @@ class FixtureInventoryTests(SarifAdapterTestCase):
 
         The module's own contract is that a fixture is loaded, used and left
         byte-identical, and each expected file states the size and sha256 it was
-        hand-derived against. Nothing checked that the two agreed, so an expectation could
-        have described one file while the assertions ran against another -- for instance
-        after a fixture was rebuilt and its expectation was not. Both values are asserted
-        here against the bytes on disk.
+        hand-derived against. Both values are asserted here against the bytes on disk,
+        because an expectation and the fixture it describes can otherwise drift apart: a
+        replaced fixture whose expectation is not re-derived reads as a passing assertion
+        over a document nobody hand-verified.
 
         The digest proves self-consistency and nothing more.
         :class:`RawArtifactProvenanceTests` is what proves provenance, and each captured
@@ -1549,10 +1590,11 @@ class FixtureInventoryTests(SarifAdapterTestCase):
         for stem in NEGATIVE_FIXTURES:
             expectation = _read_json(_expected_path(stem))
             kind = expected_path_base_kind(expectation)
+            tool = negative_fixture_tool(stem)
             _rows, rejections, _counters, _tally = self.adapt_fixture(
                 stem,
-                tool=NEGATIVE_FIXTURE_TOOL,
-                tool_base=self.base_of_kind(NEGATIVE_FIXTURE_TOOL, kind),
+                tool=tool,
+                tool_base=self.base_of_kind(tool, kind),
             )
             observed.update(rejection.reject_class for rejection in rejections)
         for name in not_producible:
@@ -1568,16 +1610,16 @@ class FixtureInventoryTests(SarifAdapterTestCase):
 
 
 # --------------------------------------------------------------------------------------
-# Provenance. The two assertions F3 adds, and the only ones in this module that read the
-# runners' own artifacts.
+# Provenance. The two assertions that establish where a fixture's bytes came from, and
+# the only ones in this module that read the runners' own artifacts.
 #
 # AAP 0.6.2 defines a positive fixture as "an unmodified captured excerpt" of the tool's
 # own output, and gives the reason: a hand-written fixture tests the adapter against the
 # shape someone believed the tool emits rather than the shape it emits. Every other class
 # here asserts the adapter's behaviour on a fixture; this one asserts the fixture itself,
-# against harness/artifacts/raw/<tool>.sarif, because nothing else in the tree did -- and
-# a fixture's own sha256, recorded in its own expected file, can only ever show that the
-# file has not changed since that digest was taken.
+# against harness/artifacts/raw/<tool>.sarif, because a fixture's own sha256 -- recorded
+# in the expected file that same fixture owns -- can only ever show that the file has not
+# changed since that digest was taken, never where the bytes originated.
 #
 # "Byte for byte", for a JSON record, is asserted here as equality of
 # json.dumps(obj, sort_keys=True): the raw artifacts are written as one compact line and
@@ -2896,8 +2938,8 @@ class RuleIdentifierResolutionTests(SarifAdapterTestCase):
         every result in the raw ``datadog-static-analyzer`` artifact carries a ``ruleId``
         beside its index, which outranks it. The route is therefore supplied by
         ``derived-semgrep-features``, whose expected file records that as the reason it
-        exists. An earlier form of this test claimed captured coverage it could not have,
-        and asserting a sum over the wrong inventory is how that claim survived.
+        exists. The inventory the sum is taken over is part of the assertion: a sum over
+        the captures alone would claim coverage the captured artifacts cannot supply.
 
         The two counters are summed across the fixtures rather than read per fixture, and
         deliberately so: the question is whether the adapter's two routes are exercised at
@@ -2998,6 +3040,318 @@ class RuleIdentifierResolutionTests(SarifAdapterTestCase):
             rejections,
             reject_class=paths.REJECT_MISSING_RULE_ID,
             label="authored out-of-range ruleIndex",
+        )
+
+    # -- the two descriptors, compared (F13) -------------------------------------------
+    #
+    # Where a result carries ``ruleId`` *and* ``ruleIndex``, SARIF 2.1.0 sections 3.27.5
+    # and 3.27.6 make them two references to one ``reportingDescriptor``, so the indexed
+    # rule's ``id`` is the identifier ``ruleId`` states. A consumer that resolves both and
+    # compares neither takes the row's identity from one rule and its severity, CWE and CVE
+    # from another, and the resulting row describes a finding no rule in the artifact
+    # reports (CWE-345). Nothing about such a row looks wrong, which is why the assertions
+    # below are on the rejection and on the counter rather than on a corrupted field.
+    #
+    # The four methods separate the one shape that is a contradiction from the three that
+    # are not. Getting that boundary wrong in the lenient direction restores the defect;
+    # getting it wrong in the strict direction rejects records whose descriptors were never
+    # shown to conflict, and the 6,832 datadog-static-analyzer results in
+    # harness/artifacts/raw/ are the measurement that says how much traffic the boundary
+    # carries: every one of them emits both descriptors, and every one agrees.
+
+    def test_a_disagreeing_rule_id_and_rule_index_are_a_counted_rejection(self) -> None:
+        """Both descriptors present and naming different rules: rejected, not resolved.
+
+        Neither descriptor is preferred, because nothing in the document says which one the
+        producer meant: taking ``ruleId`` would keep an identifier whose metadata cannot be
+        trusted, and taking the indexed rule would rename the finding. Both are the
+        inference AAP 0.5.4 forbids, so the record is rejected under ``malformed_record``
+        -- it contradicts the format it declares -- and counted.
+
+        The detail is asserted for the three things a reader needs in order to find the
+        contradiction in the artifact without re-deriving it: both identifiers and the index.
+        """
+        document = authored_document(
+            [authored_result(DISK_STORE_PATH, rule_id="authored.rule.one", rule_index=0)],
+            rules=[{"id": "authored.rule.zero"}, {"id": "authored.rule.one"}],
+        )
+        rows, rejections, counters, _tally = self.adapt(document, tool="opengrep")
+        self.assertEqual(
+            rows,
+            [],
+            msg=(
+                "a record whose two rule descriptors disagree must produce no row; a row "
+                "here would carry one rule's identifier and the other's metadata"
+            ),
+        )
+        self.assert_single_rejection(
+            rejections,
+            reject_class=paths.REJECT_MALFORMED_RECORD,
+            label="authored disagreeing ruleId and ruleIndex",
+        )
+        detail = rejections[0].detail
+        for substring in (
+            "'authored.rule.one'",
+            "'authored.rule.zero'",
+            "ruleIndex 0",
+            "tool.driver.rules[0]",
+        ):
+            with self.subTest(substring=substring):
+                self.assertIn(
+                    substring,
+                    detail,
+                    msg=(
+                        "the detail must name both identifiers and the index, so the "
+                        f"contradiction is locatable; {substring!r} is absent from {detail!r}"
+                    ),
+                )
+        self.assertEqual(
+            counters[sarif.COUNTER_RULE_INDEX_UNUSABLE],
+            1,
+            msg=(
+                "the contradiction must be counted under the adapter's existing "
+                "rule-index counter, so the run record carries the count the way it "
+                "carries the other rule-resolution counts"
+            ),
+        )
+        self.assertEqual(
+            counters[sarif.COUNTER_RULE_ID_FROM_RULE_ID],
+            0,
+            msg=(
+                "no identifier was resolved -- the two candidates disagreed -- so neither "
+                "identifier counter may move"
+            ),
+        )
+        self.assertEqual(counters[sarif.COUNTER_RULE_ID_FROM_RULE_INDEX], 0)
+
+    def test_indexed_metadata_is_read_only_once_the_ids_are_equal(self) -> None:
+        """The metadata the indexed rule carries is reached only after equality is proven.
+
+        Two rules whose ``properties`` differ visibly -- a distinct ``cwe`` and a distinct
+        ``severity`` on each -- so that accepting a disagreeing pair would leave a mark
+        rather than merely being wrong in principle. On the agreeing pair the row takes the
+        indexed rule's ``cwe``, which is what proves the metadata is still read on the
+        ordinary path and that this check has not simply stopped the indexed route working.
+
+        The severity is deliberately left to ``level`` on both records rather than
+        contrasted through the rules: ``level`` outranks a rule property, so a difference
+        there would be invisible and would make the assertion vacuous.
+        """
+        rules = [
+            {"id": "authored.rule.zero", "properties": {"cwe": "CWE-22"}},
+            {"id": "authored.rule.one", "properties": {"cwe": "CWE-79"}},
+        ]
+        agreeing = authored_document(
+            [authored_result(DISK_STORE_PATH, rule_id="authored.rule.one", rule_index=1)],
+            rules=rules,
+        )
+        rows, rejections, counters, _tally = self.adapt(agreeing, tool="opengrep")
+        self.assertEqual(rejections, [])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["rule_id"], "authored.rule.one")
+        self.assertEqual(
+            rows[0]["cwe"],
+            "CWE-79",
+            msg=(
+                "on an agreeing pair the indexed rule's metadata must still be read; "
+                "refusing it here would have turned a consistency check into a regression"
+            ),
+        )
+        self.assertEqual(counters[sarif.COUNTER_RULE_INDEX_UNUSABLE], 0)
+        self.assert_schema_invariants(rows, label="authored agreeing pair")
+
+        disagreeing = authored_document(
+            [authored_result(DISK_STORE_PATH, rule_id="authored.rule.one", rule_index=0)],
+            rules=rules,
+        )
+        rows, rejections, _counters, _tally = self.adapt(disagreeing, tool="opengrep")
+        self.assertEqual(
+            rows,
+            [],
+            msg=(
+                "the same pair made inconsistent must yield no row, and in particular no "
+                "row carrying rule_id 'authored.rule.one' with CWE-22 from rules[0]"
+            ),
+        )
+        self.assert_single_rejection(
+            rejections,
+            reject_class=paths.REJECT_MALFORMED_RECORD,
+            label="authored disagreeing pair with contrasting metadata",
+        )
+
+    def test_an_indexed_rule_with_no_id_is_unusable_rather_than_a_contradiction(self) -> None:
+        """Equality unprovable is not equality, and it is not a contradiction either.
+
+        The indexed rule resolves but declares no identifier of its own, so it can be shown
+        neither to be nor not to be the rule ``ruleId`` names. Treating that as equal is the
+        silent attachment this check exists to stop; treating it as a contradiction would
+        reject a record whose descriptors were never shown to conflict. So the index is
+        recorded unusable, its metadata is left unread, and the identifier from ``ruleId``
+        stands -- the record is kept.
+
+        The unread metadata is what the ``cwe`` assertion pins: the id-less rule carries
+        one, the declaring rule does not, and the row must carry none.
+        """
+        document = authored_document(
+            [authored_result(DISK_STORE_PATH, rule_id="authored.rule.one", rule_index=0)],
+            rules=[{"properties": {"cwe": "CWE-22"}}, {"id": "authored.rule.one"}],
+        )
+        rows, rejections, counters, _tally = self.adapt(document, tool="opengrep")
+        self.assertEqual(
+            rejections,
+            [],
+            msg="an index that cannot be compared is a reason, not a rejection",
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["rule_id"], "authored.rule.one")
+        self.assertIsNone(
+            rows[0]["cwe"],
+            msg=(
+                "the id-less rule's metadata must not be read: its CWE-22 reaching the row "
+                "would be exactly the wrong-rule attachment the check forbids"
+            ),
+        )
+        self.assertEqual(counters[sarif.COUNTER_RULE_INDEX_UNUSABLE], 1)
+        self.assertEqual(counters[sarif.COUNTER_RULE_ID_FROM_RULE_ID], 1)
+        self.assert_schema_invariants(rows, label="authored id-less indexed rule")
+
+    def test_an_unresolved_tool_component_falls_back_rather_than_rejecting(self) -> None:
+        """An index whose component was never resolved yields no second identifier.
+
+        The pre-existing defensive path, asserted so that the new comparison cannot absorb
+        it. The ``rule.toolComponent`` reference names a ``guid`` no component in the run
+        carries, so the index is not applied to the driver's rules -- an index is scoped to
+        its component, and reading the wrong component's rule would be the same wrong-rule
+        attachment by another route. Nothing was resolved to disagree with ``ruleId``, so
+        this is a fall back and a pair of counted reasons, not a contradiction.
+        """
+        result = authored_result(
+            DISK_STORE_PATH, rule_id="authored.rule.one", rule_index=0
+        )
+        result["rule"] = {
+            "toolComponent": {"guid": "1f0dbc2c-0000-4000-8000-000000000000"}
+        }
+        document = authored_document(
+            [result],
+            rules=[{"id": "authored.rule.zero", "properties": {"cwe": "CWE-22"}},
+                   {"id": "authored.rule.one"}],
+        )
+        rows, rejections, counters, _tally = self.adapt(document, tool="opengrep")
+        self.assertEqual(
+            rejections,
+            [],
+            msg=(
+                "an unresolved component must stay the defensive fall back it already was; "
+                "turning it into a rejection would refuse a record on an absence"
+            ),
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["rule_id"], "authored.rule.one")
+        self.assertIsNone(
+            rows[0]["cwe"],
+            msg="rules[0] is a different rule and its CWE must not reach this row",
+        )
+        self.assertEqual(counters[sarif.COUNTER_TOOL_COMPONENT_UNRESOLVED], 1)
+        self.assertEqual(counters[sarif.COUNTER_RULE_INDEX_UNUSABLE], 1)
+        self.assertEqual(counters[sarif.COUNTER_RULE_ID_FROM_RULE_ID], 1)
+        self.assert_schema_invariants(rows, label="authored unresolved toolComponent")
+
+    def test_a_rule_reference_id_and_index_are_compared_too(self) -> None:
+        """The same contradiction expressed through ``rule.id`` and ``rule.index``.
+
+        A result may carry its descriptors on a ``rule`` reporting-descriptor reference
+        instead of at the top level, and the comparison has to reach that spelling too --
+        otherwise a producer switching to it would silently regain the defect. No result in
+        any of this provisioning's three captured artifacts carries such a reference,
+        measured over all 9,316 of their results, so the case is authored here rather than
+        given a derived fixture: a fixture for it would be an authored shape under a derived
+        name.
+
+        The detail must name the members it actually read, ``rule.id`` and ``rule.index``,
+        rather than the top-level spellings the record does not carry.
+        """
+        result = authored_result(DISK_STORE_PATH, rule_id=None, rule_index=None)
+        result["rule"] = {"id": "authored.rule.one", "index": 0}
+        document = authored_document(
+            [result],
+            rules=[{"id": "authored.rule.zero"}, {"id": "authored.rule.one"}],
+        )
+        rows, rejections, counters, _tally = self.adapt(document, tool="opengrep")
+        self.assertEqual(rows, [])
+        self.assert_single_rejection(
+            rejections,
+            reject_class=paths.REJECT_MALFORMED_RECORD,
+            label="authored disagreeing rule.id and rule.index",
+        )
+        detail = rejections[0].detail
+        for substring in ("rule.id", "rule.index 0", "'authored.rule.one'",
+                          "'authored.rule.zero'"):
+            with self.subTest(substring=substring):
+                self.assertIn(substring, detail)
+        self.assertEqual(counters[sarif.COUNTER_RULE_INDEX_UNUSABLE], 1)
+
+    def test_the_rule_index_mismatch_fixture_rejects_only_the_contradicting_record(self) -> None:
+        """The committed fixture: one rejection, and its two neighbours still become rows.
+
+        The generic negative loop already asserts this fixture against its whole expected
+        file. This method states the two properties that make the fixture worth committing,
+        so that neither can be lost to a change in the generic loop's inventory: the
+        rejected record's identifier reaches no row, and the record *after* it is emitted --
+        which is the partial-parse boundary, since a walk that abandoned the artifact at the
+        contradiction could not have produced the second row.
+
+        The fixture is ``datadog-static-analyzer`` output because that is the only one of
+        the three producers whose results carry both descriptors, which
+        :data:`NEGATIVE_FIXTURE_TOOLS` records as the reason.
+        """
+        stem = "reject-sarif-rule-index-mismatch"
+        expectation = _read_json(_expected_path(stem))
+        tool = negative_fixture_tool(stem)
+        self.assertEqual(tool, "datadog-static-analyzer")
+        rows, rejections, counters, _tally = self.adapt_fixture(
+            stem,
+            tool=tool,
+            tool_base=self.base_of_kind(tool, expected_path_base_kind(expectation)),
+        )
+        self.assert_rows_match(rows, expectation["rows"], label=stem)
+        self.assert_schema_invariants(rows, label=stem)
+        self.assert_single_rejection(
+            rejections,
+            reject_class=paths.REJECT_MALFORMED_RECORD,
+            label=stem,
+        )
+        conflict = expectation["rejections"][0]["descriptors_in_conflict"]
+        self.assertNotIn(
+            conflict["rule_id"],
+            [row["rule_id"] for row in rows],
+            msg=(
+                "the rejected record's ruleId reached a row, so the contradiction was "
+                "resolved into the dataset rather than counted out of it"
+            ),
+        )
+        self.assertNotIn(
+            conflict["indexed_rule_id"],
+            [row["rule_id"] for row in rows if row["start_line"] == 188],
+            msg="no row may carry the indexed rule's identifier at the rejected location",
+        )
+        self.assertEqual(
+            [row["start_line"] for row in rows],
+            [74, 53],
+            msg=(
+                "the rows must straddle the rejection -- the record before it and the "
+                "record after it -- so the partial parse is demonstrated rather than "
+                "asserted"
+            ),
+        )
+        self.assertEqual(counters[sarif.COUNTER_RULE_INDEX_UNUSABLE], 1)
+        self.assertEqual(counters[sarif.COUNTER_RULE_ID_FROM_RULE_ID], 2)
+        self.assertEqual(
+            counters[sarif.COUNTER_RULE_METADATA_UNRESOLVED],
+            0,
+            msg=(
+                "the rejected record returns before that counter is reached, and both "
+                "emitted records resolved their rule object"
+            ),
         )
 
 
@@ -3487,9 +3841,9 @@ class IdentifierSelectionTests(SarifAdapterTestCase):
         across the three raw artifacts, not one of their 2002, 2126 and 1093 rules carries
         more than one distinct CVE identifier, so no captured excerpt can move this
         counter, and ``derived-semgrep-features`` carries the case with its provenance
-        declared. An earlier form of this test named the captures and would have had to be
-        weakened to stay green once they became true captures; re-pointing the inventory
-        keeps the assertion at full strength instead.
+        declared. Naming the captures here would force the assertion to be weakened to
+        stay green; scanning the row-producing inventory for the fixture that records the
+        case keeps it at full strength.
         """
         carrying = [
             (stem, tool, expectation)
@@ -4524,6 +4878,498 @@ class ErrataConformanceTests(SarifAdapterTestCase):
 
 
 # --------------------------------------------------------------------------------------
+# Percent-decoded control characters (F16). The control test in
+# ``paths.parse_uri_reference`` is made twice, and this class is the assertion that the
+# *second* one exists: ``%1b`` is three ordinary URI characters as written and becomes
+# ESC only once ``unquote`` has run, so a check made on the raw reference alone passes
+# every hostile reference here. The decoded value is what becomes the row's ``path``, and
+# from there it reaches ``findings.json``, the ``path`` column of ``findings.csv``, the
+# Markdown records rendered from them and the run logs -- CWE-176 for the decode that is
+# not revalidated, CWE-117 for where the decoded value arrives.
+#
+# Measured over the committed dataset before the guard was written: of 9,430 rows, none
+# carries a control character in ``path`` and none carries a ``%`` either, so no
+# percent-encoded sequence exists in this provisioning's output for the guard to decode
+# or refuse. That is why every case below is authored or derived, and why the guard's
+# correctness cannot rest on the captured artifacts alone.
+# --------------------------------------------------------------------------------------
+
+
+class PercentEncodedControlTests(SarifAdapterTestCase):
+    """A reference that is a valid URI as written and is not one once decoded.
+
+    Two guards are asserted here, and they are different moments rather than one check
+    written twice. The first is at the decode: every ``unquote`` in
+    :func:`normalize.paths.parse_uri_reference` is followed by a control test, and a
+    reference that fails it yields the ``invalid`` form, which the adapter rejects under
+    ``invalid_uri``. The second is immediately before a canonical path is emitted:
+    :func:`normalize.paths.assert_relative_path` refuses a control-bearing path outright,
+    and :func:`normalize.paths._emitted_path_or_refusal` turns that refusal into a counted
+    rejection for the resolvers that carry artifact content.
+
+    The order matters and is asserted, not assumed: refusing at the decode names the
+    cause -- which decode produced the control, and which code point -- while refusing at
+    the emission names only the symptom. A SARIF reference is always stopped at the
+    decode, so the second guard is reached here only through the two functions directly.
+    """
+
+    #: The three code points the fixture and these cases use, with the reason each is in
+    #: the set. NUL truncates a C string and is the classic filename-smuggling character;
+    #: CR splits one log line into two, one of them attacker-composed; ESC opens a
+    #: terminal escape sequence in anything that renders the record. Each is a control
+    #: character under RFC 3986, which is what makes the reference invalid rather than
+    #: merely unusual, and none of the three appears anywhere in the 4,095 in-scope files.
+    CONTROL_CASES: tuple[tuple[str, str, str], ...] = (
+        ("%00", "\u0000", "U+0000"),
+        ("%0D", "\r", "U+000D"),
+        ("%1B", "\u001b", "U+001B"),
+    )
+
+    #: The fixture stem this class holds to its expectation.
+    FIXTURE = "reject-sarif-percent-encoded-control"
+
+    def _adapt_uri(
+        self, uri: str, **result_kwargs: Any
+    ) -> tuple[list[dict[str, Any]], list[paths.Rejection]]:
+        """Adapt a one-result document addressing ``uri`` and return rows and rejections."""
+        document = authored_document([authored_result(uri, **result_kwargs)])
+        rows, rejections, _counters, _tally = self.adapt(document, tool="opengrep")
+        return rows, rejections
+
+    def test_every_decode_site_refuses_a_percent_encoded_control(self) -> None:
+        """One case per ``unquote`` in the parser, each named by the detail it produces.
+
+        Six sites, because a guard placed on one decode leaves the others open and the
+        branches do not share a code path: a relative reference is decoded whole, a
+        ``file:`` URI has only its path component decoded after ``urlsplit`` has parsed
+        it, an archive reference decodes its container and its member separately, and a
+        reference carrying an archive scheme parses its container recursively -- so the
+        container's own decode is a seventh opportunity reached through a different frame.
+        The committed fixture exercises three of these plus the base-map walk; the rest are
+        authored here rather than left to a fixture that would carry no further assertion.
+
+        Each detail is asserted to name the decode site, so a future change that refused
+        every reference for one reason would fail here rather than pass six times over.
+        """
+        cases = {
+            "relative reference": (
+                "core/src/main/scala/org/apache/spark/storage/DiskStore%1B.scala",
+                "the URI reference decodes to a value",
+                "U+001B",
+            ),
+            "file URI path": (
+                "file:///opt/spark-src/core/src/main/scala/A%00.scala",
+                "the path of the file URI decodes to a value",
+                "U+0000",
+            ),
+            "archive member, no scheme": (
+                "core/target/authored.jar!/org/apache/spark/A%0D.class",
+                "the member of the archive reference decodes to a value",
+                "U+000D",
+            ),
+            "archive container, no scheme": (
+                "core/target/authored%0D.jar!/org/apache/spark/A.class",
+                "the container of the archive reference is invalid",
+                "U+000D",
+            ),
+            "archive member, jar scheme": (
+                "jar:file:///opt/spark-src/core/target/authored.jar!/org/apache/%1BA.class",
+                "the member of the 'jar' URI decodes to a value",
+                "U+001B",
+            ),
+            "archive container, jar scheme": (
+                "jar:file:///opt/spark-src/core/target/authored%0A.jar!/org/apache/A.class",
+                "the container of the 'jar' URI is invalid",
+                "U+000A",
+            ),
+        }
+        for label, (uri, site_phrase, code_point) in cases.items():
+            with self.subTest(decode_site=label):
+                self.assertIsNone(
+                    paths.describe_control_characters(uri),
+                    msg=(
+                        f"{label}: the authored reference must carry no control character "
+                        "as written, or it would be refused by the pre-decode check and "
+                        "would prove nothing about the post-decode one"
+                    ),
+                )
+                rows, rejections = self._adapt_uri(uri)
+                self.assertEqual(rows, [], msg=f"{label}: no row may be emitted")
+                rejection = self.assert_single_rejection(
+                    rejections,
+                    reject_class=paths.REJECT_INVALID_URI,
+                    label=f"authored {label}",
+                )
+                detail = rejection.detail
+                self.assertIn(
+                    site_phrase,
+                    detail,
+                    msg=(
+                        f"{label}: the detail no longer names which decode produced the "
+                        "control, so a reader could not tell this site from its siblings"
+                    ),
+                )
+                self.assertIn(
+                    code_point,
+                    detail,
+                    msg=f"{label}: the detail no longer names the decoded control",
+                )
+
+    def test_a_control_bearing_base_map_entry_is_refused_rather_than_joined(self) -> None:
+        """The record's own reference is clean; the base it names is not.
+
+        A guard applied only to the result's ``uri`` would emit this row with a control
+        character joined into the middle of its path out of the base map, which is why the
+        walk validates each entry's own ``uri`` as a URI reference. The outcome is
+        ``invalid-uri`` rather than ``degenerate``, so it is *not* eligible for the
+        runner-recorded fallback AAP 0.5.4 allows a degenerate base: an entry whose ``uri``
+        is not a URI reference is malformed rather than merely useless, and falling back
+        would resolve a record whose own base map contradicts itself. The metadata here
+        does record an explicit base for ``opengrep``, so the fallback was available and
+        was correctly not taken.
+        """
+        document = authored_document(
+            [authored_result("core/src/main/scala/authored.scala", uri_base_id="%ESC%")],
+            base_map={"%ESC%": {"uri": "file:///opt/spark-src%1B/"}},
+        )
+        rows, rejections, _counters, _tally = self.adapt(document, tool="opengrep")
+        self.assertEqual(rows, [])
+        rejection = self.assert_single_rejection(
+            rejections,
+            reject_class=paths.REJECT_INVALID_URI,
+            label="authored control-bearing base entry",
+        )
+        detail = rejection.detail
+        self.assertIn(
+            "of the entry for '%ESC%'",
+            detail,
+            msg=(
+                "the detail must name the base entry that is malformed rather than the "
+                "record's own clean uri, or it would send a reader to the wrong place"
+            ),
+        )
+        self.assertIn("U+001B", detail)
+
+    def test_a_benign_percent_encoded_reference_still_becomes_a_row(self) -> None:
+        """Percent-encoding is not itself suspicious, and is not what is refused.
+
+        A guard that refused every ``%`` would satisfy every rejection assertion in this
+        class and would be wrong: ``%44`` is ``D`` and ``%20`` is a space, both legal in a
+        path, and a reference carrying them names a real location. The errata behaviours
+        survive the decode too, which is asserted in the same place because the decode is
+        where they would most easily be lost: ``%2E%2E`` decodes to ``..`` and the segments
+        are kept rather than normalized away (SARIF 2.1.0 errata, the section 3.10.2
+        amendment).
+        """
+        cases = {
+            "an encoded letter decodes to the captured path": (
+                "core/src/main/scala/org/apache/spark/storage/%44iskStore.scala",
+                DISK_STORE_PATH,
+                True,
+            ),
+            "an encoded space is kept in the emitted path": (
+                "core/src/main/scala/org/apache/spark/storage/Disk%20Store.scala",
+                "core/src/main/scala/org/apache/spark/storage/Disk Store.scala",
+                True,
+            ),
+            "encoded dot-dot segments are preserved": (
+                "core/src/main/scala/%2E%2E/authored.scala",
+                "core/src/main/scala/../authored.scala",
+                True,
+            ),
+        }
+        for label, (uri, expected_path, expected_in_scope) in cases.items():
+            with self.subTest(case=label):
+                rows, rejections = self._adapt_uri(uri)
+                self.assertEqual(rejections, [], msg=f"{label}: nothing may be rejected")
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(
+                    rows[0]["path"],
+                    expected_path,
+                    msg=f"{label}: the decoded path is not the one the reference names",
+                )
+                self.assertIs(rows[0]["in_scope"], expected_in_scope)
+
+    def test_a_literal_control_is_still_refused_before_any_decode(self) -> None:
+        """The original pre-decode check is intact, and its diagnosis is still its own.
+
+        The second guard is an addition rather than a replacement: a reference carrying a
+        literal control character is still refused during parsing, and its detail still
+        says the reference *carries* a control rather than that it decodes to one -- so the
+        two conditions stay distinguishable in the record, which is what a reader needs to
+        tell a producer emitting a raw control from one emitting an encoded one.
+        """
+        rows, rejections = self._adapt_uri("core/src/main/scala/A\u001b.scala")
+        self.assertEqual(rows, [])
+        rejection = self.assert_single_rejection(
+            rejections,
+            reject_class=paths.REJECT_INVALID_URI,
+            label="authored literal control",
+        )
+        detail = rejection.detail
+        self.assertIn("carries a control character", detail)
+        self.assertNotIn(
+            "decodes to a value",
+            detail,
+            msg=(
+                "a literal control is not a decode failure, and recording it as one would "
+                "misattribute the producer's shape"
+            ),
+        )
+
+    def test_the_pre_emission_guard_refuses_a_control_bearing_path_with_no_decode_involved(
+        self,
+    ) -> None:
+        """The second guard, exercised directly, because no SARIF document can reach it.
+
+        A SARIF reference carrying a control is stopped at the decode one step earlier, so
+        the pre-emission guard is reached only by the resolvers that take a tool's own
+        reported path field -- which other adapters own. The invariant is ``paths``'s and is
+        shared by every adapter, so it is asserted here against the two functions rather
+        than left to a document that cannot reach it.
+
+        Both halves are asserted, because they are deliberately different outcomes.
+        :func:`normalize.paths.assert_relative_path` **raises**, which is the backstop no
+        future resolver can bypass -- :meth:`normalize.paths.ResolvedPath.__post_init__`
+        calls it, so every construction runs through it, including the
+        ``<container>!<member>`` archive serialization.
+        :func:`normalize.paths._emitted_path_or_refusal` **returns** a counted rejection,
+        which is the right outcome for artifact content: an escaped ``PathPolicyError`` is
+        a whole-artifact fault in ``cli.py``, so a raise here would let one hostile record
+        deny the several thousand parsable ones beside it (AAP 0.5.4's partial parse).
+        """
+        hostile = "core/src/main/scala/A\u001b.scala"
+        with self.assertRaises(paths.PathPolicyError) as raised:
+            paths.assert_relative_path(hostile)
+        message = str(raised.exception)
+        self.assertIn("U+001B", message)
+        self.assertNotIn(
+            "\u001b",
+            message,
+            msg="the refusal must describe the control, never reproduce it",
+        )
+        with self.assertRaises(paths.PathPolicyError):
+            paths.ResolvedPath(
+                path=hostile,
+                kind=paths.PATH_KIND_TREE_FILE,
+                basis=paths.BASIS_ALREADY_ROOT_RELATIVE,
+                tool="opengrep",
+            )
+        with self.assertRaises(paths.PathPolicyError):
+            # The archive serialization reaches the same backstop through construction,
+            # which is why no separate check is written into archive_member_path.
+            paths.archive_member_path(
+                "core/target/authored.jar",
+                "org/apache/spark/A\u001b.class",
+                root=self.scan_root,
+                tool="opengrep",
+            )
+        refusal = paths._emitted_path_or_refusal(
+            hostile,
+            kind=paths.PATH_KIND_TREE_FILE,
+            basis=paths.BASIS_ALREADY_ROOT_RELATIVE,
+            tool="opengrep",
+            reject_class=paths.REJECT_MALFORMED_RECORD,
+            identity={"authored": "pre-emission guard"},
+            context="the authored path",
+        )
+        self.assertIsInstance(
+            refusal,
+            paths.Rejection,
+            msg="artifact content earns a counted rejection rather than a raise",
+        )
+        self.assertEqual(refusal.reject_class, paths.REJECT_MALFORMED_RECORD)
+        self.assertIn("U+001B", refusal.detail)
+        self.assertNotIn("\u001b", refusal.detail)
+        self.assertEqual(dict(refusal.record_identity), {"authored": "pre-emission guard"})
+        emitted = paths._emitted_path_or_refusal(
+            DISK_STORE_PATH,
+            kind=paths.PATH_KIND_TREE_FILE,
+            basis=paths.BASIS_ALREADY_ROOT_RELATIVE,
+            tool="opengrep",
+            reject_class=paths.REJECT_MALFORMED_RECORD,
+            identity={"authored": "pre-emission guard"},
+            context="the authored path",
+        )
+        self.assertIsInstance(
+            emitted,
+            paths.ResolvedPath,
+            msg="an ordinary path is unaffected by the guard",
+        )
+        self.assertEqual(emitted.path, DISK_STORE_PATH)
+
+    def test_the_control_describer_names_code_points_and_never_reproduces_them(self) -> None:
+        """The describer is what keeps every one of these diagnostics safe to persist.
+
+        Every detail above is composed from it, and the details are written verbatim into
+        ``harness/artifacts/logs/`` and ``normalize-run.json``, so a describer that echoed
+        the character would carry ESC or CR into a log line -- the CWE-117 half of the
+        finding, reached through the very record that refused the value. ``repr`` would
+        escape it too, but only incidentally, and a safety property must not rest on a
+        formatting choice.
+
+        The cap is asserted for the same reason: a hostile value carrying a thousand
+        controls would otherwise turn one detail into a wall of text in a preserved log.
+        """
+        self.assertIsNone(
+            paths.describe_control_characters(DISK_STORE_PATH),
+            msg="an ordinary path carries nothing to describe",
+        )
+        for encoded, character, code_point in self.CONTROL_CASES:
+            with self.subTest(control=code_point):
+                described = paths.describe_control_characters(f"a{character}b")
+                self.assertIsNotNone(described)
+                assert described is not None  # for the type checker; asserted above
+                self.assertIn(code_point, described)
+                self.assertIn("at index 1", described)
+                self.assertNotIn(character, described)
+                self.assertNotIn(encoded.lower(), described.lower())
+        many = "a\u0000b\r c\u001bd\u0007e"
+        described = paths.describe_control_characters(many)
+        self.assertIsNotNone(described)
+        assert described is not None  # for the type checker; asserted above
+        self.assertIn("4 control characters", described)
+        self.assertIn("the first 3 being", described)
+        for character in ("\u0000", "\r", "\u001b", "\u0007"):
+            self.assertNotIn(character, described)
+
+    def test_no_rejection_detail_carries_a_control_character(self) -> None:
+        """Over every negative fixture, not only this one.
+
+        The property is a pipeline-wide one: a rejection's detail and record identity are
+        persisted, so a control reaching either is log injection whichever fixture produced
+        it. Row paths are checked in the same pass, which is the F16 outcome stated
+        positively -- no emitted path carries a control character.
+        """
+        for stem in NEGATIVE_FIXTURES:
+            expectation = _read_json(_expected_path(stem))
+            if "branches" in expectation:
+                kind = expectation["branches"][0]["precondition"]["tool_path_base"]["kind"]
+            else:
+                kind = expected_path_base_kind(expectation)
+            tool = negative_fixture_tool(stem)
+            with self.subTest(fixture=stem):
+                rows, rejections, _counters, _tally = self.adapt(
+                    _read_json(_fixture_path(stem)),
+                    tool=tool,
+                    tool_base=self.base_of_kind(tool, kind),
+                )
+                for index, rejection in enumerate(rejections):
+                    self.assertIsNone(
+                        paths.describe_control_characters(rejection.detail),
+                        msg=(
+                            f"{stem} rejection {index}: the detail carries a control "
+                            "character, which the preserved logs would carry with it"
+                        ),
+                    )
+                    for key, value in rejection.record_identity.items():
+                        if isinstance(value, str):
+                            self.assertIsNone(
+                                paths.describe_control_characters(value),
+                                msg=(
+                                    f"{stem} rejection {index}: the identity's {key!r} "
+                                    "carries a control character"
+                                ),
+                            )
+                for index, row in enumerate(rows):
+                    self.assertIsNone(
+                        paths.describe_control_characters(row["path"]),
+                        msg=(
+                            f"{stem} row {index}: an emitted path carries a control "
+                            "character, which is the F16 outcome itself"
+                        ),
+                    )
+
+    def test_the_percent_encoded_control_fixture_rejects_only_its_defective_records(
+        self,
+    ) -> None:
+        """The fixture, held to its expectation and to the partial-parse boundary.
+
+        Four records are refused and two are emitted, and the two straddle the four: the
+        first element of the array and the last both become rows, so a run that abandoned
+        the artifact at the first control could not have produced the second row. The
+        emitted rows are the same two captured records the sibling ``uriBaseId`` fixture
+        carries, which is what makes the pair falsifiable -- the same rules, the same
+        messages and the same lines reach rows there and rejections here, and the
+        ``artifactLocation`` is the only difference.
+        """
+        expectation = _read_json(_expected_path(self.FIXTURE))
+        rows, rejections, counters, _tally = self.adapt_fixture(
+            self.FIXTURE,
+            tool="opengrep",
+            tool_base=self.base_of_kind("opengrep", expected_path_base_kind(expectation)),
+        )
+        self.assert_rows_match(rows, expectation["rows"], label=self.FIXTURE)
+        self.assert_schema_invariants(rows, label=self.FIXTURE)
+        self.assertEqual(
+            [row["start_line"] for row in rows],
+            [DISK_STORE_LINE, 75],
+            msg=(
+                "the surviving rows must be the first and last records, which is what "
+                "shows the traversal continued past all four rejections"
+            ),
+        )
+        self.assertEqual(len(rejections), 4)
+        self.assertEqual(
+            [rejection.reject_class for rejection in rejections],
+            [paths.REJECT_INVALID_URI] * 4,
+            msg="all four are the same class and are told apart by their details",
+        )
+        self.assertEqual(
+            [rejection.record_identity["result_index"] for rejection in rejections],
+            [1, 2, 3, 4],
+            msg="the rejections name the four defective records in document order",
+        )
+        distinct_sites = {
+            phrase
+            for phrase in (
+                "the URI reference decodes to a value",
+                "the path of the file URI decodes to a value",
+                "the member of the archive reference decodes to a value",
+                "of the entry for '%ESCROOT%'",
+            )
+            if any(phrase in rejection.detail for rejection in rejections)
+        }
+        self.assertEqual(
+            len(distinct_sites),
+            4,
+            msg=(
+                "the fixture must exercise four distinct decode sites, or one of its "
+                "records is a duplicate of another and carries no further assertion"
+            ),
+        )
+        self.assert_counters_match(counters, expectation["counters"], label=self.FIXTURE)
+        self.assertEqual(
+            counters[sarif.COUNTER_RULE_ID_FROM_RULE_ID],
+            6,
+            msg=(
+                "every record resolves its identifier at step 2 and four are refused at "
+                "step 4, so the identifier counter counts six rather than two -- the "
+                "classification order made visible"
+            ),
+        )
+        self.assertEqual(
+            counters[f"{sarif.COUNTER_PATH_KIND_PREFIX}{paths.PATH_KIND_ARCHIVE_MEMBER}"],
+            0,
+        )
+        self.assertEqual(
+            counters[sarif.COUNTER_NON_FILESYSTEM_PATHS],
+            0,
+            msg=(
+                "the archive reference is refused while it is still being parsed, before "
+                "a form is assigned, so it is never classified as a non-filesystem path"
+            ),
+        )
+        self.assert_reconciliation_identity(
+            _read_json(_fixture_path(self.FIXTURE)),
+            rows,
+            rejections,
+            label=self.FIXTURE,
+            expected_records=6,
+        )
+
+
+# --------------------------------------------------------------------------------------
 # The absent-path class, which AAP 0.5.4 folds into the same condition as the
 # unresolvable-path fixture but which is a separate member of the closed set.
 # --------------------------------------------------------------------------------------
@@ -4709,7 +5555,7 @@ class RootIndependenceTests(SarifAdapterTestCase):
             independent, msg="no fixture is root-independent, so this class asserts nothing"
         )
         for stem in independent:
-            tool = ROW_FIXTURES.get(stem, NEGATIVE_FIXTURE_TOOL)
+            tool = ROW_FIXTURES.get(stem) or negative_fixture_tool(stem)
             document = _read_json(_fixture_path(stem))
             with self.subTest(stem=stem):
                 recorded_rows, recorded_rejections, recorded_counters, _tally = self.adapt(
@@ -4793,6 +5639,7 @@ class NegativeFixtureTests(SarifAdapterTestCase):
         expected: dict[str, Any],
         *,
         label: str,
+        tool: str = NEGATIVE_FIXTURE_TOOL,
     ) -> None:
         """Assert one rejection against its recorded expectation, in full.
 
@@ -4805,7 +5652,9 @@ class NegativeFixtureTests(SarifAdapterTestCase):
         canonical block names its members ``expected_detail`` and
         ``expected_record_identity``, while a branch block that restates one names them
         ``detail`` and ``record_identity``. Whichever is present is asserted; the ``tool``
-        member is optional in a branch block and defaults to the document's own.
+        member is optional in a branch block and defaults to ``tool``, which the caller
+        sets from :func:`negative_fixture_tool` so the default is this fixture's own
+        producer rather than the module-wide one.
         """
         self.assertIn(
             expected["reject_class"],
@@ -4822,7 +5671,7 @@ class NegativeFixtureTests(SarifAdapterTestCase):
         )
         self.assertEqual(
             rejection.tool,
-            expected.get("tool", NEGATIVE_FIXTURE_TOOL),
+            expected.get("tool", tool),
             msg=f"{label}: the rejection names the wrong tool",
         )
         detail = expected.get("expected_detail", expected.get("detail"))
@@ -4914,10 +5763,11 @@ class NegativeFixtureTests(SarifAdapterTestCase):
     ) -> None:
         """Assert one fixture under one metadata context against one expectation block."""
         document = _read_json(_fixture_path(stem))
+        tool = negative_fixture_tool(stem)
         rows, rejections, produced_counters, _tally = self.adapt(
             document,
-            tool=NEGATIVE_FIXTURE_TOOL,
-            tool_base=self.base_of_kind(NEGATIVE_FIXTURE_TOOL, kind),
+            tool=tool,
+            tool_base=self.base_of_kind(tool, kind),
         )
         self.assert_rows_match(rows, block["rows"], label=label)
         self.assert_schema_invariants(rows, label=label)
@@ -4932,7 +5782,9 @@ class NegativeFixtureTests(SarifAdapterTestCase):
             ),
         )
         for index, (rejection, expected) in enumerate(zip(rejections, expected_rejections)):
-            self._assert_rejection(rejection, expected, label=f"{label} rejection {index}")
+            self._assert_rejection(
+                rejection, expected, label=f"{label} rejection {index}", tool=tool
+            )
         if counters is not None:
             self.assert_counters_match(produced_counters, counters, label=label)
 
@@ -4947,7 +5799,20 @@ class NegativeFixtureTests(SarifAdapterTestCase):
         for stem in NEGATIVE_FIXTURES:
             expectation = _read_json(_expected_path(stem))
             with self.subTest(fixture=stem):
-                self.assertEqual(expectation["tool"], NEGATIVE_FIXTURE_TOOL)
+                # The expectation's own record of its producer, checked against the map the
+                # loops adapt under. A fixture derived from another producer's output --
+                # ``reject-sarif-rule-index-mismatch`` is the one -- must be declared in
+                # both places, so neither can drift into adapting a fixture under a tool
+                # its expected file does not name.
+                self.assertEqual(
+                    expectation["tool"],
+                    negative_fixture_tool(stem),
+                    msg=(
+                        f"{stem}: the expected file records tool "
+                        f"{expectation['tool']!r} while NEGATIVE_FIXTURE_TOOLS resolves "
+                        f"{negative_fixture_tool(stem)!r}"
+                    ),
+                )
                 if "branches" in expectation:
                     # Handled by the two-branch test below, which asserts both outcomes.
                     continue
@@ -5014,12 +5879,13 @@ class NegativeFixtureTests(SarifAdapterTestCase):
                 ]
             else:
                 contexts = [("canonical", expected_path_base_kind(expectation))]
+            tool = negative_fixture_tool(stem)
             for branch_id, kind in contexts:
                 with self.subTest(fixture=stem, branch=branch_id):
                     rows, rejections, _counters, _tally = self.adapt(
                         document,
-                        tool=NEGATIVE_FIXTURE_TOOL,
-                        tool_base=self.base_of_kind(NEGATIVE_FIXTURE_TOOL, kind),
+                        tool=tool,
+                        tool_base=self.base_of_kind(tool, kind),
                     )
                     self.assert_reconciliation_identity(
                         document,
@@ -5041,11 +5907,12 @@ class NegativeFixtureTests(SarifAdapterTestCase):
                 kind = expectation["branches"][0]["precondition"]["tool_path_base"]["kind"]
             else:
                 kind = expected_path_base_kind(expectation)
+            tool = negative_fixture_tool(stem)
             with self.subTest(fixture=stem):
                 rows, _rejections, _counters, tally = self.adapt_fixture(
                     stem,
-                    tool=NEGATIVE_FIXTURE_TOOL,
-                    tool_base=self.base_of_kind(NEGATIVE_FIXTURE_TOOL, kind),
+                    tool=tool,
+                    tool_base=self.base_of_kind(tool, kind),
                 )
                 self.assertEqual(
                     len(tally.results),
@@ -5053,7 +5920,7 @@ class NegativeFixtureTests(SarifAdapterTestCase):
                     msg="the tally must be fed exactly once per emitted row",
                 )
                 self.assertEqual(
-                    tally.delegate.row_count(NEGATIVE_FIXTURE_TOOL),
+                    tally.delegate.row_count(tool),
                     len(rows),
                     msg="the real tally's row count must agree with the rows emitted",
                 )
@@ -5076,11 +5943,12 @@ class NegativeFixtureTests(SarifAdapterTestCase):
                 ]
             else:
                 contexts = [expected_path_base_kind(expectation)]
+            tool = negative_fixture_tool(stem)
             for kind in contexts:
                 _rows, rejections, _counters, _tally = self.adapt_fixture(
                     stem,
-                    tool=NEGATIVE_FIXTURE_TOOL,
-                    tool_base=self.base_of_kind(NEGATIVE_FIXTURE_TOOL, kind),
+                    tool=tool,
+                    tool_base=self.base_of_kind(tool, kind),
                 )
                 produced.update(rejection.reject_class for rejection in rejections)
         for name in (

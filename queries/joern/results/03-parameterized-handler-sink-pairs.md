@@ -19,16 +19,17 @@ any Spark component or of any Spark configuration.
 | | |
 | --- | --- |
 | Query source | `queries/joern/03-parameterized-handler-sink-pairs.sc` |
-| Query source sha256 | `685f33f8b27b626778b79e1900095d28b29c90a17ed1a9dd785485285174b5f9` |
-| Query source byte size | 321780 |
-| Publication id | `6c485411000bfd44a0af18af73cb5367b991dd20fff509d28274260207ae0bd2` |
+| Query source sha256 | `8f67126c56185bde3221ad760130295cf9f7f64411be528e9fd578a4fbad631e` |
+| Query source byte size | 428057 |
+| Publication id | `89c38f6d823f564b15e025f74291916237b0cbe1e3f1f939fa8c93eefa904e69` |
 | Envelope | `queries/joern/results/03-parameterized-handler-sink-pairs.json` |
 | Console log | `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log` |
 | Loader | `importCpg` into a switched workspace (`queries/joern/.workspace`) |
 | JDK major | 21 |
 | Heap actually used | 68719476736 bytes (floor 68719476736) |
 | Graph | 541309809 bytes, sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` |
-| Graph identity re-verified before the load | yes, against `harness/artifacts/logs/cpg-frontend.log` |
+| Graph identity re-verified before the load | yes, against `provision-log/cpg-identity.txt` |
+| Bytes actually imported | a private copy this run made, digested in the copy pass, verified against that record, and re-verified by digest and inode after the load; both pairs were traversed over that one load |
 | Graph methods / typeDecls / files | 1396899 / 119721 / 45037 |
 | Compile status | compiled |
 | Run status | completed |
@@ -41,11 +42,11 @@ any Spark component or of any Spark configuration.
 ## Which source wrote this report
 
 This report was written by `queries/joern/03-parameterized-handler-sink-pairs.sc`, whose bytes digest to
-`685f33f8b27b626778b79e1900095d28b29c90a17ed1a9dd785485285174b5f9` (321780 bytes). The script read its own file at run time
+`8f67126c56185bde3221ad760130295cf9f7f64411be528e9fd578a4fbad631e` (428057 bytes). The script read its own file at run time
 and digested it, so the digest above is a measurement of the writer rather than a
 label attached to it. The same digest appears in the envelope under
 `source_integrity.query_source_sha256` and in the console log, and all three
-members of this publication carry the identifier `6c485411000bfd44a0af18af73cb5367b991dd20fff509d28274260207ae0bd2`.
+members of this publication carry the identifier `89c38f6d823f564b15e025f74291916237b0cbe1e3f1f939fa8c93eefa904e69`.
 
 That is what makes the relationship between a source and its results checkable
 rather than assumed: digest the `.sc` file and compare. A result whose digest does
@@ -85,8 +86,8 @@ across queries.
     loosened, removed or re-run unbounded to produce a non-empty result. The
     4 boundaries below are the measured reason.
 - **walks** (its own two, never combined with the other pair's):
-  - `A-follows-fan-out`: follows fan-out true, expansions 25009 across all of its entry points with 25006 the peak at any ONE entry point, call sites 33565, fan-out seen 86, fan-out not followed 0, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0
-  - `B-fan-out-recorded`: follows fan-out false, expansions 5598 across all of its entry points with 5595 the peak at any ONE entry point, call sites 11575, fan-out seen 55, fan-out not followed 55, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0
+  - `A-follows-fan-out`: follows fan-out true, expansions 25009 across all of its entry points with 25006 the peak at any ONE entry point, call sites 33565, fan-out seen 86, fan-out not followed 0, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
+  - `B-fan-out-recorded`: follows fan-out false, expansions 5598 across all of its entry points with 5595 the peak at any ONE entry point, call sites 11575, fan-out seen 55, fan-out not followed 55, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
 - **route surface for its own expected-spurious basis**: `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.Worker`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`; predicate call sites on it: 0
 
 ### Pair `pair-two` - the REST submit servlet's handleSubmit to the SAME privileged process launch on the DriverRunner surface
@@ -112,8 +113,8 @@ across queries.
     loosened, removed or re-run unbounded to produce a non-empty result. The
     5 boundaries below are the measured reason.
 - **walks** (its own two, never combined with the other pair's):
-  - `A-follows-fan-out`: follows fan-out true, expansions 10146 across all of its entry points with 10146 the peak at any ONE entry point, call sites 9038, fan-out seen 29, fan-out not followed 0, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0
-  - `B-fan-out-recorded`: follows fan-out false, expansions 764 across all of its entry points with 764 the peak at any ONE entry point, call sites 1247, fan-out seen 15, fan-out not followed 15, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0
+  - `A-follows-fan-out`: follows fan-out true, expansions 10146 across all of its entry points with 10146 the peak at any ONE entry point, call sites 9038, fan-out seen 29, fan-out not followed 0, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
+  - `B-fan-out-recorded`: follows fan-out false, expansions 764 across all of its entry points with 764 the peak at any ONE entry point, call sites 1247, fan-out seen 15, fan-out not followed 15, max depth 12, depth bound reached true, per-entry expansion cap reached false, pair step budget exhausted false, route cap reached false, routes 0, alternate sink arrivals counted but not retained 0
 - **route surface for its own expected-spurious basis**: `org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet`, `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.worker.Worker`, `org.apache.spark.deploy.worker.DriverRunner`, `org.apache.spark.deploy.worker.ProcessBuilderLike`; predicate call sites on it: 0
 
 ## Whether the bound was reached
@@ -147,6 +148,84 @@ in depth introduces an edge that does not exist.
 | MAX_CALL_SCAN | 200000 |
 | MAX_TYPE_SCAN | 200000 |
 | FANOUT_CALLEE_THRESHOLD | 32 |
+
+Every bound above is published with its reached flag and its basis in the
+envelope's `bounds_reached` and `bounds_reached_basis`, and for the two caps that
+govern more than one sweep the flag is the **disjunction** over every sweep the cap
+governs, with the basis naming each sweep, its observed count and its own flag - so
+a cap reached at one site cannot be hidden by another site that stayed inside it.
+
+`MAX_ROUTES_PER_PAIR` can bind on this graph, per pair: `pair-one` false (reachable maximum 8 against the cap of 64), `pair-two` false (reachable maximum 4 against the cap of 64).
+Within one walk a route is retained per (entry point, sink host) pair, so the most
+a walk can retain is bounded by that product rather than by the full number of
+method sequences that arrive. Alternate arrivals at a sink host already witnessed
+from the same entry point in the same walk are **counted rather than retained**, so
+the difference between what arrived and what was enumerated is published rather
+than invisible: `pair-one` `A-follows-fan-out` 0 / `B-fan-out-recorded` 0, `pair-two` `A-follows-fan-out` 0 / `B-fan-out-recorded` 0.
+Neither figure is summed across the pairs.
+
+### Every traversal this query materialized, and the cap that governed it
+
+| sweep | cap | value | observed | truncated |
+| --- | --- | --- | --- | --- |
+| pair pair-one entry: synthetic partial-function type declarations | `MAX_TYPE_SCAN` | 200000 | 2 | false |
+| pair pair-one entry: methods on those synthetic types | `MAX_TYPE_SCAN` | 200000 | 60 | false |
+| pair pair-one entry: source-level handler methods | `MAX_TYPE_SCAN` | 200000 | 2 | false |
+| calls named start (indexed sweep, shared by every pair using that name) | `MAX_CALL_SCAN` | 200000 | 1234 | false |
+| pair pair-two entry: synthetic partial-function type declarations | `MAX_TYPE_SCAN` | 200000 | 0 | false |
+| pair pair-two entry: methods on those synthetic types | `MAX_TYPE_SCAN` | 200000 | 0 | false |
+| pair pair-two entry: source-level handler methods | `MAX_TYPE_SCAN` | 200000 | 2 | false |
+| pair pair-two entry: base declarations on org.apache.spark.deploy.rest.SubmitRequestServlet | `MAX_TYPE_SCAN` | 200000 | 2 | false |
+| predicate: type declarations for org.apache.spark.SecurityManager | `MAX_TYPE_SCAN` | 200000 | 2 | false |
+| predicate: methods declared on org.apache.spark.SecurityManager | `MAX_TYPE_SCAN` | 200000 | 252 | false |
+| predicate: incoming call sites of the five predicates | `MAX_CALL_SCAN` | 200000 | 36 | false |
+| route surface: type declarations on prefix org.apache.spark.deploy.master.Master | `MAX_TYPE_SCAN` | 200000 | 217 | false |
+| route surface: methods on prefix org.apache.spark.deploy.master.Master | `MAX_TYPE_SCAN` | 200000 | 1214 | false |
+| route surface: type declarations on prefix org.apache.spark.deploy.rest.StandaloneRestServer | `MAX_TYPE_SCAN` | 200000 | 2 | false |
+| route surface: methods on prefix org.apache.spark.deploy.rest.StandaloneRestServer | `MAX_TYPE_SCAN` | 200000 | 26 | false |
+| route surface: type declarations on prefix org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet | `MAX_TYPE_SCAN` | 200000 | 25 | false |
+| route surface: methods on prefix org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet | `MAX_TYPE_SCAN` | 200000 | 64 | false |
+| route surface: type declarations on prefix org.apache.spark.deploy.worker.DriverRunner | `MAX_TYPE_SCAN` | 200000 | 21 | false |
+| route surface: methods on prefix org.apache.spark.deploy.worker.DriverRunner | `MAX_TYPE_SCAN` | 200000 | 186 | false |
+| route surface: type declarations on prefix org.apache.spark.deploy.worker.ProcessBuilderLike | `MAX_TYPE_SCAN` | 200000 | 6 | false |
+| route surface: methods on prefix org.apache.spark.deploy.worker.ProcessBuilderLike | `MAX_TYPE_SCAN` | 200000 | 18 | false |
+| route surface: type declarations on prefix org.apache.spark.deploy.worker.Worker | `MAX_TYPE_SCAN` | 200000 | 156 | false |
+| route surface: methods on prefix org.apache.spark.deploy.worker.Worker | `MAX_TYPE_SCAN` | 200000 | 950 | false |
+| boundary B-rpc-LaunchDriver: type declarations for org.apache.spark.deploy.DeployMessages$LaunchDriver | `MAX_TYPE_SCAN` | 200000 | 2 | false |
+| boundary B-rpc-LaunchDriver: methods on org.apache.spark.deploy.DeployMessages$LaunchDriver | `MAX_TYPE_SCAN` | 200000 | 36 | false |
+| boundary B-rpc-LaunchDriver: incoming call sites of <init> | `MAX_CALL_SCAN` | 200000 | 12 | false |
+| boundary B-rpc-LaunchDriver: incoming call sites of the declared accessors | `MAX_CALL_SCAN` | 200000 | 36 | false |
+| boundary B-thread: thread host methods | `MAX_TYPE_SCAN` | 200000 | 2 | false |
+| boundary B-thread: thread body methods | `MAX_TYPE_SCAN` | 200000 | 2 | false |
+| boundary B-interface: JDK launch method declarations | `MAX_TYPE_SCAN` | 200000 | 1 | false |
+| boundary B-rpc-RequestSubmitDriver: type declarations for org.apache.spark.deploy.DeployMessages$RequestSubmitDriver | `MAX_TYPE_SCAN` | 200000 | 2 | false |
+| boundary B-rpc-RequestSubmitDriver: methods on org.apache.spark.deploy.DeployMessages$RequestSubmitDriver | `MAX_TYPE_SCAN` | 200000 | 28 | false |
+| boundary B-rpc-RequestSubmitDriver: incoming call sites of <init> | `MAX_CALL_SCAN` | 200000 | 16 | false |
+| boundary B-rpc-RequestSubmitDriver: incoming call sites of the declared accessors | `MAX_CALL_SCAN` | 200000 | 12 | false |
+
+Every materialization **outside the walks** goes through one bounded helper that
+takes `cap + 1` elements and reports truncation when it saw more than `cap`, so a
+cap applied at one site and forgotten at the next is not expressible: a sweep
+absent from this table did not run. Sweeps whose label names a pair were taken
+once per pair against that pair's own selectors, and sweeps whose label does not
+were taken once for the whole query and are cited by both pairs - which is why
+this table is a list of measurements rather than a sum over the pairs. The
+graph-wide sweeps are the ones that matter: the shared sink name sweep, the
+predicate call-site sweep, and each message hop's constructor and accessor
+call-site sweeps - two hops across the two pairs, so four of them - all governed
+by `MAX_CALL_SCAN`; the keyed type and method lookups - each pair's entry-point
+selection, the predicate type and its methods, the message types, the thread
+hosts, the JDK-launch declaration and the route-surface prefixes - are capped
+under `MAX_TYPE_SCAN`.
+
+The walks' own expansions are a different mechanism and are named as such: they
+are node-local (one method group's call sites, one call site's linked callees) and
+are governed by `MAX_CALL_DEPTH`, `MAX_EXPANSIONS_PER_ENTRY`, `MAX_STEPS_PER_PAIR`
+and `MAX_ENTRY_POINTS_PER_PAIR`, each published above with its own reached flag and
+basis, and each applied per pair so one pair cannot consume the other's budget. A
+reader checking the boundedness claim needs to know which mechanism governs what,
+so the division is stated rather than collapsed into one sentence about a single
+helper.
 
 ## The boundaries, per pair
 
@@ -325,14 +404,39 @@ reported so it is auditable rather than asserted:
 
 The final set is asserted against the graph, not against the source.
 
-### The shared route surface, and each pair's own
+### The query-wide route surface, and each pair's own
 
-The byte-identical block also carries `ROUTE_SURFACE_TYPE_PREFIXES` = `org.apache.spark.deploy.master.Master`, `org.apache.spark.deploy.rest.StandaloneRestServer`, `org.apache.spark.deploy.worker.DriverRunner`.
-Measured here rather than assumed: the handler type(s) `org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet` are **not** covered by any of those prefixes, because the type a method is declared in is not always the headline class of the file it lives in.
-The shared list is kept exactly as it stands so all three queries' spurious counts
-remain comparable, and each pair additionally carries its **own** route surface,
-derived from its own handler, the intermediate hop and its sink types, which is
-what makes that pair's expected-spurious basis correct. Both counts are published.
+The byte-identical predicate block carries the **four predicate constants and
+nothing else**. The route surface is not part of it: the predicate constants define
+the term *spurious* and are compared across the three sources under the names the
+formulation identity block declares, whereas a route surface is a property of one
+query's own route - and this query's route has **two** entry-point owners where its
+siblings have one. `ROUTE_SURFACE_TYPE_PREFIXES` is therefore **derived** from this
+query's own route ends across both pairs. Five of the six entries are expressed in
+terms of the selector constants they come from rather than restated as literals;
+the sixth, the REST server that mounts pair two's handler servlet, is named by no
+existing selector and is therefore declared once as its own constant:
+
+- `org.apache.spark.deploy.master.Master` - entry-point owner: the type pair one's walks start from, and also the consumer end of pair two's RequestSubmitDriver RPC hop
+- `org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet` - entry-point owner: the type pair two's handler method is declared in
+- `org.apache.spark.deploy.rest.StandaloneRestServer` - entry host: the REST server that constructs and mounts pair two's handler servlet, reached by a remote submit request before the handler is
+- `org.apache.spark.deploy.worker.Worker` - relay: the consumer end of the LaunchDriver RPC hop, measured once as boundary B-rpc-LaunchDriver and cited by both pairs
+- `org.apache.spark.deploy.worker.DriverRunner` - sink host: the runner that holds the launch call site
+- `org.apache.spark.deploy.worker.ProcessBuilderLike` - sink host: the launcher surface the privileged start is declared on
+
+Measured here rather than assumed: every pair's handler type is covered by one of those prefixes.
+Stage I additionally asserts the derivation against what was actually measured: all 10 measured route end(s) across 2 pair(s) -
+every pair's entry points, the consumer end of each pair's RPC hop and every sink
+host - are owned by a prefix on the derived surface, and a route end that was not
+would have halted the run rather than being published beside a surface the route
+leaves. Which ends each prefix accounts for is published per prefix as
+`route_surface_reach_evidence`, so a prefix that earns its place from the
+derivation but accounts for no measured end is visible as a zero. Measured here: `org.apache.spark.deploy.rest.StandaloneRestServer` account(s) for no measured route end - it is on the surface because it is a type the route reaches before the handler rather than an end of the route, and the zero is published rather than hidden inside a covered surface.
+
+Each pair additionally carries its **own** route surface, derived from its own
+handler, the intermediate hop and its sink types, which is what makes that pair's
+expected-spurious basis correct; the query-wide surface is what makes the two
+pairs' bases commensurable. Both counts are published and neither is summed.
 
 ### The intermediate route hop
 
@@ -365,7 +469,7 @@ contributing one.
 | `org.apache.spark.deploy.worker.ProcessBuilderLike` | 6 | 9 | 0 | pair-one, pair-two |
 | `org.apache.spark.deploy.worker.Worker` | 156 | 475 | 0 | pair-one, pair-two |
 
-The sweep behind those reach columns is bounded by `MAX_TYPE_SCAN` = 200000 type declarations per prefix and reported truncated = **false**.
+The sweep behind those reach columns is bounded by `MAX_TYPE_SCAN` = 200000 type declarations per prefix and reported truncated = **false** for this sweep specifically; the cap governs several other keyed lookups as well, and the envelope's `bounds_reached` entry for it is the disjunction over all of them.
 
 ## Whether an expected-spurious route was absent
 
@@ -435,8 +539,8 @@ the verdict incapable of drifting from the file it describes.
 ### Against `01-callgraph-unguarded-driver-launch`: **duplicate_formulation_on_pair-one**
 
 - scope: pair-one only; this query additionally addresses pair-two, which 01-callgraph-unguarded-driver-launch does not
-- basis: every component of the formulation identity agrees at the scope named above: the edge kinds traversed (CALL); the node kinds selected as a route's ends (METHOD); at least one handler/sink pair in common; the entry-point selector literals, byte for byte; the sink selector literals, byte for byte; the bound, as the same kind of quantity at the same value (12 call-graph hops expanded from an entry point); the Joern API construct sets, whose set difference is empty in BOTH directions. The comparison is over the two SOURCES' own declarations, so it is a property of the two formulations rather than of either run's numbers
-- sibling source: `queries/joern/01-callgraph-unguarded-driver-launch.sc`, sha256 `dc7ca0fb9f8d7809afcc31602d48d568fd78bf8136a99df55ae6c1e9f6b4180b`, 213224 bytes; read note: measured from the source text at run time
+- basis: every component of the formulation identity agrees at the scope named above: the edge kinds traversed (both traverse CALL); the node kinds selected as a route's ends (both select METHOD); the handler/sink pairs addressed (at least one pair in common: pair-one); the entry-point selector literals (identical byte for byte); the sink selector literals (identical byte for byte); the bound, as a named kind of quantity and a value (both bound call-graph hops expanded from an entry point at 12); the Joern API construct sets (set difference empty in BOTH directions over 28 construct(s)). The comparison is over the two SOURCES' own declarations, so it is a property of the two formulations rather than of either run's numbers
+- sibling source: `queries/joern/01-callgraph-unguarded-driver-launch.sc`, sha256 `79583377ffdc05762226f1437be94d953bf44be1ea94bbc3d9e48f072a27f4ac`, 307625 bytes; read note: measured from the source text at run time
 - pair ids here: pair-one, pair-two; there: pair-one; shared: pair-one
 - edge kinds: here CALL, there CALL (same = true)
 - end node kinds: here METHOD, there METHOD (same = true)
@@ -448,15 +552,15 @@ the verdict incapable of drifting from the file it describes.
 ### Against `02-dataflow-unguarded-driver-launch`: **not_duplicate**
 
 - scope: none
-- basis: the formulations differ on the edge kinds traversed (CALL); the node kinds selected as a route's ends (METHOD); the bound, as the same kind of quantity at the same value (12 call-graph hops expanded from an entry point); the Joern API construct sets, whose set difference is empty in BOTH directions, while agreeing on at least one handler/sink pair in common; the entry-point selector literals, byte for byte; the sink selector literals, byte for byte. Neither traversal establishes the other's conclusion, so the two results are reported side by side and never summed
-- sibling source: `queries/joern/02-dataflow-unguarded-driver-launch.sc`, sha256 `546003c5b35a5b1e866a0928b362ab9016fc366d1e4305c3b4d1191e557996de`, 267884 bytes; read note: measured from the source text at run time
+- basis: the formulations differ on the edge kinds traversed (this query traverses CALL where 02-dataflow-unguarded-driver-launch traverses REACHING_DEF); the node kinds selected as a route's ends (this query selects METHOD where 02-dataflow-unguarded-driver-launch selects METHOD_PARAMETER_IN, EXPRESSION); the bound, as a named kind of quantity and a value (this query bounds call-graph hops expanded from an entry point at 12 where 02-dataflow-unguarded-driver-launch bounds call boundaries the backward data-flow search may expand at 6); the Joern API construct sets (4 construct(s) only here and 19 only there, over 24 shared), while agreeing on the handler/sink pairs addressed (at least one pair in common: pair-one); the entry-point selector literals (identical byte for byte); the sink selector literals (identical byte for byte). Neither traversal establishes the other's conclusion, so the two results are reported side by side and never summed
+- sibling source: `queries/joern/02-dataflow-unguarded-driver-launch.sc`, sha256 `902b7ffe8d708d6cb4ddfc057f65b1a2a023fc90c5b55c8d3ba012885dcb3fd1`, 369754 bytes; read note: measured from the source text at run time
 - pair ids here: pair-one, pair-two; there: pair-one; shared: pair-one
 - edge kinds: here CALL, there REACHING_DEF (same = false)
 - end node kinds: here METHOD, there METHOD_PARAMETER_IN, EXPRESSION (same = false)
 - bound: here `MAX_CALL_DEPTH` = 12 (call-graph hops expanded from an entry point); there `MAX_FLOW_CALL_DEPTH` = 6 (call boundaries the backward data-flow search may expand); same kind = false, same value = false
 - entry selector literals identical: true; sink selector literals identical: true
 - predicate selector literals identical: true (reported, not a component of the formulation predicate: the predicate set defines the word "spurious" rather than the traversal)
-- API constructs: 24 shared, 4 only here, 18 only there
+- API constructs: 24 shared, 4 only here, 19 only there
 
 the entry-selector literals compared are pair one's, the pair this query and the call-graph query share. This query's second pair is expressed through FORMULATION_PAIR_IDS, and its selectors are published in full in the pairs block of this envelope rather than folded into the comparison. The consequence is stated rather than hidden: two queries declaring the same pair id set but different selectors for a pair other than the compared one would not be distinguished by the selector component alone, and a reader checking that case reads the pairs block
 
@@ -468,14 +572,15 @@ files: each query measured its own against the graph of its own run.
 
 ## The three effort measures
 
-1. **Query revisions committed: 5.** Convention: commits touching queries/joern/03-parameterized-handler-sink-pairs.sc from its first appearance to the end of the probe, counted at run time from the repository's own history. The commit that publishes these result files is necessarily NOT among them: it cannot exist while the run that writes them is still in progress.
-   Measurement: measured from the repository's own history at run time, newest first.
+1. **Query revisions committed: 4.** Convention: commits touching queries/joern/03-parameterized-handler-sink-pairs.sc in the history of the HEAD this run measured at, newest first, counted at run time from the repository's own history. ONE convention, with three parts that make the number reproducible: the range is HEAD's own ancestry, named explicitly rather than defaulted, and the HEAD and the branch it was on are published beside the count; every commit returned is verified to be an ancestor of that HEAD, so a commit reachable only from another ref cannot enter the count - which is what happened to earlier figures once per-clone branches were reconciled and the commits a previous run had listed stopped being ancestors of the branch carrying its files; and the commit that PUBLISHES these result files is necessarily not among them, because it cannot exist while the run that writes them is still in progress. A later reader whose git log shows one more commit than the count reconciles against that window rather than against a bare number.
+   Measurement: commits touching this path in HEAD's own history, newest first, every one verified an ancestor of the HEAD published beside this count.
+   Window: the history of HEAD `d3bc40ae290877827cbd422ba9025a4f54328ec0`, on branch `blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab`, named explicitly rather than defaulted, with every commit counted verified an
+   ancestor of that HEAD.
    The commits counted, newest first, so the number is auditable rather than
    asserted:
 
-   - `b166213252d852cd409f3982dafcaf1cc2b04330`
-   - `56d4bf10a02adb0e44b2bf59f77e9a2402965979`
-   - `b562bca85a5e4a1986607b023650a6e5dcd3476b`
+   - `d3bc40ae290877827cbd422ba9025a4f54328ec0`
+   - `232d0d9cca3f15d33cedb96fa18dac3c6602668b`
    - `1072fd2334fc1a1b54b62119e086920e951ac209`
    - `20a56482274ab6c5f53b45f0488d2fa37012e03f`
 
@@ -584,20 +689,34 @@ files: each query measured its own against the graph of its own run.
   a property of the checkout rather than of the measurement, and the size-and-digest
   pair above is what the identity comparison turns on. The literals are in
   `harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log`, a console stream not held to byte-identity
-- record of account: `harness/artifacts/logs/cpg-frontend.log`, which states bytes 541309809 and
-  sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` - re-verified immediately before the load, and a
+- record of account: `provision-log/cpg-identity.txt`, which states bytes 541309809
+  and sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` - re-verified immediately before the load, and a
   mismatch would have halted the run
-- there is **no environment override** for that record. This query reads no
-  variable that could point the comparison at a different one, so the record a
+- its provenance: provisioning record of account for the graph this run did not write
+- it is resolved by **provenance**, not named by a constant: a write-time record
+  left by this checkout's own frontend (`harness/artifacts/logs/cpg-frontend.log`) governs where
+  it states exactly one identity pair, and otherwise the provisioning record
+  beside the resolved graph does. Every candidate that exists is read; more than
+  one distinct pair inside a single record, and any disagreement between two
+  records, each halt the run rather than being adjudicated silently
+- corroborated by `provision-log/cpg-record.txt`, which agree with it pair for pair
+- there is **no environment override** for that resolution. This query reads no
+  variable that could point the comparison at a different record, so the record a
   reader can read is exactly the record the comparison turned on. Where the
   host's graph and this record disagree, the run halts and the disagreement is
   reported rather than routed around
+- the bytes actually imported were a **private copy** this run made under
+  `$HARNESS_SCRATCH_DIR`, digested in the copy pass, verified against that
+  record, read-only for the load, re-verified by size, digest and inode after the
+  load, and then removed. Both pairs were traversed over that one load
 - the AAP-named path `harness/cpg/spark.cpg`: same file (equal resolved target)
 
 ## Reproducing this
 
+Precondition: run from a checkout of this branch after `BLITZY_CLONE_INDEX=<this clone's index> ; . harness/env.sh`, which exports $HARNESS_REPO_ROOT, $HARNESS_CPG and $HARNESS_SCRATCH_DIR - the three values the command below reads.
+
 ```
-cd <a scratch directory outside the repository> && HARNESS_REPO_ROOT=<the repository root> JAVA_HOME="$JAVA_HOME_21" JAVA_TOOL_OPTIONS=-Xmx64g SL_LOGGING_LEVEL=WARN joern --script <the repository root>/queries/joern/03-parameterized-handler-sink-pairs.sc -J-Xmx64g < /dev/null
+cd "$HARNESS_SCRATCH_DIR" && HARNESS_REPO_ROOT="$HARNESS_REPO_ROOT" HARNESS_CPG="$HARNESS_CPG" JAVA_HOME="$JAVA_HOME_21" JAVA_TOOL_OPTIONS=-Xmx64g SL_LOGGING_LEVEL=WARN joern --script "$HARNESS_REPO_ROOT/queries/joern/03-parameterized-handler-sink-pairs.sc" -J-Xmx64g < /dev/null
 ```
 
 That is the **whole** command: the repository root, the JDK, the heap override,
@@ -606,9 +725,11 @@ the query source and both are invoked by that one command, so no per-pair
 parameter has to be passed on the command line and the second pair's invocation
 is reproducible from this record alone. This query reads no other environment
 variable that changes what it loads or what it publishes, and in particular there
-is no override for the identity record - the record of account is
-`harness/artifacts/logs/cpg-frontend.log`, so a load can never be adjudicated by a record this command
-does not name.
+is no variable that selects the identity record. The record of account is
+resolved by provenance - this checkout's own frontend log where it carries a
+write-time `bytes:`/`sha256:` pair, and otherwise the provisioning record beside
+the resolved graph - and both are reached through values this command names. For
+this run it was `provision-log/cpg-identity.txt`.
 
 `joern --script` forks a child JVM and does not forward `-J-Xmx` to it, so
 `JAVA_TOOL_OPTIONS` is the override that actually raises the heap the query runs

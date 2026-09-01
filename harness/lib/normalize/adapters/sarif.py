@@ -7,12 +7,11 @@ so there is deliberately **no** ``opengrep.py``, ``semgrep.py`` or
 ``datadog_static_analyzer.py``.  ``joern`` is also ``sast`` but writes a native shape
 and has its own adapter; it is not served here.
 
-No user-specified rule governs this file.  ``review_rules`` returns exactly one
-line, ``No user rules provided.``, corroborated by AAP 0.7 and AAP 0.10.2.
-Enterprise best practice applies in their place, held to the AAP's own bar:
-verification independent of the thing verified, reject rather than infer, and a
-policy fixed before any output is observed.  Everything cited below is an AAP
-*requirement*; none of it is a rule.
+No user-specified rule governs this file; enterprise-standard best practice applies
+in its place (AAP 0.7, AAP 0.10.2), held to the AAP's own bar: verification
+independent of the thing verified, reject rather than infer, and a policy fixed
+before any output is observed.  Everything cited below is an AAP *requirement*;
+none of it is a rule.
 
 Position in the normalizer
 --------------------------
@@ -123,7 +122,12 @@ checks run decides which class it is counted under.  The order is fixed and
 documented rather than incidental:
 
 1. the result is not an object -> ``malformed_record``;
-2. no rule identifier can be established -> ``missing_rule_id``;
+2. the rule.  A result carrying ``ruleId`` and ``ruleIndex`` that name *different*
+   rules -> ``malformed_record``, since SARIF 2.1.0 sections 3.27.5 and 3.27.6 make
+   the two references to one ``reportingDescriptor``; then, no rule identifier at
+   all -> ``missing_rule_id``.  The contradiction is tested first because a record
+   whose two identifiers disagree has not established one, and choosing either would
+   attach the other rule's severity, CWE and CVE to the row;
 3. no message -> ``missing_message`` (a structurally wrong ``message`` ->
    ``malformed_record``);
 4. the path -> ``absent_path``, ``invalid_uri``, ``unresolvable_path`` or
@@ -362,6 +366,16 @@ COUNTER_ROWS_OUT_OF_SCOPE: Final[str] = "rows_out_of_scope"
 
 #: Where each row's rule identifier came from, and what went wrong when the rule
 #: metadata could not be reached -- provenance for ``tool-status.md``.
+#:
+#: :data:`COUNTER_RULE_INDEX_UNUSABLE` covers every way a ``ruleIndex`` could not be
+#: applied, and there are now five: a non-integer index, an out-of-range index, an
+#: array element that is not an object, an index whose ``toolComponent`` was not
+#: resolved, and -- added with the identity check in :func:`_resolve_rule` -- an index
+#: resolving to a rule that either declares no ``id`` to compare against or declares
+#: one that disagrees with the result's own ``ruleId``.  All five mean the same thing
+#: for the row: no property of the indexed rule was read.  The rejection's class and
+#: detail are what separate the contradiction from the other four, since only it
+#: refuses the record outright.
 COUNTER_RULE_ID_FROM_RULE_ID: Final[str] = "rule_id_from_rule_id"
 COUNTER_RULE_ID_FROM_RULE_INDEX: Final[str] = "rule_id_from_rule_index"
 COUNTER_RULE_INDEX_UNUSABLE: Final[str] = "rule_index_unusable"
@@ -478,8 +492,8 @@ def _non_empty_string(value: Any) -> str | None:
     The blank test is on ``strip()`` while the returned value is the original: a
     field is present or it is not, and the content that reaches the dataset is what
     the producer wrote.  Nothing is trimmed, because a message may legitimately
-    carry embedded newlines -- the historical dataset's 10,178 rows spanned 12,760
-    physical lines for exactly that reason.
+    carry embedded newlines, so a single row can span several physical lines and a
+    row count is only ever the parsed row count.
     """
     if isinstance(value, str) and value.strip():
         return value
@@ -758,6 +772,14 @@ class _RuleResolution:
     simply means there is no ``properties`` to read a severity, CWE or CVE from.
     ``detail`` accumulates every reason encountered, so a rejection can name the
     route that failed rather than merely that resolution failed.
+
+    ``failure`` is set only where the two descriptors a result carried
+    *contradict* each other, which is a different outcome from either of the above:
+    the record is rejected outright rather than resolved by choosing one of them.
+    It carries ``(reject_class, detail)`` ready for :func:`normalize.paths.
+    make_rejection`, and the caller honours it **before** testing ``rule_id`` --
+    which is ``None`` on that path not because no identifier was found but because
+    the identifiers found disagree, and an identity in dispute is not an identity.
     """
 
     rule_id: str | None
@@ -765,6 +787,7 @@ class _RuleResolution:
     from_rule_index: bool
     component_label: str | None
     detail: str | None
+    failure: tuple[str, str] | None = None
 
 
 def _resolve_rule(
@@ -783,6 +806,56 @@ def _resolve_rule(
     another rule's severity and CWE to this row -- so the resolution falls back to
     ``ruleId`` and rejects only if that is absent too.
 
+    Where a result carries **both** descriptors, they are resolved independently and
+    then *compared*, and the indexed rule's metadata is read only once the two are
+    proven to name the same rule.  SARIF 2.1.0 requires that agreement rather than
+    permitting it: sections 3.27.5 (``ruleId``) and 3.27.6 (``ruleIndex``) define the
+    two as references to one ``reportingDescriptor``, so where both are present the
+    indexed rule's ``id`` *is* the identifier ``ruleId`` states.  A producer that
+    emits a disagreeing pair has therefore contradicted the format it declares, and
+    accepting the pair would put rule A's identifier in the row's ``rule_id`` while
+    rule B's ``properties`` supplied its ``severity_native``, ``cwe`` and ``cve`` --
+    a row describing a finding that no rule in the artifact reports (CWE-345).
+    Neither descriptor is preferred over the other, because nothing in the artifact
+    says which one the producer meant: the record is rejected under
+    ``malformed_record`` with both identifiers and the index named in the detail, and
+    counted under :data:`COUNTER_RULE_INDEX_UNUSABLE`.
+
+    Two neighbouring shapes are deliberately *not* rejections, and the distinction is
+    the substance of the check rather than leniency in it:
+
+    * the ``toolComponent`` reference could not be resolved, so the index was never
+      applied to any rules array.  There is no second identifier to disagree with the
+      first, so this stays the defensive fall back to ``ruleId`` it already was;
+    * the indexed rule resolves but declares no usable ``id`` of its own.  Equality
+      then cannot be *proven* either way, so the index is recorded unusable and its
+      metadata is not read -- the identifier from ``ruleId`` stands and Route 3 looks
+      the declaring rule up by it.  Treating unprovable as equal is exactly the
+      silent attachment this check exists to stop; treating it as a contradiction
+      would reject a record whose descriptors were never shown to conflict.
+
+    ``malformed_record`` is used rather than a new class because AAP 0.5.4 fixes the
+    rejection conditions as a closed list that names *"a malformed record"*, and
+    :data:`normalize.paths.REJECT_CLASSES` is that closed set of ten; the class names
+    the condition and the detail carries the sub-reason, exactly as it does for the
+    ``uriBaseId`` terminal cases.  :data:`COUNTER_RULE_INDEX_UNUSABLE` is likewise the
+    existing counter for *"what went wrong when the rule metadata could not be
+    reached"*, and an index pointing at another rule is precisely an index that cannot
+    be applied.  Both reuses are for the same reason: every committed
+    ``expected/*.rows.json`` asserts this adapter's counter vocabulary and the
+    rejection-class set key for key in both directions, so a new name in either would
+    have to be introduced in the published records at the same moment -- and a count
+    or a class that reads differently in the code from how it reads in the records is
+    worse than one that shares an established name.
+
+    Over this provisioning's three captured artifacts the comparison is reached 6,832
+    times and refuses nothing: ``opengrep`` (1,322 results) and ``semgrep`` (1,162)
+    emit ``ruleId`` alone, every one of ``datadog-static-analyzer``'s 6,832 results
+    emits both descriptors, and in every one of those the indexed rule's ``id`` is the
+    ``ruleId``.  No result in any of the three carries a ``rule`` reporting-descriptor
+    reference.  The check therefore moves no dataset row, which is what makes it a
+    guard against a future artifact rather than a change of this one.
+
     Nothing here raises on artifact content: a non-integer or out-of-range index is
     data, and it becomes a reason rather than an exception.
     """
@@ -797,15 +870,21 @@ def _resolve_rule(
         counters[COUNTER_TOOL_COMPONENT_UNRESOLVED] += 1
         reasons.append(lookup.detail)
 
-    # Route 1: ruleId on the result, then id on the rule reference.
+    # Route 1: ruleId on the result, then id on the rule reference.  The member the
+    # identifier actually came from is kept, so a rejection detail can name it rather
+    # than say "the identifier" and leave a reader to guess which of the two it was.
     rule_id = _non_empty_string(result.get(_RULE_ID_KEY))
+    rule_id_source = _RULE_ID_KEY
     if rule_id is None and rule_reference is not None:
         rule_id = _non_empty_string(rule_reference.get(_ID_KEY))
+        rule_id_source = f"{_RULE_KEY}.{_ID_KEY}"
 
     # Route 2: an index into the resolved component's rules array.
     raw_index = result.get(_RULE_INDEX_KEY)
+    index_source = _RULE_INDEX_KEY
     if raw_index is None and rule_reference is not None:
         raw_index = rule_reference.get(_INDEX_KEY)
+        index_source = f"{_RULE_KEY}.{_INDEX_KEY}"
 
     rule_object: Mapping[str, Any] | None = None
     component_label: str | None = None
@@ -818,12 +897,58 @@ def _resolve_rule(
             )
             counters[COUNTER_RULE_INDEX_UNUSABLE] += 1
         else:
-            rule_object, reason = table.rule_by_index(lookup.component, raw_index)
+            indexed_rule, reason = table.rule_by_index(lookup.component, raw_index)
             if reason is not None:
                 reasons.append(reason)
                 counters[COUNTER_RULE_INDEX_UNUSABLE] += 1
-            else:
+            elif rule_id is None:
+                # The index is the only route to an identifier, so there is nothing
+                # for it to agree or disagree with.  Its rule is the rule.
+                rule_object = indexed_rule
                 component_label = lookup.component.label
+            else:
+                # Both descriptors are present.  Prove they name one rule before a
+                # single property of the indexed one is read.
+                indexed_rule_id = _non_empty_string(
+                    indexed_rule.get(_ID_KEY) if indexed_rule is not None else None
+                )
+                if indexed_rule_id == rule_id:
+                    rule_object = indexed_rule
+                    component_label = lookup.component.label
+                elif indexed_rule_id is None:
+                    # Resolvable, but it declares no identifier to compare against,
+                    # so equality is unprovable rather than false.  The metadata is
+                    # left unread and the identifier from Route 1 stands.
+                    reasons.append(
+                        f"{index_source} {raw_index} resolves to "
+                        f"{lookup.component.label}.{_RULES_KEY}[{raw_index}], which "
+                        f"declares no usable {_ID_KEY}, so it cannot be shown to be "
+                        f"the rule {rule_id_source} names ({rule_id!r}); its metadata "
+                        "is not read"
+                    )
+                    counters[COUNTER_RULE_INDEX_UNUSABLE] += 1
+                else:
+                    # The two descriptors contradict each other.  Neither is
+                    # preferred: the record is rejected and counted.
+                    counters[COUNTER_RULE_INDEX_UNUSABLE] += 1
+                    conflict = (
+                        f"the result's {rule_id_source} names {rule_id!r} while its "
+                        f"{index_source} {raw_index} names "
+                        f"{lookup.component.label}.{_RULES_KEY}[{raw_index}], whose "
+                        f"{_ID_KEY} is {indexed_rule_id!r}; SARIF 2.1.0 sections "
+                        "3.27.5 and 3.27.6 make the two references to one rule, so "
+                        "the record contradicts the format it declares and no rule "
+                        "metadata is read from either descriptor"
+                    )
+                    reasons.append(conflict)
+                    return _RuleResolution(
+                        rule_id=None,
+                        rule=None,
+                        from_rule_index=False,
+                        component_label=None,
+                        detail="; ".join(reasons),
+                        failure=(paths.REJECT_MALFORMED_RECORD, conflict),
+                    )
 
     if rule_object is not None and rule_id is None:
         rule_id = _non_empty_string(rule_object.get(_ID_KEY))
@@ -1455,8 +1580,27 @@ def _adapt_result(
             result_index=result_index,
         )
 
-    # Step 2 -- the rule identifier.
+    # ruleId is the ordinary route; where it is absent the identifier is resolved
+    # through runs[].tool.driver.rules[] by ruleIndex, scoped to the component that
+    # index belongs to (AAP 0.5.4).  A result carrying neither is rejected under
+    # missing_rule_id rather than emitted with a null rule identifier.
     rule = _resolve_rule(result_object, table, counters)
+    if rule.failure is not None:
+        # The result's two rule descriptors contradict each other.  Honoured before
+        # the missing-identifier test because the two are different conditions: this
+        # record carries identifiers and they disagree, so nothing here chooses one.
+        # The record identity therefore names the record's position and *not* a rule
+        # identifier -- the adapter carries a rule_id into an identity only where it
+        # resolved one, and the whole finding is that neither of these was resolved;
+        # both are named in the detail instead, which is where the evidence belongs.
+        reject_class, detail = rule.failure
+        return paths.make_rejection(
+            reject_class,
+            tool,
+            detail,
+            run_index=run_index,
+            result_index=result_index,
+        )
     if rule.rule_id is None:
         detail = (
             f"the result carries no usable {_RULE_ID_KEY}, and no rule could be "
@@ -1472,7 +1616,9 @@ def _adapt_result(
             result_index=result_index,
         )
 
-    # Step 3 -- the message.
+    # message.text is required: an absent or empty one earns a missing_message
+    # rejection rather than an empty string, and a message that is not an object at
+    # all is structurally wrong and classified malformed_record.
     message, message_failure = _message_text(result_object)
     if message_failure is not None:
         reject_class, detail = message_failure
@@ -1492,9 +1638,9 @@ def _adapt_result(
     if _is_json_array(raw_locations) and len(raw_locations) > 1:
         counters[COUNTER_MULTI_LOCATION] += 1
 
-    # Step 4 -- the path.  Every base decision is delegated to paths.py; see this
-    # module's docstring for the SARIF 2.1.0 sections and errata that make the
-    # delegation correct, and for why reading one level of uriBaseId is wrong.
+    # Every base decision is delegated to paths.py; see this module's docstring for
+    # the SARIF 2.1.0 sections and errata that make the delegation correct, and for
+    # why reading one level of uriBaseId is wrong.
     location = _first_location(result_object)
     if location.failure is not None:
         reject_class, detail = location.failure
@@ -1537,7 +1683,9 @@ def _adapt_result(
         # does not apply.  Rewording it here would lose that.
         return resolved
 
-    # Step 5 -- start_line.
+    # start_line is optional (AAP 0.8.2), so an absent region or an absent startLine
+    # yields None with no rejection; a startLine that is present and not usable as a
+    # line number is a non_integer_start_line rejection rather than a null.
     start_line, start_line_failure = _start_line(location.region)
     if start_line_failure is not None:
         reject_class, detail = start_line_failure

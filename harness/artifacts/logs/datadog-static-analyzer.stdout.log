@@ -5,10 +5,10 @@ revision                : f76636e43554f7f9a8e3984a31d03ec8dea5489f
 config method           : none (no local file and no remote configuration)
 cores available         : 4
 cores used              : 4
-#static analysis rules  : 1093
+#static analysis rules  : 1147
 source directory        : /opt/spark-src
 subdirectories          : common/network-common/src/main,common/network-shuffle/src/main,common/network-yarn/src/main,core/src/main,python/pyspark,resource-managers/kubernetes/core/src/main,resource-managers/kubernetes/core/volcano/src/main,resource-managers/kubernetes/docker/src/main,resource-managers/yarn/src/main,sql/catalyst/src/main,sql/connect/client/jdbc/src/main,sql/connect/client/jvm/src/main,sql/connect/common/src/main,sql/connect/server/src/main,sql/connect/shims/src/main,sql/core/src/main,sql/hive-thriftserver/src/main,sql/hive/src/main
-output file             : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-025_42e7a6/harness/artifacts/raw/datadog-static-analyzer.sarif
+output file             : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/datadog-static-analyzer.sarif
 static analysis enabled:  true
 secrets enabled         : false
 output format           : sarif
@@ -18,7 +18,7 @@ ignore gitignore        : false
 use debug               : false
 use staging             : false
 ignore gen files        : true
-rules languages         : javascript,typescript,go,kotlin,bash,java,rust,php,python,ruby,c#,dart
+rules languages         : java,c#,dart,php,javascript,go,python,rust,swift,apex,ruby,kotlin,bash,typescript
 max file size           : 200 kb
 Analyzing 28 JavaScript files using 138 rules
 Analyzing 2 Bash files using 35 rules
@@ -28,6 +28,6 @@ Static Analysis Summary
   Files scanned: 4085
   Files with violations: 568
   Total violations: 6832
-  Rules evaluated: 1093
+  Rules evaluated: 1147
   Rules with matches: 96
-  Duration: 220.936s
+  Duration: 55.638s

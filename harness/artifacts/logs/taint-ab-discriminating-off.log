@@ -1,0 +1,339 @@
+================================================================================
+Opengrep taint A/B - DISCRIMINATING PAIR - ARM OFF (taint-intrafile absent)
+harness/artifacts/logs/taint-ab-discriminating-off.log
+================================================================================
+
+================================================================================
+WHAT THIS FILE ESTABLISHES
+================================================================================
+
+  One arm of the DISCRIMINATING pair this run measured itself, on Spark's own
+  Scala, to answer the capability question the mandated pair could not: is
+  Opengrep's taint engine active on this code, and does the taint setting
+  demonstrably change what it reports? This pair is corroboration measured
+  first-hand. It is NOT a substitute for the mandated subject, whose anchored
+  expectation is reported unmet in taint-ab-on.log and taint-ab-off.log, and
+  it is not compared against any figure inherited from the environment record.
+
+================================================================================
+WHY THIS FILE IS UNDER logs/ AND NEVER UNDER raw/
+================================================================================
+
+  Two independent reasons, either sufficient (AAP 0.5.1, 0.6.1). First, raw/
+  is RUNNER-ONLY: it receives exactly one artifact per tool that writes one
+  and nothing else, ever, so an A/B SARIF landing there could overwrite the
+  opengrep.sarif the Stage 3 runner writes and the dataset would then be built
+  from an A/B over one file instead of a scan over the whole scope. Second,
+  this is one of the run's two deliberate second appearances: Opengrep appears
+  here as the taint A/B subject and again as one of the nine scanned runners;
+  Joern appears as a runner and again as the capability probe's subject. Each
+  second appearance writes outside raw/ and contributes NO dataset row (AAP
+  0.3.2).
+
+================================================================================
+SUBJECT, RULE AND ENGINE IDENTITY
+================================================================================
+
+  Run id                    : w013-20260901T132807Z
+  Clone index               : 13
+  Pinned commit             : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+  Pinned clone (SPARK_SRC)  : /opt/spark-src   (never edited)
+  Subject file              : sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala
+  Subject file, resolved    : /opt/spark-src/sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala
+  Subject size              : 979 lines, 37986 bytes
+  Subject sha256            : 52a0fbdde41fa474489c1637e7b1e0bddd44c5575fb24369dc9e4d5116465815
+  Rule                      : /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml
+  Rule size                 : 2824 bytes
+  Rule sha256               : 24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d
+  Ruleset                   : /opt/blitzy-harness/rules/opengrep-rules
+  Ruleset commit, observed  : f1d2b562b414783763fd02a6ed2736eaed622efa
+  Ruleset commit, expected  : f1d2b562b414783763fd02a6ed2736eaed622efa
+  Engine                    : Opengrep 1.27.1  (/opt/blitzy-tools/bin/opengrep)
+  Engine version, expected  : 1.27.1
+  Arm output (SARIF)        : harness/artifacts/logs/taint-ab-discriminating-off.sarif
+  Arm output bytes          : 28279
+  Arm output sha256         : 8c20bbd46dcda3967738677f35bb59f0b9b6b135a7b4a57ff3d89fa4ae9b646f
+  Arm output (this file)    : harness/artifacts/logs/taint-ab-discriminating-off.log
+
+================================================================================
+STATUS - READ THIS BEFORE ANY NUMBER BELOW
+================================================================================
+
+  This arm RAN, in clone 13, against the pinned clone named above, and every
+  figure below comes from its own output rather than from any record.
+
+  THIS ARM   : taint-intrafile absent, exit 0, 2026-09-01T13:48:50.278Z -> 2026-09-01T13:48:52.318Z, elapsed 2.04 s
+               11 finding(s) at line(s) 268, 286, 296, 309, 544, 603, 615, 683, 700, 702, 714; 11 of 11 carry a dataflow trace
+  OTHER ARM  : taint-intrafile present, exit 0, 2026-09-01T13:48:47.945Z -> 2026-09-01T13:48:50.277Z, elapsed 2.332 s
+               12 finding(s) at line(s) 268, 286, 296, 309, 603, 615, 659, 666, 670, 676, 683, 714; 12 of 12 carry a dataflow trace
+
+  VERDICT FOR THE PAIR: DISCRIMINATING. 12 findings with --taint-intrafile
+  against 11 without it, over the same file, the same rule and the same
+  engine, with that flag the only analysis difference. Lines reported ONLY
+  with the flag: 659, 666, 670, 676. The two SARIF outputs are not byte-
+  identical. This is a first-hand measurement of this run that Opengrep's
+  taint engine is active on Spark's own Scala and that the taint setting
+  changes what it reports; it is recorded beside the mandated pair's halt,
+  never in place of it.
+
+================================================================================
+THE COMMAND, VERBATIM
+================================================================================
+
+$ cd /opt/spark-src
+$ /opt/blitzy-tools/bin/opengrep scan \
+    --config /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml \
+    --dataflow-traces \
+    --sarif-output /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/taint-ab-discriminating-off.sarif \
+    --timeout 120 \
+    --timeout-threshold 0 \
+    --max-target-bytes 20000000 \
+    --x-ignore-semgrepignore-files \
+    --disable-version-check \
+    sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala
+
+  [exit]    0    started 2026-09-01T13:48:50.278Z, ended 2026-09-01T13:48:52.318Z, elapsed 2.04 s
+  The only analysis difference between the two arms of this pair is the
+  presence or absence of --taint-intrafile. The --sarif-output path
+  necessarily differs too, because each arm writes its own file; that argument
+  selects a destination and does not affect the analysis. Argv delta measured
+  against the other arm: ['/tmp/blitzy/blitzy-
+  spark/blitzy-f38258d3-f87d-44f5-bedc-
+  af512c69e0ab-w-013_59d11b/harness/artifacts/logs/taint-ab-discriminating-
+  off.sarif']
+
+================================================================================
+APPENDIX A - stdout, verbatim
+================================================================================
+
+                    
+                    
+┌──────────────────┐
+│ 11 Code Findings │
+└──────────────────┘
+                                                                        
+    sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala
+   ❯❯❱ opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string
+          User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL
+          strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL    
+          strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate   
+          data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe 
+          library.                                                                                            
+                                                                                                              
+          268┆ statement.executeUpdate(s"CREATE TABLE $tableName ($strSchema) $createTableOptions")
+    
+    
+          Taint comes from:
+    
+          268┆ statement.executeUpdate(s"CREATE TABLE $tableName ($strSchema) $createTableOptions")
+    
+    
+          This is how taint reaches the sink:
+    
+          268┆ statement.executeUpdate(s"CREATE TABLE $tableName ($strSchema) $createTableOptions")
+    
+    
+            ⋮┆----------------------------------------
+          286┆ s"INSERT INTO $table ($columns) VALUES ($placeholders)"
+    
+    
+          Taint comes from:
+    
+          286┆ s"INSERT INTO $table ($columns) VALUES ($placeholders)"
+    
+    
+          This is how taint reaches the sink:
+    
+          286┆ s"INSERT INTO $table ($columns) VALUES ($placeholders)"
+    
+    
+            ⋮┆----------------------------------------
+          296┆ s"SELECT 1 FROM $table WHERE 1=0"
+    
+    
+          Taint comes from:
+    
+          296┆ s"SELECT 1 FROM $table WHERE 1=0"
+    
+    
+          This is how taint reaches the sink:
+    
+          296┆ s"SELECT 1 FROM $table WHERE 1=0"
+    
+    
+            ⋮┆----------------------------------------
+          309┆ s"SELECT * FROM $table WHERE 1=0"
+    
+    
+          Taint comes from:
+    
+          309┆ s"SELECT * FROM $table WHERE 1=0"
+    
+    
+          This is how taint reaches the sink:
+    
+          309┆ s"SELECT * FROM $table WHERE 1=0"
+    
+    
+            ⋮┆----------------------------------------
+          544┆ statement.executeUpdate(s"CREATE SCHEMA ${quoteIdentifier(schema)}")
+    
+    
+          Taint comes from:
+    
+          544┆ statement.executeUpdate(s"CREATE SCHEMA ${quoteIdentifier(schema)}")
+    
+    
+          This is how taint reaches the sink:
+    
+          544┆ statement.executeUpdate(s"CREATE SCHEMA ${quoteIdentifier(schema)}")
+    
+    
+            ⋮┆----------------------------------------
+          603┆ s"ALTER TABLE $oldTable RENAME TO $newTable"
+    
+    
+          Taint comes from:
+    
+          603┆ s"ALTER TABLE $oldTable RENAME TO $newTable"
+    
+    
+          This is how taint reaches the sink:
+    
+          603┆ s"ALTER TABLE $oldTable RENAME TO $newTable"
+    
+    
+            ⋮┆----------------------------------------
+          615┆ s"ALTER TABLE ${getFullyQualifiedQuotedTableName(oldTable)} RENAME TO " +
+    
+    
+          Taint comes from:
+    
+          615┆ s"ALTER TABLE ${getFullyQualifiedQuotedTableName(oldTable)} RENAME TO " +
+    
+    
+          This is how taint reaches the sink:
+    
+          615┆ s"ALTER TABLE ${getFullyQualifiedQuotedTableName(oldTable)} RENAME TO " +
+    
+    
+            ⋮┆----------------------------------------
+          683┆ s"ALTER TABLE $tableName ALTER COLUMN ${quoteIdentifier(columnName)} SET $nullable"
+    
+    
+          Taint comes from:
+    
+          683┆ s"ALTER TABLE $tableName ALTER COLUMN ${quoteIdentifier(columnName)} SET $nullable"
+    
+    
+          This is how taint reaches the sink:
+    
+          683┆ s"ALTER TABLE $tableName ALTER COLUMN ${quoteIdentifier(columnName)} SET $nullable"
+    
+    
+            ⋮┆----------------------------------------
+          700┆ s"DROP SCHEMA ${quoteIdentifier(schema)} CASCADE"
+    
+    
+          Taint comes from:
+    
+          700┆ s"DROP SCHEMA ${quoteIdentifier(schema)} CASCADE"
+    
+    
+          This is how taint reaches the sink:
+    
+          700┆ s"DROP SCHEMA ${quoteIdentifier(schema)} CASCADE"
+    
+    
+            ⋮┆----------------------------------------
+          702┆ s"DROP SCHEMA ${quoteIdentifier(schema)}"
+    
+    
+          Taint comes from:
+    
+          702┆ s"DROP SCHEMA ${quoteIdentifier(schema)}"
+    
+    
+          This is how taint reaches the sink:
+    
+          702┆ s"DROP SCHEMA ${quoteIdentifier(schema)}"
+    
+    
+            ⋮┆----------------------------------------
+          714┆ s"DROP TABLE $table"
+    
+    
+          Taint comes from:
+    
+          714┆ s"DROP TABLE $table"
+    
+    
+          This is how taint reaches the sink:
+    
+          714┆ s"DROP TABLE $table"
+    
+
+
+
+================================================================================
+APPENDIX B - stderr, verbatim
+================================================================================
+
+[00.09][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 1 file tracked by git with 1 Code rule:
+  Scanning 1 file.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+
+Ran 1 rule on 1 file: 11 findings.
+
+
+================================================================================
+APPENDIX C - engine capability: the taint options, verbatim
+================================================================================
+
+$ opengrep scan --help | grep -nE "^ +--(no-)?[a-z0-9-]*taint[a-z0-9-]*$"
+192:       --guarded-taint-signatures
+445:       --taint-intrafile
+
+$ opengrep scan --help | grep -c "^ \+--"
+106
+
+$ opengrep scan --help | grep -A3 -E "^ +--taint-intrafile$"
+       --taint-intrafile
+           Enable intra-file inter-procedural taint analysis. Supported
+           languages: Apex, C, Clojure, C#, C++, Dart, Elixir, Go, Java,
+           JavaScript, Julia, Kotlin, Lua, Python, Ruby, Rust, Scala, Swift,
+           TypeScript, Visual Basic. Other languages will fall back to
+
+$ opengrep scan --help | grep -A4 -E "^ +--guarded-taint-signatures$"
+       --guarded-taint-signatures
+           Attach branch-condition guards to taint effects and evaluate them
+           at call sites, dropping effects whose guard is false. Without this
+           flag only Clojure keeps the arity guards that implement
+           multi-arity dispatch. REQUIRES --experimental
+
+================================================================================
+APPENDIX D - containment: raw/ untouched, no dataset row
+================================================================================
+
+  This arm wrote exactly one SARIF file and it is under
+  harness/artifacts/logs/. The Stage 3 sequence ledger
+  harness/artifacts/logs/runner-sequence.json measures every byte in
+  harness/artifacts/raw/ against the runner invocation that produced it, and
+  no A/B output appears there. The normalizer discovers artifacts by the nine
+  fixed raw names only (harness/lib/normalize/shape.py,
+  harness/lib/normalize/cli.py), so no arm of this A/B can contribute a
+  dataset row to oss-scan-results/findings.json or findings.csv.
+
+================================================================================
+END - taint-ab-discriminating-off.log
+================================================================================

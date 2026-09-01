@@ -272,98 +272,98 @@
       "file_line_count_at_the_pin": 380
     }
   ],
-  "rejections": {
-    "total": 3,
-    "distinct_classes": 3,
-    "class_vocabulary_authority": "harness/lib/normalize/paths.py, the REJECT_CLASSES tuple. Every class named below is a literal member of it, spelled exactly -- never a paraphrase, because a test that only counts rejections cannot tell one condition from another.",
-    "by_class": {
-      "unresolvable_path": 1,
-      "missing_rule_id": 1,
-      "missing_message": 1
+  "rejections": [
+    {
+      "locator": {
+        "result_pointer": "/runs/0/results/1",
+        "run_index": 0,
+        "result_index": 1
+      },
+      "reject_class": "unresolvable_path",
+      "defect": "The record's only location names uri https://example.invalid/reconcile-mixed/remote-resource-reference -- a well-formed URI in a foreign scheme. It is valid, and it names nothing in the scanned tree, so it cannot be expressed against the scan root.",
+      "classification_step": "step 4, the path. The record passes step 2 (it carries a ruleId) and step 3 (it carries message.text), so the path is what decides it.",
+      "why_not_a_row": "path is not an optional field, so a record whose path cannot be resolved is rejected and counted rather than emitted with a null path -- and no absolute value, URI scheme included, may ever reach the path field.",
+      "why_not_the_metadata_fallback": "The degenerate-base fallback applies to a relative reference whose uriBaseId walk could not complete. This uri is not relative and needs no base: joining it onto one would manufacture a location. The fallback is not a catch-all.",
+      "detail_contains": [
+        "https://example.invalid/reconcile-mixed/remote-resource-reference",
+        "is a valid 'https' URI but names no location in the scanned tree"
+      ],
+      "record_identity_keys": [
+        "run_index",
+        "result_index",
+        "rule_id",
+        "uri"
+      ],
+      "rule_id_carried": "fixture.reconcile-mixed.generic.remote-resource-reference",
+      "contributes_row": false
     },
-    "classes_not_exercised": [
-      "absent_path",
-      "invalid_uri",
-      "ambiguous_source_resolution",
-      "non_integer_start_line",
-      "unformable_package_coordinate",
-      "unattributable_section",
-      "malformed_record"
-    ],
-    "classes_not_exercised_note": "Each is covered by its own single-condition reject-<adapter>-<condition> fixture. This fixture's job is the arithmetic, not per-condition coverage: it needs at least two classes to prove a rejection count discriminates between conditions, and it carries three.",
-    "verbatim_detail_policy": "Partial parse is a first-class outcome, so nothing here is discarded: each rejected record is counted under its named class and the parser error is retained verbatim in the rejection record -- paths.Rejection.detail, alongside reject_class, tool and record_identity -- rather than being summarised away or dropped. The detail_contains entries below are stable substrings of that retained text, given so an assertion can check the reason without pinning the whole sentence.",
-    "expectations": [
-      {
-        "locator": {
-          "result_pointer": "/runs/0/results/1",
-          "run_index": 0,
-          "result_index": 1
-        },
-        "reject_class": "unresolvable_path",
-        "defect": "The record's only location names uri https://example.invalid/reconcile-mixed/remote-resource-reference -- a well-formed URI in a foreign scheme. It is valid, and it names nothing in the scanned tree, so it cannot be expressed against the scan root.",
-        "classification_step": "step 4, the path. The record passes step 2 (it carries a ruleId) and step 3 (it carries message.text), so the path is what decides it.",
-        "why_not_a_row": "path is not an optional field, so a record whose path cannot be resolved is rejected and counted rather than emitted with a null path -- and no absolute value, URI scheme included, may ever reach the path field.",
-        "why_not_the_metadata_fallback": "The degenerate-base fallback applies to a relative reference whose uriBaseId walk could not complete. This uri is not relative and needs no base: joining it onto one would manufacture a location. The fallback is not a catch-all.",
-        "detail_contains": [
-          "https://example.invalid/reconcile-mixed/remote-resource-reference",
-          "is a valid 'https' URI but names no location in the scanned tree"
-        ],
-        "record_identity_keys": [
-          "run_index",
-          "result_index",
-          "rule_id",
-          "uri"
-        ],
-        "rule_id_carried": "fixture.reconcile-mixed.generic.remote-resource-reference",
-        "contributes_row": false
+    {
+      "locator": {
+        "result_pointer": "/runs/0/results/3",
+        "run_index": 0,
+        "result_index": 3
       },
-      {
-        "locator": {
-          "result_pointer": "/runs/0/results/3",
-          "run_index": 0,
-          "result_index": 3
-        },
-        "reject_class": "missing_rule_id",
-        "defect": "The result object carries no ruleId, no ruleIndex and no rule reporting-descriptor reference, so no rule identifier can be established by any of the three routes. Its message and its location are otherwise well formed and name a real in-scope file, which is what makes the missing identifier the sole defect.",
-        "classification_step": "step 2, the rule identifier -- reached before the message and the path, so this class is what the record is counted under even though it is defective in no other way.",
-        "why_not_a_row": "rule_id is one of the seven fields that may never be absent, and inventing one from the message text or from a neighbouring record would be inference.",
-        "detail_contains": [
-          "carries no usable ruleId",
-          "no rule could be reached through ruleIndex either"
-        ],
-        "record_identity_keys": [
-          "run_index",
-          "result_index"
-        ],
-        "rule_id_carried": null,
-        "rule_id_carried_note": "No rule_id reaches the rejection record, because none could be established -- that absence is the defect itself, not a gap in the record.",
-        "contributes_row": false
+      "reject_class": "missing_rule_id",
+      "defect": "The result object carries no ruleId, no ruleIndex and no rule reporting-descriptor reference, so no rule identifier can be established by any of the three routes. Its message and its location are otherwise well formed and name a real in-scope file, which is what makes the missing identifier the sole defect.",
+      "classification_step": "step 2, the rule identifier -- reached before the message and the path, so this class is what the record is counted under even though it is defective in no other way.",
+      "why_not_a_row": "rule_id is one of the seven fields that may never be absent, and inventing one from the message text or from a neighbouring record would be inference.",
+      "detail_contains": [
+        "carries no usable ruleId",
+        "no rule could be reached through ruleIndex either"
+      ],
+      "record_identity_keys": [
+        "run_index",
+        "result_index"
+      ],
+      "rule_id_carried": null,
+      "rule_id_carried_note": "No rule_id reaches the rejection record, because none could be established -- that absence is the defect itself, not a gap in the record.",
+      "contributes_row": false
+    },
+    {
+      "locator": {
+        "result_pointer": "/runs/0/results/5",
+        "run_index": 0,
+        "result_index": 5
       },
-      {
-        "locator": {
-          "result_pointer": "/runs/0/results/5",
-          "run_index": 0,
-          "result_index": 5
-        },
-        "reject_class": "missing_message",
-        "defect": "The result's message object carries only {\"id\": \"default\"} and no text. Its rule -- /runs/0/tool/driver/rules/1 -- does declare messageStrings.default.text, so the template is reachable; it is deliberately not rendered, because rendering one would manufacture content the artifact does not carry. The message is therefore absent rather than recoverable.",
-        "classification_step": "step 3, the message. The record passes step 2 (it carries a ruleId) and would have passed step 4 (its location names a real in-scope file at a real line), so the message is what decides it.",
-        "why_not_a_row": "message is one of the seven fields that may never be absent. A structurally wrong message -- one that is not an object at all -- would be malformed_record instead; the two are kept distinct because a reader acts differently on \"this producer omits message text\" than on \"this artifact is not shaped like SARIF\".",
-        "detail_contains": [
-          "carries no text",
-          "supplies only a message template",
-          "manufacture content the artifact does not carry"
-        ],
-        "record_identity_keys": [
-          "run_index",
-          "result_index",
-          "rule_id"
-        ],
-        "rule_id_carried": "fixture.reconcile-mixed.java.exception-object-passed-to-logger",
-        "contributes_row": false
-      }
-    ]
+      "reject_class": "missing_message",
+      "defect": "The result's message object carries only {\"id\": \"default\"} and no text. Its rule -- /runs/0/tool/driver/rules/1 -- does declare messageStrings.default.text, so the template is reachable; it is deliberately not rendered, because rendering one would manufacture content the artifact does not carry. The message is therefore absent rather than recoverable.",
+      "classification_step": "step 3, the message. The record passes step 2 (it carries a ruleId) and would have passed step 4 (its location names a real in-scope file at a real line), so the message is what decides it.",
+      "why_not_a_row": "message is one of the seven fields that may never be absent. A structurally wrong message -- one that is not an object at all -- would be malformed_record instead; the two are kept distinct because a reader acts differently on \"this producer omits message text\" than on \"this artifact is not shaped like SARIF\".",
+      "detail_contains": [
+        "carries no text",
+        "supplies only a message template",
+        "manufacture content the artifact does not carry"
+      ],
+      "record_identity_keys": [
+        "run_index",
+        "result_index",
+        "rule_id"
+      ],
+      "rule_id_carried": "fixture.reconcile-mixed.java.exception-object-passed-to-logger",
+      "contributes_row": false
+    }
+  ],
+  "rejections_shape": "An ORDERED ARRAY, one element per rejected record, in the order the adapter produced them -- result_index 1, then 3, then 5. That is the shape production returns: harness/lib/normalize/adapters/*.py hand back a list of paths.Rejection values in record order, and harness/lib/normalize/reconcile.py keeps the ordered list and the per-class mapping as two separate things (ArtifactReconciliation.rejected_records and .rejections_by_class). Every other expected/*.rows.json in this tree records rejections as an array for the same reason, so a loader reading these files generically meets one shape. The aggregate counts sit under their own keys below rather than inside this one: a container holding both the per-record entries and their totals cannot be indexed by a test without the test knowing which it is looking at.",
+  "rejected_records": 3,
+  "rejections_distinct_classes": 3,
+  "rejections_by_class": {
+    "unresolvable_path": 1,
+    "missing_rule_id": 1,
+    "missing_message": 1
   },
+  "rejections_summary_source": "rejected_records and rejections_by_class above are the same measurement counts.rejections and counts.rejections_by_class state, restated here beside the array so the grouping can be read without leaving the block -- one measurement cited twice, never two measurements. Their names are the ones reconcile.ArtifactReconciliation uses for the same two values, so a reader moving between this file and harness/artifacts/logs/normalize-run.json meets one vocabulary. sum(rejections_by_class.values()) == rejected_records == len(rejections) is asserted in test_reconciliation.py rather than trusted here.",
+  "rejection_class_vocabulary_authority": "harness/lib/normalize/paths.py, the REJECT_CLASSES tuple. Every reject_class in the array above is a literal member of it, spelled exactly -- never a paraphrase, because a test that only counts rejections cannot tell one condition from another.",
+  "rejection_classes_not_exercised": [
+    "absent_path",
+    "invalid_uri",
+    "ambiguous_source_resolution",
+    "non_integer_start_line",
+    "unformable_package_coordinate",
+    "unattributable_section",
+    "malformed_record"
+  ],
+  "rejection_classes_not_exercised_note": "Each is covered by its own single-condition reject-<adapter>-<condition> fixture. This fixture's job is the arithmetic, not per-condition coverage: it needs at least two classes to prove a rejection count discriminates between conditions, and it carries three.",
+  "rejection_verbatim_detail_policy": "Partial parse is a first-class outcome, so nothing here is discarded: each rejected record is counted under its named class and the parser error is retained verbatim in the rejection record -- paths.Rejection.detail, alongside reject_class, tool and record_identity -- rather than being summarised away or dropped. The detail_contains entries in the array above are stable substrings of that retained text, given so an assertion can check the reason without pinning the whole sentence.",
   "arithmetic": {
     "identity": "raw finding records = dataset rows for that tool + rejected records",
     "left_side_source": "normalize.reconcile.count_records(\"opengrep\", document) -- a traversal that walks runs[].results[] and builds no rows. A count taken from the traversal that builds the rows would satisfy the identity while testing nothing, which is why the two code paths must stay independent.",

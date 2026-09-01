@@ -1026,14 +1026,16 @@ class _LiteralKey:
     order are pure functions of the content.
 
     AAP §0.5.4 requires that *"the entry used is recorded -- the label, or the
-    score with its source and version"*.  Keying on the literal alone -- or on
-    the ``(literal, band, basis)`` triple this class replaced -- satisfied that
-    requirement per record and then destroyed it per report: a score is
-    recorded in ``severity_native`` as its one-decimal rendering, so two
-    advisories scored 7.5 by different sources, or under CVSS 3.1 and 4.0,
-    produced an identical triple and collapsed into a single bucket whose
-    provenance was whichever entry happened to arrive first -- and nothing
-    downstream could tell that a collapse had happened.
+    score with its source and version"*.  Per report that makes a bucket's
+    identity the literal, the band, the basis **and** the four selected-entry
+    fields.  A score reaches ``severity_native`` as its one-decimal rendering,
+    so two advisories scored 7.5 by different sources, or under CVSS 3.1 and
+    4.0, render an identical literal: keyed on anything narrower -- the literal
+    alone, or the ``(literal, band, basis)`` triple -- they would share one
+    bucket whose provenance is whichever entry arrived first, and nothing
+    downstream could tell that two selections had been merged.  Keyed on the
+    seven fields below they are distinct buckets by construction, each
+    reporting the entry its own rows were banded on.
 
     The selected entry is decomposed into its four scalar parts rather than
     stored whole for two reasons.  A ``dict`` is unhashable, so it cannot be a
@@ -1085,9 +1087,12 @@ class _LiteralKey:
         order is total: two runs over the same rows cannot order two buckets
         differently, whatever order they were recorded in.
 
-        The first three components are exactly the order this class replaced, so
-        extending the key added entries where a collapse used to occur without
-        moving any entry that did not collapse.
+        The three leading components carry the report's shape -- band, then
+        literal, then basis -- and the four provenance components only break
+        ties among buckets that share all three.  So two selections rendering
+        one literal sort adjacently, directly under the prefix they share,
+        rather than anywhere a reader of ``severity-map.md`` would not look for
+        them.
         """
         return (
             SEVERITY_NORM.index(self.severity_norm),
@@ -1800,8 +1805,9 @@ def _self_check() -> tuple[int, list[str]]:
     # -- The selected entry is part of a bucket's identity ------------------ #
     #
     # A score reaches severity_native as its one-decimal rendering, so equal
-    # renderings from different score entries are exactly the case that used to
-    # collapse.  These checks assert the collapse cannot recur.
+    # renderings from different score entries are distinct buckets only because
+    # the key carries the entry.  These checks assert that it does, and that two
+    # such buckets stay separate.
     check(
         LITERAL_KEY_FIELDS
         == (

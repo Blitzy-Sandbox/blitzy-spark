@@ -17,5 +17,5 @@ Scanning dir sql/core/src/main
 Scanning dir sql/hive-thriftserver/src/main
 Scanning dir sql/hive/src/main
 Starting filesystem walk for root: /
-End status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 296.253311ms elapsed, 296.253503ms wall time
+End status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 296.87925ms elapsed, 296.87957ms wall time
 No package sources found, --help for usage information.

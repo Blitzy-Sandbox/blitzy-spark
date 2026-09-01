@@ -3,8 +3,8 @@
   "Trivy": {
     "Version": "0.74.0"
   },
-  "ReportID": "01a0574b-23a4-7824-acab-a12cdd0828a7",
-  "CreatedAt": "2026-08-31T10:08:57.252535374Z",
+  "ReportID": "01a05d5b-df07-7ee6-a08d-81d0ce3c13ce",
+  "CreatedAt": "2026-09-01T14:24:57.095978072Z",
   "ArtifactName": "sql/connect/client/jdbc/src/main",
   "ArtifactType": "filesystem"
 }

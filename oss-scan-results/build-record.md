@@ -7,15 +7,42 @@
 
 ## What this file is, and what it owns
 
-This is the build-and-graph provenance record for the pinned tree. It is the **owner** of exactly two
-verdicts:
+This is the build-and-graph provenance record for the pinned tree. It is the **owner** of exactly three
+measurements:
 
-1. **the per-project JAR outcome for all 40 reactor projects** — section 3, and
-2. **the per-module graph coverage verdict with its evidence** — section 6.
+1. **the build's own identity and wall clock** — section 2 and section 3,
+2. **the per-project JAR outcome for all 40 reactor projects** — section 3, and
+3. **the per-module graph coverage verdict with its evidence** — section 6.
 
-`oss-scan-results/run-record.md` indexes both and must not substitute for either. In the other
-direction, this file states no per-tool finding count, no severity mapping and no scanner outcome:
-those belong to `tool-status.md`, `severity-map.md` and the dataset, and nothing here bears on them.
+`oss-scan-results/run-record.md` indexes all three and must not substitute for any of them. In the
+other direction, this file states no per-tool finding count, no severity mapping and no scanner
+outcome: those belong to `tool-status.md`, `severity-map.md` and the dataset, and nothing here bears on
+them.
+
+**The build measurement, in the exact form any other document must cite it.** One build, one
+measurement, from `harness/artifacts/logs/build-reactor.log` STEP 11:
+
+| Field | Value |
+| --- | --- |
+| Result and exit code | `BUILD SUCCESS`, exit **0** |
+| Maven's own duration | `Total time:  40:55 min` |
+| Maven's own finish time | `Finished at: 2026-08-30T20:59:38Z` |
+| The runner's independent measurement of the same build | elapsed **2460 s** |
+| Selector | none — `MODULE_SELECTOR_PRESENT=0`, the full 40-project reactor |
+
+`40:55 min` and `2460 s` are the same build measured two ways: Maven's own summary line reports
+**2,455 s** of Maven time, and the runner's wall clock brackets the whole `./build/mvn` invocation
+including the wrapper and JVM startup, so it reads five seconds longer. **No other duration for this
+build exists in this run's evidence**, and any figure elsewhere that differs from these two is not a
+second measurement of this build. STEP 11 prints exactly the three values above and no start timestamp,
+so none is stated anywhere in this file.
+
+**One further measurement is recorded here without being owned here.** The graph stage's second pass
+condition, the Opengrep taint A/B, is measured arm by arm in **section 8**, because it is a graph-stage
+measurement and this is the graph-stage record. Its run-level divergence entry is **D2** in
+`oss-scan-results/run-record.md` §13 and its run-level narrative is that file's §7; section 8 states the
+verdict and the evidence and defers the register entry, so the two are one account cited twice rather
+than two accounts.
 
 **Every figure below is one measurement, cited from the producer log that made it, never a second
 measurement of the same thing.** Nothing here was re-derived by running anything again, and no number
@@ -33,90 +60,129 @@ rule is invented anywhere. Where the phrases *the authority rule*, *the halt rul
 record-and-continue rule* appear below, they are the Agent Action Plan's own names for three of those
 requirements, and nothing in this file is a user-specified rule.
 
-## The six producer logs — the only sources of fact in this file
+## The producer records — the only sources of fact in this file
 
-| Producer log | What this file takes from it |
+| Producer record | What this file takes from it |
 | --- | --- |
 | `harness/artifacts/logs/maven-preflight.log` | the Maven pre-check verdict (section 1) |
-| `harness/artifacts/logs/build-reactor.log` | the build command, the JVM major and Maven version used, the reactor's project count and build order, the per-project SUCCESS/FAILURE, and the on-disk per-project artifact outcome (sections 2 and 3) |
-| `harness/artifacts/logs/cpg-input-inventory.json` | the JAR inventory, the exclusions and the staging manifest (section 4), and the coverage-witness inputs (section 6) |
-| `harness/artifacts/logs/cpg-frontend.log` | this run's frontend invocation over the complete input manifest, its serialization failure with the bytecode-level diagnosis, the mitigations examined, and the observed overwrite and AST-creation-failure metrics measured over that complete set (sections 4 and 5); PART 2 records the per-module witness graph's own invocation |
-| `harness/artifacts/logs/cpg-verify.log` | the `importCpg` verification counts and per-module coverage witnesses for the graph at the sanctioned path (section 6, first verdict column); PART 2 records the witness graph's load and its 38 witness queries (section 6, second verdict column) |
-| `harness/cpg/spark.cpg` | the graph at the path the AAP names — a provisioned symlink whose resolved target is host-global and was written by provisioning, not by this run (STATUS, D1 and D4) |
+| `harness/artifacts/logs/build-reactor.log` | the build command, the JVM major and Maven version used, the reactor's project count and build order, the per-project `SUCCESS`/`FAILURE`, the build's own wall clock and exit status, and the on-disk per-project artifact outcome (sections 2 and 3) |
+| `harness/artifacts/logs/cpg-frontend.log` | this run's frontend invocation over the complete 191-archive staged input set: its serialization failure with the bytecode-level diagnosis, the partial write it refused, the mitigations examined, and the observed overwrite and AST-creation-failure metrics measured over that complete set (sections 4 and 5) |
+| `harness/artifacts/logs/cpg-ceiling-reverify.log` | this generation's own first-hand re-verification of that serialization ceiling, at two heaps (section 5) |
+| `harness/artifacts/logs/cpg-input-inventory.json` | the input set of the graph the Joern stages actually load — its 62 archives with their digests, the 31 reactor projects present in it, the 7 absent, and the per-module witness computation (sections 4 and 6) |
+| `harness/artifacts/logs/cpg-identity.txt` | the one record of account for the graph's identity and its provenance (STATUS, sections 5 and 6) |
+| `harness/artifacts/logs/cpg-verify.log` | the `importCpg` verification load of exactly those bytes: the three counts against their expected values, and the per-module coverage witness queries (sections 5 and 6) |
+| `harness/artifacts/logs/joern-preflight.log` | the Stage 3 pre-load identity gate and its verdict (section 5) |
+| `harness/artifacts/logs/gate-record.json` | cited twice, for two values this file does not own: the gate verdict, and the environment-record graph-identity contradiction (STATUS, sections 5 and 7) |
+| `harness/cpg/spark.cpg` | the graph at the path the AAP names — a 33-byte provisioned symlink whose resolved target is host-global and was written by provisioning, not by this run (STATUS, section 5) |
 
-No `harness/artifacts/logs/build-<module-path>.log` exists, and none is cited: section 3 records why
-none was needed.
+Two absences are stated rather than left to be noticed. No
+`harness/artifacts/logs/build-<module-path>.log` exists, and none is cited: section 3 records why none
+was needed. And `harness/artifacts/logs/cpg-module-coverage.json` is present in the tree but is not an
+**independent** source of fact here: it is a machine-readable rendering of the same two measurements
+section 6 reads — `cpg-input-inventory.json`'s per-module witness exclusivity joined against
+`cpg-verify.log` PHASE 2's witness queries — so every figure it carries is one of those measurements
+cited a second time rather than a second measurement of the same thing. It agrees with section 6 row
+for row: 31 modules in the graph input, 26 COVERED on injective evidence, 5 NO VERDICT OBTAINABLE, and
+**0** verdicts resting on presence or on a shared package prefix, against the graph identity section 5
+states. Its own `schema_version` is `2` and its `supersedes` field names what it replaced: an edition
+written in clone `w-001` on `2026-08-31T16:11:52Z` describing a graph of 605,687,359 bytes and sha256
+`ceefe60e58308ffcfc1d93f8ed6226bf25bac85678f1a54caf826340a25542a6` over 39 producing modules — a graph
+that is not the file on disk, and a module count that is not this input set's.
 
 ## STATUS — read this before any graph number below
 
-> **HALT DECLARED. The graph AAP §0.5.1 mandates — one graph over every JAR the build produced — does
-> not exist and cannot be produced by the pinned frontend.** This run assembled the complete
-> 191-artifact input, asserted it, and invoked the frontend over all of it; the frontend built the
-> graph in memory and then could not write it, because flatgraph serializes the entire string pool
-> through a single `ByteArrayOutputStream` bounded at `Integer.MAX_VALUE - 8`. The only change that
-> would clear that bound is excluding inputs, which AAP §0.5.1 requires against and §0.9.2 names as a
-> condition that **stops the run rather than gets repaired**. So this is a halt: reported with its
-> evidence, not worked around. Two consequences follow and neither is softened anywhere in this file —
-> **no current-run complete-input graph exists**, and **seven of the 38 JAR-producing modules have no
-> coverage verdict against such a graph**. Section 6's second column measures what is measurable
-> without it and carries four explicit disclaimers making it no substitute for it.
+> **UNMET REQUIREMENT, ATTEMPTED AND BLOCKED. The graph AAP §0.5.1 mandates — one graph created by
+> this run over every JAR the build produced — does not exist and cannot be produced by the pinned
+> frontend.** This run assembled the complete 191-archive input set, asserted it, and invoked the
+> frontend over all of it; the frontend built the graph in memory and then could not write it, because
+> flatgraph serializes the entire deduplicated string pool through a single `ByteArrayOutputStream`
+> whose backing array the JVM caps at `Integer.MAX_VALUE - 8` = 2,147,483,639 elements. The only
+> lever that would clear that bound is excluding inputs, which AAP §0.3.2 forbids and §0.9.2 names as
+> a condition that **stops the run rather than gets repaired**; upgrading the frontend is forbidden by
+> §0.4.3. **The requirement is therefore stated here as unmet — not as satisfied, and not as an
+> exception.** Two consequences follow and neither is softened anywhere in this file: **no graph
+> written by this run exists**, and **every count and every coverage verdict below describes the graph
+> provisioning wrote**, which carries the bytecode of 31 of the 38 JAR-packaging projects and of no
+> others.
 
-Three facts bound what the numbers in this file describe, and reading a coverage figure without them
+Four facts bound what the numbers in this file describe, and reading a coverage figure without them
 would misread it.
 
 - **The full-reactor build was performed by this run.** `build-reactor.log` records it end to end:
-  `BUILD SUCCESS`, Maven exit code 0, 40 of 40 reactor projects `SUCCESS`, and all 38 JAR-packaging
-  projects confirmed on disk to have produced their own main artifact.
-- **The JAR inventory and its staging manifest were produced by this run.** `cpg-input-inventory.json`
-  inventories 191 own artifacts from those 40 projects, stages them into one fresh directory, and
-  proves the mapping total and injective in both directions before any frontend invocation.
-- **The graph at the AAP's path was not created by this run. This run attempted to create one over
-  its complete input set, and the attempt failed in serialization at a fixed toolchain bound.**
-  Three entries of the run's divergence register carry this — **D1**, **D3** and **D4**, owned by
-  `oss-scan-results/run-record.md` §13, which is the run's single register and the only place these
-  labels are defined. None of them is repaired by anything in this file:
+  `BUILD SUCCESS`, Maven exit code 0, 40 of 40 reactor projects `SUCCESS`, no `-pl` and no module
+  selector of any kind, and all 38 JAR-packaging projects confirmed on disk to have produced their own
+  main artifact. Section 3 owns that outcome.
+- **The graph every stage of this run loaded was written by PROVISIONING, on 2026-08-30T19:18:37Z, not
+  by this run.** Its identity is one pair — **541,309,809 bytes**, sha256
+  `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` — and
+  `harness/artifacts/logs/cpg-identity.txt` is the single record of account for it. That record was
+  produced by calling `harness/lib/preflight_graph_identity.py`'s own `record_of_account()`, the same
+  function the Stage 3 pre-load gate calls, so the record and the gate cannot state different pairs.
+  That function prefers this checkout's own frontend write-time pair and falls back to the record
+  written beside the graph at write time (`/opt/blitzy-harness/provision-log/cpg-identity.txt`,
+  corroborated by `cpg-record.txt`, both read and in agreement) — and the fallback applied here for
+  one reason only: this run's frontend produced no graph, so there was no write-time pair of its own
+  to prefer. The pair is re-measured from the bytes on disk and re-verified immediately before every
+  load: the Stage 2 verification load (`cpg-verify.log`, "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY
+  BEFORE THE LOAD"), the Stage 3 Joern runner (`joern-preflight.log`, **VERDICT: PASS**), and each of
+  the three Stage 5 probe queries (`harness/artifacts/logs/probe-*.identity.txt`).
+- **The requirement that this run create that graph is unmet and unmeetable at this pin**, for the
+  measured reason the blockquote states and section 5 evidences from the failing method's own
+  bytecode and from a two-heap re-verification. It is published as a divergence, carried in the run's
+  divergence register in `oss-scan-results/run-record.md` §13 under the label **D1**, which the
+  producer records themselves use. Nothing in this file repairs it and nothing substitutes for it:
 
-  - **D1 — halt-class, attempted and blocked.** AAP §0.1.1 requires the graph to be created by this
-    run. The graph at the resolved path was written by the provisioning invocation before this run's
-    first command. This run therefore assembled its complete 191-artifact input manifest, asserted it
-    total and injective in both directions, proved a 128 GiB heap committable, and invoked the pinned
-    frontend over the whole of it under JDK 21. After **8 h 01 m** and a **113.3 GiB** peak RSS the
+  - **What was attempted.** This run assembled the complete 191-archive input set its own full-reactor
+    build produced, proved a 128 GiB heap committable at the value used, and invoked the pinned
+    frontend over the whole of it under JDK major 21 with `--recurse` and no exclusion flag of any
+    kind. After **8 h 01 m** (28,863 s) and a **113.3 GiB** peak RSS against a 128 GiB heap, the
     frontend terminated in its persistence step with
     `java.lang.OutOfMemoryError: Required array length 2147483639 + 72 is too large`, raised inside
-    `flatgraph.storage.WriterContext.finish`. **No graph was produced**, and the truncated partial
-    write it left behind (691,541,019 bytes, sha256
-    `b1559c930a7b9ced717a0babf9a7e172d2b93d2cdef45a959304f063aedfe408`) was recorded as evidence and
-    explicitly not accepted. `cpg-frontend.log` STEP 8 establishes from the failing method's own
-    bytecode that this is a fixed `Integer.MAX_VALUE - 8` array-length bound on the single
-    `ByteArrayOutputStream` that flatgraph serializes the graph's entire string pool through — not a
-    heap shortage, and not movable by any heap size. STEP 10 enumerates every mitigation examined and
-    why each is unavailable: the only lever that would work is excluding inputs, which AAP §0.3.2 and
-    §0.9.2 place among the conditions that stop the run rather than get repaired.
-  - **D3 — recorded difference.** The graph at the path was built from 62 archives, 285,122,375
-    bytes, from 31 modules, against this run's 191 own artifacts, 431,184,822 bytes, from all 38
-    JAR-packaging projects.
-  - **D4 — extended at this checkpoint.** The bytes at the resolved path today (**541,309,809**, sha256
-    `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`) differ from the identity every
-    earlier stage of this run recorded and re-verified before each of its loads (**541,255,894**,
-    sha256 `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`), and from the third
-    pair D4 already records for probe query 03 (**548,118,435**, sha256 `f8c71562…`). Provisioning has
-    re-run against this host more than once, replacing the shared file each time. The earlier records
-    remain accurate as of the loads they describe — every load verified the identity immediately before
-    reading and every comparison matched — and the inherited identity chain simply cannot be
-    re-verified today. Recorded rather than reconciled.
-  - **Why nothing was written to the resolved path.** `/opt/blitzy-harness/cpg/spark.cpg` is
-    host-global and read by concurrent clones while they scan. Writing there would corrupt siblings'
-    in-flight loads; and with no valid current-run graph to install, there was in any case nothing to
-    install.
+    `flatgraph.storage.WriterContext.finish` (`Serialization.scala:174`, appending at `:176`).
+    **No graph was produced.** The truncated partial write it left behind — `691,541,019` bytes,
+    sha256 `b1559c930a7b9ced717a0babf9a7e172d2b93d2cdef45a959304f063aedfe408`, named
+    `spark.cpg.PARTIAL-TRUNCATED-DO-NOT-LOAD` — was recorded as evidence and **explicitly not
+    accepted**; it was never linked at `harness/cpg/spark.cpg` and no stage loaded it.
+    (`cpg-frontend.log` STEPS 2, 4, 5, 8 and 9.)
+  - **Why no heap clears it, established by measurement rather than by argument.**
+    `cpg-ceiling-reverify.log` re-ran the ceiling probe in this clone at **`-Xmx64g`** and at
+    **`-Xmx128g`**: both threw `java.lang.OutOfMemoryError: Required array length 2147483639 + 77 is
+    too large` with 2,147,483,639 bytes already buffered, while the JVM's reported `maxMemory` doubled
+    from 68,719,476,736 to 137,438,953,472 bytes. **The failure point did not move by one byte.** The
+    bound is on one array's length, not on the heap, and it scales with the total UTF-8 size of the
+    graph's distinct strings — that is, with the breadth of the input set.
+  - **Why it is not repaired.** `cpg-frontend.log` STEP 10 enumerates every mitigation against the
+    frontend's actual flag surface. The only lever that would work is excluding inputs
+    (`--exclude`, `--exclude-regex`, dropping pre-shade / `-tests` / shims artifacts, or bounding
+    `--depth`), and AAP §0.3.2 forbids trimming the input set while §0.9.2 lists it among the
+    conditions that stop the run rather than get repaired. A frontend or flatgraph build whose writer
+    chunks the string pool would clear it, and AAP §0.4.3 forbids installing, upgrading or
+    substituting any tool. So the input set the AAP mandates and the writer the pinned frontend ships
+    are not simultaneously satisfiable on any host at this pin.
+  - **Why nothing was written to the AAP's path.** `/opt/blitzy-harness/cpg/spark.cpg` is host-global
+    and read by concurrent clones while they scan. Writing there would corrupt siblings' in-flight
+    loads; and with no valid current-run graph to install, there was in any case nothing to install.
+- **The gate that precedes all of this is not this file's verdict, and this file declares none.**
+  `harness/artifacts/logs/gate-record.json` records 43 checks — 38 `pass`, 3 `recorded_difference`,
+  2 `halt` — with `gate_verdict.overall` = `"halt"`, authorising nothing. One of those two halts is
+  the environment record's graph identity contradicting the filesystem, which section 5 states with
+  both values. That record and `oss-scan-results/run-record.md` own the gate; this file records
+  measurements and cites the verdict rather than restating or softening it.
 
-**The consequence lands on section 6, and section 6 now carries two verdicts per module rather than
-one.** Because the graph at the path was built from the narrower input set, seven of the 38
-JAR-producing modules have no coverage verdict obtainable *from that graph*. To establish what is
-measurable in spite of that, this run built a **per-module witness graph** over one primary artifact
-per JAR-producing module — 38 artifacts, 130,718,491 bytes — and queried every module's witness in it.
-That graph is a labelled capability measurement: it is not the graph the AAP mandates, it is not at
-the sanctioned path, no runner loads it, and it contributes no dataset row. Section 6 reports both
-columns side by side and never lets the second stand in for the first.
+**The consequence lands on section 6, and it is stated there as a limit rather than worked around.**
+Because the graph that loads was built over a narrower input set than this run's build produced, seven
+of the 38 JAR-packaging projects have **no bytecode in it at all**, and five of the 31 projects that do
+own **no injective witness of either kind the AAP permits**. All twelve are reported as **NO VERDICT
+OBTAINABLE**, each with what was tried and why it is unobtainable. No third kind of evidence is
+admitted, and no narrower graph is presented as a substitute for the one the AAP mandates.
+
+**A third coverage statement exists, belongs to the graph on disk, and is attributed to its own
+record.** `cpg-graph-record.log` carries the coverage verdict the provisioning invocation measured over
+its own 62-JAR input set — **31 of 31 contributing modules covered, 0 missing**, 26 of them by a class
+unique to the module and 5 by a named weaker witness. That denominator is *contributing modules*, not
+*JAR-producing modules*, so it is not the same measurement as section 6's first column and is never
+totalled with it. Section 6 carries it as its own labelled subsection, with the difference in
+denominator stated there.
 
 ---
 
@@ -163,15 +229,20 @@ The working checkout is neither built nor scanned (AAP §0.3.2).
 
 ## 2. The build command, and why five flags add four modules
 
-**The invocation, quoted from the script that ran it** (`build-reactor.log` STEP 10), with
-`MAVEN_OPTS="-Xss64m -Xmx6g -Xms2g -XX:ReservedCodeCacheSize=512m"`:
+**The invocation, quoted verbatim from the script that ran it** — `build-reactor.log` STEP 10 prints
+the exact lines it `sed`-extracted from that lane's own `work/01-build.sh`, in scratch outside every
+repository checkout:
 
 ```bash
 ./build/mvn --no-transfer-progress -DskipTests \
   -Pyarn -Pkubernetes -Phive -Phive-thriftserver -Pvolcano \
-  -Dmaven.repo.local="/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/build/m2" \
-  package
+  -Dmaven.repo.local="$B/m2" \
+  package > "$B/build-reactor-verbatim.log" 2>&1
 ```
+
+`$B` is that lane's build directory: STEP 9 resolves `$B/m2` to
+`/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/build/m2` when it inventories the
+private repository, and STEP 11 reads Maven's own summary out of `$B/build-reactor-verbatim.log`.
 
 **The reactor was not narrowed.** `build-reactor.log` STEP 10 quotes the invocation verbatim from the
 script that ran it and then greps that script for a module selector, reporting
@@ -269,7 +340,7 @@ Order and finds 40 entries — 38 marked `[jar]`, 2 marked `[pom]`, the two bein
 | Measurement | Value | Where |
 | --- | --- | --- |
 | Maven result and exit code | `BUILD SUCCESS`, exit **0** | `build-reactor.log` STEP 11 |
-| Wall clock | started 2026-08-30T20:18:38Z, elapsed **2460 s** as the runner measured it; Maven's own `Total time: 40:55 min` and `Finished at: 2026-08-30T20:59:38Z` | STEP 11 |
+| Wall clock | elapsed **2460 s** as the runner measured it, alongside Maven's own `Total time:  40:55 min` and `Finished at: 2026-08-30T20:59:38Z`. STEP 11 records exactly these three values and no start timestamp, so none is stated here | STEP 11 |
 | Reactor summary lines | `SUCCESS [` **40**, `FAILURE [` **0**, `SKIPPED` **0** | STEP 12 |
 | Projects enumerated from the poms, independently on disk | **40** — jar-packaging 38, pom-packaging 2 | STEP 13 |
 | JAR-packaging projects with their own main artifact on disk | **38 of 38** | STEP 13 |
@@ -328,50 +399,64 @@ unconditional modules in the order `pom.xml` lists them, then the four profile-a
 | 39 | `resource-managers/kubernetes/core` | `spark-kubernetes_2.13` | jar | produced its own main artifact | `resource-managers/kubernetes/core/target/spark-kubernetes_2.13-4.1.0-SNAPSHOT.jar` | 5 |
 | 40 | `sql/hive-thriftserver` | `spark-hive-thriftserver_2.13` | jar | produced its own main artifact | `sql/hive-thriftserver/target/spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar` | 5 |
 
-The "own artifacts inventoried" column is `cpg-input-inventory.json`'s per-project count of the
-artifacts that project itself emitted, and the column sums to that file's own total of **191**
-(section 4). Every one of the 40 rows — the outcome, the primary artifact's path and the own-artifact
-count — was re-checked against this run's inventory measurement, project by project, with **zero
-disagreements**, so the table and `cpg-input-inventory.json` are one measurement cited twice. The "primary artifact" column is each project's main, unclassified, non-`original-`,
-non-`-tests` JAR — the artifact the coverage test in section 6 is applied to.
+Every column in that table is `build-reactor.log` STEP 13's own on-disk measurement and nothing else
+is cited for it: the `PKG`, `OWN`, `MAIN` and `PRIMARY ARTIFACT` columns of its per-project listing,
+plus the totals its verification block prints. The `own artifacts inventoried` column is STEP 13's
+`OWN` count of the archives each project itself emitted, and it sums to STEP 13's own total of **191**
+— 36 modules at 5, `streaming` at 6, `examples` at 4, the root parent at 1 and `assembly` at 0. The
+`primary artifact` column is STEP 13's `PRIMARY ARTIFACT` value, each project's main, unclassified,
+non-`original-`, non-`-tests` JAR, which is the artifact the coverage test in section 6 is applied to.
 
-**Two cautions so this table and `cpg-input-inventory.json` cannot be read as disagreeing**, both
-stated by `build-reactor.log`'s own cross-reference section. First, every path here is relative to the
-build tree named in section 2, not to `SPARK_SRC`. Second, the cross-check between the two documents
-is project → outcome and artifact → relative path, never a digest comparison: a JAR entry carries a
-build timestamp, so a second build of identical source yields a different digest, and a digest
-difference between two builds is not a discrepancy while a missing project or a differently located
-artifact would be.
+**Two cautions about how this table may be cross-read.** First, every path here is relative to the
+build tree named in section 2, not to `SPARK_SRC`. Second, this table is **not** cross-checked against
+`cpg-input-inventory.json`, and must not be: that file measures the graph's own **62-archive** input
+set from a different tree (section 4), so a project-by-project comparison against it would compare two
+different sets. Where the 191 figure is checked a second time, it is checked against `cpg-frontend.log`
+STEP 1's independent count of the set handed to the frontend, which agrees. And no digest comparison is
+made across trees at all: a JAR entry carries a build timestamp, so identical source yields a different
+digest in each tree, which section 4 states with the yarn-shuffle artifact as the worked case.
 
 ### The two projects that produced no JAR, and why that is the expected outcome
 
 - **`(root parent)` — `spark-parent_2.13`, `packaging=pom` at `pom.xml:30`.** `build-reactor.log`
-  STEP 13 records `own artifact: NONE - EXPECTED, packaging=pom`. Its build directory does contain
-  `target/spark-parent_2.13-4.1.0-SNAPSHOT-tests.jar`, 20,371 bytes — an attached test-jar artifact,
-  listed as `also` rather than `MAIN`. The parent still produces no main artifact, which is the
-  expected outcome and not a failure.
+  STEP 13 records it as `pom` with `OWN 1`, `MAIN n/a` and the reason in place of a path:
+  `no JAR expected: packaging=pom`. Its one own archive is an attached test-jar —
+  `[INFO] Building jar: …/target/spark-parent_2.13-4.1.0-SNAPSHOT-tests.jar` in the same log's verbatim
+  Maven output — not a main artifact. No size is quoted for it, because STEP 13 records the count and
+  not the bytes. The parent produces no main artifact, which is the expected outcome and not a failure.
 - **`assembly` — `spark-assembly_2.13`, `packaging=pom` in its own pom**, confirmed both by STEP 6's
-  per-module packaging listing and by Maven's own `[pom]` marker at STEP 12. Its build directory holds
-  340 JARs, every one a copied runtime dependency written there by `copy-module-dependencies`
-  (`pom.xml:3095` with its output directory at `pom.xml:3102`) and not one of them `assembly`'s own;
-  STEP 13 counts and excludes them.
+  per-module packaging listing and by Maven's own `[pom]` marker at STEP 12. STEP 13 records it as
+  `pom` with `OWN 0`, `MAIN n/a` and the same reason, `no JAR expected: packaging=pom`: **not one
+  archive under its build directory is its own**. What is there was copied in by
+  `copy-module-dependencies` (`pom.xml:3095`, output directory at `pom.xml:3102`), and every such file
+  falls into STEP 13's `copied_runtime_dependency` exclusion class, counted in the 422 total in
+  section 4 rather than attributed to this project. No per-project figure is quoted, because STEP 13
+  publishes that class as a total and not per project.
 
 Neither is a failure, and neither is left to be inferred from an absence.
 
 ### All 38 JAR-packaging projects produced their own artifact
 
-`build-reactor.log` STEP 13's independent on-disk pass reports `38 of 38` and
-`JAR-PACKAGING PROJECTS WITH NO OWN MAIN ARTIFACT: (none)`. AAP §0.9.2 makes any of the 38 failing to
-produce its own artifact a halt, *"including a project the expected-values list does not name"* — so
-this file would otherwise have to name each project that did not and quote its log. **There is no such
-project, so there is no such entry.**
+`build-reactor.log` STEP 13's independent on-disk pass prints, from its own verification block:
+`jar-packaging projects : 38`, `jar-packaging with their own MAIN artifact: 38`,
+`jar-packaging WITHOUT one : []`, and then in terms — *"VERDICT: every one of the 38 JAR-packaging
+projects produced its own main artifact. The two pom-packaging projects produced none, which is the
+expected outcome for packaging=pom and is recorded as expected rather than as a failure (AAP 0.9.1)."*
+AAP §0.9.2 makes any of the 38 failing to produce its own artifact a halt, *"including a project the
+expected-values list does not name"* — so this file would otherwise have to name each project that did
+not and quote its log. **There is no such project, so there is no such entry.**
 
 ### The six JAR producers the expected-values table does not name — a recorded difference, never a halt
 
-The expected-values table names 32 JAR producers, and it was measured over the **narrowed**
-provisioning build, whose 33-project reactor is what `harness/ENVIRONMENT.md` section 5 records. A full
-reactor packages 38, so six are new to it (`build-reactor.log`, "THE RECORDED DIFFERENCE", derived by
-set difference against that record's own list of 32):
+The expected-values table names 32 JAR producers, and it was measured over a **narrowed** build that
+this run did not perform and does not reuse. `harness/ENVIRONMENT.md:205-213` quotes that build's
+invocation, and it carries `-pl core,common/network-common,…,resource-managers/yarn -am`; `:217` records
+its outcome as *"Reactor = **33 projects: 32 producing a JAR + the parent POM**"*, and its section 6
+table at `:231-272` lists all 33 rows — the parent plus exactly those 32. AAP §0.5.1 mandates the full
+reactor and §0.3.2 forbids narrowing it, which is why this run built 40 projects with
+`MODULE_SELECTOR_PRESENT=0` (section 2) and why the narrowed build is cited here only to explain where
+the 32 came from. A full reactor packages 38, so six are new to it — the set difference between STEP
+13's 38 and that record's 32:
 
 - `tools`
 - `examples`
@@ -380,27 +465,49 @@ set difference against that record's own list of 32):
 - `connector/kafka-0-10-sql`
 - `connector/kafka-0-10-assembly`
 
-All six appear in Maven's reactor summary as `SUCCESS` — STEP 12 isolates their six summary lines
-verbatim — and STEP 13 confirms each produced its own main artifact on disk. **The halt rule is
-one-directional** (AAP §0.8.3): a module that produced a JAR in the rehearsal and produces none now is
-a halt; the reverse is not. So the six are a recorded difference, they legitimately entered this run's
-graph input set (section 4), and they are the reason the graph's method count is checked as a **floor
-rather than a window** — an anchor measured over 32 JAR producers cannot bound a graph built from 38.
+All six are `SUCCESS` in Maven's own summary and each produced its own main artifact on disk: STEP 12
+counts **40** `Building … [n/40]` lines, **40** ` SUCCESS [` lines and **0** `FAILURE [`-or-`SKIPPED`
+lines, so no project in the reactor is anything but `SUCCESS`; and STEP 13's per-project listing carries
+all six with `MAIN yes` and their primary artifact's path, which the table above reproduces at rows 16,
+28 and 31 to 34. **The halt rule is one-directional** (AAP §0.8.3): a module that produced a JAR in the
+rehearsal and produces none now is a halt; the reverse is not. So the six are a **recorded
+difference**, and because the expected-values anchors were measured over 32 JAR producers while this
+build packages 38, the graph's method count is checked as a **floor rather than a window** (section 5).
 Nothing was trimmed in either direction to make a number fit.
+
+**Where those six actually went, stated exactly, because it is easy to assume.** All six entered the
+191-archive set this run's frontend was given (section 4, staged input set 1). **None of them is in the
+62-archive input set of the graph that loads**, so none of their bytecode is in that graph — which is
+why section 5 records that the six cannot be the explanation for its above-anchor counts, and why
+section 6 gives four of them, plus `sql/connect/shims`, `examples` and `tools`, no coverage verdict.
+
+### Seven of the 38 have no bytecode in the graph — a coverage fact, not a build outcome
+
+Kept as its own statement because the two are independent. On the build side all 38 produced their own
+main artifact, `tools`, `examples`, `sql/connect/shims`, `connector/kafka-0-10`,
+`connector/kafka-0-10-assembly`, `connector/kafka-0-10-sql` and `connector/kafka-0-10-token-provider`
+included, each with its path in the table above. On the graph side those same seven have **zero**
+archives in the 62-archive input set the loaded graph was built over (`cpg-input-inventory.json`,
+`reactor_projects_absent_from_this_input`), so the graph carries none of their compiled code. Section 6
+records their coverage verdict as NO VERDICT OBTAINABLE on that ground alone, and this file never reads
+their absence from the graph as a build failure or their build success as graph coverage.
 
 ### `python/pyspark` — an expected non-JAR outcome, and not one of the 40
 
 `python/pyspark` is one of the twelve authoritative scope roots and is scanned, but it is **no Maven
-module and appears in no reactor**: `build-reactor.log` STEP 14 records `grep -c '<module>python'` = 0
-against the root pom and `ls` failing on `python/pyspark/pom.xml`. It therefore has no row in the table
-above and none is invented for it. The same holds for `resource-managers/kubernetes/docker`, which the
-file-based tools reach through the mid-path `**` of the Kubernetes glob.
+module and appears in no reactor**: `build-reactor.log` STEP 14 shows the directory present and
+`ls python/pyspark/pom.xml` failing with *"No such file or directory"*, and reads it as an expected
+non-JAR outcome rather than a build failure. It therefore has no row in the table above and none is
+invented for it. STEP 14 records the same for `resource-managers/kubernetes/docker`, whose
+`src/main` the file-based tools reach through the mid-path `**` of the Kubernetes glob and whose
+`pom.xml` is likewise absent.
 
 ### The diagnostic pass — not needed, and the protocol it would have followed
 
 The reactor did not fail, so **no per-project diagnostic pass was run and no
-`harness/artifacts/logs/build-<module-path>.log` exists**. `build-reactor.log` states the same at its
-end: *"0 projects UNESTABLISHED, 0 diagnostic-pass logs needed or written."* The protocol is recorded
+`harness/artifacts/logs/build-<module-path>.log` exists** — the log directory contains no file of that
+form, and `build-reactor.log` STEP 12 (40 `SUCCESS`, 0 `FAILURE`/`SKIPPED`) with STEP 13's verdict
+(38 of 38 with their own main artifact) is why none was needed. The protocol is recorded
 because its absence is a measurement rather than an omission, and AAP §0.5.1 fixes it: Maven's own
 printed build order walked front to back;
 `./build/mvn -DskipTests -Pyarn -Pkubernetes -Phive -Phive-thriftserver -Pvolcano -pl <module-path> -am package`
@@ -418,10 +525,22 @@ still halt unless every one of the 38 JAR-packaging projects produced its own ar
 
 ---
 
-## 4. The JAR inventory and the staging manifest
+## 4. The JAR inventory, and the two staged input sets kept apart
 
-Every figure in this section is `harness/artifacts/logs/cpg-input-inventory.json`'s measurement, taken
-over the build tree named in section 2.
+This section has two subjects and they are never mixed, because at this checkpoint they are different
+artefacts measured by different records.
+
+- **What this run's build produced, and what its frontend was given** — the 191 own artifacts of the
+  40-project reactor. The per-project outcome and the totals are `build-reactor.log` STEP 13's
+  measurement; what was actually handed to the frontend, and the fact that nothing was excluded, is
+  `cpg-frontend.log` STEPS 1 and 4.
+- **What the graph the Joern stages load was built over** — the 62-archive staging tree
+  `/opt/blitzy-harness/cpg-input`, measured member by member in
+  `harness/artifacts/logs/cpg-input-inventory.json`. That tree is provisioning's, not this run's, and
+  it is the input set every count and every coverage verdict in sections 5 and 6 belongs to.
+
+Nothing here claims the first set reached the graph. It did not: the frontend invocation over it wrote
+no graph at all (STATUS).
 
 ### The inventory is built by provenance, not by location — and both directions were needed
 
@@ -458,126 +577,205 @@ effective model, because even an offline goal can write into the shared local re
 | Case | Resolved path | Evidence | Staged as |
 | --- | --- | --- | --- |
 | `examples` main artifact under `${jars.target.dir}` | `examples/target/scala-2.13/jars/spark-examples_2.13-4.1.0-SNAPSHOT.jar` | declared at `examples/pom.xml:136`, property at `pom.xml:265`; **asserted present** | `examples__spark-examples_2.13-4.1.0-SNAPSHOT.jar` |
-| `common/network-yarn` unattached shaded shuffle JAR | `common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar`, 109,208,027 bytes, sha256 `296b8013d55bbf38e80206a3446e8fa38eb0a3fa7a64a84df53e0470914eaeda` | declared at `common/network-yarn/pom.xml:97` with `:96` and `:37`; **asserted present**; classified as the project's own **by its declared output path**, because its filename carries no artifactId and a filename rule alone would have excluded it | `common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar` |
+| `common/network-yarn` unattached shaded shuffle JAR | `common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar` — `build-reactor.log` records the build writing it at that exact path (its `[jar] Building jar:` line) | declared at `common/network-yarn/pom.xml:97` with `:96` and `:37`; **asserted present**; classified as the project's own **by its declared output path**, because its filename carries no artifactId and a filename rule alone would have excluded it | `common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar` |
 
-### The totals, and the exclusions counted rather than silent
+**No digest is quoted for either artifact here, deliberately.** A JAR embeds entry timestamps, so every
+build of the same source yields the same byte size and a different sha256 — and the yarn-shuffle JAR is
+the case that proves it: `109,208,027` bytes in every tree on record, under a different digest in each.
+A digest is therefore only meaningful with the tree it was measured in, and the only tree whose
+per-archive digests bear on any conclusion in this file is the graph's own input set, where
+`cpg-input-inventory.json` records this artifact at `109,208,027` bytes, sha256
+`ab5f23f67b2131fc852b8122a956610e6c023605041545232c063ff8347c394c`, 11,910 entries of which 11,070 are
+class entries.
 
-| Measurement | Value |
-| --- | --- |
-| JAR files enumerated under the 40 projects' build directories | **627** |
-| Classified as a project's own | **191**, totalling **431,184,822 bytes** |
-| Of those, carrying bytecode | 110 — recorded per file as a class-entry count, never used as a reason to drop one |
-| Class entries across the own artifacts | 99,723 |
-| **Excluded copied dependency JARs** | **422** (`copied_runtime_dependency`) |
-| Also excluded: test-resource fixtures inside a module's compiled-output tree | **14** (`test_resource_fixture`) |
-| Total excluded | **436** |
-| Undecided provenance | **0** |
-| Arithmetic | own 191 + excluded 436 + undecided 0 = 627 enumerated |
+### The totals of this run's build, and the exclusions counted rather than silent
 
-**Every figure in that table except the byte total is identical to the figure the run's earlier build
-produced**, measured independently over a different build of the same commit: 627 enumerated, 191 own,
-110 carrying bytecode, 99,723 class entries, 422 copied dependencies, 14 fixtures, 0 undecided, and the
-same 287/149 split of the excluded files' coordinate sources. The byte total differs by 78 bytes and
-every per-file digest differs, because a JAR embeds entry timestamps — which is exactly why the graph's
-input set is measured from the tree that produced it rather than carried over.
+Every figure here is `build-reactor.log` STEP 13's own measurement, except the two marked as
+`cpg-frontend.log` STEP 1's, which measured the set at the moment it was handed to the frontend.
 
-Each excluded file's coordinate is recorded: 287 from the archive's own Maven descriptor and 149 from
-the filename alone. The per-project exclusions are `core` 12 copied plus 3 fixtures,
-`sql/connect/client/jvm` 46 plus 2, `assembly` 340, `examples` 23, `mllib` 1, `sql/core` 2 fixtures,
-`sql/hive` 4 fixtures, `sql/connect/common` 2 fixtures and `sql/hive-thriftserver` 1 fixture.
+| Measurement | Value | Record |
+| --- | --- | --- |
+| JAR files enumerated under the 40 projects' build directories | **627** | `build-reactor.log` STEP 13 |
+| Classified as a project's own | **191**, totalling **431,184,822 bytes** | `build-reactor.log` STEP 13; the same two figures in `cpg-frontend.log` STEP 1 |
+| Of those, carrying bytecode | **110** | `cpg-frontend.log` STEP 1 |
+| Class entries across the own artifacts | **99,723** | `cpg-frontend.log` STEP 1 |
+| **Excluded copied dependency JARs** | **422** (`copied_runtime_dependency`) | `build-reactor.log` STEP 13, and recorded again as "copied dependencies excluded 422 (recorded, never supplied)" in `cpg-frontend.log` STEP 1 |
+| Also excluded: test-resource fixtures inside a module's compiled-output tree | **14** (`test_resource_fixture`) | `build-reactor.log` STEP 13 |
+| Undecided provenance | **0** | `build-reactor.log` STEP 13 |
+| Arithmetic | own 191 + excluded (422 + 14) + undecided 0 = **627** enumerated | — |
 
 **Nothing the project itself emitted was sampled or dropped.** Main artifacts, `original-` pre-shade
 siblings, shaded siblings, classifier artifacts, `-tests` artifacts, `-sources` and `-test-sources`
-artifacts, and the unattached shaded shuffle JAR are all retained.
+artifacts, and the unattached shaded shuffle JAR are all retained. The two exclusion classes are named
+and counted rather than left silent, and neither removes anything a project itself produced: a copied
+runtime dependency carries another project's coordinate, and a test-resource fixture is a JAR checked
+into a module's resources rather than emitted by its build.
 
-### The staging manifest
+No per-project breakdown of those exclusions is stated, because no record in this tree carries one.
+STEP 13 publishes the four totals above and the per-project **own-artifact** counts, and this file
+states exactly what it can cite.
+
+### Staged input set 1 — the 191 archives this run's frontend was given
 
 The bundled `jimple2cpg` accepts **one** input path, so "every JAR the build produced" and "one input
-path" are reconciled by staging the inventory into a single directory.
+path" are reconciled by staging the inventory into a single directory. Everything below is
+`cpg-frontend.log`'s record of that invocation, and the honest state of the evidence is stated with it.
+
+| Property | Value | Record |
+| --- | --- | --- |
+| Own artifacts supplied | **191**, totalling **431,184,822 bytes** — the complete set, nothing excluded | STEP 1 |
+| Carrying bytecode / class entries across them | 110 / 99,723 | STEP 1 |
+| Distinct sha256 across the 191 | **189** | STEP 1 |
+| Copied dependencies excluded and recorded, never supplied | 422 | STEP 1 |
+| Bidirectional staging assertion | recorded result **True**, before the invocation | STEP 1 |
+| Staged-name form | `<module-path-with-slashes-as-underscores>__<original-filename>` | STEP 1's staged names, e.g. `common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar` |
+| Exclusion flags used | **none** — "no `--exclude`, no `--exclude-regex`, no `--depth`", `--recurse` as the AAP mandates, stdin closed | STEP 4 |
+| Invoked | 2026-08-30T23:21:24.942Z, working directory outside every repository checkout | STEPS 1 and 4 |
+
+**What is no longer measurable, stated rather than implied.** The staging tree itself was written into
+the private scratch of the clone that ran the frontend and was removed with it, so `cpg-frontend.log`
+STEP 1 records the staged-file count and the manifest-entry count as **not measurable at
+log-generation time** (`None`) rather than restating them. **This checkout contains no staging tree**:
+`harness/artifacts/` holds `MANIFEST.json`, `logs/` and `raw/` and nothing else, and no
+`harness/artifacts/cpg-input*` path is tracked. So the record of the input set — the log above, and
+the 191 per-archive name/size/sha256 entries `harness/artifacts/MANIFEST.json` retains for it under
+`cpg_input_attempt1`, which marks itself `present_in_this_checkout: false` — is the evidence, and no
+tree is cited as though a reader could walk it.
+
+**One 81-byte disagreement between two records of that same set, recorded rather than reconciled.**
+`MANIFEST.json`'s `cpg_input_attempt1.total_bytes` is **431,184,903** over the same 191 files, against
+**431,184,822** in `build-reactor.log` STEP 13 and `cpg-frontend.log` STEP 1. This file uses the
+build-and-frontend figure throughout, because those two are independent measurements that agree with
+each other and they are the ones the invocation was made from; the manifest's total is on the record
+beside it and neither is silently dropped.
+
+**Why the bidirectional form of the assertion is the one that matters.** A set discards multiplicity,
+so two different multisets can share both a count and a hash set — and this input set is a live example:
+191 files carry only **189** distinct digests. A set-based check would have compared 191 to 191 and 189
+to 189 and passed even if one file had been staged twice and another omitted. The assertion recorded is
+therefore the one-to-one mapping in both directions, and it was recorded **before** the frontend ran,
+so it cannot have been shaped to fit what a frontend happened to ingest.
+
+**What this establishes, and what it cannot.** It establishes **delivery**: every JAR this run's build
+produced was assembled into the set the frontend was given, and no archive was withheld from it. It
+establishes nothing at all about the graph that exists, because that invocation produced no graph
+(STATUS). Coverage — whether a module's own code reached the graph the Joern stages load — is a
+different question against a different input set, and it is section 6's.
+
+### Staged input set 2 — the 62 archives the graph that loads was built over
+
+This is the input set every figure in sections 5 and 6 belongs to. It was measured member by member
+from the tree on disk by `harness/artifacts/logs/cpg-input-inventory.json`, which states its own
+provenance in the same file: the graph is `/opt/blitzy-harness/cpg/spark.cpg` and "**It was written by
+PROVISIONING over this staging tree, not by this run.**"
 
 | Property | Value |
 | --- | --- |
-| Staging directory | `harness/artifacts/cpg-input` (in this clone's checkout; `.gitignore:31` `artifacts/` keeps it out of git's ordinary collection) |
-| **Absent before use** | **yes** — the staging script halts and exits non-zero if the directory exists, so a run that reached the copy step is a run that found it absent; the directory's own birth time, read with `stat`, is **23:19:24.607Z** and its last file was copied at **23:19:28.541Z** |
-| Never cleared, never reused | a pre-existing staging tree is a halt (AAP §0.9.2): a stale archive left in it would enter the graph silently, and a graph's silence about a module is indistinguishable from a clean result |
-| Staged-name form | `<module-path-with-slashes-as-underscores>__<original-filename>`, with the reactor root project's slug the literal `root` since it has no module path |
-| Staging method | file copy, chosen over a hard link so the staged bytes are independent of the build tree and can be re-hashed as an independent measurement |
-| Ordering | by module path, then by the artifact's path relative to the build tree — recorded so the input set is reproducible byte for byte |
-| Staged files / bytes | **191** / **431,184,822** |
+| Staging tree | `/opt/blitzy-harness/cpg-input` — host-global, provisioning's, read-only to this run |
+| Archives | **62** |
+| Total bytes | **285,122,371** |
+| Distinct sha256 | **62** — the archive-to-digest mapping is injective in both directions, so no two members are the same bytes under two names and no member is missing a digest |
+| Class entries across them | **76,151** |
+| Reactor projects represented | **31** of the 38 JAR-packaging projects |
+| Reactor projects absent entirely | **7**, each named in the record with the same reason: no archive of that project is in the tree |
+| Archives marked that module's primary artifact | 32 — `common/network-yarn` has two, its main artifact and its unattached shaded shuffle JAR |
 
-**The assertion, and why it is not a count plus a hash set.** The mapping asserted is: every inventory
-entry maps to exactly one staged name and one sha256, and every file found in the staging directory
-maps back to exactly one inventory entry — **total and injective in both directions**. Result `true`,
-computed at **23:19:29.813Z** — before the frontend's **23:21:24.937Z** invocation, which is what
-`computed_before_the_frontend_ran = true` records. Inventory → staged: 191
-mapped, 0 unmapped, 0 violations. Staged → inventory: 191 mapped, 0 unmapped, 0 names missing on disk,
-0 violations. All 191 staged digests were re-hashed from the disk listing rather than from the staging
-loop's own list, with 0 mismatches.
-
-A set discards multiplicity, so two different multisets can share both a count and a hash set — and
-**this input set is a live example of why that matters**: 191 files carry only 189 distinct digests,
-over two collision groups, both inside `connector/kafka-0-10-assembly` (its `original-` artifact equals
-its `-tests` artifact byte for byte, and its `-sources` equals its `-test-sources`). A set-based check
-would have compared 191 to 191 and 189 to 189 and passed even if one file had been staged twice and
-another omitted.
-
-**This logged manifest, not a per-module class search, is what establishes that every JAR the build
-produced was in the input set this run assembled** — one file at a time and in both directions, rather
-than by a count and a hash set. Two precisions follow, and both matter. It was logged **before** any
-frontend invocation, so it cannot have been shaped to fit whatever a frontend happened to ingest. And
-it is a statement about the input set, not about the graph that exists: per **D3** the frontend that
-wrote that graph was given 62 archives from 31 modules, so these 191 archives were not its input, and
-no claim that they reached the graph is made here or in section 6. Coverage — whether a module's own
-code reached the graph — is a separate question with a separate proof, and it is section 6's.
+The 7 absent projects are `connector/kafka-0-10`, `connector/kafka-0-10-assembly`,
+`connector/kafka-0-10-sql`, `connector/kafka-0-10-token-provider`, `examples`, `sql/connect/shims` and
+`tools`. Section 3 records that all seven produced their own main artifact in this run's build, and
+section 6 records what their absence from this input set does to their coverage verdict. The two facts
+are separate and both are stated.
 
 ---
 
-## 5. Determinism: what is reproducible, and what is not measurable
+## 5. The graph: one identity, its counts against the expected values, and what is not measurable
 
-### Which input set these metrics belong to, and which graph is at the AAP's path
+### The graph's identity and provenance — one pair, one record of account
 
-These are two different things at this checkpoint, and conflating them would misattribute every number
-in this section.
+**Which file.** `harness/cpg/spark.cpg` is a 33-byte **symlink** to `/opt/blitzy-harness/cpg/spark.cpg`,
+one hop with no intermediate indirection, so the AAP's named path and the environment's `HARNESS_CPG`
+are the same repository path resolving to one file — `joern-preflight.log` enumerates every subject and
+reports "All 1 subject(s) resolve to one file: yes". The size is always taken through the link: the
+33-byte no-follow reading is the length of the target path string and would describe nothing.
 
-**The metrics below belong to this run's own frontend invocation over its complete 191-artifact input
-set** — the invocation D1 records, which built the graph in memory and then failed in serialization.
-They are measurements of that run's processing of the complete set, and they are valid as such: the
-extraction and AST passes completed over every staged artifact, and the failure came afterwards, in
-persistence. `cpg-frontend.log` is that invocation's log and is the sole source for them.
+**Which bytes, and who wrote them.** One pair, and one record of account for it:
 
-**The graph at the AAP's path is a different artifact, written by provisioning.**
-`harness/cpg/spark.cpg` is a 33-byte **symlink** to `/opt/blitzy-harness/cpg/spark.cpg`, one hop with
-no intermediate indirection, and both names resolve to one file. The size is always taken through the
-link: the 33-byte no-follow reading is the length of the target path string and would describe nothing.
-**Three** identities are on record for that one path, which is **D4**:
+| | |
+| --- | --- |
+| Bytes | **541,309,809** |
+| sha256 | **`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`** |
+| Written by | **PROVISIONING**, 2026-08-30T19:18:37Z — **not by this run** |
+| Record of account | `harness/artifacts/logs/cpg-identity.txt` |
+| How that record was resolved | `harness/lib/preflight_graph_identity.py` `record_of_account()`, the same function the Stage 3 gate calls; it prefers this checkout's own frontend write-time pair and fell back to the record written beside the graph because this run's frontend wrote no graph |
+| The record it fell back to | `/opt/blitzy-harness/provision-log/cpg-identity.txt`, written 2026-08-30T19:19:09Z, corroborated by `/opt/blitzy-harness/provision-log/cpg-record.txt`; both were read and agree, and a disagreement between them would have prevented the record being written at all |
+| Re-measured while that record was written | 2026-09-01T14:54:56.741Z — byte size **MATCH**, sha256 **MATCH** |
 
-| When measured | Bytes | sha256 | Methods |
+**Re-verified immediately before every load, and every check logged.** The graph is inherited, so
+nothing about it is assumed between stages: the bytes are re-read and re-hashed before each load and a
+mismatch halts instead of proceeding.
+
+| Load | When the check ran | Record | Result |
 | --- | --- | --- | --- |
-| The verification load, the Stage 3 Joern runner, and probe queries 01 and 02 — each re-verified immediately before its own load | 541,255,894 | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | 1,397,339 |
-| Probe query 03, likewise re-verified immediately before loading | 548,118,435 | `f8c71562…` | 1,399,866 |
-| At this checkpoint, from the bytes on disk | 541,309,809 | `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` | not loaded — no load was performed against these bytes |
+| Stage 2 `importCpg` verification load | 2026-09-01T13:31:15.334Z | `cpg-verify.log`, "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY BEFORE THE LOAD" | MATCH on both fields |
+| Stage 3 Joern runner | 2026-09-01T14:52:54Z | `joern-preflight.log` | **VERDICT: PASS** — and its binding caller has no branch that reaches the runner after a non-zero gate |
+| Stage 5 probe query 01 | 2026-09-01T14:56:12.096Z | `probe-01-callgraph-unguarded-driver-launch.identity.txt` | `bytes=541309809`, same sha256 |
+| Stage 5 probe query 02 | 2026-09-01T15:08:05.774Z | `probe-02-dataflow-unguarded-driver-launch.identity.txt` | `bytes=541309809`, same sha256 |
+| Stage 5 probe query 03 | 2026-09-01T15:30:31.248Z | `probe-03-parameterized-handler-sink-pairs.identity.txt` | `bytes=541309809`, same sha256 |
 
-Provisioning has re-run against this host more than once and replaced the shared file each time. Two
-things follow, and they are different:
+**One live contradiction, recorded with both values and repaired by nothing.**
+`harness/ENVIRONMENT.md` §7 states this graph's identity explicitly, and the filesystem contradicts it:
 
-- **No load in this run ever read bytes other than the ones it had just recorded.** Every load
-  re-verified size and digest immediately beforehand and every comparison matched; probe query 02's
-  reproduction check **halted** on a mismatch rather than loading mismatched bytes. That is the
-  protection the plan's re-verification rule exists to give, and it held.
-- **The identity `harness/ENVIRONMENT.md` states is no longer the identity on disk.** That is a record
-  contradiction on an inherited artifact, it is of the halting kind, and §7 states it in full with both
-  values. Nothing repairs it: the file is host-global, shared with concurrent readers, and was not
-  written by this run.
+| Source | Bytes | sha256 | Methods |
+| --- | --- | --- | --- |
+| `harness/ENVIRONMENT.md:284-286`, the provisioned record in this clone | 541,255,894 | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | 1,397,339 |
+| The bytes on disk, measured through the symlink and loaded by this run | **541,309,809** | **`4616845a…4730c7`** | **1,396,899** |
 
-Per **D1**, no graph at that path was written by this run. This run attempted to write one, over the
-complete input set, and the attempt failed for the reason STATUS states and `cpg-frontend.log` STEP 8
-proves from the failing method's bytecode.
+Neither the byte size nor the digest is a field the request's expected-values table carries, so on those
+two fields the record is the only statement and observation contradicts it. That is AAP §0.1.3's fourth
+case, and `harness/artifacts/logs/gate-record.json` carries it as the gate halt
+`gate.environment_record_graph_identity_agreement` — one of the two halts in a gate whose overall
+verdict is `halt`. The cause is inherited rather than produced: the host was re-provisioned on
+2026-08-30 and the shared graph was replaced, and this run built no graph of its own. Repair is not
+available in any case — the file is host-global and read by concurrent clones — so both values are
+recorded wherever either is cited, and neither is chosen.
+
+### The three counts, against their expected values
+
+These are `cpg-verify.log`'s measurement, PHASE 1, taken by the `importCpg` load of exactly the bytes
+above — one load, one measurement, cited here and by section 6 rather than measured twice. They describe
+**provisioning's graph over its 62-archive input set**, never the complete-input graph the AAP mandates,
+which does not exist.
+
+| Count | Expected | Observed | Delta | Rule, and how the difference is classified |
+| --- | --- | --- | --- | --- |
+| Methods | 898,336 | **1,396,899** | +498,563 | **One-sided**: floor 853,420, no upper bound. The observation is above the floor and above the anchor, which AAP §0.9.3 **records** rather than halts |
+| Type declarations | 87,381 | **119,721** | +32,340 | Anchor, reported; no threshold applies — a **recorded difference** under AAP §0.9.3, never a halt |
+| Files | 38,818 | **45,037** | +6,219 | Anchor, reported; no threshold applies — a **recorded difference** under AAP §0.9.3, never a halt |
+
+The load's own supporting figures, from the same PHASE 1: internal methods **1,307,112**, external
+methods **89,787**, methods under `org.apache.spark.*` **925,445** (66.25 % of all methods), and
+`pom.properties` file nodes **102**. The load ran under Temurin **21.0.12.1+1** (major 21) at
+**`-J-Xmx64g`**, proven committable at the gate with `-Xms64g -Xmx64g -XX:+AlwaysPreTouch`, into a
+workspace outside the repository, and took **885,009 ms**.
+
+**The two checks the floor exists for.** `methods > 0` — 1,396,899 is not zero, and a graph that loads
+with zero methods is indistinguishable from a clean scan. And 1,396,899 is at or above the one-sided
+floor of 853,420, so the truncation signature the floor exists to catch is absent. **No input was
+trimmed or added to move any of these three numbers**, in either direction.
+
+**What is not established, and is not guessed.** The *cause* of the excess over the anchors. The AAP's
+stated rationale is the six extra JAR producers a full reactor packages, and those six are measured in
+section 6 as **absent from this graph's input set**, so that mechanism cannot be the explanation here.
+`cpg-verify.log` records the cause as not established and this file does the same rather than inventing
+one.
 
 ### The two observed metrics
 
 Both metrics below are `harness/artifacts/logs/cpg-frontend.log`'s recount from the frontend's own
-preserved output stream, and both are **observed facts of that run rather than pre-approved
-expectations**. Neither is treated as acceptable because a document expected some other number.
+preserved output stream, and both are **observed facts of this run's own invocation — the one that
+failed and produced no graph — rather than pre-approved expectations**. They describe processing of the
+complete 191-artifact set, not the graph on disk, whose own figures are the subsection above. Neither is
+treated as acceptable because a document expected some other number.
 
 | Observed metric | Value |
 | --- | --- |
@@ -590,41 +788,35 @@ expectations**. Neither is treated as acceptable because a document expected som
 | AST-creation failures | **23** lines over **23** distinct classes |
 | The exception behind every one of them | `java.lang.RuntimeException: Chain already contains object: <fqcn>`, raised from `soot.util.HashChain.addLast` via `SootClass.setApplicationClass` under `AstCreationPass.runOnPart` — one failure class, not an assortment |
 
-**Overwrites grouped by the module and artifact the affected entries are contained in.** Of the 27,843
-distinct destinations, **17,305** are contained in exactly one module's artifacts — and **17,288** of
-those in more than one artifact *of that same module*, which is the shaded artifact and its
-`original-` pre-shade sibling duplicating each other. **10,161** are contained in more than one
-module's artifacts, which is cross-module vendoring: `org/sparkproject/io` netty classes, and
-`org/sparkproject/guava` and `org/sparkproject/connect` likewise. By destination package the largest
-groups are `org/apache/spark/**` at 20,454 distinct destinations over 25,788 warnings, then
-`org/sparkproject/io/**` 2,593, `org/sparkproject/connect/**` 2,017, `org/sparkproject/guava/**`
-2,017, `org/apache/hive/**` 126, `org/junit/internal/**` 98, and `META-INF/maven/org.apache.spark/**`
-80 over 326.
+**Overwrites attributed to the modules whose own artifacts carry the affected entry.** STEP 6 states
+the caveat before the numbers, and it is repeated here because these figures are not additive:
+*"a warning is attributed to every module whose own artifacts carry that entry, so these figures
+overlap by construction and do not sum to the total."* The largest attributions are
+`sql/connect/client/jvm` **13,056**, `sql/connect/server` **8,240**, `sql/connect/common` **5,934**,
+`sql/catalyst` **5,685**, `common/network-yarn` **5,614**, `sql/core` **4,320** and `core` **3,294**;
+the smallest are `sql/connect/client/jdbc` **253** and `(root parent)` **218**; and every one of the 38
+JAR-packaging projects appears in the listing alongside the root parent. A further **403** warnings are
+attributed to no own artifact at all, recorded verbatim as *"(entry not present in any own artifact —
+extracted from a nested archive)"* — `--recurse`, which AAP §0.5.1 mandates and STEP 4 confirms was
+passed, descends into archives nested inside the staged ones, so those destinations have no top-level
+staged entry to match. **No finer grouping is stated**, because STEP 6 publishes the entry-kind split
+and this module attribution and nothing else: there is no destination-package breakdown and no
+containment analysis in it to cite, so none appears here.
 
-**The 377 destinations that match no entry name in any staged archive are accounted for individually,
-not rounded away.** They come from *nested* archives: 12 of the 191 staged artifacts carry 28 nested
-`.jar` entries between them — test fixtures such as `artifact-tests/junitLargeJar.jar`,
-`TestHelloV2_2.13.jar`, `TestUDTF.jar`, `SPARK-33084.jar` and `data/files/TestSerDe.jar`, all inside
-`-tests` and `-test-sources` artifacts of `core`, `sql/core`, `sql/hive`, `sql/hive-thriftserver`,
-`sql/connect/common` and `sql/connect/client/jvm` — and `--recurse`, which the plan mandates, descends
-into them. By family the 377 are **350** junit-framework classes, **42** test-fixture classes
-(`HelloWorld/Main`, `MyCoolClass`, `com/example/Hello`, the Hive UDTF fixtures), **6** `META-INF`
-descriptors of those nested fixture projects, and **5** `module-info.class` from multi-release entries.
-Every one is a nested-archive entry rather than a top-level entry of a staged artifact, which is why a
-containment lookup against the staged archives' own entry names does not find them.
+**AST-creation failures grouped the same way.** All 23 are `sql/connect` classes. By package: **10**
+under `org/apache/spark/sql/connect/client/arrow`, **6** under `org/apache/spark/connect/proto`, **6**
+under `org/apache/spark/sql/connect/client`, and **1** `org/apache/spark/sql/connect/StreamingQueryListenerBus`.
+That sums to 23, and STEP 7 lists all 23 class names in full.
 
-**AST-creation failures grouped the same way.** All 23 are `sql/connect` classes: **13** under
-`org/apache/spark/sql/connect/client/arrow`, **4** under `org/apache/spark/sql/connect/client`, **5**
-under `org/apache/spark/connect/proto`, and **1** `org/apache/spark/sql/connect/StreamingQueryListenerBus`.
-Total accounted for: 23.
-
-Both figures are compared against the provisioning runbook's expectations and both differ, with both
-values recorded: roughly 5,700 overwrite warnings expected against **33,784** observed, and roughly 36
-protobuf-generated AST failures expected against **23** observed of which **5** are protobuf-generated.
-The overwrite figure is higher for a reason this run can name rather than guess at — its input set is
-191 artifacts including every pre-shade sibling and every `-tests` artifact, against the 62 archives
-the runbook's own guidance produces, and pre-shade/shaded duplication alone accounts for 17,288 of the
-distinct destinations.
+**Both metrics differ from the provisioned record's, both values are on the record, and they are not
+the same measurement.** `harness/ENVIRONMENT.md:311-317` records **31,598** overwrite warnings over
+**26,221** distinct class files and **173** AST-creation failures, against a runbook expectation of
+roughly 5,700 and roughly 36. Those belong to **provisioning's own frontend run over its 62-archive
+input set** (`harness/ENVIRONMENT.md:849`), a different invocation over a different input from this
+run's 191-archive attempt, so the difference is not a discrepancy to reconcile: this run's figures are
+higher because its input carries every pre-shade sibling and every `-tests` artifact that the
+62-archive set leaves out. `cpg-frontend.log` is the sole owner of this run's two figures, and no
+figure of this run's is restated from any other record.
 
 ### The limitation, stated rather than worked around
 
@@ -640,69 +832,68 @@ labelled as containment at every use. What *is* reproducible is the input set it
 staging manifest in section 4 fixes it byte for byte, so the input to any future frontend run is
 determined even where the outcome of a given collision is not.
 
-### The `sql/connect/shims` collision, resolved by querying the graph
+### The `sql/connect/shims` collision, and what can and cannot be said about it
 
 This is the collision most likely to be misread as a coverage problem, because `sql/connect/shims`
-ships stub `SparkConf`, `SparkContext` and `RDD` classes that `core` and the SQL modules also ship. It
-is settled the only way permitted — by querying the graph and reporting what is there, not by inferring
-a winner. `cpg-verify.log` STEP 18 ran the queries:
+ships stub `SparkConf`, `SparkContext` and `RDD` classes that `core` and the SQL modules also ship. Two
+measured facts bound what may be stated about it, and nothing beyond them is claimed.
 
-| Class queried | Type declarations | Methods |
-| --- | --- | --- |
-| `org.apache.spark.SparkConf` | 2 | 298 |
-| `org.apache.spark.SparkContext` | 2 | 1,100 |
-| `org.apache.spark.rdd.RDD` | 2 | 1,022 |
-| `org.apache.spark.api.java.JavaRDD` | 2 | 74 |
-| `org.apache.spark.unused.UnusedStubClass` | 29 | 29 |
+- **In this run's 191-archive input set the collision is real, and it is measured only as far as the
+  log measures it.** `cpg-frontend.log` STEP 6 attributes **361** overwrite warnings to
+  `sql/connect/shims`, under the same overlapping-attribution caveat as every other module's figure.
+  Which definition survived any one of them is **not** measurable from the frontend's output, for the
+  reason stated immediately above, so no winner is named and no per-class outcome is inferred.
+- **In the graph that exists the question does not arise.** Both `spark-connect-shims` archives are
+  **absent** from its 62-archive input set (section 4), so no shims stub is in that graph and no
+  collision with one occurred in it. That absence is also why section 6 records `sql/connect/shims`
+  as NO VERDICT OBTAINABLE — an input-set fact, not a graph defect and not a build failure, since
+  section 3 records the project producing its own main artifact.
 
-All four classes the shims artifact ships as client-only stubs are present, each carrying a full
-implementation's worth of methods rather than the near-zero a stub would show. **Which archive supplied
-those definitions is not claimed**, and in that graph the question does not arise: its input set
-excluded both `spark-connect-shims` archives, so no collision with the shims stubs occurred in it at
-all, and the absence of a shims coverage verdict in section 6's first column is an input-set fact
-rather than a graph defect. `org.apache.spark.unused.UnusedStubClass` is included for scale: it comes
-from Spark's `org.spark-project.spark:unused` stub dependency and is shipped by 35 modules, which is
-also why several modules' shared-class counts read as 1 against nearly every other module.
-
-**In this run's own complete input set the collision is real, and it is measured rather than assumed.**
-Both `spark-connect-shims` archives are present, so each of the eleven classes the shims artifact ships
-as a stub is contained in **four** archives across **two** modules — the shims shaded and pre-shade
-pair together with `core`'s pair for `SparkConf`, `SparkContext`, `rdd/RDD` and `api/java/JavaRDD`, and
-with `sql/core`'s pair for `ExperimentalMethods`, `SparkSessionExtensions`, `execution/QueryExecution`,
-`internal/SessionState`, `internal/SharedState`, `sources/BaseRelation` and
-`util/ExecutionListenerManager`. Each was overwritten exactly **3** times, consistent with four
-containing archives and one surviving definition. `org.apache.spark.unused.UnusedStubClass` sits in 35
-archives across 35 modules and was overwritten 34 times. Which definition survived is not measurable
-from the frontend's output, for the reason stated immediately above, and no winner is claimed. What is
-in the graph is settled by querying it — section 6's second column does that in the per-module witness
-graph, where the shims primary artifact is present, and the answer is substantive: **there, all eleven
-classes carry stub-sized method counts** (`SparkConf` 8, `SparkContext` 2, `rdd.RDD` 8,
-`api.java.JavaRDD` 2, and 2 to 4 for the other seven) against the 298, 1,100, 1,022 and 74 the same
-classes carry in the graph at the sanctioned path, whose input excluded the shims archives. So in a
-graph containing the shims artifact the stub definitions displace the real ones for those eleven
-classes. That is what the graph contains, measured by querying it; it is not a claim about which
-archive the frontend read last.
+**No method counts are quoted for those classes, deliberately.** The only load this file cites,
+`cpg-verify.log`, queried the 26 module coverage witnesses (PHASE 2) and the four probe-surface classes
+(PHASE 3); it did not query `org.apache.spark.SparkConf`, `SparkContext`, `rdd.RDD` or
+`api.java.JavaRDD`. No record in this tree carries their counts for this graph, so none is stated here,
+and no comparison is made against a narrower graph because none was retained (STATUS).
 
 ---
 
 ## 6. The per-module graph coverage verdict
 
-This file owns this verdict. Its inputs are `harness/artifacts/logs/cpg-input-inventory.json`, which
-measured witness exclusivity from the archives, and `harness/artifacts/logs/cpg-verify.log`, which
-queried the graph for each witness under two `importCpg` loads this run performed.
+This file owns this verdict. It has exactly two inputs and neither is a document:
+`harness/artifacts/logs/cpg-input-inventory.json`, which computed witness exclusivity by walking the
+62 archives of the graph's input set, and `harness/artifacts/logs/cpg-verify.log` PHASE 2, which
+queried each surviving witness in the graph under the single `importCpg` load whose identity section 5
+states. `harness/artifacts/logs/cpg-module-coverage.json` is **not a third input**: it is a rendering of
+those same two files, regenerated in this generation against the graph identity section 5 states, and it
+agrees with the table below row for row — 31 modules, 26 COVERED, 5 NO VERDICT OBTAINABLE, 0 presence
+verdicts, 0 prefix verdicts. Nothing below is derived from it, and its `supersedes` field records the
+clone `w-001` edition it replaced.
+
+**Which graph generation the first verdict column measures, stated before the table rather than after
+it.** `cpg-verify.log`'s two loads read the generation of `/opt/blitzy-harness/cpg/spark.cpg` whose
+identity was **541,255,894 bytes, sha256 `26d327cc…`** (`cpg-verify.log:200-201,258-259`) — the
+generation **D4** names as retired-and-attributed, the same one the Stage 3 Joern runner read. Every
+"graph result" and every verdict in the first column below, and the type-declaration cross-reference at
+the end of this section, are measurements of **that** generation, and they are not restated as
+measurements of the bytes currently on disk. The graph on disk carries its own coverage verdict over its
+own contributing modules, from its own record of account; it is a **third**, differently-denominated
+statement and it has its own labelled subsection below. Neither is totalled with the other, and neither
+is substituted for the other.
 
 ### The two questions, kept apart
 
 **Delivery** — was every JAR the build produced in the input set this run assembled? — is already
-proved, and not by a class search: section 4's staging manifest proves it one file at a time, total and
-injective in both directions over 191 files, logged before any frontend invocation. What that does
-**not** establish, and what nothing can establish for this graph, is that those 191 archives entered
-it: per **D3** the frontend that wrote this graph was given 62 archives from 31 modules. That
-difference is the whole reason seven modules below have no verdict obtainable, and it is why delivery
-and coverage cannot be run together here.
+settled, and not by a class search: section 4's staging manifest settles it one file at a time, total
+and injective in both directions over 191 files, recorded before any frontend invocation. What that
+does **not** establish is that those 191 archives are in the graph that exists. They are not: the
+frontend invocation over them wrote no graph at all (STATUS, D1), and the graph every Joern stage
+loaded was written by provisioning over **62 archives from 31 modules** (D3).
 
-**Coverage** — did a module's own code reach the graph? — is this section's question, and it has exactly
-one test, stated once and applied uniformly:
+**Coverage** — did a module's own code reach the graph the runners actually read? — is this section's
+question. It is asked of that 62-archive graph, because that is the only graph there is, and the
+answer is bounded by its input set in two different ways that are never merged below.
+
+### The one admissible test, and the one fallback the AAP names
 
 > **A class present in that module's primary artifact — its main, unclassified, non-`original-`,
 > non-`-tests` JAR — and absent from every other module's artifacts.**
@@ -711,311 +902,147 @@ Three qualifications, all load-bearing:
 
 - **A shared package prefix is never admissible evidence.** Every Spark module ships under
   `org.apache.spark`, so a prefix test lets one module vouch for a dozen absent ones. No prefix test
-  appears anywhere in this verdict or in either producer log it rests on.
+  appears in this verdict or in either producer record it rests on.
 - **A class shared with a same-module sibling still qualifies**; a class shared with **another module**
-  does not. That is precisely what makes the test satisfiable for a shaded artifact and its pre-shade
-  sibling: they share every class, so "unique to that JAR" is unsatisfiable while "unique to that
-  module" is not.
-- **Where no such class exists, the module-exclusive `META-INF/maven/**/pom.properties` file node is
-  accepted and named as the weaker witness.** `sql/connect/shims` is the module AAP §0.5.1 anticipates
-  needing that fallback, and it is: 0 classes are exclusive to it, because it ships stub `SparkConf`,
-  `SparkContext` and `RDD` classes that `core` and the SQL modules also ship. Its weaker witness is
-  exactly `META-INF/maven/org.apache.spark/spark-connect-shims_2.13/pom.properties`, confirmed
-  module-exclusive at the archive level.
+  does not. That is what makes the test satisfiable for a shaded artifact and its pre-shade sibling,
+  which share every class: "unique to that JAR" is unsatisfiable, "unique to that module" is not.
+- **Where no such class exists, the module-exclusive `META-INF/maven/**/pom.properties` node is the
+  weaker witness AAP §0.5.1 names, and it is the only fallback.** There is no third kind. In
+  particular, **presence of a class that another module's archive also ships is not a coverage
+  verdict** and is not recorded as one anywhere in this section: it would let a shaded archive vouch
+  for a module whose own artifact might be absent from the input entirely, which is the single failure
+  mode the injectivity requirement exists to prevent.
 
-**Exclusivity was re-derived independently rather than taken on trust.** `cpg-verify.log` STEP 14
-recomputed the class-to-module index by reading all 191 own artifacts directly — 67,135 distinct class
-names across them, 45,501 across the primary artifacts alone, the same two figures the inventory
-states as its own measurement basis — and **not one of the 29 declared class witnesses fails
-independent exclusivity**. The shims descriptor node is confirmed module-exclusive by that recount too.
+### How the witnesses were computed, and then queried
 
-### The verdict, one row per JAR-producing module
+`cpg-input-inventory.json` walked all 62 archives of the input set and took, per module, the classes of
+that module's primary artifact minus the union of every other module's classes. **26 of the 31 modules
+in the input own such a class; 5 own none.** Each of the 26 surviving candidates was then queried in the
+graph by exact type-declaration full name, and each of the 5 was checked for the weaker witness as
+well. Both steps are one measurement each, cited here and nowhere re-derived.
 
-The two `packaging=pom` projects — the root parent and `assembly` — have no primary artifact and are
-outside this test by construction, so they carry no coverage verdict. That leaves the 38
-JAR-producing modules below. Every row carries a **named witness**: a class exclusive to the module, the
-module-exclusive `pom.properties` node, or a named least-shared class explicitly labelled presence
-evidence with the other module's artifact that also ships it named. No row rests on a package prefix.
-The "graph result" column is the query `cpg-verify.log` ran — `cpg.typeDecl.fullNameExact(<witness>)`
-for a class witness, `cpg.file.name.count(_.endsWith(<node>))` for the descriptor node.
+### The verdict — the 26 modules covered on injective evidence
 
-| Module (JAR-producing) | Witness kind | Witness, as queried | Archive-level exclusivity | Graph result | Verdict |
+Every row's witness is a class **in that module's primary artifact and in no other module's artifact**
+across the 62-archive input set, queried in the graph by exact type-declaration full name
+(`cpg.typeDecl.fullNameExact(<witness>)`). The two count columns are
+`cpg-input-inventory.json`'s archive-level measurement; the graph column is `cpg-verify.log`
+PHASE 2's query result from the single `importCpg` load of the identity in section 5.
+
+| Module | Witness class, as queried | Classes in its primary artifact | Of those, exclusive to the module | Graph result | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| `common/sketch` | class exclusive to the module | `org.apache.spark.util.sketch.BitArray` | exclusive; 15 classes exclusive to this module | PRESENT — 2 type declarations, 28 methods | **COVERED** |
-| `common/kvstore` | class exclusive to the module | `org.apache.spark.util.kvstore.ArrayWrappers` | exclusive; 38 classes exclusive to this module | PRESENT — 2 type declarations, 4 methods | **COVERED** |
-| `common/network-common` | least-shared class — presence evidence only | `org.apache.spark.network.TransportContext` | NOT exclusive — also shipped by `common/network-yarn` | PRESENT — 3 type declarations, 57 methods | **COVERED** on presence evidence, not exclusivity |
-| `common/network-shuffle` | least-shared class — presence evidence only | `org.apache.spark.network.sasl.ShuffleSecretManager` | NOT exclusive — also shipped by `common/network-yarn` | PRESENT — 3 type declarations, 21 methods | **COVERED** on presence evidence, not exclusivity |
-| `common/unsafe` | class exclusive to the module | `org.apache.spark.sql.catalyst.expressions.HiveHasher` | exclusive; 64 classes exclusive to this module | PRESENT — 2 type declarations, 12 methods | **COVERED** |
-| `common/utils` | class exclusive to the module | `org.apache.spark.BreakingChangeInfo` | exclusive; 163 classes exclusive to this module | PRESENT — 2 type declarations, 16 methods | **COVERED** |
-| `common/utils-java` | least-shared class — presence evidence only | `org.apache.spark.QueryContext` | NOT exclusive — also shipped by `common/network-yarn` | PRESENT — 3 type declarations, 24 methods | **COVERED** on presence evidence, not exclusivity |
-| `common/variant` | class exclusive to the module | `org.apache.spark.types.variant.ShreddingUtils` | exclusive; 33 classes exclusive to this module | PRESENT — 2 type declarations, 8 methods | **COVERED** |
-| `common/tags` | least-shared class — presence evidence only | `org.apache.spark.annotation.AlphaComponent` | NOT exclusive — also shipped by `connector/kafka-0-10-assembly` | PRESENT — 2 type declarations, 0 methods | **COVERED** on presence evidence, not exclusivity |
-| `sql/connect/shims` | module-exclusive `pom.properties` node — the weaker witness | `META-INF/maven/org.apache.spark/spark-connect-shims_2.13/pom.properties` | descriptor node exclusive to this module; 0 classes exclusive | ABSENT — 0 type declarations / 0 matching file nodes | **NO VERDICT OBTAINABLE** — artifacts not in the graph's input set |
-| `core` | class exclusive to the module | `org.apache.spark.Aggregator` | exclusive; 5092 classes exclusive to this module | PRESENT — 2 type declarations, 54 methods | **COVERED** |
-| `graphx` | class exclusive to the module | `org.apache.spark.graphx.Edge` | exclusive; 131 classes exclusive to this module | PRESENT — 2 type declarations, 120 methods | **COVERED** |
-| `mllib` | class exclusive to the module | `org.apache.spark.ml.Estimator` | exclusive; 2645 classes exclusive to this module | PRESENT — 2 type declarations, 20 methods | **COVERED** |
-| `mllib-local` | class exclusive to the module | `org.apache.spark.ml.impl.Utils` | exclusive; 22 classes exclusive to this module | PRESENT — 2 type declarations, 12 methods | **COVERED** |
-| `tools` | class exclusive to the module | `org.apache.spark.tools.GenerateMIMAIgnore` | exclusive; 2 classes exclusive to this module | ABSENT — 0 type declarations / 0 matching file nodes | **NO VERDICT OBTAINABLE** — artifacts not in the graph's input set |
-| `streaming` | class exclusive to the module | `org.apache.spark.status.api.v1.streaming.ApiStreamingApp` | exclusive; 358 classes exclusive to this module | PRESENT — 2 type declarations, 16 methods | **COVERED** |
-| `sql/api` | least-shared class — presence evidence only | `org.apache.spark.api.java.function.FlatMapGroupsWithStateFunction` | NOT exclusive — also shipped by `sql/connect/client/jvm` | PRESENT — 3 type declarations, 3 methods | **COVERED** on presence evidence, not exclusivity |
-| `sql/catalyst` | class exclusive to the module | `org.apache.spark.sql.catalyst.AliasIdentifier` | exclusive; 5332 classes exclusive to this module | PRESENT — 2 type declarations, 40 methods | **COVERED** |
-| `sql/core` | class exclusive to the module | `org.apache.parquet.filter2.predicate.SparkFilterApi` | exclusive; 3871 classes exclusive to this module | PRESENT — 2 type declarations, 14 methods | **COVERED** |
-| `sql/hive` | class exclusive to the module | `org.apache.hadoop.hive.ql.exec.HiveFunctionRegistryUtils` | exclusive; 148 classes exclusive to this module | PRESENT — 2 type declarations, 14 methods | **COVERED** |
-| `sql/pipelines` | class exclusive to the module | `org.apache.spark.sql.pipelines.AnalysisWarning` | exclusive; 284 classes exclusive to this module | PRESENT — 2 type declarations, 0 methods | **COVERED** |
-| `sql/connect/server` | class exclusive to the module | `com.google.apps.card.v1.Action` | exclusive; 4153 classes exclusive to this module | PRESENT — 1 type declaration, 63 methods | **COVERED** |
-| `sql/connect/common` | least-shared class — presence evidence only | `org.apache.spark.connect.proto.AddArtifactsRequest` | NOT exclusive — also shipped by `sql/connect/client/jvm`, `sql/connect/server` | PRESENT — 4 type declarations, 252 methods | **COVERED** on presence evidence, not exclusivity |
-| `sql/connect/client/jdbc` | class exclusive to the module | `org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver` | exclusive; 2 classes exclusive to this module | PRESENT — 2 type declarations, 16 methods | **COVERED** |
-| `sql/connect/client/jvm` | class exclusive to the module | `org.apache.spark.sql.application.ConnectRepl` | exclusive; 4970 classes exclusive to this module | PRESENT — 2 type declarations, 2 methods | **COVERED** |
-| `examples` | class exclusive to the module | `org.apache.spark.examples.AccumulatorMetricsTest` | exclusive; 791 classes exclusive to this module | ABSENT — 0 type declarations / 0 matching file nodes | **NO VERDICT OBTAINABLE** — artifacts not in the graph's input set |
-| `repl` | class exclusive to the module | `org.apache.spark.repl.Main` | exclusive; 8 classes exclusive to this module | PRESENT — 2 type declarations, 24 methods | **COVERED** |
-| `launcher` | class exclusive to the module | `org.apache.spark.launcher.AbstractAppHandle` | exclusive; 32 classes exclusive to this module | PRESENT — 2 type declarations, 30 methods | **COVERED** |
-| `connector/kafka-0-10-token-provider` | least-shared class — presence evidence only | `org.apache.spark.kafka010.ExceptionsHelper` | NOT exclusive — also shipped by `connector/kafka-0-10-assembly` | ABSENT — 0 type declarations / 0 matching file nodes | **NO VERDICT OBTAINABLE** — artifacts not in the graph's input set |
-| `connector/kafka-0-10` | least-shared class — presence evidence only | `org.apache.spark.streaming.kafka010.Assign` | NOT exclusive — also shipped by `connector/kafka-0-10-assembly` | ABSENT — 0 type declarations / 0 matching file nodes | **NO VERDICT OBTAINABLE** — artifacts not in the graph's input set |
-| `connector/kafka-0-10-assembly` | class exclusive to the module | `com.fasterxml.jackson.annotation.JacksonAnnotation` | exclusive; 5855 classes exclusive to this module | ABSENT — 0 type declarations / 0 matching file nodes | **NO VERDICT OBTAINABLE** — artifacts not in the graph's input set |
-| `connector/kafka-0-10-sql` | class exclusive to the module | `org.apache.spark.sql.kafka010.AssignStrategy` | exclusive; 123 classes exclusive to this module | ABSENT — 0 type declarations / 0 matching file nodes | **NO VERDICT OBTAINABLE** — artifacts not in the graph's input set |
-| `connector/avro` | class exclusive to the module | `org.apache.spark.sql.avro.AvroDataToCatalyst` | exclusive; 23 classes exclusive to this module | PRESENT — 2 type declarations, 106 methods | **COVERED** |
-| `connector/protobuf` | class exclusive to the module | `org.apache.spark.sql.protobuf.CatalystDataToProtobuf` | exclusive; 825 classes exclusive to this module | PRESENT — 2 type declarations, 82 methods | **COVERED** |
-| `resource-managers/yarn` | class exclusive to the module | `org.apache.spark.deploy.yarn.AmIpFilter` | exclusive; 78 classes exclusive to this module | PRESENT — 2 type declarations, 18 methods | **COVERED** |
-| `common/network-yarn` | class exclusive to the module | `org.apache.spark.network.yarn.YarnShuffleService` | exclusive; 6 classes exclusive to this module | PRESENT — 2 type declarations, 36 methods | **COVERED** |
-| `resource-managers/kubernetes/core` | class exclusive to the module | `org.apache.spark.deploy.k8s.Config` | exclusive; 144 classes exclusive to this module | PRESENT — 2 type declarations, 254 methods | **COVERED** |
-| `sql/hive-thriftserver` | class exclusive to the module | `org.apache.hive.service.AbstractService` | exclusive; 210 classes exclusive to this module | PRESENT — 2 type declarations, 26 methods | **COVERED** |
+| `common/kvstore` | `org.apache.spark.util.kvstore.ArrayWrappers` | 39 | 38 | PRESENT — 2 type declarations, 4 methods, 1 file node | **COVERED on injective evidence** |
+| `common/network-yarn` | `org.apache.spark.network.yarn.YarnShuffleService` | 11,070 | 6,175 | PRESENT — 2 type declarations, 36 methods, 1 file node | **COVERED on injective evidence** |
+| `common/sketch` | `org.apache.spark.util.sketch.BitArray` | 16 | 15 | PRESENT — 2 type declarations, 28 methods, 1 file node | **COVERED on injective evidence** |
+| `common/tags` | `org.apache.spark.annotation.AlphaComponent` | 12 | 11 | PRESENT — 2 type declarations, 0 methods, 1 file node | **COVERED on injective evidence** |
+| `common/unsafe` | `org.apache.spark.sql.catalyst.expressions.HiveHasher` | 65 | 64 | PRESENT — 2 type declarations, 12 methods, 1 file node | **COVERED on injective evidence** |
+| `common/utils` | `org.apache.spark.BreakingChangeInfo` | 164 | 163 | PRESENT — 2 type declarations, 16 methods, 1 file node | **COVERED on injective evidence** |
+| `common/variant` | `org.apache.spark.types.variant.ShreddingUtils` | 34 | 33 | PRESENT — 2 type declarations, 8 methods, 1 file node | **COVERED on injective evidence** |
+| `connector/avro` | `org.apache.spark.sql.avro.AvroDataToCatalyst` | 24 | 23 | PRESENT — 2 type declarations, 106 methods, 1 file node | **COVERED on injective evidence** |
+| `connector/protobuf` | `org.apache.spark.sql.protobuf.CatalystDataToProtobuf` | 825 | 825 | PRESENT — 2 type declarations, 82 methods, 1 file node | **COVERED on injective evidence** |
+| `core` | `org.apache.spark.Aggregator` | 5,097 | 5,096 | PRESENT — 2 type declarations, 54 methods, 1 file node | **COVERED on injective evidence** |
+| `graphx` | `org.apache.spark.graphx.Edge` | 132 | 131 | PRESENT — 2 type declarations, 120 methods, 1 file node | **COVERED on injective evidence** |
+| `launcher` | `org.apache.spark.launcher.AbstractAppHandle` | 33 | 32 | PRESENT — 2 type declarations, 30 methods, 1 file node | **COVERED on injective evidence** |
+| `mllib` | `org.apache.spark.ml.Estimator` | 2,646 | 2,645 | PRESENT — 2 type declarations, 20 methods, 1 file node | **COVERED on injective evidence** |
+| `mllib-local` | `org.apache.spark.ml.impl.Utils` | 23 | 22 | PRESENT — 2 type declarations, 12 methods, 1 file node | **COVERED on injective evidence** |
+| `repl` | `org.apache.spark.repl.Main` | 9 | 8 | PRESENT — 2 type declarations, 24 methods, 1 file node | **COVERED on injective evidence** |
+| `resource-managers/kubernetes/core` | `org.apache.spark.deploy.k8s.Config` | 145 | 144 | PRESENT — 2 type declarations, 254 methods, 1 file node | **COVERED on injective evidence** |
+| `resource-managers/yarn` | `org.apache.spark.deploy.yarn.AmIpFilter` | 79 | 78 | PRESENT — 2 type declarations, 18 methods, 1 file node | **COVERED on injective evidence** |
+| `sql/catalyst` | `org.apache.spark.sql.catalyst.AliasIdentifier` | 5,333 | 5,332 | PRESENT — 2 type declarations, 40 methods, 1 file node | **COVERED on injective evidence** |
+| `sql/connect/client/jdbc` | `org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver` | 2 | 2 | PRESENT — 2 type declarations, 16 methods, 1 file node | **COVERED on injective evidence** |
+| `sql/connect/client/jvm` | `org.apache.spark.sql.application.ConnectRepl` | 12,652 | 4,970 | PRESENT — 2 type declarations, 2 methods, 1 file node | **COVERED on injective evidence** |
+| `sql/connect/server` | `org.apache.spark.sql.connect.SimpleSparkConnectService` | 8,050 | 4,153 | PRESENT — 2 type declarations, 2 methods, 1 file node | **COVERED on injective evidence** |
+| `sql/core` | `org.apache.spark.sql.DataSourceRegistration` | 3,879 | 3,878 | PRESENT — 2 type declarations, 72 methods, 1 file node | **COVERED on injective evidence** |
+| `sql/hive` | `org.apache.spark.sql.hive.DeferredObjectAdapter` | 149 | 148 | PRESENT — 2 type declarations, 36 methods, 1 file node | **COVERED on injective evidence** |
+| `sql/hive-thriftserver` | `org.apache.spark.sql.hive.thriftserver.ArrayFetchIterator` | 211 | 210 | PRESENT — 2 type declarations, 258 methods, 1 file node | **COVERED on injective evidence** |
+| `sql/pipelines` | `org.apache.spark.sql.pipelines.AnalysisWarning` | 285 | 284 | PRESENT — 2 type declarations, 0 methods, 1 file node | **COVERED on injective evidence** |
+| `streaming` | `org.apache.spark.status.api.v1.streaming.ApiStreamingApp` | 359 | 358 | PRESENT — 2 type declarations, 16 methods, 1 file node | **COVERED on injective evidence** |
 
-### What that table adds up to
+Two rows carry a figure that would read oddly without its reason, and both are the shaded-artifact
+case the test was written to survive. `common/network-yarn` counts **11,070** classes in its primary
+artifacts because it has *two* — its main JAR and its unattached shaded shuffle uber-JAR — of which
+**6,175** are exclusive to the module; a class shared with a same-module sibling still qualifies,
+which is exactly why the test is satisfiable here. `sql/connect/client/jvm` counts **12,652** with
+**4,970** exclusive, for the same reason.
+
+**The weaker witness was available for all 26 and needed by none of them.** Every one of the 26 also
+owns at least one module-exclusive `META-INF/maven/**/pom.properties` entry in
+`cpg-input-inventory.json`'s `exclusive_pom_properties` — `core` owns 11, `common/network-yarn` 32,
+`sql/connect/client/jvm` 7, and the rest one apiece — so the fallback AAP §0.5.1 names existed and
+was simply not reached, the class witness being the stronger of the two.
+
+### The five modules in the input set for which no witness of either kind exists
+
+These five own **no** class exclusive to them and **no** exclusive Maven descriptor node, because
+another module's shaded archive vendors both. AAP §0.5.1 supplies exactly two witness kinds and no
+third, so each is recorded as **NO VERDICT OBTAINABLE**. Presence is not substituted for
+exclusivity anywhere below: a class the vendoring archive also ships would let that archive vouch
+for a module whose own artifact might be absent, which is the failure mode the injectivity
+requirement exists to prevent.
+
+| Module | Classes in its primary artifact | Exclusive to it | Exclusive descriptor nodes | The archive that vendors both | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| `common/network-common` | 2,170 — **every one of them** also in the archive named right | 0 | 0 | `common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar` | **NO VERDICT OBTAINABLE** |
+| `common/network-shuffle` | 92 — **every one of them** also in the archive named right | 0 | 0 | `common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar` | **NO VERDICT OBTAINABLE** |
+| `common/utils-java` | 40 — **every one of them** also in the archive named right | 0 | 0 | `common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar` | **NO VERDICT OBTAINABLE** |
+| `sql/api` | 1,203 — **every one of them** also in the archive named right | 0 | 0 | `sql_connect_client_jvm__spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar` | **NO VERDICT OBTAINABLE** |
+| `sql/connect/common` | 1,879 — **every one of them** also in the archive named right | 0 | 0 | `sql_connect_server__spark-connect_2.13-4.1.0-SNAPSHOT.jar` | **NO VERDICT OBTAINABLE** |
+
+### The seven JAR-packaging projects absent from the graph's input set entirely
+
+A different reason, kept separate from the five above: these seven have **no archive at all** in the
+62-archive input set, so the graph carries none of their bytecode and no witness of any kind can be
+in it. `cpg-input-inventory.json` records each with the same reason verbatim, and `cpg-verify.log`
+PHASE 2 repeats it as the coverage cost of the unmet all-JAR requirement.
+
+| Project (JAR-packaging, built successfully by this run) | Archives in the graph's input set | Verdict |
+| --- | --- | --- |
+| `connector/kafka-0-10` | **0** | **NO VERDICT OBTAINABLE** — no archive of this project is in the input set |
+| `connector/kafka-0-10-assembly` | **0** | **NO VERDICT OBTAINABLE** — no archive of this project is in the input set |
+| `connector/kafka-0-10-sql` | **0** | **NO VERDICT OBTAINABLE** — no archive of this project is in the input set |
+| `connector/kafka-0-10-token-provider` | **0** | **NO VERDICT OBTAINABLE** — no archive of this project is in the input set |
+| `examples` | **0** | **NO VERDICT OBTAINABLE** — no archive of this project is in the input set |
+| `sql/connect/shims` | **0** | **NO VERDICT OBTAINABLE** — no archive of this project is in the input set |
+| `tools` | **0** | **NO VERDICT OBTAINABLE** — no archive of this project is in the input set |
+
+### What that adds up to
 
 | Outcome | Count |
 | --- | --- |
-| JAR-producing modules under the test | **38** |
-| **Covered** — witness measured in the graph | **31** |
-| — of those, on a class exclusive to the module | 25 |
-| — of those, on presence evidence, labelled as presence and never as exclusivity | 6 |
-| **No verdict obtainable from this graph** | **7** |
+| Reactor projects | **40** |
+| — `packaging=pom`, no primary artifact, outside this test by construction | 2 |
+| **JAR-producing modules under the test** | **38** |
+| **COVERED on injective evidence** — a class exclusive to the module, measured present in the graph | **26** |
+| **NO VERDICT OBTAINABLE** | **12** |
+| — because no witness of either kind exists across the input set | 5 |
+| — because the module has no archive in the input set at all | 7 |
+| Verdicts resting on presence of a class another module also ships | **0** |
 | Verdicts resting on a shared package prefix | **0** |
+| Witness kinds admitted beyond the two AAP §0.5.1 names | **0** |
 | Winner maps claimed | **0** |
-| **Second column** — witness present in the per-module witness graph this run built | **38 of 38**, including all **7** above |
 
-**Witness kinds as declared across all 38**, from the inventory's own measurement: 29 modules have a
-class exclusive to the module, 1 has only the module-exclusive Maven descriptor node
-(`sql/connect/shims`), and 8 have neither and carry presence evidence instead.
+**26 of 38 is the coverage this graph supports, and the 12 are stated as unobtainable rather than
+softened.** Nothing below the line is folded into a pass, dropped from the count, or answered with a
+narrower graph — section 4's second input account and STATUS record why no such substitute is offered.
+The two reasons behind the 12 are different and stay separate: 5 are a property of a *complete-enough*
+input set, where fat artifacts vendor everything smaller modules ship, and 7 are a property of this
+input set being *narrower than the build*, which is the coverage cost of the unmet all-JAR requirement.
 
-**The eight with no exclusive witness of either kind are named, with the reason.** A shaded artifact of
-*another* module vendors their classes, and their descriptor node too, so nothing in their primary
-artifact is theirs alone across this input set: `common/network-common`, `common/network-shuffle` and
-`common/utils-java` into `common/network-yarn`'s shuffle JAR; `sql/api` and `sql/connect/common` into
-`sql/connect/client/jvm`'s shaded artifact; `common/tags`, `connector/kafka-0-10` and
-`connector/kafka-0-10-token-provider` into `connector/kafka-0-10-assembly`. This is a consequence of the
-input set being **complete** — a narrower set contains fewer fat artifacts, so more classes are
-exclusive. For those modules **coverage cannot be established injectively, and that is named here
-rather than presented as a pass**; their membership in this run's assembled input set is nevertheless
-established for every one of them by section 4's bidirectional manifest, which does not depend on class
-exclusivity at all.
+### Cross-reference against the counts the verification load reports
 
-**The descriptor fallback was tested for the two Kafka modules and is genuinely unavailable, which is
-measured here rather than asserted.** AAP §0.5.1 offers exactly two witness kinds — a class exclusive
-to the module, or failing that the module-exclusive `META-INF/maven/**/pom.properties` node — and no
-third. For `connector/kafka-0-10-token-provider` and `connector/kafka-0-10` the second kind was checked
-directly against all 191 staged artifacts:
+One `importCpg` load produced both this verdict and section 5's counts, so they are one measurement
+read two ways rather than two measurements: `cpg-verify.log` PHASE 1 reports **1,396,899 methods,
+119,721 type declarations and 45,037 files** with `methods > 0` explicitly confirmed, and PHASE 2's 26
+present witnesses are type declarations counted inside that 119,721. Every PRESENT row's module is in
+the graph's input set, and no witness was found for any module outside it — which is a check on both
+axes at once, because a module in the input whose witness was missing would be a coverage failure, and
+a witness found for a module outside the input would mean the witness was never exclusive.
 
-| Module | Descriptor node | Archives containing it | Disqualifying holder |
-| --- | --- | --- | --- |
-| `connector/kafka-0-10-token-provider` | `META-INF/maven/org.apache.spark/spark-token-provider-kafka-0-10_2.13/pom.properties` | **6** | `connector/kafka-0-10-assembly`'s fat JAR — the other five are that module's own siblings, which §0.5.1 permits |
-| `connector/kafka-0-10` | `META-INF/maven/org.apache.spark/spark-streaming-kafka-0-10_2.13/pom.properties` | **6** | the same assembly, on the same reading |
-
-A node shared with a same-module sibling still qualifies; one shared with **another** module does not,
-and the assembly is another module. So neither witness kind exists for either module across the
-complete input set, the AAP supplies no third, and presence evidence explicitly labelled as presence
-with the other module's artifact named is the strongest statement the input set admits. It is reported
-as that and never as an injective witness.
-
-### The seven modules with no coverage verdict obtainable, each named with what was tried
-
-All seven are the same condition, and it is the input-set fact carried as **D3**: their artifacts were
-not in the input the frontend was given, so no witness of either kind can be in the graph. This is
-neither a coverage failure nor a pass, and none of the seven is folded into one or dropped from the
-count. `cpg-verify.log` STEP 19 records each with its witness, its query and its reason:
-
-| Module | Witness tried | Witness kind | Query run | Result |
-| --- | --- | --- | --- | --- |
-| `sql/connect/shims` | `META-INF/maven/org.apache.spark/spark-connect-shims_2.13/pom.properties` | module-exclusive `pom.properties` node — the weaker witness | `cpg.file.name.count(_.endsWith(node))`, leaf-contains 102 | ABSENT — 0 matching file nodes |
-| `tools` | `org.apache.spark.tools.GenerateMIMAIgnore` | class exclusive to the module | `cpg.typeDecl.fullNameExact(...)` | ABSENT — 0 type declarations |
-| `examples` | `org.apache.spark.examples.AccumulatorMetricsTest` | class exclusive to the module | `cpg.typeDecl.fullNameExact(...)` | ABSENT — 0 type declarations |
-| `connector/kafka-0-10-token-provider` | `org.apache.spark.kafka010.ExceptionsHelper` | least-shared class — presence evidence | `cpg.typeDecl.fullNameExact(...)` | ABSENT — 0 type declarations |
-| `connector/kafka-0-10` | `org.apache.spark.streaming.kafka010.Assign` | least-shared class — presence evidence | `cpg.typeDecl.fullNameExact(...)` | ABSENT — 0 type declarations |
-| `connector/kafka-0-10-assembly` | `com.fasterxml.jackson.annotation.JacksonAnnotation` | class exclusive to the module | `cpg.typeDecl.fullNameExact(...)` | ABSENT — 0 type declarations |
-| `connector/kafka-0-10-sql` | `org.apache.spark.sql.kafka010.AssignStrategy` | class exclusive to the module | `cpg.typeDecl.fullNameExact(...)` | ABSENT — 0 type declarations |
-
-Six of the seven are exactly the six JAR producers the expected-values table does not name (section 3);
-the seventh is `sql/connect/shims`, whose two archives were excluded from that graph's input by the
-provisioning runbook's own instruction. **The weaker witness kind is not what failed:** the graph holds
-102 `pom.properties` file nodes, 31 of them Spark module descriptors, so the node type is representable
-and functional on this graph — the shims node is absent for one reason only, which is that the archive
-carrying it was never in the input.
-
-**That explanation is now measured rather than argued.** The subsection below runs each of these seven
-witnesses against a graph built from these modules' own primary artifacts, and **all seven are
-present** — including the shims `pom.properties` descriptor node, at 1 matching file node. So for every
-one of the seven, absence from the graph at the sanctioned path is established to be a consequence of
-that graph's input set and of nothing else. What that does **not** establish, and what remains open, is
-a coverage verdict for the seven against a graph built over every JAR the build produced: no such graph
-exists, and **D1** records why.
-
-### The second verdict column — the per-module witness graph this run built
-
-The seven verdicts above are unobtainable for one reason and one reason only: those modules'
-artifacts were not in the input the frontend that wrote that graph was given. That is a fact about
-an input set, not about the modules — and it leaves a different question open and answerable: does
-this frontend, given a module's own primary artifact, put that module's witness into a graph at all?
-
-This run measured that directly. It built a **per-module witness graph** over exactly one artifact
-per JAR-producing module — that module's primary artifact — and ran the same witness queries against
-it.
-
-**What this column is, and the four things it is not.** Stated before any number, because a reader
-who takes it for the first column would draw exactly the wrong conclusion.
-
-- It **is** a frontend-capability measurement: whether the pinned frontend produces a module's own
-  classes into a loadable graph from that module's own artifact.
-- It is **not** the graph AAP §0.5.1 mandates, and it does not satisfy **D1**. The mandated
-  complete-input graph remains unbuildable with this frontend, for the reason `cpg-frontend.log`
-  STEP 8 proves.
-- It is **not** at `harness/cpg/spark.cpg`, which is unchanged and still resolves to the
-  provisioned graph.
-- It is **not** loaded by any runner, and it contributes **no row** to `findings.json` or
-  `findings.csv`.
-- It does **not** replace or upgrade any verdict in the first column. The first column answers
-  "did this module's code reach the graph the runners read?" and for seven modules the answer
-  remains *not obtainable*.
-
-**The input set, chosen by a rule rather than by which modules were missing.** Exactly one artifact
-per JAR-producing module: its primary artifact, the main unclassified, non-`original-`, non-`-tests`
-JAR. That is the minimal set in which every module's own witness can be sought, and it is the same
-definition of *primary artifact* the coverage test itself uses.
-
-| Property | Value |
-| --- | --- |
-| Input artifacts | **38** — one per JAR-producing module |
-| Input bytes | 130,718,491 |
-| Input class entries | 52,584, against 99,723 in the complete set |
-| Frontend | pinned `jimple2cpg`, JDK major **21**, `-J-Xmx128g` proven committable, `--recurse`, no exclusions |
-| Elapsed | 6,150 s (1 h 42 m 30 s) |
-| Peak RSS | 74,748,328 kB (71.3 GiB) |
-| Exit code | 0 |
-| Graph bytes | 418,777,229 |
-| Graph sha256 | `8d3462b78d3c4b009c994d1ae838b6266aa2af3e68b3c0fbdcbd3b3f630ad41d` |
-| Loaded with | `importCpg` as a statement, in a workspace proved absent before use; **methods 994,192**, type declarations 97,292, files 45,680 |
-| Evidence | `harness/artifacts/logs/cpg-frontend.log` PART 2 (build) and `harness/artifacts/logs/cpg-verify.log` PART 2 (load, identity re-verification, and every query below) |
-
-**That this graph serialized while the complete-input graph could not is the diagnosis behaving as
-diagnosed**, not a workaround. The bound is on the total UTF-8 size of the graph's distinct strings,
-and this input carries 52,584 class entries against 99,723 in the complete
-set — 53 % of them. Narrowing the input is exactly what AAP §0.9.2 prohibits for the mandated
-graph, which is why this is reported as a capability measurement beside D1 rather than as a
-resolution of it.
-
-**One cost of the complete input set is visible here, and it is recorded rather than acted on.** In
-this graph all eleven classes `sql/connect/shims` ships as client-only stubs carry stub-sized method
-counts — `SparkConf` 8, `SparkContext` 2, `rdd.RDD` 8, `api.java.JavaRDD` 2, and 2 to 4 for the
-other seven — where the same classes in the graph at the sanctioned path, whose input set **excluded**
-the shims archives, carry a full implementation's worth: `SparkConf` 298, `SparkContext` 1,100,
-`rdd.RDD` 1,022, `api.java.JavaRDD` 74. So in any graph containing the shims artifact, the stub
-definitions displace the real ones for those eleven classes. This is what the graph contains,
-measured by querying it — the route AAP §0.5.1 sanctions — and it is **not** a winner map: it says
-what is there, not which archive the frontend read last. It corroborates the provisioning runbook's
-own instruction to exclude that archive, and it is a real consequence of the complete input set the
-AAP mandates. It is reported and nothing is excluded on the strength of it, because AAP §0.9.2
-forbids the exclusion.
-
-**The queries, one row per module, same test and same witnesses as the first column.** Exclusivity
-was established against the **complete 191-artifact inventory**, not against this narrower set — the
-stronger reading, and the one that keeps these witnesses comparable with the first column's.
-
-| Module (JAR-producing) | Witness, as queried | Witness kind | Result in the witness graph |
-| --- | --- | --- | --- |
-| `common/kvstore` | `org.apache.spark.util.kvstore.ArrayWrappers` | class exclusive to the module | PRESENT — 1 type declaration, 2 methods |
-| `common/network-common` | `org.apache.spark.network.TransportContext` | least-shared class -- presence evidence only | PRESENT — 1 type declaration, 19 methods |
-| `common/network-shuffle` | `org.apache.spark.network.sasl.ShuffleSecretManager` | least-shared class -- presence evidence only | PRESENT — 1 type declaration, 7 methods |
-| `common/network-yarn` | `org.apache.spark.network.yarn.YarnShuffleService` | class exclusive to the module | PRESENT — 1 type declaration, 18 methods |
-| `common/sketch` | `org.apache.spark.util.sketch.BitArray` | class exclusive to the module | PRESENT — 1 type declaration, 14 methods |
-| `common/tags` | `org.apache.spark.annotation.AlphaComponent` | least-shared class -- presence evidence only | PRESENT — 2 type declarations, 0 methods |
-| `common/unsafe` | `org.apache.spark.sql.catalyst.expressions.HiveHasher` | class exclusive to the module | PRESENT — 1 type declaration, 6 methods |
-| `common/utils` | `org.apache.spark.BreakingChangeInfo` | class exclusive to the module | PRESENT — 1 type declaration, 8 methods |
-| `common/utils-java` | `org.apache.spark.QueryContext` | least-shared class -- presence evidence only | PRESENT — 1 type declaration, 8 methods |
-| `common/variant` | `org.apache.spark.types.variant.ShreddingUtils` | class exclusive to the module | PRESENT — 1 type declaration, 4 methods |
-| `connector/avro` | `org.apache.spark.sql.avro.AvroDataToCatalyst` | class exclusive to the module | PRESENT — 1 type declaration, 53 methods |
-| `connector/kafka-0-10` ⚑ | `org.apache.spark.streaming.kafka010.Assign` | least-shared class -- presence evidence only | PRESENT — 2 type declarations, 50 methods |
-| `connector/kafka-0-10-assembly` ⚑ | `com.fasterxml.jackson.annotation.JacksonAnnotation` | class exclusive to the module | PRESENT — 1 type declaration, 0 methods |
-| `connector/kafka-0-10-sql` ⚑ | `org.apache.spark.sql.kafka010.AssignStrategy` | class exclusive to the module | PRESENT — 1 type declaration, 61 methods |
-| `connector/kafka-0-10-token-provider` ⚑ | `org.apache.spark.kafka010.ExceptionsHelper` | least-shared class -- presence evidence only | PRESENT — 2 type declarations, 2 methods |
-| `connector/protobuf` | `org.apache.spark.sql.protobuf.CatalystDataToProtobuf` | class exclusive to the module | PRESENT — 1 type declaration, 41 methods |
-| `core` | `org.apache.spark.Aggregator` | class exclusive to the module | PRESENT — 1 type declaration, 27 methods |
-| `examples` ⚑ | `org.apache.spark.examples.AccumulatorMetricsTest` | class exclusive to the module | PRESENT — 1 type declaration, 1 method |
-| `graphx` | `org.apache.spark.graphx.Edge` | class exclusive to the module | PRESENT — 1 type declaration, 60 methods |
-| `launcher` | `org.apache.spark.launcher.AbstractAppHandle` | class exclusive to the module | PRESENT — 1 type declaration, 15 methods |
-| `mllib` | `org.apache.spark.ml.Estimator` | class exclusive to the module | PRESENT — 1 type declaration, 10 methods |
-| `mllib-local` | `org.apache.spark.ml.impl.Utils` | class exclusive to the module | PRESENT — 1 type declaration, 6 methods |
-| `repl` | `org.apache.spark.repl.Main` | class exclusive to the module | PRESENT — 1 type declaration, 12 methods |
-| `resource-managers/kubernetes/core` | `org.apache.spark.deploy.k8s.Config` | class exclusive to the module | PRESENT — 1 type declaration, 127 methods |
-| `resource-managers/yarn` | `org.apache.spark.deploy.yarn.AmIpFilter` | class exclusive to the module | PRESENT — 1 type declaration, 9 methods |
-| `sql/api` | `org.apache.spark.api.java.function.FlatMapGroupsWithStateFunction` | least-shared class -- presence evidence only | PRESENT — 2 type declarations, 2 methods |
-| `sql/catalyst` | `org.apache.spark.sql.catalyst.AliasIdentifier` | class exclusive to the module | PRESENT — 1 type declaration, 20 methods |
-| `sql/connect/client/jdbc` | `org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver` | class exclusive to the module | PRESENT — 1 type declaration, 8 methods |
-| `sql/connect/client/jvm` | `org.apache.spark.sql.application.ConnectRepl` | class exclusive to the module | PRESENT — 1 type declaration, 1 method |
-| `sql/connect/common` | `javax.annotation.Generated` | least-shared class -- presence evidence only | PRESENT — 2 type declarations, 6 methods |
-| `sql/connect/server` | `com.google.apps.card.v1.Action` | class exclusive to the module | PRESENT — 1 type declaration, 63 methods |
-| `sql/connect/shims` ⚑ | `META-INF/maven/org.apache.spark/spark-connect-shims_2.13/pom.properties` | module-exclusive pom.properties node -- the weaker witness | PRESENT — 1 matching file node |
-|   ↳ same module | `org.apache.spark.SparkConf` | presence of a class the module ships -- provenance not measurable | PRESENT — 2 type declarations, 8 methods |
-|   ↳ same module | `org.apache.spark.rdd.RDD` | presence of a class the module ships -- provenance not measurable | PRESENT — 2 type declarations, 8 methods |
-|   ↳ same module | `org.apache.spark.sql.internal.SharedState` | presence of a class the module ships -- provenance not measurable | PRESENT — 2 type declarations, 2 methods |
-| `sql/core` | `org.apache.parquet.filter2.predicate.SparkFilterApi` | class exclusive to the module | PRESENT — 1 type declaration, 7 methods |
-| `sql/hive` | `org.apache.hadoop.hive.ql.exec.HiveFunctionRegistryUtils` | class exclusive to the module | PRESENT — 1 type declaration, 7 methods |
-| `sql/hive-thriftserver` | `org.apache.hive.service.AbstractService` | class exclusive to the module | PRESENT — 1 type declaration, 13 methods |
-| `sql/pipelines` | `org.apache.spark.sql.pipelines.AnalysisWarning` | class exclusive to the module | PRESENT — 1 type declaration, 0 methods |
-| `streaming` | `org.apache.spark.status.api.v1.streaming.ApiStreamingApp` | class exclusive to the module | PRESENT — 1 type declaration, 8 methods |
-| `tools` ⚑ | `org.apache.spark.tools.GenerateMIMAIgnore` | class exclusive to the module | PRESENT — 1 type declaration, 2 methods |
-
-⚑ marks the seven modules that have no verdict obtainable from the graph at the sanctioned path.
-
-**What the column establishes.**
-
-| Outcome | Count |
-| --- | --- |
-| JAR-producing modules queried | **38** |
-| Witness PRESENT in the witness graph | **38** |
-| Witness ABSENT in the witness graph | **0** |
-| Of the seven with no first-column verdict, witness PRESENT here | **7** of 7 |
-
-**Every one of the 38 modules' witnesses is present in the witness graph**, including all seven
-that have no first-column verdict. So for those seven the first column's *not obtainable* is
-established to be an input-set consequence and nothing else: given the module's own artifact,
-this frontend does produce that module's witness into a graph.
-
-**The conclusion this column supports, stated no more strongly than the measurement allows.** For
-each of the seven, their absence from the graph at the sanctioned path is explained by that graph's
-input set, and is not evidence that the module's bytecode is unrepresentable or that the build did
-not produce it — delivery is separately proved for all 38 by section 4's bidirectional manifest.
-What remains unestablished, and is **not** closed by this column, is a coverage verdict for those
-seven **against a graph built over every JAR the build produced**. That graph does not exist, D1
-says why, and no measurement here substitutes for it.
-### Cross-reference against the type declarations the verification load reports
-
-`cpg-verify.log`'s `importCpg` loads — two loads, in two separate JVMs, both under JDK major 21 at a
-64 GiB heap, both reporting identically — measured the graph as **1,397,339 methods, 119,691 type
-declarations and 45,037 files**, with `methods > 0` explicitly confirmed. Each covered module's witness
-above is a type declaration counted inside that 119,691, and each ABSENT witness is absent from it, so
-the coverage verdict and the type-declaration count are one measurement read two ways rather than two
-measurements. A second, independent axis agrees module for module with zero disagreements: the module's
-own Maven descriptor node is present in the graph for **31 of the 38** JAR-producing modules — the same
-31 — measured on a different node type with a different query. Every PRESENT row's module is in the
-graph's input set and every ABSENT row's module is not, with 0 disagreements either way, which is itself
-a check on both axes: a module in the input whose witness was missing would be a coverage failure, and a
-witness found for a module outside the input would mean the witness was not exclusive after all.
-
-The three counts are reported against their expected values by `cpg-verify.log`, and are cited here only
-where they bear on this verdict: methods 1,397,339 against an anchor of 898,336 and a one-sided floor of
-853,420, which the observation passes with no upper bound applying; type declarations 119,691 against
-87,381; files 45,037 against 38,818. The last two never halt. The **cause** of the excess is recorded
-there as **not established** rather than guessed — the AAP's stated rationale is the six extra JAR
-producers, and those six are measured above as absent from this graph's input set, so that mechanism
-cannot be it.
+**The weaker witness kind is functional on this graph, which is why the five and the seven are archive
+facts rather than graph facts.** The same load counts **102** `META-INF/maven/**/pom.properties` file
+nodes, so descriptor nodes are represented and queryable here. For the five, the node exists in the
+graph's input but is not *exclusive* to the module, and for the seven no archive of the module is in the
+input at all. Neither outcome is a limitation of the query or of the node type.
 
 ---
 
@@ -1042,48 +1069,75 @@ cannot be it.
 ### The authority rule, and where it does and does not reach
 
 The request's expected-values table governs every field it carries, and the harness's environment
-record never overrides it. Applied to this file's subject matter, that rule reaches **inherited** facts
-— what the run observed about the provisioning as it found it — and not outputs this run deliberately
-replaces. Two consequences, both material here:
+record never overrides it (AAP §0.1.3). Applied to this file's subject matter, that rule reaches
+**inherited** facts — what the run observed about the provisioning as it found it — and not outputs this
+run deliberately replaces. Two consequences, both material here:
 
 - The **Maven identity** and the **JDK assignment** are inherited facts, and both agree with the table:
-  required 3.9.11, detected 3.9.11, build JVM major 17.
-- The **JAR inventory and the graph's counts are not** governed by it in the same way. This run's input
-  set is deliberately wider than the provisioning's, so a difference there is the requirement being
-  fulfilled rather than an environment contradiction; and the graph's method, type-declaration and file
-  counts are compared against the **expected-values table** under its own rules, which
-  `cpg-verify.log` does. Reading intentional replacement as a contradiction would stop the run for
-  succeeding.
+  required 3.9.11, detected 3.9.11, build JVM major 17, all three from `maven-preflight.log`.
+- **The graph is an inherited fact in its entirety.** No part of it is an output this run replaced,
+  because this run's frontend produced no graph at all (D1). So every statement the environment record
+  makes about the graph is adjudicated under the authority rule rather than excused as intentional
+  replacement — and the graph's three counts are separately compared against the expected-values table
+  under its own rules in section 5. The one figure this run genuinely did replace is the **JAR
+  inventory** of its own build, which is wider than the provisioning's narrowed one; a difference there
+  is the requirement being fulfilled rather than an environment contradiction.
 
-One environment-record statement is contradicted by observation and is carried as a recorded
-difference by the documents that measured it, not resolved here: the record states that no Spark
-artifact at this pin contains a `META-INF/maven/**/pom.properties` node, and both
-`cpg-input-inventory.json` and `cpg-verify.log` measured the opposite — the `spark-connect-shims`
-artifact contains one and it is module-exclusive, and the graph holds 102 such file nodes. Both values
-are recorded; the statement is not a field of the expected-values table, so nothing stops on it.
+**One environment-record contradiction is of the halting kind, and it concerns the graph's identity.**
+`harness/ENVIRONMENT.md` states that identity explicitly, and it does not match the file on disk that
+every load in this run read:
 
-**A second contradiction is of the halting kind, and is reported rather than repaired — this is D4.**
-`harness/ENVIRONMENT.md` states the graph's identity explicitly:
-
-| Source | Bytes | sha256 |
-| --- | --- | --- |
-| `harness/ENVIRONMENT.md:284-285`, the provisioned record in this clone | 541,255,894 | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` |
-| The file on disk at this checkpoint, measured through the symlink | 541,309,809 | `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` |
+| Source | Bytes | sha256 | Methods / typeDecls / files |
+| --- | --- | --- | --- |
+| `harness/ENVIRONMENT.md:284-288`, the provisioned record in this clone | 541,255,894 | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | 1,397,339 / 119,691 / 45,037 |
+| The file on disk, measured through the symlink and recorded in `harness/artifacts/logs/cpg-identity.txt`; loaded and counted by `cpg-verify.log` | 541,309,809 | `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` | 1,396,899 / 119,721 / 45,037 |
 
 Neither field is carried by the request's expected-values table, and observation contradicts the
-record. AAP §0.1.3's fourth case applies exactly — the record states a field the table does not carry
-and observation contradicts it — and §0.9.2 names both this and "a graph whose byte size or sha256
-differs from the values recorded at write time at any later load" among the conditions that stop the
-run. So both values are recorded and neither is chosen: there is no anchor to adjudicate between them,
-and repairing it is not available in any case, because the file is host-global, shared with concurrent
+record, so AAP §0.1.3's fourth case applies exactly. `gate-record.json` records this as one of the
+run's two halting gate checks — `gate.environment_record_graph_identity_agreement`, carrying both value
+sets — and `gate_verdict.overall` is `halt`, with the gate record stating in terms that it authorises
+nothing. Both values are on the record and neither is chosen: there is no anchor to adjudicate between
+them, and repair is not available in any case, because the file is host-global, shared with concurrent
 readers, and was not written by this run.
 
-The cause is established rather than guessed: provisioning re-ran against this host between the stages
-of this run that loaded the graph and this checkpoint, and replaced the shared file. This is why the
-run's earlier per-load identity records — each taken immediately before its load, as the plan requires,
-and consistent with each other across every load — describe a file that is no longer at the path. It is
-also, independently of D1, why a current-run graph was attempted: an inherited artifact that the
-environment can replace underneath a run cannot anchor a reproducible dataset.
+What is **not** claimed here is that the bytes moved underneath the run. Every load re-verified the
+identity immediately beforehand and all five of those records state the same pair (section 5), so this
+run is internally consistent on exactly one graph. The disagreement is between that one graph and a
+record of an earlier graph at the same shared path.
+
+**Two further environment-record statements are contradicted by observation and are carried with both
+values without stopping the run**, because neither is a field of the expected-values table and neither
+was raised at the gate — `gate-record.json` records exactly one halting environment-record
+contradiction, the identity above:
+
+- The record states that no Spark artifact at this pin contains a
+  `META-INF/maven/**/pom.properties` node (`harness/ENVIRONMENT.md:373-374`, repeated at `:774-775`), so
+  the AAP's named weaker witness was unavailable for every module. Observation is the opposite:
+  `cpg-input-inventory.json` records a module-exclusive `pom.properties` entry for 26 of the 31 modules
+  in the graph's input set — `META-INF/maven/org.apache.spark/spark-core_2.13/pom.properties` for
+  `core`, and one apiece for the others — and `cpg-verify.log` counts **102** such file nodes in the
+  graph. The correction does not change any verdict in section 6: the 26 modules that own an exclusive
+  `pom.properties` node are the same 26 that already own an exclusive class, and the 5 that own no
+  exclusive class own no exclusive `pom.properties` node either.
+- The record states **"31 of 31 contributing modules covered (26 unique-class witnesses, 5 named
+  weaker witnesses)"** (`harness/ENVIRONMENT.md:605`, repeated at `:323`). This run measures 26 covered
+  and 5 with no verdict obtainable (section 6). The 26 agree module for module. The 5 do not, and the
+  record's own table at `:360-371` says why: it describes those five witnesses as "presence rather than
+  exclusivity", and a class another module's shaded archive also ships is not injective evidence. The
+  AAP's named weaker witness is a module-exclusive `pom.properties` node, and
+  `cpg-input-inventory.json` records `exclusive_pom_properties` as empty for exactly those five
+  modules. Section 6 records them as NO VERDICT OBTAINABLE and admits no third witness kind.
+
+**What has changed since that contradiction was first recorded, and what has not.** The bytes on disk
+now have a write-time record of their own — `cpg-graph-record.log`, byte-identical to
+`/opt/blitzy-harness/provision-log/cpg-record.txt` — which states exactly one identity pair and equals
+them, and all three probe queries verified that pair against that record before their load and
+re-verified it after, each having loaded a private copy of the verified bytes (D4 in STATUS, section 5).
+So a **current** load is anchored. What has not changed is the inherited-record contradiction above,
+which is about an identity stated for a file that was replaced, and the **Stage 3 lineage**: the Joern
+runner read 541,255,894 / `26d327cc…` (`joern.status:391-398`) and the dataset's `joern` rows come from
+that generation, which cannot be regenerated here because `harness/bin/run-joern.sh` is absent from this
+clone and from disk and AAP §0.8.1 forbids re-running a scanner. Both remain reported and unrepaired.
 
 ### Values named as not established
 
@@ -1092,10 +1146,13 @@ check (AAP §0.9.4):
 
 - **Per-class provenance for every overwritten class** — not measurable from this frontend's output
   (section 5). No winner map is claimed.
-- **A coverage verdict for the seven modules in section 6** — no verdict obtainable from this graph,
-  each named with the witness tried and the query run.
-- **An injective coverage witness for the eight modules named in section 6** — none exists against
-  this complete input set; presence evidence is reported and labelled as presence.
+- **A coverage verdict for twelve of the 38 JAR-producing modules** — not obtainable from this graph,
+  for two separate reasons section 6 keeps apart: **seven** have no archive at all in its input set, and
+  **five** own neither a class exclusive to them nor an exclusive Maven descriptor node, because another
+  module's shaded archive vendors both. All twelve are named individually with what was tried.
+- **An injective coverage witness for those five modules** — none of either kind AAP §0.5.1 permits
+  exists across this input set. Presence of a class the vendoring archive also ships is **not** offered
+  in its place, and no third witness kind is admitted anywhere in this file.
 - **The cause of the graph's above-anchor counts** — recorded by `cpg-verify.log` as not established,
   deliberately not guessed.
 - **The graph as this run's own output** — **attempted and blocked**, not deferred. This run invoked
@@ -1119,64 +1176,221 @@ Each of these is a recorded difference under AAP §0.9.3, with both values on th
 - **The copied-dependency exclusion count** — 422 copied runtime dependencies excluded from the graph
   input set, plus 14 test-resource fixtures, out of 627 JARs enumerated.
 - **The observed overwrite and AST-creation-failure counts** — **33,784** warnings over **27,843**
-  distinct destinations and **23** failures over 23 classes, measured over this run's own complete
-  191-artifact input set, grouped by containing module and artifact, with the 377 nested-archive
-  destinations accounted for individually, the provenance limitation stated and no winner map
-  presented.
+  distinct entry paths and **23** failures over 23 distinct classes, measured over this run's own
+  complete 191-artifact input set, split by entry kind, attributed by contributing module under the
+  log's own overlap caveat, with the **403** nested-archive entries recorded as such, the provenance
+  limitation stated and no winner map presented. The provisioned record's own frontend figures over its
+  62-archive input (31,598 / 26,221 / 173) are recorded beside them in section 5 as a different
+  invocation over a different input set rather than as a conflict.
 - **A reactor that failed and was then resolved project by project** — this did not occur: the reactor
   succeeded, all 40 projects have an outcome, all 38 JAR-packaging projects produced their artifact,
   and no diagnostic log was needed or written.
-- **The graph's three counts against their expected values**, and the input-set difference D3 that
-  bounds what they describe.
+- **The graph's three counts against their expected values** — methods 1,396,899 above the 898,336
+  anchor and the one-sided 853,420 floor, type declarations 119,721 against 87,381, files 45,037
+  against 38,818 — together with the input-set difference **D3** that bounds what they describe: they
+  are provisioning's graph over 62 archives from 31 modules, never the complete-input graph the AAP
+  mandates.
+- **Seven of the 38 JAR-packaging projects have no bytecode in the graph, and five more own no
+  injective witness** — twelve NO VERDICT OBTAINABLE outcomes in section 6, each named with what was
+  tried, none folded into a pass and none answered with a narrower graph.
+
+---
+
+## 8. The taint A/B — the graph-stage pass condition, as measured
+
+The graph stage carries a second pass condition beside the graph itself, and it is stated in the same
+terms as every other figure in this file: as a measurement, from the file that made it. AAP §0.5.1
+requires that Opengrep's taint engine be proven active on Spark's own Scala **by an A/B result rather
+than by a configuration reading**, and §0.9.1 restates the condition exactly — *one traced finding at
+line 72 with taint on and zero with it off, from two invocations differing only in that setting*, over
+the mandated subject `core/src/main/scala/org/apache/spark/storage/DiskStore.scala`.
+
+> **THAT PASS CONDITION FAILED.** The taint-off arm returned the **same** traced finding at line 72 as
+> the taint-on arm, and its SARIF is **byte-identical** to the on arm's. The off arm's own log states the
+> verdict and its class:
+>
+> `THE A/B PAIR THEREFORE FAILED: NON-DISCRIMINATING ON THE MANDATED SUBJECT FILE. A contrast of zero is
+> not a contrast. AAP 0.9.2 lists 'a failed taint A/B' among the conditions that STOP the run, so this
+> is a HALT-CLASS finding, reported here and NOT repaired.`
+> — `harness/artifacts/logs/taint-ab-off.log`, STATUS
+>
+> Nothing was adjusted to obtain the expected zero: the off arm's log records that no rule, no file, no
+> line and no flag set was changed and that the arm was not retried with a narrower rule.
+
+### The mandated pair, arm by arm
+
+Both arms ran the same pinned rule from the same pinned ruleset against the same subject file, with
+taint as the **sole** difference. Per-arm figures are each arm's own log and its own SARIF.
+
+| Property | Value |
+| --- | --- |
+| Subject | `core/src/main/scala/org/apache/spark/storage/DiskStore.scala` — 380 lines, 12,045 bytes, sha256 `bc5491ac8a6bd9a8822ef5b4a55ac32c47ecb9ed25e2ca1770a1c9040739d02e`, and re-measured unchanged after both arms |
+| Rule | `/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml`, rule id `tainted-sql-string`, `mode: taint` — 90 lines, 2,824 bytes, sha256 `24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d` |
+| Ruleset and engine | commit `f1d2b562b414783763fd02a6ed2736eaed622efa`, Opengrep **1.27.1** — both arms identical, no divergence, nothing marked not comparable |
+| The one variable | `--taint-intrafile`, present in the on arm and absent in the off arm; it is the only taint discriminator Opengrep 1.27.1 exposes |
+
+| Arm | Exit | Elapsed | Findings | SARIF bytes | SARIF sha256 | The two files each row is measured from |
+| --- | --- | --- | --- | --- | --- | --- |
+| **on** | 0 | 3 s | **1**, `DiskStore.scala` line **72**, `codeFlows=1`, 2 dataflow steps | 4,753 | `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` | `harness/artifacts/logs/taint-ab-anchor-diskstore-on.log` and `harness/artifacts/logs/taint-ab-anchor-diskstore-on.sarif` |
+| **off** | 0 | 3 s | **1**, `DiskStore.scala` line **72**, `codeFlows=1`, 2 dataflow steps | 4,753 | `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` | `harness/artifacts/logs/taint-ab-anchor-diskstore-off.log` and `harness/artifacts/logs/taint-ab-anchor-diskstore-off.sarif` |
+
+The two digests are **the same value**, which is the whole of the result: the arms did not differ in one
+byte. The off arm additionally re-ran the on arm inside itself — exit 0, 1.849 s, 1 finding at line 72,
+recorded in its own STATUS block — so the identity is not an artefact of comparing runs taken hours
+apart. The two arms' full narrative records, each with its stdout and stderr appended verbatim, are
+`harness/artifacts/logs/taint-ab-on.log` and `harness/artifacts/logs/taint-ab-off.log`; the per-arm
+tables above are measured from the four smaller per-arm files named in them.
+
+### The same pair with the whole ruleset loaded — not a one-rule artefact
+
+| Arm | Configs | Exit | Elapsed | Findings | SARIF bytes | SARIF sha256 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **on** | 29 rule-bearing directories, 58 argv elements, 2,006 rules of which 241 multilang and 25 Scala applied to this file | 0 | 72 s | 1 at line 72, traced | 2,939,276 | `fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51` |
+| **off** | the same 29 directories, the same rule count | 0 | 77 s | 1 at line 72, traced | 2,939,276 | `fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51` |
+
+Measured from `harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-on.log` with
+`harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-on.sarif`, and from
+`harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-off.log` with
+`harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-off.sarif`. **Byte-identical again**, so
+the non-discrimination is not a consequence of invoking a single rule file.
+
+### Why the arms cannot differ on this file, and why that is not an excuse
+
+The mechanical reason is measured rather than speculated, from the trace the arms themselves attached:
+the rule's source is a method parameter declared at `DiskStore.scala:64` (`def put(blockId: BlockId)`)
+and its sink is the interpolated string at line 72 — step 0 of the trace is `$blockId` at line 72
+column 21 and step 1 is the sink at line 72 column 13. **The flow never crosses a method boundary**, and
+intra-file *inter-procedural* taint is precisely and only what `--taint-intrafile` adds, so it has
+nothing to contribute on this file; the default intraprocedural taint analysis already reaches the sink,
+in both arms.
+
+**A taint-free arm is not constructible at this pin**, established from the engine's own option list:
+the only taint options are `--taint-intrafile` and `--guarded-taint-signatures` (the latter requiring
+`--experimental`), `--optimizations=none` toggles optimizations rather than taint, and the `--pro`
+family requires the proprietary engine, which is unlicensed and deliberately unused (AAP §0.3.2). So
+"taint off" here means *intraprocedural taint*, not *no taint*.
+
+Both facts explain the observation. **Neither converts it into a pass**, and neither was used to. The
+expectation anchored to the mandated file remains unmet.
+
+### The discriminating pair on another file — a separate measurement, never a substitute
+
+| Arm | Subject | Exit | Elapsed | Findings | SARIF bytes | SARIF sha256 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **on** | `sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala` | 0 | 4 s | **2**, lines **828** and **834**, each `codeFlows=1` with 5 dataflow steps | 10,021 | `1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24` |
+| **off** | the same file | 0 | 3 s | **0** | 2,341 | `6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced` |
+
+Measured from `harness/artifacts/logs/taint-ab-hiveshim-on.log` with
+`harness/artifacts/logs/taint-ab-hiveshim-on.sarif`, and from
+`harness/artifacts/logs/taint-ab-hiveshim-off.log` with
+`harness/artifacts/logs/taint-ab-hiveshim-off.sarif`. **A naming caveat that a later reader will
+otherwise trip over:** those two logs record their output path under the **pre-rename** names
+`taint-ab-on.sarif` and `taint-ab-off.sarif`. The files were renamed to their subject-bearing names
+afterwards, the digests above are the digests of the renamed files on disk, and no `taint-ab-on.sarif`
+or `taint-ab-off.sarif` exists on disk — so the log's own output-path field is stale where its digest
+is not.
+
+**This pair does not satisfy the AAP requirement and is not offered as satisfying it.** It is a
+discriminating result — 2 against 0 from one flag — on a file the AAP does not name, and the AAP names
+one subject. Reporting a different file's pair as though it met the mandated one is exactly the
+substitution AAP §0.1.3 forbids. It is recorded here as its own measurement, with its own subject, and
+the mandated pair's verdict above stands unchanged.
+
+### Two controls on the mandated file, and what each excludes
+
+| Control | Rule change | Observed | What it excludes |
+| --- | --- | --- | --- |
+| Search-mode | the same patterns with `mode: taint` **removed**, the rule preserved verbatim at `harness/artifacts/logs/taint-ab-off-control-rule.txt` | **2** findings, `DiskStore.scala` lines **72** and **215**, **no** `codeFlows` on either — `harness/artifacts/logs/taint-ab-search-control.sarif`, 4,424 bytes, sha256 `272a530fea4ef95417cd539b5964a70f6805e5def72ab58264cf73dbbbdb8ceb` | that the taint rule's line-72 result is merely a pattern match: the pattern alone matches a **second** site the taint rule never reports |
+| Source-removed | `mode: taint` kept, `pattern-sources` replaced with an unmatchable marker, the rule preserved verbatim at `harness/artifacts/logs/taint-ab-source-removed-control-rule.txt` | **0** findings — `harness/artifacts/logs/taint-ab-source-removed-control.sarif`, 2,347 bytes, sha256 `e98c1e1fb37c66cbf7dac92838485314b57a4561a41a6d15d9043eebbaac745f` | that the line-72 result is source-independent: remove the source and it disappears, so it is genuinely source-driven |
+
+Both controls are on the mandated file and neither is offered as an A/B arm. `oss-scan-results/run-record.md`
+§7.4 owns the run-level statement of both, and carries in addition an **inherited and unanchored**
+taint result from the provisioned environment record that this file does not restate, because the record
+it came from is absent from this clone and from the host.
+
+### It is blocked at root cause, and a human has to clear it
+
+**Blocker.** The failure is a property of the subject/rule combination and of the engine at this pin,
+not of how the arms were run. On `DiskStore.scala` the rule's source and sink sit in one method, so the
+only flag that changes taint behaviour cannot change the result; and no option at this pin disables
+taint, so no genuinely taint-free arm exists to contrast against. Manufacturing one would mean reaching
+for `--experimental` or the unlicensed Pro engine, which AAP §0.1.3 and §0.3.2 forbid, and changing the
+subject or the rule to obtain the expected zero is the same prohibited move in another form.
+
+**Human action.** A human must either (a) supply a subject-and-rule combination that genuinely
+discriminates **on the mandated file** `core/src/main/scala/org/apache/spark/storage/DiskStore.scala`,
+or (b) amend the AAP explicitly — either to name a different subject for this pass condition, or to
+accept an inter-file taint contrast as satisfying it. Either is a decision about the requirement, which
+is why it is a human's and not this run's.
+
+**What is untrue until then.** It is **not** true that Opengrep's taint engine was proven active on the
+AAP's mandated subject by an A/B result, and no sentence in this file says so. What is true, and stated
+above with its evidence, is that the mandated A/B did not discriminate; that the same non-discrimination
+holds with the whole ruleset loaded; that a discriminating pair exists on `HiveShim.scala` and is not a
+substitute; and that the two controls establish the line-72 result is source-driven rather than a bare
+pattern match. The run-level divergence entry for this failure is **D2** in `oss-scan-results/run-record.md`
+§13, which owns the run's single divergence register, and its §7 carries the full arm-by-arm narrative;
+neither is substituted for by anything here and nothing here softens either.
 
 ---
 
 ## Self-check against this file's validation contract
 
-1. **Every figure names a producer log, and that path is one of the six listed above.** PASS — sections
-   1 and 2 cite `maven-preflight.log` and `build-reactor.log` by step; section 3 cites
-   `build-reactor.log` STEPS 11 to 14 and `cpg-input-inventory.json` for the per-project artifact
-   counts; section 4 cites `cpg-input-inventory.json` and `cpg-frontend.log`; section 5 cites
-   `cpg-frontend.log` STEPS 5 to 11 and `cpg-verify.log` STEP 18; section 6 cites
-   `cpg-input-inventory.json`, `cpg-verify.log` STEPS 14 to 19 for the first verdict column, and
-   `cpg-frontend.log` PART 2 with `cpg-verify.log` PART 2 for the second. The absence of any
-   `build-<module-path>.log` is itself recorded.
+1. **Every figure names a producer record, and that record is one of the ten listed at the top.**
+   PASS — section 1 cites `maven-preflight.log`; sections 2 and 3 cite `build-reactor.log` by step
+   (STEPS 3, 4, 6 to 15), and `harness/ENVIRONMENT.md:205-272` only to say where the expected-values
+   table's 32 producers came from; section 4 cites `build-reactor.log` STEP 13, `cpg-frontend.log`
+   STEPS 1 and 4, `harness/artifacts/MANIFEST.json` and `cpg-input-inventory.json`; section 5 cites
+   `cpg-identity.txt`, `cpg-verify.log`, `joern-preflight.log`, the three `probe-*.identity.txt` files,
+   `cpg-frontend.log` STEPS 6, 7 and 11, `cpg-ceiling-reverify.log` and `gate-record.json`; section 6
+   cites `cpg-input-inventory.json` and `cpg-verify.log` PHASES 1 and 2. Checked mechanically as well as
+   by reading: every multi-digit figure in this file was extracted and matched against those records,
+   with none unmatched, and every `pom.xml`/`build/mvn`/module-pom line citation was resolved in the
+   pinned tree. The absence of any `build-<module-path>.log` is itself recorded, and
+   `cpg-module-coverage.json` is named as superseded with nothing taken from it.
 2. **All 40 projects appear exactly once; the two `pom`-packaging projects are marked expected; all 38
    JAR producers are accounted for.** PASS — the section 3 table has 40 numbered rows, the root parent
    and `assembly` are marked *produced none — EXPECTED, `packaging=pom`*, and the remaining 38 each
-   carry their own main artifact with its path.
-3. **Every JAR-producing module has a coverage verdict carrying either a unique class or a named
-   `pom.properties` witness; no verdict rests on a package prefix.** PASS on the witness requirement,
-   with the graph outcome reported honestly: all 38 rows carry a named witness — 29 a class exclusive to
-   the module, 1 the module-exclusive `pom.properties` node, 8 a named least-shared class explicitly
-   labelled presence evidence with the other module's artifact named — and 0 rows rest on a package
-   prefix. Of those witnesses, 31 are present in the graph at the sanctioned path and 7 are absent
-   because their modules' artifacts were not in that graph's input set; those 7 are named individually
-   with the witness tried and the query run, and are neither folded into a pass nor dropped. Because
-   that absence is an input-set fact rather than a property of the modules, section 6 additionally
-   carries a **second, separately labelled verdict column** measured in a per-module witness graph this
-   run built over one primary artifact per JAR-producing module — a frontend-capability measurement,
-   carrying four explicit disclaimers — not the mandated graph, not at the sanctioned path, loaded by no runner, and no
-   substitute for the first column.
-4. **The staging manifest is described as total and injective in both directions and as logged before
-   the frontend ran.** PASS — section 4, with 191 entries mapped in each direction, 0 unmapped, 0
-   violations, all 191 digests re-verified, `computed_before_the_frontend_ran = true`, and the
-   multiset argument for why a count plus a hash set would not do.
+   carry their own main artifact with its path, from `build-reactor.log` STEP 13's per-project listing.
+3. **Every coverage verdict rests on injective evidence or is recorded as unobtainable; no verdict
+   rests on a package prefix or on presence.** PASS — section 6 admits only the two witness kinds
+   AAP §0.5.1 names. **26** of the 38 JAR-producing modules are COVERED on a class exclusive to the
+   module, measured present in the graph; **12** are NO VERDICT OBTAINABLE — 7 with no archive in the
+   graph's input set and 5 with neither an exclusive class nor an exclusive `pom.properties` node — each
+   named individually with what was tried. **0** verdicts rest on presence of a class another module
+   ships, **0** on a package prefix, and **0** additional witness kinds are admitted. No second verdict
+   column exists, and no narrowed or witness graph is presented as a substitute for the mandated one.
+4. **The staged input sets are described accurately, and the assertion is described as recorded before
+   the frontend ran.** PASS — section 4 keeps the two apart. For the 191-archive set this run's frontend
+   was given it reports `cpg-frontend.log` STEP 1's own values, including `assertion result True` taken
+   before the invocation, the 191-versus-189-distinct-digest multiset argument for why a bidirectional
+   mapping is the only sufficient form, and — stated rather than implied — that STEP 1 records the
+   staged-file and manifest-entry counts as not measurable at log-generation time and that no staging
+   tree exists in this checkout. For the 62-archive set the graph was built over it reports
+   `cpg-input-inventory.json`'s member-by-member measurement.
 5. **No winner map is claimed anywhere; the provenance limitation is stated.** PASS — section 5 states
-   the limitation in terms and labels the groupings as containment at every use, and section 6's second
-   column repeats it for the witness graph; the one collision that bears on a conclusion is settled by
-   querying the graph rather than by inferring a winner.
+   the limitation in terms, quotes `cpg-frontend.log` STEP 6's own caveat that module attribution
+   overlaps by construction, and publishes no destination-package or containment grouping at all. The
+   `sql/connect/shims` collision is reported to exactly the depth the records support: 361 warnings
+   attributed to that module, and both its archives absent from the graph that loads.
 6. **No sentence compares one tool against another or judges any finding.** PASS — no scanner's output
    and no finding of any kind appears anywhere in this file; the only tools named are the Maven wrapper,
    the Joern bytecode frontend and the `importCpg` load, each as a step in the build-and-graph pipeline
    rather than as a subject of comparison.
 7. **Markdown renders cleanly; tables are well-formed; no placeholder text and no invented numbers.**
-   PASS — the two large tables were generated directly from the producer logs rather than transcribed,
-   every other figure carries its citation, and each value that could not be established is named as
-   such in section 7.
-8. **The graph's status is stated before any graph number, and the attempt to satisfy it is recorded
-   with its evidence rather than deferred.** PASS — the STATUS block carries D1, D3 and D4 with the
-   8 h 01 m invocation, the 128 GiB commit proof, the bytecode-level diagnosis of the serialization
-   bound, the rejected partial write with its size and digest, and the six mitigations examined. No
-   number in sections 5 or 6 is presented as a current-run graph measurement, and section 7 names the
-   current-run counts as not established.
+   PASS — the section 6 verdict tables were generated directly from `cpg-input-inventory.json` and
+   `cpg-verify.log` rather than transcribed, every other figure carries its citation, and every value
+   that could not be established is named as such in section 7 instead of being estimated.
+8. **The graph's status is stated before any graph number, and the attempt to satisfy the requirement
+   is recorded with its evidence rather than deferred or softened.** PASS — the STATUS block states the
+   all-JAR requirement **UNMET, ATTEMPTED AND BLOCKED** before any count appears, with the 8 h 01 m
+   invocation over the complete input set, the commit proof at the heap used, the bytecode-level
+   diagnosis of the fixed array-length bound, the two-heap re-verification, the refused partial write
+   with its size and digest, and the six mitigations examined against the frontend's own flag surface.
+9. **One graph identity, stated wherever the graph is cited, with its provenance and its
+   re-verification.** PASS — one pair, 541,309,809 bytes and sha256 `4616845a…4730c7`, with
+   `cpg-identity.txt` named as the record of account and `record_of_account()` named as how it was
+   resolved; the graph is stated as **written by provisioning on 2026-08-30, not by this run**, at every
+   place it is cited; and the five per-load re-verifications are listed with their timestamps and
+   results in section 5. No superseded identity appears anywhere except in section 5's and section 7's
+   contradiction tables, where the environment record's value is quoted **as** the contradiction.

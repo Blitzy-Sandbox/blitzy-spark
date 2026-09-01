@@ -216,7 +216,7 @@
    "artifact_filename": "trivy.json",
    "tool": "trivy",
    "sarif_producer": false,
-   "envelope": "a report object carrying 'Results', as an array or null (an empty or null 'Results' is a legitimate clean report, but the key's absence means the document is not a Trivy report)",
+   "envelope": "a report object carrying 'Results' as a JSON array (an empty array is a legitimate clean report, while an absent or null 'Results' means the document is not a Trivy report)",
    "envelope_satisfied": false,
    "outcome": "halt",
    "shape": null,

@@ -26,7 +26,9 @@ Routing is keyed by the writing runner, never by content
 A SARIF-detected artifact routes to the one shared SARIF adapter. Anything else
 routes to *"the native adapter keyed by the runner that wrote it"* (AAP 0.5.4): the
 artifact's filename identifies the writer, and a native document is never
-fingerprinted to guess which tool produced it. Six adapters serve nine tools:
+fingerprinted to guess which tool produced it. Nine tools route to seven adapter
+module keys -- six unconditional, plus ``osv_scanner``, whose module exists only if
+OSV-Scanner writes an artifact:
 
     writing runner / artifact stem                    -> adapter module key
     opengrep, semgrep, datadog-static-analyzer        -> sarif
@@ -111,16 +113,17 @@ A leaf. Nothing is imported from the ``normalize`` package and no adapter module
 imported: routing names an adapter by **string key** and ``cli.py`` resolves the key
 to a callable. That keeps the import graph acyclic and lets
 ``oss-scan-results/adapter-tests/test_shape_routing_negative.py`` exercise routing
-without importing six adapters. Standard library only -- no third-party import, no
-manifest, no lockfile, no install step (AAP 0.4.1).
+without importing any adapter module. Standard library only -- no third-party import,
+no manifest, no lockfile, no install step (AAP 0.4.1).
 
 There is deliberately no ``__init__.py`` under ``harness/lib/normalize/``: PEP 420
 namespace packages make ``import normalize.shape`` work once ``harness/lib`` is on
 ``sys.path``.
 
-No user-specified rules govern this file -- ``review_rules`` reports
-"No user rules provided.", corroborated by AAP 0.7 and 0.10.2 -- so
-enterprise-standard best practice applies in their place.
+No user-specified rule governs this file, so enterprise-standard best practice applies
+in its place (AAP 0.7, 0.10.2), held to the bar the AAP sets for this pipeline:
+verification independent of the thing verified, reject rather than infer, and a policy
+fixed before any output is observed.
 """
 
 from __future__ import annotations
@@ -399,7 +402,7 @@ ARTIFACT_FILENAMES = tuple(ARTIFACT_FILENAME_BY_TOOL[tool] for tool in CANONICAL
 SARIF_PRODUCERS = frozenset({"opengrep", "semgrep", "datadog-static-analyzer"})
 
 # --------------------------------------------------------------------------------------
-# Adapter routing table: six adapters serve nine tools
+# Adapter routing table: nine tools, seven adapter module keys (one conditional)
 # --------------------------------------------------------------------------------------
 
 #: Package holding the adapter modules. A string only -- this module imports no adapter.
@@ -496,8 +499,8 @@ TRIVY_SCANNER_CLASSES = tuple(TRIVY_SECTION_SCANNER_CLASS.values())
 #: adapter validates them empty and halts on a non-empty one (AAP 0.5.4) -- named here
 #: so the adapter and the validation criteria share one authored list. This module never
 #: reads them: its own Trivy check is the envelope alone -- a ``Results`` key present and
-#: carrying an array or ``null`` -- and every judgement about what the sections hold
-#: stays with the adapter that walks them.
+#: carrying a JSON array -- and every judgement about what the sections hold stays with
+#: the adapter that walks them.
 TRIVY_UNSUPPORTED_FINDING_SECTIONS = ("Licenses", "ExperimentalModifiedFindings")
 
 
@@ -570,8 +573,8 @@ def _json_type_name(value: object) -> str:
 # top-level key, and the observed ``version``. Both reach durable records --
 # ``harness/artifacts/logs/normalize-run.json`` on the SUCCESS path through
 # :func:`detection_evidence`, and the halt section through
-# :meth:`UnknownShape.details` -- so neither may be written as it arrived. A raw
-# ``repr`` is unbounded, carries an ESC sequence through to whatever renders the
+# :meth:`UnknownArtifactShape.details` -- so neither may be written as it arrived. A
+# raw ``repr`` is unbounded, carries an ESC sequence through to whatever renders the
 # record, and will put a credential-bearing URI into a file this pipeline preserves.
 #
 # The policy is the one ``paths.py`` applies at its own persistence boundary: redact
@@ -1325,22 +1328,34 @@ def _is_checkov_report(report: object) -> bool:
 
 
 def _matches_trivy_envelope(doc: object) -> bool:
-    """``Results`` present, as an array or ``null`` (AAP 0.5.4: ``Results[]``).
+    """``Results`` present **and** a JSON array (AAP 0.5.4: ``Results[]``).
+
+    One contract, and it is the fail-closed one. AAP 0.5.4 names this shape's count unit
+    ``Results[]``, makes an artifact matching neither SARIF nor a known native shape a
+    halt rather than a best-effort parse, and states the reject-rather-than-infer
+    principle -- so the array is required rather than inferred from a member that is
+    merely present. That is exactly the test :data:`NATIVE_SIGNATURES`'s ``trivy`` entry
+    declares (``required_key_type`` :data:`JSON_TYPE_ARRAY`), so the declared signature
+    and this predicate answer one question once, and a halt report's quoted signature
+    cannot say something the router did not do.
 
     Presence is required and emptiness is not: Trivy writes the key on every report,
     including one with nothing to say, so its **absence** means the document is not a
-    Trivy report at all. ``null`` is accepted because Go marshals an unset slice that
-    way, and an empty array because a report may legitimately carry no result section.
-    A ``Results`` that is present as an object or a string is refused here as well as by
-    the adapter -- the two agree, and the earlier refusal is the one that keeps a
-    mis-shaped document from being handed to a walker at all.
+    Trivy report at all, while ``"Results": []`` is a complete report of a scan that
+    resolved no target and routes normally. A ``Results`` that is present as ``null``,
+    an object or a string is refused *here*, at the envelope, which is where a
+    mis-shaped document must stop: an adapter handed a document with none of the
+    containers it walks reports zero rows, and an empty result set is indistinguishable
+    from a clean scan. ``null`` gets no exemption for being Go's rendering of an unset
+    slice -- a document that states no ``Results[]`` states no count unit either, and
+    admitting it would put the emptiness this dataset reports beyond the reach of the
+    reconciliation identity that is supposed to establish it.
     """
     if not isinstance(doc, Mapping):
         return False
     if TRIVY_RESULTS_KEY not in doc:
         return False
-    results = doc[TRIVY_RESULTS_KEY]
-    return results is None or _is_json_array(results)
+    return _is_json_array(doc[TRIVY_RESULTS_KEY])
 
 
 def _matches_gitleaks_envelope(doc: object) -> bool:
@@ -1443,9 +1458,9 @@ _NATIVE_ENVELOPE: Mapping[str, tuple[object, str]] = MappingProxyType(
         ),
         "trivy": (
             _matches_trivy_envelope,
-            f"a report object carrying {TRIVY_RESULTS_KEY!r}, as an array or null (an "
-            f"empty or null {TRIVY_RESULTS_KEY!r} is a legitimate clean report, but the "
-            f"key's absence means the document is not a Trivy report)",
+            f"a report object carrying {TRIVY_RESULTS_KEY!r} as a JSON array (an empty "
+            f"array is a legitimate clean report, while an absent or null "
+            f"{TRIVY_RESULTS_KEY!r} means the document is not a Trivy report)",
         ),
         "osv-scanner": (
             _matches_osv_scanner_envelope,
@@ -1592,8 +1607,9 @@ def artifact_filename_for(tool: str) -> str:
 def adapter_module_for(tool: str) -> str:
     """Return the adapter module key that reads *tool*'s native artifact.
 
-    Six adapters serve nine tools: the three SARIF producers share ``sarif``. Raises
-    ``ValueError`` for anything outside the nine canonical identifiers.
+    Nine tools resolve to seven module keys: the three SARIF producers share
+    ``sarif``. Raises ``ValueError`` for anything outside the nine canonical
+    identifiers.
     """
     canonical = resolve_tool(tool)
     if canonical is None:
@@ -1669,8 +1685,9 @@ REASON_SARIF_PRODUCER_NOT_SARIF = "sarif-producer-artifact-not-sarif"
 
 #: The artifact's name is one of the nine, its document is not SARIF, and it does not
 #: carry the envelope AAP 0.5.4's per-shape table names for that tool. A recognised name
-#: over unrecognised bytes is exactly the case that used to reach an adapter and report
-#: zero rows.
+#: over unrecognised bytes halts here (AAP 0.5.4, 0.9.2): a permissive detector would
+#: route it to an adapter that finds none of its containers and reports zero rows, and
+#: an empty result set is indistinguishable from a clean scan.
 REASON_NATIVE_SHAPE_UNRECOGNIZED = "native-shape-unrecognized"
 
 #: Every reason :class:`UnknownArtifactShape` can carry, as a closed set a reader of the

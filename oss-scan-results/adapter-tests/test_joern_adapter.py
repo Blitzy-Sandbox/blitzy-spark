@@ -1,4 +1,4 @@
-"""Assert ``harness/lib/normalize/adapters/joern.py`` field by field, and both gaps it closes.
+"""Assert ``harness/lib/normalize/adapters/joern.py`` field by field, and its rejections by class.
 
 What this module tests
 ---------------------
@@ -11,27 +11,36 @@ path becomes a counted rejection rather than a row."*  AAP 0.5.4 fixes the behav
 AAP 0.9.4 puts it in the definition of done, and AAP 0.9.2 makes a failure here a
 condition that **halts the run**.
 
-The two gaps, and why each needs its own assertion
---------------------------------------------------
-*Gap 1 -- the collector indexes* ``src/main`` *only.*  Every ``-tests`` artifact the build
-emitted is in the graph input (AAP 0.5.1 retains *"main artifacts, pre-shade and shaded
-siblings, classifier artifacts and ``-tests`` artifacts"*), so a finding can legitimately
-name bytecode compiled from a test tree.  AAP 0.5.4 requires the adapter to resolve
-against ``src/main`` **and** ``src/test``, and requires a finding that resolves into
-``src/test`` to be **retained with** ``in_scope: false`` -- *"a test-JAR finding kept out of
-scope rather than dropped"*.  AAP 0.9.3 repeats it among the conditions that are recorded
-and do not stop the run.  A dropped test-tree row and a retained one are indistinguishable
-in a row count, so the retention is asserted on a **named row**: its path, its
-``in_scope`` value and its presence.
+The two resolutions the adapter owns, and why each needs its own assertion
+--------------------------------------------------------------------------
+*Gap 1 -- both source trees.*  The collector indexes ``src/main`` only, while every
+``-tests`` artifact the build emitted is in the graph input (AAP 0.5.1 retains *"main
+artifacts, pre-shade and shaded siblings, classifier artifacts and ``-tests`` artifacts"*),
+so a finding can legitimately name bytecode compiled from a test tree.  AAP 0.5.4 requires
+the adapter to resolve against ``src/main`` **and** ``src/test``, and requires a finding
+that resolves into ``src/test`` to be **retained with** ``in_scope: false`` -- *"a test-JAR
+finding kept out of scope rather than dropped"*.  AAP 0.9.3 repeats it among the conditions
+that are recorded and do not stop the run.  A dropped test-tree row and a retained one are
+indistinguishable in a row count, so the retention is asserted on a **named row**: its
+path, its ``in_scope`` value and its presence.
 
-*Gap 2 -- the collector resolves ambiguity first-writer-wins.*  AAP 0.5.4 requires the
-resolution be taken *"only where it is unique"* and the ambiguous and the unresolvable to
-be **rejected**.  A first-wins pick is not a smaller error than a wrong path: it is the
-same error with nothing to show it happened.  So the ambiguous case is asserted twice --
-positively, that exactly the expected rejections arrive under a rejection class named
-against ``paths.REJECT_CLASSES``; and negatively, that **no** colliding candidate reaches
-any field of any row, which is the half a naive implementation fails while every count
-still adds up.
+*Gap 2 -- uniqueness.*  The collector resolves ambiguity first-writer-wins; the adapter
+does not.  AAP 0.5.4 requires the resolution be taken *"only where it is unique"*, an
+ambiguous one **rejected** under ``ambiguous_source_resolution`` and an unresolvable one
+under ``unresolvable_path``, each counted.  A first-wins pick is not a smaller error than a
+wrong path: it is the same error with nothing to show it happened.  So the ambiguous case
+is asserted twice -- positively, that exactly the expected rejections arrive under a
+rejection class named against ``paths.REJECT_CLASSES``; and negatively, that **no**
+colliding candidate reaches any field of any row, which is the half a naive implementation
+fails while every count still adds up.
+
+Both index schemes carry weight, which is why the index is keyed twice.  A filename lookup
+places a class whose source file is named after it; the declaration lookup places one whose
+file is not, and Scala permits several top-level types in one file --
+``org.apache.spark.RangePartitioner`` is declared in ``Partitioner.scala`` beside five
+siblings, so only the declaration scheme resolves it.  A filename-only index turns such a
+class into an ``unresolvable_path`` rejection, and a silently lost row is indistinguishable
+from a class with nothing to report.
 
 The boundary between the two outcomes is the one thing this file exists to keep sharp: an
 **ambiguous** coordinate is a rejection, and a coordinate that resolves **uniquely** into
@@ -46,8 +55,8 @@ documented shape and ``queries[].returned`` in this provisioning's shape are the
 collector's **own** per-query tallies and are neither the raw count nor a substitute for
 it.  Every committed fixture keeps the two numbers different -- the captured fixture
 excerpts fourteen of the raw artifact's findings while carrying its ``queries`` array
-unchanged, so the tallies sum to 692 against fourteen records -- which is what makes the
-assertion non-vacuous: an implementation counting the tallies would produce 692 against
+unchanged, so the tallies sum to 693 against fourteen records -- which is what makes the
+assertion non-vacuous: an implementation counting the tallies would produce 693 against
 eleven rows and three rejections and fail loudly rather than agree silently.
 
 Fixture provenance, and the one requirement a capture of this artifact cannot carry
@@ -65,7 +74,7 @@ Its parse status is therefore ``partial``, which is what this artifact honestly 
 
 One AAP requirement cannot be met by any capture of this artifact: a finding resolving into
 a ``src/test`` tree, retained with ``in_scope: false``.  The raw artifact carries **no**
-test-tree class -- 0 of its 692 findings names a class whose simple name carries ``Suite``
+test-tree class -- 0 of its 693 findings names a class whose simple name carries ``Suite``
 or ``Test``, and the committed dataset holds 107 joern rows and not one with a ``src/test``
 path, both asserted here rather than asserted in prose -- because the runbook excludes every
 ``-tests`` JAR from the graph input.  So that case lives on ``fixtures/derived-joern-features
@@ -142,24 +151,25 @@ Cantina or any scanner.  No finding is judged real, important, a false positive 
 duplicate, and nothing is deduplicated.  No secret value appears in any literal, message
 or docstring, this tree being committed to git.  No fixture is mutated and nothing under
 ``harness/lib/normalize/`` is edited: a defect there is reported, never repaired here.
-``harness/lib/joern_collect.py`` -- the collector contract the adapter under test consumes
--- is never imported *here*, and this module asserts against the **artifact contract**
-alone: every case below is a document handed to the adapter rather than a call into the
-contract, so what is verified is the adapter's reading of a shape rather than the contract
-agreeing with itself.
+``harness/lib/joern_collect.py`` is the collector the specification describes and **no such
+file exists in this provisioning** -- the collector is ``harness/lib/joern-scan.sc`` and the
+contract the adapter consumes lives in :mod:`normalize.paths`, a divergence
+``harness/lib/normalize/adapters/joern.py`` records from the other side.  Neither is
+imported *here*: this module asserts against the **artifact contract** alone, so every case
+below is a document handed to the adapter rather than a call into the contract, and what is
+verified is the adapter's reading of a shape rather than the contract agreeing with itself.
 Nothing here loads a code-property graph, so the forbidden second-JVM loader appears
 nowhere in this file; ``importCpg`` is the probe's only sanctioned loader and the probe
 owns it.
 
 Rules
 -----
-No user-specified rules govern this file.  ``review_rules`` returns exactly one line,
-``No user rules provided.``, and that line is the complete document -- corroborated by
-AAP 0.7 and AAP 0.10.2.  Enterprise-standard best practice applies in their place and the
-absence is **not** licence to lower the bar, which is why the retained ``src/test`` row and
-the ambiguity rejection are asserted **positively** rather than implied, and why every
-rejection class is asserted by name against the module that owns the vocabulary rather
-than by counting rejections.
+No user-specified rule governs this file; enterprise-standard best practice applies in its
+place (AAP 0.7, AAP 0.10.2), held to the AAP's own bar.  The absence of a rule is **not**
+licence to lower that bar, which is why the retained ``src/test`` row and the ambiguity
+rejection are asserted **positively** rather than implied, and why every rejection class is
+asserted by name against the module that owns the vocabulary rather than by counting
+rejections.
 
 Running it
 ----------
@@ -293,11 +303,11 @@ CONTEXT_MEMBERS = ("method_full_name", "method", "callee", "file")
 #
 # `declares` is the list of top-level type names the file's single declaration line
 # announces, which is what paths.build_source_index's declaration scheme keys on.  It is
-# not decoration: two of the positive fixture's eleven rows resolve on the declaration
+# not decoration: three of the positive fixture's eleven rows resolve on the declaration
 # scheme *alone*, because no file is named after the class the finding reports --
-# ProcessBuilderLike is declared in DriverRunner.scala and ObjectInputStreamWithLoader in
-# Checkpoint.scala.  A filename-only index loses both silently, and a silently lost row is
-# indistinguishable from a class with nothing to report.
+# ProcessBuilderLike is declared in DriverRunner.scala, RangePartitioner in Partitioner.scala
+# and ObjectInputStreamWithLoader in Checkpoint.scala.  A filename-only index loses all three
+# silently, and a silently lost row is indistinguishable from a class with nothing to report.
 #
 # The scaffold is deliberately not Spark source: each file is a comment and a declaration
 # line.  Nothing in this module reads Spark's own files, and nothing it writes survives the
@@ -424,12 +434,12 @@ RAW_ARTIFACT = REPO_ROOT / "harness" / "artifacts" / "raw" / "joern.json"
 #: The raw ``findings[]`` indexes the captured fixture holds, in raw document order.  Stated
 #: here as well as in the expected file so the two are cross-checked rather than one being
 #: taken on faith.
-CAPTURED_FINDING_INDEXES = (0, 10, 14, 15, 16, 95, 97, 238, 371, 655, 656, 669, 681, 691)
+CAPTURED_FINDING_INDEXES = (0, 10, 14, 15, 16, 95, 97, 238, 372, 656, 657, 670, 682, 692)
 
 #: The raw indexes whose records the *derived* fixture also carries verbatim, in the order it
 #: carries them.  Its remaining record -- index 7, the ``MasterSuite`` finding -- is authored
 #: and appears in the raw artifact under no index at all.
-DERIVED_CAPTURED_FINDING_INDEXES = (10, 14, 15, 16, 95, 238, 371, 656, 669, 681)
+DERIVED_CAPTURED_FINDING_INDEXES = (10, 14, 15, 16, 95, 238, 372, 657, 670, 682)
 
 #: The position of the authored record in the derived fixture.
 DERIVED_AUTHORED_FINDING_INDEX = 7
@@ -964,7 +974,7 @@ class CollectorArtifactContractTest(HermeticRootTestCase):
 
         Asserted on a fixture where the two numbers **differ**: the captured fixture
         excerpts fourteen of the raw artifact's findings while carrying its ``queries`` array
-        unchanged, so the tallies sum to 692.  Without that divergence an implementation
+        unchanged, so the tallies sum to 693.  Without that divergence an implementation
         using the wrong number would satisfy the identity and the assertion would test
         nothing (AAP 0.5.4).
         """
@@ -977,7 +987,7 @@ class CollectorArtifactContractTest(HermeticRootTestCase):
             "or this assertion is vacuous",
         )
         self.assertEqual(adapted.raw_records, 14)
-        self.assertEqual(tallies, 692)
+        self.assertEqual(tallies, 693)
         self.assertEqual(
             len(adapted.rows) + len(adapted.rejections),
             adapted.raw_records,
@@ -1217,14 +1227,14 @@ class RawArtifactProvenanceTest(unittest.TestCase):
     def test_the_raw_artifact_carries_the_records_and_envelope_this_capture_claims(
         self,
     ) -> None:
-        """The raw artifact holds 692 findings and the envelope members the fixture copies."""
-        self.assertEqual(len(self.raw_findings), 692)
+        """The raw artifact holds 693 findings and the envelope members the fixture copies."""
+        self.assertEqual(len(self.raw_findings), 693)
         for member in ("tool", "tool_version", "cpg", "graph", "query_set", "queries"):
             with self.subTest(member=member):
                 self.assertIn(member, self.raw)
         self.assertEqual(self.raw["tool"], TOOL)
         expected_fixture = load_expected(CAPTURED_FIXTURE)["fixture"]
-        self.assertEqual(expected_fixture["captured_from_findings"], 692)
+        self.assertEqual(expected_fixture["captured_from_findings"], 693)
         self.assertEqual(
             expected_fixture["captured_from"], "harness/artifacts/raw/joern.json"
         )
@@ -1326,7 +1336,7 @@ class RawArtifactProvenanceTest(unittest.TestCase):
         AAP 0.5.4 requires a finding resolving into ``src/test`` to be retained with
         ``in_scope: false``.  No capture of this artifact can carry that case, and this is
         the measurement that makes the statement in the expected file a fact rather than an
-        assertion in prose: not one of the 692 findings names a class whose simple name
+        assertion in prose: not one of the 693 findings names a class whose simple name
         carries ``Suite`` or ``Test``, because the runbook excludes every ``-tests`` JAR from
         the graph input.
         """
@@ -1423,7 +1433,7 @@ class CapturedFixtureTest(HermeticRootTestCase):
     scope and two outside the twelve globs -- and three name a third-party class shaded into
     Spark's JARs, which no source file declares and which is therefore a counted
     ``unresolvable_path`` rejection.  Its parse status is ``partial``, and that is the
-    artifact's honest status rather than a defect in the fixture: over all 692 findings, 585
+    artifact's honest status rather than a defect in the fixture: over all 693 findings, 586
     resolve to nothing.
 
     Two counters read 14 against 11 rows -- ``rule_id_from_query_id`` and
@@ -1791,7 +1801,7 @@ class CapturedFixtureTest(HermeticRootTestCase):
         self.assertIn("not waived", retention["statement"])
         self.assertIn(DERIVED_FEATURES_FIXTURE, retention["statement"])
         evidence = retention["measured_evidence"]
-        self.assertEqual(evidence["raw_findings"], 692)
+        self.assertEqual(evidence["raw_findings"], 693)
         self.assertEqual(
             evidence["raw_findings_whose_class_simple_name_carries_Suite_or_Test"], 0
         )
@@ -1946,7 +1956,7 @@ DECLARATION_ONLY_RESOLUTIONS = (
 
 
 class BothSourceTreesTest(HermeticRootTestCase):
-    """Gap 1: the collector indexes ``src/main`` only, and the adapter closes that.
+    """Gap 1: the adapter resolves against both trees; the collector indexes ``src/main`` only.
 
     Every ``-tests`` artifact the build emitted is in the graph input, so a finding can
     legitimately name bytecode compiled from a test tree.  AAP 0.5.4 requires the
@@ -2184,12 +2194,14 @@ AMBIGUOUS_CLASS_KEYS = (
 
 
 class UniqueResolutionOnlyTest(HermeticRootTestCase):
-    """Gap 2: the collector resolves ambiguity first-writer-wins; the adapter refuses to.
+    """Gap 2: a resolution is taken only where it is unique; an ambiguous one is rejected.
 
     AAP 0.5.4 requires the resolution be taken *"only where it is unique"* and the ambiguous
-    and the unresolvable to be rejected.  Closing gap 1 *increases* ambiguity -- collision 3
-    below exists only because the index spans ``src/test`` -- which is why closing gap 2 is
-    mandatory rather than optional.
+    and the unresolvable to be rejected, each counted under its own class -- ambiguity under
+    ``ambiguous_source_resolution``.  Spanning both source trees *increases* ambiguity --
+    collision 3 below exists only because the index spans ``src/test`` -- so uniqueness is a
+    requirement of the wider index rather than an option beside it, and the collector's
+    first-writer-wins pick is not available here.
     """
 
     def setUp(self) -> None:
@@ -2805,7 +2817,7 @@ class NegativeFixtureTest(HermeticRootTestCase):
     adapter did not abandon the artifact, and every parsable record still became a row.
 
     ``absent_path`` is the condition the production artifact does not exercise at all: over
-    ``harness/artifacts/raw/joern.json``'s 692 findings every one of the 585 rejections is
+    ``harness/artifacts/raw/joern.json``'s 693 findings every one of the 586 rejections is
     ``unresolvable_path``, because this provisioning's collector named a class on every
     finding it wrote.  The condition is nonetheless reachable -- ``joern-scan.sc`` writes
     the ``<unknown>`` sentinel for a method with no enclosing type declaration, and the
@@ -2926,10 +2938,10 @@ class NegativeFixtureTest(HermeticRootTestCase):
         The complement is exact: every class in ``paths.REJECT_CLASSES`` is either backed by
         a committed fixture in ``NEGATIVE_FIXTURES`` or named in
         ``UNREACHABLE_REJECT_CLASSES`` with its reason, and nothing sits between the two.
-        ``absent_path`` moved from the second set to the first when
-        ``reject-joern-absent-path.json`` was committed; the authored-document cases in
-        ``UniqueResolutionOnlyTest`` remain as supplemental assertions over shapes no
-        committed fixture carries, not as that condition's coverage.
+        ``absent_path`` belongs to the first set on the strength of
+        ``reject-joern-absent-path.json``; the authored-document cases in
+        ``UniqueResolutionOnlyTest`` are supplemental assertions over shapes no committed
+        fixture carries, not that condition's coverage.
 
         The relation between fixtures and classes is onto rather than one-to-one. Three
         fixtures reach ``non_integer_start_line`` -- a boolean, a zero and a negative
@@ -3206,7 +3218,7 @@ class AbsentCoordinateFixtureTests(HermeticRootTestCase):
                 self.assertNotIn(
                     "class_key",
                     rejection.record_identity,
-                    "no route reaches joern_collect.class_key, so no key can exist",
+                    "no route reaches normalize.paths.class_key, so no key can exist",
                 )
                 self.assertIn("rule_id", rejection.record_identity)
                 self.assertIn("method_full_name", rejection.record_identity)
@@ -3609,13 +3621,18 @@ CAPABILITY_MODULES_NEVER_IMPORTED = (
     "pickle",
 )
 
-#: The collector contract module the adapter under test consumes -- ``joern_collect``,
-#: which AAP 0.6.4 names as the Joern adapter's one harness dependency.  Held as a string
-#: rather than an import, deliberately: this module asserts against the adapter's reading
-#: of an artifact **shape**, so every case is a document rather than a call into the
-#: contract, and a contract that agreed with itself would prove nothing about the adapter.
-#: Its presence in ``sys.modules`` is asserted -- because the module under test imports it
-#: -- while its absence from *this* file's imports and identifiers is asserted separately.
+#: The module name the specification gives the Joern collector contract --
+#: ``joern_collect``.  **No such module is delivered or provisioned**: the collector in this
+#: provisioning is the Scala script ``harness/lib/joern-scan.sc``, and the contract the
+#: adapter actually consumes -- ``SourceIndex``, ``build_source_index``, ``class_key`` and
+#: ``source_index_key`` -- lives in :mod:`normalize.paths`.  Held as a string rather than an
+#: import for two reasons: it cannot be imported, and this module asserts against the
+#: adapter's reading of an artifact **shape**, so every case is a document rather than a call
+#: into the contract -- a contract that agreed with itself would prove nothing about the
+#: adapter.  What is asserted of this name is its **absence** from this file's imports and
+#: identifiers *and* from ``sys.modules``, which is what makes the delivered tree importable
+#: on its own; the contract's four members are then asserted present on
+#: :mod:`normalize.paths` instead.
 COLLECTOR_CONTRACT_MODULE = "joern_collect"
 
 #: The two graph loaders, each split in half.  ``importCpg`` is the probe's and the other is
@@ -4135,8 +4152,10 @@ class SourceIndexCompletenessTest(unittest.TestCase):
     directory the walk could not list, or a source file whose declarations could not be
     read, produces *more of the same ordinary outcome*, so the loss is invisible in the
     result and the count is unreproducible.  AAP 0.9.2 halts on a condition that makes a
-    count unreproducible, so both failures now propagate as :class:`OSError` and
-    ``cli._build_source_index`` names the failing path in a configuration fault.
+    count unreproducible, so the walk is required to supply ``os.walk``'s ``onerror`` and the
+    declaration reader is required not to swallow an open failure: both reach the caller as
+    :class:`OSError`, and ``cli._build_source_index`` names the failing path in a
+    configuration fault.
 
     The two failures are provoked without relying on file permissions, because this suite
     may run as a user for whom no mode bit denies anything: a root that does not exist
@@ -4181,16 +4200,17 @@ class SourceIndexCompletenessTest(unittest.TestCase):
     def test_a_root_that_cannot_be_listed_raises_rather_than_indexing_nothing(
         self,
     ) -> None:
-        """``os.walk`` ignores a listing failure by default; ``onerror`` is now wired.
+        """``os.walk`` ignores a listing failure by default, so the walk must supply ``onerror``.
 
-        The silence being replaced is what the assertion is against: ``os.walk`` over a
-        path it cannot list yields no entries and reports no problem, so the old index came
-        back empty and indistinguishable from one over a tree that exists and holds
-        nothing.  The two are now different outcomes -- this one raises, and the
-        empty-but-readable root is asserted separately below to still return an index.
-        This module deliberately does not import ``os`` (see the hygiene assertions), so
-        the contrast is drawn against ``build_source_index``'s two behaviours rather than
-        by walking the tree here.
+        Silence is what the assertion is against: ``os.walk`` over a path it cannot list
+        yields no entries and reports no problem, so an index built without ``onerror`` is
+        empty and indistinguishable from one over a tree that exists and holds nothing --
+        and an empty index turns every finding into an ``unresolvable_path`` rejection that
+        reads as a tool result.  The two roots are therefore separate outcomes: this one
+        raises, and the empty-but-readable root is asserted separately below to still return
+        an index.  This module deliberately does not import ``os`` (see the hygiene
+        assertions), so the contrast is drawn against ``build_source_index``'s two behaviours
+        rather than by walking the tree here.
         """
         self.assertFalse(self.absent_root.exists())
         with self.assertRaises(OSError) as caught:
@@ -4285,7 +4305,7 @@ class CollectorPathRefusalTest(HermeticRootTestCase):
     ``fixtures/reject-joern-collector-path-refused.json`` carries.
 
     The fixture is authored rather than captured, and measurably had to be: over
-    ``harness/artifacts/raw/joern.json``'s 692 findings none carries a ``path`` member and
+    ``harness/artifacts/raw/joern.json``'s 693 findings none carries a ``path`` member and
     none carries the sentinel, so no captured record places a collector answer beside a
     coordinate this run cannot use.  AAP 0.9.4 requires the rejection path to be exercised
     regardless.
