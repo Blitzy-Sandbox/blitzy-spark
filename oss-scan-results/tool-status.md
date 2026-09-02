@@ -1540,10 +1540,20 @@ naming a superseded locator in order to warn a reader off it does not fail; the
 retractions are counted and printed rather than hidden, and a retraction only excuses
 a citation sitting in **its own clause** — a paragraph that mentions an earlier
 generation for some other reason no longer exempts a live citation elsewhere in it.
-Its last run checked **102 owner/copy pairs with 0 disagreeing**, over 12 live field
-citations, **295** live line locators, 5 absence claims and 1 identifier locator, with 2
-line locators retracted as history. Here too the invariant is the zero: the pair count
-grows as each further owner/copy relationship is brought under the gate.
+Its last run checked **102 owner/copy pairs with 0 disagreeing**. Here too the
+invariant is the zero: the pair count grows as each further owner/copy relationship is
+brought under the gate.
+
+**The per-family populations are deliberately not copied into this prose.** They are
+reported by the gate's own output, and copying them here would be self-referential:
+this passage names citation forms, so writing a population into it changes that
+population, and the copy is stale the moment it is written. That is the drift class this
+whole document exists to eliminate, and a checked figure the gate prints on demand is
+not improved by an unchecked transcription of it. What is published instead is the set
+of invariants, each of which the gate asserts and each of which is zero or total: **no
+owner/copy pair disagrees; every locator in every result document is classified; no
+locator is left without an owner; no locator-introducing phrase is left unread and
+unexplained; and no citation resolves into a file that does not exist.**
 
 **Recognising nothing is not the same as finding nothing, so the gate counts what it
 read.** A first version of the line-citation family looked ahead a fixed number of
@@ -1558,7 +1568,7 @@ through document order. And the population is asserted rather than assumed: a se
 deliberately different traversal of each document — flat and unscoped for line
 references, forward-from-filename for field claims where the attribution works
 backward-from-claim — must agree with the classification exactly. Its last run
-classified **437 of 437** line locators and **12 of 12** field claims.
+classified every line locator and every field claim it found.
 
 **And the population is counted from somewhere the patterns cannot reach.** Two
 traversals that both start from the locator patterns agree even about a form neither
@@ -1567,10 +1577,9 @@ to introduce a locator — *line*, *lines*, *at*, *its*, and an attached `:` —
 requires every occurrence beside an adjudicable file to be either consumed by a
 recognised locator or explained by a **named** non-locator class: a unit stuck to the
 number (`64g`), a following unit word (`923 lines`), a decimal (`974.22 s`), a
-timestamp, a ratio (`24 / 19 / 4`) or a hyphenated compound (`122-member`). Its last run
-consumed **151** introducers, explained **29**, and left **0 unexplained**. An
-introducer that no pattern reads and no class explains is reported, because the
-introducer is still there when the pattern misses it.
+timestamp, a ratio (`24 / 19 / 4`) or a hyphenated compound (`122-member`). Its last
+run left **0 unexplained**. An introducer that no pattern reads and no class explains is
+reported, because the introducer is still there when the pattern misses it.
 
 Four further defects of the same family were found and fixed while proving this. A
 locator is adjudicated against a file that must EXIST: a citation of a path inside this
@@ -1588,10 +1597,22 @@ than document order — which had reported trivy's correct citation against the 
 `run-checkov.sh` named in the section before it.
 
 The gate carries its own negative cases: `python3 harness/lib/verify_publication_owners.py
---self-test` runs **48**, one per citation form per family in both directions, and each
-asserts *what* the family concluded — the offender's reason, or the bucket the citation
-landed in — because an accepting case that asserted nothing would be satisfied by a
-family that never read the citation, which is the defect itself wearing a pass.
+--self-test` runs **50** hand-written ones, one per citation form per family in both
+directions, and each asserts *what* the family concluded — the offender's reason, or the
+bucket the citation landed in — because an accepting case that asserted nothing would be
+satisfied by a family that never read the citation, which is the defect itself wearing a
+pass.
+
+**Hand-written cases are not enough on their own, so the same command then mutates the
+real documents.** A synthetic fragment proves a form somebody typed is read; it does not
+prove the form is read *as these documents write it*, and that gap has now bitten twice
+— first a fixed look-ahead window, then an over-broad filename rule under which the
+abbreviated digest `4616845a…` counted as a filename and shadowed the log its own
+sentence is about, so the log's locators went unchecked and the mutation passed. The
+second phase therefore walks every result document, changes one locator of every form
+present to a line that does not exist, and requires a refusal naming a real file:
+**14** such mutations, **0** of which pass. A shadowed or mis-attributed owner produces
+no refusal at all, which is exactly what this phase fails on.
 
 Both gates exist because every measurement re-taken during this work moved several
 published copies at once, and each stale copy was previously found only by someone

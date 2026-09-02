@@ -1005,8 +1005,13 @@ def check_line_number_citations(g: Gate, docs: dict[str, str]) -> None:
     # a parity failure caused purely by two copies of one rule.
     EXT = r"log|status|json|txt|sarif|md|py|sh|sc|xml|scala|csv"
     NAME = (r"(?:\.[A-Za-z0-9_-]+"                                    # .gitignore
-            r"|[A-Za-z0-9_./\-]*[\u2026][A-Za-z0-9_./\-]*"            # probe-01-...log
-            r"\.?(?:" + EXT + r")?"
+            # An ellipsis-abbreviated name must still END in a known extension.
+            # Leaving the extension optional here was a real regression: it made the
+            # abbreviated DIGEST `4616845a...` a filename, and since attribution takes
+            # the nearest preceding filename, the digest shadowed the `cpg-verify.log`
+            # that the sentence is about -- resolved as foreign, so its locators went
+            # unchecked and the mutation this family exists to catch passed again.
+            r"|[A-Za-z0-9_./\-]*[\u2026](?:[A-Za-z0-9_./\-]*\.)?(?:" + EXT + r")"
             r"|[A-Za-z0-9_./\-]+\.(?:" + EXT + r"))")                  # plain name.ext
     LOCATOR = r"(?::(\d+)(?:\s*[\u2013\u2014-]\s*(\d+))?)?"
     FILENAME = re.compile("`(" + NAME + ")" + LOCATOR + "`")
@@ -1559,6 +1564,24 @@ SELF_TEST_CASES: tuple[tuple[str, bool, str, str, tuple[str, object]], ...] = (
     ("ellipsis-abbreviated filename resolved by glob, out of range",
      True, "line", "`probe-01-\u2026log` line 99999 carries it.",
      ("offender", "but that file has 178 lines")),
+    # The regression the live paragraph actually suffered, with the real U+2026 the
+    # documents use rather than three ASCII dots: an abbreviated DIGEST must not be
+    # read as a filename, because attribution takes the nearest preceding one and the
+    # digest would shadow the log the sentence is about -- resolving foreign, leaving
+    # its locators unchecked.  Both directions, so the case cannot pass by the whole
+    # paragraph going unread.
+    ("an abbreviated digest does not shadow the filename it stands beside",
+     True, "line",
+     "`harness/artifacts/logs/cpg-verify.log` records the **current** pair -- "
+     "541,309,809 / `4616845a\u2026`, at its lines 99998-99999 and again at "
+     "99000-99001 -- and nothing else.",
+     ("offender", "cpg-verify.log")),
+    ("the same paragraph, in range, is adjudicated against the log and not the digest",
+     False, "line",
+     "`harness/artifacts/logs/cpg-verify.log` records the **current** pair -- "
+     "541,309,809 / `4616845a\u2026`, at its lines 33-34 and again at 47-50 -- and "
+     "nothing else.",
+     ("live", 4)),
     ("ellipsis abbreviation matching more than one file names none of them",
      True, "line", "`probe-\u2026log` line 5 carries it.",
      ("offender", "matches more than one file")),
@@ -1752,6 +1775,136 @@ BUCKET_PATTERNS: dict[str, tuple[tuple[str, str], ...]] = {
 }
 
 
+# The forms these documents actually write, each with a regex that locates a candidate
+# and the group holding its number.  These are deliberately WRITTEN OUT HERE rather than
+# imported from the checks: a mutation test that located its target with the same
+# grammar the check uses could not detect the grammar being wrong, which is the failure
+# it exists to detect.
+LIVE_FORMS: tuple[tuple[str, str, int], ...] = (
+    ("attached `file:N`",
+     r"`[A-Za-z0-9_./\-]+\.(?:log|status|json|txt|sarif|py|sh|sc):(\d+)", 1),
+    ("prose `lines N`",
+     r"\blines?\s+(\d+)", 1),
+    ("continuation `and again at N`",
+     r"\band\s+again\s+at\s+(\d+)", 1),
+    ("list `, N`",
+     r"\blines?\s+\d+(?:\s*,\s*\d+)*\s*,\s*(\d+)", 1),
+    ("open range `to N`",
+     r"\blines?\s+\d+\s+to\s+(\d+)", 1),
+    ("abbreviated `name\u2026ext`",
+     r"`[A-Za-z0-9_./\-]*\u2026(?:[A-Za-z0-9_./\-]*\.)?(?:log|json|txt|sarif)`"
+     r"[^|\n]{0,60}?\blines?\s+(\d+)", 1),
+    ("typed `runner line N`",
+     r"\brunner(?:'s)?\s+lines?\s+(\d+)", 1),
+)
+
+
+def owner_before(body: str, at: int) -> pathlib.Path | None:
+    """The file a locator at `at` belongs to, resolved independently of the checks.
+
+    Written without the checks' filename grammar on purpose, so it cannot inherit a
+    grammar defect from the thing it is testing.
+
+    The nearest preceding backticked path wins whatever kind it is.  Skipping past a
+    non-adjudicable one to find an adjudicable one further back attributes the locator
+    to the wrong file -- "`add-volcano-source` at line 56" belongs to the pinned clone's
+    pom, and demanding a refusal for it would be demanding a wrong answer.  Returning
+    None for those is what marks them unprovable by mutation rather than failing.
+    """
+    nearest = None
+    for m in re.finditer(r"`([A-Za-z0-9_./\-]+\.[A-Za-z0-9]+)(?::\d+(?:-\d+)?)?`",
+                         body[:at]):
+        nearest = m.group(1)
+    if nearest is None or not nearest.startswith(ADJUDICABLE_PREFIXES):
+        return None
+    target = ROOT / nearest
+    return target if target.is_file() else None
+
+
+def live_mutation_test() -> int:
+    """Mutate every citation form in every REAL document and require the gate to object.
+
+    Synthetic fragments prove the checks read a form somebody wrote by hand.  They do
+    not prove the checks read the form as it appears in these documents, and the
+    difference has already mattered twice: a windowed attribution read zero citations in
+    `joern-probe.md`, and later an over-broad filename rule let the abbreviated digest
+    `4616845a...` shadow the `cpg-verify.log` the same paragraph is about -- in both
+    cases the fragments passed and the document was unchecked.
+
+    So this phase edits the documents in memory, one locator at a time, and requires a
+    refusal that names the file the locator belongs to.  A mutation that passes means
+    either the form is unread or its owner is mis-attributed, and it fails here.
+    """
+    print("publication gate -- live mutation of every citation form in every document")
+    print()
+    failures = 0
+    tested = 0
+    for path in RESULT_DOCUMENTS:
+        if not path.exists():
+            continue
+        name = rel(path)
+        body = text(path)
+        for label, pattern, group in LIVE_FORMS:
+            candidate = None
+            for m in re.finditer(pattern, body):
+                owner = owner_before(body, m.start())
+                if owner is None:
+                    continue
+                # Only a locator whose owner this gate adjudicates can be proved by
+                # mutation; one naming a pinned-clone source is out of its reach.
+                length = len(owner.read_text(encoding="utf-8",
+                                             errors="replace").splitlines())
+                if int(m.group(group)) <= length:
+                    candidate = (m, owner)
+                    break
+            if candidate is None:
+                print(f"  --    [{name}] {label}: no locator of this form with an "
+                      f"adjudicable owner")
+                continue
+            m, owner = candidate
+            lo, hi = m.span(group)
+            mutated = body[:lo] + "999999" + body[hi:]
+            probe = Gate()
+            with contextlib.redirect_stdout(io.StringIO()):
+                check_line_number_citations(probe, {name: mutated})
+            reasons = " | ".join(row[4] for row in probe.rows if not row[0])
+            # The assertion is that the mutation was REFUSED and that the refusal names
+            # a real file inside this gate's surface.  It deliberately does not require
+            # the gate to name the same file this test guessed: the gate resolves a
+            # typed referent through its section and an abbreviation through a glob,
+            # both of which this test's deliberately cruder rule cannot follow, and
+            # demanding agreement there would fail correct behaviour.  What a shadowed
+            # or mis-attributed owner produces is no refusal at all, and that is caught.
+            named = re.findall(r"cites ([A-Za-z0-9_./\-\u2026]+)[ ,]", reasons)
+            resolvable = any((ROOT / n).is_file()
+                             or (LOGS / pathlib.Path(n).name).is_file()
+                             or list(LOGS.glob("*".join(
+                                 x for x in re.split(r"\u2026", n) if x) + "*"))
+                             for n in named)
+            ok = "999999" in reasons and resolvable
+            tested += 1
+            failures += 0 if ok else 1
+            line_no = body.count("\n", 0, m.start()) + 1
+            against = f" against {named[0]}" if ok and named else ""
+            print(f"  {'ok   ' if ok else 'FAIL '} [{name}:{line_no}] {label} -> "
+                  f"{'refused' + against if ok else 'NOT REFUSED'}")
+            if not ok:
+                print(f"            guessed owner {rel(owner)}; reasons were: "
+                      f"{reasons[:150] or '(none)'}")
+    print()
+    print(f"  live mutations tested    : {tested}")
+    print(f"  mutations that passed    : {failures}")
+    print()
+    if failures:
+        print("LIVE MUTATION TEST FAILED -- a locator in a real document can be changed "
+              "to a line that does not exist without the gate objecting, which means "
+              "that form is unread or its owner is mis-attributed.")
+        return 1
+    print("LIVE MUTATION TEST PASS -- every citation form in every result document, "
+          "mutated in place, is refused against the file it belongs to.")
+    return 0
+
+
 def self_test() -> int:
     """Prove each family refuses every defect it must and READS every form it accepts.
 
@@ -1865,5 +2018,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     if "--self-test" in sys.argv[1:]:
-        sys.exit(self_test())
+        # Both phases: hand-written cases per form per family, then the same forms
+        # mutated inside the real documents.
+        sys.exit(self_test() or live_mutation_test())
     sys.exit(main())
