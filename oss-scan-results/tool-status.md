@@ -999,7 +999,7 @@ surface rather than a whole-host walk.
 
 **No artifact was manufactured.** No empty or placeholder `osv-scanner.json` was
 written; one would have corrupted both the reconciliation identity and the
-adapter-creation decision. The runner deletes a zero-byte artifact at lines 53–55,
+adapter-creation decision. The runner `harness/bin/run-osv-scanner.sh` deletes a zero-byte artifact at its lines 53–55,
 deliberately, so that absence stays distinguishable from an empty parse. The
 absence was established by a direct listing of `harness/artifacts/raw/` plus a
 `test -e` on the artifact path, not inferred from the exit code or from the
@@ -1346,7 +1346,7 @@ JAVA_HOME="$JAVA_HOME_21" SL_LOGGING_LEVEL="${SL_LOGGING_LEVEL:-WARN}" \
     < /dev/null > "$OUT" 2> "$ERR"
 ```
 
-with line 70 the `-J-Xmx` site, and `harness/lib/joern-scan.sc` lines 1–6 describe
+with `harness/bin/run-joern.sh` line 70 the `-J-Xmx` site, and `harness/lib/joern-scan.sc` lines 1–6 describe
 the baked set as six structural queries in the script's own words. The same facts
 are held structurally by `runner-metadata.json`
 `tools.joern.invocation_form.literal`, whose `source_lines` field reads
@@ -1364,7 +1364,7 @@ editing a runner or a baked flag, and nothing here was edited.
 
 **Heap actually used: 64 GB**, as `-J-Xmx64g` (68,719,476,736 bytes), which the
 runner also prints into its own stream. The mechanism is `HARNESS_JOERN_HEAP`, the
-runner's own documented environment override applied at line 70 — a runtime value
+runner's own documented environment override applied at `harness/bin/run-joern.sh` line 70 — a runtime value
 rather than a configuration edit, no runner file or baked flag having been
 changed. **No raise was required and none was made**: the provisioned default at
 `harness/env.sh` line 85 is already 64 GB, which meets the mandated minimum. The
@@ -1537,11 +1537,33 @@ left prose citing fields and line numbers that had ceased to exist and asserting
 restored files were absent, none of which either gate could then see. Each family
 distinguishes a **live** citation from one the document is retracting, so a sentence
 naming a superseded locator in order to warn a reader off it does not fail; the
-retractions are counted and printed rather than hidden. Its last run checked
-**82 owner/copy pairs with 0 disagreeing**, over 13 live field citations, 103 live
-line citations and 5 absence claims, with 1 field and 1 line citation retracted as
-history. Here too the invariant is the zero: the pair count grows as each further
+retractions are counted and printed rather than hidden, and a retraction only excuses
+a citation sitting in **its own clause** — a paragraph that mentions an earlier
+generation for some other reason no longer exempts a live citation elsewhere in it.
+Its last run checked **92 owner/copy pairs with 0 disagreeing**, over 12 live field
+citations, 169 live line citations and 5 absence claims, with 1 line citation retracted
+as history. Here too the invariant is the zero: the pair count grows as each further
 owner/copy relationship is brought under the gate.
+
+**Recognising nothing is not the same as finding nothing, so the gate counts what it
+read.** A first version of the line-citation family looked ahead a fixed number of
+characters from a filename to the word "line", and these documents do not write
+citations that way: `joern-probe.md` states a digest and a byte count between the
+filename and the locator, so that family read **zero** citations in a document holding
+eleven of them and reported clear — and a mutation of two of them to lines that do not
+exist passed. Both citation families are therefore attributed **structurally** now, each
+reference to the nearest preceding backticked filename inside its own table row or
+paragraph, with `runner line N` resolved through its own section's heading rather than
+through document order. And the population is asserted rather than assumed: a second,
+deliberately different traversal of each document — flat and unscoped for line
+references, forward-from-filename for field claims where the attribution works
+backward-from-claim — must agree with the classification exactly. Its last run
+classified **300 of 300** line references and **12 of 12** field claims, so a citation
+form the scoped path cannot read now surfaces as a count mismatch instead of as
+silence. The gate also carries its own negative cases, one per citation form per family
+including the `joern-probe.md` form above: `python3 harness/lib/verify_publication_owners.py
+--self-test` runs **29** of them and passes only if each family refuses every defect it
+exists to catch and accepts every form these documents legitimately use.
 
 Both gates exist because every measurement re-taken during this work moved several
 published copies at once, and each stale copy was previously found only by someone

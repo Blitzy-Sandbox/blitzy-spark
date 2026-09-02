@@ -1332,11 +1332,12 @@ Each of these is a recorded difference under AAP §0.9.3, with both values on th
 The graph stage carries a second pass condition beside the graph itself, and it is stated in the same
 terms as every other figure in this file: as a measurement, from the file that made it. AAP §0.5.1
 requires that Opengrep's taint engine be proven active on Spark's own Scala **by an A/B result rather
-than by a configuration reading**, and §0.9.1 restates the condition exactly — *one traced finding at
-line 72 with taint on and zero with it off, from two invocations differing only in that setting*, over
-the mandated subject `core/src/main/scala/org/apache/spark/storage/DiskStore.scala`.
+than by a configuration reading**, and §0.9.1 restates the condition exactly, over the mandated subject
+`core/src/main/scala/org/apache/spark/storage/DiskStore.scala` — *one traced finding at line 72 with
+taint on and zero with it off, from two invocations differing only in that setting*.
 
-> **THAT PASS CONDITION FAILED.** The taint-off arm returned the **same** traced finding at line 72 as
+> **THAT PASS CONDITION FAILED.** The taint-off arm returned the **same** traced finding at
+> `DiskStore.scala` line 72 as
 > the taint-on arm, and its SARIF is **byte-identical** to the on arm's. The off arm's own log states the
 > verdict and its class:
 >
@@ -1366,7 +1367,8 @@ taint as the **sole** difference. Per-arm figures are each arm's own log and its
 | **off** | 0 | 3 s | **1**, `DiskStore.scala` line **72**, `codeFlows=1`, 2 dataflow steps | 4,753 | `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` | `harness/artifacts/logs/taint-ab-anchor-diskstore-off.log` and `harness/artifacts/logs/taint-ab-anchor-diskstore-off.sarif` |
 
 The two digests are **the same value**, which is the whole of the result: the arms did not differ in one
-byte. The off arm additionally re-ran the on arm inside itself — exit 0, 1.849 s, 1 finding at line 72,
+byte. The off arm additionally re-ran the on arm inside itself — exit 0, 1.849 s, 1 finding at
+`DiskStore.scala` line 72,
 recorded in its own STATUS block — so the identity is not an artefact of comparing runs taken hours
 apart. The two arms' full narrative records, each with its stdout and stderr appended verbatim, are
 `harness/artifacts/logs/taint-ab-on.log` and `harness/artifacts/logs/taint-ab-off.log`; the per-arm
