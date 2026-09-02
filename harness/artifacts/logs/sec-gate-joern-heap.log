@@ -1,0 +1,82 @@
+
+==== 2026-09-02T20:43:43Z  clone 0  requested heap 64g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=64 (default 64g, ceiling 128g)
+proof           : not required (default heap, not a raise)
+heap accepted   : 64g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T20:43:43Z  clone 0  requested heap 128g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=128 (default 64g, ceiling 128g)
+proof command   : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/g2/jdk21-shim/bin/java -Xms128g -Xmx128g -XX:+AlwaysPreTouch -version
+proof exit      : 0 (elapsed 30s)
+proof output    :
+openjdk version "21.0.12.1" 2026-08-18 LTS
+OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)
+heap accepted   : 128g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T20:44:13Z  clone 0  requested heap 65g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=65 (default 64g, ceiling 128g)
+proof command   : /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -Xms65g -Xmx65g -XX:+AlwaysPreTouch -version
+proof exit      : 0 (elapsed 15s)
+proof output    :
+openjdk version "21.0.12.1" 2026-08-18 LTS
+OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)
+heap accepted   : 65g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T20:51:04Z  clone 0  requested heap 100g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=100 (default 64g, ceiling 128g)
+proof command   : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/g2/jdk21-failing/bin/java -Xms100g -Xmx100g -XX:+AlwaysPreTouch -version
+proof exit      : 1 (elapsed 0s)
+proof output    :
+Error occurred during initialization of VM
+Could not reserve enough space for object heap
+
+==== 2026-09-02T20:51:04Z  clone 0  requested heap 100g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=100 (default 64g, ceiling 128g)
+proof           : NOT TAKEN -- /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/g2/no-such-jdk/bin/java is not executable; REFUSED
+
+==== 2026-09-02T22:18:22Z  clone 0  requested heap 64g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=<unset> (default 64g, ceiling 128g)
+proof           : not required (default heap, not a raise)
+heap accepted   : 64g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T22:18:23Z  clone 0  requested heap 64g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=<unset> (default 64g, ceiling 128g)
+proof           : not required (default heap, not a raise)
+heap accepted   : 64g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T22:18:23Z  clone 0  requested heap 64g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=<unset> (default 64g, ceiling 128g)
+proof           : not required (default heap, not a raise)
+heap accepted   : 64g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T22:18:23Z  clone 0  requested heap 64g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=<unset> (default 64g, ceiling 128g)
+proof           : not required (default heap, not a raise)
+heap accepted   : 64g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T22:18:23Z  clone 0  requested heap 64g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=<unset> (default 64g, ceiling 128g)
+proof           : not required (default heap, not a raise)
+heap accepted   : 64g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T22:18:23Z  clone 0  requested heap 64g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=<unset> (default 64g, ceiling 128g)
+proof           : not required (default heap, not a raise)
+heap accepted   : 64g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T22:18:46Z  clone 0  requested heap 64g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=64 (default 64g, ceiling 128g)
+proof           : not required (default heap, not a raise)
+heap accepted   : 64g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T22:18:46Z  clone 0  requested heap 128g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=128 (default 64g, ceiling 128g)
+proof command   : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/p4shim/bin/java -Xms128g -Xmx128g -XX:+AlwaysPreTouch -version
+proof exit      : 0 (elapsed 39s)
+proof output    :
+openjdk version "17.0.20" 2026-07-21
+OpenJDK Runtime Environment Temurin-17.0.20+8 (build 17.0.20+8)
+OpenJDK 64-Bit Server VM Temurin-17.0.20+8 (build 17.0.20+8, mixed mode, sharing)
+heap accepted   : 128g (syntax, floor 64g, ceiling 128g, proof)

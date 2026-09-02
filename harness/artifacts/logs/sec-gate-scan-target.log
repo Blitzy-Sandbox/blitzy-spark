@@ -1,0 +1,183 @@
+====================================================================================
+PRE-SCAN TARGET, SMOKE AND PATH-VALUE GATE
+====================================================================================
+
+  Refuses to invoke any scanner runner unless the tree to be scanned is the
+  pinned tree, the setup-time smoke override is absent from the environment
+  entirely, and every harness path value a runner interpolates is ordinary
+  text. harness/lib/scope.sh accepts any SPARK_SRC without comparing HEAD and
+  takes HARNESS_SMOKE_TARGET whenever it is non-empty, and neither that file
+  nor any runner may be edited (AAP 0.3.2, 0.8.1, 0.6.3), so the control lives
+  here: a refusal exits 77 before a caller reaches the runner.
+
+  Gate source             : harness/lib/preflight_scan_target.py
+  Binding callers         : harness/lib/run-scanner-gated.sh (all nine runners),
+                            harness/lib/run-joern-gated.sh (step 1 of 4)
+  Checked at (UTC)        : 2026-09-02T22:17:28Z
+  Clone index             : 0
+  Repository root         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90
+  Pin authored here       : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+  git executable          : /usr/bin/git
+  git child environment   : every GIT_* variable stripped, system and global
+                            config excluded (GIT_DIR alone would otherwise
+                            decide what HEAD the gate sees)
+
+  Every check, in the order it was taken -- the character policy runs before
+  any value is handed to a subprocess or printed:
+
+    [PASS  ] smoke-override-absent              $HARNESS_SMOKE_TARGET
+               expected : absent from the environment (harness/env.sh lines 87-89: setup-time only)
+               observed : absent
+
+    [PASS  ] path-policy:SPARK_SRC              $SPARK_SRC
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/spark-src (14 characters, sha256
+                          af35e8a41d22ecf1c608b41587c2487a70954a3b18882bec53f564501cf57e3d)
+
+    [PASS  ] path-policy:HARNESS_DIR            $HARNESS_DIR
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness
+                          (89 characters, sha256 98143c80865739202c85d2b2b3a1954944554dce6153f0f786fbbb557380c369)
+
+    [PASS  ] path-policy:HARNESS_REPO_ROOT      $HARNESS_REPO_ROOT
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90 (81
+                          characters, sha256 dc08335851545bbf06c25b19669e27f7cd44366a788409566dea8a448f04dbeb)
+
+    [PASS  ] path-policy:HARNESS_RAW_DIR        $HARNESS_RAW_DIR
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/raw
+                          (103 characters, sha256 7c76d429279c54927e488f2532a439aa8902c45bf577b7abfae4f56061364664)
+
+    [PASS  ] path-policy:HARNESS_LOG_DIR        $HARNESS_LOG_DIR
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/logs
+                          (104 characters, sha256 40a772defcc1293b35c14fdba58121aba4c03324a299f763fdccc376286f6b0c)
+
+    [PASS  ] path-policy:HARNESS_SCOPE_FILE     $HARNESS_SCOPE_FILE
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/scope/allowlist.txt
+                          (109 characters, sha256 29a703b7330931d65d4ad03ce90532913474338c346ccd3e0bd757c68eb44422)
+
+    [PASS  ] path-policy:HARNESS_CPG            $HARNESS_CPG
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/cpg/spark.cpg
+                          (103 characters, sha256 c46237de06ecd8106eca533b74e9c01fe79091291e1d7fa276ff8f5e0b553e24)
+
+    [PASS  ] path-policy:HARNESS_LIB_DIR        $HARNESS_LIB_DIR
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/lib
+                          (93 characters, sha256 31f274c6c94a4d4f0752a5a33bbba52410383ff4426929db51c88f8129972583)
+
+    [PASS  ] path-policy:HARNESS_SHARED_DIR     $HARNESS_SHARED_DIR
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-harness (19 characters, sha256
+                          ab3b852febf356aa54618af0293f85c3f0868d87b1d8f48177ee95241b62407c)
+
+    [PASS  ] path-policy:HARNESS_TOOLS_DIR      $HARNESS_TOOLS_DIR
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-tools (17 characters, sha256
+                          f51f95553fff058a2fc2ccbfc9a728f220e529b5a7a054926104f17a20200aef)
+
+    [PASS  ] path-policy:HARNESS_SCRATCH_DIR    $HARNESS_SCRATCH_DIR
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /tmp/blitzy-harness-scratch/0 (29 characters, sha256
+                          96c90c9ef6ee121f8d67631fadf63296764f6c2890c2ac9b0015c84581491e29)
+
+    [PASS  ] path-policy:JAVA_HOME              $JAVA_HOME
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-tools/jdk/jdk-17.0.20+8 (35 characters, sha256
+                          6a5cc51169604b57358b9e066e774554577ff99d9cef31f7358ff75ad63ef65a)
+
+    [PASS  ] path-policy:JAVA_HOME_21           $JAVA_HOME_21
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-tools/jdk/jdk-21.0.12.1+1 (37 characters, sha256
+                          a00dd0e28d3802196296f3064dbe38f993bb7a15224aa3080c6ac052421e8dcb)
+
+    [PASS  ] path-policy:JOERN_HOME             $JOERN_HOME
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-tools/joern-cli (27 characters, sha256
+                          bc2c7b9255e428e0f7c0e67dc1d746dce7a281432afc3406df8d46c3402f9982)
+
+    [PASS  ] path-policy:DEPENDENCY_CHECK_HOME  $DEPENDENCY_CHECK_HOME
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-tools/dependency-check (34 characters, sha256
+                          076aae827eefa2e33d352ca38a8d6e582ea25725ac3908b55a7d6a54d3ddd2f2)
+
+    [PASS  ] path-policy:MAVEN_HOME             $MAVEN_HOME
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-tools/apache-maven-3.9.11 (37 characters, sha256
+                          fadcf41da93a98f78c25e2d4c2f7cc8727d717aa4c2088c6c6bb0f3b58a7a6c3)
+
+    [PASS  ] path-policy:SCALA_HOME             $SCALA_HOME
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-tools/scala-2.13.17 (31 characters, sha256
+                          027405e9653bf0de058ad67848185283ce77ee2c414dec5b6fe16ebb21c769b1)
+
+    [PASS  ] path-policy:OPENGREP_RULES_DIR     $OPENGREP_RULES_DIR
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-harness/rules/opengrep-rules (40 characters, sha256
+                          49c5909a6cd612226f47ce1c5ae68e2624951c926041554d9596d076b504369c)
+
+    [PASS  ] path-policy:SEMGREP_RULES_DIR      $SEMGREP_RULES_DIR
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-harness/rules/semgrep-rules (39 characters, sha256
+                          f08e0bfa91d07f49f8ef35c393358b81edae9f40869d54434c3f19e6d3aeb1ec)
+
+    [PASS  ] path-policy:DD_SAST_RULES_FILE     $DD_SAST_RULES_FILE
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-harness/rules/datadog/datadog-sast-rules.json (57 characters, sha256
+                          f1e32ed69e861716aa2a539aba57efad5a958a43857f311a44b7c080b0846682)
+
+    [PASS  ] path-policy:TRIVY_CACHE_DIR        $TRIVY_CACHE_DIR
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-harness/trivy-cache (31 characters, sha256
+                          868b349c7c6171df7470eb5c788d2cfc8d296e6c006bced8d844c4bb8db6f9df)
+
+    [PASS  ] path-policy:HARNESS_DC_DATA_DIR    $HARNESS_DC_DATA_DIR
+               expected : absolute, no control characters, no shell or source syntax
+               observed : /opt/blitzy-harness/dc-data (27 characters, sha256
+                          dee52de6b1fd2d63c6dfddbc13e281055c76a8fd8534e983fd4afa71e8f2d548)
+
+    [PASS  ] scan-target-exists                 $SPARK_SRC
+               expected : an existing directory
+               observed : /opt/spark-src is a directory
+
+    [PASS  ] scan-target-work-tree              /opt/spark-src (via /usr/bin/git)
+               expected : the root of a git work tree
+               observed : inside a work tree: true
+
+    [PASS  ] scan-target-root                   $SPARK_SRC
+               expected : resolves to the ROOT of the pinned work tree
+               observed : work-tree root and $SPARK_SRC both resolve to /opt/spark-src
+
+    [PASS  ] scan-target-head                   /opt/spark-src HEAD
+               expected : byte-equal to 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d (the pin authored in this module)
+               observed : HEAD is 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+
+    [PASS  ] declared-commit-agrees             $SPARK_SRC_COMMIT
+               expected : equal to 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, checked separately from the measured HEAD
+               observed : the environment declares 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, which is the pin
+
+  git invocations taken (argument vectors, never a shell):
+    $ /usr/bin/git -C /opt/spark-src rev-parse --is-inside-work-tree
+      exit 0, stdout 'true'
+    $ /usr/bin/git -C /opt/spark-src rev-parse --show-toplevel
+      exit 0, stdout '/opt/spark-src'
+    $ /usr/bin/git -C /opt/spark-src rev-parse HEAD
+      exit 0, stdout '59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d'
+
+====================================================================================
+VERDICT: PASS
+====================================================================================
+
+  The target is the pinned tree, no smoke override is present, and every
+  path value is ordinary text. A caller may invoke the runner.
+
+  RESIDUAL, stated because it cannot be closed from a clone: each
+  harness/bin/run-<tool>.sh remains executable in its own right, and an
+  invocation that does not read this exit status is not bound by it. In
+  particular run-trivy.sh lines 52-53 still interpolate $TRIVY_CACHE_DIR into
+  python3 -c source. Closing that at its root is a provisioning change: pass
+  the metadata path as positional argv to fixed code instead of interpolating
+  environment text into program source.

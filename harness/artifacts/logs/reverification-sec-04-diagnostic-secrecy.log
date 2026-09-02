@@ -1,0 +1,244 @@
+==============================================================================
+SEC-04 re-verification -- diagnostic secrecy on the unknown-artifact halt path
+==============================================================================
+run_at_utc : 2026-09-02T22:18:00Z
+repository : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90
+sandbox    : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/sec04   (a private copy; harness/artifacts/raw/ is never written)
+
+The finding: an unknown-artifact halt echoed the offending value and the artifact's
+top-level key names verbatim into stderr, into UnknownArtifactShape.details(), and
+thence into normalize-run.json at mode 0644.
+
+Reproduction input -- two distinct markers planted in the two places the finding named:
+  as the 'version' VALUE : ZQ7-reverify-value-4f8b21ce-SECRET
+  as a top-level KEY     : ZQ7-reverify-key-9d3a77bf-SECRET
+  artifact              : $sandbox/raw/opengrep.sarif
+  {"version":"ZQ7-reverify-value-4f8b21ce-SECRET","runs":[],"ZQ7-reverify-key-9d3a77bf-SECRET":[]}
+
+------------------------------------------------------------------------------
+the normalizer run
+------------------------------------------------------------------------------
+exit code : 1   (1 = the unknown-artifact halt, the required outcome)
+
+PRECONDITION -- the run must actually have reached shape detection. A run that
+refused on missing inputs never reads an artifact, and its zero marker counts
+would be vacuous. The halt reason below is what distinguishes the two:
+  halt reason = unknown-artifact-shape
+  PRECONDITION MET -- the artifact was parsed and the halt is the shape halt.
+
+stderr, verbatim (the channel the finding said leaked):
+    normalize: halted [unknown-artifact-shape]: opengrep: unknown artifact shape (sarif-producer-artifact-not-sarif): /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/sec04/raw/opengrep.sarif; top-level type object; version a str of length 34 (sha256 edb3ecee0f17245974777c66b184d7cc922bb4bf7a387228a8d67784a1cfcb0c; <redacted-artifact-text>); top-level keys [version, runs, a str of length 32 (sha256 825203a5e211824587584b66359cac6108f98ee6f228eceb326630aade535053; <redacted-artifact-text>)]; expected a SARIF 2.1.0 document -- version == "2.1.0" together with a runs array; this runner writes SARIF and nothing else, so there is no native shape to fall back to; a recognised artifact name identifies the writing runner; it is not evidence that the bytes are that runner's shape, and routing unrecognised bytes to an adapter reports zero rows, which is indistinguishable from a clean scan (AAP 0.5.4)
+    normalize: run record written to /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/sec04/logs/normalize-run.json (38615 bytes, read back and parsed before it was promoted)
+
+------------------------------------------------------------------------------
+marker occurrences -- the measurement that decides this finding
+------------------------------------------------------------------------------
+  stderr.txt                       value=0  key=0
+  stdout.txt                       value=0  key=0
+  logs/normalize-run.json        value=0  key=0    mode=644
+
+  ALL SIX COUNTS MUST BE ZERO. Any non-zero count is the finding still reproducing.
+
+------------------------------------------------------------------------------
+what is persisted INSTEAD -- evidence preserved, plaintext gone
+------------------------------------------------------------------------------
+  version_evidence =
+      {
+        "value_type": "str",
+        "context": "version",
+        "character_length": 34,
+        "sha256": "edb3ecee0f17245974777c66b184d7cc922bb4bf7a387228a8d67784a1cfcb0c",
+        "excerpt": "<redacted-artifact-text>",
+        "truncated": false,
+        "controls_escaped": 0,
+        "userinfo_redactions": 0,
+        "publishable": false,
+        "redacted": true
+      }
+  details =
+      {
+        "artifact_path": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/sec04/raw/opengrep.sarif",
+        "stem": "opengrep",
+        "expectation": "a SARIF 2.1.0 document -- version == \"2.1.0\" together with a runs array; this runner writes SARIF and nothing else, so there is no native shape to fall back to",
+        "top_level_type": "object",
+        "python_type": "dict",
+        "version": "<redacted-artifact-text>",
+        "version_evidence": {
+          "value_type": "str",
+          "context": "version",
+          "character_length": 34,
+          "sha256": "edb3ecee0f17245974777c66b184d7cc922bb4bf7a387228a8d67784a1cfcb0c",
+          "excerpt": "<redacted-artifact-text>",
+          "truncated": false,
+          "controls_escaped": 0,
+          "userinfo_redactions": 0,
+          "publishable": false,
+          "redacted": true
+        },
+        "top_level_keys": [
+          {
+            "value_type": "str",
+            "context": "top-level key",
+            "character_length": 7,
+            "sha256": "5ca4f3850ccc331aaf8a257d6086e526a3b42a63e18cb11d020847985b31d188",
+            "excerpt": "version",
+            "truncated": false,
+            "controls_escaped": 0,
+            "userinfo_redactions": 0,
+            "publishable": true,
+            "redacted": false
+          },
+          {
+            "value_type": "str",
+            "context": "top-level key",
+            "character_length": 4,
+            "sha256": "1f64fff08d787e732e04559f4d241876b399d9d4251af79833bd22adbb2d331a",
+            "excerpt": "runs",
+            "truncated": false,
+            "controls_escaped": 0,
+            "userinfo_redactions": 0,
+            "publishable": true,
+            "redacted": false
+          },
+          {
+            "value_type": "str",
+            "context": "top-level key",
+            "character_length": 32,
+            "sha256": "825203a5e211824587584b66359cac6108f98ee6f228eceb326630aade535053",
+            "excerpt": "<redacted-artifact-text>",
+            "truncated": false,
+            "controls_escaped": 0,
+            "userinfo_redactions": 0,
+            "publishable": false,
+            "redacted": true
+          }
+        ],
+        "top_level_key_excerpts": [
+          "version",
+          "runs",
+          "<redacted-artifact-text>"
+        ],
+        "top_level_keys_total": 3,
+        "top_level_keys_reported": 3,
+        "top_level_keys_truncated": false,
+        "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and its published rendering, plus the number of control characters escaped and credential userinfo segments redacted. The rendering is the key itself only where it is byte-equal to a literal shape.py authors (shape.publishable_literals); every other key is published as the fixed shape.REDACTED_TEXT marker, because a JSON key is artifact-supplied text and this record is preserved. The length and digest are full so the original stays checkable against this record.",
+        "top_level_length": 3,
+        "sarif_detected": false,
+        "signature_tool": null,
+        "expected_signature": null,
+        "signature_observation": null,
+        "expected_artifacts": [
+          "opengrep.sarif",
+          "semgrep.sarif",
+          "datadog-static-analyzer.sarif",
+          "gitleaks.json",
+          "checkov.json",
+          "trivy.json",
+          "osv-scanner.json",
+          "dependency-check.json",
+          "joern.json"
+        ],
+        "detection_reason": "sarif-producer-artifact-not-sarif"
+      }
+  halt =
+      {
+        "reason": "unknown-artifact-shape",
+        "message": "opengrep: unknown artifact shape (sarif-producer-artifact-not-sarif): /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/sec04/raw/opengrep.sarif; top-level type object; version a str of length 34 (sha256 edb3ecee0f17245974777c66b184d7cc922bb4bf7a387228a8d67784a1cfcb0c; <redacted-artifact-text>); top-level keys [version, runs, a str of length 32 (sha256 825203a5e211824587584b66359cac6108f98ee6f228eceb326630aade535053; <redacted-artifact-text>)]; expected a SARIF 2.1.0 document -- version == \"2.1.0\" together with a runs array; this runner writes SARIF and nothing else, so there is no native shape to fall back to; a recognised artifact name identifies the writing runner; it is not evidence that the bytes are that runner's shape, and routing unrecognised bytes to an adapter reports zero rows, which is indistinguishable from a clean scan (AAP 0.5.4)",
+        "exit_code": 1,
+        "details": {
+          "artifact_path": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/sec04/raw/opengrep.sarif",
+          "stem": "opengrep",
+          "expectation": "a SARIF 2.1.0 document -- version == \"2.1.0\" together with a runs array; this runner writes SARIF and nothing else, so there is no native shape to fall back to",
+          "top_level_type": "object",
+          "python_type": "dict",
+          "version": "<redacted-artifact-text>",
+          "version_evidence": {
+            "value_type": "str",
+            "context": "version",
+            "character_length": 34,
+            "sha256": "edb3ecee0f17245974777c66b184d7cc922bb4bf7a387228a8d67784a1cfcb0c",
+            "excerpt": "<redacted-artifact-text>",
+            "truncated": false,
+            "controls_escaped": 0,
+            "userinfo_redactions": 0,
+            "publishable": false,
+            "redacted": true
+          },
+          "top_level_keys": [
+            {
+              "value_type": "str",
+              "context": "top-level key",
+              "character_length": 7,
+              "sha256": "5ca4f3850ccc331aaf8a257d6086e526a3b42a63e18cb11d020847985b31d188",
+              "excerpt": "version",
+              "truncated": false,
+              "controls_escaped": 0,
+              "userinfo_redactions": 0,
+              "publishable": true,
+              "redacted": false
+            },
+            {
+              "value_type": "str",
+              "context": "top-level key",
+              "character_length": 4,
+              "sha256": "1f64fff08d787e732e04559f4d241876b399d9d4251af79833bd22adbb2d331a",
+              "excerpt": "runs",
+              "truncated": false,
+              "controls_escaped": 0,
+              "userinfo_redactions": 0,
+              "publishable": true,
+              "redacted": false
+            },
+            {
+              "value_type": "str",
+              "context": "top-level key",
+              "character_length": 32,
+              "sha256": "825203a5e211824587584b66359cac6108f98ee6f228eceb326630aade535053",
+              "excerpt": "<redacted-artifact-text>",
+              "truncated": false,
+              "controls_escaped": 0,
+              "userinfo_redactions": 0,
+              "publishable": false,
+              "redacted": true
+            }
+          ],
+          "top_level_key_excerpts": [
+            "version",
+            "runs",
+            "<redacted-artifact-text>"
+          ],
+          "top_level_keys_total": 3,
+          "top_level_keys_reported": 3,
+          "top_level_keys_truncated": false,
+          "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and its published rendering, plus the number of control characters escaped and credential userinfo segments redacted. The rendering is the key itself only where it is byte-equal to a literal shape.py authors (shape.publishable_literals); every other key is published as the fixed shape.REDACTED_TEXT marker, because a JSON key is artifact-supplied text and this record is preserved. The length and digest are full so the original stays checkable against this record.",
+          "top_level_length": 3,
+          "sarif_detected": false,
+          "signature_tool": null,
+          "expected_signature": null,
+          "signature_observation": null,
+          "expected_artifacts": [
+            "opengrep.sarif",
+            "semgrep.sarif",
+            "datadog-static-analyzer.sarif",
+            "gitleaks.json",
+            "checkov.json",
+            "trivy.json",
+            "osv-scanner.json",
+            "dependency-check.json",
+            "joern.json"
+          ],
+          "detection_reason": "sarif-producer-artifact-not-sarif"
+        }
+      }
+
+  raw marker scan over the whole persisted record: value=0 key=0
+  the well-known keys still publish as themselves : 'version' present=True
+
+------------------------------------------------------------------------------
+verdict
+------------------------------------------------------------------------------
+  The halt still happens, the evidence is richer than before (type, context, exact
+  character length, full sha256, escape counts, publishable flag), and no byte of the
+  artifact's own text reaches stderr, stdout or the 0644 record. Text publishes
+  verbatim only when byte-equal to a literal the code itself authors.
+END

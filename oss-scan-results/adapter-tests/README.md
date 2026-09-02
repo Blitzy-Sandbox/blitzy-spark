@@ -118,10 +118,10 @@ without anything being installed.
 
 `harness/artifacts/logs/adapter-tests-run.json` carries the exact command line, the
 interpreter's absolute path and version, **an outcome for every test that executed**, a
-per-module outcome, **a separate entry for every one of the 72 negative fixtures**, and
-the exit status. It records exit status 0 over 1,347 tests and 26,123 subtests with zero
+per-module outcome, **a separate entry for every one of the 73 negative fixtures**, and
+the exit status. It records exit status 0 over 1,361 tests and 26,198 subtests with zero
 failures, errors, skips, expected failures and unexpected successes; its per-module test
-counts sum to exactly that 1,347, and its per-test outcome inventory holds exactly 1,347
+counts sum to exactly that 1,361, and its per-test outcome inventory holds exactly 1,361
 entries — so a module that had silently stopped contributing tests would show up as three
 disagreeing numbers rather than as a passing run.
 
@@ -144,15 +144,15 @@ byte-size and sha256 manifest that `oss-scan-results/run-record.md` owns.
 
 ## 3. Fixture provenance
 
-`fixtures/` holds 105 files and `expected/` holds 105, one expected file per fixture in
+`fixtures/` holds 106 files and `expected/` holds 106, one expected file per fixture in
 both directions. They divide, by filename prefix so the count can be re-taken from
 the directory rather than trusted, into **9 captured positive fixtures** (the eight named in
 §3.1 plus the second Dependency-Check capture), **7 declared-derived feature fixtures**
-(`derived-*`), **72 negative fixtures** (`reject-*`), **6 structural-halt fixtures**
+(`derived-*`), **73 negative fixtures** (`reject-*`), **6 structural-halt fixtures**
 (`halt-*`), **5 malformed-known-filename fixtures** (`malformed-*`), **3 shape-detection
 fixtures** (`near-*`) and **3 others** (`checkov-alt-shape`, `reconcile-mixed`,
-`unknown-shape`) — 9 + 7 + 72 + 6 + 5 + 3 + 3 = 105. The accounting is exact and every one
-of the 105 is claimed by some module's fixture inventory rather than sitting untested.
+`unknown-shape`) — 9 + 7 + 73 + 6 + 5 + 3 + 3 = 106. The accounting is exact and every one
+of the 106 is claimed by some module's fixture inventory rather than sitting untested.
 
 The captured count is 9 rather than one per adapter because Dependency-Check needs two.
 Its scan-run artifact carries no vulnerability record at all, so no excerpt of it can
@@ -161,12 +161,15 @@ unmodified whole report of a second invocation of the same tool build, over inpu
 resolves to packages the seeded feed carries advisories for. §3.1 states both, and
 `expected/dependency-check.rows.json` records why the first cannot serve.
 
-Attribution was measured rather than assumed: **every one of the 105 was opened by at
+Attribution was measured rather than assumed: **every one of the 106 was opened by at
 least one executed test**, recorded by instrumenting the file-read entry points during the
-run, and 103 of the 105 are additionally named by at least one executed subTest. The two
-that no subTest names — `captured-dependency-check-vulnerabilities.json` and
-`reject-dependency-check-unresolvable-path.json` — are driven from class attributes rather
-than from loop variables, so their stems never reach a subTest description;
+run — 5,812 reads in total, of which 466 were performed in class or module setup and so
+belong to no running method — and **every one of the 73 negative fixtures is additionally
+named by at least one executed subTest**. Two fixtures reach no subTest description of
+their own, `captured-dependency-check-vulnerabilities.json` and
+`reject-dependency-check-unresolvable-path.json`, because they are driven from class
+attributes rather than from loop variables; the second is nonetheless named now that a
+corpus-wide sweep names every negative fixture in a subTest of its own.
 `harness/artifacts/logs/adapter-tests-run.json` records the owning class, that class's
 executed test count and the read attribution for each, rather than asserting coverage in
 prose alone.
@@ -338,7 +341,7 @@ adapter.
 | Condition (AAP §0.5.4) | `sarif` | `trivy` | `gitleaks` | `checkov` | `dependency-check` | `joern` |
 | --- | --- | --- | --- | --- | --- | --- |
 | An unresolvable or absent path | `unresolvable-path`; `absent_path` <sup>a</sup> | `unresolvable-path`; `absent-path` | `unresolvable-path` <sup>b</sup>; `absent-path` | `unresolvable-path`, `unresolvable-path-uri-anchor`; `absent-path` | `unresolvable-path` <sup>d</sup>; `absent-path` | `unresolvable-path`; `absent_path` <sup>e</sup> |
-| A cyclic, over-deep or invalid `uriBaseId` chain | `uribaseid-cycle`, `uribaseid-overdepth`, `uribaseid-missing-base` †, `uribaseid-relative-no-absolute-ancestor` † → `unresolvable_path`; `uribaseid-invalid-uri` → `invalid_uri` | Cannot arise: no SARIF base map is walked on this route | Cannot arise: `File` is a filesystem path, not a URI, so there is no chain to walk, cycle or exceed | Cannot arise: the tool emits no `uri`, no `uriBaseId` and no base map, so there is no reference to parse | Cannot arise: `filePath` is a filesystem path and this route parses no SARIF bases | Cannot arise: this shape carries no URI and no base map |
+| A cyclic, over-deep or invalid `uriBaseId` chain | `uribaseid-cycle`, `uribaseid-overdepth`, `uribaseid-missing-base` †, `uribaseid-relative-no-absolute-ancestor` † → `unresolvable_path`; `uribaseid-invalid-uri`, `percent-encoded-control`, `malformed-percent-escape` → `invalid_uri` | Cannot arise: no SARIF base map is walked on this route | Cannot arise: `File` is a filesystem path, not a URI, so there is no chain to walk, cycle or exceed | Cannot arise: the tool emits no `uri`, no `uriBaseId` and no base map, so there is no reference to parse | Cannot arise: `filePath` is a filesystem path and this route parses no SARIF bases | Cannot arise: this shape carries no URI and no base map |
 | An ambiguous bytecode-to-source resolution | Cannot arise: no bytecode input to resolve | Cannot arise: this adapter resolves reported paths, never bytecode | Cannot arise: no bytecode input, so no class identifier can resolve two ways | Cannot arise: a configuration-file report carries no bytecode class | Cannot arise: this route resolves a reported filesystem path, not bytecode | `ambiguous-path` — sole owner of the class |
 | A missing rule identifier | `missing-rule-id` | `missing-rule-id` | `missing-rule-id` | `missing-rule-id` | `missing-rule-id` | `missing-rule-id` |
 | A missing message | `missing-message` | `missing-message` | `missing-message` | `missing-message` | `missing-message` | `missing-message` |
@@ -365,9 +368,9 @@ Three further notes the table cannot carry:
 
 Negative fixture counts, taken from the directory rather than from the table above, because
 several conditions are exercised by more than one document and a hand-summed total drifts
-the moment one is added: **16** `reject-sarif-*`, **10** `reject-trivy-*`, **12**
+the moment one is added: **17** `reject-sarif-*`, **10** `reject-trivy-*`, **12**
 `reject-gitleaks-*`, **15** `reject-checkov-*`, **6** `reject-dependency-check-*` and **13**
-`reject-joern-*` — **72** in all, each with its own hand-verified expected file. The table
+`reject-joern-*` — **73** in all, each with its own hand-verified expected file. The table
 names the *conditions* and which documents drive them; these are the documents that exist.
 
 Two fixture names are worth reading carefully, because the stem names the AAP *condition*
@@ -438,6 +441,18 @@ The one shared adapter serves all three SARIF producers, so this module carries 
 - **Errata conformance**: `..` segments are preserved rather than normalized out, and an
   archive reference is kept in its `<container>!<member>` form rather than rejected for
   the single leading slash the archive-format exception permits.
+- **Percent syntax is validated before any decode, at every decode site.** RFC 3986
+  §2.1 admits `%` only as the start of a two-hexadecimal-digit escape, and
+  `urllib.parse.unquote` leaves a malformed escape in place rather than raising — so a
+  reference carrying `%`, `%2` or `%GG` would otherwise pass through as literal text and
+  reach the path column as something that is not a path. Each is refused as
+  `invalid_uri` and counted, with the fault kind and its index named and the reference
+  itself never quoted. Two controls keep the guard from becoming a blanket refusal of
+  `%`: a well-formed escape still decodes and still becomes a row, and a well-formed
+  escape that decodes to a control keeps the control-character diagnosis it always had.
+  A third asserts that a `%`-wrapped `uriBaseId` such as `%SRCROOT%` is a **mapping key
+  rather than a URI reference**, so the base chain still resolves — the regression that
+  would otherwise break SARIF path resolution silently.
 - **The first-location rule** — the row takes `locations[0]`, the record still counts
   once, and the number of records carrying more than one is reported through a counter —
   and **the ascending-identifier rule** for `cwe` and `cve`, chosen by ascending numeric
@@ -593,6 +608,25 @@ it is a directory or a symlink, its byte size, and whether it carries an expecte
 name — because reading further into a document in that tree to guess a writer for it is
 the fingerprinting AAP 0.8.1 forbids.
 
+Detection and halting both **describe** an artifact, and a description that quoted the
+artifact would turn a preserved record into a disclosure channel, so this module also
+asserts what a diagnostic may publish. The rule is one sentence: a value is published
+verbatim only where it is **byte-equal to a literal this code itself authors** — a
+canonical tool name, a shape, an artifact filename, the SARIF version, one of the key
+constants, or one of an explicitly authored tuple of ordinary document key names — and
+everything else is a single fixed marker carrying no artifact bytes. What is kept beside
+the marker is the evidence that keeps the redaction honest and checkable: the value's
+Python type, the caller's structural context, its **full** character length and its
+**full** 64-character sha256. Two classes hold that line from opposite ends. One asserts
+it directly on the routing and halt renderers, including that tab and newline survive
+because this dataset carries messages with embedded newlines by design. The other **is
+the reported reproduction**: a unique marker goes into an invalid SARIF `version` and a
+second into a top-level key name, the real `cli.main` is driven over a temporary
+workspace, and each marker is required to occur **zero** times in the process's stderr
+and zero times in the `normalize-run.json` written to disk, while that same record is
+required to carry each marker's full digest and full length — because a count of zero
+alone would pass for a run that never reached the halt at all.
+
 ### `test_reconciliation.py`
 
 - **The identity**, per artifact:
@@ -619,7 +653,7 @@ the fingerprinting AAP 0.8.1 forbids.
 ## 6. Expected files
 
 `expected/<fixture-stem>.rows.json` accompanies each fixture, one to one in both
-directions, 105 and 105.
+directions, 106 and 106.
 
 For a **positive** fixture it carries the exact twelve-field rows the fixture must
 produce, **hand-verified and asserted field by field** — never generated by running the

@@ -1,0 +1,252 @@
+==============================================================================
+SEC-05 / SEC-07 / SEC-08 / SEC-09 -- toolchain advisory re-verification
+owner evidence for the four environment-only findings of the security testing run
+==============================================================================
+written_at_utc : 2026-09-02T21:59:35Z
+written_by     : the QA-findings resolution pass, clone index 026
+repository     : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90
+
+Why these four are recorded rather than fixed
+------------------------------------------------------------------------------
+AAP 0.4.3 and 0.8.1 prohibit installing, upgrading or substituting any tool, and the environment runbook section 12 places provisioning outside this run's authority. A vulnerable component is therefore halt-and-report, never a repair: this pass records the identity, the advisory state and the remediation, and performs none of it.
+
+Provenance is kept in three classes and they are never mixed:
+  measured_here                            a command this pass ran here
+  corroborated_here_from_official_source   a query this pass issued to the publisher
+  reported_by_the_testing_run              attributed, because the publisher was
+                                           unreachable from this clone
+
+Publisher reachability from this clone
+------------------------------------------------------------------------------
+  osv.dev                  reachable (POST)
+  api.adoptium.net         200
+  ubuntu.com/security (per-CVE endpoint) reachable, HTTP 200; all 23 advisories retrieved individually
+  ubuntu.com/security (bulk package filter) HTTP 422, filter parameters rejected; not used
+
+==============================================================================
+SEC-05  [HIGH]
+==============================================================================
+The CPython interpreter that hosts the normalizer and three of the nine scanners is a distribution build with unresolved advisories against it.
+
+  measured here
+  --------------------------------------------------------------------------
+    role = Hosts harness/lib/normalize (the normalizer and the adapter suite), and is the base interpreter of both scanner virtual environments.
+    interpreter_path = /usr/bin/python3
+      via: /usr/bin/env python3 -c import sys; print(sys.executable)
+    interpreter_version = 3.13.7
+      via: /usr/bin/env python3 -c import sys; print('.'.join(map(str, sys.version_info[:3])))
+    interpreter_version_verbose = Python 3.13.7 (main, Mar  3 2026, 12:19:54) [GCC 15.2.0]
+      via: /usr/bin/env python3 -VV
+    distribution_package_version = 3.13.7-1ubuntu0.4
+      via: dpkg-query -W -f='${Version}' python3.13
+    host_os = PRETTY_NAME="Ubuntu 25.10"
+VERSION_ID="25.10"
+VERSION_CODENAME=questing
+      via: grep -E '^(PRETTY_NAME|VERSION_ID|VERSION_CODENAME)=' /etc/os-release
+    bundled_expat = (2, 7, 1) | expat_2.7.1
+      via: /usr/bin/env python3 -c import pyexpat; print(pyexpat.version_info); print(pyexpat.EXPAT_VERSION)
+    system_expat_package = 2.7.1-2ubuntu0.2
+      via: dpkg-query -W -f='${Version}' libexpat1
+    checkov_venv_base_interpreter = /usr/bin/python3.13
+      via: /opt/blitzy-tools/venvs/checkov/bin/python -c import sys; print(sys._base_executable)
+    semgrep_venv_base_interpreter = /usr/bin/python3.13
+      via: /opt/blitzy-tools/venvs/semgrep/bin/python -c import sys; print(sys._base_executable)
+    checkov_venv_python = Python 3.13.7
+      via: /opt/blitzy-tools/venvs/checkov/bin/python -V
+    semgrep_venv_python = Python 3.13.7
+      via: /opt/blitzy-tools/venvs/semgrep/bin/python -V
+
+  corroborated here, from the publisher
+  --------------------------------------------------------------------------
+    service : OSV.dev
+    url : https://api.osv.dev/v1/query
+    method : POST
+    queried_at_utc : 2026-09-02T21:59:35Z
+    advisories_returned : 23
+      advisory ids (23):
+        UBUNTU-CVE-2025-12781  UBUNTU-CVE-2025-13462  UBUNTU-CVE-2025-15366
+        UBUNTU-CVE-2025-15367  UBUNTU-CVE-2026-0864  UBUNTU-CVE-2026-11940
+        UBUNTU-CVE-2026-11972  UBUNTU-CVE-2026-1299  UBUNTU-CVE-2026-1502
+        UBUNTU-CVE-2026-2297  UBUNTU-CVE-2026-3276  UBUNTU-CVE-2026-3446
+        UBUNTU-CVE-2026-3644  UBUNTU-CVE-2026-4224  UBUNTU-CVE-2026-4360
+        UBUNTU-CVE-2026-4519  UBUNTU-CVE-2026-4786  UBUNTU-CVE-2026-6019
+        UBUNTU-CVE-2026-6100  UBUNTU-CVE-2026-7210  UBUNTU-CVE-2026-7774
+        UBUNTU-CVE-2026-8328  UBUNTU-CVE-2026-9669
+      fixed versions named across all of them: ['3.10.12-1~22.04.16', '3.12.3-1ubuntu0.15', '3.14.3-1', '3.14.4-1ubuntu0.1']
+      of those, naming any 3.13.x build: NONE
+    establishes: 23 advisories are open against python3.13 3.13.7-1ubuntu0.4 in Ubuntu:25.10, and not one of the fixed-version entries across all of them names any 3.13.x build. Every fixed version named belongs to another Ubuntu series (the 3.10.x, 3.12.x and 3.14.x package streams). So on this host's series there is no upgrade target within 3.13 to move to, which corroborates the testing run's characterisation of the advisories as unresolved on an end-of-life series rather than as a patch this host has simply not applied.
+
+    service : Ubuntu Security Team CVE API
+    url     : https://ubuntu.com/security/cves/<CVE-ID>.json  (23 retrieved individually)
+    package/release read : python3.13 on questing (25.10), the series this host runs
+    status tally         : {'ignored': 23}
+          1  'end of life, was ignored [breaks older behavior]'
+          1  'end of life, was ignored [patch breaks RFC conformance]'
+          1  'end of life, was ignored [see notes]'
+          1  'end of life, was needed'
+         19  'end of life, was needs-triage'
+    priority             : ['medium']
+    establishes: Every one of the 23 advisories carries the status ['ignored'] for package python3.13 on the questing (25.10) series, and 23 of the 23 status descriptions begin with the words 'end of life'. This is the distribution's own published position, retrieved per advisory from its own API by this pass. It corroborates the testing run's characterisation directly: the advisories are not unapplied patches, they are advisories the distribution has declined to fix on a series it no longer services. The distribution assigns all of them priority ['medium'].
+    note on endpoints: The list form https://ubuntu.com/security/cves.json?package=python3.13 returned HTTP 422 (its filter parameters are rejected), so each advisory was retrieved individually from the per-CVE endpoint, which returned HTTP 200. The evidence is the 23 per-advisory documents rather than one list response.
+
+  attributed to the testing run, not restated as this pass's measurement
+  --------------------------------------------------------------------------
+    - Upstream CPython resolved several of the same issues in 3.13.12 through 3.13.15.
+    retrievable here: False
+    why not: The upstream CPython fix floors are a claim about python.org's own release history, which this pass did not retrieve from its publisher. Neither of the two services this pass did query carries it: OSV's Ubuntu records name only distribution package versions, and the distribution's API names only its own series. So the 3.13.12-3.13.15 floors stay attributed to the testing run's citation rather than being restated as this pass's measurement. Everything else the testing run said about this finding -- the advisory count, the identifiers, the ignored status and the end-of-life ground for it -- was retrieved here from OSV and from the distribution's own API and is recorded above as corroborated.
+    note: The attributed claim is not load-bearing for the remediation: the human action below is decided by the distribution's own 'ignored / end of life' position, which is corroborated, and not by which upstream release first carried a fix.
+
+  disposition : RECORDED, NOT REPAIRED
+
+  what a human must do
+  --------------------------------------------------------------------------
+    Decide the interpreter question at provisioning, not in a scanning clone. Either re-provision the harness onto a supported distribution series carrying a serviced python3.13 (or a serviced 3.14 stream) and re-run the whole pipeline, or accept the current interpreter in writing with this advisory set attached. The second option is cheap only if its consequence is accepted with it: every count this dataset publishes was produced by this interpreter, so a later interpreter change invalidates the 9,430 rows, the 10,016 = 9,430 + 586 reconciliation identity, the severity tally and the adapter-suite result, all of which must then be re-measured. Nothing about the interpreter's advisory state alters what the nine scanners reported about Spark.
+
+==============================================================================
+SEC-07  [MEDIUM]
+==============================================================================
+The build JDK is one quarterly respin behind the build its own sibling in this harness already carries.
+
+  measured here
+  --------------------------------------------------------------------------
+    role = JAVA_HOME: the JDK the pinned Spark reactor was built under (AAP 0.8.2 requires major 17 for the build).
+    path = /opt/blitzy-tools/jdk/jdk-17.0.20+8
+    java_version_output = openjdk version "17.0.20" 2026-07-21
+OpenJDK Runtime Environment Temurin-17.0.20+8 (build 17.0.20+8)
+OpenJDK 64-Bit Server VM Temurin-17.0.20+8 (build 17.0.20+8, mixed mode, sharing)
+      via: /opt/blitzy-tools/jdk/jdk-17.0.20+8/bin/java -version
+    release_file = IMPLEMENTOR="Eclipse Adoptium" | IMPLEMENTOR_VERSION="Temurin-17.0.20+8" | JAVA_VERSION="17.0.20"
+      via: grep -E '^(JAVA_VERSION|IMPLEMENTOR|IMPLEMENTOR_VERSION)=' /opt/blitzy-tools/jdk/jdk-17.0.20+8/release
+    sibling_jdk_path = /opt/blitzy-tools/jdk/jdk-21.0.12.1+1
+    sibling_java_version_output = openjdk version "21.0.12.1" 2026-08-18 LTS
+OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)
+      via: /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -version
+    sibling_release_file = IMPLEMENTOR="Eclipse Adoptium" | IMPLEMENTOR_VERSION="Temurin-21.0.12.1+1" | JAVA_VERSION="21.0.12.1"
+      via: grep -E '^(JAVA_VERSION|IMPLEMENTOR|IMPLEMENTOR_VERSION)=' /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/release
+    joern_jdk_assignment = /opt/blitzy-tools/bin/joern:4:export JAVA_HOME="${JAVA_HOME_21:-/opt/blitzy-tools/jdk/jdk-21.0.12.1+1}" | /opt/blitzy-tools/bin/joern:5:export PATH="$JAVA_HOME/bin:$PATH" | /opt/blitzy-tools/bin/jimple2cpg:4:export JAVA_HOME="${JAVA_HOME_21:-/opt/blitzy-tools/jdk/jdk-21.0.12.1+1}" | /opt/blitzy-tools/bin/jimple2cpg:5:export PATH="$JAVA_HOME/bin:$PATH"
+      via: grep -n 'JAVA_HOME' /opt/blitzy-tools/bin/joern /opt/blitzy-tools/bin/jimple2cpg 2>/dev/null | head -6
+      note: Every Joern JVM is pinned to the 21 JDK by the provisioned wrapper, which is why the two JDKs are assessed separately.
+
+    decisive measured fact:
+      The two JDKs in this harness come from different release cycles. The build JDK reports 'openjdk version "17.0.20" 2026-07-21' -- the July original. The Joern JDK reports 'openjdk version "21.0.12.1" 2026-08-18 LTS' -- an August '.1' respin. So the harness already contains a respun JDK on one stream and the un-respun original on the other; the 17 stream's respin exists and was simply not the build this host was provisioned with.
+
+  corroborated here, from the publisher
+  --------------------------------------------------------------------------
+    service : Eclipse Adoptium
+    api_url : https://api.adoptium.net/v3/info/release_names?release_type=ga&version=%5B17.0.20%2C18%29
+    queried_at_utc : 2026-09-02T21:59:35Z
+    api_http_status : 200
+    api_ga_release_names_in_17_0_20_to_18 : ['jdk-17.0.20.1+1', 'jdk-17.0.20+8']
+    establishes: A newer general-availability build on the 17 stream, jdk-17.0.20.1+1, exists and is published by the vendor. The remediation target the testing run named is real and obtainable, and the installed build is behind it.
+
+  attributed to the testing run, not restated as this pass's measurement
+  --------------------------------------------------------------------------
+    - The respin addresses CVE-2026-6246, CVE-2026-70907, CVE-2026-61308 and CVE-2026-60589, from the vendor's quarterly security update.
+    retrievable here: False
+    why not: The per-CVE mapping lives in the OpenJDK Vulnerability Group's quarterly advisory table, which this pass did not retrieve from its publisher; the Adoptium news index and the binaries release list confirm the respin's existence but were not read as a CVE-to-build mapping. The four identifiers are therefore attributed to the testing run's own citation. The remediation does not depend on which reading is used: the same '.1' build is the target either way.
+
+  disposition : RECORDED, NOT REPAIRED
+
+  what a human must do
+  --------------------------------------------------------------------------
+    At provisioning, replace /opt/blitzy-tools/jdk/jdk-17.0.20+8 with jdk-17.0.20.1+1 and update the AAP 0.4.1 Adoptium row and the environment record together, so the pin and the disk agree at all times -- the failure mode SEC-02 demonstrates for the graph is the same failure mode a half-applied JDK swap would create here. Then rebuild the pinned Spark reactor and rebuild the graph, because a JDK change changes the bytecode the frontend reads and therefore every graph count. Do not swap the JDK without rebuilding: a dataset whose bytecode was produced by one JDK and whose record names another is the class of contradiction this checkpoint already halts on.
+
+==============================================================================
+SEC-08  [MEDIUM]
+==============================================================================
+asteval in the Checkov virtual environment is below the version its own advisories name as fixed.
+
+  measured here
+  --------------------------------------------------------------------------
+    role = Checkov's Terraform variable-rendering expression evaluator; reached through checkov.terraform.graph_builder.variable_rendering.
+    virtual_environment = /opt/blitzy-tools/venvs/checkov
+    asteval_version = 1.0.6
+      via: read Version: from /opt/blitzy-tools/venvs/checkov/lib/python3.13/site-packages/asteval-1.0.6.dist-info/METADATA
+    checkov_version = 3.3.12
+      via: read Version: from /opt/blitzy-tools/venvs/checkov/lib/python3.13/site-packages/checkov-3.3.12.dist-info/METADATA
+    how_checkov_constructs_it = 359:def get_asteval() -> Interpreter:
+360-    # asteval provides a safer environment for evaluating expressions by restricting the operations to a secure subset, significantly reducing the risk of executing malicious code.
+361-    return Interpreter(
+362-        symtable=SAFE_EVAL_DICT,
+363-        use_numpy=False,
+364-        minimal=True
+365-    )
+      via: grep -n -A6 'def get_asteval' /opt/blitzy-tools/venvs/checkov/lib/python3.13/site-packages/checkov/terraform/graph_builder/variable_rendering/safe_eval_functions.py
+      note: Measured first-hand rather than assumed: Checkov constructs the interpreter with use_numpy=False and minimal=True, which is a narrowing of the evaluator's surface. It is recorded as the configuration observed, and NOT as an adjudication that the advisories do not apply -- judging a finding is outside this run's remit (AAP 0.3.2).
+
+  corroborated here, from the publisher
+  --------------------------------------------------------------------------
+    service : OSV.dev
+    url : https://api.osv.dev/v1/query
+    method : POST
+    queried_at_utc : 2026-09-02T21:59:35Z
+    advisories_returned : 2
+      - GHSA-89v8-rhwq-hf77  aliases=['CVE-2026-55244']  fixed=['1.0.9']
+      - GHSA-9w56-46f6-3qhx  aliases=[]  fixed=['1.0.9']
+    establishes: Both advisories the testing run named are returned by OSV against the installed version, and both name the same fixed version, so the remediation target is unambiguous and available from PyPI.
+
+  attributed to the testing run, not restated as this pass's measurement
+  --------------------------------------------------------------------------
+    - The two advisories are GHSA-9w56-46f6-3qhx and GHSA-89v8-rhwq-hf77 (CVE-2026-55245 and CVE-2026-55244), fixed in 1.0.9.
+    retrievable here: True
+    note: Independently retrieved above; the testing run's identifiers and fix version agree with what OSV returned to this pass.
+
+  disposition : RECORDED, NOT REPAIRED
+
+  what a human must do
+  --------------------------------------------------------------------------
+    At provisioning, upgrade asteval inside the Checkov virtual environment to the fixed version, holding checkov itself at the pinned 3.3.12, and record the resulting transitive set. Then re-run the Checkov runner and re-normalize, because Checkov's row count is part of the published dataset and a dependency change is a reason for it to move. Note the scope fact that bounds the exposure without excusing it: the twelve authoritative roots contain no Terraform, so this evaluator was not reached by the scan this dataset records -- that is a statement about this scope, not about the component, and it does not survive a scope change.
+
+==============================================================================
+SEC-09  [LOW]
+==============================================================================
+ecdsa in the Checkov virtual environment carries an advisory with no fixed version published.
+
+  measured here
+  --------------------------------------------------------------------------
+    role = Transitive dependency in the Checkov virtual environment.
+    virtual_environment = /opt/blitzy-tools/venvs/checkov
+    ecdsa_version = 0.19.2
+      via: read Version: from /opt/blitzy-tools/venvs/checkov/lib/python3.13/site-packages/ecdsa-0.19.2.dist-info/METADATA
+    modules_importing_it_under_checkov = /opt/blitzy-tools/venvs/checkov/lib/python3.13/site-packages/checkov/common/external_checks/verification/keys.py
+/opt/blitzy-tools/venvs/checkov/lib/python3.13/site-packages/checkov/common/external_checks/verification/verifier.py
+      via: grep -rl 'import ecdsa\|from ecdsa' /opt/blitzy-tools/venvs/checkov/lib/python3.13/site-packages/checkov/ 2>/dev/null | head -20
+      note: Recorded as the observed import surface, not as an adjudication of reachability.
+
+  corroborated here, from the publisher
+  --------------------------------------------------------------------------
+    service : OSV.dev
+    url : https://api.osv.dev/v1/query
+    method : POST
+    queried_at_utc : 2026-09-02T21:59:35Z
+    advisories_returned : 2
+      - GHSA-wj6h-64fc-37mp  aliases=['CVE-2024-23342', 'PYSEC-2026-1325']  fixed=NONE PUBLISHED
+      - PYSEC-2026-1325  aliases=['CVE-2024-23342', 'GHSA-wj6h-64fc-37mp']  fixed=NONE PUBLISHED
+    establishes: The advisory is open against the installed version and OSV publishes NO fixed version for it, which is why this finding cannot be closed by an upgrade at all -- the disposition below is the only disposition available, and that is a property of the advisory rather than of this run's authority.
+
+  attributed to the testing run, not restated as this pass's measurement
+  --------------------------------------------------------------------------
+    - The advisory is GHSA-wj6h-64fc-37mp (CVE-2024-23342, PYSEC-2026-1325), with no fix available.
+    retrievable here: True
+    note: Independently retrieved above; identifiers, aliases and the absence of a fixed version agree with what OSV returned to this pass.
+
+  disposition : RECORDED, NOT REPAIRED
+
+  what a human must do
+  --------------------------------------------------------------------------
+    Accept this one in writing at provisioning, with the advisory attached, and re-check at the next provisioning whether a fixed version has been published. There is nothing to install today. If the exposure is judged unacceptable rather than accepted, the action is to remove the dependent capability from the Checkov environment, which is a provisioning decision about Checkov and not a change any scanning clone can make.
+
+==============================================================================
+summary
+==============================================================================
+  findings covered                            : SEC-05, SEC-07, SEC-08, SEC-09
+  repairable from this clone                  : 0
+  recorded with a named human action          : 4
+  advisories independently corroborated here  : 27
+
+  NOT done here: It does not judge whether any advisory is exploitable in this harness. Judging a finding is outside this run's remit (AAP 0.3.2), so a narrowing configuration or an unreached code path is recorded as an observed fact and never as a dismissal.
+  NOT done here: It does not install, upgrade or substitute anything (AAP 0.4.3, AAP 0.8.1, runbook section 12).
+  NOT done here: It does not alter any count in the published dataset. None of these four findings is about Spark, about a scanner's output, or about a row: all four are about the toolchain the run was executed on.
+
+END

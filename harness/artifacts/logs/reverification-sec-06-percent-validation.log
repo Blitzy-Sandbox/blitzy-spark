@@ -1,0 +1,85 @@
+==============================================================================
+SEC-06 re-verification -- malformed percent-escape validation in URI references
+==============================================================================
+run_at_utc : 2026-09-02T22:18:03Z
+subject    : harness/lib/normalize/paths.py :: parse_uri_reference
+
+The finding: '%', '%2' and '%GG' parsed as ordinary relative references, so a
+truncated or invalid percent-escape reached the dataset's `path` field unvalidated.
+AAP 0.5.4 requires a record that cannot be attributed with certainty to be REJECTED
+under a named class, never inferred into a field.
+
+------------------------------------------------------------------------------
+references that MUST now be refused
+------------------------------------------------------------------------------
+  OK   'src/main/a%.scala'
+          a bare '%' with nothing after it
+          form='invalid'
+          detail=the URI reference carries the malformed percent escape at index 10, where '%' is not followed by two hexadecimal digits; RFC 3986 section 2.1 admits '%' only as the start of a two-hexadecimal-digit escape, and urllib.parse.unquote leaves a malformed escape in place rather than raising, so a reference carrying one would reach the path column as text that is not a path
+          detail reproduces the malformed sequence: no
+          detail reproduces the whole reference    : False
+  OK   'a%2.scala'
+          a truncated escape, one hex digit
+          form='invalid'
+          detail=the URI reference carries the malformed percent escape at index 1, where '%' is not followed by two hexadecimal digits; RFC 3986 section 2.1 admits '%' only as the start of a two-hexadecimal-digit escape, and urllib.parse.unquote leaves a malformed escape in place rather than raising, so a reference carrying one would reach the path column as text that is not a path
+          detail reproduces the malformed sequence: no
+          detail reproduces the whole reference    : False
+  OK   'a%GG.scala'
+          two non-hex characters after '%'
+          form='invalid'
+          detail=the URI reference carries the malformed percent escape at index 1, where '%' is not followed by two hexadecimal digits; RFC 3986 section 2.1 admits '%' only as the start of a two-hexadecimal-digit escape, and urllib.parse.unquote leaves a malformed escape in place rather than raising, so a reference carrying one would reach the path column as text that is not a path
+          detail reproduces the malformed sequence: no
+          detail reproduces the whole reference    : False
+  OK   'jar:core/lib.jar!/a%GG.class'
+          malformed escape inside an archive member
+          form='invalid'
+          detail=the URI reference carries the malformed percent escape at index 19, where '%' is not followed by two hexadecimal digits; RFC 3986 section 2.1 admits '%' only as the start of a two-hexadecimal-digit escape, and urllib.parse.unquote leaves a malformed escape in place rather than raising, so a reference carrying one would reach the path column as text that is not a path
+          detail reproduces the malformed sequence: no
+          detail reproduces the whole reference    : False
+  OK   'file:///opt/x/a%2.scala'
+          malformed escape in a file URI
+          form='invalid'
+          detail=the URI reference carries the malformed percent escape at index 15, where '%' is not followed by two hexadecimal digits; RFC 3986 section 2.1 admits '%' only as the start of a two-hexadecimal-digit escape, and urllib.parse.unquote leaves a malformed escape in place rather than raising, so a reference carrying one would reach the path column as text that is not a path
+          detail reproduces the malformed sequence: no
+          detail reproduces the whole reference    : False
+  OK   '%SRCROOT%'
+          a SARIF base identifier shape, malformed as a URI
+          form='invalid'
+          detail=the URI reference carries 2 malformed percent escapes: at index 0, where '%' is not followed by two hexadecimal digits; at index 8, where '%' is followed by fewer than two characters; RFC 3986 section 2.1 admits '%' only as the start of a two-hexadecimal-digit escape, and urllib.parse.unquote leaves a malformed escape in place rather than raising, so a reference carrying one would reach the path column as text that is not a path
+          detail reproduces the malformed sequence: no
+          detail reproduces the whole reference    : False
+
+------------------------------------------------------------------------------
+references whose behaviour MUST NOT have moved
+------------------------------------------------------------------------------
+  OK   'a%00b.scala'  form='invalid' (required 'invalid')
+          detail=the URI reference decodes to a value that carries the control character U+0000 at index 1; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one
+          a percent-encoded NUL -- already rejected before this fix
+  OK   'a%20b.scala'  form='relative'  decoded='a b.scala'
+          a well-formed escape decoding to a space
+  OK   'a%2Fb.scala'  form='relative'  decoded='a/b.scala'
+          a well-formed escape decoding to '/'
+  OK   'a%25b.scala'  form='relative'  decoded='a%b.scala'
+          a well-formed escape decoding to '%'
+
+------------------------------------------------------------------------------
+the dataset did not move -- the check that makes this fix safe
+------------------------------------------------------------------------------
+  committed findings.json rows                     : 9430
+  rows whose path contains '%'                     : 0
+  so no committed row could be reclassified by this validation, and the
+  byte-identity re-normalization recorded alongside confirms it did not.
+
+------------------------------------------------------------------------------
+base identifiers are keys, not URI references -- why the guard cannot break lookup
+------------------------------------------------------------------------------
+  '%SRCROOT%' is refused as a URI REFERENCE above, and that is correct: it is not a
+  reference. In SARIF it is a KEY into run.originalUriBaseIds, and the production
+  artifacts use exactly that key -- opengrep and semgrep both carry result
+  uriBaseIds {'%SRCROOT%'} with originalUriBaseIds absent. All 9,430 rows resolve
+  identically after the fix, which is the evidence the two roles stayed separate.
+
+------------------------------------------------------------------------------
+verdict: PASS -- every case behaved as required
+------------------------------------------------------------------------------
+END

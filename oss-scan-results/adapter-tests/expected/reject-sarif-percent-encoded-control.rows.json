@@ -291,16 +291,17 @@
    "raw_reference": "python/pyspark/ml/tests/connect/test_legacy_mode_feature%1B.py",
    "raw_reference_carries_no_control": true,
    "decoded_control": "U+001B at index 56",
-   "expected_detail": "the uri 'python/pyspark/ml/tests/connect/test_legacy_mode_feature%1B.py' is not a valid URI reference: the URI reference decodes to a value that carries the control character U+001B at index 56; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
-   "expected_detail_note": "Retained verbatim, as AAP 0.5.4 requires of every rejection's parser reason. The detail is the sub-reason, and it is what distinguishes this record from the other three under the same class: it names which decode produced the control, and the code point.",
+   "expected_detail": "the uri str from uri (length 62, sha256 8701f8e1531fd26ee82d0d36721ceb40dad59a9978da4daa9ef2af9d81cddbc1, <redacted-artifact-text>) is not a valid URI reference: the URI reference decodes to a value that carries the control character U+001B at index 56; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
+   "expected_detail_note": "Retained verbatim, as AAP 0.5.4 requires of every rejection's parser reason. The detail is the sub-reason, and it is what distinguishes this record from the other three under the same class: it names which decode produced the control, and the code point. Re-recorded at the SEC-04 remediation: the leading clause named the raw uri with {uri!r}, and a rejection detail is written verbatim into harness/artifacts/logs/ and normalize-run.json, so an artifact that placed a credential in a uri had it persisted in cleartext by the very channel that refused the record. The subject of this clause is a value that FAILED validation, so it is now rendered by paths.safe_diagnostic: the Python type, the field it came from, the value's full character length, its full 64-hex sha256 and the fixed paths.REDACTED_TEXT marker. Every figure is of the WHOLE original, so the record stays measurable and identifiable against the artifact without copying it. The sub-reason after the colon is unchanged and is still retained verbatim, which is what AAP 0.5.4 requires: the value was redacted, the parser's reason was not.",
    "distinguishing_substrings": [
     "the URI reference decodes to a value",
     "U+001B at index 56"
    ],
    "expected_detail_must_not_contain": [
-    "\u001b"
+    "\u001b",
+    "python/pyspark/ml/tests/connect/test_legacy_mode_feature%1B.py"
    ],
-   "expected_detail_must_not_contain_note": "The literal ESC. A detail that reproduced the decoded control would carry it into harness/artifacts/logs/ and normalize-run.json, which is the second half of the finding this fixture exists for -- so the absence is asserted, not assumed.",
+   "expected_detail_must_not_contain_note": "The literal ESC. A detail that reproduced the decoded control would carry it into harness/artifacts/logs/ and normalize-run.json, which is the second half of the finding this fixture exists for -- so the absence is asserted, not assumed. Plus the raw reference the clause used to quote, asserted absent so the SEC-04 redaction is pinned by this corpus rather than only by the module's own tests: a regression that restored the {uri!r} interpolation would fail here.",
    "expected_record_identity_keys": [
     "run_index",
     "result_index",
@@ -338,16 +339,17 @@
    "decoded_control": "U+0000 at index 91",
    "why_a_second_site_needs_its_own_record": "A file: URI takes a different branch and a different decode from a relative reference: urlsplit parses it, the authority is checked, and only its path component is unquoted. A guard placed on the general decode alone would leave this branch open, so the two are separate records with separate details rather than one case standing for both.",
    "absolute_reference_note": "The reference names a location under the recorded scan root, so had it decoded cleanly it would have relativized to a tree_file inside the twelve globs and become a row. Nothing about the root or the metadata takes part in the refusal, which happens during parsing.",
-   "expected_detail": "the uri 'file:///opt/spark-src/resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils%00.java' is not a valid URI reference: the path of the file URI decodes to a value that carries the control character U+0000 at index 91; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
-   "expected_detail_note": "Retained verbatim. The phrase 'the path of the file URI' is what separates this record from rejection 0 under the same class.",
+   "expected_detail": "the uri str from uri (length 106, sha256 d2ed7fdcaacb0d86b578a9a03fc9beb900dafcb2c8280b59f80a2254272759fe, <redacted-artifact-text>) is not a valid URI reference: the path of the file URI decodes to a value that carries the control character U+0000 at index 91; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
+   "expected_detail_note": "Retained verbatim. The phrase 'the path of the file URI' is what separates this record from rejection 0 under the same class. Re-recorded at the SEC-04 remediation: the leading clause named the raw uri with {uri!r}, and a rejection detail is written verbatim into harness/artifacts/logs/ and normalize-run.json, so an artifact that placed a credential in a uri had it persisted in cleartext by the very channel that refused the record. The subject of this clause is a value that FAILED validation, so it is now rendered by paths.safe_diagnostic: the Python type, the field it came from, the value's full character length, its full 64-hex sha256 and the fixed paths.REDACTED_TEXT marker. Every figure is of the WHOLE original, so the record stays measurable and identifiable against the artifact without copying it. The sub-reason after the colon is unchanged and is still retained verbatim, which is what AAP 0.5.4 requires: the value was redacted, the parser's reason was not.",
    "distinguishing_substrings": [
     "the path of the file URI decodes to a value",
     "U+0000 at index 91"
    ],
    "expected_detail_must_not_contain": [
-    "\u0000"
+    "\u0000",
+    "file:///opt/spark-src/resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils%00.java"
    ],
-   "expected_detail_must_not_contain_note": "The literal NUL, whose presence in a CSV cell or a log line is the CWE-117 outcome this guard exists to prevent.",
+   "expected_detail_must_not_contain_note": "The literal NUL, whose presence in a CSV cell or a log line is the CWE-117 outcome this guard exists to prevent. Plus the raw reference the clause used to quote, asserted absent so the SEC-04 redaction is pinned by this corpus rather than only by the module's own tests: a regression that restored the {uri!r} interpolation would fail here.",
    "expected_record_identity_keys": [
     "run_index",
     "result_index",
@@ -384,16 +386,17 @@
    "decoded_control_note": "The index is into the decoded *member*, 'org/apache/spark/storage/DiskStore\\r.class', not into the whole reference. The describer is given the value that was decoded, which is what makes the index checkable.",
    "container_is_real_at_the_pin": "core/target/spark-core_2.13-4.1.0-SNAPSHOT.jar exists in the built pinned tree, so the container names a real archive and the reference is refused for its member alone. Nothing in this pipeline opens it: the container's existence is context for the reader, and paths.py resolves archive coordinates by serialization rather than by reading.",
    "why_archive_member_path_is_never_reached": "The refusal happens while the reference is still being parsed, before a form is assigned, so paths.archive_member_path is not called and the record is never classified archive_member. That is why path_kind_archive_member and non_filesystem_paths are both 0 in a fixture that carries an archive reference -- a reader checking those counters against the fixture's content would otherwise read the zero as a defect.",
-   "expected_detail": "the uri 'core/target/spark-core_2.13-4.1.0-SNAPSHOT.jar!/org/apache/spark/storage/DiskStore%0D.class' is not a valid URI reference: the member of the archive reference decodes to a value that carries the control character U+000D at index 35; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
-   "expected_detail_note": "Retained verbatim. 'the member of the archive reference' is what separates this record from the other three.",
+   "expected_detail": "the uri str from uri (length 91, sha256 0ae1bf3563204505ab205f4b0ff36776383d11f7ff1dd9b102355afcc1fe756d, <redacted-artifact-text>) is not a valid URI reference: the member of the archive reference decodes to a value that carries the control character U+000D at index 35; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
+   "expected_detail_note": "Retained verbatim. 'the member of the archive reference' is what separates this record from the other three. Re-recorded at the SEC-04 remediation: the leading clause named the raw uri with {uri!r}, and a rejection detail is written verbatim into harness/artifacts/logs/ and normalize-run.json, so an artifact that placed a credential in a uri had it persisted in cleartext by the very channel that refused the record. The subject of this clause is a value that FAILED validation, so it is now rendered by paths.safe_diagnostic: the Python type, the field it came from, the value's full character length, its full 64-hex sha256 and the fixed paths.REDACTED_TEXT marker. Every figure is of the WHOLE original, so the record stays measurable and identifiable against the artifact without copying it. The sub-reason after the colon is unchanged and is still retained verbatim, which is what AAP 0.5.4 requires: the value was redacted, the parser's reason was not.",
    "distinguishing_substrings": [
     "the member of the archive reference decodes to a value",
     "U+000D at index 35"
    ],
    "expected_detail_must_not_contain": [
-    "\r"
+    "\r",
+    "core/target/spark-core_2.13-4.1.0-SNAPSHOT.jar!/org/apache/spark/storage/DiskStore%0D.class"
    ],
-   "expected_detail_must_not_contain_note": "The literal CR, the classic log-forging character: a detail carrying one could split a single log line into two, one of them attacker-composed.",
+   "expected_detail_must_not_contain_note": "The literal CR, the classic log-forging character: a detail carrying one could split a single log line into two, one of them attacker-composed. Plus the raw reference the clause used to quote, asserted absent so the SEC-04 redaction is pinned by this corpus rather than only by the module's own tests: a regression that restored the {uri!r} interpolation would fail here.",
    "expected_record_identity_keys": [
     "run_index",
     "result_index",
@@ -428,16 +431,18 @@
    "raw_reference_carries_no_control": true,
    "the_record_s_own_uri_is_clean": "This is the one rejection whose own uri is a perfectly ordinary root-relative path -- it is byte-identical to the uri of raw results[521], which is an ordinary row in the committed dataset. What defeats it is the base it names: %ESCROOT%, whose entry's uri 'spark-src%1B/' decodes to a value carrying ESC. The record is included precisely because a guard applied only to the result's own reference would emit this row with a control character joined into the middle of its path from the base.",
    "decoded_control": "U+001B at index 9",
-   "expected_detail": "the uri 'spark-src%1B/' of the entry for '%ESCROOT%' is not a valid URI reference: the URI reference decodes to a value that carries the control character U+001B at index 9; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
-   "expected_detail_note": "Retained verbatim, and note what it names: the *base entry's* uri and the base identifier, not the result's uri. That is paths.resolve_uri_base's own diagnostic passed through unchanged, which is why it reads differently from the other three -- the fault is in the map, and a detail that named the result's clean uri instead would send a reader to the wrong place.",
+   "expected_detail": "the uri str from uri (length 13, sha256 16affccfc4613cae9ad1a02d29309b14ae9d3b066fbda683ead8f23bd28010f4, <redacted-artifact-text>) of the entry for '%ESCROOT%' is not a valid URI reference: the URI reference decodes to a value that carries the control character U+001B at index 9; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
+   "expected_detail_note": "Retained verbatim, and note what it names: the *base entry's* uri and the base identifier, not the result's uri. That is paths.resolve_uri_base's own diagnostic passed through unchanged, which is why it reads differently from the other three -- the fault is in the map, and a detail that named the result's clean uri instead would send a reader to the wrong place. Re-recorded at the SEC-04 remediation: the leading clause named the raw uri with {uri!r}, and a rejection detail is written verbatim into harness/artifacts/logs/ and normalize-run.json, so an artifact that placed a credential in a uri had it persisted in cleartext by the very channel that refused the record. The subject of this clause is a value that FAILED validation, so it is now rendered by paths.safe_diagnostic: the Python type, the field it came from, the value's full character length, its full 64-hex sha256 and the fixed paths.REDACTED_TEXT marker. Every figure is of the WHOLE original, so the record stays measurable and identifiable against the artifact without copying it. The sub-reason after the colon is unchanged and is still retained verbatim, which is what AAP 0.5.4 requires: the value was redacted, the parser's reason was not.",
    "distinguishing_substrings": [
-    "'spark-src%1B/' of the entry for '%ESCROOT%'",
+    "of the entry for '%ESCROOT%'",
+    "the URI reference decodes to a value",
     "U+001B at index 9"
    ],
    "expected_detail_must_not_contain": [
-    "\u001b"
+    "\u001b",
+    "spark-src%1B/"
    ],
-   "expected_detail_must_not_contain_note": "The literal ESC, for the same reason as rejection 0.",
+   "expected_detail_must_not_contain_note": "The literal ESC, for the same reason as rejection 0. Plus the raw reference the clause used to quote, asserted absent so the SEC-04 redaction is pinned by this corpus rather than only by the module's own tests: a regression that restored the {uri!r} interpolation would fail here.",
    "expected_record_identity_keys": [
     "run_index",
     "result_index",
@@ -456,7 +461,8 @@
    "why_not_a_row": "The base could not be established, so there is nothing to join the reference onto. This is not the degenerate-base case AAP 0.5.4 allows the runner-recorded fallback for: an entry whose uri is not a URI reference is malformed rather than useless, and falling back would resolve a record whose own base map contradicts itself.",
    "contributes_no_row": true,
    "contributes_no_counter": "Only rule_id_from_rule_id.",
-   "contributes_no_severity_literal": "Never fed to the tally."
+   "contributes_no_severity_literal": "Never fed to the tally.",
+   "distinguishing_substrings_note": "The first substring is what separates this rejection from the other three: the fault is in the base map rather than in the record's own uri, and the detail says so by naming the entry. It quotes the base IDENTIFIER and not the entry's uri value -- since the SEC-04 remediation the value is redacted, while the identifier is a mapping key this dataset publishes in its own record_identity and is therefore authored prose quoting a coordinate rather than artifact content. The remaining two pin the decode site and the code point."
   }
  ],
  "behaviours_not_exercised_by_this_fixture": [

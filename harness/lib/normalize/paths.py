@@ -187,9 +187,10 @@ credential the artifact happened to contain into the record.
 :func:`sanitise_diagnostic` makes a composed sentence inert while keeping it
 readable -- userinfo redacted, control characters rendered as ``<U+XXXX>``, length
 bounded at :data:`DIAGNOSTIC_TEXT_LIMIT`.  :func:`safe_diagnostic` *describes* a raw
-value instead of showing it -- type, length, sha256, bounded excerpt, structural
-context -- and is what a site uses where it would otherwise interpolate
-``{value!r}``.  :func:`sanitise_persisted` recurses the same treatment through a
+value instead of showing it -- type, structural context, full length, full sha256,
+and NO artifact-supplied bytes at all unless the value is byte-equal to a literal
+this module authors (SEC-04) -- and is what a site uses where it would otherwise
+interpolate ``{value!r}``.  :func:`sanitise_persisted` recurses the same treatment through a
 mapping or a list.  ``\\n`` and ``\\t`` are deliberately **not** escaped: this
 dataset carries messages with embedded newlines by design (AAP 0.5.4) and escaping
 them would rewrite legitimate evidence, while ESC -- the actual injection vector --
@@ -410,9 +411,26 @@ def is_reject_class(value: object) -> bool:
 #
 # So there is exactly one renderer, here, and it has two entry points because
 # there are two jobs.  :func:`sanitise_diagnostic` keeps a composed *sentence*
-# readable while making it inert; :func:`safe_diagnostic` *describes* a raw value
-# -- its type, its length, its digest and a bounded excerpt -- rather than showing
-# it, which is what a site that would otherwise interpolate ``{value!r}`` uses.
+# readable while making it inert -- the sentence is authored prose, and describing
+# it instead of showing it would leave the record unusable.
+# :func:`safe_diagnostic` *describes* a raw value -- its type, its structural
+# context, its full length and its full digest -- rather than showing it, which is
+# what a site that would otherwise interpolate ``{value!r}`` uses.
+#
+# SEC-04: a described value publishes NO artifact-supplied bytes.  A bounded
+# excerpt was not enough.  Sanitising removes what is dangerous to a renderer and
+# bounds how much of this record the artifact chooses; it does not stop the value
+# itself being copied into a preserved file, and a 512-character prefix of a
+# 40-character secret is the secret.  So :attr:`SafeDiagnostic.excerpt` carries
+# either the value verbatim, where it is byte-equal to a literal this module
+# itself authors (:func:`publishable_literals` -- publishing a literal the code
+# already contains discloses nothing), or the fixed :data:`REDACTED_TEXT` marker.
+# The type name, the caller's ``context``, the FULL character length and the FULL
+# 64-hex sha256 stay published, because those are metadata rather than content and
+# they are what keeps the original measurable and identifiable: two records
+# carrying the same value are recognisable as the same value from the digest
+# alone.  This is the invariant ``adapters/gitleaks.py::_safe_value_repr`` already
+# states for a rejection detail, applied at this module's persistence boundary.
 #
 # It lives in this module because AAP 0.6.4 fixes that an adapter depends only on
 # ``paths`` and ``severity``, and every adapter already imports this one.  A new
@@ -428,10 +446,21 @@ def is_reject_class(value: object) -> bool:
 #: bound catches an artifact-driven blow-up and truncates nothing authored.
 DIAGNOSTIC_TEXT_LIMIT: Final[int] = 2_000
 
-#: How much of a single artifact-supplied *value* is excerpted when it is
-#: described rather than shown. Deliberately small: the excerpt is there to make a
-#: value recognisable, and the digest beside it is what identifies it exactly.
+#: The size bound applied to a single artifact-supplied *value* when it is
+#: described rather than shown.  Since SEC-04 no part of such a value is
+#: published, so this no longer bounds an excerpt: it decides the ``truncated``
+#: flag, which reports that the value the artifact sent was longer than one this
+#: pipeline would have been willing to publish.  Equal to
+#: ``shape.SHAPE_VALUE_LIMIT``; the parity test asserts they stay equal.
 DIAGNOSTIC_VALUE_LIMIT: Final[int] = 512
+
+#: The fixed marker that stands in for artifact-supplied text in a described
+#: value.  It contains no artifact bytes and is the same string for every value,
+#: so it can never itself be a channel.  Equal to ``shape.REDACTED_TEXT``; the
+#: parity test asserts they stay equal.  A reader who needs to identify what was
+#: redacted uses the ``value_type``, ``character_length`` and ``sha256`` published
+#: beside it.
+REDACTED_TEXT: Final[str] = "<redacted-artifact-text>"
 
 #: What replaces a URI's userinfo component. A marker rather than a deletion, so
 #: the record states that something was removed instead of quietly reading as a
@@ -615,9 +644,118 @@ def sanitise_diagnostic(
     )
 
 
+# Built once on first use rather than at import, because the vocabulary draws on
+# authored tables defined further down this module -- the path kinds, the URI forms,
+# the SARIF key names, the base-walk outcomes -- and a module-level frozenset here
+# could not see them. Construction is idempotent and the result immutable, so the
+# lazy cache is safe under concurrent readers.
+_PUBLISHABLE_LITERALS: frozenset[str] | None = None
+
+#: Well-known top-level document key names, authored explicitly rather than derived,
+#: so that a value which is one of the ordinary document key names still reads as
+#: itself in a diagnostic. The same tuple ``shape.py`` authors, for the same reason
+#: and with the same closed-set discipline: an entry here is a literal this code
+#: contains, and adding one because an artifact happened to carry it would re-open the
+#: channel the redaction closes.
+WELL_KNOWN_DOCUMENT_KEYS: Final[tuple[str, ...]] = (
+    # SARIF 2.1.0
+    "$schema",
+    "version",
+    "runs",
+    # Trivy's native envelope
+    "SchemaVersion",
+    "CreatedAt",
+    "ArtifactName",
+    "ArtifactType",
+    "Metadata",
+    "Results",
+    # Checkov's report object
+    "check_type",
+    "results",
+    "summary",
+    # Dependency-Check's report
+    "reportSchema",
+    "scanInfo",
+    "projectInfo",
+    "dependencies",
+    # joern.json -- harness/lib/joern-scan.sc, this harness's own shape
+    "tool",
+    "tool_version",
+    "cpg",
+    "graph",
+    "query_set",
+    "queries",
+    "findings",
+)
+
+
+def publishable_literals() -> frozenset[str]:
+    """Return every string this module authors and may therefore publish verbatim.
+
+    The one carve-out in the SEC-04 redaction policy. A value byte-equal to one of
+    these discloses nothing about the artifact that sent it -- the string is already
+    in this file -- while any other value is replaced by :data:`REDACTED_TEXT`.
+
+    Exact equality only: never a prefix and never case-insensitive, since a relaxed
+    test would let an artifact publish arbitrary text by prefixing it with an authored
+    one.
+
+    Assembled from this module's own authored vocabularies, so that adding a rejection
+    class, a path kind, a resolution basis, a URI form or a base-walk outcome extends
+    the set automatically rather than leaving the two out of step:
+
+    * the ten rejection classes, the path kinds and the runner-metadata path-base
+      kinds;
+    * the six URI forms, the three archive URI schemes and the archive separator;
+    * the three SARIF key names this module reads and the seven base-walk outcomes;
+    * :data:`WELL_KNOWN_DOCUMENT_KEYS`.
+
+    Returns:
+        The vocabulary as an immutable set; the same object on every call.
+    """
+    global _PUBLISHABLE_LITERALS
+    if _PUBLISHABLE_LITERALS is None:
+        _PUBLISHABLE_LITERALS = frozenset(
+            (
+                *REJECT_CLASSES,
+                *PATH_KINDS,
+                *PATH_BASE_KINDS,
+                URI_FORM_RELATIVE,
+                URI_FORM_ABSOLUTE_PATH,
+                URI_FORM_FILE_URI,
+                URI_FORM_ARCHIVE_URI,
+                URI_FORM_FOREIGN_SCHEME,
+                URI_FORM_INVALID,
+                *ARCHIVE_URI_SCHEMES,
+                ARCHIVE_SEPARATOR,
+                SARIF_URI_KEY,
+                SARIF_URI_BASE_ID_KEY,
+                SARIF_ORIGINAL_URI_BASE_IDS_KEY,
+                *BASE_OUTCOMES,
+                *WELL_KNOWN_DOCUMENT_KEYS,
+            )
+        )
+    return _PUBLISHABLE_LITERALS
+
+
+def is_publishable_literal(value: Any) -> bool:
+    """Return whether *value* may be published verbatim in a persisted diagnostic.
+
+    ``True`` only for a ``str`` byte-equal to a member of
+    :func:`publishable_literals`.
+    """
+    return isinstance(value, str) and value in publishable_literals()
+
+
 @dataclass(frozen=True)
 class SafeDiagnostic:
     """One artifact-supplied value, described rather than shown.
+
+    SEC-04: the description carries no artifact-supplied bytes. What it carries
+    instead is the evidence that is metadata rather than content -- the type, the
+    caller's structural context, the full length and the full digest -- which is what
+    keeps the original measurable and identifiable without copying it into a preserved
+    record.
 
     Attributes
     ----------
@@ -629,16 +767,27 @@ class SafeDiagnostic:
         is the structural context that makes the rendering actionable: a length
         and a digest with no idea where they came from are not.
     character_length:
-        The value's length as text, before the excerpt was taken.
+        The value's FULL length as text, never the published rendering's.
     sha256:
-        The digest of the whole value as text. Two records carrying the same
-        oversized value are recognisable as the same value from this alone.
+        The FULL digest of the whole value as text. Two records carrying the same
+        value are recognisable as the same value from this alone, which is what
+        makes a redaction checkable rather than merely opaque.
     excerpt:
-        A bounded, redacted, control-escaped prefix -- enough to recognise the
-        value, never enough to be a copy of it.
+        The published rendering: the value verbatim where :attr:`publishable` holds,
+        and otherwise :data:`REDACTED_TEXT`. The key name is retained because every
+        consumer of :meth:`as_dict` already reads it; what changed is that it is no
+        longer a prefix of the value.
+    publishable:
+        Whether the value was byte-equal to a literal this module authors, which is
+        the only condition under which it is published.
+    redacted:
+        The complement of :attr:`publishable`, published so a reader never has to
+        compare against the marker to learn which case this is.
     truncated, controls_escaped, userinfo_redactions:
-        What the excerpt did to the value, on the same terms as
-        :class:`DiagnosticText`.
+        What sanitising WOULD have done to the value: whether it exceeded the size
+        bound, how many control characters it carried, and how many URI userinfo
+        credentials it carried. Counts rather than content, and the evidence that the
+        value was hostile at all.
     """
 
     value_type: str
@@ -649,18 +798,27 @@ class SafeDiagnostic:
     truncated: bool = False
     controls_escaped: int = 0
     userinfo_redactions: int = 0
+    publishable: bool = False
+    redacted: bool = True
 
     def __str__(self) -> str:
         """Render as one line, for a site that would otherwise interpolate ``{value!r}``.
 
-        The order is type, context, length, digest, excerpt -- structure first,
+        The order is type, context, length, digest, rendering -- structure first,
         content last -- so a reader who stops at the first clause still knows what
         kind of fault this is.
+
+        The digest is published in FULL here, unlike the 16-hex prefix this used to
+        carry. A composed rejection detail is often the only channel the value's
+        evidence gets: the detail is what :meth:`Rejection.as_dict` persists, and a
+        prefix identifies a value only against a record that already holds the whole
+        digest.
         """
         where = f" from {self.context}" if self.context else ""
+        shown = repr(self.excerpt) if self.publishable else self.excerpt
         return (
             f"{self.value_type}{where} (length {self.character_length}, "
-            f"sha256 {self.sha256[:16]}, excerpt {self.excerpt!r}"
+            f"sha256 {self.sha256}, {shown}"
             f"{', truncated' if self.truncated else ''})"
         )
 
@@ -675,6 +833,8 @@ class SafeDiagnostic:
             "truncated": self.truncated,
             "controls_escaped": self.controls_escaped,
             "userinfo_redactions": self.userinfo_redactions,
+            "publishable": self.publishable,
+            "redacted": self.redacted,
         }
 
 
@@ -688,16 +848,28 @@ def safe_diagnostic(
     happily put a credential-bearing URI into a durable record; it also tells a
     reader nothing about a value too large to read.
 
+    SEC-04: the description publishes no part of the value unless the value is
+    byte-equal to a literal this module authors (:func:`is_publishable_literal`).
+    Everything a reader needs in order to act on the diagnosis and to check it
+    against the artifact is still published -- the Python type, the caller's
+    structural context, the full character length, the full 64-hex digest, and the
+    counts of the control characters and URI userinfo credentials the value carried.
+    What is withheld is only the text, and the text is the part that turns a
+    rejection channel into a leak channel: these details are written verbatim into
+    ``harness/artifacts/logs/`` and ``normalize-run.json``, and a bounded prefix of a
+    secret is the secret.
+
     A non-string is rendered from its ``repr`` rather than refused, because the
     values that reach here are exactly the ones whose type was wrong. The type name
     is reported separately, so ``dict from locations[0].physicalLocation`` reads as
-    the shape fault it is.
+    the shape fault it is. The ``repr`` is measured and digested but never published:
+    a mapping's ``repr`` is the artifact's own keys and values spelled out.
 
     Args:
         value: The value, as it came out of the artifact.
         context: Where it came from -- a field path, a member name -- so the
             description locates the fault as well as characterising it.
-        limit: The excerpt bound.
+        limit: The size bound whose crossing sets ``truncated``.
 
     Returns:
         A :class:`SafeDiagnostic`; ``str()`` of it is the one-line rendering.
@@ -712,16 +884,21 @@ def safe_diagnostic(
             f"context must be a str or None; observed {type(context).__name__}"
         )
     text = value if isinstance(value, str) else repr(value)
+    # Sanitised for its counts and its size verdict, then discarded: the rendering
+    # below is the authored literal or the fixed marker, never this.
     rendered = sanitise_diagnostic(text, limit=limit)
+    publishable = is_publishable_literal(value)
     return SafeDiagnostic(
         value_type=type(value).__name__,
         context=context,
         character_length=len(text),
         sha256=rendered.sha256,
-        excerpt=rendered.text,
+        excerpt=text if publishable else REDACTED_TEXT,
         truncated=rendered.truncated,
         controls_escaped=rendered.controls_escaped,
         userinfo_redactions=rendered.userinfo_redactions,
+        publishable=publishable,
+        redacted=not publishable,
     )
 
 
@@ -2401,6 +2578,112 @@ def describe_control_characters(value: str) -> str | None:
     return f"carries {len(found)} control characters: {named}"
 
 
+#: A well-formed percent escape: ``%`` followed by exactly two hexadecimal digits,
+#: which is the whole of RFC 3986 section 2.1's ``pct-encoded`` production.
+#:
+#: Used to *locate* the well-formed escapes so the malformed ones are what remains.
+#: Written as the positive production rather than as a negative lookahead because the
+#: positive form is the one the RFC states, so a reader can check the pattern against
+#: the specification rather than against a double negative.
+_PERCENT_ESCAPE_RE: Final[re.Pattern[str]] = re.compile(r"%[0-9A-Fa-f]{2}")
+
+#: How many malformed escapes a description names individually before summarising.
+#: The same small bound, and for the same reason, as
+#: :data:`_CONTROL_DESCRIPTION_LIMIT`: the description is a diagnostic, and a value
+#: carrying hundreds of stray ``%`` must not turn one rejection detail into a wall of
+#: text.
+_MALFORMED_ESCAPE_DESCRIPTION_LIMIT: Final[int] = 3
+
+#: The fault a malformed escape is, in this module's own words. Two kinds, because
+#: they are two different producer mistakes: a reference that was cut short, and a
+#: reference whose ``%`` was never an escape at all -- a literal per-cent that the
+#: producer failed to encode as ``%25``.
+_ESCAPE_FAULT_TRUNCATED: Final[str] = "'%' is followed by fewer than two characters"
+_ESCAPE_FAULT_NON_HEX: Final[str] = "'%' is not followed by two hexadecimal digits"
+
+
+def describe_malformed_percent_escapes(value: str) -> str | None:
+    """Describe the malformed percent escapes ``value`` carries, or return ``None``.
+
+    RFC 3986 section 2.1 admits exactly one form of ``%`` in a URI reference: the
+    ``pct-encoded`` triplet, a per-cent sign followed by two hexadecimal digits.
+    Anything else -- a trailing ``%``, a ``%2`` cut short, a ``%GG`` whose digits are
+    not digits -- is not a URI reference at all (SEC-06).
+
+    Why this is a guard rather than a tolerance.  :func:`urllib.parse.unquote` is
+    documented to leave an invalid escape **in place** rather than raise, so a
+    malformed reference decodes to itself and every downstream test passes: the value
+    is a non-empty string, it carries no control character, it relativizes, it matches
+    an allowlist glob.  The result is a ``path`` column entry that is not a path,
+    emitted with ``in_scope: true``, indistinguishable in the dataset from a real
+    file.  AAP 0.5.4 forbids exactly that inference -- a record that cannot be
+    attributed with certainty is rejected and counted, never guessed into a field --
+    so a malformed escape is classified ``invalid`` and the caller counts it under
+    :data:`REJECT_INVALID_URI`.
+
+    Why the description names positions and faults but never the offending text.
+    This sentence becomes a rejection ``detail``, and a rejection detail is persisted
+    verbatim into ``harness/artifacts/logs/`` and ``normalize-run.json`` (SEC-04).  The
+    two characters after a stray ``%`` are artifact-supplied bytes like any others, so
+    the description reports *where* the fault is and *which of the two* it is, and the
+    value's own length and digest travel separately through
+    :func:`safe_diagnostic` at the call site that composes the detail.  This is the
+    same discipline :func:`describe_control_characters` follows for the same reason,
+    one step stricter: a control character cannot be a credential, so that describer
+    may name its code point, while a hex position can be any byte at all.
+
+    Ordering note.  This describer answers a question about the **raw** reference and
+    :func:`describe_control_characters` answers one about the **decoded** value, so the
+    two guards are not alternatives and neither subsumes the other.  Percent syntax is
+    validated first, because a decode is only meaningful once the escapes are escapes;
+    ``%00`` therefore passes *this* check -- it is a perfectly well-formed escape --
+    and is refused a moment later by the control guard, which is the behaviour that
+    was already correct and is preserved exactly.
+
+    Args:
+        value: A raw URI reference, or one of its components, before any decode.
+
+    Returns:
+        A sentence beginning ``"carries the malformed percent escape..."`` or
+        ``"carries N malformed percent escapes..."``, or ``None`` where every ``%``
+        in ``value`` is a well-formed triplet -- which includes the case of no ``%``
+        at all.  ``None`` is the answer for every path in this provisioning's
+        dataset: no ``path`` field in ``oss-scan-results/findings.json`` contains a
+        ``%`` in any form, so this guard is a defence against a future artifact
+        rather than a change to this one.
+    """
+    if not isinstance(value, str) or "%" not in value:
+        return None
+    # Blank out the well-formed triplets first, keeping every index stable, so what
+    # remains is exactly the set of per-cent signs that are not escapes. Replacing
+    # with the same number of characters is what makes the reported index the index
+    # in the ORIGINAL value, which is the only index a reader can act on.
+    masked = _PERCENT_ESCAPE_RE.sub("\uffff\uffff\uffff", value)
+    found: list[tuple[int, str]] = []
+    for index, char in enumerate(masked):
+        if char != "%":
+            continue
+        following = value[index + 1 : index + 3]
+        if len(following) < 2:
+            found.append((index, _ESCAPE_FAULT_TRUNCATED))
+        else:
+            found.append((index, _ESCAPE_FAULT_NON_HEX))
+    if not found:
+        return None
+    named = "; ".join(
+        f"at index {index}, where {fault}"
+        for index, fault in found[:_MALFORMED_ESCAPE_DESCRIPTION_LIMIT]
+    )
+    if len(found) > _MALFORMED_ESCAPE_DESCRIPTION_LIMIT:
+        return (
+            f"carries {len(found)} malformed percent escapes, the first "
+            f"{_MALFORMED_ESCAPE_DESCRIPTION_LIMIT} being {named}"
+        )
+    if len(found) == 1:
+        return f"carries the malformed percent escape {named}"
+    return f"carries {len(found)} malformed percent escapes: {named}"
+
+
 def split_segments(value: str) -> tuple[str, ...]:
     """Return ``value``'s non-empty segments after :func:`normalise_reported_path`."""
     return tuple(
@@ -3232,6 +3515,103 @@ class UriReference:
     detail: str | None = None
 
 
+#: Every ``ValueError`` message :func:`urllib.parse.urlsplit` raises that is a
+#: property of the PARSER rather than of the input, authored explicitly here so it
+#: may be quoted verbatim in a rejection detail.
+#:
+#: AAP 0.5.4 requires a rejection to carry the parser's own reason, and a reason is
+#: exactly what distinguishes several routes that all end in ``invalid_uri``.  But
+#: ``urlsplit`` has one message that interpolates the input --
+#: ``"netloc '<netloc>' contains invalid characters under NFKC normalization"``
+#: (CPython ``urllib/parse.py``, the ``_check_bracketed_host`` / NFKC guard) -- and
+#: passing that through would publish artifact bytes into a preserved record, which
+#: is the SEC-04 channel this module closes everywhere else.
+#:
+#: So the same carve-out the rest of this module uses applies here: a reason is
+#: published verbatim only where it is byte-equal to a literal this file contains,
+#: and any other reason is described by :func:`safe_diagnostic` instead.  These four
+#: are the input-independent messages, taken from the interpreter this pipeline runs
+#: on; a future interpreter that reworded one of them would not leak, it would simply
+#: describe rather than quote, which is the safe direction to fail in.
+URLSPLIT_SAFE_PARSER_REASONS: Final[tuple[str, ...]] = (
+    "Invalid IPv6 URL",
+    "IPvFuture address is invalid",
+    "An IPv4 address cannot be in brackets",
+    "Port out of range 0-65535",
+)
+
+
+def _safe_parser_reason(error: Exception) -> str:
+    """Render a URI parser's own failure reason for a persisted rejection detail.
+
+    Quoted verbatim where the message is one of
+    :data:`URLSPLIT_SAFE_PARSER_REASONS` -- a literal this file authors, so quoting
+    it discloses nothing -- and otherwise replaced by the exception's type plus a
+    :func:`safe_diagnostic` description of the message, because ``urlsplit`` has at
+    least one message that interpolates the input it rejected (SEC-04).
+    """
+    message = str(error)
+    if message in URLSPLIT_SAFE_PARSER_REASONS:
+        return message
+    return (
+        f"a {type(error).__name__} whose message is "
+        f"{safe_diagnostic(message, context='the URI parser message')}"
+    )
+
+
+def _malformed_percent_refusal(
+    raw: str,
+    component_value: str,
+    *,
+    component: str,
+    scheme: str | None = None,
+) -> UriReference | None:
+    """Return the ``invalid`` reference a malformed percent escape earns, or ``None``.
+
+    The **pre**-decode half of the URI syntax guard, and the counterpart to
+    :func:`_decoded_control_refusal`, which is the post-decode half.  The two run in
+    that order at every decode site in :func:`parse_uri_reference` and neither
+    subsumes the other (SEC-06, SEC-04):
+
+    * this one asks whether the escapes in the raw text *are* escapes, because
+      :func:`urllib.parse.unquote` answers "no" by silently leaving the malformed
+      text in place, so a ``%``, a ``%2`` or a ``%GG`` decodes to itself and arrives
+      in a row's ``path`` as a value that is not a path;
+    * that one asks what a *well-formed* escape decoded to, because ``%00`` and
+      ``%1b`` are ordinary URI characters until they are decoded.
+
+    ``component_value`` is the specific text about to be decoded -- the whole
+    reference, an archive member, a ``file:`` URI's path component -- and ``component``
+    names it in the detail, so the diagnosis says which part of a compound reference
+    was wrong rather than only that something was.
+
+    ``value`` on the returned reference is the raw input, matching every other
+    refusal branch, and ``detail`` names the fault by position and kind through
+    :func:`describe_malformed_percent_escapes` without reproducing the offending
+    characters.
+
+    The refusal is the ``invalid`` form rather than a repaired or a tolerated value,
+    because AAP 0.5.4 makes ``invalid_uri`` its own rejection condition and forbids
+    inference: a stray ``%`` might have been meant as ``%25``, or as the start of an
+    escape whose digits were lost, and choosing between those is a guess.  The caller
+    counts the record under :data:`REJECT_INVALID_URI`.
+    """
+    fault = describe_malformed_percent_escapes(component_value)
+    if fault is None:
+        return None
+    return UriReference(
+        form=URI_FORM_INVALID,
+        value=raw,
+        scheme=scheme,
+        detail=(
+            f"the {component} {fault}; RFC 3986 section 2.1 admits '%' only as the "
+            "start of a two-hexadecimal-digit escape, and urllib.parse.unquote leaves "
+            "a malformed escape in place rather than raising, so a reference carrying "
+            "one would reach the path column as text that is not a path"
+        ),
+    )
+
+
 def _decoded_control_refusal(
     raw: str,
     decoded: str,
@@ -3283,15 +3663,35 @@ def parse_uri_reference(raw: str) -> UriReference:
 
     The forms, and why each is distinguished:
 
-    * ``invalid`` -- empty, carrying a control character, or something
-      :func:`urllib.parse.urlsplit` cannot parse.  AAP 0.5.4 makes this its own
-      rejection class (``invalid_uri``), separate from an unresolvable path.
-      The control-character test is made **twice**: once on ``raw`` before anything
-      is decoded, and once on each decoded value through
-      :func:`_decoded_control_refusal`.  The raw test alone is not the guard it looks
-      like -- ``%1b`` carries no control character and decodes to one -- and this
-      function's whole output is decoded, so a single pre-decode check leaves every
-      percent-encoded control to arrive in a row's ``path`` (F16, CWE-176).
+    * ``invalid`` -- empty, carrying a control character, carrying a malformed
+      percent escape, or something :func:`urllib.parse.urlsplit` cannot parse.  AAP
+      0.5.4 makes this its own rejection class (``invalid_uri``), separate from an
+      unresolvable path.
+
+      Two guards produce this form, they run in a fixed order at every decode site,
+      and neither subsumes the other:
+
+      1. **Percent syntax, before any decode** (SEC-06), through
+         :func:`_malformed_percent_refusal`.  RFC 3986 section 2.1 admits ``%`` only
+         as the start of a two-hexadecimal-digit escape, and
+         :func:`urllib.parse.unquote` is documented to leave an invalid escape in
+         place rather than raise -- so ``%``, ``%2`` and ``%GG`` decode to themselves,
+         pass every downstream test, and arrive in a row's ``path`` as text that is
+         not a path, with ``in_scope`` computed from it.  The check is made on ``raw``
+         at the head of the function and again on each component immediately before
+         that component's own ``unquote``.
+      2. **Control characters, before and after each decode** (F16, CWE-176), through
+         :data:`_CONTROL_CHARACTER_RE` on ``raw`` and
+         :func:`_decoded_control_refusal` on each decoded value.  The raw test alone
+         is not the guard it looks like -- ``%1b`` carries no control character and
+         decodes to one -- and this function's whole output is decoded, so a single
+         pre-decode check leaves every percent-encoded control to arrive in a row's
+         ``path``.
+
+      The order is what makes ``%00`` behave as it always has: it is a *well-formed*
+      escape, so guard 1 passes it and guard 2 refuses it on the decoded NUL, with
+      the control-character detail.  Only the escapes that are not escapes are the
+      new refusal.
     * ``file-uri`` -- a ``file:`` URI.  Its path component is percent-decoded into
       ``value`` and returned as it stands: absolute for the ordinary ``file:///p`` and
       ``file:/p`` forms, and **relative** for a rootless reference such as
@@ -3329,6 +3729,16 @@ def parse_uri_reference(raw: str) -> UriReference:
             value=raw,
             detail="the URI reference carries a control character",
         )
+    # Percent SYNTAX is validated on the whole raw reference before any branch is
+    # taken, so no route through this function can reach a decode with escapes that
+    # are not escapes (SEC-06). Every component decoded further down is a substring
+    # of `raw`, so this one check is sufficient -- and it is nonetheless repeated
+    # immediately before each individual decode, exactly as the control guard is,
+    # because a guard that holds only because an earlier line happened to run is a
+    # guard nobody can verify at the point it matters.
+    refusal = _malformed_percent_refusal(raw, raw, component="URI reference")
+    if refusal is not None:
+        return refusal
 
     scheme_match = _URI_SCHEME_RE.match(raw)
     scheme = scheme_match.group(1).lower() if scheme_match is not None else None
@@ -3347,6 +3757,18 @@ def parse_uri_reference(raw: str) -> UriReference:
                 ),
             )
         container_raw, member = split
+        # Percent syntax, per component, before either is decoded. The container's
+        # own decode happens inside the recursion below, so its check is stated here
+        # -- ahead of the recursion -- for the same local-verifiability reason the
+        # decoded-container re-check further down exists.
+        refusal = _malformed_percent_refusal(
+            raw,
+            container_raw,
+            component=f"container of the {scheme!r} URI",
+            scheme=scheme,
+        )
+        if refusal is not None:
+            return refusal
         container = parse_uri_reference(container_raw)
         if container.form == URI_FORM_INVALID:
             return UriReference(
@@ -3362,6 +3784,11 @@ def parse_uri_reference(raw: str) -> UriReference:
         # another function happened to run first is a guard nobody can verify locally.
         refusal = _decoded_control_refusal(
             raw, container.value, component=f"container of the {scheme!r} URI", scheme=scheme
+        )
+        if refusal is not None:
+            return refusal
+        refusal = _malformed_percent_refusal(
+            raw, member, component=f"member of the {scheme!r} URI", scheme=scheme
         )
         if refusal is not None:
             return refusal
@@ -3386,7 +3813,7 @@ def parse_uri_reference(raw: str) -> UriReference:
                 form=URI_FORM_INVALID,
                 value=raw,
                 scheme=scheme,
-                detail=f"the file URI cannot be parsed: {error}",
+                detail=f"the file URI cannot be parsed: {_safe_parser_reason(error)}",
             )
         if parts.netloc not in ("", "localhost"):
             return UriReference(
@@ -3394,10 +3821,16 @@ def parse_uri_reference(raw: str) -> UriReference:
                 value=raw,
                 scheme=scheme,
                 detail=(
-                    f"the file URI names the authority {parts.netloc!r}, which is not "
-                    "a location in the scanned tree"
+                    "the file URI names the authority "
+                    f"{safe_diagnostic(parts.netloc, context='the file URI authority')}"
+                    ", which is not a location in the scanned tree"
                 ),
             )
+        refusal = _malformed_percent_refusal(
+            raw, parts.path, component="path of the file URI", scheme=scheme
+        )
+        if refusal is not None:
+            return refusal
         decoded = unquote(parts.path)
         if not decoded:
             return UriReference(
@@ -3421,13 +3854,18 @@ def parse_uri_reference(raw: str) -> UriReference:
                 form=URI_FORM_INVALID,
                 value=raw,
                 scheme=scheme,
-                detail=f"the URI cannot be parsed: {error}",
+                detail=f"the URI cannot be parsed: {_safe_parser_reason(error)}",
             )
         return UriReference(form=URI_FORM_FOREIGN_SCHEME, value=raw, scheme=scheme)
 
     split = split_archive_reference(raw)
     if split is not None:
         container_raw, member = split
+        refusal = _malformed_percent_refusal(
+            raw, container_raw, component="container of the archive reference"
+        )
+        if refusal is not None:
+            return refusal
         container = parse_uri_reference(container_raw)
         if container.form == URI_FORM_INVALID:
             return UriReference(
@@ -3437,6 +3875,11 @@ def parse_uri_reference(raw: str) -> UriReference:
             )
         refusal = _decoded_control_refusal(
             raw, container.value, component="container of the archive reference"
+        )
+        if refusal is not None:
+            return refusal
+        refusal = _malformed_percent_refusal(
+            raw, member, component="member of the archive reference"
         )
         if refusal is not None:
             return refusal
@@ -3452,6 +3895,9 @@ def parse_uri_reference(raw: str) -> UriReference:
             member=decoded_member,
         )
 
+    refusal = _malformed_percent_refusal(raw, raw, component="URI reference")
+    if refusal is not None:
+        return refusal
     decoded = unquote(raw)
     refusal = _decoded_control_refusal(raw, decoded, component="URI reference")
     if refusal is not None:
@@ -4027,8 +4473,9 @@ def resolve_uri_base(
                 base=None,
                 chain=tuple(chain),
                 detail=(
-                    f"the {SARIF_URI_KEY} {raw_uri!r} of the entry for {current!r} is "
-                    f"not a valid URI reference: {reference.detail}"
+                    f"the {SARIF_URI_KEY} "
+                    f"{safe_diagnostic(raw_uri, context=SARIF_URI_KEY)} of the entry "
+                    f"for {current!r} is not a valid URI reference: {reference.detail}"
                 ),
             )
         if reference.form == URI_FORM_FOREIGN_SCHEME:
@@ -4228,7 +4675,11 @@ def resolve_sarif_location(
         return Rejection(
             reject_class=REJECT_INVALID_URI,
             tool=tool_name,
-            detail=f"the uri {uri!r} is not a valid URI reference: {reference.detail}",
+            detail=(
+                f"the {SARIF_URI_KEY} "
+                f"{safe_diagnostic(uri, context=SARIF_URI_KEY)} is not a valid URI "
+                f"reference: {reference.detail}"
+            ),
             record_identity=identity,
         )
 
@@ -5684,6 +6135,11 @@ __all__ = [
     "DIAGNOSTIC_TEXT_LIMIT",
     "DIAGNOSTIC_VALUE_LIMIT",
     "USERINFO_REDACTION",
+    "REDACTED_TEXT",
+    "WELL_KNOWN_DOCUMENT_KEYS",
+    "URLSPLIT_SAFE_PARSER_REASONS",
+    "publishable_literals",
+    "is_publishable_literal",
     "DiagnosticText",
     "SafeDiagnostic",
     "sanitise_diagnostic",

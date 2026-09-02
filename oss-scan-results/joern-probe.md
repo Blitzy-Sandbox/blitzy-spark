@@ -384,9 +384,11 @@ provenance, and the corroborating record that agrees with it
 (`identity_record_candidates_read = 2`, `identity_comparison_result = match`).
 Ambiguity inside one record and disagreement between two are both fatal to the
 query, so a silently-chosen pair is not expressible. An earlier generation of this
-shared path carried 541,255,894 / `26d327cc…`, and in this tree that pair is stated
-by **one** file: the inherited provisioning record `harness/ENVIRONMENT.md` §7, at
-its lines 284-288. It is kept with its provenance in `run-record.md` **D4**, the
+shared path carried 541,255,894 / `26d327cc…`, and in this tree that pair **was** stated
+by **one** file: the provisioning record `harness/ENVIRONMENT.md` §7, at
+its lines 284-288. Since 2026-09-02 those lines state the current pair, re-anchored to
+the graph's write-time record of account, and the earlier pair is kept in that document's
+supersession appendix. It is kept with its provenance in `run-record.md` **D4**, the
 register entry that holds both generations. Two files a reader might expect to own
 it do not: `harness/artifacts/logs/cpg-verify.log` records the **current** pair —
 541,309,809 / `4616845a…`, at its lines 40-41 and again at 54-57 — and mentions the
@@ -404,10 +406,12 @@ resolved target)*. No absolute host path is emitted by any envelope.
 rather than about the method.** The path is a host-shared read-only file this run
 neither rebuilds nor replaces, and it has held more than one generation across this
 run's lanes. `run-record.md` **D4** keeps both generations **with the record that
-states each** — the earlier 541,255,894 / `26d327cc…`, stated by the inherited
-`harness/ENVIRONMENT.md` §7 and by nothing this run measured, and the current
+states each** — the earlier 541,255,894 / `26d327cc…`, stated by
+`harness/ENVIRONMENT.md` §7 until its 2026-09-02 re-anchoring and by nothing this run
+measured, and thereafter only by that document's supersession appendix; and the current
 541,309,809 / `4616845a…`, measured by all three probe envelopes and stated as well
-by `cpg-identity.txt`, `cpg-verify.log` and the Stage 3 runner's own console log. A
+by `cpg-identity.txt`, `cpg-verify.log`, `harness/ENVIRONMENT.md` §7 as it now reads,
+and the Stage 3 runner's own console log. A
 generation no record states is not restated as though it were measured. Every load
 reported here verified against the record of account for the bytes it was about to
 read and matched it, which is a property of the check rather than of which
@@ -1418,10 +1422,11 @@ and reading them as measurements would overstate what the probe established:
   541,309,809 / `4616845a…` — each verified against the record of account resolved
   by provenance, `provision-log/cpg-identity.txt` corroborated by `cpg-record.txt`.
   This path has held an earlier generation across this run's lanes, 541,255,894 /
-  `26d327cc…`, whose figures are stated in this tree by the inherited
+  `26d327cc…`, whose figures were stated in this tree by
   `harness/ENVIRONMENT.md` §7 alone — not by `cpg-verify.log`, which records the
   current pair and its own counts, and not by `joern.status`, which records no graph
-  identity at all. They are kept with their provenance in `run-record.md` **D4**
+  identity at all — and, since that document's 2026-09-02 re-anchoring to the graph's
+  write-time record of account, by its supersession appendix alone. They are kept with their provenance in `run-record.md` **D4**
   rather than restated here as though they described the current graph. The graph is a
   host-shared read-only file this run neither rebuilds nor replaces, and each of the
   three loads reported here was verified against the record of account for the bytes

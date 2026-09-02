@@ -33,7 +33,7 @@ named as such rather than omitted.
 | RAM | `MemTotal` 4,029,526,772 kB ≈ **3.75 TiB** |
 | Disk | 24 TB free on `/` and `/tmp` |
 | Heap commit proof | `java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version` exits **0** on both JDKs; `-Xms96g -Xmx96g` also exits 0 |
-| Minimum memory this pipeline actually needed | **64 GB heap; peak sampled RSS 59.0 GB** during the graph build. 48 GB would not have held it |
+| Minimum memory this pipeline actually needed | **64 GB heap; peak sampled RSS 59.0 GB** during the graph build (2026-08-24; **66.6 GB** for the graph on disk — appendix S.3). 48 GB would not have held it |
 | Locale | image carries only `C`/`C.utf8`/`POSIX` with `LANG` unset, so `env.sh` exports `LANG=LC_ALL=C.utf8` and `PYTHONUTF8=1` (without this Opengrep aborts at 3 s on a `UnicodeDecodeError` reading its own rule files) |
 
 Image gaps worth knowing: **`/usr/bin/time`, `unzip` and `shellcheck` are absent**;
@@ -280,14 +280,14 @@ file-based tools. Their absence from this table is expected, not a gap.
 
 | | |
 |---|---|
-| Path | The bytes live at `/opt/blitzy-harness/cpg/spark.cpg`. `$HARNESS_CPG` is set to `<repo>/harness/cpg/spark.cpg`, a 33-byte **symlink** to those bytes — so the runbook's named path and the exported variable are the same file, and both resolve to the sha256 below |
-| **Bytes** | **541,255,894** |
-| **sha256** | **`26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`** |
-| **Methods** | **1,397,339** (internal 1,307,552) |
-| **Type declarations** | **119,691** |
+| Path | The bytes live at `/opt/blitzy-harness/cpg/spark.cpg`. `$HARNESS_CPG` is set to `<repo>/harness/cpg/spark.cpg`, a 33-byte **symlink** to those bytes — so the runbook's named path and the exported variable are the same file, and both resolve to the sha256 below. The six identity/count rows and the two write-fact rows below were **re-anchored on 2026-09-02** to this graph's write-time record of account; the superseded 2026-08-24 figures are kept in the supersession appendix at the end of this file |
+| **Bytes** | **541,309,809** |
+| **sha256** | **`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`** |
+| **Methods** | **1,396,899** (internal 1,307,112) |
+| **Type declarations** | **119,721** |
 | **Files** | **45,037** |
-| Heap used | **`-J-Xmx64g`** under JDK 21.0.12.1+1, peak sampled RSS **59.0 GB** |
-| Elapsed | **53 m 04 s** (12:59:23Z → 13:52:27Z) |
+| Heap used | **`-J-Xmx64g`** under JDK 21.0.12.1+1, peak sampled RSS **66.6 GB** |
+| Elapsed | **50 m 42 s** (18:28:00Z → 19:18:42Z) |
 
 ```bash
 SL_LOGGING_LEVEL=WARN jimple2cpg /opt/blitzy-harness/cpg-input \
@@ -305,8 +305,8 @@ and its `original-` pre-shade sibling.
 
 **Verified three times by `importCpg`** (post-build verification, an independent
 second load, and Test 4), and a fourth time by the Joern runner: all four report
-**1,397,339 / 119,691 / 45,037 identically**. Verification load: ~12.5 min, RSS
-30.2 GB.
+**1,397,339 / 119,691 / 45,037 identically** — the SUPERSEDED graph's counts, see
+appendix S.3. Verification load: ~12.5 min, RSS 30.2 GB.
 
 **Frontend metrics, observed rather than expected.** **31,598 `Overwriting class
 file` warnings over 26,221 distinct class files** (org/apache/spark 24,525;
@@ -602,7 +602,7 @@ unchanged. Do not report these three as broken.
 | 1. toolchain resolves in a fresh non-login shell | **PASS.** `env -i bash --noprofile --norc`, then `. harness/env.sh` (exit 0), then all nine tools plus both JDKs, Maven, Scala and Python reported their versions. `LANG=LC_ALL=C.utf8` |
 | 2. every runner rejects an argument without scanning | **PASS.** Guard confirmed by inspection to be the first executable statement in all nine; all nine exit **64**; `harness/artifacts/{raw,logs}` verified 0/0 entries before **and** after |
 | 3. the pinned tree is the pinned tree | **PASS.** `git -C /opt/spark-src rev-parse HEAD` = `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` |
-| 4. the graph loads and is covered per module | **PASS.** `importCpg` reports 1,397,339 / 119,691 / 45,037; 31 of 31 contributing modules covered (26 unique-class witnesses, 5 named weaker witnesses) |
+| 4. the graph loads and is covered per module | **PASS.** `importCpg` reports 1,397,339 / 119,691 / 45,037 (the SUPERSEDED graph's counts — appendix S.3); 31 of 31 contributing modules covered (26 unique-class witnesses, 5 named weaker witnesses) |
 | 5. taint is active on Spark's own Scala | **PASS — see below** |
 | 6. all nine scanners across the full scope, one at a time | **PASS — §9 above** |
 
@@ -838,14 +838,14 @@ scope expansion          18 directories / 4095 files (832 of them python/pyspark
 **Graph**
 ```
 path                     /opt/blitzy-harness/cpg/spark.cpg  (harness/cpg/spark.cpg is a symlink to it)
-methods                  1397339
-type declarations        119691
+methods                  1396899
+type declarations        119721
 files                    45037
-internal methods         1307552
-bytes                    541255894
-sha256                   26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
-heap needed              -J-Xmx64g under JDK 21, peak sampled RSS 59.0 GB
-build elapsed            53m04s
+internal methods         1307112
+bytes                    541309809
+sha256                   4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7
+heap needed              -J-Xmx64g under JDK 21, peak sampled RSS 66.6 GB
+build elapsed            50m42s
 input set                62 JARs from 31 modules (main + original- pre-shade sibling each); -tests and connect-shims JARs excluded by instruction
 overwrite warnings       31598 over 26221 distinct class files
 AST-creation failures    173
@@ -905,7 +905,7 @@ osv-scanner   exit 128, stdout empty, stderr "No package sources found, --help f
 
 **Host**
 ```
-minimum memory this pipeline actually needed   64 GB heap, peak RSS 59.0 GB
+minimum memory this pipeline actually needed   64 GB heap, peak RSS 59.0 GB (2026-08-24; 66.6 GB for the graph on disk — appendix S.3)
 host memory available                          ~3.75 TiB, 4 vCPU
 heap commit proof                              java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version exits 0
 ```
@@ -921,3 +921,124 @@ both SAST engines  scan limited to files tracked by git (all in-scope files are 
 scope              zero RESOLVABLE dependency manifests; one 80-byte package.json exists with no
                    dependencies block, no lockfile and no node_modules.
 ```
+
+---
+
+# Appendix S — supersession record for §7, the code-property graph
+
+**Added 2026-09-02. Everything above this appendix was written by the provisioning run
+of 2026-08-24; this appendix is the only part of the file that was not.** It exists
+because the graph §7 describes was replaced on the host, and it records three things a
+reader needs and cannot get from the corrected table alone: which figures were
+corrected, what they said before, and which figures were deliberately left as the
+2026-08-24 run wrote them.
+
+Nothing about the graph itself was changed to produce this appendix. The bytes at
+`/opt/blitzy-harness/cpg/spark.cpg` were read and hashed, never written.
+
+## S.1 What was re-anchored, from which owner, and why
+
+This file's own header dates it **2026-08-24** (line 3) and its preamble undertakes that
+"every number below traces to a file under `/opt/blitzy-harness/provision-log/`"
+(lines 21-23). The host was **re-provisioned on 2026-08-30** and the graph was rebuilt:
+the graph file's own mtime is **2026-08-30T19:18:37Z** and the owner records the
+frontend's write window as closing at **19:18:42Z**, and provisioning recorded that
+graph's identity beside it in the same directory this file names as its evidence —
+
+| Owner file | Written | What it owns |
+|---|---|---|
+| `/opt/blitzy-harness/provision-log/cpg-identity.txt` | 2026-08-30T19:19:09Z | the one write-time `<bytes> <sha256>` pair for the graph on disk |
+| `/opt/blitzy-harness/provision-log/cpg-record.txt` | 2026-08-30T19:33:42Z | the same pair, plus the `importCpg` verification counts, the heap and peak RSS, and the write window |
+
+So §7's graph block was a faithful snapshot of a graph that has since been **superseded**,
+and it no longer traced to the provision-log it cites. **That is the defect this appendix
+closes: a stale record, not a wrong graph.** The write-time record that sits beside a
+graph is the owner of that graph's identity, and §7 has been re-anchored to it.
+
+Re-measured independently at re-anchor time, with the symlink followed, before anything
+was edited: `stat -Lc %s "$HARNESS_CPG"` printed **541309809** and
+`sha256sum "$(readlink -f "$HARNESS_CPG")"` printed
+**`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`** — both equal to
+what the owner files state, so the corrected table is a projection of the owner and of
+the disk at once.
+
+**Exactly what was rewritten, and how.** The six identity/count rows and the two
+write-fact rows of the §7 table (lines 284-290), and the corresponding eight values in
+the inline `**Graph**` block (lines 841-848). Line 283 gained a pointer to this
+appendix. **No line was inserted into or deleted from lines 1-923**, because other
+documents in this tree cite this file by line number; the corrections are in place and
+this appendix is appended after the original last line.
+
+## S.2 The superseded figures, in full, as the 2026-08-24 provisioning wrote them
+
+Both values are kept, with their provenance, because that is what the authority rule
+requires of an inherited field the expected-values table does not adjudicate: record the
+inherited value **and** the newly measured one rather than choosing between them
+silently. Correcting §7 therefore destroyed no evidence — the previous generation's
+figures are here.
+
+| Field | Superseded — 2026-08-24 provisioning | Current — 2026-08-30 write-time owner, now in §7 |
+|---|---|---|
+| Bytes | 541,255,894 | **541,309,809** |
+| sha256 | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | **`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`** |
+| Methods | 1,397,339 | **1,396,899** (−440, 0.03%) |
+| Internal methods | 1,307,552 | **1,307,112** (−440) |
+| Type declarations | 119,691 | **119,721** (+30) |
+| Files | 45,037 | **45,037** — unchanged, the one figure the two generations share |
+| Heap used / peak RSS | `-J-Xmx64g`, peak sampled RSS 59.0 GB | **`-J-Xmx64g`, peak sampled RSS 66.6 GB** |
+| Elapsed / write window | 53 m 04 s (12:59:23Z → 13:52:27Z) | **50 m 42 s (18:28:00Z → 19:18:42Z)** |
+
+A reader meeting **541,255,894** or **`26d327cc…`** anywhere in this tree is looking at
+the 2026-08-24 generation, which is not on disk. The AAP method floor is unaffected:
+1,396,899 is far above the 853,420 lower bound, and the direction of the change is
+recorded rather than interpreted.
+
+## S.3 §7 content retained as the 2026-08-24 provisioning's own observations
+
+These are **not** re-anchored. They are that run's observations of its own frontend
+invocation and its own verification load, and rewriting them would replace one run's
+observations with another's inside a record that identifies itself by date. They are
+named here instead, each with the current owner's superseding value, and the counts at
+line 308 additionally carry an inline SUPERSEDED label pointing at this section.
+
+| Retained text | As this file states it (2026-08-24) | Current owner's value (`provision-log/cpg-record.txt`) |
+|---|---|---|
+| Input set and JAR-exclusion breakdown, lines 297-304 | 62 JARs, 273 MB, 31 modules, staged 1:1; of **234** JARs found, 190 excluded — 64 `sources`, 59 copied runtime dependencies, 34 `-tests`, 2 `spark-connect-shims`, 14 test-fixture, 17 not build outputs | 62 JARs / 273 MB / 31 modules and the 1:1 staging verdict are **unchanged**; of **252** `.jar` files found, 190 excluded — **77** copied dependency / not a build output, **64** sources, **33** `-tests`, **14** test-fixture under `*/test-classes/`, **2** `spark-connect-shims` |
+| "Verified three times by `importCpg`… all four report **1,397,339 / 119,691 / 45,037** identically. Verification load: ~12.5 min, RSS 30.2 GB", lines 306-309 | those three counts, from four loads of the superseded graph | the verification load of the graph on disk reports **1,396,899 / 119,721 / 45,037**, elapsed ~11 min, `VERIFY_EXIT=0`. The four-load agreement is a property of the 2026-08-24 run and is not restated for this graph |
+| Overwrite-warning totals and their per-package split, lines 311-315 | 31,598 `Overwriting class file` warnings over 26,221 distinct class files (org/apache/spark 24,525; org/sparkproject/io 2,593; org/sparkproject/guava 2,017; org/sparkproject/connect 2,017; org/apache/hive 126) | **31,598 over 26,221 — exact match**, so this row is corroborated rather than superseded. The per-package split is this file's own; the owner does not restate it |
+| "**173 AST-creation exceptions** (104 `org/sparkproject/io` netty-vendored, 69 `org/apache/spark`)", lines 316-317 | 173 | **`AstCreationPass` warnings 429**, with 0 ERROR-level lines. 173 is the 2026-08-24 figure and is the one `harness/artifacts/logs/cpg-graph-record.log` cites from line 316 |
+| The provenance limitation, lines 318-321 | per-class provenance for an overwritten class is not measurable from this frontend's output; the ordered staging manifest makes the input set reproducible; no winner map exists | the owner states the same limitation in the same terms — **not superseded** |
+| Per-module coverage, §7's subsection at lines 323-376 | 31 of 31 contributing modules covered, 26 unique-class witnesses, 5 named weaker witnesses, `pom.properties` fallback unavailable, `sql/connect/shims` without a verdict by instruction | the owner reaches the **same verdict** — 31 of 31, 26 + 5, fallback unavailable, `shims` excluded by instruction. Three of the five weaker witnesses are named differently by the owner: `common/network-shuffle` → `org.apache.spark.network.shuffle.AppsWithRecoveryDisabled`, `sql/api` → `org.apache.spark.sql.AnalysisException`, `sql/connect/common` → `org.apache.spark.sql.connect.Catalog`, where lines 368, 370 and 371 name `ShuffleSecretManager`, `FlatMapGroupsWithStateFunction` and `AddArtifactsRequest`. The per-witness `typeDecls`/`methods` columns are the 2026-08-24 load's measurements |
+| Inline `**Graph**` block, lines 849-851 | input set "62 JARs from 31 modules… `-tests` and connect-shims JARs excluded by instruction"; overwrite warnings 31,598 over 26,221; **AST-creation failures 173** | input set and overwrite warnings as in the two rows above; AST-creation failures **429** by the current owner |
+
+**Two figures outside §7 are LABELLED in place and named here rather than rewritten.**
+Each attributes a measurement to a specific 2026-08-24 load or test, so replacing the
+value would falsify the attribution rather than correct it; each therefore carries an
+inline pointer to this section and its current owner's value below:
+
+| Retained text | As this file states it | Current owner's value |
+|---|---|---|
+| §12 gate row 4, line 605 | "`importCpg` reports **1,397,339 / 119,691 / 45,037**; 31 of 31 contributing modules covered (26 unique-class witnesses, 5 named weaker witnesses)" | the counts are the superseded graph's; the graph on disk reports **1,396,899 / 119,721 / 45,037**. The coverage verdict is unchanged. `oss-scan-results/build-record.md` cites this line for the coverage verdict, not for the counts |
+| Inline **Host** block, line 908, and the §1 Host table row at line 36 | "minimum memory this pipeline actually needed 64 GB heap, **peak RSS 59.0 GB**" | the heap is unchanged at 64 GB; the graph build's peak sampled RSS is **66.6 GB**, so the memory this pipeline needed is the higher figure |
+
+## S.4 What this appendix does not re-anchor
+
+Everything else in this record — the host, the toolchain and scanner versions, the
+ruleset commits and rule counts, the vulnerability-feed timestamps, the pinned Spark
+tree and its allowlist and scope expansion, the build outcome, the taint A/B, and the
+per-tool exit/elapsed/finding figures — **remains the 2026-08-24 provisioning's and is
+deliberately left as written.** Those fields are anchored by the request's own
+expected-values table: where an observation differs from them, the correct outcome is to
+record both values as a recorded difference, not to rewrite the record. Several of them
+*do* differ after the 2026-08-30 re-provisioning — `provision-log/rulesets-feeds.txt`
+records the Trivy vulnerability and java DB timestamps and the Dependency-Check NVD
+`Last Modified` as **NEWER** than this file's, and the Datadog SAST ruleset as **53
+rulesets / 1,147 rules**, sha256 `c5fd464c…`, against this file's 48 / 1,093 — and every
+one of those differences belongs to that recorded-difference class and to the run records
+that carry it, not to this finding.
+
+The graph block was different in exactly one respect that made this correction the right
+outcome rather than the wrong one: **its fields are unanchored by the expected-values
+table**, so the only owner available for them is the write-time record beside the graph,
+and a record that cites that owner while contradicting it can only mislead every reader
+and every gate downstream of it.

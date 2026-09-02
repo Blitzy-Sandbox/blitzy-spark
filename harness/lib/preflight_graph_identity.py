@@ -7,22 +7,29 @@ AAP 0.8.2 requires the graph's identity re-verified immediately before every loa
 0.6.4 requires each check logged, because "a load against different bytes than the record
 describes produces conclusions about a graph nobody has".
 
-Two things in the Stage 3 path make that impossible to satisfy from inside the runner:
+The measurement and the comparison are two different acts, and the Stage 3 path used to
+perform only the first:
 
-* ``harness/bin/run-joern.sh`` resolves its input and PRINTS the path, the byte size and
-  the digest -- and then invokes Joern. It never COMPARES any of it against the
-  write-time pair. Printing a value is not checking it.
+* ``harness/bin/run-joern.sh`` resolved its input and PRINTED the path, the byte size and
+  the digest -- and then invoked Joern. Printing a value is not checking it.
 * ``harness/lib/joern-scan.sc`` calls ``importCpg`` and then counts. By the time any
-  figure exists, the bytes are already in the engine.
+  figure exists inside the script, the bytes are already in the engine.
 
-Neither file may be edited: AAP 0.8.1 forbids changing a runner or a baked flag, and
-0.3.2 forbids runner reconfiguration. So the check cannot live inside the thing it
-guards. It lives here instead, and **for an invocation routed through a caller that
-reads this exit status** the guarantee is structural rather than advisory: this module
-exits non-zero before that caller reaches the runner, so a mismatch cannot reach the
-engine. An invocation that does not read the status is not bound by it -- the EXIT STATUS
-section below names the committed gated caller and says which route the Stage 3
-invocation on record actually took.
+This module is that comparison, kept as one executable step because it resolves the
+record of account by provenance and returns a single adjudicated status a caller can
+refuse on -- logic that belongs in one place read by every load path rather than
+duplicated in each.
+
+**The Stage 3 runner now reads it.** ``harness/bin/run-joern.sh`` runs this module in its
+``--check-only`` form against the ``HARNESS_CPG`` it is about to open, echoes the whole
+report to its own stdout, keeps a copy at
+``$HARNESS_LOG_DIR/joern.preload-identity.log``, and exits 78 without loading anything on
+any non-zero status. So the canonical direct no-argument invocation is bound by this gate
+structurally rather than by convention: the comparison is upstream of ``importCpg`` on the
+path Stage 3 actually takes. ``harness/lib/run-joern-gated.sh`` remains a valid, now
+redundant, belt-and-braces caller that performs the same comparison one step earlier. The
+EXIT STATUS section below names both and says which route the Stage 3 invocation on record
+actually took.
 
 WHAT IT COMPARES, AND WHY BOTH VALUES
 =====================================
@@ -55,11 +62,49 @@ candidate happens to match:
    path is DERIVED from the graph the runner would actually open, not hardcoded, so a
    clone whose ``HARNESS_CPG`` points elsewhere is checked against that graph's own
    record rather than against this one's.
+3. And, ALWAYS, the DECLARED record: section 7 of ``harness/ENVIRONMENT.md``, the
+   authoritative environment record the runbook requires read first and AAP 0.6.1 marks
+   REFERENCE. Its ``Bytes`` and ``sha256`` rows are a statement about the same graph its
+   own ``Path`` row names, so a gate that never read them could pass while the document of
+   record described a different graph -- which is precisely what was observed here, and
+   is why this candidate exists (see the next section).
 
 Every candidate that exists is read, and any disagreement between them is FATAL -- as is
 more than one distinct pair inside any single record. The precedence orders provenance
-(who wrote the bytes), so it cannot be used to select an outcome: if the two records
-disagree, no pair is chosen and nothing is loaded.
+(who wrote the bytes), so it cannot be used to select an outcome: if the records disagree,
+no pair is chosen and nothing is loaded.
+
+THE DECLARED RECORD IS READ EVEN WHEN A WRITE-TIME RECORD EXISTS
+================================================================
+Candidates 1 and 2 are ordered by who wrote the bytes. Candidate 3 is not an alternative
+to them -- it is the environment's own claim about the same graph, and it is read in every
+case rather than only when the others are missing, because a claim nobody compares is not
+a record. Concretely, in this checkout:
+
+* the provisioning record beside the graph states 541,309,809 bytes /
+  ``4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7``, which is what the
+  bytes on disk measure;
+* ``harness/ENVIRONMENT.md`` section 7 DECLARES 541,255,894 bytes /
+  ``26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`` for the very same
+  ``/opt/blitzy-harness/cpg/spark.cpg`` path;
+
+so the two records disagree, and this gate therefore HALTS where before it passed. That
+outcome is intended, not a regression: the graph on disk is not the graph the authoritative
+environment record describes, one of the two is wrong about 541 MB of provisioned state,
+and "fail closed" means the gate declines to pick the one that happens to match the bytes
+in front of it. AAP 0.1.3's fourth case is the authority -- an observable fact
+contradicting the environment record on a field the expected-values table does not anchor
+is recorded with BOTH values and the run stops.
+
+Resolving it is a PROVISIONING act, not something a clone may do: the graph and its record
+must be replaced together so that one identity describes one set of bytes. Neither
+``harness/ENVIRONMENT.md`` (REFERENCE under AAP 0.6.1) nor the shared graph may be edited
+from here, so this gate's job ends at refusing and saying exactly what disagrees.
+
+A section 7 that cannot be parsed is its own named CONFIGURATION FAULT (exit 78) rather
+than a silent agreement: "the record could not be read" and "the record agrees" are
+opposite facts, and a parser that returned the second for the first would be the one bug
+that makes every later verdict meaningless.
 
 Both values are recomputed from the bytes on disk and both must match. Size alone is a
 weak test -- a graph rebuilt over a different input set can land on the same length --
@@ -111,32 +156,51 @@ module to audit it silently overwrites the ordering evidence for the run of reco
 was observed happening during this run's own final validation.
 
 ``--check-only`` performs every measurement and prints the whole report but writes
-nothing. Use it to verify the gate; use the default form only when actually gating an
-invocation. The negative test needs the writing form, so it saves that record first and
-restores it afterwards, asserting byte equality.
+nothing. That is the form ``harness/bin/run-joern.sh`` calls, for two reasons: the
+runner keeps its own copy of the report under ``$HARNESS_LOG_DIR``, so it needs no write
+here, and a runner that rewrote a committed canonical deliverable would stop being
+hermetic the moment a caller redirected ``HARNESS_LOG_DIR``. Use the default form only
+when a caller genuinely wants that durable record replaced. The negative test needs the
+writing form, so it saves that record first and restores it afterwards, asserting byte
+equality.
 
-EXIT STATUS, AND THE CALLER THAT MAKES IT BINDING
+EXIT STATUS, AND THE CALLERS THAT MAKE IT BINDING
 =================================================
 ``0``  every check passed; the caller may invoke the runner.
-``77`` a fatal mismatch or a missing prerequisite. The caller MUST NOT invoke the
-       runner. 77 rather than 1 so a caller cannot confuse it with an ordinary error,
-       and distinct from the runners' own 64 (bad argument) and 78 (configuration
-       fault) so the three are never conflated in a log.
+``77`` a fatal mismatch or a missing prerequisite -- including two records of account
+       that disagree. The caller MUST NOT invoke the runner. 77 rather than 1 so a caller
+       cannot confuse it with an ordinary error, and distinct from the runners' own 64
+       (bad argument) so the two are never conflated in a log.
+``78`` a CONFIGURATION FAULT: a record of account exists but could not be read, which is
+       ``scope.sh``'s ``scope_fail`` status for the same class of condition. Today the one
+       such condition is a ``harness/ENVIRONMENT.md`` whose section 7 is absent,
+       unparsable or ambiguous. The caller MUST NOT invoke the runner either way; the
+       distinct status exists because "correct the record" and "the graph is not the
+       recorded graph" send a reader to different places.
 
-An exit status only binds something that reads it, so a caller is committed alongside it:
-``harness/lib/run-joern-gated.sh`` is a committed gated path for Stage 3. It sources
-``env.sh``, runs this module against the effective ``HARNESS_CPG``, and reaches the
-runner only on 0 -- there is one route through it to the runner and no branch that
-invokes Joern after a non-zero gate. That makes the guarantee structural **for an
-invocation routed through that wrapper**, rather than a convention a future caller could
-forget.
+An exit status only binds something that reads it, so the readers are committed alongside
+it. There are two, and the first is the one that matters:
 
-It does not make the wrapper the only route. ``harness/bin/run-joern.sh`` is executable in
-its own right and AAP 0.8.1 requires each runner invoked directly with no arguments, so
-Stage 3 can be -- and for the invocation on record was -- started without the wrapper, in
-which case this exit status is never read and this gate does not bind that load. The
-wrapper's own header records which route the delivered Stage 3 invocation took and names
-the contemporaneous identity evidence for it.
+* ``harness/bin/run-joern.sh``, the canonical Stage 3 runner, invoked directly with no
+  arguments as AAP 0.8.1 requires. It runs this module ``--check-only`` after printing
+  its input's identity and before ``rm -f`` on its artifact or any ``joern`` invocation,
+  and maps a non-zero status to its own configuration fault (78) with the gate's report
+  echoed to its console and copied to ``$HARNESS_LOG_DIR/joern.preload-identity.log``.
+  Nothing is loaded and no artifact is written or removed on a refusal.
+* ``harness/lib/run-joern-gated.sh``, a committed gated path that sources ``env.sh``,
+  runs this module against the effective ``HARNESS_CPG`` and reaches the runner only on
+  0 -- one route through it, no branch that invokes Joern after a non-zero gate. Since
+  the runner gained its own check this wrapper is redundant rather than load-bearing: an
+  invocation routed through it is adjudicated twice, by two independent readings of this
+  same gate.
+
+The invocation on record predates the runner's self-binding and took the direct route:
+``argv=["./harness/bin/run-joern.sh"]`` at line 3 of
+``harness/artifacts/logs/joern.runner-console.log``, so the wrapper's gate was not
+exercised for that load and its contemporaneous identity evidence is the runner's own
+recompute, printed rather than compared. That is the gap the runner's own gate closes for
+every subsequent direct invocation; the wrapper's header records the same history from its
+side.
 
 The negative test proving both directions is preserved verbatim beside this module's own
 output, at ``harness/artifacts/logs/joern-preflight-negative-test.log``: it drives the
@@ -157,12 +221,35 @@ from pathlib import Path
 from typing import Final, NamedTuple
 
 #: Exit status meaning "do not invoke the runner". Chosen not to collide with the
-#: runners' 64/78 or with an ordinary non-zero exit.
+#: runners' 64 or with an ordinary non-zero exit.
 HALT_EXIT: Final[int] = 77
+
+#: Exit status meaning "a record of account exists but could not be read". Identical to
+#: scope.sh's scope_fail status (EX_CONFIG) and to preflight_scan_target.CONFIG_EXIT, so
+#: one number means one thing across the harness.
+CONFIG_EXIT: Final[int] = 78
 
 #: Read in 1 MiB blocks: the graph is hundreds of megabytes and reading it whole to
 #: hash it would hold all of it in memory for no benefit.
 _BLOCK: Final[int] = 1 << 20
+
+#: The authoritative environment record, relative to the repository root, and the heading
+#: of the section that declares the graph's identity. Both are matched loosely enough to
+#: survive an editorial change to the heading's wording but strictly enough that a
+#: DIFFERENT section can never be read in its place.
+ENVIRONMENT_RECORD: Final[str] = "harness/ENVIRONMENT.md"
+GRAPH_SECTION_NUMBER: Final[str] = "7"
+
+
+class ConfigurationFault(Exception):
+    """A record of account exists but could not be read.
+
+    Distinct from ``ValueError`` -- which this module already uses for "the records
+    disagree" and "one record is ambiguous" -- because the two demand different responses
+    and carry different exit statuses. Raising the same type for both would force the
+    caller to parse a message to tell "fix the document" from "the graph is not the
+    recorded graph".
+    """
 
 
 def repo_root() -> Path:
@@ -252,6 +339,120 @@ def provisioning_identity(record: Path) -> tuple[int, str] | None:
     return sizes.pop(), digests.pop()
 
 
+def _table_cells(line: str) -> list[str]:
+    """Split one Markdown table row into its cells, or return ``[]``.
+
+    A row is a line whose first non-space character is ``|``. The leading and trailing
+    empty cells that the pipe delimiters produce are dropped, and each cell is stripped of
+    the emphasis and code markers the record uses for presentation (``*`` and a backtick),
+    so ``| **Bytes** | **541,255,894** |`` yields ``['Bytes', '541,255,894']``. Anything
+    that is not a table row yields no cells, which is what keeps PROSE mentioning a digest
+    -- and section 7 has such prose -- out of the parse.
+    """
+    stripped = line.strip()
+    if not stripped.startswith("|"):
+        return []
+    parts = stripped.split("|")
+    if len(parts) >= 2 and parts[0].strip() == "":
+        parts = parts[1:]
+    if parts and parts[-1].strip() == "":
+        parts = parts[:-1]
+    return [cell.strip().strip("*").strip("`").strip() for cell in parts]
+
+
+def graph_section(record: Path) -> list[str]:
+    """Return the lines of the environment record's graph section.
+
+    The section is located by its ATX heading -- ``## 7.`` -- and ends at the next
+    heading at the same level. Located by NUMBER rather than by title so a reworded title
+    still resolves, and bounded by the next ``## `` so a value from section 8 can never be
+    read as section 7's.
+
+    Raises ``ConfigurationFault`` when the record or the section is absent, because
+    "the record does not exist" must not be reachable from the same code path as "the
+    record agrees".
+    """
+    if not record.is_file():
+        raise ConfigurationFault(
+            f"the authoritative environment record {record} is absent, so its declared "
+            f"graph identity could not be read. It is provisioned rather than tracked "
+            f"(AAP 0.6.1 marks it REFERENCE); a clone without it is incompletely "
+            f"provisioned, and this gate will not certify a graph against a record that "
+            f"is not there."
+        )
+    lines = record.read_text(errors="replace").splitlines()
+    start: int | None = None
+    for index, line in enumerate(lines):
+        if re.match(rf"^##\s+{GRAPH_SECTION_NUMBER}\.\s", line):
+            if start is not None:
+                raise ConfigurationFault(
+                    f"{record} carries more than one '## {GRAPH_SECTION_NUMBER}.' "
+                    f"heading (lines {start + 1} and {index + 1}), so the section that "
+                    f"declares the graph's identity is ambiguous."
+                )
+            start = index
+    if start is None:
+        raise ConfigurationFault(
+            f"{record} carries no '## {GRAPH_SECTION_NUMBER}.' section, so the declared "
+            f"graph identity could not be located. Section {GRAPH_SECTION_NUMBER} is "
+            f"where the record states the graph's byte size and sha256."
+        )
+    for index in range(start + 1, len(lines)):
+        if lines[index].startswith("## "):
+            return lines[start:index]
+    return lines[start:]
+
+
+def declared_identity(record: Path) -> tuple[int, str]:
+    """Return the identity pair the environment record DECLARES for the graph.
+
+    Read from the table rows of section 7 whose first cell is ``Bytes`` and ``sha256``.
+    Exactly one of each is required -- the same rule ``strict_identity`` and
+    ``provisioning_identity`` apply, and for the same reason: two candidate pairs inside
+    one record would let a reader pick the one that matched.
+
+    Every failure is a ``ConfigurationFault``, never a ``None`` and never a guess. A
+    record that cannot be parsed is a document to correct; treating it as silence would
+    remove the only comparison that catches a stale declaration, which is exactly the
+    defect this candidate exists to catch.
+    """
+    section = graph_section(record)
+    sizes: set[int] = set()
+    digests: set[str] = set()
+    for line in section:
+        cells = _table_cells(line)
+        if len(cells) < 2:
+            continue
+        label = cells[0].lower().rstrip(":").strip()
+        value = cells[1]
+        if label == "bytes":
+            match = re.fullmatch(r"([\d,]+)", value)
+            if not match:
+                raise ConfigurationFault(
+                    f"{record} section {GRAPH_SECTION_NUMBER} has a 'Bytes' row whose "
+                    f"value is not a decimal byte count: {value!r}. A byte count that "
+                    f"cannot be read cannot be compared."
+                )
+            sizes.add(int(match.group(1).replace(",", "")))
+        elif label == "sha256":
+            match = re.fullmatch(r"([0-9a-f]{64})", value.lower())
+            if not match:
+                raise ConfigurationFault(
+                    f"{record} section {GRAPH_SECTION_NUMBER} has a 'sha256' row whose "
+                    f"value is not a 64-character hex digest: {value!r}."
+                )
+            digests.add(match.group(1))
+    if len(sizes) != 1 or len(digests) != 1:
+        raise ConfigurationFault(
+            f"{record} section {GRAPH_SECTION_NUMBER} must declare exactly one 'Bytes' "
+            f"row and one 'sha256' row; found {len(sizes)} distinct byte count(s) and "
+            f"{len(digests)} distinct digest(s). Neither an absent declaration nor an "
+            f"ambiguous one can adjudicate an identity check, and neither may be read as "
+            f"agreement with the bytes on disk."
+        )
+    return sizes.pop(), digests.pop()
+
+
 def provisioning_records(graph: Path) -> list[Path]:
     """Return the provisioning records that sit beside ``graph``, most specific first.
 
@@ -271,8 +472,10 @@ def record_of_account(root: Path, graph: Path) -> RecordOfAccount:
 
     The frontend log governs when it carries a write-time pair, because such a pair
     exists only if this checkout's frontend wrote a graph. When it carries none, the
-    provisioning record beside the resolved graph governs. Every candidate that exists is
-    read and any disagreement is fatal, so the order selects a WRITER, never an outcome.
+    provisioning record beside the resolved graph governs. The environment record's
+    DECLARED pair is read in every case, because it is the authoritative document's own
+    claim about the same graph. Every candidate that exists is read and any disagreement
+    is fatal, so the order selects a WRITER, never an outcome.
     """
     frontend = root / "harness/artifacts/logs/cpg-frontend.log"
     candidates: list[tuple[Path, str, tuple[int, str]]] = []
@@ -288,6 +491,16 @@ def record_of_account(root: Path, graph: Path) -> RecordOfAccount:
                 (record,
                  "provisioning record of account for the graph this run did not write",
                  pair))
+    # Always read, never conditional on the others: a declaration nobody compares is not a
+    # record. A parse failure raises ConfigurationFault and is reported as exit 78 -- it
+    # is deliberately NOT caught here, because falling through would let an unreadable
+    # declaration behave exactly like an agreeing one.
+    environment = root / ENVIRONMENT_RECORD
+    candidates.append(
+        (environment,
+         f"declared record: {ENVIRONMENT_RECORD} section {GRAPH_SECTION_NUMBER}, the "
+         f"authoritative environment record",
+         declared_identity(environment)))
     if not candidates:
         raise ValueError(
             f"no record of account carries an identity pair for {graph}: "
@@ -297,10 +510,20 @@ def record_of_account(root: Path, graph: Path) -> RecordOfAccount:
         )
     distinct = {pair for _, _, pair in candidates}
     if len(distinct) != 1:
-        detail = "; ".join(f"{path} says {pair[0]} / {pair[1]}" for path, _, pair in candidates)
+        detail = "; ".join(
+            f"{path} ({provenance}) states {pair[0]:,} bytes / {pair[1]}"
+            for path, provenance, pair in candidates)
         raise ValueError(
-            "the records of account disagree, so no identity can be adjudicated and "
-            f"nothing may be loaded: {detail}"
+            "the records of account DISAGREE, so no identity can be adjudicated and "
+            f"nothing may be loaded. {detail}. This gate does not resolve the "
+            "disagreement by adopting whichever record matches the bytes on disk -- a "
+            "check that picks the answer it likes is not a check. AAP 0.1.3's fourth "
+            "case governs: an observable fact contradicting the environment record on a "
+            "field the expected-values table does not anchor is recorded with BOTH values "
+            "and the run stops. Resolving it is a PROVISIONING act -- replace the graph "
+            "and its record together, atomically, so one identity describes one set of "
+            f"bytes -- and not something a clone may do: {ENVIRONMENT_RECORD} is "
+            "REFERENCE under AAP 0.6.1 and the graph is provisioned shared state."
         )
     source, provenance, (size, digest) = candidates[0]
     return RecordOfAccount(size, digest, source, provenance,
@@ -370,8 +593,14 @@ def main(argv: list[str] | None = None) -> int:
     # may not have used.
     record: RecordOfAccount | None = None
     record_error: str | None = None
+    # A configuration fault -- a record that exists but cannot be read -- is tracked
+    # separately from a mismatch so the two can carry different exit statuses. Both
+    # forbid the load; only the status tells a reader which document to go and fix.
+    config_error: str | None = None
     try:
         record = record_of_account(root, effective_harness_cpg(root))
+    except ConfigurationFault as exc:
+        config_error = str(exc)
     except (ValueError, OSError) as exc:
         record_error = str(exc)
 
@@ -382,24 +611,39 @@ def main(argv: list[str] | None = None) -> int:
         report.append(text)
         print(text)
 
+    def emit_wrapped(indent: str, text: str) -> None:
+        """Emit a long diagnostic as readable lines rather than as one enormous one.
+
+        The disagreement message names two identities, two provenances and the authority
+        for stopping, which is several hundred characters -- unreadable on one line, and
+        this file is read by a person deciding whether a graph may be loaded.
+        """
+        for line in _wrap(text, 92):
+            emit(f"{indent}{line}")
+
     emit("=" * 84)
     emit("STAGE 3 PRE-LOAD GRAPH IDENTITY CHECK")
     emit("=" * 84)
     emit()
     emit("  Refuses to invoke the Stage 3 Joern runner unless the graph on disk is")
-    emit("  byte-for-byte the graph its record of account describes -- the frontend log")
-    emit("  when this checkout's frontend wrote one, and otherwise the provisioning record")
-    emit("  beside the graph itself. The runner resolves and PRINTS its")
-    emit("  input without comparing it, and harness/lib/joern-scan.sc calls importCpg and")
-    emit("  then counts, so a mismatch would otherwise reach the engine. A mismatch here")
-    emit(f"  exits {HALT_EXIT}, and harness/lib/run-joern-gated.sh -- a committed gated")
-    emit("  path for Stage 3 -- has no branch that reaches the runner after a non-zero")
-    emit("  gate, so an invocation routed through that wrapper never reaches the load.")
-    emit("  The runner is also invocable directly, and an invocation that does not read")
-    emit("  this exit status is not bound by it.")
+    emit("  byte-for-byte the graph EVERY record of account describes -- the frontend log")
+    emit("  when this checkout's frontend wrote one, the provisioning record beside the")
+    emit("  graph itself, and always the identity declared by")
+    emit(f"  {ENVIRONMENT_RECORD} section {GRAPH_SECTION_NUMBER}. Records that disagree")
+    emit("  are fatal and none is preferred for matching. The runner MEASURES and PRINTS")
+    emit("  its input's size and digest, and harness/lib/joern-scan.sc calls importCpg and")
+    emit("  then counts, so without this comparison a mismatch would reach the engine.")
+    emit(f"  A mismatch here exits {HALT_EXIT}, and both committed callers refuse on it:")
+    emit("  harness/bin/run-joern.sh -- the canonical direct runner -- runs this gate")
+    emit("  --check-only before it touches its artifact or invokes joern and maps a")
+    emit("  non-zero status to its own configuration fault (78), and")
+    emit("  harness/lib/run-joern-gated.sh has no branch that reaches the runner after a")
+    emit("  non-zero gate. The direct path is therefore bound by this status too, which")
+    emit("  the invocation on record predates.")
     emit()
     emit(f"  Gate source             : harness/lib/preflight_graph_identity.py")
-    emit(f"  Binding caller          : harness/lib/run-joern-gated.sh")
+    emit(f"  Binding callers         : harness/bin/run-joern.sh (canonical, --check-only)")
+    emit(f"                            harness/lib/run-joern-gated.sh (step 2 of 4)")
     emit(f"  Checked at (UTC)        : {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
     emit(f"  Clone index             : {os.environ.get('BLITZY_CLONE_INDEX', '0')}")
     if record is not None:
@@ -412,8 +656,12 @@ def main(argv: list[str] | None = None) -> int:
         if record.corroborated_by:
             emit(f"  Corroborated by         : "
                  f"{', '.join(str(path) for path in record.corroborated_by)}, which agree")
+    elif config_error is not None:
+        emit(f"  Record of account       : NOT READABLE -- configuration fault "
+             f"(exit {CONFIG_EXIT})")
     else:
-        emit(f"  Record of account       : NONE RESOLVED")
+        emit(f"  Record of account       : NONE RESOLVED -- see the FATAL detail below, "
+             f"which names every candidate")
     written_here = root / "harness/artifacts/cpg/spark.cpg"
     if not (written_here.exists() or written_here.is_symlink()):
         emit("  In-checkout write path  : harness/artifacts/cpg/spark.cpg is absent -- no")
@@ -423,9 +671,21 @@ def main(argv: list[str] | None = None) -> int:
          f"{os.environ.get('HARNESS_CPG', '<unset -- env.sh default applies>')}")
     emit()
 
-    if record is None:
+    if config_error is not None:
+        # Deliberately NOT appended to `fatal`: a record that cannot be read is a
+        # different outcome from a graph that does not match its record, and the two
+        # carry different exit statuses. No subject is measured, because there is nothing
+        # to measure against.
+        emit("  CONFIGURATION FAULT:")
+        emit_wrapped("    ", config_error)
+        emit()
+        emit("  Nothing was measured against a record, and nothing may be loaded. Correct")
+        emit(f"  the record ({ENVIRONMENT_RECORD} section {GRAPH_SECTION_NUMBER}) and")
+        emit("  re-run; this gate does not repair a document it is required to read.")
+    elif record is None:
         fatal.append(record_error or "no record of account could be resolved")
-        emit(f"  FATAL: {fatal[-1]}")
+        emit("  FATAL:")
+        emit_wrapped("    ", fatal[-1])
     else:
         want_size, want_sha = record.size, record.sha256
         emit(f"  Recorded size           : {want_size:,} bytes")
@@ -478,13 +738,30 @@ def main(argv: list[str] | None = None) -> int:
                 )
             emit()
 
+    # One decision, three outcomes, so the printed verdict and the exit status cannot
+    # drift apart: a record that could not be read is 78, a graph that does not match its
+    # record is 77, and everything else is 0.
+    if config_error is not None:
+        verdict, status = "CONFIGURATION FAULT", CONFIG_EXIT
+    elif fatal:
+        verdict, status = "HALT", HALT_EXIT
+    else:
+        verdict, status = "PASS", 0
+
     emit("=" * 84)
-    emit(f"VERDICT: {'PASS' if not fatal else 'HALT'}")
+    emit(f"VERDICT: {verdict}")
     emit("=" * 84)
     if fatal:
         emit()
         for item in fatal:
-            emit(f"  - {item}")
+            emit("  -")
+            emit_wrapped("    ", item)
+        emit()
+        emit("  The Stage 3 runner MUST NOT be invoked. Nothing was loaded.")
+    elif config_error is not None:
+        emit()
+        emit("  -")
+        emit_wrapped("    ", config_error)
         emit()
         emit("  The Stage 3 runner MUST NOT be invoked. Nothing was loaded.")
     emit()
@@ -502,7 +779,31 @@ def main(argv: list[str] | None = None) -> int:
         logs.mkdir(parents=True, exist_ok=True)
         out.write_text("\n".join(report).rstrip("\n") + "\n")
         print(f"wrote {out} ({out.stat().st_size} B)")
-    return HALT_EXIT if fatal else 0
+    return status
+
+
+def _wrap(text: str, width: int) -> list[str]:
+    """Wrap ``text`` to ``width`` on word boundaries, preserving every character.
+
+    Hand-rolled rather than ``textwrap`` so a long unbroken token -- a digest, a path --
+    is emitted whole on its own line instead of split at an arbitrary column, which would
+    stop a reader copying it back out of the report. Identical to
+    ``preflight_scan_target._wrap``: the two gates' reports are read together and must
+    look the same.
+    """
+    words = text.split()
+    if not words:
+        return [""]
+    lines: list[str] = []
+    current = words[0]
+    for word in words[1:]:
+        if len(current) + 1 + len(word) <= width:
+            current = f"{current} {word}"
+        else:
+            lines.append(current)
+            current = word
+    lines.append(current)
+    return lines
 
 
 if __name__ == "__main__":

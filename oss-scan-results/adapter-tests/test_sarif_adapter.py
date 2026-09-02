@@ -375,13 +375,21 @@ ROW_FIXTURES: dict[str, str] = {**POSITIVE_FIXTURES, **DERIVED_FIXTURES}
 #: ``locations`` array at all, and a ``startLine`` of zero, of a negative value, or of a
 #: boolean, and one that separates the two ways a record can state an identifier the
 #: adapter cannot use -- stating none at all, and stating two that disagree.
-#: Two stems separate the two ways a reference can fail to be a URI: one whose base
-#: entry's ``uri`` is invalid as written, and one whose references are valid as written
-#: and invalid once percent-decoded. The second exists because a control-character check
-#: made only before decoding is not the guard it appears to be -- ``%1b`` is three
-#: ordinary URI characters until ``unquote`` turns it into ESC (AAP 0.5.4's
-#: ``unresolvable_path``/``invalid_uri`` boundary, CWE-176 for the decode and CWE-117 for
-#: where the decoded value arrives).
+#: Three stems separate the three ways a reference can fail to be a URI, and they are
+#: three moments rather than one condition written three times.
+#: ``reject-sarif-uribaseid-invalid-uri`` carries a base entry whose ``uri`` is invalid as
+#: written, refused by the parser it is handed to.
+#: ``reject-sarif-percent-encoded-control`` carries references that are valid as written
+#: and invalid once percent-decoded, because a control-character check made only before
+#: decoding is not the guard it appears to be -- ``%1b`` is three ordinary URI characters
+#: until ``unquote`` turns it into ESC (CWE-176 for the decode, CWE-117 for where the
+#: decoded value arrives).
+#: ``reject-sarif-malformed-percent-escape`` carries references whose ``%`` is not the
+#: start of an escape at all, refused BEFORE any decode, because
+#: :func:`urllib.parse.unquote` leaves a malformed escape in place rather than raising --
+#: so ``%``, ``%2`` and ``%GG`` decode to themselves, pass every downstream test and
+#: reach the ``path`` column as text that is not a path (SEC-06). All three land on AAP
+#: 0.5.4's ``unresolvable_path``/``invalid_uri`` boundary.
 #: All but one are ``opengrep`` artifacts: the condition under test is usually a property
 #: of the shared adapter, and one producer's shape is enough to exercise it.
 #: No comparison between producers is implied or made.
@@ -392,6 +400,7 @@ NEGATIVE_FIXTURES: tuple[str, ...] = (
     "reject-sarif-uribaseid-overdepth",
     "reject-sarif-uribaseid-invalid-uri",
     "reject-sarif-percent-encoded-control",
+    "reject-sarif-malformed-percent-escape",
     "reject-sarif-uribaseid-relative-no-absolute-ancestor",
     "reject-sarif-missing-rule-id",
     "reject-sarif-rule-index-mismatch",
@@ -5366,6 +5375,669 @@ class PercentEncodedControlTests(SarifAdapterTestCase):
             rejections,
             label=self.FIXTURE,
             expected_records=6,
+        )
+
+
+# --------------------------------------------------------------------------------------
+# The other half of the same guard: a '%' that is not the start of an escape at all.
+# --------------------------------------------------------------------------------------
+
+
+class MalformedPercentEscapeTests(SarifAdapterTestCase):
+    """A reference whose ``%`` is not the start of a two-hexadecimal-digit escape.
+
+    The counterpart to :class:`PercentEncodedControlTests`, and the reason the two are
+    separate classes is that they refuse a reference at two different moments for two
+    different reasons. That class covers a *well-formed* escape whose decoded value is
+    inadmissible; this one covers a reference that does not decode at all, because
+    :func:`urllib.parse.unquote` is documented to leave an invalid escape **in place**
+    rather than raise.
+
+    That documented tolerance is the whole defect (SEC-06). A ``%``, a ``%2`` or a
+    ``%GG`` survives ``unquote`` unchanged and then passes every downstream test there
+    is: the value is a non-empty string, it carries no control character, it relativizes
+    against the recorded scan root, and it matches an allowlist glob. What arrives in the
+    dataset is a ``path`` column entry that is not a path, with an ``in_scope`` verdict
+    computed from it, indistinguishable in ``findings.json`` from a real file. So the
+    refusal cannot be a decode-time check -- there is nothing for a decode-time check to
+    see -- and has to be a syntax check made **before** any decode.
+
+    Four properties are asserted here and each is a different way the fix could be wrong:
+    that every guard site refuses a malformed escape and names its own component; that a
+    *well-formed* escape is still decoded and still becomes a row, since a guard refusing
+    every ``%`` would satisfy every rejection assertion in this class and be wrong; that
+    ``%00`` still earns the control-character diagnosis rather than this one, which is
+    what keeps the two conditions distinguishable in the record; and that a percent-wrapped
+    ``uriBaseId`` **identifier** is a mapping key rather than a URI reference, which is
+    the one regression that would break SARIF path resolution silently.
+    """
+
+    #: The fixture stem this class holds to its expectation.
+    FIXTURE = "reject-sarif-malformed-percent-escape"
+
+    #: The two fault kinds, as :func:`normalize.paths.describe_malformed_percent_escapes`
+    #: words them. Held as constants because every assertion below compares against the
+    #: describer's own phrasing rather than against a paraphrase of it.
+    FAULT_TRUNCATED = "'%' is followed by fewer than two characters"
+    FAULT_NON_HEX = "'%' is not followed by two hexadecimal digits"
+
+    def _adapt_uri(
+        self, uri: str, **result_kwargs: Any
+    ) -> tuple[list[dict[str, Any]], list[paths.Rejection]]:
+        """Adapt a one-result document addressing ``uri`` and return rows and rejections."""
+        document = authored_document([authored_result(uri, **result_kwargs)])
+        rows, rejections, _counters, _tally = self.adapt(document, tool="opengrep")
+        return rows, rejections
+
+    def test_the_qa_reproduction_no_longer_reaches_a_row(self) -> None:
+        """The three references the finding names, each now a counted rejection.
+
+        This is the finding's own reproduction, asserted rather than described: ``%``,
+        ``%2`` and ``%GG`` returned the ``relative`` form and reached the dataset, one of
+        them with ``in_scope`` true. Each is now the ``invalid`` form, and the adapter
+        counts it under ``invalid_uri``.
+
+        The bare forms are asserted against the parser and the embedded forms against the
+        adapter, because the two answer different questions: the parser's ``form`` is what
+        every caller branches on, and the adapter's rejection is what the dataset records.
+        """
+        bare = {
+            "a bare per-cent sign": ("%", self.FAULT_TRUNCATED, 0),
+            "an escape cut short": ("%2", self.FAULT_TRUNCATED, 0),
+            "two characters that are not hex digits": ("%GG", self.FAULT_NON_HEX, 0),
+        }
+        for label, (raw, fault, index) in bare.items():
+            with self.subTest(bare=label):
+                reference = paths.parse_uri_reference(raw)
+                self.assertEqual(
+                    reference.form,
+                    paths.URI_FORM_INVALID,
+                    msg=(
+                        f"{label}: {raw!r} is not a URI reference, and any form other than "
+                        "invalid puts it on a route towards a row"
+                    ),
+                )
+                self.assertIsNotNone(reference.detail)
+                assert reference.detail is not None  # for the type checker
+                self.assertIn(fault, reference.detail)
+                self.assertIn(f"at index {index}", reference.detail)
+
+        embedded = {
+            "inside a relative path": (
+                "core/src/main/scala/org/apache/spark/storage/DiskStore%GG.scala",
+                self.FAULT_NON_HEX,
+            ),
+            "at the end of a relative path": (
+                "core/src/main/scala/org/apache/spark/storage/DiskStore.scala%",
+                self.FAULT_TRUNCATED,
+            ),
+            "cut short before an extension": (
+                "core/src/main/scala/org/apache/spark/storage/DiskStore%2.scala",
+                self.FAULT_NON_HEX,
+            ),
+        }
+        for label, (uri, fault) in embedded.items():
+            with self.subTest(embedded=label):
+                rows, rejections = self._adapt_uri(uri)
+                self.assertEqual(
+                    rows,
+                    [],
+                    msg=(
+                        f"{label}: a reference that is not a path must not reach the path "
+                        "column, whatever its in_scope verdict would have been"
+                    ),
+                )
+                rejection = self.assert_single_rejection(
+                    rejections,
+                    reject_class=paths.REJECT_INVALID_URI,
+                    label=f"authored {label}",
+                )
+                self.assertIn(fault, rejection.detail)
+
+    def test_every_guard_site_refuses_a_malformed_escape(self) -> None:
+        """One case per validation site, each named by the component its detail reports.
+
+        The parser validates the whole raw reference at its head and then each component
+        again immediately before that component's own ``unquote``. The head check already
+        covers every component -- each one is a substring of the raw reference -- so these
+        cases are asserted through the parser's own ``detail`` and the point of them is
+        that no *route* through the function reaches a decode with escapes that are not
+        escapes. A reference of each shape is authored rather than left to the fixture,
+        which carries four of them and cannot carry all of them without repeating itself.
+        """
+        cases = {
+            "relative reference": (
+                "core/src/main/scala/org/apache/spark/storage/DiskStore%G0.scala",
+                self.FAULT_NON_HEX,
+            ),
+            "file URI path": (
+                "file:///opt/spark-src/core/src/main/scala/A%2.scala",
+                self.FAULT_NON_HEX,
+            ),
+            "archive member, no scheme": (
+                "core/target/authored.jar!/org/apache/spark/A%ZZ.class",
+                self.FAULT_NON_HEX,
+            ),
+            "archive container, no scheme": (
+                "core/target/authored%.jar!/org/apache/spark/A.class",
+                self.FAULT_NON_HEX,
+            ),
+            "archive member, jar scheme": (
+                "jar:file:///opt/spark-src/core/target/authored.jar!/org/apache/A%1.class",
+                self.FAULT_NON_HEX,
+            ),
+            "archive container, jar scheme": (
+                "jar:file:///opt/spark-src/core/target/authored%QQ.jar!/org/apache/A.class",
+                self.FAULT_NON_HEX,
+            ),
+            "foreign scheme": ("http://example.invalid/a%2", self.FAULT_TRUNCATED),
+            "trailing per-cent at the very end": (
+                "core/src/main/scala/A.scala%",
+                self.FAULT_TRUNCATED,
+            ),
+        }
+        for label, (uri, fault) in cases.items():
+            with self.subTest(guard_site=label):
+                self.assertIsNone(
+                    paths.describe_control_characters(uri),
+                    msg=(
+                        f"{label}: the authored reference must carry no control character, "
+                        "or it would be refused by the control check and would prove "
+                        "nothing about the percent check"
+                    ),
+                )
+                reference = paths.parse_uri_reference(uri)
+                self.assertEqual(
+                    reference.form,
+                    paths.URI_FORM_INVALID,
+                    msg=f"{label}: the reference must be classified invalid",
+                )
+                detail = reference.detail or ""
+                self.assertIn(fault, detail, msg=f"{label}: the fault kind is not named")
+                self.assertIn(
+                    "RFC 3986 section 2.1",
+                    detail,
+                    msg=(
+                        f"{label}: the detail must say which production was violated, so a "
+                        "reader can check the refusal against the specification"
+                    ),
+                )
+                self.assertNotIn(
+                    uri,
+                    detail,
+                    msg=(
+                        f"{label}: the detail must not reproduce the reference it refused "
+                        "-- it is written verbatim into the preserved logs (SEC-04)"
+                    ),
+                )
+
+    def test_the_foreign_scheme_reclassification_is_recorded_rather_than_silent(self) -> None:
+        """``http://h/%2`` moves from ``unresolvable_path`` to ``invalid_uri``.
+
+        A behaviour change, asserted so it cannot happen unnoticed. Before the syntax
+        guard a foreign-scheme reference was returned undecoded and unchecked, so it
+        reached ``foreign-scheme`` and the adapter rejected it under ``unresolvable_path``
+        -- syntactically valid, just not a location in the tree. It is now refused at the
+        head of the function instead, because it is not syntactically valid at all.
+
+        Both outcomes are rejections and neither ever produced a row, so the dataset is
+        unaffected; what changes is which class the record is counted under, and
+        ``invalid_uri`` is the more precise of the two. A well-formed foreign-scheme
+        reference is asserted alongside, unchanged, so the reclassification is shown to
+        be about the escape rather than about the scheme.
+        """
+        malformed = paths.parse_uri_reference("http://example.invalid/a%2")
+        self.assertEqual(malformed.form, paths.URI_FORM_INVALID)
+        self.assertIn(self.FAULT_TRUNCATED, malformed.detail or "")
+        rows, rejections = self._adapt_uri("http://example.invalid/a%2")
+        self.assertEqual(rows, [])
+        self.assert_single_rejection(
+            rejections,
+            reject_class=paths.REJECT_INVALID_URI,
+            label="authored malformed foreign-scheme reference",
+        )
+
+        wellformed = paths.parse_uri_reference("http://example.invalid/a%20b")
+        self.assertEqual(
+            wellformed.form,
+            paths.URI_FORM_FOREIGN_SCHEME,
+            msg=(
+                "a foreign-scheme reference whose escapes are well formed is still "
+                "foreign-scheme, so the reclassification is about the escape and not the "
+                "scheme"
+            ),
+        )
+        rows, rejections = self._adapt_uri("http://example.invalid/a%20b")
+        self.assertEqual(rows, [])
+        self.assert_single_rejection(
+            rejections,
+            reject_class=paths.REJECT_UNRESOLVABLE_PATH,
+            label="authored well-formed foreign-scheme reference",
+        )
+
+    def test_a_well_formed_escape_still_decodes_and_still_becomes_a_row(self) -> None:
+        """The control that keeps the guard from being a blanket refusal of ``%``.
+
+        A guard that rejected every reference containing a ``%`` would satisfy every
+        rejection assertion in this class and would be wrong twice over: it would lose
+        real rows, and it would lose them silently, since a rejected record leaves no row
+        to notice. Each case below is a well-formed escape whose decoded value is a legal
+        path character, and each must still reach the dataset with the decoded path.
+
+        The errata behaviours are asserted in the same place because the syntax check runs
+        before the decode and a check that mis-parsed ``%2E`` would take them with it: the
+        SARIF 2.1.0 errata section 3.10.2 amendment requires ``..`` segments to be kept
+        rather than normalized away.
+        """
+        cases = {
+            "an encoded letter decodes to the captured path": (
+                "core/src/main/scala/org/apache/spark/storage/%44iskStore.scala",
+                DISK_STORE_PATH,
+            ),
+            "an encoded upper-case letter mid-name": (
+                "resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/"
+                "Proxy%55tils.java",
+                "resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/"
+                "ProxyUtils.java",
+            ),
+            "an encoded space is kept in the emitted path": (
+                "core/src/main/scala/org/apache/spark/storage/Disk%20Store.scala",
+                "core/src/main/scala/org/apache/spark/storage/Disk Store.scala",
+            ),
+            "an encoded per-cent sign decodes to one": (
+                "core/src/main/scala/org/apache/spark/storage/Disk%25Store.scala",
+                "core/src/main/scala/org/apache/spark/storage/Disk%Store.scala",
+            ),
+            "lower-case hex digits are accepted": (
+                "core/src/main/scala/org/apache/spark/storage/Disk%2dStore.scala",
+                "core/src/main/scala/org/apache/spark/storage/Disk-Store.scala",
+            ),
+            "encoded dot-dot segments are preserved": (
+                "core/src/main/scala/%2E%2E/authored.scala",
+                "core/src/main/scala/../authored.scala",
+            ),
+        }
+        for label, (uri, expected_path) in cases.items():
+            with self.subTest(case=label):
+                self.assertIsNone(
+                    paths.describe_malformed_percent_escapes(uri),
+                    msg=f"{label}: the authored reference must be well formed as written",
+                )
+                rows, rejections = self._adapt_uri(uri)
+                self.assertEqual(rejections, [], msg=f"{label}: nothing may be rejected")
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(
+                    rows[0]["path"],
+                    expected_path,
+                    msg=f"{label}: the decoded path is not the one the reference names",
+                )
+
+    def test_a_well_formed_escape_that_decodes_to_a_control_keeps_its_own_diagnosis(
+        self,
+    ) -> None:
+        """``%00`` is refused, and refused for the reason it always was.
+
+        The ordering property, asserted rather than assumed. ``%00`` is a *well-formed*
+        escape, so the syntax check passes it and the control check refuses it a moment
+        later on the decoded NUL. Had the two guards been written in the other order, or
+        had the syntax check been written to reject anything it could not turn into a
+        printable character, this record would carry the malformed-escape diagnosis and a
+        reader could no longer tell a producer that emitted a broken escape from one that
+        emitted a hostile well-formed escape.
+        """
+        for encoded, code_point in (("%00", "U+0000"), ("%0D", "U+000D"), ("%1B", "U+001B")):
+            with self.subTest(escape=encoded):
+                self.assertIsNone(
+                    paths.describe_malformed_percent_escapes(encoded),
+                    msg=f"{encoded} is a well-formed escape and must pass the syntax check",
+                )
+                reference = paths.parse_uri_reference(
+                    f"core/src/main/scala/A{encoded}.scala"
+                )
+                self.assertEqual(reference.form, paths.URI_FORM_INVALID)
+                detail = reference.detail or ""
+                self.assertIn("decodes to a value that carries the control character", detail)
+                self.assertIn(code_point, detail)
+                self.assertNotIn(
+                    "malformed percent escape",
+                    detail,
+                    msg=(
+                        f"{encoded} is well formed, so recording it as a malformed escape "
+                        "would misattribute the producer's shape"
+                    ),
+                )
+
+    def test_a_percent_wrapped_uri_base_id_is_a_mapping_key_and_still_resolves(self) -> None:
+        """The regression that would break SARIF path resolution silently.
+
+        Every ``uriBaseId`` this repository's corpus carries is percent-wrapped --
+        ``%SRCROOT%``, ``%PROJECTROOT%`` -- and read as a URI reference each one is a
+        malformed escape. They are *mapping keys*: they index
+        ``run.originalUriBaseIds`` and are never parsed as references, and no call site of
+        :func:`normalize.paths.parse_uri_reference` passes one.
+
+        Asserted in both directions. First that such an identifier *would* be refused as a
+        reference, which is what makes the hazard real rather than hypothetical. Then that
+        the walk resolves it anyway -- one level, a two-link chain and a three-link chain --
+        and that a based reference still becomes a row. A guard applied to identifiers
+        would not raise: every based reference would become ``invalid_uri`` and the dataset
+        would quietly lose its rows.
+        """
+        for identifier in ("%SRCROOT%", "%PROJECTROOT%", "%PCTROOT%"):
+            with self.subTest(identifier=identifier):
+                self.assertEqual(
+                    paths.parse_uri_reference(identifier).form,
+                    paths.URI_FORM_INVALID,
+                    msg=(
+                        f"{identifier!r} is a malformed escape as a URI reference, which is "
+                        "why it must never be read as one"
+                    ),
+                )
+
+        one_level = paths.resolve_uri_base("%SRCROOT%", {"%SRCROOT%": {"uri": "file:///opt/spark-src/"}})
+        self.assertEqual(one_level.outcome, paths.BASE_OUTCOME_RESOLVED)
+        self.assertEqual(one_level.base, "/opt/spark-src")
+
+        chained = paths.resolve_uri_base(
+            "%SRCROOT%",
+            {
+                "%PROJECTROOT%": {"uri": "file:///opt/"},
+                "%SRCROOT%": {"uri": "spark-src/", "uriBaseId": "%PROJECTROOT%"},
+            },
+        )
+        self.assertEqual(chained.outcome, paths.BASE_OUTCOME_RESOLVED)
+        self.assertEqual(chained.base, "/opt/spark-src")
+        self.assertEqual(chained.chain, ("%SRCROOT%", "%PROJECTROOT%"))
+
+        three_deep = paths.resolve_uri_base(
+            "%C%",
+            {
+                "%A%": {"uri": "file:///opt/"},
+                "%B%": {"uri": "spark-src/", "uriBaseId": "%A%"},
+                "%C%": {"uri": "core/", "uriBaseId": "%B%"},
+            },
+        )
+        self.assertEqual(three_deep.outcome, paths.BASE_OUTCOME_RESOLVED)
+        self.assertEqual(three_deep.base, "/opt/spark-src/core")
+
+        document = authored_document(
+            [
+                authored_result(
+                    "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+                    uri_base_id="%SRCROOT%",
+                )
+            ],
+            base_map={
+                "%PROJECTROOT%": {"uri": "file:///opt/"},
+                "%SRCROOT%": {"uri": "spark-src/", "uriBaseId": "%PROJECTROOT%"},
+            },
+        )
+        rows, rejections, _counters, _tally = self.adapt(document, tool="opengrep")
+        self.assertEqual(
+            rejections,
+            [],
+            msg=(
+                "a based reference must still resolve; a percent guard reaching the "
+                "identifier would reject every one of them"
+            ),
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["path"], DISK_STORE_PATH)
+        self.assertIs(rows[0]["in_scope"], True)
+
+    def test_a_base_map_entry_with_a_malformed_uri_is_refused_rather_than_joined(self) -> None:
+        """The record's own reference is clean; the base it names is not.
+
+        A guard applied only to the result's ``uri`` would emit this row with a base joined
+        into it that is not a path, which is why the walk validates each entry's own ``uri``
+        as a URI reference. The outcome is ``invalid-uri`` rather than ``degenerate``, so it
+        is not eligible for the runner-recorded fallback AAP 0.5.4 allows a degenerate base:
+        an entry whose ``uri`` is not a URI reference is malformed rather than merely
+        useless. The metadata here does record an explicit base for ``opengrep``, so the
+        fallback was available and was correctly not taken.
+
+        The detail names the base **identifier** and not the entry's ``uri`` value: the
+        identifier is a mapping key this dataset publishes in its own ``record_identity``,
+        while the value is what failed validation and is therefore described rather than
+        shown (SEC-04).
+        """
+        document = authored_document(
+            [authored_result("core/src/main/scala/authored.scala", uri_base_id="%PCT%")],
+            base_map={"%PCT%": {"uri": "file:///opt/spark-src%GG/"}},
+        )
+        rows, rejections, _counters, _tally = self.adapt(document, tool="opengrep")
+        self.assertEqual(rows, [])
+        rejection = self.assert_single_rejection(
+            rejections,
+            reject_class=paths.REJECT_INVALID_URI,
+            label="authored malformed base entry",
+        )
+        detail = rejection.detail
+        self.assertIn(
+            "of the entry for '%PCT%'",
+            detail,
+            msg=(
+                "the detail must name the base entry that is malformed rather than the "
+                "record's own clean uri, or it would send a reader to the wrong place"
+            ),
+        )
+        self.assertIn(self.FAULT_NON_HEX, detail)
+        self.assertNotIn(
+            "file:///opt/spark-src%GG/",
+            detail,
+            msg="the entry's uri failed validation, so it is described and never published",
+        )
+        self.assertNotIn("%GG", detail)
+
+    def test_the_escape_describer_names_positions_and_never_the_text(self) -> None:
+        """The describer is what keeps every one of these diagnostics safe to persist.
+
+        Every detail above is composed from it, and the details are written verbatim into
+        ``harness/artifacts/logs/`` and ``normalize-run.json``, so a describer that echoed
+        the offending characters would copy artifact bytes into a preserved record (SEC-04).
+        It is one step stricter than
+        :func:`normalize.paths.describe_control_characters` for a stated reason: a control
+        character cannot carry a credential, so that describer may name its code point,
+        while the two characters after a stray ``%`` can be any bytes at all.
+
+        The cap is asserted for the same reason it is asserted there: a hostile reference
+        carrying hundreds of stray ``%`` must not turn one rejection detail into a wall of
+        text in a preserved log.
+        """
+        self.assertIsNone(
+            paths.describe_malformed_percent_escapes(DISK_STORE_PATH),
+            msg="a path with no '%' at all carries nothing to describe",
+        )
+        self.assertIsNone(
+            paths.describe_malformed_percent_escapes("a%20b%2Fc%2e%2E"),
+            msg="every escape here is well formed, in both hex cases",
+        )
+        self.assertIsNone(
+            paths.describe_malformed_percent_escapes(42),  # type: ignore[arg-type]
+            msg="a non-string is not a reference and is not described",
+        )
+
+        one = paths.describe_malformed_percent_escapes("abcSECRETVALUE%GG")
+        self.assertIsNotNone(one)
+        assert one is not None  # for the type checker; asserted above
+        self.assertIn("the malformed percent escape", one)
+        self.assertIn("at index 14", one)
+        self.assertIn(self.FAULT_NON_HEX, one)
+        self.assertNotIn("SECRETVALUE", one)
+        self.assertNotIn("GG", one)
+
+        two = paths.describe_malformed_percent_escapes("%2x%")
+        self.assertIsNotNone(two)
+        assert two is not None  # for the type checker; asserted above
+        self.assertIn("2 malformed percent escapes", two)
+        self.assertIn("at index 0", two)
+        self.assertIn("at index 3", two)
+        self.assertIn(self.FAULT_NON_HEX, two)
+        self.assertIn(self.FAULT_TRUNCATED, two)
+
+        many = paths.describe_malformed_percent_escapes("%z%z%z%z%z")
+        self.assertIsNotNone(many)
+        assert many is not None  # for the type checker; asserted above
+        self.assertIn("5 malformed percent escapes", many)
+        self.assertIn("the first 3 being", many)
+        self.assertNotIn("at index 8", many)
+        self.assertNotIn("z", many)
+
+        # The index reported is an index into the ORIGINAL value, which only holds because
+        # the well-formed triplets are masked with an equal-width sentinel rather than
+        # removed. A describer that stripped them would report index 0 for this value.
+        after_valid = paths.describe_malformed_percent_escapes("%20%20%GG")
+        self.assertIsNotNone(after_valid)
+        assert after_valid is not None  # for the type checker; asserted above
+        self.assertIn("at index 6", after_valid)
+
+    def test_the_fixture_rejects_only_its_defective_records(self) -> None:
+        """The fixture, held to its expectation and to the partial-parse boundary.
+
+        Four records are refused and two are emitted, and the two straddle the four: the
+        first element of the array and the last both become rows, so a run that abandoned
+        the artifact at the first fault could not have produced the second row. The last
+        row is additionally the well-formed-escape control -- its reference reaches its path
+        only by decoding ``%55`` -- so a blanket refusal of ``%`` would fail here rather
+        than pass four times over.
+        """
+        expectation = _read_json(_expected_path(self.FIXTURE))
+        rows, rejections, counters, _tally = self.adapt_fixture(
+            self.FIXTURE,
+            tool="opengrep",
+            tool_base=self.base_of_kind("opengrep", expected_path_base_kind(expectation)),
+        )
+        self.assert_rows_match(rows, expectation["rows"], label=self.FIXTURE)
+        self.assert_schema_invariants(rows, label=self.FIXTURE)
+        self.assertEqual(
+            [row["start_line"] for row in rows],
+            [DISK_STORE_LINE, 75],
+            msg=(
+                "the surviving rows must be the first and last records, which is what "
+                "shows the traversal continued past all four rejections"
+            ),
+        )
+        self.assertEqual(
+            rows[1]["path"],
+            "resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/"
+            "ProxyUtils.java",
+            msg=(
+                "the last row's reference carries a well-formed %55, so its emitted path "
+                "exists only if the escape was decoded rather than refused"
+            ),
+        )
+        for index, row in enumerate(rows):
+            self.assertNotIn(
+                "%",
+                row["path"],
+                msg=(
+                    f"row {index}: no emitted path may carry a per-cent sign in any form -- "
+                    "measured over the committed dataset, none does"
+                ),
+            )
+        self.assertEqual(len(rejections), 4)
+        self.assertEqual(
+            [rejection.reject_class for rejection in rejections],
+            [paths.REJECT_INVALID_URI] * 4,
+            msg="all four are the same class and are told apart by their details",
+        )
+        self.assertEqual(
+            [rejection.record_identity["result_index"] for rejection in rejections],
+            [1, 2, 3, 4],
+            msg="the rejections name the four defective records in document order",
+        )
+        self.assertEqual(
+            sum(1 for rejection in rejections if self.FAULT_TRUNCATED in rejection.detail),
+            1,
+            msg="exactly one record carries the truncated fault -- the trailing '%'",
+        )
+        self.assertEqual(
+            sum(1 for rejection in rejections if self.FAULT_NON_HEX in rejection.detail),
+            3,
+            msg="the other three carry the non-hex fault",
+        )
+        reported_indices = {
+            index
+            for index in (56, 98, 88, 9)
+            if any(f"at index {index}" in rejection.detail for rejection in rejections)
+        }
+        self.assertEqual(
+            reported_indices,
+            {56, 98, 88, 9},
+            msg=(
+                "each detail must name its own fault position, or two records are "
+                "indistinguishable in the record"
+            ),
+        )
+        self.assert_counters_match(counters, expectation["counters"], label=self.FIXTURE)
+        self.assertEqual(
+            counters[sarif.COUNTER_RULE_ID_FROM_RULE_ID],
+            6,
+            msg=(
+                "every record resolves its identifier at step 2 and four are refused at "
+                "step 4, so the identifier counter counts six rather than two"
+            ),
+        )
+        self.assertEqual(
+            counters[f"{sarif.COUNTER_PATH_KIND_PREFIX}{paths.PATH_KIND_ARCHIVE_MEMBER}"],
+            0,
+            msg=(
+                "the archive reference is refused at the head of the parser, before the "
+                "archive branch is reached, so no path kind is assigned to it"
+            ),
+        )
+        self.assertEqual(counters[sarif.COUNTER_NON_FILESYSTEM_PATHS], 0)
+        self.assert_reconciliation_identity(
+            _read_json(_fixture_path(self.FIXTURE)),
+            rows,
+            rejections,
+            label=self.FIXTURE,
+            expected_records=6,
+        )
+
+    def test_no_rejection_detail_carries_the_reference_it_refused(self) -> None:
+        """Over every negative fixture, not only this one.
+
+        A rejection ``detail`` is persisted verbatim, so a detail that reproduced the value
+        it refused would copy artifact bytes into ``harness/artifacts/logs/`` and
+        ``normalize-run.json`` (SEC-04). The property is asserted from each expectation's
+        own ``expected_detail_must_not_contain`` list, which is where each fixture records
+        the specific strings a gate must have removed -- so a fixture that adds a condition
+        adds its own assertion here rather than needing this test changed.
+        """
+        checked = 0
+        for stem in NEGATIVE_FIXTURES:
+            expectation = _read_json(_expected_path(stem))
+            blocks = (
+                [branch for branch in expectation["branches"]]
+                if "branches" in expectation
+                else [expectation]
+            )
+            for block in blocks:
+                for rejection in block.get("rejections", ()):
+                    for forbidden in rejection.get("expected_detail_must_not_contain", ()):
+                        if not isinstance(forbidden, str):
+                            continue
+                        with self.subTest(fixture=stem, forbidden_length=len(forbidden)):
+                            detail = rejection.get(
+                                "expected_detail", rejection.get("detail", "")
+                            )
+                            self.assertNotIn(
+                                forbidden,
+                                detail,
+                                msg=(
+                                    f"{stem}: the recorded detail contains a string its own "
+                                    "expectation records as having to be absent"
+                                ),
+                            )
+                            checked += 1
+        self.assertGreater(
+            checked,
+            0,
+            msg=(
+                "no expectation records a forbidden substring, so this test asserted "
+                "nothing -- the corpus convention has been lost"
+            ),
         )
 
 

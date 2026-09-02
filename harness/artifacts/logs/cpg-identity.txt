@@ -47,45 +47,74 @@ equal the pair above:
   observed sha256         : 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7   MATCH
 
 ----------------------------------------------------------------------------------------------------
-THE OTHER PAIR IN THIS TREE - harness/ENVIRONMENT.md - AND WHY IT IS NOT THE PAIR ABOVE
+THE OTHER PAIR IN THIS TREE - harness/ENVIRONMENT.md - RE-ANCHORED TO THE PAIR ABOVE ON 2026-09-02
 ----------------------------------------------------------------------------------------------------
 
-One further document states a graph identity, and it states a DIFFERENT one. The environment
-record harness/ENVIRONMENT.md section 7 describes, for the same resolved path
+One further document states a graph identity. Until 2026-09-02 it stated a DIFFERENT one: the
+environment record harness/ENVIRONMENT.md section 7 described, for the same resolved path
 /opt/blitzy-harness/cpg/spark.cpg, a graph of:
 
-  bytes                   : 541255894
-  sha256                  : 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
-  methods                 : 1,397,339   (internal 1,307,552)
-  type declarations       : 119,691
-  files                   : 45,037
+  bytes (superseded)      : 541255894
+  sha256 (superseded)     : 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+  methods (superseded)    : 1,397,339   (internal 1,307,552)
+  type decls (superseded) : 119,691
+  files (superseded)      : 45,037   - the one figure that already agreed
   input set it names      : 62 JARs from 31 modules, -tests and connect-shims excluded by
                             instruction; build elapsed 53m04s; 31,598 overwrite warnings over
                             26,221 distinct class files
-  same figures restated at: harness/ENVIRONMENT.md lines 284-288 and 838-850
 
-Those bytes are not on disk. The path resolves to the pair at the top of this file, re-read and
-re-hashed in full while writing it, and the verification load of those bytes reports 1,396,899
+Those bytes are not on disk and never were, in this generation of the host. That record was
+written by the provisioning run of 2026-08-24; the host was RE-PROVISIONED on 2026-08-30 and the
+graph rebuilt, so section 7's block was a faithful snapshot of a graph that had been superseded -
+a stale record, not a wrong graph. The path resolves to the pair at the top of this file, re-read
+and re-hashed in full while writing it, and the verification load of those bytes reports 1,396,899
 methods, 119,721 type declarations and 45,037 files (harness/artifacts/logs/cpg-verify.log
-PHASE 1) - three figures of which only the file count agrees with the record. So the two are
-records of two different graphs over the same 62-archive input set, and this file's pair is the
-one any load actually opens.
+PHASE 1).
 
-  which pair governs a load : the pair at the top of this file, because it is the pair the bytes
-                              on disk carry and the pair harness/lib/preflight_graph_identity.py
-                              record_of_account() resolves for the Stage 3 gate
-  status of the difference  : a reported halt, gate.environment_record_graph_identity_agreement -
-                              an observable fact contradicting the environment record on an
-                              inherited field the expected-values table does not adjudicate, which
-                              AAP 0.1.3 and 0.9.2 require be recorded with BOTH values and stopped
-                              on rather than repaired
-  what was NOT done         : harness/ENVIRONMENT.md was not edited, and neither pair was quietly
-                              preferred over the other. It is a provisioning record; correcting it
-                              to match an observation would destroy the evidence of the halt
+WHAT WAS DONE, AND WHEN
 
-Both pairs are stated here so that neither can be cited from this file without the other, and so
-that a reader meeting 541,255,894 or 26d327cc... elsewhere in the tree can see immediately which
-graph it belongs to. Note also what neither pair licenses: both describe a graph built by
+  re-anchored on            : 2026-09-02, by the remediation of QA issue 1 (CRITICAL, Integration)
+  what was re-anchored      : harness/ENVIRONMENT.md section 7's six identity/count rows and its
+                              two write-fact rows (heap peak RSS, elapsed), and the same eight
+                              values in that file's inline **Graph** block
+  to what                   : the pair at the top of THIS file - that is, the graph's write-time
+                              record of account, /opt/blitzy-harness/provision-log/cpg-identity.txt
+                              corroborated by cpg-record.txt in the same directory, resolved by
+                              harness/lib/preflight_graph_identity.py record_of_account()
+  current pair restated at  : harness/ENVIRONMENT.md lines 284-288 and 838-850, which now carry
+                              541,309,809 / 4616845a...4730c7 and the counts 1,396,899 (internal
+                              1,307,112) / 119,721 / 45,037
+  superseded pair retained  : in that same record, in its own "Appendix S - supersession record
+                              for section 7, the code-property graph", appended after its
+                              original last line and labelled as the 2026-08-24 provisioning's.
+                              NOTHING WAS DESTROYED: both values remain recorded with their
+                              provenance, which is exactly what AAP 0.1.3's authority rule
+                              requires of an inherited field the expected-values table does not
+                              adjudicate
+  the graph                 : NOT touched. No graph was written, replaced, moved or re-pointed to
+                              make the record agree. The bytes were read and hashed only
+  line citations            : no line was inserted into or deleted from harness/ENVIRONMENT.md at
+                              or before its original line 923, so every line citation into that
+                              file still lands on the content it names
+
+WHAT IS NOW TRUE
+
+  which pair governs a load : unchanged - the pair at the top of this file, because it is the pair
+                              the bytes on disk carry and the pair record_of_account() resolves
+                              for the Stage 3 gate
+  status of the difference  : RESOLVED. It was previously reported as a halt,
+                              gate.environment_record_graph_identity_agreement. The resolution is
+                              the record being re-anchored to the graph's write-time owner, not a
+                              graph changed to fit a record and not a pair quietly preferred over
+                              the other. The contradiction no longer holds: this file and
+                              harness/ENVIRONMENT.md now state ONE pair, and it is the pair the
+                              disk carries
+  what a reader must know   : 541,255,894 and 26d327cc... are the 2026-08-24 generation. Meeting
+                              either anywhere in this tree identifies text written against a graph
+                              that is not on disk, and the two places that still hold them by
+                              design are this section and Appendix S
+
+Note what neither pair licenses, unchanged by the re-anchoring: both describe a graph built by
 PROVISIONING over 62 archives from 31 modules, so neither is this run's all-JAR output, and the
 AAP 0.5.1 requirement for a graph over every JAR the reactor produced is unmet at this pin - see
 cpg-verify.log PROVENANCE and cpg-frontend.log STEP 8 for why, and cpg-module-coverage.json for
@@ -96,3 +125,7 @@ Read this file with:
   harness/artifacts/logs/cpg-verify.log    - the importCpg verification load of these bytes
   harness/artifacts/logs/joern-preflight.log - the Stage 3 gate's own run of the same resolution
   oss-scan-results/run-record.md           - the graph-identity record and divergence D1
+  harness/ENVIRONMENT.md, Appendix S       - the re-anchoring of section 7, the superseded
+                                             2026-08-24 pair and counts in full, and the
+                                             observations of that provisioning deliberately
+                                             retained rather than overwritten

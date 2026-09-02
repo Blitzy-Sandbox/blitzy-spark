@@ -1,0 +1,114 @@
+run-scanner-gated.sh RUNTIME VERIFICATION -- gate before every runner
+run at   : 2026-09-02T20:51:04Z
+protected: harness/artifacts/raw/ (8 artifacts) and the nine <tool>.status files
+before   : 17 files, digest of digests 1dccf408a248edb18f0d8bf233079d8d4531c4b0605652e485a148f02c314987
+
+====================================================================================
+== argument guard: no argument
+====================================================================================
+run-scanner-gated.sh: takes exactly one argument, the canonical tool name.
+Got 0. One runner per invocation: AAP 0.8.1 requires each runner invoked
+directly and individually, and forbids orchestrated sequencing.
+Usage: harness/lib/run-scanner-gated.sh <opengrep|semgrep|datadog-static-analyzer|
+        gitleaks|checkov|trivy|osv-scanner|dependency-check|joern>
+exit: 64 (expected 64)
+
+====================================================================================
+== argument guard: two arguments
+====================================================================================
+run-scanner-gated.sh: takes exactly one argument, the canonical tool name.
+Got 2. One runner per invocation: AAP 0.8.1 requires each runner invoked
+directly and individually, and forbids orchestrated sequencing.
+Usage: harness/lib/run-scanner-gated.sh <opengrep|semgrep|datadog-static-analyzer|
+        gitleaks|checkov|trivy|osv-scanner|dependency-check|joern>
+exit: 64 (expected 64)
+
+====================================================================================
+== argument guard: a tool name outside the nine
+====================================================================================
+run-scanner-gated.sh: codeql is not one of the nine canonical tools.
+Accepted: opengrep semgrep datadog-static-analyzer gitleaks checkov trivy
+          osv-scanner dependency-check joern
+Refusing before sourcing the environment or running any gate.
+exit: 64 (expected 64)
+
+====================================================================================
+== argument guard: a hostile tool name (would be a path component if unvalidated)
+====================================================================================
+run-scanner-gated.sh: ../bin/run-trivy.sh is not one of the nine canonical tools.
+Accepted: opengrep semgrep datadog-static-analyzer gitleaks checkov trivy
+          osv-scanner dependency-check joern
+Refusing before sourcing the environment or running any gate.
+exit: 64 (expected 64)
+
+====================================================================================
+== gate refusal: wrong target (SPARK_SRC is this checkout, HEAD is not the pin)
+====================================================================================
+tool            : trivy
+route           : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/bin/run-trivy.sh
+route rationale : the runner directly, with no arguments
+scan target     : SPARK_SRC=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90
+  REFUSED (exit 77). No runner may be invoked; nothing was scanned.
+gate finished   : 2026-09-02T20:51:05Z (exit 77)
+HALT: the pre-scan target/smoke/path gate exited 77.
+The trivy runner was NOT invoked. Nothing was scanned, and no artifact or status
+exit: 77 (expected 77)
+step-2 dispatch banner present: 0  (0 == no runner was reached)
+
+====================================================================================
+== gate refusal: the smoke override present (empty value -- the case scope.sh reads as unset)
+====================================================================================
+    [REFUSE] smoke-override-absent              $HARNESS_SMOKE_TARGET
+  REFUSED (exit 77). No runner may be invoked; nothing was scanned.
+    - smoke-override-absent: present and empty, sha256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; scope.sh lines 43-48 would make this directory the entire scope and print '.' as the only scope directory
+HALT: the pre-scan target/smoke/path gate exited 77.
+The checkov runner was NOT invoked. Nothing was scanned, and no artifact or status
+exit: 77 (expected 77)
+step-2 dispatch banner present: 0  (0 == no runner was reached)
+
+====================================================================================
+== gate refusal: a hostile TRIVY_CACHE_DIR (SEC-03's value) -- refused before run-trivy.sh is reached
+====================================================================================
+    [REFUSE] path-policy:TRIVY_CACHE_DIR        $TRIVY_CACHE_DIR
+  REFUSED (exit 77). No runner may be invoked; nothing was scanned.
+    - path-policy:TRIVY_CACHE_DIR: REFUSED, 156 characters, sha256 abd414b6b1e529da1a56abac9f88d6bba1ee67b4c8efecc0384531ae50759b60; single quote -- closes a single-quoted sh word and a Python string literal (U+0027) at index 75; close parenthesis -- sh subshell, and a call expression in Python (U+0029) at index 76; semicolon -- sh command separator, and a statement separator in Python (U+003B) at index 78; open parenthesis -- sh subshell, and a call expression in Python (U+0028) at index 89; hash -- sh and Python comment introducer (U+0023) at index 155; run-trivy.sh lines 52-53 interpolate this value into python3 -c source
+HALT: the pre-scan target/smoke/path gate exited 77.
+The trivy runner was NOT invoked. Nothing was scanned, and no artifact or status
+exit: 77 (expected 77)
+the hostile value in this output: 0 occurrence(s)
+
+====================================================================================
+== a PASSING gate reaches the dispatch point without starting a scanner, for each of the nine
+====================================================================================
+TOOL                       EXIT  WOULD INVOKE
+opengrep                   0     harness/bin/run-opengrep.sh   (with no arguments)
+semgrep                    0     harness/bin/run-semgrep.sh   (with no arguments)
+datadog-static-analyzer    0     harness/bin/run-datadog-static-analyzer.sh   (with no arguments)
+gitleaks                   0     harness/bin/run-gitleaks.sh   (with no arguments)
+checkov                    0     harness/bin/run-checkov.sh   (with no arguments)
+trivy                      0     harness/bin/run-trivy.sh   (with no arguments)
+osv-scanner                0     harness/bin/run-osv-scanner.sh   (with no arguments)
+dependency-check           0     harness/bin/run-dependency-check.sh   (with no arguments)
+joern                      0     harness/lib/run-joern-gated.sh   (with no arguments)
+
+the joern dry run, showing the gate ran for real and the route chosen:
+== run-scanner-gated.sh ==
+tool            : joern
+route           : <repo>/harness/lib/run-joern-gated.sh
+route rationale : the gated Joern path: this same gate, then the graph-identity gate, then the heap commit proof, then the runner
+scan target     : SPARK_SRC=/opt/spark-src
+clone index     : 0
+== step 1/2: pre-scan target, smoke and path-value gate ==
+gate            : harness/lib/preflight_scan_target.py
+gate started    : 2026-09-02T20:51:06Z
+VERDICT: PASS
+wrote <repo>/harness/artifacts/logs/sec-gate-scan-target.log (11706 B) and <repo>/harness/artifacts/logs/sec-gate-scan-target.json (17167 B)
+gate finished   : 2026-09-02T20:51:06Z (exit 0)
+== step 2/2: dispatch NOT taken -- HARNESS_GATED_DISPATCH_DRY_RUN=1 ==
+would invoke   : <repo>/harness/lib/run-joern-gated.sh   (with no arguments)
+not created    : <repo>/harness/artifacts/raw/joern.json or .sarif, <repo>/harness/artifacts/logs/joern.status
+DRY RUN: the gate ran and passed; no scanner was invoked and nothing was scanned.
+
+after    : 17 files, digest of digests 1dccf408a248edb18f0d8bf233079d8d4531c4b0605652e485a148f02c314987
+protected evidence unchanged: PASS -- no artifact and no .status file was touched
+end: 2026-09-02T20:51:06Z

@@ -1,0 +1,412 @@
+{
+  "gate": "harness/lib/preflight_scan_target.py",
+  "findings_addressed": [
+    "SEC-01",
+    "SEC-03"
+  ],
+  "checked_at_utc": "2026-09-02T22:17:28Z",
+  "clone_index": "0",
+  "repository_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90",
+  "pin_authored_in_module": "59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d",
+  "git_executable": "/usr/bin/git",
+  "git_child_environment": "every GIT_* stripped; GIT_CONFIG_NOSYSTEM=1; GIT_CONFIG_GLOBAL=/dev/null; GIT_TERMINAL_PROMPT=0",
+  "check_only": false,
+  "verdict": "PASS",
+  "exit_status": 0,
+  "refusal_count": 0,
+  "fault_count": 0,
+  "checks": [
+    {
+      "check_id": "smoke-override-absent",
+      "subject": "$HARNESS_SMOKE_TARGET",
+      "expectation": "absent from the environment (harness/env.sh lines 87-89: setup-time only)",
+      "observed": "absent",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:SPARK_SRC",
+      "subject": "$SPARK_SRC",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/spark-src (14 characters, sha256 af35e8a41d22ecf1c608b41587c2487a70954a3b18882bec53f564501cf57e3d)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:HARNESS_DIR",
+      "subject": "$HARNESS_DIR",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness (89 characters, sha256 98143c80865739202c85d2b2b3a1954944554dce6153f0f786fbbb557380c369)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:HARNESS_REPO_ROOT",
+      "subject": "$HARNESS_REPO_ROOT",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90 (81 characters, sha256 dc08335851545bbf06c25b19669e27f7cd44366a788409566dea8a448f04dbeb)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:HARNESS_RAW_DIR",
+      "subject": "$HARNESS_RAW_DIR",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/raw (103 characters, sha256 7c76d429279c54927e488f2532a439aa8902c45bf577b7abfae4f56061364664)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:HARNESS_LOG_DIR",
+      "subject": "$HARNESS_LOG_DIR",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/logs (104 characters, sha256 40a772defcc1293b35c14fdba58121aba4c03324a299f763fdccc376286f6b0c)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:HARNESS_SCOPE_FILE",
+      "subject": "$HARNESS_SCOPE_FILE",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/scope/allowlist.txt (109 characters, sha256 29a703b7330931d65d4ad03ce90532913474338c346ccd3e0bd757c68eb44422)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:HARNESS_CPG",
+      "subject": "$HARNESS_CPG",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/cpg/spark.cpg (103 characters, sha256 c46237de06ecd8106eca533b74e9c01fe79091291e1d7fa276ff8f5e0b553e24)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:HARNESS_LIB_DIR",
+      "subject": "$HARNESS_LIB_DIR",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/lib (93 characters, sha256 31f274c6c94a4d4f0752a5a33bbba52410383ff4426929db51c88f8129972583)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:HARNESS_SHARED_DIR",
+      "subject": "$HARNESS_SHARED_DIR",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-harness (19 characters, sha256 ab3b852febf356aa54618af0293f85c3f0868d87b1d8f48177ee95241b62407c)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:HARNESS_TOOLS_DIR",
+      "subject": "$HARNESS_TOOLS_DIR",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-tools (17 characters, sha256 f51f95553fff058a2fc2ccbfc9a728f220e529b5a7a054926104f17a20200aef)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:HARNESS_SCRATCH_DIR",
+      "subject": "$HARNESS_SCRATCH_DIR",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/tmp/blitzy-harness-scratch/0 (29 characters, sha256 96c90c9ef6ee121f8d67631fadf63296764f6c2890c2ac9b0015c84581491e29)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:JAVA_HOME",
+      "subject": "$JAVA_HOME",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-tools/jdk/jdk-17.0.20+8 (35 characters, sha256 6a5cc51169604b57358b9e066e774554577ff99d9cef31f7358ff75ad63ef65a)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:JAVA_HOME_21",
+      "subject": "$JAVA_HOME_21",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-tools/jdk/jdk-21.0.12.1+1 (37 characters, sha256 a00dd0e28d3802196296f3064dbe38f993bb7a15224aa3080c6ac052421e8dcb)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:JOERN_HOME",
+      "subject": "$JOERN_HOME",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-tools/joern-cli (27 characters, sha256 bc2c7b9255e428e0f7c0e67dc1d746dce7a281432afc3406df8d46c3402f9982)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:DEPENDENCY_CHECK_HOME",
+      "subject": "$DEPENDENCY_CHECK_HOME",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-tools/dependency-check (34 characters, sha256 076aae827eefa2e33d352ca38a8d6e582ea25725ac3908b55a7d6a54d3ddd2f2)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:MAVEN_HOME",
+      "subject": "$MAVEN_HOME",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-tools/apache-maven-3.9.11 (37 characters, sha256 fadcf41da93a98f78c25e2d4c2f7cc8727d717aa4c2088c6c6bb0f3b58a7a6c3)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:SCALA_HOME",
+      "subject": "$SCALA_HOME",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-tools/scala-2.13.17 (31 characters, sha256 027405e9653bf0de058ad67848185283ce77ee2c414dec5b6fe16ebb21c769b1)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:OPENGREP_RULES_DIR",
+      "subject": "$OPENGREP_RULES_DIR",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-harness/rules/opengrep-rules (40 characters, sha256 49c5909a6cd612226f47ce1c5ae68e2624951c926041554d9596d076b504369c)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:SEMGREP_RULES_DIR",
+      "subject": "$SEMGREP_RULES_DIR",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-harness/rules/semgrep-rules (39 characters, sha256 f08e0bfa91d07f49f8ef35c393358b81edae9f40869d54434c3f19e6d3aeb1ec)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:DD_SAST_RULES_FILE",
+      "subject": "$DD_SAST_RULES_FILE",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json (57 characters, sha256 f1e32ed69e861716aa2a539aba57efad5a958a43857f311a44b7c080b0846682)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:TRIVY_CACHE_DIR",
+      "subject": "$TRIVY_CACHE_DIR",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-harness/trivy-cache (31 characters, sha256 868b349c7c6171df7470eb5c788d2cfc8d296e6c006bced8d844c4bb8db6f9df)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "path-policy:HARNESS_DC_DATA_DIR",
+      "subject": "$HARNESS_DC_DATA_DIR",
+      "expectation": "absolute, no control characters, no shell or source syntax",
+      "observed": "/opt/blitzy-harness/dc-data (27 characters, sha256 dee52de6b1fd2d63c6dfddbc13e281055c76a8fd8534e983fd4afa71e8f2d548)",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "scan-target-exists",
+      "subject": "$SPARK_SRC",
+      "expectation": "an existing directory",
+      "observed": "/opt/spark-src is a directory",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "scan-target-work-tree",
+      "subject": "/opt/spark-src (via /usr/bin/git)",
+      "expectation": "the root of a git work tree",
+      "observed": "inside a work tree: true",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "scan-target-root",
+      "subject": "$SPARK_SRC",
+      "expectation": "resolves to the ROOT of the pinned work tree",
+      "observed": "work-tree root and $SPARK_SRC both resolve to /opt/spark-src",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "scan-target-head",
+      "subject": "/opt/spark-src HEAD",
+      "expectation": "byte-equal to 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d (the pin authored in this module)",
+      "observed": "HEAD is 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d",
+      "verdict": "PASS"
+    },
+    {
+      "check_id": "declared-commit-agrees",
+      "subject": "$SPARK_SRC_COMMIT",
+      "expectation": "equal to 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, checked separately from the measured HEAD",
+      "observed": "the environment declares 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, which is the pin",
+      "verdict": "PASS"
+    }
+  ],
+  "path_policy": {
+    "SPARK_SRC": {
+      "present": true,
+      "value": "/opt/spark-src",
+      "length": 14,
+      "sha256": "af35e8a41d22ecf1c608b41587c2487a70954a3b18882bec53f564501cf57e3d",
+      "verdict": "PASS"
+    },
+    "HARNESS_DIR": {
+      "present": true,
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness",
+      "length": 89,
+      "sha256": "98143c80865739202c85d2b2b3a1954944554dce6153f0f786fbbb557380c369",
+      "verdict": "PASS"
+    },
+    "HARNESS_REPO_ROOT": {
+      "present": true,
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90",
+      "length": 81,
+      "sha256": "dc08335851545bbf06c25b19669e27f7cd44366a788409566dea8a448f04dbeb",
+      "verdict": "PASS"
+    },
+    "HARNESS_RAW_DIR": {
+      "present": true,
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/raw",
+      "length": 103,
+      "sha256": "7c76d429279c54927e488f2532a439aa8902c45bf577b7abfae4f56061364664",
+      "verdict": "PASS"
+    },
+    "HARNESS_LOG_DIR": {
+      "present": true,
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/logs",
+      "length": 104,
+      "sha256": "40a772defcc1293b35c14fdba58121aba4c03324a299f763fdccc376286f6b0c",
+      "verdict": "PASS"
+    },
+    "HARNESS_SCOPE_FILE": {
+      "present": true,
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/scope/allowlist.txt",
+      "length": 109,
+      "sha256": "29a703b7330931d65d4ad03ce90532913474338c346ccd3e0bd757c68eb44422",
+      "verdict": "PASS"
+    },
+    "HARNESS_CPG": {
+      "present": true,
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/cpg/spark.cpg",
+      "length": 103,
+      "sha256": "c46237de06ecd8106eca533b74e9c01fe79091291e1d7fa276ff8f5e0b553e24",
+      "verdict": "PASS"
+    },
+    "HARNESS_LIB_DIR": {
+      "present": true,
+      "value": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/lib",
+      "length": 93,
+      "sha256": "31f274c6c94a4d4f0752a5a33bbba52410383ff4426929db51c88f8129972583",
+      "verdict": "PASS"
+    },
+    "HARNESS_SHARED_DIR": {
+      "present": true,
+      "value": "/opt/blitzy-harness",
+      "length": 19,
+      "sha256": "ab3b852febf356aa54618af0293f85c3f0868d87b1d8f48177ee95241b62407c",
+      "verdict": "PASS"
+    },
+    "HARNESS_TOOLS_DIR": {
+      "present": true,
+      "value": "/opt/blitzy-tools",
+      "length": 17,
+      "sha256": "f51f95553fff058a2fc2ccbfc9a728f220e529b5a7a054926104f17a20200aef",
+      "verdict": "PASS"
+    },
+    "HARNESS_SCRATCH_DIR": {
+      "present": true,
+      "value": "/tmp/blitzy-harness-scratch/0",
+      "length": 29,
+      "sha256": "96c90c9ef6ee121f8d67631fadf63296764f6c2890c2ac9b0015c84581491e29",
+      "verdict": "PASS"
+    },
+    "JAVA_HOME": {
+      "present": true,
+      "value": "/opt/blitzy-tools/jdk/jdk-17.0.20+8",
+      "length": 35,
+      "sha256": "6a5cc51169604b57358b9e066e774554577ff99d9cef31f7358ff75ad63ef65a",
+      "verdict": "PASS"
+    },
+    "JAVA_HOME_21": {
+      "present": true,
+      "value": "/opt/blitzy-tools/jdk/jdk-21.0.12.1+1",
+      "length": 37,
+      "sha256": "a00dd0e28d3802196296f3064dbe38f993bb7a15224aa3080c6ac052421e8dcb",
+      "verdict": "PASS"
+    },
+    "JOERN_HOME": {
+      "present": true,
+      "value": "/opt/blitzy-tools/joern-cli",
+      "length": 27,
+      "sha256": "bc2c7b9255e428e0f7c0e67dc1d746dce7a281432afc3406df8d46c3402f9982",
+      "verdict": "PASS"
+    },
+    "DEPENDENCY_CHECK_HOME": {
+      "present": true,
+      "value": "/opt/blitzy-tools/dependency-check",
+      "length": 34,
+      "sha256": "076aae827eefa2e33d352ca38a8d6e582ea25725ac3908b55a7d6a54d3ddd2f2",
+      "verdict": "PASS"
+    },
+    "MAVEN_HOME": {
+      "present": true,
+      "value": "/opt/blitzy-tools/apache-maven-3.9.11",
+      "length": 37,
+      "sha256": "fadcf41da93a98f78c25e2d4c2f7cc8727d717aa4c2088c6c6bb0f3b58a7a6c3",
+      "verdict": "PASS"
+    },
+    "SCALA_HOME": {
+      "present": true,
+      "value": "/opt/blitzy-tools/scala-2.13.17",
+      "length": 31,
+      "sha256": "027405e9653bf0de058ad67848185283ce77ee2c414dec5b6fe16ebb21c769b1",
+      "verdict": "PASS"
+    },
+    "OPENGREP_RULES_DIR": {
+      "present": true,
+      "value": "/opt/blitzy-harness/rules/opengrep-rules",
+      "length": 40,
+      "sha256": "49c5909a6cd612226f47ce1c5ae68e2624951c926041554d9596d076b504369c",
+      "verdict": "PASS"
+    },
+    "SEMGREP_RULES_DIR": {
+      "present": true,
+      "value": "/opt/blitzy-harness/rules/semgrep-rules",
+      "length": 39,
+      "sha256": "f08e0bfa91d07f49f8ef35c393358b81edae9f40869d54434c3f19e6d3aeb1ec",
+      "verdict": "PASS"
+    },
+    "DD_SAST_RULES_FILE": {
+      "present": true,
+      "value": "/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json",
+      "length": 57,
+      "sha256": "f1e32ed69e861716aa2a539aba57efad5a958a43857f311a44b7c080b0846682",
+      "verdict": "PASS"
+    },
+    "TRIVY_CACHE_DIR": {
+      "present": true,
+      "value": "/opt/blitzy-harness/trivy-cache",
+      "length": 31,
+      "sha256": "868b349c7c6171df7470eb5c788d2cfc8d296e6c006bced8d844c4bb8db6f9df",
+      "verdict": "PASS"
+    },
+    "HARNESS_DC_DATA_DIR": {
+      "present": true,
+      "value": "/opt/blitzy-harness/dc-data",
+      "length": 27,
+      "sha256": "dee52de6b1fd2d63c6dfddbc13e281055c76a8fd8534e983fd4afa71e8f2d548",
+      "verdict": "PASS"
+    }
+  },
+  "git_invocations": [
+    {
+      "argv": [
+        "/usr/bin/git",
+        "-C",
+        "/opt/spark-src",
+        "rev-parse",
+        "--is-inside-work-tree"
+      ],
+      "exit": 0,
+      "stdout": "true",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/bin/git",
+        "-C",
+        "/opt/spark-src",
+        "rev-parse",
+        "--show-toplevel"
+      ],
+      "exit": 0,
+      "stdout": "/opt/spark-src",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/usr/bin/git",
+        "-C",
+        "/opt/spark-src",
+        "rev-parse",
+        "HEAD"
+      ],
+      "exit": 0,
+      "stdout": "59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d",
+      "stderr": ""
+    }
+  ],
+  "residual": "harness/bin/run-<tool>.sh remains directly executable and is not bound by this exit status; run-trivy.sh lines 52-53 interpolate $TRIVY_CACHE_DIR into python3 -c source. Provisioning fix: pass the metadata path as positional argv to fixed Python code.",
+  "value_disclosure_policy": "a value that passes the character policy is recorded in full (path text, which AAP 0.1.3 excludes from secrets); a refused value is recorded only by length, sha256 and the class and index of each violation"
+}

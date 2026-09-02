@@ -4,7 +4,7 @@
  "produced_by": "the adapter-test invocation recorded below, run against oss-scan-results/adapter-tests/",
  "purpose": "The structured run record of the adapter-test invocation: its exact command, its interpreter's path and version, an outcome for EVERY test that executed, a per-module outcome, a separate outcome entry for every negative fixture, and the exit status. AAP 0.6.1 gives this file its row. It is the evidence that the normalizer is CORRECT rather than merely FINISHED -- every claim of adapter correctness in oss-scan-results/ rests on the results enumerated here.",
  "publication": "harness/artifacts/** is git-ignored (.gitignore:31 is artifacts/), so this record is published through the per-file size-and-sha256 manifest that oss-scan-results/run-record.md owns, rather than through ordinary git collection.",
- "why_a_per_fixture_enumeration_rather_than_a_pass_count": "AAP 0.6.2 requires a negative fixture for every rejection condition each exercised adapter can produce, whether or not this run's own artifacts contained that case, because \"a rejection path with no test is a rejection path nobody has exercised\". A single aggregate pass count would satisfy a CI system and tell a reader nothing about whether the rejection paths were ever exercised. So negative_fixtures below carries one entry per fixture, naming the fixture file, the adapter, the rejection class asserted and the expected count -- and per_test_outcomes carries one entry per executed test, all 1347 of them, so no verdict is represented only by a total.",
+ "why_a_per_fixture_enumeration_rather_than_a_pass_count": "AAP 0.6.2 requires a negative fixture for every rejection condition each exercised adapter can produce, whether or not this run's own artifacts contained that case, because \"a rejection path with no test is a rejection path nobody has exercised\". A single aggregate pass count would satisfy a CI system and tell a reader nothing about whether the rejection paths were ever exercised. So negative_fixtures below carries one entry per fixture, naming the fixture file, the adapter, the rejection class asserted and the expected count -- and per_test_outcomes carries one entry per executed test, all 1361 of them, so no verdict is represented only by a total.",
  "governing_rules": {
   "user_specified_rules": "none",
   "review_rules_returns": "No user rules provided.",
@@ -31,7 +31,7 @@
   },
   "2_reject_rather_than_infer": {
    "requirement": "Every rejection condition an adapter can produce has a negative fixture and assertion, whether or not this run's artifacts contained that case.",
-   "how_this_run_honours_it": "72 negative fixtures are committed and every one was exercised by executed, passing assertions. rejection_condition_coverage below cross-checks that set against the nine conditions AAP 0.5.4 enumerates and names, per adapter, which conditions that adapter can and cannot produce -- and every adapter now asserts that producible / unreachable partition over the closed vocabulary in both directions."
+   "how_this_run_honours_it": "73 negative fixtures are committed and every one was exercised by executed, passing assertions. rejection_condition_coverage below cross-checks that set against the nine conditions AAP 0.5.4 enumerates and names, per adapter, which conditions that adapter can and cannot produce -- and every adapter now asserts that producible / unreachable partition over the closed vocabulary in both directions."
   },
   "3_halt_and_report_over_silent_repair": {
    "requirement": "AAP 0.8.1; AAP 0.9.2 makes a failed adapter fixture, rejection or reconciliation test a condition that STOPS THE RUN.",
@@ -39,15 +39,15 @@
   },
   "4_verbatim_preservation": {
    "requirement": "Test output is retained as emitted.",
-   "how_this_run_honours_it": "the unittest result trailer is quoted verbatim in suite_result.verbatim_trailer, the verbose stream's byte size and sha256 are recorded so any re-run can be compared against it, and no outcome is paraphrased into a summary that discards which test produced it: all 1347 carry their own fully qualified identifier in per_test_outcomes."
+   "how_this_run_honours_it": "the unittest result trailer is quoted verbatim in suite_result.verbatim_trailer, the verbose stream's byte size and sha256 are recorded so any re-run can be compared against it, and no outcome is paraphrased into a summary that discards which test produced it: all 1361 carry their own fully qualified identifier in per_test_outcomes."
   }
  },
  "never_fabricate_a_measurement": {
   "rule": "A recorded pass for a test that did not run is the worst outcome available to this file.",
   "how_it_is_enforced_here": [
    "every module entry's tests_run, elapsed and exit status come from that module's own individual invocation, not from the whole-suite total divided up",
-   "the per-module counts sum to exactly the whole-suite count (127+228+107+75+93+117+162+122+117+199 = 1347), so neither figure is a restatement of the other",
-   "per_test_outcomes carries one entry per executed test and its 1347 entries equal both of those figures, so a module that silently stopped running a method would show as three disagreeing numbers rather than as a passing run",
+   "the per-module counts sum to exactly the whole-suite count (127+228+107+75+93+117+162+132+121+199 = 1361), so neither figure is a restatement of the other",
+   "per_test_outcomes carries one entry per executed test and its 1361 entries equal both of those figures, so a module that silently stopped running a method would show as three disagreeing numbers rather than as a passing run",
    "every negative-fixture entry carries observed attribution -- the number of executed subTests that named that fixture and their outcomes -- alongside the expected counts, so a fixture that was committed but never reached would show zero naming subTests instead of an unearned pass. Measured over the whole committed corpus at this edition, NO fixture has zero naming subTests. The one that did in the superseded edition, reject-dependency-check-unresolvable-path, is driven from a class attribute by MetadataVariantFixtureTests and reached no subTest description until RecordedFixtureMetadataTest began naming every committed fixture in a subTest of its own; its entry now records 4 naming subTests beside the read attribution that established it was exercised while no subTest named it",
    "the conditional OSV entry records that the module DOES NOT EXIST rather than recording a pass for it"
   ],
@@ -58,12 +58,13 @@
    "An earlier inspection of this tree miscounted the corpus, reporting an expected-file count of 54 against a negative-fixture count of 37, where the measured git-tracked counts at that time were 52 and 38. The corpus has since grown; the counts in inputs above are the current measurement, and the four figures in this sentence are quoted only to record what the miscount was. They are deliberately not the current numbers.",
    "The first invocation attempted added -t . to the documented command form and unittest raised \"ImportError: Start directory is not importable\" with exit 1, because oss-scan-results/adapter-tests is not an importable package. That was an invocation error on the caller's part and NOT a test outcome; the documented form, which passes -s without -t, runs clean. It is recorded here so the exit 1 cannot later be mistaken for a suite failure.",
    "This edition re-measures the whole record against the committed tree. The superseded edition stated a test count of 849 over eight modules and a 63-document corpus; that edition measured a suite total of 1,142 over 10 modules with a subTest total of 25,659 over a corpus of 103 fixture documents, of which 72 are negative. Two modules it did not cover at all -- test_cli_writers and test_emit_publication -- carry entries here, the signature-mismatch and empty-container halt coverage is exercised by committed documents rather than by constructed ones alone, and eleven fixtures that no module claimed were removed: seven were byte-identical to a committed derived fixture under a second name and four differed from one only in incidental content, so none carried coverage of its own. Every figure above is the new measurement rather than the old one adjusted.",
-   "This edition re-measures every figure against the committed suite as it now stands. The superseded edition recorded a suite total of 1,142 over 10 modules with a subTest total of 25,659 and a corpus of 103 documents; the committed tree runs 1347 tests over 10 modules with 26123 subTests over 105 fixtures and 105 expected files. Two negative documents the superseded edition enumerated -- reject-dependency-check-unresolvable-path-missing-base.json and reject-gitleaks-unresolvable-path-missing-base.json -- are not in the directory: the condition each carried is now carried by the primary fixture of the same name under a metadata variant, and the entries for those two primaries record that folded content rather than the pre-fold counts the superseded edition stated. Two negative SARIF documents it did not enumerate are: reject-sarif-rule-index-mismatch.sarif and reject-sarif-percent-encoded-control.sarif.",
-   "This edition re-measures the suite with the QA-driven fixes of this checkpoint standing in one tree for the first time, and names the mechanism of each rather than only its arithmetic. harness/lib/normalize/cli.py now halts on an unexpected direct child of harness/artifacts/raw/ under the named reason raw-directory-unexpected-entry, and declares the dataset's owner root through the new --repo-root argument: test_cli_writers moves 219 to 228 (DeclaredOwnerRootTest) and test_shape_routing_negative 114 to 117 (the rewritten boundary test, its positive control and CliUnexpectedRawEntryPublicationTests). The fixture-provenance fix adds a RecordedFixtureMetadataTest asserting each fixture's recorded path, digest, byte size and logical line count against the file on disk: test_trivy_adapter moves 194 to 199 and test_dependency_check_adapter 102 to 107. Twenty-two were added net of one renamed, so the suite total moves from 1325 to 1347 and the subTest total from 26008 to 26123. test_reconciliation's own figures did not move but its recorded byte size and sha256 did, from 255592 to 255628: an earlier edition measured that module before its last committed edit, so the digest it published was of a file the tree no longer held. The fixture corpus is unchanged at 105 documents with 105 expected files, 72 of them negative, and every negative-fixture attribution below is carried forward unchanged because no added test names or opens a reject-* document."
+   "This edition re-measures every figure against the committed suite as it now stands. The superseded edition recorded a suite total of 1,142 over 10 modules with a subTest total of 25,659 and a corpus of 103 documents; the edition superseded here measured a suite total of 1347 over 10 modules with a subTest total of 26123 over a corpus of 105 fixture documents and 105 expectations. Two negative documents the superseded edition enumerated -- reject-dependency-check-unresolvable-path-missing-base.json and reject-gitleaks-unresolvable-path-missing-base.json -- are not in the directory: the condition each carried is now carried by the primary fixture of the same name under a metadata variant, and the entries for those two primaries record that folded content rather than the pre-fold counts the superseded edition stated. Two negative SARIF documents it did not enumerate are: reject-sarif-rule-index-mismatch.sarif and reject-sarif-percent-encoded-control.sarif.",
+   "This edition re-measures the suite with the QA-driven fixes of this checkpoint standing in one tree for the first time, and names the mechanism of each rather than only its arithmetic. harness/lib/normalize/cli.py now halts on an unexpected direct child of harness/artifacts/raw/ under the named reason raw-directory-unexpected-entry, and declares the dataset's owner root through the new --repo-root argument: test_cli_writers moves 219 to 228 (DeclaredOwnerRootTest) and test_shape_routing_negative 114 to 117 (the rewritten boundary test, its positive control and CliUnexpectedRawEntryPublicationTests). The fixture-provenance fix adds a RecordedFixtureMetadataTest asserting each fixture's recorded path, digest, byte size and logical line count against the file on disk: test_trivy_adapter moves 194 to 199 and test_dependency_check_adapter 102 to 107. Twenty-two were added net of one renamed, so the suite total moves from 1325 to 1347 and the subTest total from 26008 to 26123. test_reconciliation's own figures did not move but its recorded byte size and sha256 did, from 255592 to 255628: an earlier edition measured that module before its last committed edit, so the digest it published was of a file the tree no longer held. The fixture corpus was unchanged at that edition at 105 documents with 105 expectations, 72 of them negative, and every negative-fixture attribution below is carried forward unchanged because no added test names or opens a reject-* document.",
+   "This edition re-measures the whole record after the two security fixes of this checkpoint. SEC-04 closed the persisted-diagnostic channel in harness/lib/normalize/shape.py and harness/lib/normalize/paths.py and SEC-06 added a pre-decode percent-syntax guard to paths.parse_uri_reference, and the tests that hold them moved two modules: test_sarif_adapter runs 132 where the superseded edition measured 122, and test_shape_routing_negative 121 where it measured 117. The corpus grew by one negative fixture and its hand-verified expectation, so the suite total moves to 1361 and the subTest total to 26198 over a corpus of 106 fixture documents. No figure here is the old one adjusted: every one is a fresh measurement, and the fixture-read attribution reproduces the superseded edition bit for bit on the 56 entries whose modules this edition did not touch, which is what establishes the instrumentation is the same."
   ]
  },
- "started_at_utc": "2026-09-02T17:39:13Z",
- "finished_at_utc": "2026-09-02T17:39:25Z",
+ "started_at_utc": "2026-09-02T21:19:32Z",
+ "finished_at_utc": "2026-09-02T21:19:44Z",
  "command": "/usr/bin/python3 -m unittest discover -s oss-scan-results/adapter-tests -p 'test_*.py' -v",
  "interpreter": {
   "path": "/usr/bin/python3",
@@ -73,11 +74,11 @@
   "tests_directory": "oss-scan-results/adapter-tests",
   "test_modules_present": 10,
   "fixtures_directory": "oss-scan-results/adapter-tests/fixtures",
-  "fixtures_present": 105,
+  "fixtures_present": 106,
   "expected_directory": "oss-scan-results/adapter-tests/expected",
-  "expected_files_present": 105,
-  "fixture_to_expected_correspondence": "one to one, 105 and 105, verified by enumerating both directories and comparing stems; no fixture without an expectation and no expectation without a fixture",
-  "negative_fixtures_present": 72,
+  "expected_files_present": 106,
+  "fixture_to_expected_correspondence": "one to one, 106 and 106, verified by enumerating both directories and comparing stems; no fixture without an expectation and no expectation without a fixture",
+  "negative_fixtures_present": 73,
   "positive_and_shape_fixtures_present": 33,
   "subject_under_test": "harness/lib/normalize/ -- cli, shape, paths, severity, reconcile, emit and the six adapters",
   "adapters_present": [
@@ -167,10 +168,10 @@
     "what_they_are": "checkov-alt-shape is the multi-framework array form, a shape-only transformation of the captured object form; reconcile-mixed is the at-least-one-rejection document the identity is asserted over"
    },
    "negative": {
-    "count": 72,
+    "count": 73,
     "what_they_are": "one per rejection condition each exercised adapter can produce, and beside them the committed documents that reach an already-covered class by a different route -- a wrong container against a wrong element, an empty message against an absent one, a zero line against a boolean one. Present whether or not this run's artifacts contained the case"
    },
-   "arithmetic": "8 captured + 1 second capture + 7 derived + 6 halt + 5 malformed + 4 shape + 2 other + 72 negative = 105. oss-scan-results/adapter-tests/README.md partitions the same 105 strictly by filename prefix -- 9 captured, 7 derived, 72 negative, 6 halt-*, 5 malformed-*, 3 near-* and 3 others -- and the two partitions differ only in where near-trivy-results-null and unknown-shape are grouped; each states its own membership by stem, so either can be re-taken from the directory",
+   "arithmetic": "8 captured + 1 second capture + 7 derived + 6 halt + 5 malformed + 4 shape + 2 other + 73 negative = 106. oss-scan-results/adapter-tests/README.md partitions the same 106 strictly by filename prefix -- 9 captured, 7 derived, 73 negative, 6 halt-*, 5 malformed-*, 3 near-* and 3 others -- and the two partitions differ only in where near-trivy-results-null and unknown-shape are grouped; each states its own membership by stem, so either can be re-taken from the directory",
    "captured_positive_second_capture": {
     "count": 1,
     "stems": [
@@ -194,9 +195,9 @@
  },
  "suite_result": {
   "exit_status": 0,
-  "tests_run": 1347,
-  "unittest_reported_seconds": 11.966,
-  "wall_clock_ms": 11966,
+  "tests_run": 1361,
+  "unittest_reported_seconds": 11.97,
+  "wall_clock_ms": 12183,
   "result": "OK",
   "was_successful": true,
   "failures": 0,
@@ -204,23 +205,24 @@
   "skipped": 0,
   "expected_failures": 0,
   "unexpected_successes": 0,
-  "subtests_recorded": 26123,
+  "subtests_recorded": 26198,
   "subtest_failures": 0,
   "subtest_note": "Every module drives its fixtures through unittest subTest, so one test method can carry dozens of independent assertions. The subtest total is reported because a passing method that silently looped over nothing would show as one pass either way; the per-fixture naming counts below are what make that visible. It is not a figure unittest prints: it is the number of addSubTest calls, counted by the collector described in per_test_outcomes.how_it_was_collected, which drove the same committed suite over the same start directory and the same pattern as the command above.",
   "captured_streams": {
    "stdout_bytes": 0,
-   "stderr_bytes": 318353,
-   "stderr_sha256": "9f2a64bb369210231fd965133284b71f96fdb826a7ca164cdbe8a53e0a28bed7",
+   "stderr_bytes": 324960,
+   "stderr_sha256": "4e31fb3d74d081bf1e07aad3dd4b7f7723918a87712a6e79578d5a3dbe00353a",
    "stderr_holds": "the -v per-test stream the recorded command asks for; unittest writes its progress and trailer to stderr",
-   "retention": "The verbose stream was captured outside the repository, to the run's private scratch directory, and is NOT a deliverable: harness/artifacts/logs/ holds only the files the AAP names, and no console log for this invocation is among them (AAP 0.6.1 gives this invocation exactly one file, this record). Its byte size and sha256 are recorded so a re-run's stream can be compared against it, and the decisive output -- the trailer -- is quoted verbatim above. Every per-test outcome it contained is enumerated individually in per_test_outcomes below: 1347 entries for 1347 executed tests, each carrying the test's fully qualified identifier and its status. Nothing is summarised in place of an outcome."
+   "retention": "The verbose stream was captured outside the repository, to the run's private scratch directory, and is NOT a deliverable: harness/artifacts/logs/ holds only the files the AAP names, and no console log for this invocation is among them (AAP 0.6.1 gives this invocation exactly one file, this record). Its byte size and sha256 are recorded so a re-run's stream can be compared against it, and the decisive output -- the trailer -- is quoted verbatim above. Every per-test outcome it contained is enumerated individually in per_test_outcomes below: 1361 entries for 1361 executed tests, each carrying the test's fully qualified identifier and its status. Nothing is summarised in place of an outcome."
   },
   "no_time_limit_imposed": "AAP 0.8.1 -- elapsed times are recorded as facts, not measured against budgets.",
-  "sum_of_per_module_tests_run": 1347,
+  "sum_of_per_module_tests_run": 1361,
   "sum_equals_suite_total": true,
-  "verbatim_trailer": "Ran 1347 tests in 11.966s\n\nOK"
+  "verbatim_trailer": "Ran 1361 tests in 11.970s\n\nOK",
+  "wall_clock_note": "wall_clock_ms is the elapsed wall clock of the recorded command as a whole, measured around the process: 12183 ms. It exceeds unittest_reported_seconds (11.97 s, the figure unittest prints in its own trailer) by interpreter start-up and test discovery, which the trailer's clock does not cover. Both are recorded because they measure different things, and neither is derived from the other."
  },
  "test_modules": {
-  "how_each_entry_was_measured": "Each module was run on its own with the documented per-module discover form -- the same \"-p '<module>.py' -v\" form oss-scan-results/adapter-tests/README.md documents, differing from the whole-suite command only in the pattern -- so tests_run, elapsed and exit_status are that module's own measurement. The 10 tests_run values sum to 127 + 228 + 107 + 75 + 93 + 117 + 162 + 122 + 117 + 199 = 1347, exactly the whole-suite figure, which is why neither number is a restatement of the other.",
+  "how_each_entry_was_measured": "Each module was run on its own with the documented per-module discover form -- the same \"-p '<module>.py' -v\" form oss-scan-results/adapter-tests/README.md documents, differing from the whole-suite command only in the pattern -- so tests_run, elapsed and exit_status are that module's own measurement. The 10 tests_run values sum to 127 + 228 + 107 + 75 + 93 + 117 + 162 + 132 + 121 + 199 = 1361, exactly the whole-suite figure, which is why neither number is a restatement of the other. outcomes and subtests_recorded are attributed from the whole-suite collector run by the module each test id names, and each module's attributed test count is asserted equal to its own invocation's tests_run, so the two measurements corroborate rather than substitute for each other.",
   "modules_expected": 10,
   "modules_present": 10,
   "modules_absent": 0,
@@ -243,9 +245,9 @@
      "skip": 0
     },
     "result": "OK",
-    "unittest_reported_seconds": 0.389,
-    "wall_clock_ms": 389,
-    "test_classes": 21,
+    "unittest_reported_seconds": 0.363,
+    "wall_clock_ms": 446,
+    "test_classes": 24,
     "bytes": 242298,
     "sha256": "7b7bed63da2da73d50a5857843e0944f46b593e924e468c3f4b790864940159d",
     "negative_fixtures_owned": 15,
@@ -268,14 +270,14 @@
      "skip": 0
     },
     "result": "OK",
-    "unittest_reported_seconds": 3.79,
-    "wall_clock_ms": 3790,
-    "test_classes": 31,
+    "unittest_reported_seconds": 3.681,
+    "wall_clock_ms": 3796,
+    "test_classes": 33,
     "bytes": 229123,
     "sha256": "0447bdd0eafdef141ca8da019f9d99486692e336b39934811c7d619da5a24c9e",
     "negative_fixtures_owned": 0,
     "verdict": "pass",
-    "subtests_recorded": 396,
+    "subtests_recorded": 403,
     "coverage_added_at_this_checkpoint": "the declared-repository-root guard: every dataset path is resolved against $HARNESS_REPO_ROOT and every record path against the log tree, so a run cannot write a deliverable outside the tree that owns it"
    },
    {
@@ -295,9 +297,9 @@
      "skip": 0
     },
     "result": "OK",
-    "unittest_reported_seconds": 0.171,
-    "wall_clock_ms": 171,
-    "test_classes": 15,
+    "unittest_reported_seconds": 0.172,
+    "wall_clock_ms": 258,
+    "test_classes": 18,
     "bytes": 246006,
     "sha256": "ab36b34ec899bd30808e24dba58deb0481a52adf69fc10e11965b198fc1419c1",
     "negative_fixtures_owned": 6,
@@ -320,9 +322,9 @@
      "skip": 0
     },
     "result": "OK",
-    "unittest_reported_seconds": 1.402,
-    "wall_clock_ms": 1402,
-    "test_classes": 8,
+    "unittest_reported_seconds": 1.474,
+    "wall_clock_ms": 1604,
+    "test_classes": 9,
     "bytes": 85129,
     "sha256": "af32476da6010635462c9b8c6a7b4c5b0f9ba068245e780043ab2f135ba85cc6",
     "negative_fixtures_owned": 0,
@@ -347,9 +349,9 @@
      "skip": 0
     },
     "result": "OK",
-    "unittest_reported_seconds": 0.313,
-    "wall_clock_ms": 313,
-    "test_classes": 13,
+    "unittest_reported_seconds": 0.315,
+    "wall_clock_ms": 397,
+    "test_classes": 16,
     "bytes": 161762,
     "sha256": "8929ed2f53a7096a6d9f62d50137324f071d5bfd2ce91e3d415bc9866a1342a1",
     "negative_fixtures_owned": 12,
@@ -374,9 +376,9 @@
      "skip": 0
     },
     "result": "OK",
-    "unittest_reported_seconds": 1.561,
-    "wall_clock_ms": 1561,
-    "test_classes": 14,
+    "unittest_reported_seconds": 1.535,
+    "wall_clock_ms": 1656,
+    "test_classes": 17,
     "bytes": 230327,
     "sha256": "e94cfbf4a79346c2a36d06d5ced20c8e2ab7f2042668208c126e25183946c624",
     "negative_fixtures_owned": 13,
@@ -401,11 +403,11 @@
      "skip": 0
     },
     "result": "OK",
-    "unittest_reported_seconds": 1.265,
-    "wall_clock_ms": 1265,
-    "test_classes": 24,
-    "bytes": 255628,
-    "sha256": "4a75f8ea48194fcc501a27499c740267b60cd3606057e7580ae8f8234ecbdd85",
+    "unittest_reported_seconds": 1.323,
+    "wall_clock_ms": 1452,
+    "test_classes": 28,
+    "bytes": 256915,
+    "sha256": "9204a1aceaea878012c419e797705f67b6f6de6e29562e4b88e2394be6e57c11",
     "negative_fixtures_owned": 0,
     "verdict": "pass",
     "subtests_recorded": 1186,
@@ -422,23 +424,24 @@
     ],
     "command": "/usr/bin/python3 -m unittest discover -s oss-scan-results/adapter-tests -p 'test_sarif_adapter.py' -v",
     "exit_status": 0,
-    "tests_run": 122,
+    "tests_run": 132,
     "outcomes": {
-     "pass": 122,
+     "pass": 132,
      "fail": 0,
      "error": 0,
      "skip": 0
     },
     "result": "OK",
-    "unittest_reported_seconds": 2.326,
-    "wall_clock_ms": 2326,
-    "test_classes": 19,
-    "bytes": 308536,
-    "sha256": "59bdf4584993def3a78604703d7227b8488a5691d1abe641d6910e566c24a45f",
-    "negative_fixtures_owned": 16,
+    "unittest_reported_seconds": 2.48,
+    "wall_clock_ms": 2589,
+    "test_classes": 23,
+    "bytes": 342045,
+    "sha256": "3ee9bcf0f29a0216b746c6118f583da29a2c444e0a5551603739842c9264eabe",
+    "negative_fixtures_owned": 17,
     "verdict": "pass",
-    "subtests_recorded": 703,
-    "coverage_added_at_this_checkpoint": "RawArtifactProvenanceTests, which reads harness/artifacts/raw/ and asserts each captured fixture's records and envelope against the artifact itself"
+    "subtests_recorded": 752,
+    "coverage_added_at_this_checkpoint": "RawArtifactProvenanceTests, which reads harness/artifacts/raw/ and asserts each captured fixture's records and envelope against the artifact itself",
+    "coverage_added_at_this_edition": "MalformedPercentEscapeTests, the ten methods that hold the pre-decode percent-syntax guard of SEC-06 -- the QA reproduction, one case per guard site, the foreign-scheme reclassification, the two controls that keep the guard from becoming a blanket refusal of '%', the uriBaseId-identifier regression, the describer's own safety, the new fixture's row/rejection split, and a corpus-wide sweep asserting no rejection detail carries the reference it refused"
    },
    {
     "module": "oss-scan-results/adapter-tests/test_shape_routing_negative.py",
@@ -449,23 +452,24 @@
     ],
     "command": "/usr/bin/python3 -m unittest discover -s oss-scan-results/adapter-tests -p 'test_shape_routing_negative.py' -v",
     "exit_status": 0,
-    "tests_run": 117,
+    "tests_run": 121,
     "outcomes": {
-     "pass": 117,
+     "pass": 121,
      "fail": 0,
      "error": 0,
      "skip": 0
     },
     "result": "OK",
-    "unittest_reported_seconds": 0.169,
-    "wall_clock_ms": 169,
-    "test_classes": 21,
-    "bytes": 264011,
-    "sha256": "20c7401fd5d58be99ce475277bed65d2c212da0d69e06e1e6becd70da2aa8553",
+    "unittest_reported_seconds": 0.205,
+    "wall_clock_ms": 328,
+    "test_classes": 24,
+    "bytes": 290770,
+    "sha256": "439b4109de415b63ca0edf38daba659a90e9e0ab7f49c371cd01be654fb6113c",
     "negative_fixtures_owned": 0,
     "verdict": "pass",
-    "subtests_recorded": 460,
-    "coverage_added_at_this_checkpoint": "seven Cli* classes covering the parser, input resolution, the interpreter record, adapter resolution including the guarded OSV import, the vocabulary gate, the raw-directory boundary and the record labels"
+    "subtests_recorded": 495,
+    "coverage_added_at_this_checkpoint": "seven Cli* classes covering the parser, input resolution, the interpreter record, adapter resolution including the guarded OSV import, the vocabulary gate, the raw-directory boundary and the record labels",
+    "coverage_added_at_this_edition": "CliArtifactControlledDiagnosticPublicationTests, the two methods that ARE the SEC-04 reproduction: a unique marker in an invalid SARIF version and a second in a top-level key name, driven through the real cli.main over a temporary workspace, with zero occurrences required in the process's stderr and in the normalize-run.json written to disk, and the same two markers asserted against the exception message and the details() serialisation one layer down"
    },
    {
     "module": "oss-scan-results/adapter-tests/test_trivy_adapter.py",
@@ -484,9 +488,9 @@
      "skip": 0
     },
     "result": "OK",
-    "unittest_reported_seconds": 0.267,
-    "wall_clock_ms": 267,
-    "test_classes": 24,
+    "unittest_reported_seconds": 0.264,
+    "wall_clock_ms": 354,
+    "test_classes": 30,
     "bytes": 337679,
     "sha256": "4c4b7aaa6e0a0ff553bfc3d741df4407ee285c979f5cc0e689e7cd409fb91acd",
     "negative_fixtures_owned": 10,
@@ -519,7 +523,7 @@
   }
  },
  "negative_fixtures": {
-  "count": 72,
+  "count": 73,
   "all_exercised": true,
   "all_passed": true,
   "assertion_semantics": "Each fixture asserts the offending record is REJECTED AND COUNTED UNDER ITS CLASS -- never dropped, never coerced into a row with a guessed field. A rejection counted under the wrong class still balances the reconciliation identity, which is why every assertion names its normalize.paths.REJECT_CLASSES member read from the module rather than spelled out as a literal in the test.",
@@ -1511,8 +1515,8 @@
     "executed_subtests_naming_this_fixture": 8,
     "of_which_passed": 8,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 152,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 163,
     "verdict": "pass"
    },
    {
@@ -1531,8 +1535,8 @@
     "executed_subtests_naming_this_fixture": 8,
     "of_which_passed": 8,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 152,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 163,
     "verdict": "pass"
    },
    {
@@ -1551,8 +1555,8 @@
     "executed_subtests_naming_this_fixture": 8,
     "of_which_passed": 8,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 152,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 163,
     "verdict": "pass"
    },
    {
@@ -1571,8 +1575,8 @@
     "executed_subtests_naming_this_fixture": 8,
     "of_which_passed": 8,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 152,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 163,
     "verdict": "pass"
    },
    {
@@ -1591,8 +1595,8 @@
     "executed_subtests_naming_this_fixture": 8,
     "of_which_passed": 8,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 152,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 163,
     "verdict": "pass"
    },
    {
@@ -1611,8 +1615,8 @@
     "executed_subtests_naming_this_fixture": 8,
     "of_which_passed": 8,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 152,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 163,
     "verdict": "pass"
    },
    {
@@ -1631,8 +1635,8 @@
     "executed_subtests_naming_this_fixture": 8,
     "of_which_passed": 8,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 152,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 163,
     "verdict": "pass"
    },
    {
@@ -1648,11 +1652,11 @@
     "raw_finding_records": 6,
     "expected_rows": 2,
     "identity": "6 == 2 + 4",
-    "executed_subtests_naming_this_fixture": 7,
-    "of_which_passed": 7,
-    "distinct_test_methods_naming_this_fixture": 7,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 153,
+    "executed_subtests_naming_this_fixture": 15,
+    "of_which_passed": 15,
+    "distinct_test_methods_naming_this_fixture": 8,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 164,
     "verdict": "pass"
    },
    {
@@ -1671,8 +1675,8 @@
     "executed_subtests_naming_this_fixture": 8,
     "of_which_passed": 8,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 153,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 164,
     "verdict": "pass"
    },
    {
@@ -1691,8 +1695,8 @@
     "executed_subtests_naming_this_fixture": 8,
     "of_which_passed": 8,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 152,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 163,
     "verdict": "pass"
    },
    {
@@ -1711,8 +1715,8 @@
     "executed_subtests_naming_this_fixture": 7,
     "of_which_passed": 7,
     "distinct_test_methods_naming_this_fixture": 7,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 151,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 162,
     "verdict": "pass"
    },
    {
@@ -1728,11 +1732,11 @@
     "raw_finding_records": 3,
     "expected_rows": 2,
     "identity": "3 == 2 + 1",
-    "executed_subtests_naming_this_fixture": 7,
-    "of_which_passed": 7,
-    "distinct_test_methods_naming_this_fixture": 7,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 151,
+    "executed_subtests_naming_this_fixture": 8,
+    "of_which_passed": 8,
+    "distinct_test_methods_naming_this_fixture": 8,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 162,
     "verdict": "pass"
    },
    {
@@ -1750,8 +1754,8 @@
     "executed_subtests_naming_this_fixture": 10,
     "of_which_passed": 10,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 153,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 164,
     "verdict": "pass"
    },
    {
@@ -1770,8 +1774,8 @@
     "executed_subtests_naming_this_fixture": 7,
     "of_which_passed": 7,
     "distinct_test_methods_naming_this_fixture": 7,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 151,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 162,
     "verdict": "pass"
    },
    {
@@ -1790,8 +1794,8 @@
     "executed_subtests_naming_this_fixture": 12,
     "of_which_passed": 12,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 153,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 164,
     "verdict": "pass"
    },
    {
@@ -1810,8 +1814,8 @@
     "executed_subtests_naming_this_fixture": 8,
     "of_which_passed": 8,
     "distinct_test_methods_naming_this_fixture": 8,
-    "executed_test_methods_reading_this_fixture": 122,
-    "fixture_reads_recorded": 152,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 163,
     "verdict": "pass"
    },
    {
@@ -2013,11 +2017,32 @@
     "executed_test_methods_reading_this_fixture": 17,
     "fixture_reads_recorded": 22,
     "verdict": "pass"
+   },
+   {
+    "fixture": "oss-scan-results/adapter-tests/fixtures/reject-sarif-malformed-percent-escape.sarif",
+    "tool": "opengrep",
+    "adapter": "harness/lib/normalize/adapters/sarif.py",
+    "test_module": "test_sarif_adapter",
+    "aap_condition": "a cyclic, over-deep or invalid uriBaseId chain",
+    "rejection_classes_asserted": {
+     "invalid_uri": 4
+    },
+    "expected_rejection_count": 4,
+    "raw_finding_records": 6,
+    "expected_rows": 2,
+    "identity": "6 == 2 + 4",
+    "executed_subtests_naming_this_fixture": 14,
+    "of_which_passed": 14,
+    "distinct_test_methods_naming_this_fixture": 8,
+    "executed_test_methods_reading_this_fixture": 132,
+    "fixture_reads_recorded": 164,
+    "verdict": "pass",
+    "added_at_this_edition": "The negative fixture SEC-06 required. Four of its six records carry a reference whose percent syntax is malformed -- '%GG' in a relative path, '%2' cut short in a file: URI, a bare trailing '%' on an archive member, and '%GG' in the uri of the base-map entry a fifth record names -- and each is refused as invalid_uri before any decode. The other two are the controls: one clean record, and one whose '%55' is well formed and must still decode to 'U' and become a row, which is what keeps the guard from being a blanket refusal of '%'. Its expected file records the pre-decode validation, the two fault kinds, the six guard sites, and per rejection the composed detail together with the strings the detail must NOT contain -- the reference it refused."
    }
   ],
   "totals": {
-   "entries": 72,
-   "entries_passed": 72,
+   "entries": 73,
+   "entries_passed": 73,
    "entries_failed": 0,
    "entries_not_exercised": 0,
    "by_adapter": {
@@ -2025,14 +2050,14 @@
     "dependency-check": 6,
     "gitleaks": 12,
     "joern": 13,
-    "sarif": 16,
+    "sarif": 17,
     "trivy": 10
    },
    "by_rejection_class_asserted": {
-    "scope": "all 72 entries, summed from the per-entry rejection_classes_asserted maps above. The two fixtures whose rejection count depends on which branch is driven contribute their entry-level assertion here and carry their branch-by-branch breakdown in by_rejection_class_two_branch_fixtures below; the superseded edition described this block as excluding them while its figures included them.",
+    "scope": "all 73 entries, summed from the per-entry rejection_classes_asserted maps above. The two fixtures whose rejection count depends on which branch is driven contribute their entry-level assertion here and carry their branch-by-branch breakdown in by_rejection_class_two_branch_fixtures below; the superseded edition described this block as excluding them while its figures included them.",
     "absent_path": 15,
     "ambiguous_source_resolution": 5,
-    "invalid_uri": 5,
+    "invalid_uri": 9,
     "malformed_record": 19,
     "missing_message": 15,
     "missing_rule_id": 9,
@@ -2040,7 +2065,7 @@
     "unattributable_section": 1,
     "unformable_package_coordinate": 3,
     "unresolvable_path": 20,
-    "total_rejection_instances": 111
+    "total_rejection_instances": 115
    },
    "by_rejection_class_two_branch_fixtures": {
     "reject-sarif-uribaseid-missing-base.sarif": {
@@ -2060,12 +2085,12 @@
    },
    "by_rejection_class_note": "Counts are of asserted REJECTION INSTANCES, not of fixtures: reject-checkov-non-integer-start-line alone contributes one non_integer_start_line and three malformed_record, and reject-trivy-missing-rule-id contributes four. Every one of the ten members of normalize.paths.REJECT_CLASSES appears at least once.",
    "how_these_totals_were_obtained": "summed programmatically from the per-entry rejection_classes_asserted maps above, over every entry, rather than tallied by hand, because an earlier hand tally of this block disagreed with the entries it summarised.",
-   "observed_attribution_note": "every entry's executed_subtests_naming_this_fixture and distinct_test_methods_naming_this_fixture were measured by recording the accumulated description of every subTest that executed and counting those naming that fixture stem; executed_test_methods_reading_this_fixture and fixture_reads_recorded were measured by instrumenting the file-read entry points and attributing each read to the test that was running. Measured over all 105 committed fixtures, every one was read by at least one executed test (5408 reads in total, of which 425 were performed in class or module setup and so belong to no running method), and every negative fixture is named by at least one executed subTest, so no fixture sits in the directory unexercised. Two conventions changed at this edition and both are stated with the arithmetic between them rather than left to be inferred. A read that reaches several instrumented entry points is now counted once at the outermost of them, where the superseded edition counted two of them and so recorded twice as many reads for the same fixture: that doubling holds exactly on all 56 of the 72 entries above whose fixtures belong to the modules this checkpoint did not touch, and the corpus-wide totals are 10454 there against 5408 here, the residual being the reads the newly added recorded-metadata tests perform on the Trivy and Dependency-Check fixtures. And a read performed in setup is now excluded from a method's count instead of being attributed to the last test that had started, which lowers 18 of those 56 entries by exactly one and leaves the other 38 unchanged."
+   "observed_attribution_note": "every entry's executed_subtests_naming_this_fixture and distinct_test_methods_naming_this_fixture were measured by recording the accumulated description of every subTest that executed and counting those naming that fixture stem; executed_test_methods_reading_this_fixture and fixture_reads_recorded were measured by instrumenting the file-read entry points and attributing each read to the test that was running. Measured over all 106 committed fixtures, every one was read by at least one executed test (5812 reads in total, of which 466 were performed in class or module setup and so belong to no running method), and every one of the 73 negative fixtures is named by at least one executed subTest, so no fixture sits in the directory unexercised. Both conventions are the superseded edition's and neither changed here: a read that reaches several instrumented entry points is counted once at the outermost of them, and a read performed in setup is excluded from a method's count rather than attributed to the last test that had started. What establishes that it is the same method rather than a similar one is that the five observed fields reproduce the superseded edition BIT FOR BIT on exactly the 56 entries whose fixtures belong to the modules this edition did not touch, and that all 16 entries that moved are the reject-sarif-* fixtures of the one module it extended, each gaining the same 10 reading methods and 11 reads that MalformedPercentEscapeTests performs. The two corpus-wide read totals across the three most recent editions are 10454 (under the superseded per-layer convention), 5408 (the same corpus under this convention) and 5812 here, the growth being the new fixture and the ten new methods that read the sixteen SARIF negatives."
   }
  },
  "rejection_condition_coverage": {
   "requirement": "AAP 0.9.4 -- a negative fixture and assertion for every rejection condition each EXERCISED adapter can produce, whether or not this run's own artifacts contained that case.",
-  "cross_check_performed": "The 72 committed negative fixtures were cross-checked against the nine conditions AAP 0.5.4 enumerates, per adapter, and each adapter's own declaration of which classes it can and cannot produce was read from the module rather than assumed. Every adapter now carries an asserted producible / unreachable partition over the closed vocabulary.",
+  "cross_check_performed": "The 73 committed negative fixtures were cross-checked against the nine conditions AAP 0.5.4 enumerates, per adapter, and each adapter's own declaration of which classes it can and cannot produce was read from the module rather than assumed. Every adapter now carries an asserted producible / unreachable partition over the closed vocabulary.",
   "nine_conditions_to_ten_classes": {
    "explanation": "AAP 0.5.4 enumerates NINE conditions; normalize.paths.REJECT_CLASSES holds TEN members. The relationship is not a discrepancy: one condition splits into two classes, and one condition spans two.",
    "condition_1_splits": "\"an unresolvable or absent path\" is realised as two classes -- absent_path where the record names no location at all, unresolvable_path where it names one that cannot be resolved. Keeping them apart is what lets a status document tell a defective producer from a defective base.",
@@ -2284,7 +2309,8 @@
    }
   },
   "conclusion": "Every condition every exercised adapter can produce is covered, by a committed negative fixture where the condition is a property of a record and by a named assertion where it is a property of the recorded invocation or of a record naming no location at all. Every class an adapter CANNOT produce is named with the reason, and in all six adapters that impossibility is itself asserted rather than merely described -- so a future change that made an unreachable class reachable would fail a test instead of passing unnoticed.",
-  "unexercised_paths": "none. Every rejection class every exercised adapter can produce has a committed negative fixture or a named assertion, and every class an adapter cannot produce is named with its reason and asserted absent from that adapter's fixtures. Trivy's absent_path was the one exception in the previous edition of this record, which named it as not exercised and not claimed; it was in fact producible through a missing, null or blank Results[].Target, so it is now driven by fixtures/reject-trivy-absent-path.json and appears among that adapter's eight fixture-covered classes above. No adapter exists for osv-scanner, so it has no rejection paths to exercise."
+  "unexercised_paths": "none. Every rejection class every exercised adapter can produce has a committed negative fixture or a named assertion, and every class an adapter cannot produce is named with its reason and asserted absent from that adapter's fixtures. Trivy's absent_path was the one exception in the previous edition of this record, which named it as not exercised and not claimed; it was in fact producible through a missing, null or blank Results[].Target, so it is now driven by fixtures/reject-trivy-absent-path.json and appears among that adapter's eight fixture-covered classes above. No adapter exists for osv-scanner, so it has no rejection paths to exercise.",
+  "second_document_for_invalid_uri": "invalid_uri is now driven by three committed SARIF documents rather than one, and each names a different moment at which a reference can fail to be one: reject-sarif-uribaseid-invalid-uri.sarif, whose base entry's uri is invalid as written; reject-sarif-percent-encoded-control.sarif, whose escapes are well formed and decode to control characters; and reject-sarif-malformed-percent-escape.sarif, whose '%' sequences are not escapes at all and are refused before any decode. The class was already covered by a fixture, so this adds a route to it rather than a class -- which is why the per-adapter producible/covered counts below are unchanged."
  },
  "mandated_tests": {
   "shape_routing_negative": {
@@ -2326,8 +2352,8 @@
    },
    "exit_status": 0,
    "verdict": "pass",
-   "tests_run_note": "35 is the requirement-specific subset of this module's tests, and the rule by which it was selected is stated here so it can be re-taken rather than trusted: every executed test of every class this entry names -- AdapterTableCompletenessTests 3, ContentNotFilenameTests 4, IsSarifConjunctionTests 9, NativeArtifactRoutingTests 5, RoutingDecisionTypeTests 3, SarifProducerRoutingTests 2, UnknownShapeHaltTests 9 -- matched against per_test_outcomes, with 35 of 35 passing and none failing, erroring or skipped. The module's full total is 117, recorded in test_modules.entries; the difference is the CLI orchestration coverage this module also carries, which belongs to a different requirement and is enumerated in per_adapter_assertions.coverage_added_at_this_checkpoint.cli_orchestration. The superseded edition stated 40 here with no selection rule beside it, and 40 is not reproducible from any rule this record states -- neither the 20 identifiers this entry names nor the 35 executed tests of the classes it names -- so it is replaced by this measurement instead of being carried forward unchecked.",
-   "module_total_tests_run": 117
+   "tests_run_note": "35 is the requirement-specific subset of this module's tests, and the rule by which it was selected is stated here so it can be re-taken rather than trusted: every executed test of every class this entry names -- AdapterTableCompletenessTests 3, ContentNotFilenameTests 4, IsSarifConjunctionTests 9, NativeArtifactRoutingTests 5, RoutingDecisionTypeTests 3, SarifProducerRoutingTests 2, UnknownShapeHaltTests 9 -- matched against per_test_outcomes, with 35 of 35 passing and none failing, erroring or skipped. The module's full total is 121, recorded in test_modules.entries; the difference is the CLI orchestration coverage this module also carries, which belongs to a different requirement and is enumerated in per_adapter_assertions.coverage_added_at_this_checkpoint.cli_orchestration. The superseded edition stated 40 here with no selection rule beside it, and 40 is not reproducible from any rule this record states -- neither the 20 identifiers this entry names nor the 35 executed tests of the classes it names -- so it is replaced by this measurement instead of being carried forward unchecked.",
+   "module_total_tests_run": 121
   },
   "reconciliation": {
    "module": "oss-scan-results/adapter-tests/test_reconciliation.py",
@@ -2545,7 +2571,7 @@
    "unknown-shape.json": "matches neither SARIF nor any known native shape, so it must halt by name",
    "reconcile-mixed.json": "the at-least-one-rejection fixture the identity is asserted over"
   },
-  "fixture_accounting": "8 captured + 1 second capture + 7 derived + 6 halt + 5 malformed + 4 shape + 2 other + 72 negative = 105. Every one is claimed by a module's inventory -- the malformed documents through the signature table each is derived from, the rest by name -- and every one but the metadata-variant document named in negative_fixtures.totals.observed_attribution_note was named by at least one executed subTest."
+  "fixture_accounting": "8 captured + 1 second capture + 7 derived + 6 halt + 5 malformed + 4 shape + 2 other + 73 negative = 106. Every one is claimed by a module's inventory -- the malformed documents through the signature table each is derived from, the rest by name -- and every one of the 106 was opened by at least one executed test, measured by instrumenting the read entry points; the 73 negative fixtures are additionally each named by at least one executed subTest."
  },
  "per_adapter_assertions": {
   "purpose": "Named so a reader can SEE coverage rather than infer it. Every method listed executed in the run recorded above and passed; none is a name taken from a docstring without a result behind it.",
@@ -2842,12 +2868,12 @@
    "not_parsed_from_prose": "the entries come from the result object rather than from scraping the -v stream, so a line unittest formats differently cannot silently drop an outcome.",
    "cross_check": "the entry count equals the runner's own tests_run and the sum of the ten per-module tests_run values; all three are stated above and below and must agree."
   },
-  "entries_count": 1347,
-  "tests_run_reported_by_the_runner": 1347,
-  "per_module_sum": 1347,
+  "entries_count": 1361,
+  "tests_run_reported_by_the_runner": 1361,
+  "per_module_sum": 1361,
   "three_figures_agree": true,
   "status_histogram": {
-   "pass": 1347
+   "pass": 1361
   },
   "entries_per_module": {
    "test_checkov_adapter": 127,
@@ -2857,8 +2883,8 @@
    "test_gitleaks_adapter": 93,
    "test_joern_adapter": 117,
    "test_reconciliation": 162,
-   "test_sarif_adapter": 122,
-   "test_shape_routing_negative": 117,
+   "test_sarif_adapter": 132,
+   "test_shape_routing_negative": 121,
    "test_trivy_adapter": 199
   },
   "correction_this_record_makes": "The previous edition of this file enumerated 185 fully qualified identifiers while stating that every per-test outcome it had was enumerated. 392 of its 577 outcomes were absent, so the completeness claim was false and the aggregate was doing work the enumeration was supposed to do. Recorded here rather than quietly replaced: the defect was a claim, and a reader of the old file had no way to see which tests it stood for.",
@@ -6676,6 +6702,46 @@
     "status": "pass"
    },
    {
+    "id": "test_sarif_adapter.MalformedPercentEscapeTests.test_a_base_map_entry_with_a_malformed_uri_is_refused_rather_than_joined",
+    "status": "pass"
+   },
+   {
+    "id": "test_sarif_adapter.MalformedPercentEscapeTests.test_a_percent_wrapped_uri_base_id_is_a_mapping_key_and_still_resolves",
+    "status": "pass"
+   },
+   {
+    "id": "test_sarif_adapter.MalformedPercentEscapeTests.test_a_well_formed_escape_still_decodes_and_still_becomes_a_row",
+    "status": "pass"
+   },
+   {
+    "id": "test_sarif_adapter.MalformedPercentEscapeTests.test_a_well_formed_escape_that_decodes_to_a_control_keeps_its_own_diagnosis",
+    "status": "pass"
+   },
+   {
+    "id": "test_sarif_adapter.MalformedPercentEscapeTests.test_every_guard_site_refuses_a_malformed_escape",
+    "status": "pass"
+   },
+   {
+    "id": "test_sarif_adapter.MalformedPercentEscapeTests.test_no_rejection_detail_carries_the_reference_it_refused",
+    "status": "pass"
+   },
+   {
+    "id": "test_sarif_adapter.MalformedPercentEscapeTests.test_the_escape_describer_names_positions_and_never_the_text",
+    "status": "pass"
+   },
+   {
+    "id": "test_sarif_adapter.MalformedPercentEscapeTests.test_the_fixture_rejects_only_its_defective_records",
+    "status": "pass"
+   },
+   {
+    "id": "test_sarif_adapter.MalformedPercentEscapeTests.test_the_foreign_scheme_reclassification_is_recorded_rather_than_silent",
+    "status": "pass"
+   },
+   {
+    "id": "test_sarif_adapter.MalformedPercentEscapeTests.test_the_qa_reproduction_no_longer_reaches_a_row",
+    "status": "pass"
+   },
+   {
     "id": "test_sarif_adapter.MessageAndSeverityTests.test_a_literal_outside_every_mapped_vocabulary_is_disclosed_as_info",
     "status": "pass"
    },
@@ -7000,6 +7066,10 @@
     "status": "pass"
    },
    {
+    "id": "test_shape_routing_negative.ArtifactControlledDiagnosticTests.test_an_authored_version_literal_is_still_published_verbatim",
+    "status": "pass"
+   },
+   {
     "id": "test_shape_routing_negative.ArtifactControlledDiagnosticTests.test_success_path_bounds_a_hostile_extra_top_level_key",
     "status": "pass"
    },
@@ -7008,7 +7078,7 @@
     "status": "pass"
    },
    {
-    "id": "test_shape_routing_negative.ArtifactControlledDiagnosticTests.test_success_path_publishes_a_safe_version_with_length_and_digest",
+    "id": "test_shape_routing_negative.ArtifactControlledDiagnosticTests.test_success_path_publishes_no_version_content_but_keeps_its_evidence",
     "status": "pass"
    },
    {
@@ -7016,7 +7086,7 @@
     "status": "pass"
    },
    {
-    "id": "test_shape_routing_negative.ArtifactControlledDiagnosticTests.test_the_key_count_cap_is_not_used_as_the_excerpt_length_cap",
+    "id": "test_shape_routing_negative.ArtifactControlledDiagnosticTests.test_the_key_count_cap_is_not_used_as_the_value_size_cap",
     "status": "pass"
    },
    {
@@ -7024,7 +7094,7 @@
     "status": "pass"
    },
    {
-    "id": "test_shape_routing_negative.ArtifactControlledDiagnosticTests.test_wrong_version_halt_renders_its_version_safely",
+    "id": "test_shape_routing_negative.ArtifactControlledDiagnosticTests.test_wrong_version_halt_publishes_no_version_content",
     "status": "pass"
    },
    {
@@ -7049,6 +7119,14 @@
    },
    {
     "id": "test_shape_routing_negative.CliAdapterResolutionTests.test_the_three_sarif_producers_resolve_to_one_shared_module_object",
+    "status": "pass"
+   },
+   {
+    "id": "test_shape_routing_negative.CliArtifactControlledDiagnosticPublicationTests.test_the_reported_reproduction_leaks_nothing_through_the_real_cli",
+    "status": "pass"
+   },
+   {
+    "id": "test_shape_routing_negative.CliArtifactControlledDiagnosticPublicationTests.test_the_same_two_markers_leak_nothing_through_the_in_memory_channels",
     "status": "pass"
    },
    {
@@ -7396,7 +7474,11 @@
     "status": "pass"
    },
    {
-    "id": "test_shape_routing_negative.SafeRenderingParityTests.test_limits_agree",
+    "id": "test_shape_routing_negative.SafeRenderingParityTests.test_limits_and_markers_agree",
+    "status": "pass"
+   },
+   {
+    "id": "test_shape_routing_negative.SafeRenderingParityTests.test_measurement_agrees_on_every_hostile_case",
     "status": "pass"
    },
    {
@@ -7404,7 +7486,7 @@
     "status": "pass"
    },
    {
-    "id": "test_shape_routing_negative.SafeRenderingParityTests.test_rendering_agrees_on_every_hostile_case",
+    "id": "test_shape_routing_negative.SafeRenderingParityTests.test_the_publication_carve_out_agrees_in_both_modules",
     "status": "pass"
    },
    {
@@ -8253,16 +8335,19 @@
    }
   ]
  },
- "run_id": "w000-20260902T173913Z",
- "clone_index": 0,
- "supersedes": "the previous edition of this file, run_id w021-20260902T150652Z, which measured the suite before the normalizer-boundary tests and the fixture-provenance tests of this checkpoint stood in one tree together, and so recorded a suite total of 1335 with a subTest total of 26107 over a corpus in which test_cli_writers ran 219 and test_shape_routing_negative 114. Every figure here is a fresh measurement of the committed suite and the committed fixture corpus: 1347 tests over 10 modules, 26123 subTests, 105 fixtures with 105 expected files, 72 of them negative, and an outcome for every executed test. The prose describing what each module asserts is the inherited document's and is carried forward unchanged; the hand-verified per-fixture semantics are carried forward from the expected files they were verified against, and where an expected file's own counts disagreed with the inherited entry the expected file governs and the change is recorded under never_fabricate_a_measurement.corrections_recorded_rather_than_quietly_fixed.",
+ "run_id": "w026-20260902T211932Z",
+ "clone_index": 26,
+ "supersedes": "the previous edition of this file, run_id w000-20260902T173913Z, which measured the suite before the two security fixes of this checkpoint stood in the tree and so recorded a suite total of 1347 with a subTest total of 26123 over a corpus of 105 fixture documents and 105 expectations, in which test_sarif_adapter ran 122 and test_shape_routing_negative 117. Every figure here is a fresh measurement of the committed suite and the committed fixture corpus: 1361 tests over 10 modules, 26198 subTests, 106 fixtures with 106 expected files, 73 of them negative, and an outcome for every executed test. The prose describing what each module asserts is inherited and carried forward unchanged where this edition did not move what it describes; the hand-verified per-fixture semantics are carried forward from the expected files they were verified against, and the one fixture this edition adds carries its own entry derived from its own expected file.",
  "correction_this_record_makes": [
+  "This edition's own correction, stated first. The two QA security fixes of this checkpoint moved four measured quantities and this record is the first measurement of all four together: the pre-decode percent-syntax guard of SEC-06 brought a negative fixture and a hand-verified expectation with it, taking the corpus from 105 fixture documents and 105 expectations to 106 and 106 and the negative count from 72 to 73; MalformedPercentEscapeTests took test_sarif_adapter from 122 to 132; CliArtifactControlledDiagnosticPublicationTests, which IS the SEC-04 reproduction driven through the real cli.main, took test_shape_routing_negative from 117 to 121; and the suite total moved to 1361 with the subTest total at 26198. Every one of those is a fresh measurement rather than the superseded figure adjusted, and the per-module invocations were re-run individually so their sum is an independent corroboration of the whole-suite total rather than a division of it.",
+  "wall_clock_ms now records the elapsed wall clock actually measured around the recorded command, and suite_result.wall_clock_note states why it exceeds the trailer's own reading. The superseded edition recorded a wall clock of 11966 ms against a reported 11.966 s -- the two agreeing to the millisecond, which a wall clock spanning interpreter start-up and discovery cannot do -- so that figure was the reported reading restated rather than a second measurement. Both figures are kept because they measure different things, and neither is derived from the other.",
+  "The entries that follow are the corrections the superseded editions made, retained verbatim so that a correction stays visible rather than being erased by the next measurement. Their use of \"this edition\" refers to the edition that made them, which is the one named in supersedes; every figure in them that is no longer a current measurement is declared under historical_figures_quoted_in_prose.",
   "The command field. The superseded edition recorded \"/usr/bin/python3 -m unittest discover -s oss-scan-results/adapter-tests\" -- no discover pattern and no verbosity flag -- while its own suite_result.captured_streams held a 315,753-byte verbose per-test stderr stream that only a -v run produces, and while oss-scan-results/adapter-tests/README.md documented the invocation WITH both arguments and stated that the two were the same command in every argument. The documented form is the one this edition ran and the one it records, so the README's equality claim is now true by measurement rather than by editing the claim away. Every test_modules.entries[].command carries the same correction: the per-module form is \"/usr/bin/python3 -m unittest discover -s oss-scan-results/adapter-tests -p '<module>.py' -v\".",
-  "Three prose statements said 1142 -- \"all 1142 of them\" and \"1142 entries for 1142 executed tests\" -- against the same edition's own suite_result.tests_run of 1325, per_test_outcomes.entries_count of 1325 and 1325-entry array. All three now carry the measured total, 1347, and harness/lib/verify_status_figures.py adjudicates every test-count claim in this file's prose against the measurement rather than leaving it to be read past.",
-  "Two mandated_tests module totals were stale: shape_routing_negative recorded 73 and reconciliation 110 against modules that run 117 and 162. Both now carry the matching test_modules.entries value, and the requirement-specific subsets beside them were re-taken under a selection rule the notes now state.",
+  "Three prose statements said 1142 -- \"all 1142 of them\" and \"1142 entries for 1142 executed tests\" -- against the same edition's own suite_result.tests_run of 1325, per_test_outcomes.entries_count of 1325 and 1325-entry array. All three now carry the measured total, which at this edition is 1361, and harness/lib/verify_status_figures.py adjudicates every test-count claim in this file's prose against the measurement rather than leaving it to be read past.",
+  "Two mandated_tests module totals were stale: shape_routing_negative recorded 73 and reconciliation 110 against modules that ran more than that. Both now carry the matching test_modules.entries value, and the requirement-specific subsets beside them were re-taken under a selection rule the notes now state.",
   "Two fully qualified identifiers named methods that do not exist, so each recorded an outcome for a test that never ran: mandated_tests.shape_routing_negative.supporting_assertions named ContentNotFilenameTests.test_a_native_document_under_a_sarif_artifact_name_is_decided_native where the executed method is ContentNotFilenameTests.test_a_native_document_under_a_sarif_artifact_name_halts, and negative_fixtures.decisive_assertions_per_adapter.checkov named test_checkov_adapter.FixtureInventoryTests.test_the_five_reject_conditions_each_have_their_own_fixture where the executed method is test_checkov_adapter.FixtureInventoryTests.test_every_reject_condition_has_a_committed_fixture. Both are corrected to the identifier that executed, and all 1515 identifier references in this file were checked against per_test_outcomes rather than these two being fixed alone.",
-  "The inventory itself moved twice. The fixture-provenance fix of this checkpoint added a recorded-metadata test to two modules -- test_trivy_adapter runs 199 tests where it ran 194 and test_dependency_check_adapter 107 where it ran 102 -- and the normalizer-boundary fix of the same checkpoint added tests to two others, test_cli_writers running 228 where it ran 219 and test_shape_routing_negative 117 where it ran 114. This edition is the first measurement of all four together: the suite total is 1347 where the immediately superseded edition measured 1335, and the subTest total 26123 where it measured 26107. Every module's own byte size and digest was re-measured from disk with it, and all ten entries come from that module's own invocation rather than from a division of the whole-suite total.",
-  "Two observed-instrumentation conventions in negative_fixtures were corrected rather than reproduced: a read that reaches several instrumented entry points is counted once instead of once per layer, and a read performed in class or module setup is excluded from a method count instead of being attributed to the last test that had started. Both changes are stated in field_meanings and in totals.observed_attribution_note with the superseded corpus total beside the new one, and the naming counts -- which did not change convention -- reproduce the superseded edition exactly on all 56 of the 72 enumerated entries whose fixtures belong to the modules this checkpoint did not touch, which is what establishes that the method is the same one."
+  "The inventory itself moved twice before this edition. The fixture-provenance fix added a recorded-metadata test to two modules -- test_trivy_adapter runs 199 tests where it ran 194 and test_dependency_check_adapter 107 where it ran 102 -- and the normalizer-boundary fix of the same checkpoint added tests to two others, test_cli_writers running 228 where it ran 219 and test_shape_routing_negative 117 where it was 114. That edition measured a suite total of 1347 where its own predecessor measured 1335, and a subTest total of 26123 where it measured 26107. Every module's own byte size and digest was re-measured from disk with it, and all ten entries come from that module's own invocation rather than from a division of the whole-suite total.",
+  "Two observed-instrumentation conventions in negative_fixtures were corrected rather than reproduced: a read that reaches several instrumented entry points is counted once instead of once per layer, and a read performed in class or module setup is excluded from a method count instead of being attributed to the last test that had started. Both changes are stated in field_meanings and in totals.observed_attribution_note with the superseded corpus total beside the new one, and the naming counts -- which did not change convention -- reproduce the superseded edition exactly on all 56 of the enumerated entries whose fixtures belong to the modules that checkpoint did not touch, which is what establishes that the method is the same one."
  ],
  "historical_figures_quoted_in_prose": {
   "why_this_exists": "verify_status_figures.py adjudicates every test-count claim in this file's prose against the current measurement. This file also quotes figures from superseded editions on purpose -- that is how a correction stays visible -- so each such figure is declared here with what it was and where it appears. A figure that is neither a current measurement nor declared here fails the gate, which is exactly what the three 1142 claims should have done.",
@@ -8296,6 +8381,16 @@
     "value": 114,
     "was": "test_shape_routing_negative's total before the same tests were added",
     "appears_in": "correction_this_record_makes[2], correction_this_record_makes[4] and supersedes"
+   },
+   {
+    "value": 117,
+    "was": "test_shape_routing_negative's total before CliArtifactControlledDiagnosticPublicationTests was added; it is also test_joern_adapter's current measured total, which is why the gate accepts it either way",
+    "appears_in": "correction_this_record_makes[0], correction_this_record_makes[7] and supersedes"
+   },
+   {
+    "value": 122,
+    "was": "test_sarif_adapter's total before MalformedPercentEscapeTests was added",
+    "appears_in": "correction_this_record_makes[0] and supersedes"
    },
    {
     "value": 185,
@@ -8343,6 +8438,11 @@
     "appears_in": "correction_this_record_makes[4] and supersedes"
    },
    {
+    "value": 1347,
+    "was": "the suite total of the immediately superseded edition",
+    "appears_in": "supersedes, correction_this_record_makes[7] and never_fabricate_a_measurement.corrections_recorded_rather_than_quietly_fixed[6]"
+   },
+   {
     "value": 1515,
     "was": "not a superseded figure but the number of identifier references checked against per_test_outcomes at this edition",
     "appears_in": "correction_this_record_makes[3]"
@@ -8366,6 +8466,11 @@
     "value": 26107,
     "was": "that edition's subTest total",
     "appears_in": "correction_this_record_makes[4] and supersedes"
+   },
+   {
+    "value": 26123,
+    "was": "the subTest total of the immediately superseded edition",
+    "appears_in": "supersedes, correction_this_record_makes[7] and never_fabricate_a_measurement.corrections_recorded_rather_than_quietly_fixed[6]"
    },
    {
     "value": 255592,

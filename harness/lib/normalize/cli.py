@@ -1038,9 +1038,9 @@ INGESTION_BOUNDS: Mapping[str, Any] = MappingProxyType(
             "status_file_bytes": 278,
             "status_file_bytes_file": "datadog-static-analyzer.status",
             "status_numeric_digits": 8,
-            "runner_metadata_bytes": 189_356,
+            "runner_metadata_bytes": 200_825,
             "runner_metadata_depth": 8,
-            "runner_metadata_nodes": 2_173,
+            "runner_metadata_nodes": 2_197,
             "runner_metadata_string_characters": 1_496,
             "node_definition": (
                 "a node is a JSON value; an object member name is length-checked against "

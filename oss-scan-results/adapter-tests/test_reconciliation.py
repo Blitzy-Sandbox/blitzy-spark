@@ -4019,7 +4019,34 @@ class CliEndToEndTests(CliTestCase):
         chain = record["halt"]["details"]["exception_chain"]
         self.assertTrue(chain, msg="the exception chain must be recorded")
         self.assertEqual(chain[0]["exception_type"], "RuntimeError")
-        self.assertEqual(chain[0]["message"]["excerpt"], "a fault no halt class covers")
+        # The message is DESCRIBED, never shown (SEC-04). On an unexpected error the
+        # exception's own str() is composed from whatever artifact content was being
+        # processed, so what the durable record carries is the evidence -- type, full
+        # length, full digest -- with the fixed redaction marker in place of the text.
+        # Asserting the marker alone would pass for a description that had lost the
+        # evidence too, so all four members are asserted together.
+        described = chain[0]["message"]
+        raised = "a fault no halt class covers"
+        self.assertEqual(described["excerpt"], paths.REDACTED_TEXT)
+        self.assertIs(described["redacted"], True)
+        self.assertIs(described["publishable"], False)
+        self.assertEqual(described["character_length"], len(raised))
+        self.assertEqual(
+            described["sha256"], hashlib.sha256(raised.encode("utf-8")).hexdigest()
+        )
+        self.assertNotIn(
+            raised,
+            json.dumps(described),
+            msg="the description must not carry the message it describes",
+        )
+        self.assertNotIn(
+            raised,
+            record["halt"]["message"],
+            msg=(
+                "the halt message interpolates the description, so it must not carry "
+                "the exception's own text either"
+            ),
+        )
         self.assertTrue(
             any("test_reconciliation.py" in frame or "cli.py" in frame
                 for link in chain for frame in link["frames"]),

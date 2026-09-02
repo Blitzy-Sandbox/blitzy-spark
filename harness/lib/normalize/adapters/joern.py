@@ -22,7 +22,7 @@ mistake AAP 0.1.1 forbids -- *"detecting each artifact's shape rather than assum
 it"*.
 
 *The shape this provisioning writes*, read from ``harness/lib/joern-scan.sc`` lines
-106-121::
+227-242::
 
     {tool, tool_version, cpg,
      graph: {methods, type_declarations, files},
@@ -479,7 +479,7 @@ COLLECTOR_UNKNOWN_CLASS: Final[str] = "<unknown>"
 #: *"read from the runner"*, so an identifier outside this set is a legitimate finding
 #: from a query set this constant predates -- dropping it would silently shrink a tool's
 #: count.  The first six are the queries
-#: ``harness/lib/joern-scan.sc`` bakes in this provisioning, read from its lines 50-78;
+#: ``harness/lib/joern-scan.sc`` bakes in this provisioning, read from its lines 171-199;
 #: the last five are the documented collector's literals, kept so a reader of either
 #: shape recognises what they are looking at.
 KNOWN_RULE_IDS: Final[tuple[str, ...]] = (

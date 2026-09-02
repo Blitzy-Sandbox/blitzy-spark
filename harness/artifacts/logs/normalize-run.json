@@ -53,8 +53,8 @@
    "CWE-117"
   ]
  },
- "started_at_utc": "2026-09-02T17:49:20Z",
- "finished_at_utc": "2026-09-02T17:49:25Z",
+ "started_at_utc": "2026-09-02T22:56:48Z",
+ "finished_at_utc": "2026-09-02T22:56:54Z",
  "command": {
   "program": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/lib/normalize/cli.py",
   "argv": [],
@@ -333,9 +333,9 @@
     "status_file_bytes": 278,
     "status_file_bytes_file": "datadog-static-analyzer.status",
     "status_numeric_digits": 8,
-    "runner_metadata_bytes": 189356,
+    "runner_metadata_bytes": 200825,
     "runner_metadata_depth": 8,
-    "runner_metadata_nodes": 2173,
+    "runner_metadata_nodes": 2197,
     "runner_metadata_string_characters": 1496,
     "node_definition": "a node is a JSON value; an object member name is length-checked against the string cap but is not itself counted as a node"
    }
@@ -345,8 +345,8 @@
   "file": {
    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/runner-metadata.json",
    "present": true,
-   "bytes": 189356,
-   "sha256": "08c6f0bc5cf15e36b5253b611d0309b9b17491b4f0a6f991ea15352b4ae9b744"
+   "bytes": 200825,
+   "sha256": "d9ca2faf0fe67bea3370ef8ce80c149ab4c1db2c927c80f460f1d2412c1fca1b"
   },
   "schema_version": "runner-metadata/2.0.0",
   "spark_src": "/opt/spark-src",
@@ -551,7 +551,9 @@
        "excerpt": "version",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -561,7 +563,9 @@
        "excerpt": "runs",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -571,7 +575,9 @@
        "excerpt": "$schema",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       }
      ],
      "top_level_key_excerpts": [
@@ -582,7 +588,7 @@
      "top_level_keys_total": 3,
      "top_level_keys_reported": 3,
      "top_level_keys_truncated": false,
-     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and its published rendering, plus the number of control characters escaped and credential userinfo segments redacted. The rendering is the key itself only where it is byte-equal to a literal shape.py authors (shape.publishable_literals); every other key is published as the fixed shape.REDACTED_TEXT marker, because a JSON key is artifact-supplied text and this record is preserved. The length and digest are full so the original stays checkable against this record.",
      "top_level_length": 3,
      "version_key": "version",
      "version_expected": "2.1.0",
@@ -595,7 +601,9 @@
       "excerpt": "2.1.0",
       "truncated": false,
       "controls_escaped": 0,
-      "userinfo_redactions": 0
+      "userinfo_redactions": 0,
+      "publishable": true,
+      "redacted": false
      },
      "version_matches": true,
      "runs_key": "runs",
@@ -836,7 +844,9 @@
        "excerpt": "version",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -846,7 +856,9 @@
        "excerpt": "runs",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -856,7 +868,9 @@
        "excerpt": "$schema",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       }
      ],
      "top_level_key_excerpts": [
@@ -867,7 +881,7 @@
      "top_level_keys_total": 3,
      "top_level_keys_reported": 3,
      "top_level_keys_truncated": false,
-     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and its published rendering, plus the number of control characters escaped and credential userinfo segments redacted. The rendering is the key itself only where it is byte-equal to a literal shape.py authors (shape.publishable_literals); every other key is published as the fixed shape.REDACTED_TEXT marker, because a JSON key is artifact-supplied text and this record is preserved. The length and digest are full so the original stays checkable against this record.",
      "top_level_length": 3,
      "version_key": "version",
      "version_expected": "2.1.0",
@@ -880,7 +894,9 @@
       "excerpt": "2.1.0",
       "truncated": false,
       "controls_escaped": 0,
-      "userinfo_redactions": 0
+      "userinfo_redactions": 0,
+      "publishable": true,
+      "redacted": false
      },
      "version_matches": true,
      "runs_key": "runs",
@@ -1121,7 +1137,9 @@
        "excerpt": "runs",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -1131,7 +1149,9 @@
        "excerpt": "version",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       }
      ],
      "top_level_key_excerpts": [
@@ -1141,7 +1161,7 @@
      "top_level_keys_total": 2,
      "top_level_keys_reported": 2,
      "top_level_keys_truncated": false,
-     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and its published rendering, plus the number of control characters escaped and credential userinfo segments redacted. The rendering is the key itself only where it is byte-equal to a literal shape.py authors (shape.publishable_literals); every other key is published as the fixed shape.REDACTED_TEXT marker, because a JSON key is artifact-supplied text and this record is preserved. The length and digest are full so the original stays checkable against this record.",
      "top_level_length": 2,
      "version_key": "version",
      "version_expected": "2.1.0",
@@ -1154,7 +1174,9 @@
       "excerpt": "2.1.0",
       "truncated": false,
       "controls_escaped": 0,
-      "userinfo_redactions": 0
+      "userinfo_redactions": 0,
+      "publishable": true,
+      "redacted": false
      },
      "version_matches": true,
      "runs_key": "runs",
@@ -1391,7 +1413,7 @@
      "top_level_keys_total": 0,
      "top_level_keys_reported": 0,
      "top_level_keys_truncated": false,
-     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and its published rendering, plus the number of control characters escaped and credential userinfo segments redacted. The rendering is the key itself only where it is byte-equal to a literal shape.py authors (shape.publishable_literals); every other key is published as the fixed shape.REDACTED_TEXT marker, because a JSON key is artifact-supplied text and this record is preserved. The length and digest are full so the original stays checkable against this record.",
      "top_level_length": 1,
      "version_key": "version",
      "version_expected": "2.1.0",
@@ -1401,10 +1423,12 @@
       "context": "version",
       "character_length": 4,
       "sha256": "dc937b59892604f5a86ac96936cd7ff09e25f18ae6b758e8014a24c7fa039e91",
-      "excerpt": "None",
+      "excerpt": "<redacted-artifact-text>",
       "truncated": false,
       "controls_escaped": 0,
-      "userinfo_redactions": 0
+      "userinfo_redactions": 0,
+      "publishable": false,
+      "redacted": true
      },
      "version_matches": false,
      "runs_key": "runs",
@@ -1637,7 +1661,9 @@
        "excerpt": "check_type",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -1647,7 +1673,9 @@
        "excerpt": "results",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -1657,7 +1685,9 @@
        "excerpt": "summary",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       }
      ],
      "top_level_key_excerpts": [
@@ -1668,7 +1698,7 @@
      "top_level_keys_total": 3,
      "top_level_keys_reported": 3,
      "top_level_keys_truncated": false,
-     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and its published rendering, plus the number of control characters escaped and credential userinfo segments redacted. The rendering is the key itself only where it is byte-equal to a literal shape.py authors (shape.publishable_literals); every other key is published as the fixed shape.REDACTED_TEXT marker, because a JSON key is artifact-supplied text and this record is preserved. The length and digest are full so the original stays checkable against this record.",
      "top_level_length": 3,
      "version_key": "version",
      "version_expected": "2.1.0",
@@ -1678,10 +1708,12 @@
       "context": "version",
       "character_length": 4,
       "sha256": "dc937b59892604f5a86ac96936cd7ff09e25f18ae6b758e8014a24c7fa039e91",
-      "excerpt": "None",
+      "excerpt": "<redacted-artifact-text>",
       "truncated": false,
       "controls_escaped": 0,
-      "userinfo_redactions": 0
+      "userinfo_redactions": 0,
+      "publishable": false,
+      "redacted": true
      },
      "version_matches": false,
      "runs_key": "runs",
@@ -1944,27 +1976,33 @@
        "excerpt": "SchemaVersion",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
        "context": "top-level key",
        "character_length": 5,
        "sha256": "a093422585a8a4cb763d89a0fa8e76744a80830fe24724c7e7943a50ec479240",
-       "excerpt": "Trivy",
+       "excerpt": "<redacted-artifact-text>",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": false,
+       "redacted": true
       },
       {
        "value_type": "str",
        "context": "top-level key",
        "character_length": 8,
        "sha256": "816561efeb0d90bb954b42284e6c35710e1c91d7047121faf489387f682de626",
-       "excerpt": "ReportID",
+       "excerpt": "<redacted-artifact-text>",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": false,
+       "redacted": true
       },
       {
        "value_type": "str",
@@ -1974,7 +2012,9 @@
        "excerpt": "CreatedAt",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -1984,7 +2024,9 @@
        "excerpt": "ArtifactName",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -1994,7 +2036,9 @@
        "excerpt": "ArtifactType",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -2004,13 +2048,15 @@
        "excerpt": "Results",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       }
      ],
      "top_level_key_excerpts": [
       "SchemaVersion",
-      "Trivy",
-      "ReportID",
+      "<redacted-artifact-text>",
+      "<redacted-artifact-text>",
       "CreatedAt",
       "ArtifactName",
       "ArtifactType",
@@ -2019,7 +2065,7 @@
      "top_level_keys_total": 7,
      "top_level_keys_reported": 7,
      "top_level_keys_truncated": false,
-     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and its published rendering, plus the number of control characters escaped and credential userinfo segments redacted. The rendering is the key itself only where it is byte-equal to a literal shape.py authors (shape.publishable_literals); every other key is published as the fixed shape.REDACTED_TEXT marker, because a JSON key is artifact-supplied text and this record is preserved. The length and digest are full so the original stays checkable against this record.",
      "top_level_length": 7,
      "version_key": "version",
      "version_expected": "2.1.0",
@@ -2029,10 +2075,12 @@
       "context": "version",
       "character_length": 4,
       "sha256": "dc937b59892604f5a86ac96936cd7ff09e25f18ae6b758e8014a24c7fa039e91",
-      "excerpt": "None",
+      "excerpt": "<redacted-artifact-text>",
       "truncated": false,
       "controls_escaped": 0,
-      "userinfo_redactions": 0
+      "userinfo_redactions": 0,
+      "publishable": false,
+      "redacted": true
      },
      "version_matches": false,
      "runs_key": "runs",
@@ -2502,7 +2550,9 @@
        "excerpt": "reportSchema",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -2512,7 +2562,9 @@
        "excerpt": "scanInfo",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -2522,7 +2574,9 @@
        "excerpt": "projectInfo",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -2532,7 +2586,9 @@
        "excerpt": "dependencies",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       }
      ],
      "top_level_key_excerpts": [
@@ -2544,7 +2600,7 @@
      "top_level_keys_total": 4,
      "top_level_keys_reported": 4,
      "top_level_keys_truncated": false,
-     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and its published rendering, plus the number of control characters escaped and credential userinfo segments redacted. The rendering is the key itself only where it is byte-equal to a literal shape.py authors (shape.publishable_literals); every other key is published as the fixed shape.REDACTED_TEXT marker, because a JSON key is artifact-supplied text and this record is preserved. The length and digest are full so the original stays checkable against this record.",
      "top_level_length": 4,
      "version_key": "version",
      "version_expected": "2.1.0",
@@ -2554,10 +2610,12 @@
       "context": "version",
       "character_length": 4,
       "sha256": "dc937b59892604f5a86ac96936cd7ff09e25f18ae6b758e8014a24c7fa039e91",
-      "excerpt": "None",
+      "excerpt": "<redacted-artifact-text>",
       "truncated": false,
       "controls_escaped": 0,
-      "userinfo_redactions": 0
+      "userinfo_redactions": 0,
+      "publishable": false,
+      "redacted": true
      },
      "version_matches": false,
      "runs_key": "runs",
@@ -2803,7 +2861,9 @@
        "excerpt": "tool",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -2813,7 +2873,9 @@
        "excerpt": "tool_version",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -2823,7 +2885,9 @@
        "excerpt": "cpg",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -2833,7 +2897,9 @@
        "excerpt": "graph",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -2843,7 +2909,9 @@
        "excerpt": "query_set",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -2853,7 +2921,9 @@
        "excerpt": "queries",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       },
       {
        "value_type": "str",
@@ -2863,7 +2933,9 @@
        "excerpt": "findings",
        "truncated": false,
        "controls_escaped": 0,
-       "userinfo_redactions": 0
+       "userinfo_redactions": 0,
+       "publishable": true,
+       "redacted": false
       }
      ],
      "top_level_key_excerpts": [
@@ -2878,7 +2950,7 @@
      "top_level_keys_total": 7,
      "top_level_keys_reported": 7,
      "top_level_keys_truncated": false,
-     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and a bounded excerpt, plus the number of control characters escaped and credential userinfo segments redacted. The excerpt is bounded so it is safe to read; the length and digest are full so the original stays checkable against this record.",
+     "top_level_keys_evidence": "each entry of `keys` carries the key's context, Python type, full original character length, full sha256 and its published rendering, plus the number of control characters escaped and credential userinfo segments redacted. The rendering is the key itself only where it is byte-equal to a literal shape.py authors (shape.publishable_literals); every other key is published as the fixed shape.REDACTED_TEXT marker, because a JSON key is artifact-supplied text and this record is preserved. The length and digest are full so the original stays checkable against this record.",
      "top_level_length": 7,
      "version_key": "version",
      "version_expected": "2.1.0",
@@ -2888,10 +2960,12 @@
       "context": "version",
       "character_length": 4,
       "sha256": "dc937b59892604f5a86ac96936cd7ff09e25f18ae6b758e8014a24c7fa039e91",
-      "excerpt": "None",
+      "excerpt": "<redacted-artifact-text>",
       "truncated": false,
       "controls_escaped": 0,
-      "userinfo_redactions": 0
+      "userinfo_redactions": 0,
+      "publishable": false,
+      "redacted": true
      },
      "version_matches": false,
      "runs_key": "runs",

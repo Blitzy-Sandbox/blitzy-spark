@@ -2,9 +2,9 @@
   "schema_version": 1,
   "document": "harness/artifacts/MANIFEST.json",
   "purpose": "Both artifact trees are excluded from ordinary git collection, so publishing them means stating every file's byte size and sha256. Every number any record document quotes about an artifact or a log traces to an entry here. The two trees published per-file are `raw/` and `logs/`: every entry below was measured from this checkout's disk when this manifest was written, so an entry naming a file that is not present cannot occur. A staging tree recorded by an artifact in `logs/` but not present in this checkout is CITED to that artifact rather than restated per file, because a value restated in two places is two measurements that can disagree rather than one measurement cited twice.",
-  "written_at_utc": "2026-09-02T17:39:25Z",
+  "written_at_utc": "2026-09-02T23:30:00Z",
   "regenerated": {
-    "why": "Re-measured from this checkout's disk after the QA-driven corrections of this checkpoint. harness/lib/normalize/cli.py gained a named halt for an unexpected direct child of harness/artifacts/raw/ and the --repo-root owner-root declaration, and the normalizer was re-run over the unchanged canonical inputs so its run record describes the code that is committed. The adapter-test corpus gained the fixture-provenance corrections and the RecordedFixtureMetadataTest contracts, and the suite was re-measured over the combined corpus. The log tree took the evidence of the remaining corrections: the twelve re-executed Opengrep taint arms, the importCpg load of the narrowed witness graph recorded as cpg-verify.log PART 2, the third flatgraph ceiling arm at 8 GiB, the live census of /opt/blitzy-harness/cpg-input, corrections of record in runner-metadata.json, cpg-frontend.log, cpg-graph-record.log, cpg-module-coverage.json, cpg-frontend-input-manifest.json, cpg-identity.txt, cpg-shims-collision-measurement.log, build-reactor.log and gate-record.json, and the fourteen reverification-f1 through f5 evidence files that publish the disposition of the five re-executed blocking findings. Every entry below is a measurement of the file as it is on disk now; the tree and this manifest agree member for member.",
+    "why": "Re-measured from this checkout's disk after the QA-driven corrections of this checkpoint. harness/lib/normalize/cli.py gained a named halt for an unexpected direct child of harness/artifacts/raw/ and the --repo-root owner-root declaration, and the normalizer was re-run over the unchanged canonical inputs so its run record describes the code that is committed. The adapter-test corpus gained the fixture-provenance corrections and the RecordedFixtureMetadataTest contracts, and the suite was re-measured over the combined corpus. The log tree took the evidence of the remaining corrections: the twelve re-executed Opengrep taint arms, the importCpg load of the narrowed witness graph recorded as cpg-verify.log PART 2, the third flatgraph ceiling arm at 8 GiB, the live census of /opt/blitzy-harness/cpg-input, corrections of record in runner-metadata.json, cpg-frontend.log, cpg-graph-record.log, cpg-module-coverage.json, cpg-frontend-input-manifest.json, cpg-identity.txt, cpg-shims-collision-measurement.log, build-reactor.log and gate-record.json, and the fourteen reverification-f1 through f5 evidence files that publish the disposition of the five re-executed blocking findings. Re-measured AGAIN on 2026-09-02T19:41:00Z, after a further QA-driven checkpoint moved four log members: harness/ENVIRONMENT.md was re-anchored to the graph's write-time record of account, which rewrote cpg-identity.txt (6,591 -> 9,123 B) and recorded the correction beside the observations it supersedes in gate-record.json (92,364 -> 100,747 B), runner-metadata.json (189,356 -> 199,061 B) and reverification-f2-graph-identity.txt (22,308 -> 31,447 B). No member was added, removed or renamed, so file_count is unchanged at 151 and logs.total_bytes moved by exactly +29,759 B to 144,068,455. The normalizer was then re-run canonically over the unchanged raw tree so its run record describes the runner-metadata now committed rather than the superseded digest it had read, moving normalize-run.json (763,882 -> 764,476 B) and findings-publication.json (2,985 -> 3,003 B) and bringing logs.total_bytes to 144,069,067; that run reproduced oss-scan-results/findings.json and findings.csv BYTE-IDENTICALLY, so the dataset is unchanged. harness/artifacts/raw/ was not touched at all: 8 members, 120,538,389 B, every digest unchanged - the dataset and every count derived from it are unaffected. Every entry below is a measurement of the file as it is on disk now; the tree and this manifest agree member for member. A further re-measurement follows the security checkpoint's own additions to this tree: twelve files were added to harness/artifacts/logs/ by the resolution of the security testing findings SEC-01 to SEC-10 -- eight sec-gate-* files recording the fail-closed pre-scan gates and their negative cases, and four reverification-sec-* files recording the diagnostic-secrecy re-verification, the malformed percent-escape re-verification and the toolchain advisory register with its publisher sources -- and harness/artifacts/logs/adapter-tests-run.json was re-measured because the suite grew over a corpus of 106 fixtures. The previous edition's 383,486-byte figure for adapter-tests-run.json, which disagreed with the bytes on disk while its digest matched, is corrected by that re-read rather than carried forward. file_count therefore moves from 151 to 163 and logs.total_bytes to the figure stated below, measured over the tree carrying BOTH the graph-identity/heap corrections and the security gates: neither of the two figures published while those two sets of corrections were measured separately describes this tree, so both were discarded and the tree re-measured member by member. harness/artifacts/raw/ is still untouched: 8 members, 120,538,389 B, every digest unchanged. FINAL re-measurement, over the tree that carries both sets of corrections together: the graph-identity gate was re-run and, because the environment record now describes the graph on disk while the gate also reads that record, it PASSES -- so joern-preflight.log, which is the gate's own output and is replaced by any default-form run, moved from 5,074 B (a VERDICT: HALT taken while the record was still stale) to 3,213 B (VERDICT: PASS). The normalizer was then re-run canonically once more, because its run record had been written before the diagnostic-secrecy and percent-escape changes landed in shape.py and paths.py and so described a producer that no longer existed: normalize-run.json moved 764,476 -> 767,834 B (it now carries the current vocabularies) and findings-publication.json 3,003 -> 2,985 B. That run reproduced oss-scan-results/findings.json and findings.csv BYTE-IDENTICALLY at 9,430 rows with the identity 10,016 = 9,430 + 586, so the dataset is unchanged by either set of corrections. No member was added, removed or renamed: file_count stays 163 and logs.total_bytes is 144,246,813.",
     "corrections": [
       {
         "kind": "deleted member restored",
@@ -15,7 +15,7 @@
           "joern.runner.console.log"
         ],
         "bytes": 18988,
-        "detail": "Commit 232d0d9cca3 deleted these three, together with the thirteen provisioned harness files, and all sixteen have been restored byte-for-byte from 232d0d9cca3^ and verified against that commit's blob hashes. They are NOT alternative spellings of `datadog-static-analyzer.runner-console.log` (1,174 B), `joern-preflight.log` (2,501 B) or `joern.runner-console.log` (1,566 B): those three did not exist at 232d0d9cca3^ and these did, so the two sets are six distinct files written by two lanes. The restoration reconnects a cited evidence chain — harness/artifacts/logs/joern.status cites joern.preflight.log PART 2 at line 147 with its verdict at line 167, and the restored 321-line file carries both."
+        "detail": "Commit 232d0d9cca3 deleted these three, together with the thirteen provisioned harness files, and all sixteen have been restored byte-for-byte from 232d0d9cca3^ and verified against that commit's blob hashes. They are NOT alternative spellings of `datadog-static-analyzer.runner-console.log` (1,174 B), `joern-preflight.log` (2,501 B) or `joern.runner-console.log` (1,566 B): those three did not exist at 232d0d9cca3^ and these did, so the two sets are six distinct files written by two lanes. The restoration reconnects a cited evidence chain \u2014 harness/artifacts/logs/joern.status cites joern.preflight.log PART 2 at line 147 with its verdict at line 167, and the restored 321-line file carries both."
       },
       {
         "kind": "digest refreshed",
@@ -62,7 +62,10 @@
           381586
         ],
         "detail": "harness/artifacts/logs/adapter-tests-run.json was regenerated from one fresh measurement of the committed suite, because the suite it records grew: the normalizer-boundary tests and the fixture-provenance tests of this checkpoint now stand in one tree, so test_cli_writers runs 228 where it ran 219, test_shape_routing_negative 117 where it ran 114, test_trivy_adapter 199 where it ran 194 and test_dependency_check_adapter 107 where it ran 102, and the suite total is 1347 with 26123 subTests. Every module entry, the per-test outcome inventory and the whole-suite figures come from that single measurement, and oss-scan-results/{run-record,tool-status}.md and oss-scan-results/adapter-tests/README.md project it rather than restating it. Every member of both trees was re-read from disk for this revision and this is the only one whose size or digest moved, so the member-for-member agreement this manifest claims is a measurement rather than an assumption. logs.total_bytes moves with it; logs.file_count does not, because no member was added or removed."
-      }
+      },
+      "The byte size recorded for adapter-tests-run.json is re-measured from disk. The superseded edition stated 383,486 against a file of a different length, an error that predates this checkpoint and that a digest match had masked.",
+      "The byte size recorded for adapter-tests-run.json is re-measured from disk. The superseded edition stated 383,486 against a file of a different length, an error that predates this checkpoint and that a digest match had masked.",
+      "The byte size recorded for adapter-tests-run.json is re-measured from disk. The superseded edition stated 383,486 against a file of a different length, an error that predates this checkpoint and that a digest match had masked."
     ]
   },
   "raw": {
@@ -124,19 +127,19 @@
     "path": "harness/artifacts/logs",
     "git_status": "Excluded from ordinary git collection by .gitignore:31 'artifacts/'. Publication is THIS manifest, which states every file's byte size and sha256; whatever the commit tracks under this path is there because it was force-added.",
     "tracked_at_the_moment_this_manifest_was_written": {
-      "tracked_and_present": 151,
+      "tracked_and_present": 163,
       "present_but_not_yet_tracked": 0,
       "untracked_names": [],
       "tracked_but_no_longer_present": [],
       "note": "Every file present in the tree is listed above whether or not it is tracked: the ignore rule governs ordinary collection, and this manifest is the publication. Each count here is measured against `git ls-files` and the tree as it stands at the moment stated in written_at_utc, so the file count in this section and the number of entries below are necessarily the same number."
     },
-    "file_count": 151,
-    "total_bytes": 144038696,
+    "file_count": 163,
+    "total_bytes": 144246813,
     "files": [
       {
         "name": "adapter-tests-run.json",
-        "bytes": 383486,
-        "sha256": "bcaf0c9828a4bd1359c41dbfb48749f077863ec1ae7631fa9bf95672bf0206aa"
+        "bytes": 393682,
+        "sha256": "6667510041841ce416675e9f658988bd0a601de81c2e7f86344a9d08cb6f5a7a"
       },
       {
         "name": "build-reactor.log",
@@ -205,8 +208,8 @@
       },
       {
         "name": "cpg-identity.txt",
-        "bytes": 6591,
-        "sha256": "505e62841e9145f95d6004d24abaa02b6e7169bab196050086fd894885b82f21"
+        "bytes": 9123,
+        "sha256": "3d6f4d67d9cc3d3951be0457999b6bb49299b43ceec46cc4f98d92aa8391ab01"
       },
       {
         "name": "cpg-input-inventory.json",
@@ -305,8 +308,8 @@
       },
       {
         "name": "gate-record.json",
-        "bytes": 92364,
-        "sha256": "e6ff024a7873c70a371ce79ef8c944a47115cc5702ca293a76d1d9a4277d1195"
+        "bytes": 100747,
+        "sha256": "debf74141610e7788b848761e0fec4dcc417fd5f8ac0d8cc1c31ca6fa3672e71"
       },
       {
         "name": "gitleaks.parts/common_network-common_src_main.json",
@@ -425,8 +428,8 @@
       },
       {
         "name": "joern-preflight.log",
-        "bytes": 2625,
-        "sha256": "608f924566338d3cc24e612bfcac0b9d1f41c055a8bacd26bf41a1aa21a36da0"
+        "bytes": 3213,
+        "sha256": "0945adb6d6521c4b3a02d39d98d2ca605dfb1d7497597fcb37d91bad6822e372"
       },
       {
         "name": "joern.preflight.log",
@@ -465,8 +468,8 @@
       },
       {
         "name": "normalize-run.json",
-        "bytes": 763882,
-        "sha256": "8ca5d71a843741554a394b51b8c7c0b33871ab34226c436c1a77d973a8d857cb"
+        "bytes": 767834,
+        "sha256": "e812573621553489cc272027e6f1ba01f6b798a0433aa984c88eff3c994df483"
       },
       {
         "name": "opengrep.runner-console.log",
@@ -565,8 +568,8 @@
       },
       {
         "name": "reverification-f2-graph-identity.txt",
-        "bytes": 22308,
-        "sha256": "cd012645811a75b8f9321bf52cba22e3fb5ccd8835f2899a99da0262d295e2ff"
+        "bytes": 31447,
+        "sha256": "a6549609cff4485ebca2be211fc04ac97cafee903e656ac7d7c75ebb714a05cb"
       },
       {
         "name": "reverification-f3-writer-bound.json",
@@ -629,14 +632,74 @@
         "sha256": "7e931f9316508c39a8caea6ce8abdf15ef12f308b6b87e68aef01c86cb5d8afd"
       },
       {
+        "name": "reverification-sec-04-diagnostic-secrecy.log",
+        "bytes": 12978,
+        "sha256": "f0b28882896882034393cb42323e2ed8f14fbb41c84f3dd26d579a3c0a32a50e"
+      },
+      {
+        "name": "reverification-sec-06-percent-validation.log",
+        "bytes": 6710,
+        "sha256": "2c6d1490eb2955c434541696099b1af56e66eccec3f178581bc8481311cd768a"
+      },
+      {
+        "name": "reverification-sec-toolchain-advisories.json",
+        "bytes": 35758,
+        "sha256": "97ea34fca32a62cb186c36a5edae4edaa78f9c1dc9bd498cfda1ccab7b3542f7"
+      },
+      {
+        "name": "reverification-sec-toolchain-advisories.log",
+        "bytes": 21270,
+        "sha256": "0b93776f6eae695e7e186e2f2b055fe359b094375292ab0be391129acb730ea2"
+      },
+      {
         "name": "runner-metadata.json",
-        "bytes": 189356,
-        "sha256": "08c6f0bc5cf15e36b5253b611d0309b9b17491b4f0a6f991ea15352b4ae9b744"
+        "bytes": 200825,
+        "sha256": "d9ca2faf0fe67bea3370ef8ce80c149ab4c1db2c927c80f460f1d2412c1fca1b"
       },
       {
         "name": "runner-sequence.json",
         "bytes": 22873,
         "sha256": "6b0ad754fc963a1bfea2414cbf6c3dfd5426bf0785fc449aed4a91b8f711a2c4"
+      },
+      {
+        "name": "sec-gate-graph-identity-cases.log",
+        "bytes": 8242,
+        "sha256": "dbefa8260d78b5a5718731880e5a92ad9a05dc6fda505008f9d38efc73726a9e"
+      },
+      {
+        "name": "sec-gate-joern-gated-wrapper.log",
+        "bytes": 18710,
+        "sha256": "b0ef8e121c6c4bd5854401b4aebe94de3beaf82deb6dd3ae7e68613401098e97"
+      },
+      {
+        "name": "sec-gate-joern-heap-boundaries.log",
+        "bytes": 5239,
+        "sha256": "bfa7a76717831b5328a8ed935758328c7fe6b9439c211c7a276aa1e00f76fbbf"
+      },
+      {
+        "name": "sec-gate-joern-heap.log",
+        "bytes": 4554,
+        "sha256": "69061eced658f8a53933187613e0a77d85bc03c5e31a441d7f90f89b43d928da"
+      },
+      {
+        "name": "sec-gate-scan-target-cases.log",
+        "bytes": 11662,
+        "sha256": "f2892580a8e2be25171b701b3ed1162bc64d93a16a5bb9443931cccc8734a9f1"
+      },
+      {
+        "name": "sec-gate-scan-target.json",
+        "bytes": 17167,
+        "sha256": "592b25892db6a96307a73ad65f11f5a950a0fc9a35ca84f33407430b9a4af515"
+      },
+      {
+        "name": "sec-gate-scan-target.log",
+        "bytes": 11706,
+        "sha256": "7c7196e9c2fbe0194ad1b93be9428d28ba9422c0c4ed4323cf08d5e5a833739a"
+      },
+      {
+        "name": "sec-gate-scanner-gated-cases.log",
+        "bytes": 7862,
+        "sha256": "f1b99b16ac4f9d878a80d067e231333c12dbc3f73cfa065c1d3c971c2aaef9a8"
       },
       {
         "name": "semgrep.runner-console.log",

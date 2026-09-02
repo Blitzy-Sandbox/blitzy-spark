@@ -205,6 +205,19 @@ Established once, from the provisioned files, and true of every entry below.
   **inspection** of the script; no rejection probe was run against any runner,
   because a blind probe against a defective runner could perform a real scan and
   contaminate the artifact tree.
+  **Probed behaviourally at the security checkpoint, 2026-09-02, once inspection had
+  already established the ordering.** The precaution above is about probing
+  *blind*; with every guard already read and confirmed to precede any scanning
+  step, the probe carries no such risk and adds the one thing inspection cannot —
+  the observed exit status. All nine were invoked as
+  `./harness/bin/run-<tool>.sh --help` and **all nine exited 64**: `trivy`,
+  `osv-scanner`, `dependency-check`, `gitleaks`, `checkov`, `opengrep`, `semgrep`,
+  `joern` and `datadog-static-analyzer`. `harness/artifacts/raw/` was fingerprinted
+  by sha256 before and after the nine invocations and the two fingerprints are
+  **identical across all eight artifacts**, so the probe scanned nothing and wrote
+  nothing — which is the property that made it safe to take. This adds a
+  behavioural confirmation to the inspection above; it does not replace it, and the
+  delivered lane's own statement is unchanged.
 - **Scan target.** Every runner resolves its target through `scope_resolve_target`
   in `harness/lib/scope.sh`, which reads `SPARK_SRC`. The variable in force was
   `SPARK_SRC=/opt/spark-src`, exported by `harness/env.sh` line 43; setting a
@@ -239,6 +252,48 @@ Established once, from the provisioned files, and true of every entry below.
   was attached. Because no credential was present, no runner could have written
   one into a preserved log and the halt that a live credential in an
   unmodifiable runner would have forced did not arise.
+- **A gated invocation route exists as of the security checkpoint, and what it
+  does and does not bind.** The security testing run of 2026-09-02 found that the
+  three properties above — scan target, smoke override and the safety of the values
+  interpolated into a runner's own command — are all **accepted without being
+  checked** by `scope_resolve_target`, which reads `SPARK_SRC` without comparing its
+  HEAD to the pin and returns `HARNESS_SMOKE_TARGET` whenever that variable is set
+  (SEC-01), and that `harness/bin/run-trivy.sh` lines 52–53 interpolate
+  `$TRIVY_CACHE_DIR` into `python3 -c` source, so a hostile value executes as code
+  (SEC-03). Neither file may be edited — `harness/lib/scope.sh` and every
+  `harness/bin/` entry are REFERENCE-only under AAP §0.6.1 and §0.8.1 — so the
+  checks were added **in front of** them instead, as
+  `harness/lib/preflight_scan_target.py` and the dispatcher
+  `harness/lib/run-scanner-gated.sh`. Invoked as
+  `./harness/lib/run-scanner-gated.sh <tool>`, the gate refuses a scan target whose
+  HEAD is not the pin, refuses a set smoke override including an empty one, and
+  refuses a path variable carrying shell or Python metacharacters, each at exit
+  **77** with the offending character named by codepoint and offset and **no
+  occurrence of the value itself** in its output. **The gate binds the gated route
+  only.** A direct `./harness/bin/run-<tool>.sh` behaves exactly as provisioned,
+  hostile value and all, because binding it would require editing a runner. That is
+  the residual, and it is recorded rather than closed: the root fix is a
+  provisioning act, stated per finding in
+  `run-record.md` §13. Nothing in this document's per-tool entries was produced
+  through the gated route — the lane on record predates it — and the gate has
+  invoked no runner: `harness/artifacts/raw/` still holds the same eight artifacts,
+  byte for byte.
+- **The interpreter and the JDKs now carry a sourced advisory assessment, and it
+  changes no count here.** The same testing run raised the runtime itself: the
+  hosting interpreter `/usr/bin/python3.13`, distribution build
+  `3.13.7-1ubuntu0.4` (SEC-05), the build JDK Temurin 17.0.20+8 (SEC-07), and
+  `asteval` 1.0.6 and `ecdsa` 0.19.2 inside the Checkov virtual environment
+  (SEC-08, SEC-09). All four are recorded with both publishers' answers in
+  `harness/artifacts/logs/reverification-sec-toolchain-advisories.{json,log}` and
+  **none is repaired**: AAP §0.4.3 and §0.8.1 prohibit installing, upgrading or
+  substituting any tool, so a vulnerable component is halt-and-report. Two
+  consequences bear on this document. First, the versions in every entry below are
+  unchanged and remain the pinned ones — no tool was moved. Second, the advisory
+  state is **not** a finding about Spark and produces no row: it is a property of
+  the toolchain the run executed on, and judging its exploitability is outside this
+  run's remit (AAP §0.3.2). The one figure it does govern is stated in
+  `run-record.md` D16: every count in this dataset was produced on that
+  interpreter, so a re-provisioned runtime would require re-measuring all of them.
 - **No time limit.** Elapsed times are recorded as facts. Every entry states the
   expected value against the observed one and stops there; no figure is read as
   late, slow or over budget.
@@ -270,7 +325,7 @@ Established once, from the provisioned files, and true of every entry below.
 | Reconciliation, per artifact | `1319 = 1319 + 0` — **pass** (`normalize-run.json` `reconciliation.stage_a`) |
 | Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
 | Row validation | pass; the 1,319 rows carry exactly the twelve fields, no absent `path` or `severity_norm`, and no absolute path. `severity_native` is **absent on all 1,319**, banded `Info` on basis `no_vocabulary` |
-| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 122 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
+| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 132 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`. Resolved indirectly: the runner sources `harness/lib/scope.sh` and calls `scope_resolve_target`, which reads the variable and exports `SCAN_ROOT` |
 | Resolved scan root | `/opt/spark-src`, verified |
 | Invocation form | one invocation, the 18 root-relative allowlist directories passed together |
@@ -434,7 +489,7 @@ established.
 | Reconciliation, per artifact | `1162 = 1162 + 0` — **pass** |
 | Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
 | Row validation | pass over this tool's 1,162 rows. `severity_native` is **absent on all 1,162**, banded `Info` on basis `no_vocabulary` |
-| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 122 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
+| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 132 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` at runner line 28. The target comes from the environment, never from the working directory |
 | Resolved scan root | `/opt/spark-src`, verified |
 | Invocation form | one invocation, the 18 root-relative allowlist directories passed together |
@@ -523,7 +578,7 @@ and parses.
 | Reconciliation, per artifact | `6832 = 6832 + 0` — **pass** |
 | Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
 | Row validation | pass over this tool's 6,832 rows. This is the only SARIF producer of the three whose results carry a `level`, so it is the only one contributing a non-absent `severity_native`: `error` 195 rows → High, `warning` 1,342 → Medium, `note` 5,275 → Low, `none` 20 → Info, all on basis `sarif_level` (`normalize-run.json` `severity_literals.tools`) |
-| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 122 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
+| Adapter fixture | **pass** — the shared SARIF adapter, `test_sarif_adapter`, 132 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` |
 | Resolved scan root | `/opt/spark-src`, verified; the tool's own Configuration block records `source directory : /opt/spark-src` |
 | Invocation form | one invocation: `-i` takes the absolute scan root and 18 `-u` restrictions confine the walk to the in-scope subdirectories |
@@ -1461,19 +1516,21 @@ is the code-property graph rather than a directory tree.
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved and verified. The scanned **input**, however, is the graph, passed through `HARNESS_CPG` |
 | Resolved scan root | `/opt/spark-src`, verified |
 | Invocation form | one invocation. No filesystem target appears on the command line: the graph path, the output path and the bound are passed through the environment and the script through `--script` |
-| Working directory | `/tmp/blitzy-harness-scratch/13/joern-run`, recorded verbatim by this invocation as `workspace : /tmp/blitzy-harness-scratch/13/joern-run (outside the repository; joern writes ./workspace)` in `harness/artifacts/logs/joern.runner-console.log`. The runner expresses it as `cd "$WORKDIR"` at `harness/bin/run-joern.sh` line 65 over `$HARNESS_SCRATCH_DIR/joern-run`, and `harness/env.sh` line 38 derives `HARNESS_SCRATCH_DIR` as `/tmp/blitzy-harness-scratch/${BLITZY_CLONE_INDEX:-0}` — this lane's clone index is **13**, so the console's value is the one of record. It is **the one runner whose working directory is not the scan root**, deliberately: this tool exposes no workspace flag and writes its workspace into whatever directory it runs from, so the runner works in the per-clone scratch directory and never in the repository |
+| Working directory | `/tmp/blitzy-harness-scratch/13/joern-run`, recorded verbatim by this invocation as `workspace : /tmp/blitzy-harness-scratch/13/joern-run (outside the repository; joern writes ./workspace)` in `harness/artifacts/logs/joern.runner-console.log`. The runner expresses it as `cd "$WORKDIR"` at `harness/bin/run-joern.sh` line 149 over `$HARNESS_SCRATCH_DIR/joern-run`, and `harness/env.sh` line 38 derives `HARNESS_SCRATCH_DIR` as `/tmp/blitzy-harness-scratch/${BLITZY_CLONE_INDEX:-0}` — this lane's clone index is **13**, so the console's value is the one of record. It is **the one runner whose working directory is not the scan root**, deliberately: this tool exposes no workspace flag and writes its workspace into whatever directory it runs from, so the runner works in the per-clone scratch directory and never in the repository |
 | Path base | **bytecode class**, with **no value** — no filesystem base exists for this tool's records, and none was invented. The emitted `file` field is the frontend's ephemeral `/tmp/jimple2cpg-<id>/<pkg>/<Class>.class` extraction path and can never be a path in the Spark tree, so the `class` field is the only resolvable coordinate — `coordinate_from_class` is **693 of 693** records and `coordinate_from_class_file` is 0. Resolution is against `src/main` **and** `src/test` under the pinned root, taken only where unique: it succeeded for 107 records (`resolution_from_class` 107) and the other 586 were rejected |
 | JDK major | **21** — `/opt/blitzy-tools/jdk/jdk-21.0.12.1+1`, `openjdk version "21.0.12.1" 2026-08-18 LTS`, VM `21.0.12.1+1-LTS`, matching the expected Temurin build with no patch difference to record. Taken from `java.specification.version` — the JVM's own property output — rather than off a banner. Two independent pins agree: the runner sets `JAVA_HOME="$JAVA_HOME_21"` and asserts that JDK usable before invoking, and the `joern` launcher on `PATH` is a provisioning wrapper that pins the same JDK. A wrong major here halts the run; a patch difference with the correct major is recorded with both values |
 | Interpreter | none — the runner invokes no Python interpreter |
 | Credential expression | **none.** This runner reads no credential and calls `scope_cred_state` nowhere |
 
-**Baked flags, as read** at scan time from `harness/bin/run-joern.sh` lines 67–71:
+**Baked flags, as read** at scan time from `harness/bin/run-joern.sh` lines 67–71 — the
+lines that carried the invocation then; the same block sits at lines 151–158 in the
+corrected runner, and the delta is named below:
 `--script harness/lib/joern-scan.sc`, `-J-Xmx"$HARNESS_JOERN_HEAP"`, and stdin
 redirected from `/dev/null`. `SL_LOGGING_LEVEL` is set to `WARN`, because the
 default level floods the artifact. None of these is an anchor. **Both files named
 in that sentence — the runner and the script it invokes — are present in this
 checkout and readable**, so the reading above is re-derivable rather than taken on
-trust: `harness/bin/run-joern.sh` lines 67–71 carry the invocation verbatim,
+trust. The invocation **as it ran**, verbatim:
 
 ```
 JAVA_HOME="$JAVA_HOME_21" SL_LOGGING_LEVEL="${SL_LOGGING_LEVEL:-WARN}" \
@@ -1483,12 +1540,32 @@ JAVA_HOME="$JAVA_HOME_21" SL_LOGGING_LEVEL="${SL_LOGGING_LEVEL:-WARN}" \
     < /dev/null > "$OUT" 2> "$ERR"
 ```
 
-with `harness/bin/run-joern.sh` line 70 the `-J-Xmx` site, and `harness/lib/joern-scan.sc` lines 1–6 describe
-the baked set as six structural queries in the script's own words. The same facts
-are held structurally by `runner-metadata.json`
-`tools.joern.invocation_form.literal`, whose `source_lines` field reads
-`harness/bin/run-joern.sh lines 67-71` and equals the five lines above token for
-token, and by `tools.joern.baked_flags`. **The `.status` trailer is not a source
+The **corrected** runner carries this instead, at lines 151–158:
+
+```
+JAVA_HOME="$JAVA_HOME_21" SL_LOGGING_LEVEL="${SL_LOGGING_LEVEL:-WARN}" \
+  JAVA_TOOL_OPTIONS="$CHILD_JAVA_TOOL_OPTIONS" \
+  HARNESS_SCAN_CPG="$CPG_REAL" HARNESS_SCAN_OUT="$ART" HARNESS_SCAN_BOUND="$BOUND" \
+  HARNESS_SCAN_HEAP_FLOOR_BYTES="$HEAP_FLOOR_BYTES" \
+  HARNESS_SCAN_HEAP_RECORD="$HEAP_RECORD" \
+  joern --script "$SCRIPT" \
+    -J-Xmx"$HARNESS_JOERN_HEAP" \
+    < /dev/null > "$OUT" 2> "$ERR"
+```
+
+**The delta is three environment assignments and nothing else** — `JAVA_TOOL_OPTIONS`,
+`HARNESS_SCAN_HEAP_FLOOR_BYTES` and `HARNESS_SCAN_HEAP_RECORD`, added 2026-09-02 so the
+child JVM that holds the graph inherits the floor-checked heap and measures itself against
+the floor. No flag was added, removed or altered, no query changed and the bound is
+unchanged, which is why the two invocations remain comparable. `harness/bin/run-joern.sh`
+line 157 is the `-J-Xmx` site in the corrected runner (line 70 in the invocation of record),
+and `harness/lib/joern-scan.sc` lines 1–6 describe the baked set as six structural queries
+in the script's own words — those lines are byte-identical across the correction. The same
+facts are held structurally by `runner-metadata.json`
+`tools.joern.invocation_form.literal`, which carries the **corrected** eight-line form and
+whose `source_lines` field reads `harness/bin/run-joern.sh lines 151-158`, equalling the
+second block above token for token, with `literal_change_2026_09_02` naming the delta; and
+by `tools.joern.baked_flags`. **The `.status` trailer is not a source
 for any of this** and is not cited as one: like the other eight it is seven lines
 carrying only `tool`, `exit_code`, `elapsed_seconds`, `artifact`,
 `artifact_bytes`, `scan_root` and `scan_root_source`, so it holds no command, no
@@ -1499,11 +1576,51 @@ which is why that quotation is recorded here as history and the runner itself is
 cited in its place. Reading the runner is not editing it: AAP 0.8.1 forbids
 editing a runner or a baked flag, and nothing here was edited.
 
-**Heap actually used: 64 GB**, as `-J-Xmx64g` (68,719,476,736 bytes), which the
-runner also prints into its own stream. The mechanism is `HARNESS_JOERN_HEAP`, the
-runner's own documented environment override applied at `harness/bin/run-joern.sh` line 70 — a runtime value
-rather than a configuration edit, no runner file or baked flag having been
-changed. **No raise was required and none was made**: the provisioned default at
+**Heap actually used: two JVMs, and the invocation of record met the 64 GB minimum on
+only one of them.** `joern --script` starts a parent `ReplBridge` JVM and forks a child
+`replpp.scripting.NonForkingScriptRunner`, and it is the **child** that runs `importCpg`
+and every query — so the child is the JVM AAP 0.8.2's minimum is about. `-J-Xmx` is a
+launcher flag and reaches the parent only; the launcher does not forward it. **Measured
+on both processes**: parent `MaxHeapSize` **68,719,476,736** (64 GB, as `-J-Xmx64g`) but
+child `MaxHeapSize` **32,178,700,288** — 29.97 GiB, the JDK's default ergonomic
+quarter-of-RAM on this 3.75 TiB host — while the runner printed `heap : 64g` into its own
+stream, a line that described the launcher and said nothing about the JVM holding the
+graph. The mechanism was `HARNESS_JOERN_HEAP`, the runner's own documented environment
+override applied at `harness/bin/run-joern.sh` line 70 in the runner of record.
+
+**Corrected 2026-09-02, and now 68,719,476,736 bytes on both.** `harness/bin/run-joern.sh`
+floor-checks `HARNESS_JOERN_HEAP` against 68,719,476,736 bytes at its lines 77–89 and exits
+78 before anything is loaded if the value is unparsable or below it. `harness/bin/run-joern.sh`
+line 95 appends `-Xmx"$HARNESS_JOERN_HEAP"` **last** to the child's `JAVA_TOOL_OPTIONS` so
+the child inherits it, the last `-Xmx` in that string being the one the JVM applies — a
+caller may therefore raise the heap and cannot lower it. `harness/lib/joern-scan.sc` lines
+92–102 measure `Runtime.getRuntime.maxMemory()` inside the child before `importCpg`, and
+`harness/bin/run-joern.sh` lines 166–208 read that measurement back and **replace the exit
+code with 78 and remove the artifact** if it is absent, unparsable or below the floor.
+Re-verified with the JDK 21 `jcmd VM.flags`
+on both processes and by the child's own record.
+
+**Two log members the corrected runner adds, and why neither appears in this
+generation's log tree.** It now writes `$HARNESS_LOG_DIR/joern.preload-identity.log` (the
+pre-load identity gate's full report) and `$HARNESS_LOG_DIR/joern.child-jvm.json` (the heap
+the child measured of itself: `heap_max_bytes`, `heap_floor_bytes`, `at_or_above_floor`,
+`jvm_memory_stack_args`, `jdk_major`, `vm_version`). **Neither is in
+`harness/artifacts/logs/` and neither is claimed to be**: the invocation of record ran the
+runner as it then stood, and the only runs that have produced them were given a redirected
+`HARNESS_LOG_DIR` inside private scratch precisely so no canonical artifact, stream or
+status file could be overwritten. They are named here as a property of the corrected
+runner, not as delivered files — publishing manifest entries for files this checkout does
+not hold would be inventing evidence. Both are separate files by design: `scope_finish`
+still writes exactly seven `key=value` lines and **no field was added to any `.status`
+file**, so the trailer shape every citation depends on is unchanged.
+
+**The artifact in this entry was not rebuilt**: its 693 findings were compared element for element against a re-run at a
+measured 64 GB child heap and are identical, byte-identical once `elapsed_ms` is
+normalised — so the sub-floor child heap **truncated nothing** at this graph's size, every
+figure in this entry stands, and the defect was that nothing would have detected truncation
+had it occurred. `run-record.md` **D25** records the runner edit as a disclosed divergence.
+
+**No raise was required and none was made**: the provisioned default at
 `harness/env.sh` line 85 is already 64 GB, which meets the mandated minimum. The
 precedent's 48 GB `JAVA_OPTS` default — below that minimum — was **not in effect**
 here, on two grounds: `JAVA_OPTS` was unset in the sourced environment, and this
@@ -1527,8 +1644,8 @@ tool, last of the nine — fields `graph_identity_before_load` and
 `graph_identity_after_load`; the link-only 33-byte measurement is recorded only to
 discard it in favour of the symlink-following size). The runner prints the same
 three facts into its own stream before invoking — `cpg`, `cpg bytes` and
-`cpg sha256` at `harness/bin/run-joern.sh` lines 56–58, which the runner is present
-in this checkout to show, landing at
+`cpg sha256` at `harness/bin/run-joern.sh` lines 111–113 (lines 56–58 in the runner of
+record), which the runner is present in this checkout to show, landing at
 `harness/artifacts/logs/joern.runner-console.log` lines 13–15 as `541309809` and
 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`. The dedicated
 pre-load gate `harness/lib/preflight_graph_identity.py`, whose output is retained
@@ -1538,7 +1655,16 @@ the graph's record of account at
 with both size and sha256 marked `MATCH`; that gate ran at 14:52:54Z, after this
 invocation rather than before it, and is cited for what it establishes — that the
 bytes read and the record of account agree — rather than as the thing that gated
-this particular load. The load used `importCpg`, three occurrences of it against
+this particular load. **The ordering was the defect, and it is fixed**: since
+2026-09-02 the runner runs that gate itself, `--check-only`, at its line 139 —
+structurally upstream of every `joern` invocation — teeing the report to its console and
+to `$HARNESS_LOG_DIR/joern.preload-identity.log`, and `scope_fail`s with exit **78** at
+its lines 142–144 on a non-zero gate status, before it touches its artifact. Proven by a
+negative test: with `HARNESS_CPG` pointed at bytes of a different identity the gate
+exited 77, the runner exited 78, `VERDICT: HALT` was printed, and no `importCpg` and no
+artifact write occurred. Until then the gate was bound only by
+`harness/lib/run-joern-gated.sh`, which this load did not take (`run-record.md` **D4**,
+and **D25** for the runner edit). The load used `importCpg`, three occurrences of it against
 **zero occurrences of `importCode`** in the query script, and reported
 `methods=1396899 typeDecls=119721 files=45037` — more than zero methods. The graph
 was **not** written by this run: the frontend in this clone reached the flatgraph
@@ -1566,19 +1692,28 @@ did produce their own main artifact, which is again `build-record.md`'s verdict 
 and it is published as a divergence rather than repaired by trimming the input set
 or weakening the witness test.
 
-**One disagreement about that identity, recorded rather than smoothed over.** The
-inherited environment record — `harness/ENVIRONMENT.md`, lines 284–287, restated in
-its own inlined-values block at lines 841–846 — states a different graph:
+**One disagreement about that identity, recorded rather than smoothed over — and since
+corrected at the record.** The environment record — `harness/ENVIRONMENT.md`, lines
+284–287, restated in its own inlined-values block at lines 841–846 — **stated** a
+different graph:
 **541,255,894** bytes, sha256
 `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`, with
 1,397,339 methods and 119,691 type declarations, against the
 541,309,809 / `4616845a…` / 1,396,899 / 119,721 measured on disk and read by this
-load. The gate records that as one of its **two halts**,
+load. The gate recorded that as one of its **two halts**,
 `gate.environment_record_graph_identity_agreement`, rather than as a tolerated
 difference: it is an observable fact contradicting the record on an inherited
-field. Both values stand here with their provenance, neither is reconciled into
+field. **Corrected 2026-09-02, at the record and not at the graph**: the disagreement was
+the record being stale — the host was re-provisioned on 2026-08-30 — and the graph's own
+write-time record of account, `/opt/blitzy-harness/provision-log/cpg-record.txt`, carries
+an "Expected vs observed (prior provisioning record)" block that names both pairs and
+states which describes the bytes. Those lines were re-anchored to that owner and now state
+541,309,809 / `4616845a…4730c7` / 1,396,899 / 119,721 — the pair this load read — with
+both values retained in that document's supersession appendix. **The graph was not
+touched**, so this entry's identity measurements and every figure resting on them are
+unchanged. Both values still stand with their provenance, neither is reconciled into
 the other, and the wider account of the divergence belongs to
-`oss-scan-results/run-record.md`.
+`oss-scan-results/run-record.md` (**D4**, with **D25** for the record edit itself).
 
 **Rejections, all 586 under `unresolvable_path`.** Each rejected record is a
 bytecode class with no source coordinate in the pinned tree — third-party classes
@@ -1630,7 +1765,7 @@ under `queries/joern/results/`.
 `/usr/bin/python3 <checkout>/harness/lib/normalize/cli.py`, run from the checkout
 root, interpreter `/usr/bin/python3` reporting **3.13.7** against an expected
 3.13.7 — matches; CPython, `3.13.7 (main, Mar  3 2026, 12:19:54) [GCC 15.2.0]`.
-It ran from **2026-09-02T17:49:20Z to 17:49:25Z** and exited **0**, outcome
+It ran from **2026-09-02T22:56:48Z to 22:56:54Z** and exited **0**, outcome
 `completed`, with `reconciliation.passed` true, no failures and no halt. It uses
 the standard library only, so it introduces no manifest, no lockfile and no
 install step. Stages A and B are established **before** either output file is
@@ -1640,20 +1775,20 @@ are this run's measurements (`harness/artifacts/logs/normalize-run.json`).
 
 **The adapter tests.** Command
 `/usr/bin/python3 -m unittest discover -s oss-scan-results/adapter-tests -p 'test_*.py' -v`,
-run from 2026-09-02T17:39:13Z to 17:39:25Z, suite exit **0**, result **OK**.
-`unittest` reported **1,347 tests** in **11.966 s** (**11,966 ms wall**), with
-**26,123 subTests** and 0 failures, 0 errors, 0 skips, 0 expected failures and
+run from 2026-09-02T21:19:32Z to 21:19:44Z, suite exit **0**, result **OK**.
+`unittest` reported **1,361 tests** in **11.970 s** (**12,183 ms wall**), with
+**26,198 subTests** and 0 failures, 0 errors, 0 skips, 0 expected failures and
 0 unexpected successes. Interpreter `/usr/bin/python3` at **3.13.7**, the same
 base interpreter as the normalizer and independent of every scanner's
 environment. 10 test modules, each run on its own and each exiting 0, whose own
 counts sum to the suite total — `test_checkov_adapter` 127,
 `test_cli_writers` 228, `test_dependency_check_adapter` 107,
 `test_emit_publication` 75, `test_gitleaks_adapter` 93, `test_joern_adapter` 117,
-`test_reconciliation` 162, `test_sarif_adapter` 122,
-`test_shape_routing_negative` 117 and `test_trivy_adapter` 199, giving
-127 + 228 + 107 + 75 + 93 + 117 + 162 + 122 + 117 + 199 = 1347. The corpus is
-**105 fixtures** and 105 **expected files** in one-to-one correspondence, of
-which **72 negative fixtures** drive the rejection conditions. A failed adapter
+`test_reconciliation` 162, `test_sarif_adapter` 132,
+`test_shape_routing_negative` 121 and `test_trivy_adapter` 199, giving
+127 + 228 + 107 + 75 + 93 + 117 + 162 + 132 + 121 + 199 = 1361. The corpus is
+**106 fixtures** and 106 **expected files** in one-to-one correspondence, of
+which **73 negative fixtures** drive the rejection conditions. A failed adapter
 fixture, rejection or reconciliation test is a condition that **stops the run**;
 no executed test failed, and no result here is recorded as a soft warning, a
 known failure, an expected failure or a skip
@@ -1742,7 +1877,7 @@ reads, so a third check starts from the closed vocabulary of words these documen
 to introduce a locator — *line*, *lines*, *at*, *its*, and an attached `:` — and
 requires every occurrence beside an adjudicable file to be either consumed by a
 recognised locator or explained by a **named** non-locator class: a unit stuck to the
-number (`64g`), a following unit word (`923 lines`), a decimal (`974.22 s`), a
+number (`64g`), a following unit word (`1,044 lines`), a decimal (`974.22 s`), a
 timestamp, a ratio (`24 / 19 / 4`) or a hyphenated compound (`122-member`). Its last
 run left **0 unexplained**. An introducer that no pattern reads and no class explains is
 reported, because the introducer is still there when the pattern misses it.
@@ -1823,35 +1958,56 @@ AAP 0.6.2 and 0.9.4 is therefore **met at this milestone**, and the zero-record
 scope measurement stands beside it rather than under it.
 
 **The suite has grown by 205 against the generation this document first reported** —
-from a suite total of 1,142 to the 1,347 measured above — and every figure above is
-the new measurement rather than an old one adjusted. The growth arrived in two steps.
+from a suite total of 1,142 to the 1,361 measured above — and every figure above is
+the new measurement rather than an old one adjusted. The growth arrived in three steps.
 The first carried the total to 1,325 across three modules: `test_cli_writers`
 59 → 219, `test_sarif_adapter` 108 → 122 and `test_emit_publication` 66 → 75. The
-second is this milestone's, and carries it to 1,347 across four: `test_cli_writers`
+second was the preceding milestone's, and carried it to 1,347 across four: `test_cli_writers`
 219 → 228, covering the `--repo-root` declaration of the dataset owner root,
 `test_shape_routing_negative` 114 → 117, covering the halt on an unexpected direct
 child of the raw artifact tree, and `test_trivy_adapter` 194 → 199 with
 `test_dependency_check_adapter` 102 → 107, covering the recorded-fixture-metadata
 contract that asserts each fixture's recorded path, digest, byte size and logical
-line count against the file on disk. The other four modules' counts are unchanged
-throughout, and no fixture was added at the second step — the corpus stands at the
-same 105 fixtures and 72 negative fixtures. Two of the first step's new tests rest on
-**two new committed negative fixtures**, both for the shared SARIF adapter, each with
-its own hand-verified expected file:
+line count against the file on disk. No fixture was added at the second step.
+
+The third step is the security checkpoint's, and carries the total to **1,361**
+across two modules: `test_sarif_adapter` 122 → 132 and
+`test_shape_routing_negative` 117 → 121. Both cover controls added in response to
+security testing findings, and both are behaviour that did not exist before it.
+The ten new SARIF-adapter tests cover the **diagnostic redaction policy**: that
+artifact-controlled text reaches no diagnostic, no persisted record and no
+`details()` field in plaintext, that what replaces it is stronger evidence — value
+type, context, exact character length, full sha256 and a `publishable` flag — and
+that text publishes verbatim only when it is byte-equal to a literal the code
+itself authors. The four new shape-routing tests cover the **malformed
+percent-escape refusal**: a URI reference carrying `%`, `%2` or `%GG` is refused
+as `invalid_uri` rather than emitted as a path, at each of the six guard sites,
+with the reporter naming the offending index without reproducing the offending
+sequence. The other eight modules' counts are unchanged at this step, and it adds
+**one** fixture, taking the corpus to 106 fixtures and 73 negative fixtures.
+
+Three of the new tests across the second and third steps rest on **three new
+committed negative fixtures**, all for the shared SARIF adapter, each with its own
+hand-verified expected file:
 
 | Fixture | Bytes | What it asserts | Rejection class | Identity |
 | --- | ---: | --- | --- | --- |
 | `oss-scan-results/adapter-tests/fixtures/reject-sarif-rule-index-mismatch.sarif` | 6,659 | a result whose `ruleId` contradicts the rule its `ruleIndex` names is **rejected**, not emitted under either identifier | `malformed_record` | `3 = 2 + 1` |
 | `oss-scan-results/adapter-tests/fixtures/reject-sarif-percent-encoded-control.sarif` | 16,199 | a percent-encoded control character in a URI reference is **rejected after decoding**, the raw-form check alone not being the guard it looks like | `invalid_uri` | `6 = 2 + 4` |
+| `oss-scan-results/adapter-tests/fixtures/reject-sarif-malformed-percent-escape.sarif` | 16,198 | a `%` that is not followed by two hexadecimal digits is **refused as a malformed escape**, rather than passed through as ordinary path text by a decoder that leaves it in place without raising | `invalid_uri` | `6 = 2 + 4` |
 
-Both are rejection **routes that did not exist in the adapter before this
-checkpoint**, so their fixtures exercise behaviour rather than restate it: the
-first is the two-route rule-identifier lookup refusing a record whose two
-descriptors disagree, and the second is the control-character check re-made after
-every percent-decode. Neither route was reached by any of the nine artifacts this
-run normalized, which is why the fixtures exist at all — a rejection path with no
-test is a rejection path nobody has exercised (AAP 0.6.2). The negative-fixture
-corpus is now **72** over **105** committed fixtures and 105 expected files.
+All three are rejection **routes that did not exist in the adapter before the
+checkpoint that added them**, so their fixtures exercise behaviour rather than
+restate it: the first is the two-route rule-identifier lookup refusing a record
+whose two descriptors disagree, the second is the control-character check re-made
+after every percent-decode, and the third is the malformed-escape refusal that
+precedes decoding altogether. **None of the three routes was reached by any of the
+nine artifacts this run normalized**, which is why the fixtures exist at all — a
+rejection path with no test is a rejection path nobody has exercised (AAP 0.6.2) —
+and it is also why adding the third moved no dataset row: the committed
+`findings.json` carries **0** paths containing `%`, and both output files
+re-normalize byte-identically after the change. The negative-fixture corpus is now
+**73** over **106** committed fixtures and 106 expected files.
 
 ## Shape detection and routing, per artifact
 

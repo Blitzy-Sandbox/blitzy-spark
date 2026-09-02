@@ -61,7 +61,7 @@ figure of **this** generation and of no earlier one:
 | `findings.json` | 4,408,640 bytes, sha256 `d4e28c823fd1e76c2158130dc941762e0c6cf23424c0c990c930cc84ece6fc54` |
 | `findings.csv` | 2,081,618 bytes, sha256 `9f646532494fcba3ad95a8e10f15f77957b9f16bea0b486b513e2a830f5445e6` |
 | Rows | 9,430 |
-| Normalizer invocation | started 2026-09-02T17:49:20Z, finished 2026-09-02T17:49:25Z, exit 0 (`normalize-run.json` `started_at_utc`, `finished_at_utc`, `exit_status`) |
+| Normalizer invocation | started 2026-09-02T22:56:48Z, finished 2026-09-02T22:56:54Z, exit 0 (`normalize-run.json` `started_at_utc`, `finished_at_utc`, `exit_status`) |
 
 The publication identifier is **content-derived** — a sha256 over the scheme name
 followed by one `<role>\t<sha256>` line per member in ascending role order,

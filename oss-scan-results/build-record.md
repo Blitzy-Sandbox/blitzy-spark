@@ -164,12 +164,18 @@ would misread it.
   both halves are stated wherever either is.** The runner recomputed the size and digest itself and
   printed `cpg bytes : 541309809` / `cpg sha256 : 4616845a…4730c7` inside its own
   `2026-09-01T14:25:10Z → 14:41:24Z` invocation (`joern.runner-console.log:14-15`, from
-  `harness/bin/run-joern.sh:57-58`). The comparison of that pair against the record of account —
+  `harness/bin/run-joern.sh:112-113`). The comparison of that pair against the record of account —
   `joern-preflight.log`, **VERDICT: PASS** — is stamped `2026-09-01T14:52:54Z` with `Clone index 0`,
   about **11.5 minutes after that load ended and from a different clone**. So AAP §0.8.2's
   "immediately before every load" is **not** satisfied for that one load, and this file does not claim
   it is. The resolved file's mtime precedes every check and all five checks state the one pair above, so
   no substitution occurred: the control ran late, the outcome is sound, and section 5 states both.
+  **The ordering has since been fixed in the runner, on 2026-09-02**: `harness/bin/run-joern.sh` line
+  139 now runs `harness/lib/preflight_graph_identity.py --check-only` itself, structurally upstream of
+  every `joern` invocation, and `harness/bin/run-joern.sh` lines 142-144 exit **78** on a non-zero gate
+  status before the runner touches its artifact — so the direct no-argument path cannot load a graph it
+  has not first compared. That correction changes nothing about the load recorded here, which is left
+  exactly as measured; `run-record.md` **D4** carries the ordering and **D25** the runner edit.
 - **The requirement that this run create that graph is unmet and unmeetable at this pin**, for the
   measured reason the blockquote states and section 5 evidences from the failing method's own
   bytecode and from a **three**-heap re-verification spanning a sixteenfold range of reported heap. It is published as a divergence, carried in the run's
@@ -885,7 +891,7 @@ clone**. That is stated as the ordering defect it is, not as a pass, in the subs
 | Load | When the check ran | Record | Result |
 | --- | --- | --- | --- |
 | Stage 2 `importCpg` verification load | 2026-09-01T13:31:15.334Z, before the load | `cpg-verify.log:54-57`, under the heading "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY BEFORE THE LOAD" at `:51` | MATCH on both fields |
-| Stage 3 Joern runner — recompute, contemporaneous | inside the invocation, 2026-09-01T14:25:10Z → 14:41:24Z | `harness/bin/run-joern.sh:57-58` computing `stat -c%s` and `sha256sum` over the resolved target, printed at `joern.runner-console.log:14-15` | `cpg bytes : 541309809`, `cpg sha256 : 4616845a…4730c7` |
+| Stage 3 Joern runner — recompute, contemporaneous | inside the invocation, 2026-09-01T14:25:10Z → 14:41:24Z | `harness/bin/run-joern.sh:112-113` computing `stat -c%s` and `sha256sum` over the resolved target, printed at `joern.runner-console.log:14-15` | `cpg bytes : 541309809`, `cpg sha256 : 4616845a…4730c7` |
 | Stage 3 Joern runner — comparison against the record of account, **after the fact** | 2026-09-01T14:52:54Z, `Clone index 0` (`joern-preflight.log:17-18`) — about 11.5 min after the load ended, in another clone | `joern-preflight.log:27-28` recorded pair, `:36-37` re-measured `MATCH`/`MATCH`, `:43` | **VERDICT: PASS**, but not a pre-load check for this load |
 | Stage 5 probe query 01 | 2026-09-01T14:56:12.096Z, before the load | `probe-01-callgraph-unguarded-driver-launch.identity.txt` | `bytes=541309809`, same sha256 |
 | Stage 5 probe query 02 | 2026-09-01T15:08:05.774Z, before the load | `probe-02-dataflow-unguarded-driver-launch.identity.txt` | `bytes=541309809`, same sha256 |
@@ -893,7 +899,7 @@ clone**. That is stated as the ordering defect it is, not as a pass, in the subs
 
 **The Stage 3 ordering, and what it does and does not put in doubt.** The two halves must travel
 together. What was contemporaneous is the **measurement**: the runner reads the graph's size and digest
-from the resolved target itself at `harness/bin/run-joern.sh:57-58` and prints them before it hands the
+from the resolved target itself at `harness/bin/run-joern.sh:112-113` and prints them before it hands the
 path to `harness/lib/joern-scan.sc`, and `joern.runner-console.log:14-15` carries them inside the
 invocation its own header brackets (`argv=["./harness/bin/run-joern.sh"]`,
 `started=2026-09-01T14:25:10Z ended=2026-09-01T14:41:24Z`, `clone_index=13`). What ran late is the
@@ -918,22 +924,34 @@ recompute at load time, and the after-the-fact comparison. The log is published 
 §0.8.1 and is not edited, which is why the correction is stated in this file. The run-level register
 entry for both this and the ordering above is **D4** in `oss-scan-results/run-record.md` §13.
 
-**One live contradiction, recorded with both values and repaired by nothing.**
-`harness/ENVIRONMENT.md` §7 states this graph's identity explicitly, and the filesystem contradicts it:
+**One contradiction, recorded with both values — and since corrected at the record.**
+`harness/ENVIRONMENT.md` §7 stated this graph's identity explicitly, and the filesystem
+contradicted it:
 
 | Source | Bytes | sha256 | Methods |
 | --- | --- | --- | --- |
-| `harness/ENVIRONMENT.md:284-286`, the provisioned record in this clone | 541,255,894 | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | 1,397,339 |
+| `harness/ENVIRONMENT.md:284-286` **as the gate read it** (that document now states the row below) | 541,255,894 | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | 1,397,339 |
 | The bytes on disk, measured through the symlink and loaded by this run | **541,309,809** | **`4616845a…4730c7`** | **1,396,899** |
 
 Neither the byte size nor the digest is a field the request's expected-values table carries, so on those
-two fields the record is the only statement and observation contradicts it. That is AAP §0.1.3's fourth
-case, and `harness/artifacts/logs/gate-record.json` carries it as the gate halt
+two fields the record was the only statement and observation contradicted it. The gate read that as AAP
+§0.1.3's fourth case, and `harness/artifacts/logs/gate-record.json` carries it as
 `gate.environment_record_graph_identity_agreement` — one of the two halts in a gate whose overall
 verdict is `halt`. The cause is inherited rather than produced: the host was re-provisioned on
-2026-08-30 and the shared graph was replaced, and this run built no graph of its own. Repair is not
-available in any case — the file is host-global and read by concurrent clones — so both values are
-recorded wherever either is cited, and neither is chosen.
+2026-08-30 and the shared graph was replaced, and this run built no graph of its own.
+
+**CORRECTED 2026-09-02, at the record and not at the graph.** The fourth case applies only where no
+anchor exists to adjudicate between record and observation, and one does:
+`/opt/blitzy-harness/provision-log/cpg-record.txt`, written beside the bytes at
+`2026-08-30T19:33:42Z`, carries an "Expected vs observed (prior provisioning record)" block naming both
+pairs, labelling the record's figures `PRIOR` and the filesystem's `NOW`, and stating the cause. §7 and
+the inline-values block were re-anchored to that owner and now state the second row of the table above;
+both values are retained with their provenance in that document's supersession appendix. **The graph was
+not touched, not rebuilt and not replaced** and nothing was written under `/opt/blitzy-harness`, so every
+count, digest and coverage verdict in this file is unchanged and every identity check already logged
+against `4616845a…4730c7` still holds. Both values are still recorded wherever either is cited;
+`run-record.md` **D4** carries the divergence and **D25** the record edit as a disclosed departure from
+AAP §0.6.1.
 
 ### The three counts, against their expected values
 
@@ -1111,10 +1129,11 @@ generation in clone 13 (`cpg-verify.log:34-35`), against exactly those bytes —
 them at `:40-41` and its pre-load identity check re-measures them at `:54-57`. Every "graph result" and
 every verdict in the first column below, and the type-declaration cross-reference at the end of this
 section, are that load's PHASE 2 measurements (`cpg-verify.log:124-266`) of those bytes. No verdict here
-is a measurement of the superseded **541,255,894 / `26d327cc…`** generation: that pair is the inherited
-environment record's (`harness/ENVIRONMENT.md:284-288`), it is stated in section 5's and section 7's
-contradiction tables as the contradiction, and `cpg-verify.log` names it only at its own `:84-88`, and
-only to identify the record the filesystem contradicts.
+is a measurement of the superseded **541,255,894 / `26d327cc…`** generation: that pair was the inherited
+environment record's (`harness/ENVIRONMENT.md:284-288`, which since 2026-09-02 states the pair on disk
+instead and keeps the superseded pair in its supersession appendix), it is stated in section 5's and
+section 7's contradiction tables as the contradiction, and `cpg-verify.log` names it only at its own
+`:84-88`, and only to identify the record the filesystem contradicted.
 
 A figure that once read as a **third** coverage statement at a different denominator is **withdrawn by
 its own record**, so no third verdict is stated below. `cpg-graph-record.log:65-69` withdraws the summary
@@ -1423,16 +1442,23 @@ every load in this run read:
 
 | Source | Bytes | sha256 | Methods / typeDecls / files |
 | --- | --- | --- | --- |
-| `harness/ENVIRONMENT.md:284-288`, the provisioned record in this clone | 541,255,894 | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | 1,397,339 / 119,691 / 45,037 |
+| `harness/ENVIRONMENT.md:284-288` **as the gate read it** (that document now states the row below) | 541,255,894 | `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc` | 1,397,339 / 119,691 / 45,037 |
 | The file on disk, measured through the symlink and recorded in `harness/artifacts/logs/cpg-identity.txt`; loaded and counted by `cpg-verify.log` | 541,309,809 | `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` | 1,396,899 / 119,721 / 45,037 |
 
 Neither field is carried by the request's expected-values table, and observation contradicts the
-record, so AAP §0.1.3's fourth case applies exactly. `gate-record.json` records this as one of the
+record, which the gate read as AAP §0.1.3's fourth case. `gate-record.json` records this as one of the
 run's two halting gate checks — `gate.environment_record_graph_identity_agreement`, carrying both value
 sets — and `gate_verdict.overall` is `halt`, with the gate record stating in terms that it authorises
-nothing. Both values are on the record and neither is chosen: there is no anchor to adjudicate between
-them, and repair is not available in any case, because the file is host-global, shared with concurrent
-readers, and was not written by this run.
+nothing. **The fourth case does not in fact reach these fields, and the record was corrected on
+2026-09-02.** That case applies only where no anchor exists to adjudicate between record and
+observation; the graph's own write-time record of account,
+`/opt/blitzy-harness/provision-log/cpg-record.txt`, carries an "Expected vs observed (prior
+provisioning record)" block naming both pairs and stating which describes the bytes, so an anchor
+exists and the adjudicating statement governs. `harness/ENVIRONMENT.md` was re-anchored to it and now
+states the second row above; both values are retained with their provenance in that document's
+supersession appendix, so neither is discarded and nothing about the graph moved. **The graph itself
+was not written by this run and was not touched by the correction.** `run-record.md` **D4** carries the
+divergence and **D25** the record edit.
 
 What is **not** claimed here is that the bytes moved underneath the run. All five loads had the identity
 re-measured from the bytes and all five of those records state the same pair, and the resolved file's
@@ -1477,7 +1503,7 @@ about an identity stated for a file that was replaced; it is carried as halt-cla
 their provenance.
 
 **The Stage 3 lineage is that same one graph, and the superseded pair is no part of it.** The delivered
-Joern runner read **541,309,809 / `4616845a…4730c7`**. `harness/bin/run-joern.sh` lines 57-58 recompute
+Joern runner read **541,309,809 / `4616845a…4730c7`**. `harness/bin/run-joern.sh` lines 112-113 recompute
 the byte size and the digest from the resolved target and print them, and they appear as
 `cpg bytes       : 541309809` and `cpg sha256      : 4616845a…4730c7` at
 `harness/artifacts/logs/joern.runner-console.log` lines 14-15, inside the invocation that log's own
@@ -1486,8 +1512,9 @@ header brackets — `run_id=w013-20260901T132807Z clone_index=13`, `argv=["./har
 `harness/artifacts/logs/runner-sequence.json` binds that console log, the artifact
 `harness/artifacts/raw/joern.json`, both of the runner's streams and its 241-byte status file to that one
 invocation by byte size and sha256. So the dataset's `joern` rows come from the load that read the pair
-section 5 states, and **541,255,894 / `26d327cc…` is the inherited environment record's identity**
-(`harness/ENVIRONMENT.md:284-288`, section 5's contradiction table) rather than a lineage of this run.
+section 5 states, and **541,255,894 / `26d327cc…` was the inherited environment record's identity**
+(`harness/ENVIRONMENT.md:284-288`, section 5's contradiction table; re-anchored 2026-09-02) rather than
+a lineage of this run.
 
 **What `joern.status` is, so that nothing is looked for in it that it does not carry.** All nine
 `<tool>.status` files are the runner's verbatim seven-line `scope_finish` trailer, and `joern.status` is

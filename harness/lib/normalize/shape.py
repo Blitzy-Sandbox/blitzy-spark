@@ -164,6 +164,10 @@ __all__ = [
     "SHAPE_VALUE_LIMIT",
     "SHAPE_KEYS_REPORTED_LIMIT",
     "USERINFO_REDACTION",
+    "REDACTED_TEXT",
+    "WELL_KNOWN_DOCUMENT_KEYS",
+    "publishable_literals",
+    "is_publishable_literal",
     # shapes
     "SHAPE_SARIF",
     "SHAPE_NATIVE",
@@ -575,20 +579,54 @@ def _json_type_name(value: object) -> str:
 
 
 # --------------------------------------------------------------------------------------
-# The bounded guard this module applies to artifact-supplied values
+# The redaction guard this module applies to artifact-supplied values (SEC-04)
 # --------------------------------------------------------------------------------------
 # Every value below comes out of an artifact, which means an adversary chooses it: a
 # top-level key, and the observed ``version``. Both reach durable records --
 # ``harness/artifacts/logs/normalize-run.json`` on the SUCCESS path through
 # :func:`detection_evidence`, and the halt section through
-# :meth:`UnknownArtifactShape.details` -- so neither may be written as it arrived. A
-# raw ``repr`` is unbounded, carries an ESC sequence through to whatever renders the
-# record, and will put a credential-bearing URI into a file this pipeline preserves.
+# :meth:`UnknownArtifactShape.details`, whose ``str()`` is also the message written
+# verbatim to stderr -- so neither may be written as it arrived.
 #
-# The policy is the one ``paths.py`` applies at its own persistence boundary: redact
-# URI userinfo, escape every control except tab and newline, bound the length, and
-# report the full length and digest so a bounded excerpt is still identified. It is
-# implemented here rather than imported because this module is a leaf that imports
+# A BOUNDED EXCERPT IS NOT ENOUGH, and that is the whole of SEC-04. Sanitising an
+# artifact-supplied value removes what is dangerous to a *renderer* -- a control
+# sequence, a credential-bearing URI authority -- and bounds how much of this
+# pipeline's record the artifact gets to choose. It does not stop the value itself
+# being copied into a preserved file, and a scanner artifact is not a trusted source:
+# a synthetic credential placed in nothing but an invalid SARIF ``version`` came back
+# whole in ``str(exc)``, in ``details()["version"]``, in
+# ``details()["version_evidence"]["excerpt"]`` and in the 0644 run record. A 512-
+# character prefix of a 40-character secret is the secret.
+#
+# So the policy here is the one ``adapters/gitleaks.py::_safe_value_repr`` already
+# states for a rejection detail, applied at this module's persistence boundary:
+#
+#   1. NO persisted diagnostic carries artifact-supplied bytes. What is published is
+#      the evidence that is METADATA rather than content -- the value's Python type
+#      name, the caller's structural ``context``, the FULL character length, the FULL
+#      64-hex sha256, and the counts of what sanitising would have changed. Those
+#      four keep the original identifiable and measurable: two records carrying the
+#      same oversized value are recognisable as the same value from the digest alone,
+#      and a reader who holds the artifact can check it against the record. The text
+#      itself is replaced by :data:`REDACTED_TEXT`, a fixed marker containing no
+#      artifact bytes at all.
+#   2. ONE carve-out, and it is the only one: text may be published verbatim where it
+#      is BYTE-EQUAL to a literal this module itself authors -- see
+#      :func:`publishable_literals`. Publishing a literal the code already contains
+#      discloses nothing about the artifact, which is exactly why the carve-out is
+#      sound; it is what lets a document whose keys are the ordinary ones
+#      (``$schema``, ``version``, ``runs``) still read as itself in a halt report,
+#      while ``"2.1.0-rtm.5"`` -- a value only the artifact knows -- is redacted.
+#   3. ``None``, a ``bool``, an ``int`` and a ``float`` are published as themselves.
+#      None of them can carry a captured secret and none can carry a control
+#      character, and the actual value is what makes the diagnostic actionable.
+#
+# What is deliberately NOT weakened: the userinfo redaction and control escaping stay,
+# because they still govern the composed prose these renderings are interpolated into,
+# and their counts remain the evidence that the value carried a credential or a control
+# at all. The bound stays too, as the size measurement it always was.
+#
+# Implemented here rather than imported because this module is a leaf that imports
 # nothing from the package (AAP 0.6.4 fixes that an adapter depends only on ``paths``
 # and ``severity``), the same reason ``CANONICAL_TOOLS`` is duplicated here. The two
 # implementations are pinned to each other by
@@ -596,8 +634,20 @@ def _json_type_name(value: object) -> str:
 # same hostile inputs and requires identical output -- so this is one policy with two
 # call sites rather than two policies free to drift.
 
+#: The fixed marker that stands in for artifact-supplied text in a persisted
+#: diagnostic. It contains no artifact bytes, it is the same string for every value,
+#: and it is equal to ``paths.REDACTED_TEXT``; the parity test asserts they stay
+#: equal. A reader who needs to identify what was redacted uses the ``value_type``,
+#: ``character_length`` and ``sha256`` published beside it.
+REDACTED_TEXT: Final[str] = "<redacted-artifact-text>"
+
 #: The excerpt bound for one artifact-supplied value. Equal to
 #: ``paths.DIAGNOSTIC_VALUE_LIMIT``; the parity test asserts they stay equal.
+#:
+#: With redaction in force nothing is truncated for length any more -- the marker is
+#: fixed-width -- so this constant survives as the *size measurement* it always was:
+#: it decides the ``truncated`` flag, which reports that the value the artifact sent
+#: was longer than one this pipeline would have been willing to publish.
 SHAPE_VALUE_LIMIT: Final[int] = 512
 
 #: How many top-level keys are carried into a record. A document may legitimately
@@ -619,6 +669,131 @@ _SHAPE_URI_USERINFO_RE: Final[re.Pattern[str]] = re.compile(
 #: Tab and newline survive: this dataset carries messages with embedded newlines by
 #: design (AAP 0.5.4). ESC -- the actual terminal injection vector -- does not.
 _SHAPE_KEEP_CONTROLS: Final[frozenset[str]] = frozenset({"\t", "\n"})
+
+#: Well-known top-level document key names, authored here explicitly rather than
+#: derived, so that a document whose keys are the ordinary ones still reads as itself
+#: in a halt report or a detection record. Every entry is a top-level key of one of
+#: the nine artifact shapes this module routes -- SARIF's three, Trivy's envelope,
+#: Checkov's report object, Dependency-Check's report, and ``joern.json``, which is
+#: this harness's own shape. Several are already named constants above; they are
+#: repeated here because this tuple is the *vocabulary*, and a reader checking whether
+#: a published key was authored or artifact-supplied needs one list to check against.
+#:
+#: The tuple is deliberately small and deliberately closed. It is NOT a place to add a
+#: key because some document happened to carry it: an entry here is a literal this
+#: code contains, and padding it with names taken from an artifact would re-open the
+#: channel the redaction closes. A key outside it is redacted, and its full length and
+#: sha256 published in its place -- which is the correct outcome for a document
+#: imitating nothing in the contract.
+WELL_KNOWN_DOCUMENT_KEYS: Final[tuple[str, ...]] = (
+    # SARIF 2.1.0 (opengrep, semgrep, datadog-static-analyzer)
+    "$schema",
+    "version",
+    "runs",
+    # Trivy's native envelope
+    "SchemaVersion",
+    "CreatedAt",
+    "ArtifactName",
+    "ArtifactType",
+    "Metadata",
+    "Results",
+    # Checkov's report object
+    "check_type",
+    "results",
+    "summary",
+    # Dependency-Check's report
+    "reportSchema",
+    "scanInfo",
+    "projectInfo",
+    "dependencies",
+    # joern.json -- written by harness/lib/joern-scan.sc, this harness's own shape
+    "tool",
+    "tool_version",
+    "cpg",
+    "graph",
+    "query_set",
+    "queries",
+    "findings",
+)
+
+# Built once on first use rather than at import, because the vocabulary draws on
+# authored tables defined further down this module (the native envelope keys and the
+# JSON type names) and a module-level frozenset here could not see them. Construction
+# is idempotent and the result is immutable, so the lazy cache is safe under
+# concurrent readers: two threads racing to build it produce equal sets and either may
+# win.
+_PUBLISHABLE_LITERALS: frozenset[str] | None = None
+
+
+def publishable_literals() -> frozenset[str]:
+    """Return every string this module authors and may therefore publish verbatim.
+
+    The one carve-out in the redaction policy above. A value byte-equal to one of
+    these discloses nothing about the artifact that sent it -- the string is already
+    in this file, so a reader learns only that the artifact chose a name this code
+    knows -- while any other value is replaced by :data:`REDACTED_TEXT`.
+
+    The membership test is exact equality, never a prefix and never a case-insensitive
+    match: ``"2.1.0"`` publishes and ``"2.1.0-rtm.5"`` does not, which is precisely the
+    distinction a wrong-version halt turns on. A relaxed test would let an artifact
+    publish arbitrary text by prefixing it with an authored one.
+
+    The set is assembled from this module's own authored tables so that adding a tool,
+    a shape, a section or an envelope key extends the vocabulary automatically and
+    cannot leave the two out of step:
+
+    * the SARIF version and its two key names;
+    * the detected shapes and the ``scanner_class`` vocabulary, with the per-record
+      label a routing record uses;
+    * the nine canonical tool identifiers and the nine artifact filenames;
+    * the adapter package, the shared SARIF adapter key and the adapter module keys;
+    * Trivy's three supported section names and its two unsupported ones;
+    * the five native envelope keys and the two JSON container type names;
+    * :data:`WELL_KNOWN_DOCUMENT_KEYS`.
+
+    Returns:
+        The vocabulary as an immutable set. The same object on every call, so a
+        membership test costs one hash.
+    """
+    global _PUBLISHABLE_LITERALS
+    if _PUBLISHABLE_LITERALS is None:
+        _PUBLISHABLE_LITERALS = frozenset(
+            (
+                SARIF_VERSION,
+                SARIF_VERSION_KEY,
+                SARIF_RUNS_KEY,
+                *SHAPES,
+                *SCANNER_CLASSES,
+                PER_RECORD_LABEL,
+                *CANONICAL_TOOLS,
+                *ARTIFACT_FILENAMES,
+                ADAPTER_PACKAGE,
+                SHARED_SARIF_ADAPTER,
+                *ADAPTER_MODULES,
+                *TRIVY_SECTION_SCANNER_CLASS,
+                *TRIVY_UNSUPPORTED_FINDING_SECTIONS,
+                TRIVY_RESULTS_KEY,
+                CHECKOV_RESULTS_KEY,
+                DEPENDENCY_CHECK_DEPENDENCIES_KEY,
+                OSV_SCANNER_RESULTS_KEY,
+                JOERN_FINDINGS_KEY,
+                JSON_TYPE_OBJECT,
+                JSON_TYPE_ARRAY,
+                *WELL_KNOWN_DOCUMENT_KEYS,
+            )
+        )
+    return _PUBLISHABLE_LITERALS
+
+
+def is_publishable_literal(value: object) -> bool:
+    """Return whether *value* may be published verbatim in a persisted diagnostic.
+
+    ``True`` only for a ``str`` byte-equal to a member of
+    :func:`publishable_literals`. A non-string is never publishable *as text*: an
+    inert scalar is published by :func:`safe_scalar` as the value it is, and anything
+    else is described.
+    """
+    return isinstance(value, str) and value in publishable_literals()
 
 
 def _shape_is_escapable_control(char: str) -> bool:
@@ -664,9 +839,22 @@ def _shape_digest(text: str) -> str:
 def safe_text(text: str, *, limit: int = SHAPE_VALUE_LIMIT) -> dict[str, object]:
     """Render one artifact-supplied string safe to persist, and say what changed.
 
-    Redaction precedes escaping, because redaction matches on the URI's own syntax
-    and an escaped control inside the authority would hide the ``@`` the pattern
-    anchors on. Truncation is last, so the bound applies to what is actually written.
+    ``text`` is the published rendering and it is one of exactly two things: the
+    string itself, where :func:`is_publishable_literal` holds -- an authored literal
+    discloses nothing -- or :data:`REDACTED_TEXT`, the fixed marker. It is never a
+    prefix, an excerpt or a sanitised copy of an artifact-supplied value (SEC-04).
+
+    Everything else in the mapping is the evidence that keeps the redaction honest,
+    and every figure is of the WHOLE original rather than of what is published:
+    ``original_length`` is the full character count, ``sha256`` the full 64-hex digest
+    of the whole value, and the two change counts say whether the value carried a URI
+    userinfo credential or a control character at all.
+
+    The counts are still taken redact-then-escape, in that order and over the whole
+    value, because redaction matches on the URI's own syntax and an escaped control
+    inside the authority would hide the ``@`` the pattern anchors on. ``truncated``
+    reports that the sanitised value would have exceeded ``limit``; nothing is
+    actually truncated, because nothing artifact-supplied is published.
     """
     if not isinstance(text, str):
         raise TypeError(f"safe_text expects a str; observed {type(text).__name__}")
@@ -674,30 +862,38 @@ def safe_text(text: str, *, limit: int = SHAPE_VALUE_LIMIT) -> dict[str, object]
     digest = _shape_digest(text)
     redacted, userinfo_redactions = _shape_redact_userinfo(text)
     escaped, controls_escaped = _shape_escape_controls(redacted)
-    truncated = len(escaped) > limit
-    if truncated:
-        escaped = (
-            f"{escaped[:limit]}... [truncated at {limit} of {original_length} "
-            f"characters; sha256 {digest[:16]}]"
-        )
+    publishable = is_publishable_literal(text)
     return {
-        "text": escaped,
+        "text": text if publishable else REDACTED_TEXT,
         "original_length": original_length,
         "sha256": digest,
-        "truncated": truncated,
+        # Measured on the sanitised form, as it always was: the question the flag
+        # answers is whether this pipeline would have been willing to publish the
+        # value at its full rendered length.
+        "truncated": len(escaped) > limit,
         "controls_escaped": controls_escaped,
         "userinfo_redactions": userinfo_redactions,
+        "publishable": publishable,
+        "redacted": not publishable,
     }
 
 
 def safe_value(
     value: object, *, context: str | None = None, limit: int = SHAPE_VALUE_LIMIT
 ) -> dict[str, object]:
-    """Describe one artifact-supplied value: its type, length, digest and a bounded excerpt.
+    """Describe one artifact-supplied value: type, context, length, digest, no content.
+
+    The description a persisted diagnostic gets in place of the value. ``excerpt``
+    carries the published rendering -- an authored literal or :data:`REDACTED_TEXT`,
+    never artifact bytes -- and keeps its key name because it is the member every
+    consumer of this mapping already reads; ``redacted`` says which of the two it is,
+    so a reader never has to compare against the marker to find out.
 
     A non-string is rendered from its ``repr`` rather than refused, because the values
     that reach here are exactly the ones whose type was wrong; the type name is
-    reported separately so ``dict from version`` reads as the shape fault it is.
+    reported separately so ``dict from version`` reads as the shape fault it is. That
+    ``repr`` is measured and digested but not published: a ``dict``'s repr is the
+    artifact's own keys and values spelled out.
     """
     text = value if isinstance(value, str) else repr(value)
     rendered = safe_text(text, limit=limit)
@@ -710,16 +906,25 @@ def safe_value(
         "truncated": rendered["truncated"],
         "controls_escaped": rendered["controls_escaped"],
         "userinfo_redactions": rendered["userinfo_redactions"],
+        "publishable": rendered["publishable"],
+        "redacted": rendered["redacted"],
     }
 
 
 def safe_scalar(value: object, *, limit: int = SHAPE_VALUE_LIMIT) -> object:
-    """Return ``value`` itself where it carries no injection risk, else a safe excerpt.
+    """Return ``value`` itself where its TYPE makes it safe, else a redaction marker.
 
-    ``None``, a ``bool``, an ``int`` and a ``float`` have no control characters and no
-    credential, so they are published as themselves and stay comparable in a record. A
-    ``str`` is sanitised. Anything else -- a mapping or a list where a scalar was
-    expected -- is described rather than shown.
+    The same three-way split ``adapters/gitleaks.py::_safe_value_repr`` makes:
+
+    * ``None``, a ``bool``, an ``int`` and a ``float`` are published as themselves.
+      None can carry a captured secret and none can carry a control character, and
+      the actual value is what makes the record comparable -- a ``version`` of
+      ``null`` must read as ``null`` rather than as a redaction.
+    * a ``str`` publishes verbatim only where it is an authored literal, and is
+      otherwise the marker.
+    * anything else -- a mapping or a list where a scalar was expected -- is the
+      marker, with its type, length and digest carried by the sibling ``*_evidence``
+      field every call site publishes beside this one.
     """
     if value is None or isinstance(value, (bool, int, float)):
         return value
@@ -735,20 +940,21 @@ def safe_keys(
     value_limit: int = SHAPE_VALUE_LIMIT,
     context: str = "top-level key",
 ) -> dict[str, object]:
-    """Return the top-level *keys* bounded and sanitised, with full per-key provenance.
+    """Return the top-level *keys* bounded and redacted, with full per-key provenance.
 
-    A key is as artifact-controlled as a value: a control character in a JSON key is
-    exactly as hostile to a reader as one in a value, and a key long enough to bury a
-    diagnostic is exactly as effective at burying it.
+    A key is as artifact-controlled as a value: a JSON key can carry a credential as
+    easily as a value can, a control character in one is exactly as hostile to a
+    reader, and a key long enough to bury a diagnostic is exactly as effective at
+    burying it.
 
     So each reported key carries the SAME evidence contract a scalar value gets from
     :func:`safe_value` -- its context, its Python type, its **full** original character
-    length, its **full** 64-character sha256, a bounded excerpt, and the counts of what
-    sanitising changed. Returning only the excerpt would bound the text while discarding
+    length, its **full** 64-character sha256, the published rendering, and the counts
+    of what sanitising would have changed. Publishing only a rendering would discard
     the evidence: a reader who needs to know what the artifact actually sent could then
-    neither measure it nor identify it, and a truncation annotation's 16-hex digest
-    prefix is not the digest. The excerpt is what is safe to read; the length and the
-    digest are what make the original checkable.
+    neither measure it nor identify it. The rendering is what is safe to read -- an
+    authored key name such as ``version`` verbatim, anything else :data:`REDACTED_TEXT`
+    -- and the length and the digest are what make the original checkable.
 
     ``keys`` is a JSON object's key sequence, so every element is a ``str`` in practice.
     A non-string is still handled rather than refused, because a document that reached
@@ -766,9 +972,9 @@ def safe_keys(
     ]
     return {
         # Per-key diagnostic objects, each carrying context/type/full length/full
-        # sha256/bounded excerpt/change counts.
+        # sha256/published rendering/change counts.
         "keys": reported,
-        # The bounded excerpts alone, in the same order, so a reader scanning for a
+        # The published renderings alone, in the same order, so a reader scanning for a
         # name does not have to walk the objects. This is a projection of `keys`
         # rather than a second measurement.
         "key_excerpts": [entry["excerpt"] for entry in reported],
@@ -777,10 +983,13 @@ def safe_keys(
         "truncated": len(keys) > limit,
         "per_key_evidence": (
             "each entry of `keys` carries the key's context, Python type, full original "
-            "character length, full sha256 and a bounded excerpt, plus the number of "
-            "control characters escaped and credential userinfo segments redacted. The "
-            "excerpt is bounded so it is safe to read; the length and digest are full so "
-            "the original stays checkable against this record."
+            "character length, full sha256 and its published rendering, plus the number "
+            "of control characters escaped and credential userinfo segments redacted. "
+            "The rendering is the key itself only where it is byte-equal to a literal "
+            "shape.py authors (shape.publishable_literals); every other key is published "
+            "as the fixed shape.REDACTED_TEXT marker, because a JSON key is "
+            "artifact-supplied text and this record is preserved. The length and digest "
+            "are full so the original stays checkable against this record."
         ),
     }
 
@@ -859,13 +1068,13 @@ def detection_evidence(doc: object) -> dict[str, object]:
             "not tool.driver."
         ),
         "top_level_type": description["top_level_type"],
-        # Bounded and sanitised at this owning site rather than at the recorder: this
-        # mapping reaches the SUCCESS path of normalize-run.json, where a valid native
-        # envelope may legitimately carry arbitrary extra top-level keys, so an
-        # adversary would otherwise choose both the content and the size of a durable
-        # record. Each entry is a diagnostic object carrying the key's full character
-        # length and full sha256 alongside its bounded excerpt, so bounding the text
-        # does not cost the evidence; the full count is published beside the list.
+        # Redacted at this owning site rather than at the recorder: this mapping
+        # reaches the SUCCESS path of normalize-run.json, where a valid native envelope
+        # may legitimately carry arbitrary extra top-level keys, so an adversary would
+        # otherwise choose both the content and the size of a durable record. Each
+        # entry is a diagnostic object carrying the key's full character length and
+        # full sha256 alongside its published rendering, so redacting the text does not
+        # cost the evidence; the full count is published beside the list.
         "top_level_keys": keys_rendered["keys"],
         "top_level_key_excerpts": keys_rendered["key_excerpts"],
         "top_level_keys_total": keys_rendered["total"],
@@ -875,8 +1084,10 @@ def detection_evidence(doc: object) -> dict[str, object]:
         "top_level_length": description["top_level_length"],
         "version_key": SARIF_VERSION_KEY,
         "version_expected": SARIF_VERSION,
-        # The published value is safe; the DECISION below is taken from the raw value,
-        # so sanitising can never change what the detector concluded.
+        # The published value is safe -- an authored literal or the redaction marker --
+        # while the DECISION below is taken from the raw value, so redaction can never
+        # change what the detector concluded. That is why `version_matches` remains
+        # readable for a version this record does not publish.
         "version_observed": safe_scalar(version_observed),
         "version_observed_evidence": safe_value(version_observed, context=SARIF_VERSION_KEY),
         "version_matches": version_observed == SARIF_VERSION,
@@ -1864,10 +2075,17 @@ class UnknownArtifactShape(Exception):
         Keys are stable, so ``harness/artifacts/logs/normalize-run.json`` and the halt
         section of ``oss-scan-results/run-record.md`` quote one measurement rather than
         two. ``top_level_keys`` is a list of per-key diagnostic objects -- each carrying
-        the key's context, type, full character length, full sha256 and a bounded
-        excerpt -- and ``top_level_key_excerpts`` is the flat list of those excerpts, so
-        the mapping is JSON-serialisable even when the offending document keyed something
-        exotic, and bounding the text does not discard the evidence.
+        the key's context, type, full character length, full sha256 and its published
+        rendering -- and ``top_level_key_excerpts`` is the flat list of those
+        renderings, so the mapping is JSON-serialisable even when the offending document
+        keyed something exotic, and redacting the text does not discard the evidence.
+
+        Nothing in the returned mapping is artifact-supplied text unless it is
+        byte-equal to a literal this module authors (SEC-04). This method IS the
+        persistence boundary for a halt -- what it returns is written into a 0644 record
+        this pipeline preserves -- so the observed ``version`` and every observed key
+        are published as an authored literal or as :data:`REDACTED_TEXT`, with their
+        full length and full digest beside them.
         """
         halt_keys = _halt_keys(self.top_level_keys)
         return {
@@ -1877,10 +2095,10 @@ class UnknownArtifactShape(Exception):
             "expectation": self.expectation,
             "top_level_type": self.top_level_type,
             "python_type": self.python_type,
-            # Bounded and sanitised here, at the persistence boundary this method IS.
-            # The raw values stay on the exception for an in-memory caller; what a
-            # durable record gets is the safe rendering, with the full length and digest
-            # so a bounded excerpt is still identified.
+            # Redacted here, at the persistence boundary this method IS. The raw values
+            # stay on the exception for an in-memory caller; what a durable record gets
+            # is the safe rendering -- an authored literal or the fixed marker -- with
+            # the full length and digest so what was redacted is still identified.
             "version": safe_scalar(self.version),
             "version_evidence": safe_value(self.version, context=SARIF_VERSION_KEY),
             # Rendered ONCE and read four ways: calling the renderer per field would
@@ -1913,22 +2131,71 @@ def _halt_keys(keys: "tuple[object, ...]") -> dict[str, object]:
     return safe_keys(keys)
 
 
+def _redacted_clause(described: Mapping[str, object]) -> str:
+    """Render one redacted value as a clause for a halt MESSAGE.
+
+    The message is the only channel some readers get -- it is what
+    :class:`UnknownArtifactShape` passes to ``Exception.__init__``, so it is what
+    reaches stderr and what a traceback shows -- and it is prose rather than a
+    mapping. So the clause carries the same metadata the structured description does,
+    inline: the Python type, the full character length and the **full** 64-hex digest,
+    followed by the fixed marker. The full digest rather than a prefix, because this
+    clause has to stand on its own: a 16-hex prefix identifies a value only against a
+    record that already holds the whole digest.
+
+    It is still smaller than what it replaces. The previous rendering allowed a
+    512-character excerpt per value and up to twelve of them in one message.
+    """
+    return (
+        f"a {described['value_type']} of length {described['character_length']} "
+        f"(sha256 {described['sha256']}; {REDACTED_TEXT})"
+    )
+
+
 def _truncate_repr(value: object, limit: int = _MESSAGE_VALUE_LIMIT) -> str:
-    """Return ``repr(value)`` bounded to *limit* characters for a halt message."""
-    # Sanitised before bounding, for the same reason _format_keys is.
-    text = safe_text(repr(value), limit=limit)["text"]
-    if len(text) <= limit:
-        return text
-    return f"{text[:limit]}...(+{len(text) - limit} chars)"
+    """Render one artifact-supplied value for a halt message, publishing no content.
+
+    Three cases, the same three :func:`safe_scalar` makes, because a message and a
+    record must not disagree about what a value was:
+
+    * an inert scalar -- ``None``, a ``bool``, an ``int``, a ``float`` -- is rendered
+      from its ``repr`` in full. ``version None`` is the diagnosis for a document
+      carrying no ``version`` at all, and redacting it would say nothing;
+    * a ``str`` byte-equal to an authored literal is rendered from its ``repr``, so a
+      halt on a document whose ``version`` is the accepted ``"2.1.0"`` still quotes
+      it;
+    * anything else is :func:`_redacted_clause`. That covers the wrong-version SARIF
+      this module halts on: ``"2.1.0-rtm.5"`` is a value only the artifact knows, and
+      a version field is as good a place to hide a credential as any other (SEC-04).
+      ``version_matches`` in the structured details still records the verdict, and
+      the length and digest still identify what was sent.
+    """
+    if value is None or isinstance(value, (bool, int, float)):
+        return repr(value)
+    described = safe_value(value, limit=limit)
+    if described["publishable"]:
+        return repr(value)
+    return _redacted_clause(described)
 
 
 def _format_keys(keys: tuple[object, ...], limit: int = _MESSAGE_KEY_LIMIT) -> str:
-    """Render top-level *keys* bounded to *limit* entries for a halt message."""
+    """Render top-level *keys* bounded to *limit* entries for a halt message.
+
+    A key that is one of the well-known authored names is printed as itself, so a
+    document whose top level is ``$schema``/``version``/``runs`` still reads as
+    itself. Every other key is a redaction clause carrying its type, full length and
+    full digest: this message is carried verbatim into the halt record and to stderr,
+    so a key is artifact-supplied text like any other (SEC-04), and an ESC sequence or
+    a credential in one would otherwise reach whatever renders it.
+    """
     if not keys:
         return "[]"
-    # Sanitised as well as bounded: this message is carried verbatim into the halt
-    # record, so an ESC sequence in a key would reach whatever renders it.
-    shown = [safe_text(str(key))["text"] for key in keys[:limit]]
+    shown: list[str] = []
+    for key in keys[:limit]:
+        if is_publishable_literal(key):
+            shown.append(str(key))
+        else:
+            shown.append(_redacted_clause(safe_value(key)))
     suffix = "" if len(keys) <= limit else f", ...(+{len(keys) - limit} more)"
     return f"[{', '.join(shown)}{suffix}]"
 

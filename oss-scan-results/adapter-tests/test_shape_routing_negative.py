@@ -790,21 +790,44 @@ class IsSarifConjunctionTests(ShapeTestCase):
             False,
             msg=f"fixture {name!r} is expected to fail the version half of the test",
         )
-        observed_version = evidence["version_observed"]
-        self.assertIsInstance(observed_version, str)
+        # The near-miss property is a property of the FIXTURE, so it is asserted
+        # against the fixture's own hand-authored value rather than against the
+        # detection evidence. Since SEC-04 the evidence publishes no artifact text at
+        # all -- an artifact-supplied version is not an authored literal, so it
+        # renders as the fixed marker -- and a test that read the property out of the
+        # evidence would be asserting on a redaction rather than on the fixture.
+        authored_version = document[shape.SARIF_VERSION_KEY]
+        self.assertIsInstance(authored_version, str)
         self.assertNotEqual(
-            observed_version,
+            authored_version,
             shape.SARIF_VERSION,
             msg="the fixture's version must differ from the accepted version",
         )
         self.assertTrue(
-            observed_version.startswith(shape.SARIF_VERSION),
+            authored_version.startswith(shape.SARIF_VERSION),
             msg=(
                 f"fixture {name!r} is expected to carry a version that a prefix "
                 "comparison would wrongly accept; without that property the fixture "
                 "stops exercising the exact-equality requirement"
             ),
         )
+        # The evidence identifies that value without publishing it: the fixed marker
+        # in place of the text, and the full length and digest of the whole original.
+        observed_version = evidence["version_observed"]
+        self.assertEqual(
+            observed_version,
+            shape.REDACTED_TEXT,
+            msg="an artifact-supplied version must never be published (SEC-04)",
+        )
+        version_evidence = evidence["version_observed_evidence"]
+        self.assertEqual(version_evidence["character_length"], len(authored_version))
+        self.assertEqual(
+            version_evidence["sha256"],
+            hashlib.sha256(authored_version.encode("utf-8")).hexdigest(),
+            msg="the digest must identify the whole authored version",
+        )
+        self.assertIs(version_evidence["redacted"], True)
+        self.assertIs(version_evidence["publishable"], False)
         self.assertIs(evidence["is_sarif"], False, msg=f"{name!r} must not be SARIF")
 
     def test_fall_through_document_fails_both_halves(self) -> None:
@@ -837,6 +860,18 @@ class IsSarifConjunctionTests(ShapeTestCase):
         checkable in both directions: neither the fixture nor its hand-verified
         expectation can change without the other, and a disagreement is reported here
         rather than discovered later as an unexplained result.
+
+        Both hand-authored records -- the fixture's own ``version`` value and its own
+        key sequence -- are compared against each other directly, and the SEC-04
+        publication rule is then asserted as a separate contract over the same two:
+        the detection evidence publishes a value or a key verbatim only where it is
+        byte-equal to a literal ``shape.py`` itself authors, and renders every other
+        one as ``shape.REDACTED_TEXT`` while still publishing the whole original's
+        character length and 64-hex digest. That is why the expected files record the
+        fixture's literals while the evidence renders several of them as the marker:
+        ``version`` and ``$schema`` are authored key names, ``report_format`` and
+        ``findings_summary`` are this fixture's inventions, and only the first pair
+        discloses nothing by being read back.
         """
         for name in (*NEAR_MISS_FIXTURES, UNKNOWN_SHAPE_FIXTURE):
             with self.subTest(fixture=name):
@@ -865,26 +900,105 @@ class IsSarifConjunctionTests(ShapeTestCase):
                         "the runs half than the detector reports"
                     ),
                 )
+                # The expected file records the fixture's OWN version literal and its
+                # OWN top-level keys, so both are asserted against the fixture
+                # document rather than against the detection evidence. Since SEC-04
+                # the evidence publishes artifact-supplied text nowhere: a value or a
+                # key is published only where it is byte-equal to a literal this code
+                # itself contains, and otherwise renders as shape.REDACTED_TEXT. Two
+                # hand-authored records compared against each other keeps the pair
+                # checkable in both directions; the publication rule is then asserted
+                # separately below, against the same two records.
+                authored_version = document.get(shape.SARIF_VERSION_KEY)
                 self.assertEqual(
                     self.require(expected, "shape_detection", "version_observed"),
-                    evidence["version_observed"],
+                    authored_version,
                     msg=(
                         f"the expected file for {name!r} records a version literal that "
                         "is not the one the fixture carries"
                     ),
                 )
+                authored_keys = list(document) if isinstance(document, dict) else []
                 self.assertEqual(
-                    list(self.require(expected, "halt", "observed_attributes", "top_level_keys")),
-                    [str(key) for key in evidence["top_level_key_excerpts"]],
+                    list(
+                        self.require(
+                            expected, "halt", "observed_attributes", "top_level_keys"
+                        )
+                    ),
+                    authored_keys,
                     msg=(
                         f"the expected file for {name!r} records top-level keys that are "
-                        "not the fixture's, in order. Compared against the excerpts "
-                        "rather than against evidence['top_level_keys']: an observed key "
-                        "is artifact-supplied text, so the evidence carries each one as a "
-                        "bounded redacted description -- type, length, sha256, excerpt -- "
-                        "and the excerpt is the key itself where nothing needed escaping"
+                        "not the fixture's, in order"
                     ),
                 )
+
+                # The publication rule, asserted over exactly those two records: the
+                # rendering is the literal itself where the carve-out holds and the
+                # fixed marker otherwise, and either way the full length and the full
+                # digest of the whole original are published as the evidence that
+                # keeps the redaction honest.
+                if isinstance(authored_version, str):
+                    version_publishable = shape.is_publishable_literal(authored_version)
+                    self.assertEqual(
+                        evidence["version_observed"],
+                        authored_version
+                        if version_publishable
+                        else shape.REDACTED_TEXT,
+                        msg=(
+                            f"the version of {name!r} must publish only where it is "
+                            "byte-equal to an authored literal (SEC-04)"
+                        ),
+                    )
+                    version_evidence = evidence["version_observed_evidence"]
+                    self.assertEqual(
+                        version_evidence["character_length"], len(authored_version)
+                    )
+                    self.assertEqual(
+                        version_evidence["sha256"],
+                        hashlib.sha256(authored_version.encode("utf-8")).hexdigest(),
+                    )
+                    self.assertIs(version_evidence["publishable"], version_publishable)
+                else:
+                    self.assertIsNone(
+                        evidence["version_observed"],
+                        msg=(
+                            f"fixture {name!r} carries no version, so there is nothing "
+                            "to render and nothing to redact"
+                        ),
+                    )
+
+                rendered_keys = [str(key) for key in evidence["top_level_key_excerpts"]]
+                self.assertEqual(
+                    len(rendered_keys),
+                    min(len(authored_keys), shape.SHAPE_KEYS_REPORTED_LIMIT),
+                    msg=(
+                        f"every top-level key of {name!r} within the reporting cap must "
+                        "have a rendering"
+                    ),
+                )
+                for authored_key, rendered, entry in zip(
+                    authored_keys, rendered_keys, evidence["top_level_keys"]
+                ):
+                    key_publishable = shape.is_publishable_literal(authored_key)
+                    self.assertEqual(
+                        rendered,
+                        authored_key if key_publishable else shape.REDACTED_TEXT,
+                        msg=(
+                            f"key {rendered!r} of {name!r} must publish only where it "
+                            "is byte-equal to an authored literal (SEC-04)"
+                        ),
+                    )
+                    self.assertEqual(entry["character_length"], len(authored_key))
+                    self.assertEqual(
+                        entry["sha256"],
+                        hashlib.sha256(authored_key.encode("utf-8")).hexdigest(),
+                        msg=(
+                            "the digest must identify the whole key even where the key "
+                            "itself is not published"
+                        ),
+                    )
+                    self.assertIs(entry["publishable"], key_publishable)
+                    self.assertIs(entry["redacted"], not key_publishable)
                 self.assertEqual(
                     self.require(
                         expected, "halt", "observed_attributes", "top_level_length"
@@ -3423,12 +3537,18 @@ class ArtifactControlledDiagnosticTests(ShapeTestCase):
     def assert_key_provenance(self, entry: object, original: str, where: str) -> None:
         """Require one reported key to carry the FULL evidence contract, not just text.
 
-        Bounding an artifact-supplied key makes it safe to read. It does not make it
+        Redacting an artifact-supplied key makes it safe to persist. It does not make it
         checkable: a reader who needs to know what the artifact actually sent needs the
-        original's full length and its full digest, and a 16-hex prefix inside a
-        truncation annotation is not the digest. So every reported key carries the same
-        contract a scalar value gets -- context, type, full character length, full
-        64-character sha256, bounded excerpt, and the counts of what sanitising changed.
+        original's full length and its full digest. So every reported key carries the
+        same contract a scalar value gets -- context, type, full character length, full
+        64-character sha256, the published rendering, and the counts of what sanitising
+        would have changed.
+
+        The rendering itself is asserted against the publication rule (SEC-04): a key
+        byte-equal to a literal ``shape.py`` authors is published verbatim, and every
+        other key is the fixed :data:`shape.REDACTED_TEXT` marker. Asserting only that
+        the rendering is inert would pass for a bounded excerpt of a secret, which is
+        the finding this closes.
         """
         self.assertIsInstance(
             entry, dict, msg=f"{where}: a reported key must be a diagnostic object"
@@ -3458,6 +3578,27 @@ class ArtifactControlledDiagnosticTests(ShapeTestCase):
             len(entry["sha256"]), 64, msg=f"{where}: sha256 must be all 64 characters"
         )
         self.assert_inert(entry["excerpt"], f"{where} excerpt")
+        publishable = shape.is_publishable_literal(original)
+        self.assertIs(
+            entry["publishable"],
+            publishable,
+            msg=f"{where}: the entry disagrees with the publication vocabulary",
+        )
+        self.assertIs(entry["redacted"], not publishable, msg=f"{where}: redacted flag")
+        self.assertEqual(
+            entry["excerpt"],
+            original if publishable else shape.REDACTED_TEXT,
+            msg=(
+                f"{where}: a key is published verbatim only where it is byte-equal to a "
+                "literal shape.py authors; anything else is the fixed marker"
+            ),
+        )
+        if not publishable:
+            self.assertNotIn(
+                original,
+                entry["excerpt"],
+                msg=f"{where}: no part of an artifact-supplied key may be published",
+            )
 
     def test_success_path_bounds_a_hostile_extra_top_level_key(self) -> None:
         """A VALID native envelope with a hostile extra key still records safely."""
@@ -3472,16 +3613,27 @@ class ArtifactControlledDiagnosticTests(ShapeTestCase):
             self.assert_inert(entry, "detection_evidence top_level_keys")
         for excerpt in evidence["top_level_key_excerpts"]:
             self.assert_inert(excerpt, "detection_evidence top_level_key_excerpts")
-        self.assertTrue(
-            any(
-                shape.USERINFO_REDACTION in excerpt
-                for excerpt in evidence["top_level_key_excerpts"]
+        # The hostile key is published as the fixed marker rather than as a bounded
+        # copy of itself (SEC-04), while the VALID envelope key beside it -- `Results`,
+        # a literal shape.py authors -- still reads as itself. Both halves matter: a
+        # renderer that redacted everything would make an ordinary record unreadable,
+        # and one that published anything else would be the leak this closes.
+        self.assertIn(
+            shape.REDACTED_TEXT,
+            evidence["top_level_key_excerpts"],
+            msg="an artifact-supplied key must be published as the fixed marker",
+        )
+        self.assertIn(
+            shape.TRIVY_RESULTS_KEY,
+            evidence["top_level_key_excerpts"],
+            msg=(
+                "a key byte-equal to a literal this code authors is published verbatim, "
+                "so an ordinary document still reads as itself"
             ),
-            msg="the redaction marker should be visible where a credential was removed",
         )
         self.assertEqual(evidence["top_level_keys_total"], 2)
 
-        # The hostile key keeps its FULL provenance despite the bounded excerpt.
+        # The hostile key keeps its FULL provenance despite publishing no content.
         hostile_entries = [
             entry
             for entry in evidence["top_level_keys"]
@@ -3503,39 +3655,106 @@ class ArtifactControlledDiagnosticTests(ShapeTestCase):
         self.assertTrue(evidence["top_level_keys_evidence"])
         self.assertTrue(json.dumps(evidence))
 
-    def test_the_key_count_cap_is_not_used_as_the_excerpt_length_cap(self) -> None:
-        """The two bounds are independent; conflating them silently over-truncates.
+    def test_the_key_count_cap_is_not_used_as_the_value_size_cap(self) -> None:
+        """The two bounds are independent; conflating them mis-states the size verdict.
 
-        ``safe_keys`` caps how many keys are reported AND how long each excerpt may be.
-        Passing the key-count cap as the character cap would leave every excerpt bounded
-        at 64 characters while the record still claimed the 512-character policy.
+        ``safe_keys`` caps how many keys are reported (``limit``) and, separately, the
+        size a single key may reach before ``truncated`` is set (``value_limit``).
+        Passing the key-count cap where the size cap belongs would flag every key longer
+        than 64 characters as oversized while the record still claimed the 512-character
+        policy -- a defect that leaves the record looking bounded-as-designed with a cap
+        nobody chose in force.
+
+        Since SEC-04 no part of a key is published, so the verdict is what the cap
+        decides and the verdict is what this asserts. A 100-character key sits between
+        the two caps, which is exactly what makes it able to tell them apart.
         """
         self.assertNotEqual(shape.SHAPE_VALUE_LIMIT, shape.SHAPE_KEYS_REPORTED_LIMIT)
-        rendered = shape.safe_keys((self.HOSTILE,))
-        excerpt = rendered["keys"][0]["excerpt"]
-        # Longer than the key-count cap could ever have allowed.
-        self.assertGreater(len(excerpt), shape.SHAPE_KEYS_REPORTED_LIMIT)
-        self.assertIn(str(shape.SHAPE_VALUE_LIMIT), excerpt)
-        self.assertIn(str(len(self.HOSTILE)), excerpt)
+        between = "k" * 100
+        self.assertGreater(len(between), shape.SHAPE_KEYS_REPORTED_LIMIT)
+        self.assertLess(len(between), shape.SHAPE_VALUE_LIMIT)
 
-    def test_success_path_publishes_a_safe_version_with_length_and_digest(self) -> None:
-        """The observed version is bounded, inert, and still identified by length+digest."""
+        rendered = shape.safe_keys((between,))
+        entry = rendered["keys"][0]
+        self.assertIs(
+            entry["truncated"],
+            False,
+            msg=(
+                "a 100-character key is inside the 512-character policy, so flagging it "
+                "oversized would mean the key-count cap had been used as the size cap"
+            ),
+        )
+        self.assertEqual(entry["character_length"], len(between))
+        self.assertEqual(entry["excerpt"], shape.REDACTED_TEXT)
+
+        # And the size cap, when it really is crossed, is still reported.
+        oversized = shape.safe_keys((self.HOSTILE,))["keys"][0]
+        self.assertIs(oversized["truncated"], True)
+        self.assertEqual(oversized["character_length"], len(self.HOSTILE))
+
+    def test_success_path_publishes_no_version_content_but_keeps_its_evidence(self) -> None:
+        """The observed version is redacted, and still identified by length+digest.
+
+        This is the reproduction the QA finding used, in miniature: a synthetic
+        credential placed in nothing but a document's ``version`` came back whole in
+        the detection record this pipeline preserves. So the assertion is on OCCURRENCE
+        -- the value must appear nowhere in the serialised evidence -- rather than on
+        the rendering being merely bounded or merely inert, both of which a copy of a
+        secret satisfies.
+        """
         evidence = shape.detection_evidence({"version": self.HOSTILE, "runs": []})
 
-        self.assert_inert(evidence["version_observed"], "version_observed")
-        self.assertLessEqual(
-            len(str(evidence["version_observed"])),
-            shape.SHAPE_VALUE_LIMIT + 128,
-            msg="the excerpt must be bounded, with room for the truncation annotation",
-        )
+        self.assertEqual(evidence["version_observed"], shape.REDACTED_TEXT)
         detail = evidence["version_observed_evidence"]
         self.assertEqual(detail["value_type"], "str")
         self.assertEqual(detail["character_length"], len(self.HOSTILE))
         self.assertEqual(len(detail["sha256"]), 64)
+        self.assertEqual(
+            detail["sha256"],
+            hashlib.sha256(self.HOSTILE.encode("utf-8")).hexdigest(),
+            msg="the digest must be of the WHOLE original, not of what was published",
+        )
         self.assertTrue(detail["truncated"])
         self.assertEqual(detail["userinfo_redactions"], 1)
         self.assertEqual(detail["controls_escaped"], 1)
-        self.assert_inert(detail["excerpt"], "version_observed_evidence excerpt")
+        self.assertEqual(detail["excerpt"], shape.REDACTED_TEXT)
+        self.assertIs(detail["redacted"], True)
+        self.assertIs(detail["publishable"], False)
+        serialised = json.dumps(evidence)
+        for fragment in ("secret", "evil.example", "A" * 40):
+            self.assertNotIn(
+                fragment,
+                serialised,
+                msg=(
+                    "no fragment of the observed version may reach the detection "
+                    f"record; {fragment!r} did"
+                ),
+            )
+        # The decision is taken from the raw value, so redaction cannot move routing.
+        self.assertIs(evidence["version_matches"], False)
+
+    def test_an_authored_version_literal_is_still_published_verbatim(self) -> None:
+        """The one carve-out, asserted so the redaction cannot become total.
+
+        ``"2.1.0"`` is a literal ``shape.py`` contains, so publishing it discloses
+        nothing about the artifact -- and a record that redacted it would be unreadable
+        for the ordinary case. This is what keeps the vocabulary honest in the other
+        direction: without it, a renderer that returned the marker unconditionally
+        would pass every assertion above.
+        """
+        evidence = shape.detection_evidence({"version": shape.SARIF_VERSION, "runs": {}})
+        self.assertEqual(evidence["version_observed"], shape.SARIF_VERSION)
+        detail = evidence["version_observed_evidence"]
+        self.assertEqual(detail["excerpt"], shape.SARIF_VERSION)
+        self.assertIs(detail["publishable"], True)
+        self.assertIs(detail["redacted"], False)
+        self.assertIs(evidence["version_matches"], True)
+        self.assertIs(evidence["runs_is_array"], False)
+        self.assertIs(evidence["is_sarif"], False)
+        # And the test is byte equality, never a prefix: one extra character redacts.
+        near = shape.detection_evidence({"version": shape.SARIF_VERSION + "-rtm.5"})
+        self.assertEqual(near["version_observed"], shape.REDACTED_TEXT)
+        self.assertIs(near["version_observed_evidence"]["publishable"], False)
 
     def test_success_path_caps_how_many_keys_an_artifact_can_publish(self) -> None:
         """A document with thousands of keys cannot choose this record's size."""
@@ -3552,8 +3771,14 @@ class ArtifactControlledDiagnosticTests(ShapeTestCase):
             len(evidence["top_level_keys"]), shape.SHAPE_KEYS_REPORTED_LIMIT
         )
 
-    def test_wrong_version_halt_renders_its_version_safely(self) -> None:
-        """A wrong-version SARIF under a recognised name halts with inert details."""
+    def test_wrong_version_halt_publishes_no_version_content(self) -> None:
+        """A wrong-version SARIF under a recognised name halts with redacted details.
+
+        Both persisted channels are asserted, because they are different code paths and
+        the finding was reproduced through both: ``details()`` is what
+        ``normalize-run.json`` carries, and ``str(error)`` is the exception message
+        ``cli.py`` prints to stderr.
+        """
         with self.assertRaises(shape.UnknownArtifactShape) as caught:
             shape.route_artifact(
                 "harness/artifacts/raw/opengrep.sarif",
@@ -3563,12 +3788,20 @@ class ArtifactControlledDiagnosticTests(ShapeTestCase):
         details = error.details()
 
         self.assertEqual(details["reason"], shape.REASON_SARIF_PRODUCER_NOT_SARIF)
+        self.assertEqual(details["version"], shape.REDACTED_TEXT)
         self.assert_inert(details["version"], "halt details version")
         self.assert_inert(str(error), "halt message")
         self.assertEqual(
             details["version_evidence"]["character_length"], len(self.HOSTILE)
         )
         self.assertEqual(len(details["version_evidence"]["sha256"]), 64)
+        self.assertEqual(details["version_evidence"]["excerpt"], shape.REDACTED_TEXT)
+        for fragment in ("secret", "evil.example", "A" * 40):
+            self.assertNotIn(fragment, json.dumps(details), msg="halt details")
+            self.assertNotIn(fragment, str(error), msg="halt message")
+        # The raw value stays reachable in memory for a caller that holds the artifact;
+        # what is closed is the PERSISTED channel, and the distinction is deliberate.
+        self.assertEqual(error.version, self.HOSTILE)
         self.assertTrue(json.dumps(details))
 
     def test_unknown_shape_halt_bounds_and_sanitises_its_keys(self) -> None:
@@ -3608,11 +3841,26 @@ class ArtifactControlledDiagnosticTests(ShapeTestCase):
         self.assertTrue(json.dumps(details))
 
     def test_tab_and_newline_survive_because_the_dataset_carries_them(self) -> None:
-        """Escaping must not rewrite legitimate evidence (AAP 0.5.4)."""
+        """Escaping must not rewrite legitimate evidence (AAP 0.5.4).
+
+        The exemption lives in the control predicate, and the predicate is what both
+        modules share. ``shape.safe_text`` publishes no artifact text since SEC-04, so
+        the exemption is asserted where it is now observable -- the change COUNT, which
+        must stay zero -- and in ``paths.sanitise_diagnostic``, the renderer that does
+        still keep its text because a composed sentence is authored prose.
+        """
         rendered = shape.safe_text("first\tsecond\nthird")
-        self.assertIn("\t", rendered["text"])
-        self.assertIn("\n", rendered["text"])
         self.assertEqual(rendered["controls_escaped"], 0)
+
+        from normalize import paths
+
+        sentence = paths.sanitise_diagnostic("first\tsecond\nthird")
+        self.assertIn("\t", sentence.text)
+        self.assertIn("\n", sentence.text)
+        self.assertEqual(sentence.controls_escaped, 0)
+        # And an ESC is still escaped in both, so the exemption is narrow.
+        self.assertEqual(shape.safe_text(f"a{self.ESC}b")["controls_escaped"], 1)
+        self.assertEqual(paths.sanitise_diagnostic(f"a{self.ESC}b").controls_escaped, 1)
 
 
 class SafeRenderingParityTests(ShapeTestCase):
@@ -3636,15 +3884,34 @@ class SafeRenderingParityTests(ShapeTestCase):
         "git@host:path is not a credential either",
     )
 
-    def test_limits_agree(self) -> None:
-        """The bound and the redaction marker are the same value in both modules."""
+    def test_limits_and_markers_agree(self) -> None:
+        """The bound and both redaction markers are the same value in both modules."""
         from normalize import paths
 
         self.assertEqual(shape.SHAPE_VALUE_LIMIT, paths.DIAGNOSTIC_VALUE_LIMIT)
         self.assertEqual(shape.USERINFO_REDACTION, paths.USERINFO_REDACTION)
+        self.assertEqual(shape.REDACTED_TEXT, paths.REDACTED_TEXT)
+        self.assertEqual(
+            shape.WELL_KNOWN_DOCUMENT_KEYS,
+            paths.WELL_KNOWN_DOCUMENT_KEYS,
+            msg=(
+                "the shared core of the publication vocabulary is authored twice for "
+                "the same import-graph reason CANONICAL_TOOLS is, so it is pinned here"
+            ),
+        )
 
-    def test_rendering_agrees_on_every_hostile_case(self) -> None:
-        """Both implementations produce the same text, digest and change counts."""
+    def test_measurement_agrees_on_every_hostile_case(self) -> None:
+        """Both implementations measure a hostile value identically.
+
+        What is compared is the MEASUREMENT -- digest, length, size verdict and the two
+        change counts -- rather than the text, because since SEC-04 the two renderers
+        have different jobs and must not be confused: ``shape.safe_text`` describes an
+        artifact-supplied VALUE and publishes none of it, while
+        ``paths.sanitise_diagnostic`` sanitises a composed SENTENCE this repository
+        authored and keeps it, since a rejection detail whose whole job is to be read
+        would be useless described. The value-describing pair is asserted for identical
+        output in ``test_value_description_agrees_for_a_non_string`` below.
+        """
         from normalize import paths
 
         for case in self.CASES:
@@ -3653,7 +3920,6 @@ class SafeRenderingParityTests(ShapeTestCase):
                 theirs = paths.sanitise_diagnostic(
                     case, limit=shape.SHAPE_VALUE_LIMIT
                 )
-                self.assertEqual(mine["text"], theirs.text)
                 self.assertEqual(mine["sha256"], theirs.sha256)
                 self.assertEqual(mine["original_length"], theirs.original_length)
                 self.assertEqual(mine["truncated"], theirs.truncated)
@@ -3661,9 +3927,48 @@ class SafeRenderingParityTests(ShapeTestCase):
                 self.assertEqual(
                     mine["userinfo_redactions"], theirs.userinfo_redactions
                 )
+                # None of these cases is an authored literal, so none is published.
+                self.assertEqual(mine["text"], shape.REDACTED_TEXT)
+                self.assertIs(mine["redacted"], True)
+
+    def test_the_publication_carve_out_agrees_in_both_modules(self) -> None:
+        """A shared authored literal publishes verbatim on both sides, and only there.
+
+        The carve-out is what stops the redaction making an ordinary record
+        unreadable, and it is the one place a value IS copied into a persisted
+        diagnostic -- so the two modules must agree on exactly which values those are,
+        or one of them is publishing something the policy does not allow.
+        """
+        from normalize import paths
+
+        for literal in ("$schema", shape.SARIF_VERSION_KEY, shape.SARIF_RUNS_KEY):
+            with self.subTest(literal=literal):
+                self.assertTrue(shape.is_publishable_literal(literal))
+                self.assertTrue(paths.is_publishable_literal(literal))
+                self.assertEqual(shape.safe_text(literal)["text"], literal)
+                self.assertEqual(
+                    paths.safe_diagnostic(literal).excerpt, literal
+                )
+        for literal in ("$schema ", "Version", "runs\n", *self.CASES):
+            with self.subTest(rejected=literal[:40]):
+                self.assertFalse(
+                    shape.is_publishable_literal(literal),
+                    msg="membership is byte equality, never a prefix or a fold",
+                )
+                self.assertFalse(paths.is_publishable_literal(literal))
+        # A non-string is never publishable AS TEXT in either module.
+        for value in ({"a": 1}, [1], 17, None, True):
+            with self.subTest(value=repr(value)):
+                self.assertFalse(shape.is_publishable_literal(value))
+                self.assertFalse(paths.is_publishable_literal(value))
 
     def test_value_description_agrees_for_a_non_string(self) -> None:
-        """A wrong-typed value is described identically by both."""
+        """A wrong-typed value is described identically by both, and shown by neither.
+
+        A mapping's ``repr`` is the artifact's own keys and values spelled out, so the
+        published rendering must be the marker on both sides rather than a bounded copy
+        of that ``repr``.
+        """
         from normalize import paths
 
         for value in ({"a": 1}, [1, 2, 3], 17, None, True):
@@ -3674,6 +3979,9 @@ class SafeRenderingParityTests(ShapeTestCase):
                 self.assertEqual(mine["character_length"], theirs["character_length"])
                 self.assertEqual(mine["sha256"], theirs["sha256"])
                 self.assertEqual(mine["excerpt"], theirs["excerpt"])
+                self.assertEqual(mine["excerpt"], shape.REDACTED_TEXT)
+                self.assertEqual(mine["redacted"], theirs["redacted"])
+                self.assertEqual(mine["publishable"], theirs["publishable"])
 
     def test_per_key_provenance_agrees_with_the_other_implementation(self) -> None:
         """Each reported KEY is described identically by both implementations.
@@ -3683,6 +3991,10 @@ class SafeRenderingParityTests(ShapeTestCase):
         scalar path is. Without this, a future change to one implementation could leave
         the two modules describing the same hostile key differently -- and the parity the
         duplication is justified by would be gone with nothing failing.
+
+        None of the cases is an authored literal, so every rendering here is expected to
+        be the fixed marker: the assertion is equality between the two modules AND that
+        neither published any part of the key (SEC-04).
         """
         from normalize import paths
 
@@ -3695,10 +4007,12 @@ class SafeRenderingParityTests(ShapeTestCase):
                 self.assertEqual(entry["character_length"], theirs["character_length"])
                 self.assertEqual(entry["sha256"], theirs["sha256"])
                 self.assertEqual(entry["excerpt"], theirs["excerpt"])
-                # And the full digest is the digest of the ORIGINAL, not of the excerpt.
+                # And the full digest is the digest of the ORIGINAL, not of what was
+                # published -- which is what makes a redaction checkable.
                 self.assertEqual(
                     entry["sha256"], hashlib.sha256(case.encode("utf-8")).hexdigest()
                 )
+                self.assertEqual(entry["excerpt"], shape.REDACTED_TEXT)
 
 class CliTestCase(unittest.TestCase):
     """Temporary-directory and halt-assertion helpers shared by the CLI classes.
@@ -5150,6 +5464,195 @@ class CliUnexpectedRawEntryPublicationTests(CliTestCase):
         for key, original in before.items():
             with self.subTest(output=key):
                 self.assertEqual(workspace[key].read_bytes(), original)
+
+
+# --------------------------------------------------------------------------------------
+# The reported reproduction, end to end: no artifact byte reaches a persisted diagnostic
+# --------------------------------------------------------------------------------------
+
+
+class CliArtifactControlledDiagnosticPublicationTests(CliTestCase):
+    """The QA reproduction for SEC-04, driven through the real entry point.
+
+    :class:`ArtifactControlledDiagnosticTests` asserts the two in-memory channels --
+    ``str(error)`` and ``details()`` -- directly on :func:`shape.route_artifact`. That
+    is where the policy lives, and it is not where the finding was *observed*. The
+    finding was reported by placing a unique synthetic credential in the ``version`` of
+    a recognised SARIF artifact, running the top-level normalizer, and finding the
+    credential in the process's stderr and in ``normalize-run.json`` **on disk**. Those
+    are two further code paths: ``cli.py`` composes the message it prints from the
+    exception, and it re-keys ``details()`` into the run record it serialises. A policy
+    correct in ``shape.py`` and bypassed by either composition would satisfy every
+    assertion in that class while still publishing the credential.
+
+    So this class is the reproduction rather than a restatement of it. One marker goes
+    into the ``version`` value and a second into a top-level key name -- the two places
+    an artifact chooses text that reaches these diagnostics -- and the assertion is a
+    COUNT of zero in each persisted channel, never a search for a redaction marker: a
+    test asserting only that the fixed marker is present would pass for a record that
+    published the marker *and* the credential beside it.
+
+    Zero counts alone would also pass for a run that never reached the halt at all, so
+    every count is paired with a positive control from the same record: the FULL 64-hex
+    sha256 and the FULL character length of each marker-bearing value, which is the
+    evidence SEC-04 requires be kept, and the ordinary document keys ``version`` and
+    ``runs``, which the publication carve-out still prints verbatim because ``shape.py``
+    authors them itself.
+
+    Neither marker is ever written to a committed file: both are built here, they enter
+    only a temporary directory, and only counts and digests are asserted.
+    """
+
+    #: Unique, and unique in two halves so a hit can be attributed to its channel. Both
+    #: are ASCII with no substring in common, so a count of one cannot be a count of the
+    #: other, and neither can collide with a fixture, a rule id or a path in the corpus.
+    VERSION_MARKER = "QAMARKERsecFOURvalue7f3a91b2"
+    KEY_MARKER = "QAKEYsecFOURname0d4e6c8a"
+
+    # The workspace and entry-point helpers are the ones the raw-directory publication
+    # class above authored: one temporary tree of real inputs, and ``cli.main`` driven in
+    # process with a replaced environment. They are reused by assignment rather than
+    # copied so that the two classes cannot drift apart on what "the real entry point
+    # over a real workspace" means -- a copy would let one be hardened and the other not.
+    workspace = CliUnexpectedRawEntryPublicationTests.workspace
+    run_main = CliUnexpectedRawEntryPublicationTests.run_main
+
+    def marker_document(self) -> dict:
+        """The reported artifact: a recognised SARIF name whose ``version`` is wrong.
+
+        The document is otherwise the shape a SARIF producer writes -- ``$schema``,
+        ``version``, ``runs`` -- because the carve-out control depends on those three
+        keys being the ordinary ones. Only ``version`` is defective, which is what makes
+        the halt the wrong-version halt rather than an unknown shape, and the extra key
+        carries the second marker.
+        """
+        return {
+            "$schema": (
+                "https://json.schemastore.org/sarif-2.1.0-rtm.5.json"
+            ),
+            "version": f"2.1.0-{self.VERSION_MARKER}",
+            "runs": [],
+            self.KEY_MARKER: {"note": "an extra top-level key an artifact chose"},
+        }
+
+    def markers(self, document: Mapping) -> tuple[str, str]:
+        """Return the two marker-bearing originals, read back out of *document*.
+
+        Read back rather than re-composed: the digests asserted below must be the
+        digests of exactly what the artifact carried, and re-spelling the value here
+        would let the fixture and the expectation drift.
+        """
+        version = document["version"]
+        keys = [key for key in document if self.KEY_MARKER in key]
+        self.assertEqual(len(keys), 1, msg="the marker key must be unique")
+        return version, keys[0]
+
+    def assert_absent_with_provenance(
+        self, channel: str, text: str, original: str
+    ) -> None:
+        """Require *original* to be absent from *text* while its evidence is present.
+
+        The two halves are one assertion. Absence on its own is satisfied by a channel
+        that recorded nothing; presence of the digest and the length on its own is
+        satisfied by a channel that recorded both the evidence and the value. SEC-04 is
+        closed only where both hold at once.
+        """
+        self.assertEqual(
+            text.count(original),
+            0,
+            msg=(
+                f"{channel}: the artifact-supplied value occurs in a persisted "
+                "diagnostic; this is the reported finding"
+            ),
+        )
+        digest = hashlib.sha256(original.encode("utf-8")).hexdigest()
+        self.assertEqual(len(digest), 64)
+        self.assertIn(
+            digest,
+            text,
+            msg=(
+                f"{channel}: the value is redacted but its full digest is missing, so "
+                "the record no longer identifies what was rejected"
+            ),
+        )
+        self.assertIn(
+            str(len(original)),
+            text,
+            msg=f"{channel}: the value's full character length is missing",
+        )
+
+    def test_the_reported_reproduction_leaks_nothing_through_the_real_cli(self) -> None:
+        """Exit, stderr and the run record on disk, over one hostile artifact."""
+        workspace = self.workspace()
+        document = self.marker_document()
+        version, key = self.markers(document)
+        (workspace["raw_dir"] / "opengrep.sarif").write_text(
+            json.dumps(document, indent=1) + "\n", encoding="utf-8"
+        )
+
+        code, stdout, stderr = self.run_main(workspace)
+
+        self.assertEqual(code, cli.EXIT_HALT)
+        self.assertIn(cli.HALT_UNKNOWN_ARTIFACT_SHAPE, stderr)
+        self.assertNotIn("row(s)", stdout)
+
+        # The run record is read as bytes and counted as text, so a marker that survived
+        # inside a nested string, a key, or an escaped rendering is still counted.
+        record_text = workspace["run_record"].read_text(encoding="utf-8")
+        record = json.loads(record_text)
+        self.assertEqual(
+            record["halt"]["reason"], cli.HALT_UNKNOWN_ARTIFACT_SHAPE
+        )
+        self.assertEqual(
+            record["halt"]["details"]["detection_reason"],
+            shape.REASON_SARIF_PRODUCER_NOT_SARIF,
+        )
+
+        for channel, text in (("cli stderr", stderr), ("run record", record_text)):
+            for subject, original in (("version", version), ("top-level key", key)):
+                with self.subTest(channel=channel, subject=subject):
+                    self.assert_absent_with_provenance(channel, text, original)
+
+        # The carve-out control, from the same record: an ordinary key is still printed
+        # as itself, so the redaction is narrow rather than a blanket that would make
+        # every unknown-shape record unreadable.
+        excerpts = record["halt"]["details"]["top_level_key_excerpts"]
+        self.assertIn(shape.SARIF_VERSION_KEY, excerpts)
+        self.assertIn(shape.SARIF_RUNS_KEY, excerpts)
+        self.assertIn(shape.REDACTED_TEXT, excerpts)
+        self.assertEqual(
+            record["halt"]["details"]["version"], shape.REDACTED_TEXT
+        )
+
+    def test_the_same_two_markers_leak_nothing_through_the_in_memory_channels(
+        self,
+    ) -> None:
+        """The exception message and ``details()``, over the identical document.
+
+        Same markers, same document, one layer down. Pairing it with the run above is
+        what distinguishes a policy hole in ``shape.py`` from a composition hole in
+        ``cli.py``: if this passes and the run above fails, the leak is in the CLI's own
+        rendering, and a reader of a failure gets that attribution for free.
+        """
+        document = self.marker_document()
+        version, key = self.markers(document)
+
+        with self.assertRaises(shape.UnknownArtifactShape) as caught:
+            shape.route_artifact("harness/artifacts/raw/opengrep.sarif", document)
+        error = caught.exception
+        serialised = json.dumps(error.details())
+
+        for channel, text in (
+            ("exception message", str(error)),
+            ("details() serialisation", serialised),
+        ):
+            for subject, original in (("version", version), ("top-level key", key)):
+                with self.subTest(channel=channel, subject=subject):
+                    self.assert_absent_with_provenance(channel, text, original)
+
+        # And the raw value is still reachable in memory for a caller holding the
+        # artifact. What SEC-04 closes is the PERSISTED channel, not the measurement.
+        self.assertEqual(error.version, version)
 
 
 # --------------------------------------------------------------------------------------
