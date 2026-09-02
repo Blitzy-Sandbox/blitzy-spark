@@ -84,6 +84,8 @@ from __future__ import annotations
 
 import json
 import pathlib
+import contextlib
+import io
 import re
 import subprocess
 import sys
@@ -726,6 +728,15 @@ def history_marked(scope: str) -> bool:
 _CLAUSE_SPLIT = re.compile(r"(?<=[.;:])\s+|\s+[\u2013\u2014]\s+")
 
 
+def clause_bounds(scope: str, at: int) -> tuple[int, int]:
+    """The clause containing `at`, by the same boundaries a retraction respects."""
+    cuts = [0] + [m.end() for m in _CLAUSE_SPLIT.finditer(scope)] + [len(scope)]
+    for lo, hi in zip(cuts, cuts[1:]):
+        if lo <= at < hi:
+            return lo, hi
+    return 0, len(scope)
+
+
 def history_marked_locally(scope: str, at: int) -> bool:
     """Is the citation at offset `at` retracted by a marker in its OWN clause?
 
@@ -927,25 +938,58 @@ def check_line_number_citations(g: Gate, docs: dict[str, str]) -> None:
     owner = "the cited files themselves, measured on disk"
     resolved_cache: dict[str, int | None] = {}
 
-    def line_count(candidate: str) -> int | None:
-        """Length of a cited file, or None when the citation is not ours to adjudicate.
+    def resolve(candidate: str) -> tuple[str, pathlib.Path | None]:
+        """Classify a cited name and, where it is ours, name the file it means.
 
-        Not-ours covers two genuinely different things and deliberately returns None for
-        both: a path outside the declared adjudicable surface (a pom in the pinned clone,
-        upstream `.gitignore`), and a path inside it that does not exist -- absence is
-        `check_absence_claims`'s subject, not this one's.
+        Three outcomes, and keeping them apart is the point.  "ours" is a path inside
+        the declared adjudicable surface that exists, and its length is adjudicable.
+        "missing" is a path inside that surface that does NOT exist -- previously
+        indistinguishable from foreign, so a citation of
+        `harness/lib/definitely-not-present.py:99999` passed; AAP 0.9.4 requires the
+        cited owner to exist, so it is an offender.  "foreign" is everything else: a pom
+        in the pinned clone, upstream `.gitignore`, a Spark source file -- outside this
+        gate's declared reach by design.
+
+        An ellipsis-abbreviated name (`probe-01-...log`) is resolved by glob against the
+        log tree and accepted only when exactly one file matches, because an
+        abbreviation that matches two files names neither.
         """
-        if candidate in resolved_cache:
-            return resolved_cache[candidate]
-        target: pathlib.Path | None = None
+        if "\u2026" in candidate or "..." in candidate:
+            # Glob the log tree for the abbreviation's fixed parts.  Only a relative,
+            # single-component pattern is globbable: an abbreviation naming a path
+            # outside the log tree (`/opt/...log`) is foreign, and passing it to
+            # Path.glob raises rather than returning nothing.
+            stem = candidate.rsplit("/", 1)[-1]
+            if candidate.startswith("/") and "/" in candidate.strip("/"):
+                return "foreign", None
+            parts = [part for part in re.split(r"\u2026|\.\.\.", stem) if part]
+            if not parts:
+                return "foreign", None
+            matches = sorted(m for m in LOGS.glob("*".join(parts) + "*")
+                             if m.is_file())
+            if len(matches) == 1:
+                return "ours", matches[0]
+            return ("ambiguous" if len(matches) > 1 else "foreign"), None
         if candidate.startswith(ADJUDICABLE_PREFIXES):
             target = ROOT / candidate
-        elif "/" not in candidate:
+            if target.is_file():
+                return "ours", target
+            if target.is_dir():
+                return "foreign", None
+            return "missing", None
+        if "/" not in candidate:
             probe = LOGS / candidate
-            if probe.exists():
-                target = probe
+            if probe.is_file():
+                return "ours", probe
+        return "foreign", None
+
+    def line_count(candidate: str) -> int | None:
+        """Length of a cited file, or None when it is not ours to adjudicate."""
+        if candidate in resolved_cache:
+            return resolved_cache[candidate]
+        kind, target = resolve(candidate)
         count = None
-        if target is not None and target.is_file():
+        if kind == "ours" and target is not None:
             try:
                 count = len(target.read_text(encoding="utf-8", errors="replace")
                             .splitlines())
@@ -955,29 +999,48 @@ def check_line_number_citations(g: Gate, docs: dict[str, str]) -> None:
         return count
 
     # A backticked filename, with an optional `file:12-34` locator attached.
-    FILENAME = re.compile(
-        # A dotfile (`.gitignore`) or a name.ext, optionally carrying its own locator.
-        # Dotfiles are recognised so that a line reference beside one attributes to it
-        # rather than reading as an unattributed reference.
-        r"`((?:\.[A-Za-z0-9_-]+|[A-Za-z0-9_./\-]+"
-        r"\.(?:log|status|json|txt|sarif|md|py|sh|sc|xml|scala|csv)))"
-        r"(?::(\d+)(?:\s*[\u2013\u2014-]\s*(\d+))?)?`")
-    # The same filename pattern, but only where it carries its own `:N` locator -- the
-    # flat sweep counts citations, not filename mentions.
+    # ONE filename grammar, used by both the attributing pass and the independent
+    # population sweep.  They were written twice and drifted immediately: the sweep did
+    # not learn about ellipsis-abbreviated names and reported 110 of 108 classified,
+    # a parity failure caused purely by two copies of one rule.
+    EXT = r"log|status|json|txt|sarif|md|py|sh|sc|xml|scala|csv"
+    NAME = (r"(?:\.[A-Za-z0-9_-]+"                                    # .gitignore
+            r"|[A-Za-z0-9_./\-]*[\u2026][A-Za-z0-9_./\-]*"            # probe-01-...log
+            r"\.?(?:" + EXT + r")?"
+            r"|[A-Za-z0-9_./\-]+\.(?:" + EXT + r"))")                  # plain name.ext
+    LOCATOR = r"(?::(\d+)(?:\s*[\u2013\u2014-]\s*(\d+))?)?"
+    FILENAME = re.compile("`(" + NAME + ")" + LOCATOR + "`")
+    # The same grammar, restricted to names carrying their own `:N` locator -- the flat
+    # sweep counts citations, not filename mentions.
     FILENAME_LOCATOR = re.compile(
-        r"`(?:\.[A-Za-z0-9_-]+|[A-Za-z0-9_./\-]+"
-        r"\.(?:log|status|json|txt|sarif|md|py|sh|sc|xml|scala|csv))"
-        r":(\d+)(?:\s*[\u2013\u2014-]\s*(\d+))?`")
+        "`(?:" + NAME + r"):(\d+)(?:\s*[\u2013\u2014-]\s*(\d+))?`")
     # A line reference in prose: "line 12", "lines 12-34", "line **12**".
     # A number, excluding a thousands-grouped one: "34" and "34," are line numbers,
     # "925,445" is a method count that happened to follow the word "line".
     N = r"(\d+)(?!\d)(?!,\d)"
     LINEREF = re.compile(
         r"\blines?\s+\*{0,2}" + N + r"\*{0,2}"
-        r"(?:\*{0,2}[\u2013\u2014-]\*{0,2}" + N + r")?")
+        r"(?:\s*\*{0,2}(?:[\u2013\u2014-]|to)\*{0,2}\s*" + N + r")?")
+    # A list or an open range continuing the reference: "lines 51, 55, 59, 63, 67 and
+    # 71", "lines 48 to 78".  severity-map.md cites the six baked query entries this
+    # way, and reading only the first number left five locators adjudicated by nobody.
+    LIST_MORE = re.compile(r"\s*(?:,|and|to)\s*\*{0,2}" + N)
     # A bare continuation of the reference before it: "and again at 47-50".
     CONTINUATION = re.compile(
         r"\band\s+again\s+at\s+" + N + r"(?:[\u2013\u2014-]" + N + r")?")
+    # A bare locator: "records it at 99998-99999", "its 33-34".  The documents do not
+    # currently write locators this way -- all 28 of their `at N`/`its N` occurrences
+    # carry a unit, a timestamp or a version -- but the form is a locator when nothing
+    # follows the number, and leaving it unrecognised meant a citation written this way
+    # would be adjudicated by nobody.  The trailing guards are what separate a locator
+    # from "at 64g", "at 923 lines", "at 974.22 s", "its 122-member" and
+    # "at 2026-09-01T14:25:10Z": a unit word, a decimal, a version or a timestamp all
+    # disqualify it, and a number with nothing after it does not.
+    BARE_LOCATOR = re.compile(
+        r"\b(?:at|its)\s+\*{0,2}" + N + r"\*{0,2}"
+        r"(?:\*{0,2}[\u2013\u2014-]\*{0,2}" + N + r")?"
+        r"(?![A-Za-z0-9:%\u2013\u2014-])(?![.,]\d)(?!\s+[A-Za-z])"
+        r"(?!\s*/)")   # "its 24 / 19 / 4 decomposition" is a ratio, not a locator
 
     # A TYPED REFERENT.  "runner line 50" names its file by type rather than by name,
     # and these documents use it throughout their per-tool sections.  The noun
@@ -988,8 +1051,12 @@ def check_line_number_citations(g: Gate, docs: dict[str, str]) -> None:
     # tool, so a heading is the unit this resolves in.  A bare reference still gets no
     # such treatment: attributing "line 67" to whatever file was mentioned last is how
     # a citation silently acquires the wrong owner.
-    RUNNER_REF = re.compile(r"\brunner\s+lines?\s+" + N
-                            + r"(?:\s*[\u2013\u2014-]\s*" + N + r")?")
+    # Two orders occur, and both name the runner: "runner line 50", and "the runner
+    # states it at line 39" / "the runner's graph guard fired (lines 44-48". Requiring
+    # the stricter order left ten citations in tool-status.md naming no file at all.
+    # The noun and the locator must share a clause, so an unrelated later mention of a
+    # runner cannot capture a locator.
+    RUNNER_NOUN = re.compile(r"\brunner(?:'s)?\b")
     RUNNER_FILE = re.compile(r"`(harness/bin/run-[a-z0-9\-]+\.sh)`")
     HEADING = re.compile(r"^#{1,6}\s+(.+?)\s*$", re.M)
 
@@ -1031,50 +1098,24 @@ def check_line_number_citations(g: Gate, docs: dict[str, str]) -> None:
                     best = fname
             return best
 
-        # Typed referents first, document-wide, so they are classified wherever they sit.
-        typed_spans: list[tuple[int, int]] = []
-        for m in RUNNER_REF.finditer(body):
-            typed_spans.append((m.start(), m.end()))
-            fname = runner_for(m.start())
-            if fname is None:
-                unscoped += 1
-                continue
-            total = None
-            target = ROOT / fname
-            if target.is_file():
-                total = len(target.read_text(encoding="utf-8",
-                                             errors="replace").splitlines())
-            if total is None:
-                foreign += 1
-                continue
-            worst = max(int(m.group(1)), int(m.group(2) or m.group(1)))
-            if worst <= total:
-                live += 1
-            else:
-                line_no = body.count("\n", 0, m.start()) + 1
-                offenders.append(
-                    f"{name}:{line_no} cites {fname} line {worst}, "
-                    f"but that file has {total} lines")
-
+        # NOTE ON PRECEDENCE.  There is no separate document-wide pass for typed
+        # referents.  One was tried, and because it ran first it gave the noun
+        # precedence over an explicit name: "...baked into `harness/lib/joern-scan.sc`;
+        # ... read from the runner, at lines 50-78" was adjudicated against
+        # `run-joern.sh` (76 lines) and reported as a defect, when joern-scan.sh has 122
+        # lines and the citation was correct.  An explicit filename therefore always
+        # wins, and the typed referent is consulted only where no filename precedes the
+        # locator in its own scope.
         for scope_start, scope in units(body):
             # EVERY filename in the scope, adjudicable or not.  Attributing only to
             # adjudicable ones is what mis-read "`sql/hive/pom.xml`, at line 209" as a
             # citation into some log named elsewhere in the same table row.
             names = sorted((m.start(), m.group(1), m.group(2), m.group(3))
                            for m in FILENAME.finditer(scope))
-            if not names:
-                # No filename in this row or paragraph, so nothing here can be
-                # attributed by name.  These are counted rather than skipped: a
-                # reference that leaves no trace in any bucket is the silence this
-                # family exists to prevent.  Typed referents were already classified
-                # above and are not double-counted.
-                for pattern in (LINEREF, CONTINUATION):
-                    for m in pattern.finditer(scope):
-                        at = scope_start + m.start()
-                        if any(lo <= at < hi for lo, hi in typed_spans):
-                            continue
-                        unscoped += 1
-                continue
+            # A scope with no filename at all is not skipped -- its references still go
+            # through the same classification, where the typed referent is their only
+            # chance of an owner.  Skipping them is the silence this family exists to
+            # prevent, and it hid `run-record.md:351`'s "that log's ... lines 86-89".
 
             def preceding(at: int) -> str | None:
                 """The nearest backticked filename at or before `at` in this scope."""
@@ -1088,6 +1129,28 @@ def check_line_number_citations(g: Gate, docs: dict[str, str]) -> None:
 
             def adjudicate(fname: str, low: int, high: str | None, at: int) -> None:
                 nonlocal live, history, foreign
+                kind, _target = resolve(fname)
+                line_no = body.count("\n", 0, scope_start + at) + 1
+                if kind == "missing":
+                    # A path INSIDE the declared adjudicable surface that does not
+                    # exist.  Previously indistinguishable from foreign, so a citation
+                    # of `harness/lib/definitely-not-present.py:99999` passed silently.
+                    # AAP 0.9.4 requires every number to name a file that exists.
+                    if history_marked_locally(scope, at):
+                        history += 1
+                        return
+                    offenders.append(
+                        f"{name}:{line_no} cites {fname}, which is inside this run's "
+                        f"own surface but does not exist")
+                    return
+                if kind == "ambiguous":
+                    if history_marked_locally(scope, at):
+                        history += 1
+                        return
+                    offenders.append(
+                        f"{name}:{line_no} cites the abbreviated name {fname}, which "
+                        f"matches more than one file, so it names none of them")
+                    return
                 total = line_count(fname)
                 if total is None:
                     foreign += 1
@@ -1099,7 +1162,6 @@ def check_line_number_citations(g: Gate, docs: dict[str, str]) -> None:
                 if history_marked_locally(scope, at):
                     history += 1
                     return
-                line_no = body.count("\n", 0, scope_start + at) + 1
                 offenders.append(
                     f"{name}:{line_no} cites {fname} line {worst}, "
                     f"but that file has {total} lines")
@@ -1108,34 +1170,146 @@ def check_line_number_citations(g: Gate, docs: dict[str, str]) -> None:
             #    not in question.
             for off, fname, lo, hi in names:
                 if lo is not None:
-                    adjudicate(fname, int(lo), hi, off)
+                    # Each end of an attached range is its own locator, so `file:33-34`
+                    # is two.  Adjudicating it as one verdict while the population
+                    # sweep counted two is what made the two sides disagree.
+                    for num in (lo, hi):
+                        if num is not None:
+                            adjudicate(fname, int(num), None, off)
 
             # 2. Prose references and their bare continuations, each attributed to the
             #    nearest preceding filename.  A reference with no filename before it
             #    names its referent in prose ("the runner", "the record") and is NOT
             #    guessed at -- guessing would attribute it to whatever file the sentence
             #    mentions next, which is a different file.  It is reported instead.
-            for pattern in (LINEREF, CONTINUATION):
-                for m in pattern.finditer(scope):
-                    if any(lo <= scope_start + m.start() < hi
-                           for lo, hi in typed_spans):
-                        continue
+            def governed(m: re.Match[str]) -> list[tuple[int, int]]:
+                """Every locator the match governs, as (number, offset) pairs.
+
+                A reference is not always one number: a comma list or an open range
+                continues it, and every number in it indexes the same file.
+                """
+                out = [(int(g), m.start()) for g in m.groups() if g]
+                pos = m.end()
+                while True:
+                    more = LIST_MORE.match(scope, pos)
+                    if not more:
+                        break
+                    out.append((int(more.group(1)), more.start()))
+                    pos = more.end()
+                return out
+
+            # One locator is counted once.  BARE_LOCATOR reads the tail of
+            # "and again at 47-50" as its own "at 47-50", so the three prose patterns
+            # are merged into a non-overlapping set, longest match winning at any
+            # position.  Without this a continuation is adjudicated twice and the live
+            # count overstates what was checked.
+            prose: list[re.Match[str]] = []
+            for pattern in (LINEREF, CONTINUATION, BARE_LOCATOR):
+                prose += list(pattern.finditer(scope))
+            prose.sort(key=lambda mm: (mm.start(), -(mm.end() - mm.start())))
+            deduped: list[re.Match[str]] = []
+            claimed_to = -1
+            for mm in prose:
+                if mm.start() >= claimed_to:
+                    deduped.append(mm)
+                    claimed_to = mm.end()
+            if True:
+                for m in deduped:
                     fname = preceding(m.start())
                     if fname is None:
-                        unattributed += 1
+                        # No explicit name before it: does its own clause name a
+                        # runner by type?
+                        lo_c, hi_c = clause_bounds(scope, m.start())
+                        if RUNNER_NOUN.search(scope[lo_c:hi_c]):
+                            typed = runner_for(scope_start + m.start())
+                            if typed is not None:
+                                for num, off in governed(m):
+                                    adjudicate(typed, num, None, off)
+                                continue
+                    if fname is None:
                         line_no = body.count("\n", 0, scope_start + m.start()) + 1
-                        offenders.append(
-                            f"UNATTRIBUTED {name}:{line_no} {m.group(0)!r} has no "
-                            f"backticked filename before it in its row or paragraph, so "
-                            f"which file it indexes cannot be established mechanically")
+                        if names:
+                            unattributed += 1
+                            offenders.append(
+                                f"UNATTRIBUTED {name}:{line_no} {m.group(0)!r} sits "
+                                f"before every backticked filename in its row or "
+                                f"paragraph, so which file it indexes cannot be "
+                                f"established mechanically")
+                        else:
+                            unscoped += 1
+                            offenders.append(
+                                f"UNSCOPED {name}:{line_no} {m.group(0)!r} is in a row "
+                                f"or paragraph that names no file at all, so its owner "
+                                f"cannot be established and its locator cannot be "
+                                f"checked")
                         continue
-                    adjudicate(fname, int(m.group(1)), m.group(2), m.start())
+                    for num, off in governed(m):
+                        adjudicate(fname, num, None, off)
 
         # The coverage assertion.  Every reference found is classified into exactly one
         # bucket, and the buckets are printed.  A future citation form that this checker
         # cannot read shows up as UNATTRIBUTED rather than as silence, which is the
         # failure mode that let a windowed earlier version of this check recognise zero
         # citations in a document holding eleven of them and still report clear.
+        # ---------------------------------------------------------------- independence
+        # THE INTRODUCER AUDIT.  The parity check below compares two traversals that
+        # both start from the locator patterns, so a form NEITHER pattern reads is
+        # counted by neither and the parity still holds -- which is exactly how a bare
+        # "records it at 99998-99999" escaped review once.  This audit starts somewhere
+        # else entirely: from the closed vocabulary of words these documents use to
+        # introduce a locator ("line", "lines", "at", "its", and an attached `:`), and
+        # requires every occurrence of one beside an adjudicable file to be either
+        # CONSUMED by a recognised locator or explained by a NAMED non-locator class.
+        # An occurrence that is neither is reported, so a new citation form cannot be
+        # silently unread: the introducer is still there even when the pattern misses.
+        recognised: list[tuple[int, int]] = []
+        for pat in (FILENAME_LOCATOR, LINEREF, CONTINUATION, BARE_LOCATOR):
+            recognised += [(m.start(), m.end()) for m in pat.finditer(body)]
+        INTRODUCER = re.compile(r"\b(?:lines?|at|its)\s+\*{0,2}(\d)")
+        # Named non-locator classes, tested on what FOLLOWS the number.  Each exists
+        # because these documents genuinely write it: a unit word ("at 923 lines",
+        # "at 64g"), a decimal ("at 974.22 s"), a timestamp or version
+        # ("at 2026-09-01T14:25:10Z", "at 3.13.7"), a ratio ("its 24 / 19 / 4"), and a
+        # hyphenated compound ("its 122-member inventory").
+        NON_LOCATOR = re.compile(
+            # The WHOLE number first.  Testing from its first digit read "its
+            # 62-archive" as digit-then-digit and explained nothing, so every
+            # thousands-grouped byte count and every hyphenated compound in these
+            # documents came back unexplained.
+            r"\d+(?:"
+            r"[A-Za-z%]"                                    # 64g, 50%
+            r"|[.,:]\d"                                     # 974.22, 260,005,888, 14:52
+            r"|\s*/"                                        # a ratio: 24 / 19 / 4
+            r"|[\u2013\u2014-]\d{2}[\u2013\u2014-]\d"      # a date: 2026-09-01
+            r"|[\u2013\u2014-][A-Za-z]"                     # 122-member, 62-archive
+            r"|\s+[A-Za-z]"                                 # 923 lines, 18 invocations
+            r")")
+        unexplained: list[str] = []
+        consumed = explained = 0
+        for scope_start, scope in units(body):
+            if not any(line_count(m.group(1)) is not None
+                       for m in FILENAME.finditer(scope)):
+                continue
+            for m in INTRODUCER.finditer(scope):
+                at = scope_start + m.start()
+                if any(lo <= at < hi for lo, hi in recognised):
+                    consumed += 1
+                    continue
+                if NON_LOCATOR.match(body, scope_start + m.start(1)):
+                    explained += 1
+                    continue
+                line_no = body.count("\n", 0, at) + 1
+                unexplained.append(
+                    f"{name}:{line_no} {m.group(0)!r} introduces a number beside an "
+                    f"adjudicable file, but no locator pattern read it and no "
+                    f"non-locator class explains it")
+        g.clear(f"every locator introducer in {name} is read or explained",
+                "the closed introducer vocabulary, independent of the locator patterns",
+                name, unexplained)
+        print(f"        [{name}: {consumed} introducers consumed by a recognised "
+              f"locator, {explained} explained as non-locators, "
+              f"{len(unexplained)} unexplained]")
+
         g.clear(f"line citations resolve ({name})", owner, name, offenders)
         # THE POPULATION ASSERTION.
         #
@@ -1147,10 +1321,34 @@ def check_line_number_citations(g: Gate, docs: dict[str, str]) -> None:
         # sweep sees must have been classified into exactly one bucket.  A future
         # citation form that the scoped path cannot reach therefore shows up here as a
         # count mismatch instead of as silence.
-        flat = len(FILENAME_LOCATOR.findall(body)) + len(LINEREF.findall(body)) \
-            + len(CONTINUATION.findall(body))
-        classified = (live + history + foreign + unattributed + unscoped
-                      + len(offenders))
+        # The flat sweep counts LOCATORS, not matches, because one reference can govern
+        # several ("lines 51, 55, 59, 63, 67 and 71" is six).  It walks the whole
+        # document rather than its scopes, and does its own continuation walk, so it
+        # remains a second traversal rather than a second call into the first.
+        flat = 0
+        for m in FILENAME_LOCATOR.finditer(body):
+            flat += len([g for g in m.groups() if g])
+        flat_prose = []
+        for pat in (LINEREF, CONTINUATION, BARE_LOCATOR):
+            flat_prose += list(pat.finditer(body))
+        flat_prose.sort(key=lambda mm: (mm.start(), -(mm.end() - mm.start())))
+        reach = -1
+        for m in flat_prose:
+            if m.start() < reach:
+                continue
+            reach = m.end()
+            flat += len([g for g in m.groups() if g])
+            pos = m.end()
+            while True:
+                more = LIST_MORE.match(body, pos)
+                if not more:
+                    break
+                flat += 1
+                pos = more.end()
+        # Every offender -- a range violation or an unattributed reference -- is exactly
+        # one reference, and `unattributed` is a REPORTING subset of `offenders`, so it
+        # must not be added again.  Adding both is what produced "110 of 108".
+        classified = live + history + foreign + len(offenders)
         g.check(f"every line reference in {name} is classified",
                 "a flat document-wide sweep of the same document",
                 flat, f"{name} (scoped classification)", classified)
@@ -1235,152 +1433,338 @@ def check_absence_claims(g: Gate, docs: dict[str, str]) -> None:
         print(f"        [{name}: {checked} absence claims tested]")
 
 
+def check_identifier_locators(g: Gate, docs: dict[str, str]) -> None:
+    """A locator must name the RIGHT line, not merely a line that exists.
+
+    Range checking alone accepts a locator that points somewhere real and wrong, and
+    that is not hypothetical: this record published
+    `harness/lib/normalize/cli.py:471` as the owner of `EXPECTED_INTERPRETER_VERSION`
+    while line 471 is `"EXIT_STATUS_EXITED"` inside `__all__` and the declaration is at
+    line 510.  A 588-line file makes 471 in range, so nothing objected.
+
+    So where a document cites `file:N` and, in the same clause, says what that line
+    STATES, DECLARES or OWNS, the named identifier must actually appear in the cited
+    span.  Only files inside the adjudicable surface are checked, and only claims whose
+    subject is an identifier -- a token carrying an underscore or a capital, which
+    distinguishes `EXPECTED_INTERPRETER_VERSION` and `sha256sum` from ordinary prose.
+    """
+    owner = "the cited source files themselves, read at the cited line"
+    BIND = re.compile(
+        r"`([A-Za-z0-9_./\-]+\.(?:py|sh|sc|scala|json|txt|log|status|md|csv|sarif))"
+        r":(\d+)(?:\s*[\u2013\u2014-]\s*(\d+))?`"
+        r"([^.|\n]{0,70}?\b(?:states|declares|owns|carries|reads|defines|sets|holds"
+        r"|computing|records)\b[^`|\n]{0,30})"
+        r"`([^`\n]{1,80})`")
+    IDENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+    for name, body in docs.items():
+        offenders: list[str] = []
+        checked = 0
+        for m in BIND.finditer(body):
+            cited, lo, hi, _mid, snippet = m.groups()
+            if not cited.startswith(ADJUDICABLE_PREFIXES):
+                continue
+            target = ROOT / cited
+            if not target.is_file():
+                continue
+            token = IDENT.search(snippet)
+            if token is None or not re.search(r"[A-Z_]", token.group(0)):
+                continue
+            lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
+            a = int(lo)
+            b = int(hi) if hi else a
+            if a > len(lines):
+                continue          # the range family owns an out-of-range locator
+            span = "\n".join(lines[a - 1:b])
+            checked += 1
+            if token.group(0) in span:
+                continue
+            line_no = body.count("\n", 0, m.start()) + 1
+            where = [i + 1 for i, text_ in enumerate(lines)
+                     if token.group(0) in text_]
+            hint = (f"; it appears at line{'s' if len(where) > 1 else ''} "
+                    f"{', '.join(str(w) for w in where[:4])}" if where else
+                    "; it does not appear in that file at all")
+            if history_marked_locally(body, m.start()):
+                continue
+            offenders.append(
+                f"{name}:{line_no} says {cited}:{lo}"
+                f"{'-' + hi if hi else ''} names `{token.group(0)}`, but that line "
+                f"does not{hint}")
+        g.clear(f"identifier locators name the right line ({name})", owner, name,
+                offenders)
+        print(f"        [{name}: {checked} identifier locators checked]")
+
+
 # ------------------------------------------------------------------------ entrypoint
 
 
-SELF_TEST_CASES: tuple[tuple[str, bool, str, str], ...] = (
-    # (label, must_be_refused, family, document text)
+SELF_TEST_CASES: tuple[tuple[str, bool, str, str, tuple[str, object]], ...] = (
+    # (label, must_be_refused, family, document fragment, what must be concluded)
     #
-    # LINE-CITATION FAMILY.  One case per form the documents actually use, each in the
-    # refused and the accepted direction.  `cpg-verify.log` is 420 lines and
-    # `joern.status` is 7, both read from disk by the check itself, so these cases stay
-    # true as those files change size -- they cite absurd or safe numbers, not edge ones.
-    ("attached locator, out of range",
-     True, "line", "`harness/artifacts/logs/cpg-verify.log:99999` states it."),
-    ("attached locator range, out of range",
-     True, "line", "`harness/artifacts/logs/cpg-verify.log:99998-99999` states it."),
-    ("attached locator, in range",
-     False, "line", "`harness/artifacts/logs/cpg-verify.log:33` states it."),
-    # The form that a windowed earlier version of this check could not see at all: the
-    # filename, then a digit-and-backtick-laden clause, then the citation.  This is the
-    # shape of oss-scan-results/joern-probe.md's cpg-verify.log paragraph, and a
-    # mutation of it to lines that do not exist passed the gate before this case existed.
-    ("prose citation behind an intervening clause, out of range",
-     True, "line",
-     "`harness/artifacts/logs/cpg-verify.log` records the **current** pair -- "
-     "541,309,809 / `4616845a...`, at its lines 99998-99999 and again at 99000-99001 "
-     "-- and mentions nothing else."),
-    ("prose citation behind an intervening clause, in range",
-     False, "line",
-     "`harness/artifacts/logs/cpg-verify.log` records the **current** pair -- "
-     "541,309,809 / `4616845a...`, at its lines 33-34 and again at 47-50 "
-     "-- and mentions nothing else."),
-    ("bare continuation, out of range",
-     True, "line",
-     "`harness/artifacts/logs/cpg-verify.log` at its lines 33-34 and again at "
-     "99998-99999."),
-    # The history exemption must be local.  A paragraph that mentions an earlier
-    # generation for its own reasons must not excuse a live citation elsewhere in it --
-    # that is how the mutation above was swallowed even once the citation was seen.
-    ("out-of-range citation in a paragraph whose history marker is in another clause",
-     True, "line",
-     "`harness/artifacts/logs/cpg-verify.log` records the current pair at its lines "
-     "99998-99999. A superseded earlier generation of this record said otherwise."),
-    ("out-of-range citation retracted in its own clause",
-     False, "line",
-     "An earlier generation quoted `harness/artifacts/logs/joern.status` at its lines "
-     "274-275; commit 0e3e742a5ad replaced all nine with the runner trailers."),
-    ("line reference with no filename before it",
-     True, "line",
-     "The runner sets the heap at line 70, and `harness/artifacts/logs/cpg-verify.log` "
-     "records the result."),
-    # The typed referent, both directions.  run-joern.sh is 76 lines.
-    ("typed runner referent, out of range",
-     True, "line",
-     "`harness/bin/run-joern.sh` bakes the set, and the heap is applied at runner "
-     "line 99999."),
-    ("typed runner referent, in range",
-     False, "line",
-     "`harness/bin/run-joern.sh` bakes the set, and the heap is applied at runner "
-     "line 70."),
-    # The regression that document-order resolution caused: a citation correct for its
-    # own section's runner, made in a section whose runner is never backticked, with a
-    # SHORTER runner named in the section before it.  run-checkov.sh is 58 lines and
-    # run-trivy.sh is 124, so document order refuses line 61 and the section accepts it.
-    ("typed referent resolves in its own section, not the preceding one",
-     False, "line",
-     "## checkov\n\nThe runner `harness/bin/run-checkov.sh` writes the report.\n\n"
-     "## trivy\n\n| Working directory | `/opt/spark-src` (`cd \"$SCAN_ROOT\"`, "
-     "runner line 61) |"),
-    ("typed referent out of range for its own section's runner",
-     True, "line",
-     "## checkov\n\nThe runner `harness/bin/run-checkov.sh` writes the report.\n\n"
-     "## trivy\n\n| Working directory | `/opt/spark-src` (`cd \"$SCAN_ROOT\"`, "
-     "runner line 99999) |"),
-    ("line reference into a file outside the adjudicable surface",
-     False, "line", "`sql/hive/pom.xml`, at line 209, gates the profile."),
-    ("a thousands-grouped number after the word line is not a range end",
-     False, "line",
-     "`harness/artifacts/logs/cpg-verify.log` at its line 93 -- **925,445** methods."),
+    # Every case pins down the CONCLUSION, not merely whether the family objected:
+    # ("offender", text) demands a refusal whose reason contains `text`, and
+    # (bucket, n) demands the citation land in that bucket n times.  An accepting case
+    # that asserted nothing would be satisfied by a family that never read the citation
+    # -- which is the defect these cases exist to prevent, wearing a pass.
+    #
+    # File lengths used below are read from disk by the checks themselves:
+    # cpg-verify.log is 420 lines, joern.status 7, joern-scan.sc 122, run-joern.sh 76,
+    # run-checkov.sh 58, run-trivy.sh 124, probe-01-...log 178.  The cases cite either
+    # absurd numbers or safely small ones, so they stay true as those files change.
 
-    # STATUS-FIELD FAMILY.  The trailers carry seven fields; anything else cited as a
-    # field is the defect this family exists for.
+    # ---------------------------------------------------------------- LINE, per form
+    ("attached locator `file:N`, out of range",
+     True, "line", "`harness/artifacts/logs/cpg-verify.log:99999` states it.",
+     ("offender", "but that file has 420 lines")),
+    ("attached locator `file:N-M`, both ends adjudicated",
+     False, "line", "`harness/artifacts/logs/cpg-verify.log:33-34` states it.",
+     ("live", 2)),
+    ("attached locator `file:N-M`, second end out of range",
+     True, "line", "`harness/artifacts/logs/cpg-verify.log:33-99999` states it.",
+     ("offender", "line 99999")),
+    # The form a windowed earlier version could not see at all: the filename, then a
+    # digit-and-backtick-laden clause, then the locator.  This is joern-probe.md's
+    # cpg-verify.log paragraph, and mutating it to lines that do not exist once passed.
+    ("prose locator behind an intervening clause, out of range",
+     True, "line",
+     "`harness/artifacts/logs/cpg-verify.log`" + " records the **current** pair -- 541,309,809 / `4616845a...`, at its "
+     "lines 99998-99999 and again at 99000-99001 -- and nothing else.",
+     ("offender", "line 99999")),
+    ("prose locator behind an intervening clause, in range",
+     False, "line",
+     "`harness/artifacts/logs/cpg-verify.log`" + " records the **current** pair -- 541,309,809 / `4616845a...`, at its "
+     "lines 33-34 and again at 47-50 -- and nothing else.",
+     ("live", 4)),
+    ("bare continuation `and again at N-M`, out of range",
+     True, "line", "`harness/artifacts/logs/cpg-verify.log`" + " at its lines 33-34 and again at 99998-99999.",
+     ("offender", "line 99999")),
+    ("bare locator `at N-M` with no line keyword, out of range",
+     True, "line", "`harness/artifacts/logs/cpg-verify.log`" + " records it at 99998-99999.",
+     ("offender", "but that file has 420 lines")),
+    ("list continuation `lines A, B, C and D`, every member adjudicated",
+     False, "line",
+     "`harness/lib/joern-scan.sc`" + " declares the six entries at lines 51, 55, 59, 63, 67 and 71.",
+     ("live", 6)),
+    ("list continuation with one out-of-range member",
+     True, "line",
+     "`harness/lib/joern-scan.sc`" + " declares the six entries at lines 51, 55, 59, 63, 67 and 99999.",
+     ("offender", "line 99999")),
+    ("open range `lines A to B`, both ends adjudicated",
+     False, "line", "`harness/lib/joern-scan.sc`" + " carries them at lines 48 to 78.", ("live", 2)),
+    ("open range `lines A to B`, upper end out of range",
+     True, "line", "`harness/lib/joern-scan.sc`" + " carries them at lines 48 to 99999.",
+     ("offender", "line 99999")),
+    ("ellipsis-abbreviated filename resolved by glob, in range",
+     False, "line", "`probe-01-\u2026log` line 25 carries it.", ("live", 1)),
+    ("ellipsis-abbreviated filename resolved by glob, out of range",
+     True, "line", "`probe-01-\u2026log` line 99999 carries it.",
+     ("offender", "but that file has 178 lines")),
+    ("ellipsis abbreviation matching more than one file names none of them",
+     True, "line", "`probe-\u2026log` line 5 carries it.",
+     ("offender", "matches more than one file")),
+
+    # ------------------------------------------------------- LINE, owner must exist
+    ("citation into a path inside this run's surface that does not exist",
+     True, "line", "`harness/lib/definitely-not-present.py:99999` states it.",
+     ("offender", "does not exist")),
+    ("citation into a file outside the adjudicable surface is not adjudicated",
+     False, "line", "`sql/hive/pom.xml`, at line 209, gates the profile.",
+     ("foreign", 1)),
+
+    # ------------------------------------------------------ LINE, owner must be known
+    ("locator sitting before every filename in its own scope",
+     True, "line",
+     "The record names it twice at its lines 6-13 -- the sourcing command and the "
+     "sentence naming " + "`harness/artifacts/logs/cpg-verify.log`" + " as the log.",
+     ("offender", "UNATTRIBUTED")),
+    ("locator in a scope that names no file at all",
+     True, "line",
+     "The counts come from that log's **PHASE 1** (its lines 99998-99999), which "
+     "re-derived them.",
+     ("offender", "UNSCOPED")),
+
+    # --------------------------------------------------------- LINE, typed referent
+    # run-checkov.sh is 58 lines and run-trivy.sh is 124, so document-order resolution
+    # refuses line 61 and section-scoped resolution accepts it.  That regression was
+    # real: it reported trivy's correct citation as a defect.
+    ("typed runner referent resolves in its own section, not the preceding one",
+     False, "line",
+     "## checkov\n\nThe runner `harness/bin/run-checkov.sh` writes the report.\n\n"
+     "## trivy\n\n| Working directory | `/opt/spark-src`, runner line 61 |",
+     ("live", 1)),
+    ("typed runner referent out of range for its own section's runner",
+     True, "line",
+     "## checkov\n\nThe runner `harness/bin/run-checkov.sh` writes the report.\n\n"
+     "## trivy\n\n| Working directory | `/opt/spark-src`, runner line 99999 |",
+     ("offender", "but that file has 124 lines")),
+    ("typed referent in the looser word order is still resolved",
+     False, "line",
+     "## joern\n\nThe runner states it at line 70 and configures nothing else.",
+     ("live", 1)),
+    ("an explicit filename beats a typed noun in the same scope",
+     False, "line",
+     "## joern\n\n| Query set | baked into " + "`harness/lib/joern-scan.sc`" + "; the count was read from the "
+     "runner, at lines 50-78 where the six entries are declared |",
+     ("live", 2)),
+
+    # ------------------------------------------------------------- LINE, retractions
+    ("out-of-range locator whose history marker is in another clause",
+     True, "line",
+     "`harness/artifacts/logs/cpg-verify.log`" + " records the current pair at its lines 99998-99999. A superseded "
+     "earlier generation of this record said otherwise.",
+     ("offender", "line 99999")),
+    ("out-of-range locator retracted in its own clause",
+     False, "line",
+     "An earlier generation quoted " + "`harness/artifacts/logs/joern.status`" + " at its lines 274-275; commit "
+     "0e3e742a5ad replaced all nine with the runner trailers.",
+     ("history", 2)),
+
+    # ------------------------------------------------- LINE, non-locators and audit
+    ("a thousands-grouped number after the word line is not a range end",
+     False, "line", "`harness/artifacts/logs/cpg-verify.log`" + " at its line 93 -- **925,445** methods.", ("live", 1)),
+    ("a unit stuck to the number is not a locator",
+     False, "line", "`harness/artifacts/logs/cpg-verify.log`" + " ran at 64g and exited 0.", ("explained", 1)),
+    ("a following unit word is not a locator",
+     False, "line", "`harness/ENVIRONMENT.md` is present at 923 lines.",
+     ("explained", 1)),
+    ("a decimal is not a locator",
+     False, "line", "`harness/artifacts/logs/joern.status`" + " measures it at 974.22 s.", ("explained", 1)),
+    ("a timestamp is not a locator",
+     False, "line", "`harness/artifacts/logs/cpg-verify.log`" + " was stamped at 2026-09-01T14:25:10Z.",
+     ("explained", 1)),
+    ("a ratio is not a locator",
+     False, "line",
+     "| the union of 47 constructs and its 24 / 19 / 4 decomposition | " + "`harness/artifacts/logs/cpg-verify.log`"
+     + " |", ("explained", 1)),
+    ("a hyphenated compound is not a locator",
+     False, "line",
+     "`harness/artifacts/MANIFEST.json` and its 122-member logs inventory.",
+     ("explained", 1)),
+    # The audit's own reason for existing: a locator-introducing phrase that no pattern
+    # reads and no non-locator class explains must be reported, because the introducer
+    # is still visible even when the pattern misses.
+    ("an introducer neither read as a locator nor explained as anything else",
+     True, "line", "`harness/artifacts/logs/cpg-verify.log`" + " records it at 99998-99999Z.",
+     ("offender", "no non-locator class explains it")),
+
+    # ----------------------------------------------------------------------- FIELD
     ("live citation of a field no trailer carries",
-     True, "field",
-     "`harness/artifacts/logs/joern.status` records field `heap_used` for the run."),
-    ("field citation retracted in its own clause",
-     False, "field",
-     "An earlier generation of this entry cited `command_source_lines`; commit "
-     "0e3e742a5ad replaced all nine `.status` files with the runners' trailers."),
+     True, "field", "`harness/artifacts/logs/joern.status`" + " records field `heap_used` for the run.",
+     ("offender", "cites `heap_used`")),
     ("live citation of a field the trailers do carry",
-     False, "field",
-     "`harness/artifacts/logs/joern.status` records field `elapsed_seconds` for the run."),
+     False, "field", "`harness/artifacts/logs/joern.status`" + " records field `elapsed_seconds` for the run.",
+     ("live", 1)),
     ("field claim far beyond any fixed window from the filename",
      True, "field",
-     "`harness/artifacts/logs/joern.status` is the runner's verbatim trailer, and the "
-     "sequence ledger binds it by size and sha256 alongside the artifact, the stdout "
-     "stream, the stderr stream and the runner console log, none of which is enriched "
-     "in any way by this run or any earlier one; it nonetheless records field "
-     "`heap_used` for the run."),
+     "`harness/artifacts/logs/joern.status`" + " is the runner's verbatim trailer, and the sequence ledger binds it by "
+     "size and sha256 alongside the artifact, the stdout stream, the stderr stream and "
+     "the runner console log, none of which is enriched in any way by this run or any "
+     "earlier one; it nonetheless records field `heap_used` for the run.",
+     ("offender", "cites `heap_used`")),
+    ("field citation retracted in its own clause",
+     False, "field",
+     "An earlier generation of this entry cited " + "`harness/artifacts/logs/joern.status`" + " field "
+     "`command_source_lines`; commit 0e3e742a5ad replaced all nine with the trailers.",
+     ("history", 1)),
     ("a backticked token far from the filename is not claimed as a field",
      False, "field",
-     "`harness/artifacts/logs/joern.status` is the runner's verbatim trailer, and the "
-     "normalizer reads it; a separate record, `runner-metadata.json`, carries "
-     "`invocation_form` instead."),
+     "`harness/artifacts/logs/joern.status`" + " is the trailer, and the normalizer reads it; a separate record, "
+     "`runner-metadata.json`, carries `invocation_form` instead.",
+     ("live", 0)),
     ("a backticked assignment elsewhere in the scope is not a trailer field",
      False, "field",
-     "`harness/artifacts/logs/joern.status` is the trailer. Separately, the two "
-     "aggregator projects are marked *produced none -- EXPECTED, `packaging=pom`*."),
+     "`harness/artifacts/logs/joern.status`" + " is the trailer. Separately, the two aggregator projects are marked "
+     "*produced none -- EXPECTED, `packaging=pom`*.",
+     ("live", 0)),
     ("an assignment beside the filename IS a field claim",
-     True, "field",
-     "`harness/artifacts/logs/joern.status` `heap_used=64g` for the run."),
+     True, "field", "`harness/artifacts/logs/joern.status`" + " `heap_used=64g` for the run.",
+     ("offender", "cites `heap_used`")),
     ("a shell function name is not a field claim",
      False, "field",
-     "The trailer is written by `scope_finish`, whose fields are fixed."),
+     "The trailer is written by `scope_finish`, whose fields are fixed.",
+     ("live", 0)),
 
-    # ABSENCE FAMILY.  A file that exists must not be published as absent.
+    # ------------------------------------------------------------------ IDENTIFIER
+    # The defect exactly as it was published: line 471 exists in a 588-line file, so a
+    # range check accepted it, but it is `"EXIT_STATUS_EXITED"` and the declaration is
+    # at 510.
+    ("locator in range but naming the wrong line",
+     True, "identifier",
+     "`harness/lib/normalize/cli.py:471` states it as "
+     "`EXPECTED_INTERPRETER_VERSION = \"3.13.7\"`.",
+     ("offender", "does not; it appears at line")),
+    ("locator naming the right line",
+     False, "identifier",
+     "`harness/lib/normalize/cli.py:510` states it as "
+     "`EXPECTED_INTERPRETER_VERSION = \"3.13.7\"`.",
+     ("checked", 1)),
+
+    # --------------------------------------------------------------------- ABSENCE
     ("table verdict publishing a present file as absent, verdict in the second cell",
-     True, "absence",
-     "| `harness/env.sh` | absent from this checkout |"),
+     True, "absence", "| `harness/env.sh` | absent from this checkout |",
+     ("offender", "it is present")),
     ("table verdict publishing a present file as absent, verdict in the third cell",
      True, "absence",
-     "| `harness/env.sh` | the environment file | absent from this checkout |"),
-    ("a cell that merely contains the word absent is not a claim about a file",
-     False, "absence",
-     "| `harness/env.sh` | its 62 archives, the 31 present, the 7 absent | present |"),
+     "| `harness/env.sh` | the environment file | absent from this checkout |",
+     ("offender", "it is present")),
     ("inline prose publishing a present file as absent",
      True, "absence",
-     "`harness/lib/scope.sh` is absent from this checkout, so nothing reads it."),
+     "`harness/lib/scope.sh` is absent from this checkout, so nothing reads it.",
+     ("offender", "it is present")),
     ("table verdict publishing a genuinely absent path as absent",
      False, "absence",
      "| `harness/artifacts/raw/osv-scanner.json` | the artifact | absent from this "
-     "checkout, the tool wrote none |"),
+     "checkout, the tool wrote none |",
+     ("tested", 1)),
     ("absence retracted as history in the verdict cell",
      False, "absence",
-     "| `harness/env.sh` | the environment file | absent, said a superseded earlier "
-     "generation of this row |"),
+     "| `harness/env.sh` | absent, said a superseded earlier generation of this row |",
+     ("tested", 0)),
+    ("a cell that merely contains the word absent is not a claim about a file",
+     False, "absence",
+     "| `harness/env.sh` | its 62 archives, the 31 present, the 7 absent | present |",
+     ("tested", 0)),
 )
 
 
+BUCKET_PATTERNS: dict[str, tuple[tuple[str, str], ...]] = {
+    # Family -> the buckets its summary line prints, and the label each is asserted by.
+    "line": (
+        ("live", r"(\d+) adjudicated live"),
+        ("history", r"(\d+) retracted as history"),
+        ("foreign", r"(\d+) outside the adjudicable surface"),
+        ("unscoped", r"(\d+) naming no file in their own row or paragraph"),
+        ("unattributed", r"(\d+) unattributed"),
+        ("consumed", r"(\d+) introducers consumed"),
+        ("explained", r"(\d+) explained as non-locators"),
+        ("unexplained", r"(\d+) unexplained"),
+    ),
+    "field": (
+        ("live", r"(\d+) live field citations resolved"),
+        ("history", r"(\d+) retracted as history"),
+    ),
+    "absence": (
+        ("tested", r"(\d+) absence claims tested"),
+    ),
+    "identifier": (
+        ("checked", r"(\d+) identifier locators checked"),
+    ),
+}
+
+
 def self_test() -> int:
-    """Prove each citation family refuses each defect it exists to catch.
+    """Prove each family refuses every defect it must and READS every form it accepts.
 
     A checker that recognises nothing reports no violations, which is indistinguishable
     from a clean document -- and that is not hypothetical here: the first version of the
     line-citation family read zero citations in a document holding eleven of them, and a
-    mutation of two of them to lines that do not exist passed.  So the gate carries its
-    own negative cases and runs them on demand.  Each case is a document fragment, a
-    family, and the verdict that family must reach on it.
+    mutation of two of them to lines that do not exist passed the gate.
+
+    So a case asserts two things, not one.  The VERDICT: refused or accepted, as
+    filed.  And the BUCKET the citation landed in: `live`, `history`, `foreign`,
+    `unscoped`, `unattributed`, `explained`.  The second is what makes an accepting
+    case worth running -- without it, "accepted" is satisfied by a family that never
+    saw the citation at all, which is the failure mode itself wearing a pass.
     """
     print("publication gate -- self test of the citation families")
     print()
@@ -1388,30 +1772,58 @@ def self_test() -> int:
         "field": check_status_field_citations,
         "line": check_line_number_citations,
         "absence": check_absence_claims,
+        "identifier": check_identifier_locators,
     }
     failures = 0
-    for label, must_refuse, family, body in SELF_TEST_CASES:
+    for case in SELF_TEST_CASES:
+        label, must_refuse, family, body = case[:4]
+        expect = case[4] if len(case) > 4 else None
         probe = Gate()
-        import io
-        import contextlib
-        with contextlib.redirect_stdout(io.StringIO()):
+        stream = io.StringIO()
+        with contextlib.redirect_stdout(stream):
             families[family](probe, {"self-test-case.md": body})
+        summary = stream.getvalue()
         refused = any(not ok for ok, *_ in probe.rows)
         good = refused == must_refuse
+        detail = ""
+        if expect:
+            # `expect` pins down WHAT the family concluded, not merely whether it
+            # objected.  Two forms: ("offender", text) requires a refusal whose reason
+            # contains `text`, so a case cannot pass by failing for an unrelated
+            # reason; (bucket, count) requires the citation to land in that bucket, so
+            # an accepting case cannot pass by never reading the citation at all.
+            bucket, want = expect
+            if bucket == "offender":
+                reasons = " | ".join(row[4] for row in probe.rows if not row[0])
+                if want not in reasons:
+                    good = False
+                    detail = (f" [no offender mentioning {want!r}; "
+                              f"reasons were {reasons[:120]!r}]")
+            else:
+                pattern = dict(BUCKET_PATTERNS[family]).get(bucket)
+                found = None
+                if pattern:
+                    hit = re.search(pattern, summary)
+                    found = int(hit.group(1)) if hit else None
+                if found != want:
+                    good = False
+                    detail = f" [{bucket} was {found}, must be {want}]"
         failures += 0 if good else 1
-        want = "refuse" if must_refuse else "accept"
-        got = "refused" if refused else "accepted"
-        print(f"  {'ok   ' if good else 'FAIL '} [{family}] must {want}, {got}: {label}")
+        want_v = "refuse" if must_refuse else "accept"
+        got_v = "refused" if refused else "accepted"
+        print(f"  {'ok   ' if good else 'FAIL '} [{family}] must {want_v}, {got_v}"
+              f"{detail}: {label}")
     print()
     print(f"  cases                    : {len(SELF_TEST_CASES)}")
     print(f"  wrong verdicts           : {failures}")
     print()
     if failures:
-        print("SELF TEST FAILED -- a citation family does not refuse a defect it must, "
-              "or refuses a form the documents legitimately use.")
+        print("SELF TEST FAILED -- a family does not refuse a defect it must, refuses a "
+              "form these documents legitimately use, or classified a case into the "
+              "wrong bucket (which includes not reading it at all).")
         return 1
-    print("SELF TEST PASS -- every citation form is recognised, and every defect in it "
-          "is refused.")
+    print("SELF TEST PASS -- every citation form is recognised, every defect in it is "
+          "refused, and every accepted form landed in the bucket it belongs to.")
     return 0
 
 
@@ -1445,6 +1857,7 @@ def main() -> int:
     docs = {rel(path): text(path) for path in RESULT_DOCUMENTS if path.exists()}
     check_status_field_citations(g, docs)
     check_line_number_citations(g, docs)
+    check_identifier_locators(g, docs)
     check_absence_claims(g, docs)
 
     return g.report()

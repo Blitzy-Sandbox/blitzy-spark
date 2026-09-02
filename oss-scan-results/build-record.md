@@ -1378,8 +1378,8 @@ tables above are measured from the four smaller per-arm files named in them.
 
 | Arm | Configs | Exit | Elapsed | Findings | SARIF bytes | SARIF sha256 |
 | --- | --- | --- | --- | --- | --- | --- |
-| **on** | 29 rule-bearing directories, 58 argv elements, 2,006 rules of which 241 multilang and 25 Scala applied to this file | 0 | 72 s | 1 at line 72, traced | 2,939,276 | `fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51` |
-| **off** | the same 29 directories, the same rule count | 0 | 77 s | 1 at line 72, traced | 2,939,276 | `fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51` |
+| **on** | 29 rule-bearing directories, 58 argv elements, 2,006 rules of which 241 multilang and 25 Scala applied to this file | 0 | 72 s | 1 in `DiskStore.scala` at its line 72, traced | 2,939,276 | `fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51` |
+| **off** | the same 29 directories, the same rule count | 0 | 77 s | 1 in `DiskStore.scala` at its line 72, traced | 2,939,276 | `fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51` |
 
 Measured from `harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-on.log` with
 `harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-on.sarif`, and from

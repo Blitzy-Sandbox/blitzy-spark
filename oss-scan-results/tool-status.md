@@ -1540,10 +1540,10 @@ naming a superseded locator in order to warn a reader off it does not fail; the
 retractions are counted and printed rather than hidden, and a retraction only excuses
 a citation sitting in **its own clause** — a paragraph that mentions an earlier
 generation for some other reason no longer exempts a live citation elsewhere in it.
-Its last run checked **92 owner/copy pairs with 0 disagreeing**, over 12 live field
-citations, 169 live line citations and 5 absence claims, with 1 line citation retracted
-as history. Here too the invariant is the zero: the pair count grows as each further
-owner/copy relationship is brought under the gate.
+Its last run checked **102 owner/copy pairs with 0 disagreeing**, over 12 live field
+citations, **295** live line locators, 5 absence claims and 1 identifier locator, with 2
+line locators retracted as history. Here too the invariant is the zero: the pair count
+grows as each further owner/copy relationship is brought under the gate.
 
 **Recognising nothing is not the same as finding nothing, so the gate counts what it
 read.** A first version of the line-citation family looked ahead a fixed number of
@@ -1558,12 +1558,40 @@ through document order. And the population is asserted rather than assumed: a se
 deliberately different traversal of each document — flat and unscoped for line
 references, forward-from-filename for field claims where the attribution works
 backward-from-claim — must agree with the classification exactly. Its last run
-classified **300 of 300** line references and **12 of 12** field claims, so a citation
-form the scoped path cannot read now surfaces as a count mismatch instead of as
-silence. The gate also carries its own negative cases, one per citation form per family
-including the `joern-probe.md` form above: `python3 harness/lib/verify_publication_owners.py
---self-test` runs **29** of them and passes only if each family refuses every defect it
-exists to catch and accepts every form these documents legitimately use.
+classified **437 of 437** line locators and **12 of 12** field claims.
+
+**And the population is counted from somewhere the patterns cannot reach.** Two
+traversals that both start from the locator patterns agree even about a form neither
+reads, so a third check starts from the closed vocabulary of words these documents use
+to introduce a locator — *line*, *lines*, *at*, *its*, and an attached `:` — and
+requires every occurrence beside an adjudicable file to be either consumed by a
+recognised locator or explained by a **named** non-locator class: a unit stuck to the
+number (`64g`), a following unit word (`923 lines`), a decimal (`974.22 s`), a
+timestamp, a ratio (`24 / 19 / 4`) or a hyphenated compound (`122-member`). Its last run
+consumed **151** introducers, explained **29**, and left **0 unexplained**. An
+introducer that no pattern reads and no class explains is reported, because the
+introducer is still there when the pattern misses it.
+
+Four further defects of the same family were found and fixed while proving this. A
+locator is adjudicated against a file that must EXIST: a citation of a path inside this
+run's own surface that is absent used to be classified as foreign and pass. A locator
+must name the **right** line, not merely one in range — this record published
+`cli.py:471` as the owner of `EXPECTED_INTERPRETER_VERSION` while that line is
+`"EXIT_STATUS_EXITED"` and the declaration is at line 510, which a range check accepts;
+the identifier-locator family now reads the cited line. A locator whose owner cannot be
+established at all — sitting before every filename in its scope, or in a paragraph
+naming no file — is a **failure** rather than a tolerated bucket. And every form these
+documents actually use is read, including the ellipsis-abbreviated `probe-01-…log`
+resolved by glob, the comma list `lines 51, 55, 59, 63, 67 and 71`, the open range
+`lines 48 to 78`, and `runner line 61` resolved through its own section's heading rather
+than document order — which had reported trivy's correct citation against the shorter
+`run-checkov.sh` named in the section before it.
+
+The gate carries its own negative cases: `python3 harness/lib/verify_publication_owners.py
+--self-test` runs **48**, one per citation form per family in both directions, and each
+asserts *what* the family concluded — the offender's reason, or the bucket the citation
+landed in — because an accepting case that asserted nothing would be satisfied by a
+family that never read the citation, which is the defect itself wearing a pass.
 
 Both gates exist because every measurement re-taken during this work moved several
 published copies at once, and each stale copy was previously found only by someone
