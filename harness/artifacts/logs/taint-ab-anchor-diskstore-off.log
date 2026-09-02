@@ -1,25 +1,149 @@
-arm             : off (taint analysis default: intra-procedural only, the flag omitted)
-the one variable: --taint-intrafile absent
-engine          : 1.27.1 (/opt/blitzy-tools/bin/opengrep)
-rule            : /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml
-rule id(s)      : tainted-sql-string 
-rule mode       : taint
-ruleset         : /opt/blitzy-harness/rules/opengrep-rules (commit f1d2b562b414783763fd02a6ed2736eaed622efa)
-subject file    : core/src/main/scala/org/apache/spark/storage/DiskStore.scala
-scan root       : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src
-cwd             : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src
-command         : opengrep scan --config <rule> --sarif --sarif-output taint-ab-anchor-diskstore-off.sarif --dataflow-traces --timeout 120 --timeout-threshold 0 --max-target-bytes 20000000 --x-ignore-semgrepignore-files --disable-version-check core/src/main/scala/org/apache/spark/storage/DiskStore.scala
-exit code       : 0
-elapsed seconds : 3
-sarif           : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs/taint-ab-anchor-diskstore-off.sarif (4753 bytes)
-sarif sha256    : 7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778
+this file                : harness/artifacts/logs/taint-ab-anchor-diskstore-off.log
+provenance               : re-measured by this run in checkout w-022, at the pinned clone
+                           /opt/spark-src. The copy retained before this rewrite recorded scan root
+                           /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src,
+                           which is not the pinned clone, so it was not a current-run measurement at
+                           the pinned root; it is superseded by every figure in this file, none of
+                           which is carried over
+arm                      : off (taint analysis default: intra-procedural only, the flag omitted)
+the one variable         : --taint-intrafile absent
+argv delta               : ["/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-022_77c1e7/harness/artifacts/logs/taint-ab-anchor-diskstore-off.sarif"]
+                           (measured against the sibling arm; the --sarif-output value differs
+                           because each arm writes its own file)
+engine                   : 1.27.1 (/opt/blitzy-tools/bin/opengrep)
+rule                     : /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml
+rule bytes / sha256      : 2824 / 24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d
+rule id(s)               : tainted-sql-string
+rule mode                : taint
+ruleset                  : /opt/blitzy-harness/rules/opengrep-rules (commit
+                           f1d2b562b414783763fd02a6ed2736eaed622efa)
+ruleset commit, expected : f1d2b562b414783763fd02a6ed2736eaed622efa
+subject file             : core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+subject identity         : 380 lines, 12045 bytes, sha256
+                           bc5491ac8a6bd9a8822ef5b4a55ac32c47ecb9ed25e2ca1770a1c9040739d02e
+scan root                : /opt/spark-src
+cwd                      : /opt/spark-src
+pinned HEAD, observed    : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+pinned HEAD, expected    : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+run id                   : w022-20260902T144244Z
+command                  : /opt/blitzy-tools/bin/opengrep scan --config
+                           /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml
+                           --sarif --sarif-output
+                           /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-022_77c1e7/harness/artifacts/logs/taint-ab-anchor-diskstore-off.sarif
+                           --dataflow-traces --timeout 120 --timeout-threshold 0 --max-target-bytes
+                           20000000 --x-ignore-semgrepignore-files --disable-version-check
+                           core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+exit code                : 0
+started -> ended         : 2026-09-02T14:42:50.481Z -> 2026-09-02T14:42:52.429Z
+elapsed seconds          : 1.948
+sarif                    : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-022_77c1e7/harness/artifacts/logs/taint-ab-anchor-diskstore-off.sarif
+                           (4753 bytes)
+sarif sha256             : 7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778
+sarif driver             : Opengrep OSS 1.27.1
+findings                 : 1 at line(s) 72; 1 of 1 carry a dataflow trace
+sibling arm              : 1 finding(s) at line(s) 72, 1 traced, 4753 bytes, sha256
+                           7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778
+verdict for the pair     : UNMET ANCHOR (halt-class under AAP 0.9.2, reported and not repaired) -
+                           non-discriminating on the mandated subject. AAP 0.5.1/0.9.1 expect 1
+                           traced finding at line 72 with taint on and 0 with it off; this run
+                           measured 1 at line 72 in BOTH arms and the two SARIF outputs are
+                           byte-identical. The engine exposes no option that disables taint analysis
+                           (option surface below), and on this file the rule's source (the put
+                           parameter, line 64) and its sink (line 72) sit inside one method, so
+                           --taint-intrafile has nothing to contribute. The anchor is NOT met; this
+                           is an AAP divergence caused by the engine, reported and not repaired. The
+                           HiveShim pair (taint-ab-hiveshim-{on,off}.log), re-measured by this run
+                           at this same pinned root, DOES discriminate 2-on/0-off and stands beside
+                           this unmet anchor rather than in place of it.
+containment              : written under harness/artifacts/logs/, never harness/artifacts/raw/;
+                           contributes no dataset row (AAP 0.3.2). raw/ re-verified after this arm:
+                           eight runner artifacts, no taint-ab-* file
+
+  Subject and provenance: this is the AAP 0.5.1 anchor file, scanned at the
+  pinned clone /opt/spark-src at HEAD
+  59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d. Both arms of this pair ran back to
+  back from the same shell, in this checkout (w-022), and every number in this
+  file was read back out of the arm's own SARIF and stream capture on disk.
 
 --- findings, from the arm's own SARIF ---
   ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=core/src/main/scala/org/apache/spark/storage/DiskStore.scala line=72 level=None codeFlows=1 dataflow_steps=2
   findings: 1
 
+--- the engine's taint option surface, measured by this run ---
+$ opengrep scan --help | grep -c "^ \+--"
+107
+
+$ COLUMNS=80 opengrep scan --help | grep -c "^ \+--"
+107
+
+  Both commands were run by this run against the engine named above, and both
+  returned 107. The figure this evidence set published before this
+  re-measurement was 106 - in APPENDIX C of taint-ab-on.log and
+  taint-ab-off.log - and it is CORRECTED TO 107, which is what the command
+  actually prints. The help text is 558 lines at either width and the two
+  matched-line lists are diff-identical, so terminal width does not move the
+  number.
+
+  What the 107 matched lines are, so the figure is not read as more than it
+  is: 101 of them are option declarations at 7-space indent (101 distinct
+  names, no repeats), and 6 are wrapped description continuation lines at
+  11-space indent that merely begin with '--' - help lines 162, 168, 224, 385,
+  435 and 520.
+
+  The engine's true long-option surface is 110. The help declares 110 options
+  at 7-space indent, and 9 of them are declared with a short alias first, so
+  they can never match '^ \+--':
+
+    -a, --autofix                   (help line  25)
+    -d, --dump-command-for-core     (help line  53)
+    -e VAL, --pattern=VAL           (help line 106)
+    -f VAL, -c VAL, --config=VAL    (help line 149)
+    -j INT, --jobs=INT              (help line 236)
+    -l VAL, --lang=VAL              (help line 252)
+    -o VAL, --output=VAL            (help line 332)
+    -q, --quiet                     (help line 379)
+    -v, --verbose                   (help line 487)
+
+  EVERY OPTION WHOSE NAME MENTIONS TAINT, verbatim:
+
+$ opengrep scan --help | grep -nE "^ +--(no-)?[a-z0-9-]*taint[a-z0-9-]*$"
+192:       --guarded-taint-signatures
+445:       --taint-intrafile
+
+$ opengrep scan --help | grep -ni "taint"
+192:       --guarded-taint-signatures
+193:           Attach branch-condition guards to taint effects and evaluate them
+445:       --taint-intrafile
+446:           Enable intra-file inter-procedural taint analysis. Supported
+
+  Two options out of 110, and a case-insensitive search of the whole help text
+  for 'taint' matches nothing but those two option names and their own
+  descriptions - no other option's description mentions taint at all. NEITHER
+  OF THE TWO DISABLES TAINT ANALYSIS. --taint-intrafile ENABLES intra-file
+  inter-procedural taint and its own text says the fallback is
+  'intraprocedural analysis only', not no analysis; --guarded-taint-signatures
+  attaches branch-condition guards to taint effects and requires
+  --experimental. There is no --no-taint, --disable-taint, --taint-off or
+  equivalent at this version, so in this A/B 'taint off' means
+  'intraprocedural taint' and a truly taint-free arm is not constructible.
+
+$ opengrep scan --help | grep -A5 -E "^ +--taint-intrafile$"
+       --taint-intrafile
+           Enable intra-file inter-procedural taint analysis. Supported
+           languages: Apex, C, Clojure, C#, C++, Dart, Elixir, Go, Java,
+           JavaScript, Julia, Kotlin, Lua, Python, Ruby, Rust, Scala, Swift,
+           TypeScript, Visual Basic. Other languages will fall back to
+           intraprocedural analysis only.
+
+$ opengrep scan --help | grep -A4 -E "^ +--guarded-taint-signatures$"
+       --guarded-taint-signatures
+           Attach branch-condition guards to taint effects and evaluate them
+           at call sites, dropping effects whose guard is false. Without this
+           flag only Clojure keeps the arity guards that implement
+           multi-arity dispatch. REQUIRES --experimental
+
 --- the arm's own stderr summary ---
-[00.14][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
+[00.08][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
                
                
 ┌─────────────┐

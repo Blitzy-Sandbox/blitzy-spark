@@ -148,10 +148,24 @@ be: the agreement above is the consequence of executing the committed bytes.
 sources had been hardened after the generation then on the branch was executed, so each
 envelope published a digest for text that no longer existed, and closing it required an
 execution of the committed sources. That is what the three invocations recorded above
-are. The superseded pairs — 306,042 bytes / `6ae308f0…` for 01, 371,408 / `7ed2c681…`
-for 02 and 414,382 / `2c5de3d6…` for 03 against executed bytes of 279,196 / `0859b61f…`,
-344,562 / `8199145a…` and 387,536 / `b6ff619f…` — are recorded here rather than deleted,
-because a reader holding the earlier report should be able to see which pair moved.
+are. **The history is kept and the exact figures are not**, because they have no owner
+this report can point a reader at. The superseded state was a pair per query — the bytes
+and digest each envelope then published for its source, against the bytes and digest of
+the source that had actually run — and both sides of all three pairs are **not
+re-measurable in this tree**: the pre-hardening sources were never committed, so no
+revision of `queries/joern/01-callgraph-unguarded-driver-launch.sc`,
+`queries/joern/02-dataflow-unguarded-driver-launch.sc` or
+`queries/joern/03-parameterized-handler-sink-pairs.sc` reachable from this branch carries
+either side of a pair, and the superseded envelopes that published the committed side were
+replaced rather than retained under a second name. Publishing the digits without an owner
+would give a reader six figures no command here can check, so what is published instead is
+the fact that each pair moved, in all three queries, across the four correction rounds
+above. **What a human would need to reproduce them**: the working tree of the clone lane
+that held the pre-hardening sources, at the revision immediately before each hardening
+round, together with that lane's envelopes as they stood before the 2026-09-01 executions.
+Neither is present in this checkout and neither is recoverable from its history.
+`oss-scan-results/run-record.md` carries the divergence itself as **D19** with the same
+closure.
 
 ### The private graph copies these three invocations retained
 
@@ -375,8 +389,8 @@ by **one** file: the inherited provisioning record `harness/ENVIRONMENT.md` §7,
 its lines 284-288. It is kept with its provenance in `run-record.md` **D4**, the
 register entry that holds both generations. Two files a reader might expect to own
 it do not: `harness/artifacts/logs/cpg-verify.log` records the **current** pair —
-541,309,809 / `4616845a…`, at its lines 33-34 and again at 47-50 — and mentions the
-earlier one only at its lines 76-80, to name the record the filesystem contradicts;
+541,309,809 / `4616845a…`, at its lines 40-41 and again at 54-57 — and mentions the
+earlier one only at its lines 84-88, to name the record the filesystem contradicts;
 and `harness/artifacts/logs/joern.status` is the runner's seven-line `scope_finish`
 trailer and states **no graph identity at all**. The earlier pair is **not** what
 any load reported here read.
@@ -472,7 +486,9 @@ flatgraph's graph writer — `java.lang.OutOfMemoryError: Required array length
 2147483639 + 72 is too large`, `harness/artifacts/logs/cpg-frontend.log`, exit 1 —
 **writing no accepted graph**; `harness/artifacts/logs/cpg-ceiling-reverify.log`
 establishes first-hand in this clone that the bound is an array length rather than a
-heap shortage. The run record's divergence register carries that as **D1**. The
+heap shortage, by running the same probe at **three** heaps — `-Xmx8g`, `-Xmx64g` and
+`-Xmx128g`, a sixteenfold span of reported `maxMemory` — and observing the identical
+failure at the identical 2,147,483,639 buffered bytes in all three. The run record's divergence register carries that as **D1**. The
 consequence for this report is stated rather than smoothed over: the graph these three
 queries read is the provisioning graph at the sanctioned path, and every count below is
 a count over those bytes.

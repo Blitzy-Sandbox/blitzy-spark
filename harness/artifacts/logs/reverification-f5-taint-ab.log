@@ -1,0 +1,662 @@
+================================================================================
+Opengrep taint A/B - FIRST-HAND RE-VERIFICATION of QA finding F5
+harness/artifacts/logs/reverification-f5-taint-ab.log
+================================================================================
+
+================================================================================
+WHAT THIS FILE ESTABLISHES
+================================================================================
+
+  Whether the AAP-mandated Opengrep taint A/B (AAP 0.5.1, 0.9.1) still fails
+  as QA finding F5 reports it, measured again from scratch in this clone
+  rather than read from the arm logs already on disk; and, separately, the
+  capability question that A/B exists to answer - whether Opengrep's taint
+  engine is actually active on Spark's own Scala.
+
+  It carries five arms this generation ran itself, each with its full argv,
+  exit code, UTC start and end instants, elapsed seconds, result count, the
+  line of every result, how many results carry a dataflow trace, and its
+  SARIF's byte size and sha256; the derived control rule in full with its
+  digest; the three contrasts computed from those arms; and two clearly
+  separated verdicts - one for the mandated pair, one for the capability
+  question.
+
+  An A/B proves a capability only through the CONTRAST between two invocations
+  that differ in one setting; enabled-in-config is not proof (AAP 0.1.3). So
+  each pair is reported as it came out rather than as it was expected to, and
+  nothing was changed to obtain an expected number.
+
+  Companion, machine-readable: harness/artifacts/logs/reverification-f5-taint-ab.json
+  Companion, option surface  : harness/artifacts/logs/reverification-f5-taint-engine-options.txt
+
+
+================================================================================
+WHY THIS FILE IS UNDER logs/ AND NEVER UNDER raw/
+================================================================================
+
+  Two independent reasons, either sufficient (AAP 0.5.1, 0.6.1). First, raw/
+  is RUNNER-ONLY: it receives exactly one artifact per tool that writes one
+  and nothing else, ever. An A/B SARIF landing there would overwrite the
+  harness/artifacts/raw/opengrep.sarif the Stage 3 runner wrote, and the
+  dataset would then be built from an A/B over one file instead of a scan over
+  the whole scope. Second, this is one of the run's two deliberate second
+  appearances: Opengrep appears here as the taint A/B subject and again as one
+  of the nine scanned runners; Joern appears as a runner and again as the
+  capability probe's subject. Each second appearance writes outside raw/ and
+  contributes NO dataset row (AAP 0.3.2).
+
+  Every file this pass wrote is listed under CONTAINMENT AND CONTINUITY below,
+  and all eight are under harness/artifacts/logs/.
+
+
+================================================================================
+STATUS - READ THIS BEFORE ANY NUMBER BELOW
+================================================================================
+
+  This is RE-VERIFICATION OF A QA FINDING taken under the standing Stage 0
+  gate halt: measurement, not a stage execution. It writes nothing into
+  harness/artifacts/raw/, produces no dataset row, and advances no stage.
+  Every number below was measured first-hand in this clone during this pass;
+  the three values taken from another record are labelled as cited, with their
+  source file, in CITED VALUES at the end.
+
+  MANDATED PAIR (core/src/main/scala/org/apache/spark/storage/DiskStore.scala)
+    ON  : --taint-intrafile present, exit 0, 2026-09-02T14:31:01.643Z -> 2026-09-02T14:31:03.563Z, elapsed 1.920 s
+          1 finding(s) at line(s) [72]; 1 of 1 carry a dataflow trace
+    OFF : --taint-intrafile absent,  exit 0, 2026-09-02T14:31:03.592Z -> 2026-09-02T14:31:05.482Z, elapsed 1.890 s
+          1 finding(s) at line(s) [72]; 1 of 1 carry a dataflow trace
+    SARIF byte-identical: YES
+
+  CAPABILITY PAIR (sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala)
+    ON  : exit 0, 2 finding(s) at line(s) [828, 834]; 2 of 2 traced
+    OFF : exit 0, 0 finding(s) at line(s) []
+    SARIF byte-identical: no
+
+  SOURCE-REMOVED CONTROL on the MANDATED subject and line
+    exit 0, 0 finding(s); against the real rule's 1 at line 72
+
+  VERDICT FOR THE MANDATED PAIR: FAILED - NON-DISCRIMINATING, EXACTLY AS F5
+  REPORTS. F5 STILL REPRODUCES. AAP 0.9.2 lists 'a failed taint A/B' among the
+  conditions that stop the run, so this is a halt-class finding, reported here
+  and NOT repaired: no rule, file, line or flag was changed to obtain the
+  expected zero. The full disposition is in VERDICT (i).
+
+  VERDICT FOR THE CAPABILITY QUESTION: Opengrep's taint engine IS active on
+  Spark's own Scala and the --taint-intrafile toggle IS functional at this
+  pin, established by the HiveShim pair and by the source-removed control on
+  the mandated subject. Neither is offered as a substitute for the mandated
+  subject's pair. The full answer is in VERDICT (ii).
+
+
+================================================================================
+SUBJECT, RULE AND ENGINE IDENTITY
+================================================================================
+
+  Pass                      : re-verification of QA finding F5 (CRITICAL)
+  Generated (UTC)           : 2026-09-02T14:42:24.663Z
+  Clone index               : 19
+  Working checkout          : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94
+  Working checkout branch   : blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019
+  Working checkout HEAD     : 7fc41251c81e8a10ca9ce542b34af2542d7c1b53
+  Pinned clone (SPARK_SRC)  : /opt/spark-src   (never edited)
+  Pinned HEAD, observed     : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+  Pinned HEAD, expected     : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+  Mandated subject          : core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+    resolved                : /opt/spark-src/core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+    size                    : 380 lines, 12045 bytes
+    sha256                  : bc5491ac8a6bd9a8822ef5b4a55ac32c47ecb9ed25e2ca1770a1c9040739d02e
+  Capability subject        : sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+    resolved                : /opt/spark-src/sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+    size                    : 1547 lines, 51891 bytes
+    sha256                  : 20d42e9924e6be896f57af9609861a7f0e1bff6e1a71ff5c513cb48dd78ea554
+  Pinned rule               : /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml
+    size                    : 2824 bytes
+    sha256                  : 24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d
+    mode                    : taint
+  Ruleset                   : /opt/blitzy-harness/rules/opengrep-rules
+    commit, observed        : f1d2b562b414783763fd02a6ed2736eaed622efa
+    commit, expected        : f1d2b562b414783763fd02a6ed2736eaed622efa
+  Engine                    : Opengrep 1.27.1  (/opt/blitzy-tools/bin/opengrep)
+    version, expected       : 1.27.1
+  Python (parsing/records)  : /usr/bin/python3, 3.13.7
+
+  WHY THE RULE AND THE MANDATED SUBJECT CANNOT DISAGREE, read from the rule
+  and the file rather than assumed. The rule's pattern-sources is `$PARAM`
+  inside `def $CTRL(..., $PARAM: $TYPE, ...)`, i.e. a method parameter; its
+  sink is an s"..."/f"..." interpolation (or a concatenated/built string)
+  matching the SQL-keyword regex
+  select|delete|insert|create|update|alter|drop. In DiskStore.scala the
+  parameter is `blockId`, declared at line 64 in `def put(blockId:
+  BlockId)(writeFunc: WritableByteChannel => Unit): Unit`, and the matching
+  sink is the interpolation at line 72 inside
+  SparkException.internalError(...) - the keyword hit being 'delete'. Source
+  and sink are inside ONE method, so the flow crosses no method boundary.
+
+
+================================================================================
+THE ARMS, VERBATIM
+================================================================================
+
+  ARM A-ON - mandated subject, --taint-intrafile PRESENT
+
+$ cd /opt/spark-src
+$ /opt/blitzy-tools/bin/opengrep scan \
+    --config /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml \
+    --dataflow-traces \
+    --taint-intrafile \
+    --sarif-output /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-on.sarif \
+    --timeout 120 \
+    --timeout-threshold 0 \
+    --max-target-bytes 20000000 \
+    --x-ignore-semgrepignore-files \
+    --disable-version-check \
+    core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+
+  [exit] 0   started 2026-09-02T14:31:01.643Z, ended 2026-09-02T14:31:03.563Z, elapsed 1.920 s
+  [sarif] harness/artifacts/logs/reverification-f5-taint-ab-on.sarif
+          4753 bytes, sha256 7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778
+
+  ARM A-OFF - mandated subject, --taint-intrafile ABSENT
+
+$ cd /opt/spark-src
+$ /opt/blitzy-tools/bin/opengrep scan \
+    --config /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml \
+    --dataflow-traces \
+    --sarif-output /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-off.sarif \
+    --timeout 120 \
+    --timeout-threshold 0 \
+    --max-target-bytes 20000000 \
+    --x-ignore-semgrepignore-files \
+    --disable-version-check \
+    core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+
+  [exit] 0   started 2026-09-02T14:31:03.592Z, ended 2026-09-02T14:31:05.482Z, elapsed 1.890 s
+  [sarif] harness/artifacts/logs/reverification-f5-taint-ab-off.sarif
+          4753 bytes, sha256 7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778
+
+  Measured argv delta of A-ON against A-OFF: ['--taint-intrafile',
+  '/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-
+  af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-
+  on.sarif']. The only analysis difference is the presence of --taint-
+  intrafile; the --sarif-output path necessarily differs too, because each arm
+  writes its own file, and that argument selects a destination rather than an
+  analysis.
+
+  ARM B-ON - capability subject HiveShim.scala, --taint-intrafile PRESENT
+
+$ cd /opt/spark-src
+$ /opt/blitzy-tools/bin/opengrep scan \
+    --config /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml \
+    --dataflow-traces \
+    --taint-intrafile \
+    --sarif-output /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-on.sarif \
+    --timeout 120 \
+    --timeout-threshold 0 \
+    --max-target-bytes 20000000 \
+    --x-ignore-semgrepignore-files \
+    --disable-version-check \
+    sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+
+  [exit] 0   started 2026-09-02T14:31:43.258Z, ended 2026-09-02T14:31:45.480Z, elapsed 2.222 s
+  [sarif] harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-on.sarif
+          10021 bytes, sha256 1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24
+
+  ARM B-OFF - capability subject HiveShim.scala, --taint-intrafile ABSENT
+
+$ cd /opt/spark-src
+$ /opt/blitzy-tools/bin/opengrep scan \
+    --config /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml \
+    --dataflow-traces \
+    --sarif-output /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-off.sarif \
+    --timeout 120 \
+    --timeout-threshold 0 \
+    --max-target-bytes 20000000 \
+    --x-ignore-semgrepignore-files \
+    --disable-version-check \
+    sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+
+  [exit] 0   started 2026-09-02T14:31:45.510Z, ended 2026-09-02T14:31:47.510Z, elapsed 2.000 s
+  [sarif] harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-off.sarif
+          2341 bytes, sha256 6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced
+
+  Measured argv delta of B-ON against B-OFF: ['--taint-intrafile',
+  '/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-
+  af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-
+  hiveshim-on.sarif']. Same rule, same engine, same flag set, same subject;
+  the toggle is the only variable.
+
+  ARM C - source-removed control rule, MANDATED subject and line
+
+$ cd /opt/spark-src
+$ /opt/blitzy-tools/bin/opengrep scan \
+    --config /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-control-rule.yaml \
+    --dataflow-traces \
+    --taint-intrafile \
+    --sarif-output /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-source-removed.sarif \
+    --timeout 120 \
+    --timeout-threshold 0 \
+    --max-target-bytes 20000000 \
+    --x-ignore-semgrepignore-files \
+    --disable-version-check \
+    core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+
+  [exit] 0   started 2026-09-02T14:32:53.812Z, ended 2026-09-02T14:32:55.625Z, elapsed 1.813 s
+  [sarif] harness/artifacts/logs/reverification-f5-taint-ab-source-removed.sarif
+          2341 bytes, sha256 295888055aed2ccb8dc171eebc5e702ea741c0eb86e760d3942d122936b32187
+
+  Run with the ON flag set, so a zero here cannot be attributed to the toggle
+  being off. The derived rule differs from the pinned rule in its pattern-
+  sources alone and is reproduced in full below.
+
+  ARM C-OFF (SUPPLEMENTARY, scratch-only) - same control rule, toggle ABSENT
+
+$ cd /opt/spark-src
+$ /opt/blitzy-tools/bin/opengrep scan \
+    --config /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-control-rule.yaml \
+    --dataflow-traces \
+    --sarif-output /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-off.sarif \
+    --timeout 120 \
+    --timeout-threshold 0 \
+    --max-target-bytes 20000000 \
+    --x-ignore-semgrepignore-files \
+    --disable-version-check \
+    core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+
+  [exit] 0   started 2026-09-02T14:32:55.656Z, ended 2026-09-02T14:32:57.477Z, elapsed 1.821 s
+  [sarif] /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-off.sarif
+          2341 bytes, sha256 295888055aed2ccb8dc171eebc5e702ea741c0eb86e760d3942d122936b32187
+
+  Its SARIF was written to this worker's private scratch rather than to logs/,
+  because the AAP names no such arm; it exists so that the control's zero is
+  shown to hold under both flag settings, and so cannot be attributed to the
+  toggle.
+
+  ARM D (SUPPLEMENTARY, scratch-only) - pinned rule with --optimizations=none
+
+$ cd /opt/spark-src
+$ /opt/blitzy-tools/bin/opengrep scan \
+    --config /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml \
+    --dataflow-traces \
+    --optimizations=none \
+    --sarif-output /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-optimizations-none.sarif \
+    --timeout 120 \
+    --timeout-threshold 0 \
+    --max-target-bytes 20000000 \
+    --x-ignore-semgrepignore-files \
+    --disable-version-check \
+    core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+
+  [exit] 0   started 2026-09-02T14:34:17.001Z, ended 2026-09-02T14:34:18.869Z, elapsed 1.868 s
+  [sarif] /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-optimizations-none.sarif
+          4753 bytes, sha256 7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778
+
+  The one remaining option a reader might mistake for a taint switch:
+  --optimizations=none leaves the taint finding in place at line 72, so it is
+  not one.
+
+
+================================================================================
+RESULTS, PER ARM
+================================================================================
+
+  arm                               subject           exit  results  lines     traced  sarif bytes  sarif sha256
+  --------------------------------  ----------------  ----  -------  --------  ------  -----------  ----------------------------------------------------------------
+  A-diskstore-on                    DiskStore.scala      0        1  72             1         4753  7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778
+  A-diskstore-off                   DiskStore.scala      0        1  72             1         4753  7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778
+  B-hiveshim-on                     HiveShim.scala       0        2  828,834        2        10021  1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24
+  B-hiveshim-off                    HiveShim.scala       0        0  -              0         2341  6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced
+  C-diskstore-source-removed        DiskStore.scala      0        0  -              0         2341  295888055aed2ccb8dc171eebc5e702ea741c0eb86e760d3942d122936b32187
+  C-diskstore-source-removed-off    DiskStore.scala      0        0  -              0         2341  295888055aed2ccb8dc171eebc5e702ea741c0eb86e760d3942d122936b32187
+  D-diskstore-optimizations-none    DiskStore.scala      0        1  72             1         4753  7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778
+
+  'traced' counts results carrying a SARIF codeFlow. A `mode: taint` rule has
+  no top-level pattern and is evaluated only as source-to-sink reachability,
+  so a result from it carries a trace; a plain pattern match emits no
+  codeFlow.
+
+  The traced route the capability pair's ON arm reports, read out of its own
+  SARIF codeFlow rather than described: Source predicates @ line 351; Call
+  convertFilters @ line 351; Propagator filters @ line 645; Propagator flatMap
+  @ line 861; Sink s"$name like " @ line 828 and 834. Three method boundaries
+  are crossed inside the single file - which is exactly what --taint-intrafile
+  adds and what the engine's documented intraprocedural fallback cannot see.
+
+
+================================================================================
+THE THREE CONTRASTS
+================================================================================
+
+  (1) MANDATED PAIR - core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+      expected  : ON 1 finding at line 72, OFF 0 findings   (AAP 0.5.1, 0.9.1)
+      observed  : ON 1 at [72], OFF 1 at [72]
+      SARIF byte-identical: YES   discriminates: NO
+      FAIL - NON-DISCRIMINATING. F5 REPRODUCES.
+
+  (2) CAPABILITY PAIR - sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+      expected  : ON 2 findings at lines 828 and 834, OFF 0 findings
+      observed  : ON 2 at [828, 834], OFF 0 at []
+      SARIF byte-identical: NO   discriminates: YES
+      PASS - DISCRIMINATES. 2 traced findings ON (lines 828, 834) against 0 OFF, exactly as expected.
+
+  (3) SOURCE-REMOVED CONTROL - core/src/main/scala/org/apache/spark/storage/DiskStore.scala, mandated line
+      expected  : 0 findings, against the real rule's 1 at line 72
+      observed  : 0 findings with the toggle on, 0 with it off
+      discriminates: YES
+      PASS - the line-72 result is produced by SOURCE-TO-SINK TAINT PROPAGATION and not by a syntactic sink match. Removing only the source removes the finding while every sink pattern remains in place.
+
+
+================================================================================
+THE DERIVED CONTROL RULE, IN FULL
+================================================================================
+
+  Path                      : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-control-rule.yaml
+  Bytes                     : 2505
+  sha256                    : e57f4da76045707631e0b1f151828f097d0b2ef573745aa19d979ae4d4ec5ee2
+  Derived from              : /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml
+  Diff hunks vs pinned rule : 1
+  Only change               : the 16-line pattern-sources block replaced by a single unmatchable pattern: blitzyF5W019UnmatchableTaintSourceMarker(...)
+  Carried through unchanged : mode: taint, pattern-sinks, pattern-sanitizers, metadata, message, severity, languages
+
+  It was derived into this worker's private scratch. The pinned ruleset was
+  NOT modified, and the pre-existing harness/artifacts/logs/taint-ab-source-
+  removed- control-rule.txt was neither reused nor overwritten - this control
+  is independently derived and its full text is reproduced here so it is
+  reproducible from this file alone.
+
+  CORROBORATION. This pass's control SARIF was parsed against the pre-existing
+  harness/artifacts/logs/taint-ab-source-removed-control.sarif, which an
+  earlier generation produced from its own independently derived control: both
+  carry 0 results, and the only structural difference is the rule id Opengrep
+  derives from the control rule's own file path
+  (tmp.blitzy.scratch...w-019.g5t.tainted-sql-string here versus
+  ...w-000.taint.tainted-sql-string there), which is why the two files'
+  digests differ while their findings do not.
+
+$ diff -u <pinned rule> <derived control rule>
+
+--- /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml	2026-08-30 17:45:31.327818351 +0000
++++ /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-control-rule.yaml	2026-09-02 14:32:38.754143541 +0000
+@@ -29,21 +29,7 @@
+     likelihood: MEDIUM
+     impact: HIGH
+   pattern-sources:
+-  - patterns:
+-    - pattern: $PARAM
+-    - pattern-either:
+-      - pattern-inside: |
+-          def $CTRL(..., $PARAM: $TYPE, ...) = {
+-            ...
+-          }
+-      - pattern-inside: |
+-          def $CTRL(..., $PARAM: $TYPE, ...) = $A {
+-            ...
+-          }
+-      - pattern-inside: |
+-          def $CTRL(..., $PARAM: $TYPE, ...) = $A(...) {
+-            ...
+-          }
++  - pattern: blitzyF5W019UnmatchableTaintSourceMarker(...)
+   pattern-sinks:
+   - patterns:
+     - pattern-either:
+
+$ cat <derived control rule>
+
+rules:
+- id: tainted-sql-string
+  languages:
+  - scala
+  severity: ERROR
+  mode: taint
+  message: User data flows into this manually-constructed SQL string. User data can be safely inserted
+    into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed
+    SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate
+    data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe
+    library.
+  metadata:
+    cwe:
+    - "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+    owasp:
+    - A01:2017 - Injection
+    - A03:2021 - Injection
+    references:
+    - https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html
+    category: security
+    technology:
+    - scala
+    confidence: MEDIUM
+    license: Commons Clause License Condition v1.0[LGPL-2.1-only]
+    cwe2022-top25: true
+    cwe2021-top25: true
+    subcategory:
+    - vuln
+    likelihood: MEDIUM
+    impact: HIGH
+  pattern-sources:
+  - pattern: blitzyF5W019UnmatchableTaintSourceMarker(...)
+  pattern-sinks:
+  - patterns:
+    - pattern-either:
+      - patterns:
+        - pattern-either:
+          - pattern: |
+              "$SQLSTR" + ...
+          - pattern: |
+              "$SQLSTR".format(...)
+          - patterns:
+            - pattern-inside: |
+                $SB = new StringBuilder("$SQLSTR");
+                ...
+            - pattern: $SB.append(...)
+          - patterns:
+            - pattern-inside: |
+                $VAR = "$SQLSTR"
+                ...
+            - pattern: $VAR += ...
+        - metavariable-regex:
+            metavariable: $SQLSTR
+            regex: (?i)(select|delete|insert|create|update|alter|drop)\b
+      - patterns:
+        - pattern-either:
+          - pattern: s"..."
+          - pattern: f"..."
+        - pattern-regex: |
+            .*\b(?i)(select|delete|insert|create|update|alter|drop)\b.*
+    - pattern-not-inside: println(...)
+    - pattern-not-inside: throw new $EXCEPTION(...)
+  pattern-sanitizers:
+  - pattern-either:
+    - patterns:
+      - pattern-either:
+        - pattern: $LOGGER.$METHOD(...)
+        - pattern: $LOGGER(...)
+      - metavariable-regex:
+          metavariable: $LOGGER
+          regex: (i?)log.*
+    - patterns:
+      - pattern: $LOGGER.$METHOD(...)
+      - metavariable-regex:
+          metavariable: $METHOD
+          regex: (i?)(trace|info|warn|warning|warnToError|error|debug)
+
+
+================================================================================
+VERDICT (i) - THE MANDATED PAIR
+================================================================================
+
+  F5 STILL REPRODUCES, unchanged and at full severity. The AAP-mandated pair
+  over core/src/main/scala/org/apache/spark/storage/DiskStore.scala with
+  --taint-intrafile as the sole analysis difference returned 1 traced finding
+  at line 72 in BOTH arms, and the two SARIF files are byte-identical at 4753
+  bytes, sha256
+  7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778. The
+  anchored expectation is 1-ON/0-OFF; the observed contrast is zero, so the
+  pair does not discriminate. Per AAP 0.9.2 this is a halt-class condition,
+  reported and not repaired. The cause is mechanical and is a property of the
+  pair the AAP specifies - a source and sink inside one method cannot exercise
+  an inter-procedural toggle - so no flag, heap or configuration change can
+  fix it; it needs a human/AAP change to the mandated subject or to the
+  control the pair uses.
+
+  WHY THE ARMS CANNOT DIFFER ON THIS FILE. The rule's source is a method
+  parameter and its sink is the interpolated string; on this file both sit
+  inside ONE method - the parameter blockId is declared at DiskStore.scala:64
+  (def put(blockId: BlockId)) and the sink is at line 72 - so the flow never
+  crosses a method boundary. --taint-intrafile adds intra-FILE INTER-
+  procedural taint and therefore has nothing to contribute, while the engine's
+  documented fallback ('Other languages will fall back to intraprocedural
+  analysis only') already reaches it in both arms.
+
+  DISPOSITION. AAP 0.9.2 lists 'a failed taint A/B' among the conditions that
+  stop the run. This is therefore a halt-class finding, REPORTED AND NOT
+  REPAIRED: no rule, file, line or flag was changed to obtain the expected
+  zero, and no other subject is offered as a substitute for the mandated one.
+
+  WHAT WOULD RESOLVE IT, stated for the dispatcher rather than acted on. The
+  pair is failed by construction, not by configuration, so no flag, heap or
+  environment change can repair it. It needs a human/AAP change: either the
+  mandated pair's subject moves to a flow that crosses a method boundary - the
+  HiveShim flow measured here is one such flow, already in scope at
+  sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala - or
+  the AAP's 'sole difference' is redefined from the engine setting to the
+  rule's source, which is what the source-removed control implements and which
+  is the only taint-free arm this engine admits. Both are reported; neither
+  was substituted for the mandated pair here.
+
+
+================================================================================
+VERDICT (ii) - THE CAPABILITY QUESTION THE A/B EXISTS FOR
+================================================================================
+
+  OPENGREP'S TAINT ENGINE IS ACTIVE ON SPARK'S OWN SCALA, and the --taint-
+  intrafile toggle is functional at this pin. Two independent measurements
+  establish it. (1)
+  sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala: 2
+  traced findings at lines 828 and 834 with the flag and 0 without it, the
+  traced route crossing three method boundaries inside the file
+  (predicates@351 -> convertFilters@351 -> filters@645 -> flatMap@861 ->
+  sink@828/834). (2) The source-removed control on the MANDATED subject: with
+  pattern-sources replaced by an unmatchable marker and mode: taint plus every
+  sink retained, DiskStore.scala yields 0 findings against the real rule's 1
+  at line 72 - so that line-72 result is taint propagation, not a syntactic
+  match. Neither measurement is offered as a substitute for the mandated
+  subject's pair, which remains failed.
+
+  EVIDENCE 1 -
+  sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala. The
+  route crosses three method boundaries inside one file, which is exactly what
+  --taint-intrafile adds and what the default intraprocedural fallback cannot
+  see.
+
+  EVIDENCE 2 - core/src/main/scala/org/apache/spark/storage/DiskStore.scala,
+  the mandated subject and line. PASS - the line-72 result is produced by
+  SOURCE-TO-SINK TAINT PROPAGATION and not by a syntactic sink match. Removing
+  only the source removes the finding while every sink pattern remains in
+  place.
+
+  NOT A SUBSTITUTE. This pair answers the CAPABILITY question the A/B exists
+  for. It does NOT satisfy the AAP's mandated pair, whose subject and line are
+  fixed at DiskStore.scala:72. This is a control over the mandated subject,
+  not a repair of the mandated pair: it changes the RULE, which is the only
+  way to obtain a taint-free arm at this pin, and the AAP's pair is defined by
+  the engine setting rather than by the rule.
+
+
+================================================================================
+THE ENGINE'S OPTION SURFACE - SUMMARY
+================================================================================
+
+  Full capture              : harness/artifacts/logs/reverification-f5-taint-engine-options.txt
+  `scan --help` captured    : 558 lines, 22619 bytes, sha256 1c667bc26e59715be1814ed99caf9674a39c44ab5fec6eac4067527d35c033c4
+  Distinct option blocks    : 101
+  Blocks mentioning taint/dataflow/pro/interfile/optimization: 21
+  Options with 'taint' in the name: --taint-intrafile, --guarded-taint-signatures
+  `--no-*` options, and how many concern taint: 12, of which 0
+  Option that disables taint analysis: NONE
+
+  No option at this pin disables the taint engine. --taint-intrafile ENABLES
+  an extra intra-file inter-procedural layer; --guarded-taint-signatures drops
+  guarded taint effects and is gated behind --experimental; --dataflow-traces
+  affects output only by its own help text; --optimizations=none was RUN and
+  still produced the taint finding; the --pro family requires the proprietary
+  Semgrep Pro Engine, which is not installed and which this run may not
+  install, and would ADD taint rather than remove it. Therefore 'taint off' in
+  the mandated pair means INTRAPROCEDURAL TAINT rather than no taint, and a
+  truly taint-free arm is NOT constructible with this engine - only by
+  changing the rule, which is what the source-removed control does.
+
+
+================================================================================
+CONTAINMENT AND CONTINUITY - WHAT THIS PASS DID NOT TOUCH
+================================================================================
+
+  Files written by this pass, all eight under harness/artifacts/logs/:
+
+    harness/artifacts/logs/reverification-f5-taint-ab.log          (this file)
+    harness/artifacts/logs/reverification-f5-taint-ab.json            27658 bytes
+    harness/artifacts/logs/reverification-f5-taint-ab-on.sarif         4753 bytes
+    harness/artifacts/logs/reverification-f5-taint-ab-off.sarif        4753 bytes
+    harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-on.sarif    10021 bytes
+    harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-off.sarif     2341 bytes
+    harness/artifacts/logs/reverification-f5-taint-ab-source-removed.sarif     2341 bytes
+    harness/artifacts/logs/reverification-f5-taint-engine-options.txt    41622 bytes
+
+  harness/artifacts/raw/ was neither written to nor altered: its 8 runner
+  artifacts retain the modification instants and sizes they had before this
+  pass began, and no SARIF of this pass is in it. No pre-existing file was
+  modified, moved, renamed or deleted - the 24 canonical taint-ab-* files
+  under logs/ still carry their original modification instants, hours before
+  this pass's first write. No harness/bin/ runner was invoked, no scanner
+  orchestrator was used, no file under /opt was written, /opt/spark-src was
+  not edited, the pinned ruleset was not modified, no code-property graph was
+  loaded and no large-heap JVM was started. No tool was installed, upgraded or
+  substituted, and no credential was provisioned: SEMGREP_APP_TOKEN,
+  DD_API_KEY, DD_APP_KEY and NVD_API_KEY were all observed absent without any
+  value being printed.
+
+  This pass contributes NO dataset row. The normalizer discovers artifacts by
+  the nine fixed raw names only, and every file above is outside
+  harness/artifacts/raw/, so nothing here can reach oss-scan-
+  results/findings.json or findings.csv. It remains observational: no finding
+  was remediated, deduplicated, compared, ranked or judged, and no canonical
+  result document was written.
+
+
+================================================================================
+CITED VALUES - EVERYTHING ELSE IN THIS FILE WAS MEASURED HERE
+================================================================================
+
+  VALUE: the canonical mandated-pair arms' SARIF digest
+  7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778 at 4753
+  bytes
+
+  SOURCE: harness/artifacts/logs/taint-ab-on.sarif and taint-ab-off.sarif
+
+  WHY CITED: context only. This pass re-derived the same digest independently
+  for both of its own mandated arms, so the SARIF is byte-stable across
+  clones.
+
+  VALUE: the canonical flag set --dataflow-traces --timeout 120 --timeout-
+  threshold 0 --max-target-bytes 20000000 --x-ignore-semgrepignore-files
+  --disable-version-check
+
+  SOURCE: harness/artifacts/logs/taint-ab-on.log, section 'THE COMMAND,
+  VERBATIM' (lines 111-122)
+
+  WHY CITED: reused verbatim so this pass measures the same invocation QA
+  measured.
+
+  VALUE: the canonical HiveShim arms' digests
+  1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24 (on) and
+  6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced (off)
+
+  SOURCE: harness/artifacts/logs/taint-ab-hiveshim-on.sarif and taint-ab-
+  hiveshim-off.sarif
+
+  WHY CITED: context only. This pass independently reproduced both digests,
+  which corroborates the HiveShim contrast across generations.
+
+
+================================================================================
+END - reverification-f5-taint-ab.log
+================================================================================

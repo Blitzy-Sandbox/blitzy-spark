@@ -316,7 +316,14 @@ Ran 1138 rules on 4095 files: 1319 findings.
 `--x-ignore-semgrepignore-files` is load-bearing for that reach rather than
 cosmetic: without it the engine's bundled ignore patterns skip 846 of the 4,095
 in-scope files, 834 of them `python/pyspark` test modules the allowlist puts
-squarely in scope. The flag is marked internal by the tool, which is accepted at a
+squarely in scope. **Those two figures are provisioning's measurement, not this
+run's** — they are the inherited record's, `harness/ENVIRONMENT.md` section 12,
+cited through `runner-metadata.json` `tools.opengrep.baked_flags.notes`, which
+names that section as their source. **This run measured no
+default-configuration arm**: the flag was in force for the whole of this
+invocation, so the only figure this run observed is the 4,095 files the tool
+scanned *with* it, and the 846 it would otherwise have skipped is quoted rather
+than remeasured. The flag is marked internal by the tool, which is accepted at a
 pinned version and is the subject of the first warning line in that stream.
 
 **Absent-artifact stderr and verdict**: not applicable — the artifact is present
@@ -325,19 +332,85 @@ and parses.
 **Second appearance.** Opengrep appears twice in this run by design: here as one
 of the nine scanned runners, and separately as the subject of the taint A/B, whose
 arms are written under `harness/artifacts/logs/` and are all present on disk:
-`taint-ab-anchor-diskstore-{on,off}.{log,sarif}` for the mandated subject,
-`taint-ab-anchor-diskstore-fullruleset-{on,off}.{log,sarif}` for that same subject
+`taint-ab-{on,off}.{log,sarif}` for the mandated subject under the two filenames
+the AAP's own file map names,
+`taint-ab-anchor-diskstore-{on,off}.{log,sarif}` for that same mandated subject
+captured again under the single pinned rule,
+`taint-ab-anchor-diskstore-fullruleset-{on,off}.{log,sarif}` for it once more
 under the whole ruleset, `taint-ab-hiveshim-{on,off}.{log,sarif}` for the second
-subject, `taint-ab-discriminating-{on,off}.{log,sarif}` for the discriminating
-pair, and `taint-ab-{on,off}.{log,sarif}` for the analysis, beside the four
-control captures `taint-ab-off-control-rule.txt`,
+subject, and `taint-ab-discriminating-{on,off}.{log,sarif}` for the third, beside
+the four control captures `taint-ab-off-control-rule.txt`,
 `taint-ab-source-removed-control-rule.txt`, `taint-ab-source-removed-control.sarif`
 and `taint-ab-search-control.sarif`. Every one of them sits outside
 `harness/artifacts/raw/`, so none can overwrite this runner's artifact. That
 A/B **contributes no dataset row**, and none of its findings is folded into the
 1,319 above; doing so would corrupt both this tool's count and the dataset total.
-The A/B's own result is recorded in those files and in
-`oss-scan-results/run-record.md`, which own it.
+
+**The A/B's outcome has two halves, and they have to be read together.** Every
+arm named above was executed by this run at the pinned clone `/opt/spark-src`
+with the observed HEAD `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` under run id
+`w022-20260902T144244Z`, so the figures below are this run's own measurements
+rather than another clone's. They are the arms' figures cited here, not measured
+again; the arm-by-arm narrative belongs to `oss-scan-results/build-record.md`,
+which records it as the graph-stage pass condition, and to
+`oss-scan-results/run-record.md`.
+
+**First half — the AAP's mandated anchor is UNMET, and the mandated pair is
+non-discriminating.** The anchor expects one traced finding in
+`core/src/main/scala/org/apache/spark/storage/DiskStore.scala` at line 72 with
+taint on and **zero** with it off, from two invocations differing only in that
+setting. Observed, from `taint-ab-on.log` and `taint-ab-off.log`: **1 traced
+finding at line 72 in *both* arms**, and the two arms' SARIF outputs
+**byte-identical** at 4,753 bytes and sha256
+`7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778`. A contrast of
+zero is not a contrast, so the anchor is not met and nothing here claims it was.
+The `taint-ab-anchor-diskstore-{on,off}` capture of the same subject reproduces
+the same 1-and-1 result at the same byte size and digest, and widening the rule
+set does not move it either: under the whole pinned ruleset — 2,006 Code rules
+loaded from the 29 rule-bearing directories, of which the engine selected 266 for
+this one file — both arms again produced 1 traced finding at line 72,
+byte-identical at 2,939,276 bytes and sha256
+`fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51`
+(`taint-ab-anchor-diskstore-fullruleset-{on,off}.log`). The cause is the engine's
+option surface, measured by those arms rather than assumed: exactly **two** of
+the long options Opengrep 1.27.1 declares have a name that mentions taint —
+`--taint-intrafile`, which *enables* intra-file inter-procedural taint and whose
+own help text names `intraprocedural analysis only` as the fallback, and
+`--guarded-taint-signatures`, which attaches branch-condition guards and requires
+`--experimental` — and **neither of them disables taint analysis**. The arms
+publish that figure as `opengrep scan --help | grep -c "^ \+--"` returning
+**107** at either terminal width, of which 101 are option declarations and 6 are
+wrapped description lines that merely begin `--`; the engine's true long-option
+surface is **110**, the nine further options being declared with a short alias
+first and so unmatchable by that pattern. So "taint off" in this A/B means
+*intraprocedural taint* rather than *no taint*, a truly taint-free arm is not
+constructible at this pin, and on this subject the rule's source (the `put`
+parameter at line 64) and its sink (line 72) sit inside one method, which leaves
+`--taint-intrafile` nothing to contribute. AAP 0.9.2 puts a failed taint A/B in
+the halt class, and it is recorded as one: **reported and not repaired**, an
+engine-caused divergence rather than a harness defect, with no rule, file, line,
+flag or runner changed to manufacture a contrast (AAP 0.8.1).
+
+**Second half — standing beside that unmet anchor, this run did establish the
+capability on Spark's own Scala.** Same pinned rule, same engine,
+`--taint-intrafile` the only analysis difference, on
+`sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala`: **2
+findings at lines 828 and 834 with the flag, each carrying a 5-step dataflow
+trace, and 0 without it** — outputs 10,021 bytes against 2,341 and not
+byte-identical (`taint-ab-hiveshim-{on,off}.log`). Each trace crosses method
+boundaries — source `predicates` at line 351, call `convertFilters` at 351,
+propagator `filters` at 645, propagator `flatMap` at 861, sink at 828 and 834 —
+which is precisely what the mandated subject's single-method flow cannot
+exercise. A third subject discriminates in both directions:
+`sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala` gave **12
+findings with the flag against 11 without**, lines 659, 666, 670 and 676 reported
+only with it and lines 544, 700 and 702 only without
+(`taint-ab-discriminating-{on,off}.log`). **Neither of those pairs satisfies the
+mandated anchor**, and neither is offered as satisfying it: the anchor names one
+subject and one expected contrast, and on that subject the expectation remains
+unmet. Both results are recorded together — the unmet anchor and the
+discriminating measurement — because either one alone misstates what this run
+established.
 
 ---
 
@@ -522,32 +595,45 @@ anywhere this run can reach". None of those four readings is a measurement of an
 file in this checkout: `observed_identity` carries `c5fd464c…, 53 rulesets, 1,147
 rules`, the stream reads 1147 at line 8 and `Rules evaluated: 1147` at line 31, its
 `rules languages` line lists fourteen, and the bytes are in the log tree at the
-captured path above. `4f397e81…` is retained in the table as what it actually is,
-the inherited record's own statement.
+captured path above. The two languages the inherited twelve-entry list omits are
+**SWIFT** and **APEX**, both present in the captured ruleset, and **Scala is in
+neither list** — so the reach fact below is unchanged by the correction.
+`4f397e81…` is retained in the table as what it actually is, the inherited record's
+own statement.
 
-**One correction that belongs to a file this record may not edit.**
-`runner-metadata.json` `tools.datadog-static-analyzer.ruleset_or_feed_identity`
-carries `observed_identity` `sha256 c5fd464c…, 53 rulesets, 1,147 rules` beside the
-scalar fields `observed_ruleset_count: 48`, `observed_rule_count: 1093` and
-`rule_count_matches_expected: true`. Those three scalars are the superseded
-generation's counts and disagree with that node's own `observed_identity`, with the
-gate's `observed` for the same check, and with the tool's own stdout. **The counts
-of record are 53 rulesets and 1,147 rules**, and `rule_count_matches_expected` is
-therefore **false** against the expected 1,093 — which is the reading the
-`Comparability` row above already applies. `harness/artifacts/` is this run's
-published evidence, byte- and digest-exact against `MANIFEST.json`, so the
-correction is **stated here naming the file and the fields** rather than applied to
-them.
+**One correction that was owed to another file, and has now been made in it.**
+The owner of the scalar counts is
+`runner-metadata.json` `tools.datadog-static-analyzer.ruleset_or_feed_identity`,
+and it now agrees with everything else that measures those bytes. Read from that
+node today, it carries `observed_ruleset_count: 53`, `observed_rule_count: 1147`
+and `rule_count_matches_expected: false`, an `observed_identity` of
+`sha256 c5fd464c…, 53 rulesets, 1,147 rules, 4,068,707 bytes, captured
+2026-08-30T17:51:40Z by provisioning`, and the AAP table's anchors preserved
+alongside as `expected_ruleset_count: 48` and `expected_rule_count: 1093` — so the
+expectation is retained as an expectation rather than overwritten by the
+observation. Those readings equal the gate's `observed` for check
+`gate.ruleset_identity.datadog-static-analyzer`, the captured file's own
+`datadog-sast-rules.captured.meta.json`, and the tool's own stdout at line 8 and
+line 31; and `rule_count_matches_expected: false` is the same reading the
+`Comparability` row above applies. **The counts of record are 53 rulesets and 1,147
+rules**, in this document and in its owner, and they are now one measurement cited
+twice rather than two. The history is worth one sentence and no more: an earlier
+generation of that node carried the superseded 48 / 1,093 pair in those scalars
+with `rule_count_matches_expected: true`, which is why an earlier generation of
+this paragraph stated the correction as owed rather than made.
 
-**Not repairable in this checkpoint, and why.** The remaining fix is to have the
-runner read a private content-addressed copy instead of a shared mutable path, and
+**What is not repairable in this checkpoint, and why.** The remaining fix is to have
+the runner read a private content-addressed copy instead of a shared mutable path, and
 that is an edit to `harness/bin/run-datadog-static-analyzer.sh` line 48 — a runner
 edit, which AAP 0.8.1 forbids outright. The runner is **present in this checkout**
 and readable, which is how its lines 37–38 and 46–52 are quoted in this entry;
 reading it is not editing it. Re-running the scanner to obtain a fresh
 rules-and-findings pair is prohibited by the same rule, and AAP 0.6.4 makes a
-second invocation a second measurement of a quantity already measured. Nothing was
-repaired and nothing here is presented as repaired.
+second invocation a second measurement of a quantity already measured. **No runner
+was edited, no baked flag was changed and no scanner was re-invoked**, so the
+shared-mutable-path exposure this paragraph describes stands exactly as found and
+nothing about it is presented as repaired. It is a different thing from the scalar
+counts above, which were corrected in their own owner and not here.
 
 **What a human must do.** At **provisioning** time, before any scan: copy the rules
 to a private content-addressed path — `<digest>.json` under a directory this run
@@ -610,6 +696,22 @@ tool printed it, and Scala is not among the fourteen. The `Analyzing` lines are 
 same fact from the other direction: the languages this invocation analysed were
 JavaScript, Bash, Python and Java. This is invisible from the finding count alone,
 which is why it is recorded here in the tool's own output rather than summarised.
+
+**The consequence, stated rather than left to be inferred: no in-scope `.scala`
+file can produce a finding from this tool.** The ruleset carries **no Scala rules
+at all** — 1,147 rules across those fourteen languages, none of them Scala — so
+every `.scala` file among the 4,095 in scope was outside this ruleset's reach
+before the scan began, and its 6,832 rows come from `.py`, `.java`, `.js` and
+`.sh` files. `runner-metadata.json`
+`tools.datadog-static-analyzer.reach.reach_caveat` is the owner of that
+determination and states it in the same terms, measured from
+`harness/artifacts/logs/datadog-sast-rules.captured.meta.json` — 1,147 rules over
+a fourteen-entry `languages` array — and corroborated by parsing
+`harness/artifacts/logs/datadog-sast-rules.captured.json` itself, which yields 53
+rulesets, 1,147 rules and **zero** rules whose language is Scala. It is cited here,
+not measured again. This is the most consequential reach fact about this tool, and
+it is a property of the pinned ruleset rather than a judgement about the tool: the
+count alone would show none of it.
 
 **Absent-artifact stderr and verdict**: not applicable — the artifact is present
 and parses. `harness/artifacts/logs/datadog-static-analyzer.stderr.log` is 0
@@ -831,7 +933,7 @@ a per-section breakdown rather than a single class.
 | Reconciliation, per artifact | `3 = 3 + 0` — **pass** |
 | Reconciliation, dataset level | contributes to `10016 = 9430 + 586` — **pass** |
 | Row validation | pass over this tool's 3 rows. `start_line` is **absent** on all three, which is legitimate: line information appears on secrets and misconfigurations where the section supplies it, and all three of these records carry a `CauseMetadata` with `Provider` and `Service` only |
-| Adapter fixture | **pass** — `test_trivy_adapter`, 194 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
+| Adapter fixture | **pass** — `test_trivy_adapter`, 199 tests, exit 0, result OK; per-adapter `verdict` `pass` with no AAP requirement recorded failed |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` at runner line 45 |
 | Resolved scan root | `/opt/spark-src`, verified |
 | Invocation form | **18 invocations**, each `trivy fs` handed exactly one root-relative path, because `trivy fs` takes exactly one path. The runner writes one per-directory report per invocation into `$HARNESS_LOG_DIR/trivy.parts/` and merges the 18 into one report |
@@ -897,7 +999,7 @@ the record.
 | Field | Value |
 | --- | --- |
 | Version | observed **2.5.1** (`osv-scalibr` 0.5.2), expected 2.5.1 — as expected. `osv-scanner --version` printed `osv-scanner version: 2.5.1`; binary `/opt/blitzy-tools/bin/osv-scanner` |
-| Feed identity | observed **no local database — queries the OSV API live at scan time**, expected the same — **matches**. The runner states it at line 40: `database : none local - queries the OSV API (https://api.osv.dev) at scan time` |
+| Feed identity | observed **no local database — queries the OSV API live at scan time**, expected the same — **matches**. The runner states it at line 40: `database : none local - queries the OSV API (https://api.osv.dev) at scan time`. That host is the API's **request endpoint** rather than a browsable page and does not resolve to one; this document's own reference for the API is <https://google.github.io/osv.dev/api/>, with the project page at <https://osv.dev/>. Both the quoted host and the two citations were measured, and the figures are below under *The reference this document cites for that API, and the status of the host the runner names* |
 | Comparability | **comparable** on identity — the observed feed identity is the expected one. There is no count to compare, no artifact having been written |
 | Reproducibility gap | **NAMED.** This tool holds no local database and no recorded digest for the data it would consult, so its counts are not reproducible from anything on disk: an identical re-run against an API whose contents have moved can legitimately produce a different number. Disclosed rather than repaired — no local mirror was seeded and no digest was invented. Its effect on this run is nil, because no query was made; it is disclosed anyway so that a reader knows this tool's count has no on-disk provenance behind it |
 | Feed state | **not attempted.** It resolved no package, so it had nothing to ask the API about — `0 Extract calls` in its own words. Of the four outcomes this is the third. No query, no response, no rate-limit notice and no network error appears in either captured stream |
@@ -919,6 +1021,41 @@ the record.
 | JDK major | none — a statically linked ELF binary, and the runner exports no `JAVA_HOME` |
 | Interpreter | none — the runner invokes no interpreter |
 | Credential expression | **none.** This runner calls `scope_cred_state` nowhere and reads no credential |
+
+**The reference this document cites for that API, and the status of the host the
+runner names.** The `Feed identity` row above carries two different things and
+they are kept apart deliberately. `https://api.osv.dev` is inside a **verbatim
+quote** of `harness/bin/run-osv-scanner.sh` line 40, which is the runner's own
+sentence about its own configuration; the runner may not be edited (AAP 0.8.1)
+and substituting a different host into a quotation stops it being a quotation, so
+the host is reproduced exactly as the runner wrote it. What that host **is** is an
+API request endpoint, and its root path is not a document: it answers the API's
+own request routes beneath `/v1/` and serves no page at `/`. That is a fact about
+the endpoint rather than a defect in the runner, and it means a reader following
+the quoted string as a link gets nothing. So this document adds a citation of its
+own for the reader who wants the API reference, and states what each of the three
+returned when it was measured:
+
+| URL | Presented as | HEAD | GET | Measured |
+| --- | --- | ---: | ---: | --- |
+| `https://api.osv.dev` | the runner's own words, quoted verbatim — **not** a link this document offers | **404** | **404** | 2026-09-02 |
+| `https://google.github.io/osv.dev/api/` | **this document's citation** for the API reference | 200 | 200 | 2026-09-02 |
+| `https://osv.dev/` | **this document's citation** for the project | 200 | 200 | 2026-09-02 |
+
+Each was measured with
+`curl -sS -o /dev/null -w '%{http_code}' -L <url>`, and the first with
+`-I -L` as well so that the HEAD and GET results are separately recorded rather
+than one inferred from the other. A fourth measurement is recorded because it is
+the one that shows *why* the root 404s rather than merely that it does: a GET
+against that same host's `/v1/query` route — the API's own query route, which
+expects a POST — returns **405**, a method-not-allowed rather than a
+not-found, measured the same day and by the same command. The endpoint is
+therefore live and the 404 at `/` is its shape rather than its absence. That
+route is named as a path rather than written out as a link, because a
+405 is a measurement this document took and not a reference it offers a reader
+to follow. The 404 is disclosed here with its date so that the next reader meets
+it in the record rather than rediscovering it, and no substitution was made
+inside the quotation to hide it.
 
 **Baked flags, as read** from `harness/bin/run-osv-scanner.sh` lines 46–49:
 `scan source`, `--recursive`, `--format json`, `--output-file "$ART"`,
@@ -1040,7 +1177,7 @@ reported what it found. Nothing here reads its zero as evidence about the tool.
 | Reconciliation, per artifact | `0 = 0 + 0` — **pass**. A real zero with the artifact **present**, deliberately not the `not applicable — artifact absent` case |
 | Reconciliation, dataset level | contributes a zero term to `10016 = 9430 + 586` — **pass** |
 | Row validation | not applicable in substance — this tool emitted zero rows, and the dataset-level validation passed with zero rows attributed to it |
-| Adapter fixture | **module passes, and the one AAP requirement over it is now SATISFIED — by a second capture rather than by a waiver.** `test_dependency_check_adapter` ran 102 tests, exit 0, result OK, per-adapter `verdict` `pass`, and `adapter-tests-run.json` `positive_mapping.per_adapter.dependency-check.aap_0_6_2_captured_positive_mapping_requirement.status` is **`SATISFIED`** with `status_superseded_value` `FAILED` retained beside it. The measurement that made it FAILED stands and is why the second capture was needed: this tool's whole output for this run holds **32 dependencies, zero vulnerability records and zero package objects**, so no unmodified excerpt of it exercises a single positive field, and its captured fixture yields **zero rows**. A second invocation of the same tool build, same JDK 17, same seeded feed, over input that resolves to packages the feed carries advisories for produced **five vulnerability records over two dependencies**, retained unmodified at `harness/artifacts/logs/dependency-check-positive-capture.json` with its command in the accompanying `.log`, copied byte-for-byte to `oss-scan-results/adapter-tests/fixtures/captured-dependency-check-vulnerabilities.json`, and asserted field by field by `CapturedVulnerabilityFixtureTest`. It contributes **no dataset row**, having been taken outside `harness/artifacts/raw/` over input that is not the pinned tree |
+| Adapter fixture | **module passes, and the one AAP requirement over it is now SATISFIED — by a second capture rather than by a waiver.** `test_dependency_check_adapter` ran 107 tests, exit 0, result OK, per-adapter `verdict` `pass`, and `adapter-tests-run.json` `positive_mapping.per_adapter.dependency-check.aap_0_6_2_captured_positive_mapping_requirement.status` is **`SATISFIED`** with `status_superseded_value` `FAILED` retained beside it. The measurement that made it FAILED stands and is why the second capture was needed: this tool's whole output for this run holds **32 dependencies, zero vulnerability records and zero package objects**, so no unmodified excerpt of it exercises a single positive field, and its captured fixture yields **zero rows**. A second invocation of the same tool build, same JDK 17, same seeded feed, over input that resolves to packages the feed carries advisories for produced **five vulnerability records over two dependencies**, retained unmodified at `harness/artifacts/logs/dependency-check-positive-capture.json` with its command in the accompanying `.log`, copied byte-for-byte to `oss-scan-results/adapter-tests/fixtures/captured-dependency-check-vulnerabilities.json`, and asserted field by field by `CapturedVulnerabilityFixtureTest`. It contributes **no dataset row**, having been taken outside `harness/artifacts/raw/` over input that is not the pinned tree |
 | Scan-target variable | `SPARK_SRC`, set to `/opt/spark-src`, resolved through `scope_resolve_target` |
 | Resolved scan root | `/opt/spark-src`, verified; the pinned commit re-verified as `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` |
 | Invocation form | one invocation carrying **18 absolute `--scan` paths**, one per allowlist directory, built as `"$SCAN_ROOT/$d"` |
@@ -1305,7 +1442,7 @@ is the code-property graph rather than a directory tree.
 
 | Field | Value |
 | --- | --- |
-| Version | observed **4.0.607**, expected 4.0.607 — as expected. Read from the **startup banner** with stdin closed, this tool exposing no version flag and its REPL blocking on an open stdin: the banner line is `Version: 4.0.607`, captured at the gate — `harness/artifacts/logs/gate-record.json`, check `gate.tool_version.joern`, command `printf '' | joern | grep -m1 -i version`, `stdout` `Version: 4.0.607`, verdict `pass` — and run from a scratch directory outside the repository so the workspace side effect could not land in the checkout. The separate pre-load gate at `harness/artifacts/logs/joern-preflight.log` records the graph identity check rather than the banner and is cited for that below. The artifact's own `tool_version` field also reads 4.0.607, which agrees but is the runner's claim rather than an independent reading and is recorded as corroboration only. The banner does not appear in `joern.stderr.log` because the runner invokes the tool with a script rather than interactively, and that path prints no banner |
+| Version | observed **4.0.607**, expected 4.0.607 — as expected. Read from the **startup banner** with stdin closed, this tool exposing no version flag and its REPL blocking on an open stdin: the banner line is `Version: 4.0.607`, captured at the gate — `harness/artifacts/logs/gate-record.json`, check `gate.tool_version.joern`, command `printf '' \| joern \| grep -m1 -i version`, `stdout` `Version: 4.0.607`, verdict `pass` — and run from a scratch directory outside the repository so the workspace side effect could not land in the checkout. The separate pre-load gate at `harness/artifacts/logs/joern-preflight.log` records the graph identity check rather than the banner and is cited for that below. The artifact's own `tool_version` field also reads 4.0.607, which agrees but is the runner's claim rather than an independent reading and is recorded as corroboration only. The banner does not appear in `joern.stderr.log` because the runner invokes the tool with a script rather than interactively, and that path prints no banner |
 | Query set identity | observed **6 bounded structural queries** baked into `harness/lib/joern-scan.sc`; expected the set baked into the provisioned runner, which the plan expects to be a 58-query bundle bounded to 6 structural queries with the actual count to be read from the runner — **matches**. The count was **read from the runner**, at lines 50–78 where the six entries are declared, and line 111 where the script labels its own output `6 bounded structural queries` |
 | Query identifiers | `joern-process-exec`, `joern-unsafe-deserialization`, `joern-reflection-forname`, `joern-message-digest`, `joern-cipher-getinstance`, `joern-xml-factory` |
 | Comparability | **comparable** — the observed query-set identity is the expected one |
@@ -1408,6 +1545,27 @@ was **not** written by this run: the frontend in this clone reached the flatgrap
 serialization ceiling, so the persisted graph is provisioning's, dated
 2026-08-30, and this invocation read it without rebuilding it.
 
+**What that provenance means for what this tool actually scanned, cited rather
+than re-derived.** Those bytes were written by provisioning over a **62-archive**
+staging tree carrying archives from only **31** of the 38 JAR-packaging reactor
+projects, so the graph behind every figure in this entry is **not this run's
+all-JAR output** and does not carry every JAR the reactor produced; this run's own
+frontend invocation over the complete **191-archive** input wrote no accepted
+graph at all. AAP 0.5.1's injective coverage verdict for all 38 projects is
+therefore **not obtainable** from these bytes:
+`harness/artifacts/logs/cpg-module-coverage.json` records **COVERED** for **26 of
+the 38** — the same 26 being 26 of the 31 modules that contributed an archive, two
+denominators that file keeps distinct — and **no obtainable verdict** for the
+remaining **12**, of which 5 are in the input but own no admissible witness and 7
+have no archive in the input at all. That JSON is the measurement's owner and
+`oss-scan-results/build-record.md` owns the per-project verdicts read off it — it
+states the same **26 of 38** with the twelve unobtainable — so the figures here are
+that one measurement cited again rather than a second one. The shortfall
+is the graph's provenance and not a build outcome — all 38 JAR-packaging projects
+did produce their own main artifact, which is again `build-record.md`'s verdict —
+and it is published as a divergence rather than repaired by trimming the input set
+or weakening the witness test.
+
 **One disagreement about that identity, recorded rather than smoothed over.** The
 inherited environment record — `harness/ENVIRONMENT.md`, lines 284–287, restated in
 its own inlined-values block at lines 841–846 — states a different graph:
@@ -1472,7 +1630,7 @@ under `queries/joern/results/`.
 `/usr/bin/python3 <checkout>/harness/lib/normalize/cli.py`, run from the checkout
 root, interpreter `/usr/bin/python3` reporting **3.13.7** against an expected
 3.13.7 — matches; CPython, `3.13.7 (main, Mar  3 2026, 12:19:54) [GCC 15.2.0]`.
-It ran from **2026-09-01T19:41:23Z to 19:41:28Z** and exited **0**, outcome
+It ran from **2026-09-02T17:49:20Z to 17:49:25Z** and exited **0**, outcome
 `completed`, with `reconciliation.passed` true, no failures and no halt. It uses
 the standard library only, so it introduces no manifest, no lockfile and no
 install step. Stages A and B are established **before** either output file is
@@ -1481,19 +1639,19 @@ The parse status, record counts and reconciliation results in every entry above
 are this run's measurements (`harness/artifacts/logs/normalize-run.json`).
 
 **The adapter tests.** Command
-`/usr/bin/python3 -m unittest discover -s oss-scan-results/adapter-tests`, run
-from 2026-09-01T23:32:23Z to 23:32:36Z, suite exit **0**, result **OK**.
-`unittest` reported **1,325 tests** in **13.104 s** (**13,104 ms wall**), with
-**26,008 subTests** and 0 failures, 0 errors, 0 skips, 0 expected failures and
+`/usr/bin/python3 -m unittest discover -s oss-scan-results/adapter-tests -p 'test_*.py' -v`,
+run from 2026-09-02T17:39:13Z to 17:39:25Z, suite exit **0**, result **OK**.
+`unittest` reported **1,347 tests** in **11.966 s** (**11,966 ms wall**), with
+**26,123 subTests** and 0 failures, 0 errors, 0 skips, 0 expected failures and
 0 unexpected successes. Interpreter `/usr/bin/python3` at **3.13.7**, the same
 base interpreter as the normalizer and independent of every scanner's
 environment. 10 test modules, each run on its own and each exiting 0, whose own
 counts sum to the suite total — `test_checkov_adapter` 127,
-`test_cli_writers` 219, `test_dependency_check_adapter` 102,
+`test_cli_writers` 228, `test_dependency_check_adapter` 107,
 `test_emit_publication` 75, `test_gitleaks_adapter` 93, `test_joern_adapter` 117,
 `test_reconciliation` 162, `test_sarif_adapter` 122,
-`test_shape_routing_negative` 114 and `test_trivy_adapter` 194, giving
-127 + 219 + 102 + 75 + 93 + 117 + 162 + 122 + 114 + 194 = 1325. The corpus is
+`test_shape_routing_negative` 117 and `test_trivy_adapter` 199, giving
+127 + 228 + 107 + 75 + 93 + 117 + 162 + 122 + 117 + 199 = 1347. The corpus is
 **105 fixtures** and 105 **expected files** in one-to-one correspondence, of
 which **72 negative fixtures** drive the rejection conditions. A failed adapter
 fixture, rejection or reconciliation test is a condition that **stops the run**;
@@ -1506,8 +1664,16 @@ Every adapter-test figure in this document is that one record's, and the equalit
 is **enforced rather than asserted**: `harness/lib/verify_status_figures.py`
 reads `adapter-tests-run.json` and requires every test count, subtest count,
 elapsed reading, module count, fixture count and addend expression restated here
-to equal one of its measurements, exiting non-zero on any drift. Its last run
-checked **44 replicated figures with 0 drifted**. The count of figures moves with
+to equal one of its measurements, exiting non-zero on any drift. It also holds that
+record to **itself** — the seven ways it states its own test total must be one
+number, every `mandated_tests` module total must equal the module entry it names,
+and every test-count claim in its own prose must be either one of this run's
+measured counts or a figure declared under `historical_figures_quoted_in_prose` as
+quoted from a superseded edition — and it holds the command
+`oss-scan-results/adapter-tests/README.md` documents against the command the record
+recorded, argument by argument after resolving `python3` to the interpreter path the
+record names. Its last run checked **45 replicated figures and 92 assertions
+(78 self-consistency, 14 command equality) with 0 drifted**. The count of figures moves with
 how many replicated figures these documents carry, so the durable claim is the
 **zero** rather than the count: this document's own nine-tool elapsed sum became one
 of the checked figures only once its addends were rewritten without thousands
@@ -1656,13 +1822,22 @@ so each of those paths runs against genuine tool output. The requirement of
 AAP 0.6.2 and 0.9.4 is therefore **met at this milestone**, and the zero-record
 scope measurement stands beside it rather than under it.
 
-**The suite grew by 183 against the generation this document previously reported** —
-from a suite total of 1,142 to one of 1,325 — and every figure above is the new
-measurement rather than the old one adjusted. Three modules carry the
-growth: `test_cli_writers` 59 → 219, `test_sarif_adapter` 108 → 122 and
-`test_emit_publication` 66 → 75. The other seven modules' counts are unchanged. Two of the new tests rest on **two new
-committed negative fixtures**, both for the shared SARIF adapter, each with its own
-hand-verified expected file:
+**The suite has grown by 205 against the generation this document first reported** —
+from a suite total of 1,142 to the 1,347 measured above — and every figure above is
+the new measurement rather than an old one adjusted. The growth arrived in two steps.
+The first carried the total to 1,325 across three modules: `test_cli_writers`
+59 → 219, `test_sarif_adapter` 108 → 122 and `test_emit_publication` 66 → 75. The
+second is this milestone's, and carries it to 1,347 across four: `test_cli_writers`
+219 → 228, covering the `--repo-root` declaration of the dataset owner root,
+`test_shape_routing_negative` 114 → 117, covering the halt on an unexpected direct
+child of the raw artifact tree, and `test_trivy_adapter` 194 → 199 with
+`test_dependency_check_adapter` 102 → 107, covering the recorded-fixture-metadata
+contract that asserts each fixture's recorded path, digest, byte size and logical
+line count against the file on disk. The other four modules' counts are unchanged
+throughout, and no fixture was added at the second step — the corpus stands at the
+same 105 fixtures and 72 negative fixtures. Two of the first step's new tests rest on
+**two new committed negative fixtures**, both for the shared SARIF adapter, each with
+its own hand-verified expected file:
 
 | Fixture | Bytes | What it asserts | Rejection class | Identity |
 | --- | ---: | --- | --- | --- |

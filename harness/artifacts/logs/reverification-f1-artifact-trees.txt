@@ -1,0 +1,505 @@
+================================================================================
+F1 re-verification - the canonical artifact trees, censused first-hand in clone 19
+harness/artifacts/logs/reverification-f1-artifact-trees.txt
+================================================================================
+
+================================================================================
+WHAT THIS FILE ESTABLISHES
+================================================================================
+
+  That QA finding F1 still reproduces, measured in THIS clone at the instants
+  stated below rather than cited from clone 13's gate record: both canonical
+  artifact trees exist, NEITHER is empty, every entry in both is git-tracked
+  while both trees sit outside ordinary git collection, and the Stage 0 gate
+  that measured the same condition first returned overall verdict `halt` with
+  `authorises: "nothing"`.
+
+  It establishes one thing more, and it is the reason this file exists rather
+  than a fix: the condition is inherited provisioning state that this run may
+  neither create nor clear (AAP 0.3.2, 0.8.1), so it is REPORTED, never
+  repaired. What was actionable was evidence, and evidence is what this pass
+  produced - it invoked no scanner runner, wrote nothing into
+  harness/artifacts/raw/, produced no dataset row and advanced no stage.
+
+  Every number below was measured by this pass in this clone. Figures taken
+  from clone 13's gate record are labelled CITED and name their source file.
+
+================================================================================
+RUN AND CLONE IDENTITY
+================================================================================
+
+  Repository root   : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94
+  Branch            : blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019
+  HEAD              : 7fc41251c81e8a10ca9ce542b34af2542d7c1b53
+  Clone index       : 19
+  Environment file  : harness/env.sh, sourced in a non-login shell, exit 0
+                      (path taken from harness/ENVIRONMENT.md, not assumed)
+  HARNESS_RAW_DIR   : <repo>/harness/artifacts/raw
+  HARNESS_LOG_DIR   : <repo>/harness/artifacts/logs
+  HARNESS_SMOKE_TARGET : unset  (echo "[${HARNESS_SMOKE_TARGET-<unset>}]" -> [<unset>])
+  Census A instant  : 2026-09-02T14:29:59.967Z
+  Set-difference    : 2026-09-02T14:31:23.954Z
+  Census B instant  : 2026-09-02T14:36:43.021Z   (after this pass wrote its two files)
+
+  "THIS PASS" throughout this file means the F1/F2 re-verification group
+  working in clone 19 on 2026-09-02, whose entire output is this file and
+  harness/artifacts/logs/reverification-f2-graph-identity.txt. Other groups of
+  the same re-verification pass write their own evidence into logs/
+  concurrently; where their files are counted they are named as theirs.
+
+  Both trees are private to this clone: HARNESS_RAW_DIR and HARNESS_LOG_DIR
+  resolve inside this checkout, so nothing measured here is a shared-host
+  reading of another clone's tree.
+
+================================================================================
+CENSUS A - BOTH TREES, MEASURED BEFORE THIS PASS WROTE ANYTHING
+================================================================================
+
+Commands verbatim, run in the repository root after `. harness/env.sh`, at
+2026-09-02T14:29:59.967Z:
+
+$ ls -A harness/artifacts/raw
+checkov.json
+datadog-static-analyzer.sarif
+dependency-check.json
+gitleaks.json
+joern.json
+opengrep.sarif
+semgrep.sarif
+trivy.json
+rc=0
+
+$ ls -A harness/artifacts/raw | wc -l
+8
+
+$ ls -A harness/artifacts/logs | wc -l
+103                                       (99 regular files + 4 directories)
+rc=0
+
+$ find harness/artifacts/raw  -type f | wc -l
+8
+$ find harness/artifacts/logs -type f | wc -l
+137
+
+$ find harness/artifacts/raw  -type f -printf '%s\n' | awk '{t+=$1} END{print t+0}'
+120538389
+$ find harness/artifacts/logs -type f -printf '%s\n' | awk '{t+=$1} END{print t+0}'
+143200007
+
+$ du -sb harness/artifacts/raw harness/artifacts/logs
+120538389	harness/artifacts/raw
+143200007	harness/artifacts/logs
+
+$ git ls-files harness/artifacts/raw  | wc -l
+8
+$ git ls-files harness/artifacts/logs | wc -l
+137
+
+$ ls -A harness/artifacts
+MANIFEST.json
+logs
+raw
+rc=0
+
+  tree                        ls -A entries   regular files   total bytes    tracked files
+  --------------------------  -------------   -------------   ------------   -------------
+  harness/artifacts/raw                   8               8    120,538,389               8
+  harness/artifacts/logs                103             137    143,200,007             137
+
+  Neither tree is empty on any of the four measures. Tracked-file count equals
+  regular-file count in both trees, so there is no untracked residue and no
+  tracked-but-deleted entry: every byte in both trees is committed content.
+
+The eight entries of harness/artifacts/raw, with size and mtime as this clone
+holds them (TZ=UTC find -printf '%s %TY-%Tm-%TdT%TH:%TM:%.2TSZ %p\n'):
+
+  bytes        mtime (UTC)               path
+  -----------  ------------------------  ------------------------------------------
+        8,380  2026-09-02T14:03:15Z      harness/artifacts/raw/checkov.json
+    5,723,938  2026-09-02T14:03:15Z      harness/artifacts/raw/datadog-static-analyzer.sarif
+       17,097  2026-09-02T14:03:15Z      harness/artifacts/raw/dependency-check.json
+          561  2026-09-02T14:03:15Z      harness/artifacts/raw/gitleaks.json
+      354,817  2026-09-02T14:03:15Z      harness/artifacts/raw/joern.json
+   73,768,116  2026-09-02T14:03:15Z      harness/artifacts/raw/opengrep.sarif
+   40,661,984  2026-09-02T14:03:15Z      harness/artifacts/raw/semgrep.sarif
+        3,496  2026-09-02T14:03:15Z      harness/artifacts/raw/trivy.json
+
+  Read the mtimes for what they are. Every file in BOTH trees carries an mtime
+  inside 2026-09-02T14:03:14Z..14:03:15Z, which is this clone's own checkout
+  instant - git materialises a tracked file with the time it wrote it - so
+  mtime here is evidence of when clone 19 was created and NOT of when any
+  artifact was authored. Authorship is established by tracking instead:
+
+$ git log -1 --format='%H %cI %s' -- harness/artifacts/logs/gate-record.json
+0e3e742a5ad2cb057fd2ebafb6f6a0137c82d21b 2026-09-02T01:02:30Z Harden the finding normalizer and probe queries, extend the adapter-test corpus, and republish the scan record from measurement
+
+$ git log -1 --format='%H %cI %s' -- harness/artifacts/raw/checkov.json
+0e3e742a5ad2cb057fd2ebafb6f6a0137c82d21b 2026-09-02T01:02:30Z Harden the finding normalizer and probe queries, extend the adapter-test corpus, and republish the scan record from measurement
+
+  Both trees' contents therefore arrived in this clone by checkout of a commit
+  that predates this pass by more than thirteen hours. They were populated
+  before this pass could observe them, which is exactly the condition F1
+  names.
+
+================================================================================
+THE FOUR SUBDIRECTORIES INSIDE logs/
+================================================================================
+
+$ find harness/artifacts/logs -mindepth 1 -type d | sort
+harness/artifacts/logs/checkov.out
+harness/artifacts/logs/dependency-check.out
+harness/artifacts/logs/gitleaks.parts
+harness/artifacts/logs/trivy.parts
+
+Measured at 2026-09-02T14:30:24.246Z, per directory:
+
+  directory                              regular files   total bytes   tracked files
+  -------------------------------------  -------------   -----------   -------------
+  harness/artifacts/logs/checkov.out                 1         8,380               1
+  harness/artifacts/logs/dependency-check.out        1        17,097               1
+  harness/artifacts/logs/gitleaks.parts             18           613              18
+  harness/artifacts/logs/trivy.parts                18         8,111              18
+  -------------------------------------  -------------   -----------   -------------
+  subtotal, the four directories                    38        34,201              38
+  top-level regular files in logs/                  99   143,165,806              99
+  -------------------------------------  -------------   -----------   -------------
+  logs/ recursive total                            137   143,200,007             137
+
+  $ find harness/artifacts/logs -maxdepth 1 -type f | wc -l  ->  99
+  99 + 38 = 137, which reconciles the recursive file count against the 103
+  top-level entries (99 files + 4 directories). The two units are different
+  and are never mixed in this file: an `ls -A` ENTRY count includes
+  directories and does not descend; a `find -type f` count descends and
+  counts only regular files.
+
+================================================================================
+TRACKED, YET OUTSIDE ORDINARY GIT COLLECTION
+================================================================================
+
+Both facts hold at once, and together they are why provisioning could deliver
+populated trees through a checkout at all:
+
+$ git check-ignore -v --no-index harness/artifacts/raw/checkov.json harness/artifacts/logs/gate-record.json
+.gitignore:31:artifacts/	harness/artifacts/raw/checkov.json
+.gitignore:31:artifacts/	harness/artifacts/logs/gate-record.json
+rc=0
+
+$ sed -n '31p' .gitignore
+artifacts/
+
+$ git ls-files --error-unmatch harness/artifacts/raw/checkov.json harness/artifacts/logs/gate-record.json
+harness/artifacts/logs/gate-record.json
+harness/artifacts/raw/checkov.json
+rc=0
+
+  .gitignore:31 is `artifacts/`, which matches a directory of that name at any
+  depth, so neither tree is collected by an ordinary `git add`. Exit 0 from
+  `git ls-files --error-unmatch` on one path in each tree nevertheless proves
+  both paths ARE in the index: the entries were force-added by an earlier
+  clone of this generation and now travel with every checkout of the branch.
+  An ignore rule does not un-track an already-tracked path, so no future
+  clone of this branch can present an empty pair of trees at its gate.
+
+$ git status --short harness/artifacts
+rc=0     (no output: no modification and no deletion inside either tree)
+
+$ git status --short | wc -l
+0        (whole working tree clean at 2026-09-02T14:31:01.063Z, immediately
+          before this pass wrote its first byte)
+
+  A plain `git status` cannot report an untracked entry inside these trees at
+  all, because .gitignore:31 matches them; what rules out untracked residue at
+  Census A is the arithmetic instead - tracked count equals regular-file count
+  in both trees, 8 = 8 and 137 = 137.
+
+================================================================================
+WHAT THE GATE RECORDED, RE-PARSED HERE
+================================================================================
+
+Re-parsed from harness/artifacts/logs/gate-record.json at
+2026-09-02T14:30:37.255Z (that file measured by this pass at 92,014 bytes,
+sha256 56e12926b7e6b2fba1240a6bdc13b7a73d22e4e3fbadc5f4bb9b69863a6fa541, and
+NOT modified by it):
+
+$ python3 -c "import json; d=json.load(open('harness/artifacts/logs/gate-record.json')); v=d['gate_verdict']; print(v['overall']); print(v['counts_by_verdict']); print(v['authorises'])"
+gate_verdict.overall          = halt
+gate_verdict.counts_by_verdict = {"pass": 38, "halt": 2, "recorded_difference": 3, "total": 43}
+gate_verdict.authorises       = "nothing. No stage was authorised by this gate. TWO
+    conditions AAP 0.9.2 lists among those that stop the run are live: the artifact
+    trees were neither empty at the gate, and the environment record contradicts the
+    filesystem on the graph's identity, a field the expected-values table does not
+    anchor. Both are inherited provisioning facts this run may neither create nor
+    clear nor reverse. Every stage this generation performed after the gate is
+    retained as evidence and is recorded as work done after an unmet precondition -
+    never as a compliant stage completion."
+
+The emptiness check's own recorded fields, check_id
+`gate.artifact_trees_exist_and_empty` (every row CITED from gate-record.json,
+re-parsed by this pass and not transcribed from any other document):
+
+  field                              value
+  ---------------------------------  ---------------------------------------------
+  EMPTINESS_CHECK_TIMESTAMP_UTC      2026-09-01T13:28:07.612Z
+  rc_raw                             0
+  raw_entry_count                    8
+  rc_logs                            0
+  logs_entry_count                   85
+  check.exit_status                  0
+  check.elapsed_seconds              0.024
+  check.verdict                      halt
+  check.classification               inherited
+  gate-record run_id                 w013-20260901T132807Z
+  gate-record clone.clone_index      13
+  gate_verdict.halts                 gate.artifact_trees_exist_and_empty,
+                                     gate.environment_record_graph_identity_agreement
+
+  The record's own `write_ordering` field states the ordering AAP 0.6.1
+  requires and this pass confirms is internally consistent: the census ran
+  FIRST, at 2026-09-01T13:28:07.612Z, and the gate record was written
+  afterwards - so writing the record cannot be what made logs/ non-empty,
+  because logs/ already held 85 entries before the record existed.
+
+================================================================================
+SET DIFFERENCE AGAINST THE GATE'S OWN LISTING
+================================================================================
+
+The gate record retains the verbatim `ls -A` listing of both trees. This pass
+compared those listings, name by name, against this clone's directories at
+2026-09-02T14:31:23.954Z:
+
+  comparison                                       raw/      logs/
+  -----------------------------------------------  --------  --------
+  entries in the gate's listing (CITED)                   8        85
+  entries in this clone now                               8       105
+  present at the gate AND still present                   8        85
+  present at the gate but REMOVED since                   0         0
+  present now but ABSENT from the gate's listing          0        20
+
+  Nothing has been removed from either tree. That is the load-bearing half of
+  this comparison: no entry was deleted by this pass or by any earlier clone
+  of this generation to manufacture an empty tree, and raw/ holds precisely
+  the eight artifacts the gate saw - same eight names, nothing added.
+
+  The 20 names logs/ has gained since the gate census, as measured:
+    cpg-ceiling-reverify.log
+    cpg-graph-record.log
+    cpg-identity.txt
+    cpg-shims-collision-measurement.log
+    datadog-static-analyzer.console.log
+    dependency-check-positive-capture.json
+    dependency-check-positive-capture.log
+    joern.preflight.log
+    joern.runner.console.log
+    probe-01-callgraph-unguarded-driver-launch.identity.txt
+    probe-02-dataflow-unguarded-driver-launch.identity.txt
+    probe-03-parameterized-handler-sink-pairs.identity.txt
+    reverification-f5-taint-ab-off.sarif
+    reverification-f5-taint-ab-on.sarif
+    taint-ab-discriminating-off.log
+    taint-ab-discriminating-off.sarif
+    taint-ab-discriminating-on.log
+    taint-ab-discriminating-on.sarif
+    taint-ab-off.sarif
+    taint-ab-on.sarif
+
+  Two of those twenty - reverification-f5-taint-ab-{on,off}.sarif - were not
+  present at Census A twenty-four seconds earlier, and are the concurrent work
+  of another group of this same re-verification pass, writing its own evidence
+  into logs/. They are named here because the number 105 cannot be reconciled
+  against the 103 of Census A without them, and because they demonstrate the
+  point the next section makes: logs/ is a live evidence tree during this
+  pass, so every count in this file carries the instant it was taken.
+
+================================================================================
+WHY logs/ HAS GROWN, AND WHY THIS FILE IS NOT A NEW VIOLATION
+================================================================================
+
+  AAP 0.8.1 makes the two trees diverge by design after the gate: raw/ stays
+  runner-only, receiving exactly one artifact per tool that writes one and
+  nothing else ever, while logs/ LEGITIMATELY accumulates this run's own
+  durable evidence - the per-tool streams and status files, and the records for
+  the gate, the build, the graph, the taint A/B, normalization and the adapter
+  tests. That is the whole reason this very file is written under logs/ and not
+  under raw/, and it is why its presence is evidence rather than a second
+  violation of the same rule.
+
+  The rule F1 reports is about ONE moment - both trees empty at the gate,
+  before this run writes anything - and that moment is past and was measured:
+  raw/ 8 entries, logs/ 85 entries, at 2026-09-01T13:28:07.612Z. Growth in
+  logs/ after that moment neither cures nor worsens the halt. A non-empty tree
+  cannot become empty by accumulating more, and the halt was already returned.
+
+  This pass - the F1/F2 group - added exactly two entries to logs/, both of
+  them evidence:
+    harness/artifacts/logs/reverification-f1-artifact-trees.txt   (this file)
+    harness/artifacts/logs/reverification-f2-graph-identity.txt
+  It added NOTHING to raw/, which Census B below re-measures.
+
+================================================================================
+WHAT THIS PASS DID NOT DO
+================================================================================
+
+  It did not create, clear, empty, prune or delete either artifact tree, and
+  deleted no entry from either - proven by the set difference above, where the
+  "REMOVED since" column is 0 for both trees.
+  It wrote nothing into harness/artifacts/raw/ - proven by Census B below,
+  where raw/ is unchanged on all four measures.
+  It invoked no scanner runner under harness/bin/, so no new artifact, stream
+  or .status file entered either tree from a tool.
+  It produced no dataset row: it did not run the normalizer and did not touch
+  oss-scan-results/findings.json or findings.csv.
+  It advanced no stage and authorised none: the gate's `authorises: "nothing"`
+  is quoted, not overridden.
+  It modified no pre-existing file - not gate-record.json, not cpg-identity.txt,
+  not harness/ENVIRONMENT.md, no runner under harness/bin/, not harness/env.sh,
+  harness/lib/scope.sh or harness/scope/allowlist.txt, and nothing under
+  oss-scan-results/.
+  It installed, upgraded and substituted no tool, started no JVM graph load,
+  and ran no Spark test suite.
+
+================================================================================
+CENSUS B - RE-MEASURED AFTER THIS PASS WROTE ITS TWO EVIDENCE FILES
+================================================================================
+
+Same commands, same clone, at 2026-09-02T14:36:43.021Z:
+
+  tree                        ls -A entries   regular files   total bytes    tracked files
+  --------------------------  -------------   -------------   ------------   -------------
+  harness/artifacts/raw                   8               8    120,538,389               8
+  harness/artifacts/logs                111             145    143,307,132             137
+
+  raw/ : identical to Census A on every measure - 8 entries, 8 regular files,
+         120,538,389 bytes, 8 tracked. This pass wrote nothing into it.
+  logs/: 103 -> 111 entries, 137 -> 145 regular files. The eight new entries,
+         measured by set difference against the Census A listing, with nothing
+         removed:
+           + reverification-f1-artifact-trees.txt        <- this pass
+           + reverification-f2-graph-identity.txt        <- this pass
+           + reverification-f5-taint-ab-hiveshim-off.sarif
+           + reverification-f5-taint-ab-hiveshim-on.sarif
+           + reverification-f5-taint-ab-off.sarif
+           + reverification-f5-taint-ab-on.sarif
+           + reverification-f5-taint-ab-source-removed.sarif
+           + reverification-f5-taint-engine-options.txt
+         Two are this pass's own, named in the previous section; the other six
+         are the concurrent evidence of another group of this same
+         re-verification pass, and are listed rather than glossed because
+         143,307,132 cannot be reconciled against Census A's 143,200,007
+         without them.
+
+         The tracked count stays 137. All eight new files are untracked and
+         ignored, which is why `git status --short harness/artifacts` still
+         prints nothing at Census B - .gitignore:31 `artifacts/` matches them,
+         so they surface only under --ignored:
+
+$ git status --short --untracked-files=all --ignored=matching harness/artifacts/logs | grep reverification
+!! harness/artifacts/logs/reverification-f1-artifact-trees.txt
+!! harness/artifacts/logs/reverification-f2-graph-identity.txt
+!! harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-off.sarif
+!! harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-on.sarif
+!! harness/artifacts/logs/reverification-f5-taint-ab-off.sarif
+!! harness/artifacts/logs/reverification-f5-taint-ab-on.sarif
+!! harness/artifacts/logs/reverification-f5-taint-ab-source-removed.sarif
+!! harness/artifacts/logs/reverification-f5-taint-engine-options.txt
+
+         This pass force-added and committed nothing.
+
+  Any later reading of these directories will differ again while sibling
+  groups are still writing. That is expected of a live evidence tree and
+  changes nothing this file concludes: the counts here are stated with their
+  instants, and the halt turns on emptiness at the gate, which no later count
+  can restore.
+
+  HOW TO RECONCILE THIS FILE AGAINST ANY LATER READING. logs/ satisfies
+
+      find harness/artifacts/logs -type f | wc -l
+        =  git ls-files harness/artifacts/logs | wc -l          (always 137)
+        +  the evidence files this re-verification pass has written so far
+
+  and that identity was checked, not asserted. At 2026-09-02T14:42:06.834Z:
+
+$ git ls-files harness/artifacts/logs | wc -l
+137
+$ git status --short --untracked-files=all --ignored=matching harness/artifacts/logs | grep -c '^!!'
+12
+$ find harness/artifacts/logs -type f | wc -l
+149
+                                        137 + 12 = 149   identity holds
+
+  The 137 is the constant: it is the committed population the gate censused,
+  and it moves only if something is force-added or deleted, neither of which
+  this pass did. The variable term is the pass's own evidence - 8 files at
+  Census B, 12 by 14:42:06.834Z, of which exactly two are this group's:
+
+$ git status --short --untracked-files=all --ignored=matching harness/artifacts/logs | sed 's|^!! harness/artifacts/logs/||' | sort
+reverification-f1-artifact-trees.txt        <- this group (F1)
+reverification-f2-graph-identity.txt        <- this group (F2)
+reverification-f3-writer-bound.json
+reverification-f3-writer-bound.txt
+reverification-f5-taint-ab-hiveshim-off.sarif
+reverification-f5-taint-ab-hiveshim-on.sarif
+reverification-f5-taint-ab-off.sarif
+reverification-f5-taint-ab-on.sarif
+reverification-f5-taint-ab-source-removed.sarif
+reverification-f5-taint-ab.json
+reverification-f5-taint-ab.log
+reverification-f5-taint-engine-options.txt
+
+$ git status --short --untracked-files=no | wc -l
+0        (whole tree: not one tracked file modified, renamed or deleted by
+          this pass, in either artifact tree or anywhere else)
+
+  raw/ has no variable term at all. It read 8 entries / 8 regular files /
+  120,538,389 bytes / 8 tracked at every instant this pass measured it -
+  14:29:59.967Z, 14:31:23.954Z, 14:36:43.021Z and again at 14:42:40.449Z -
+  because nothing in this pass writes there.
+
+================================================================================
+VERDICT
+================================================================================
+
+  F1 STILL REPRODUCES in clone 19, first-hand, on this pass's own
+  measurements:
+
+    - harness/artifacts/raw   exists and is NOT empty: 8 entries, 8 regular
+      files, 120,538,389 bytes, all 8 git-tracked.
+    - harness/artifacts/logs  exists and is NOT empty: 103 entries / 137
+      regular files / 143,200,007 bytes at Census A, all 137 git-tracked,
+      including four subdirectories holding 38 of those files.
+    - Both trees are matched by .gitignore:31 `artifacts/` yet both hold
+      tracked paths, so the population arrives by checkout and cannot be
+      absent from a future clone of this branch.
+    - The Stage 0 gate took this census FIRST, recorded raw_entry_count=8 and
+      logs_entry_count=85 at 2026-09-01T13:28:07.612Z, and returned
+      gate_verdict.overall = halt with authorises = "nothing" and
+      counts_by_verdict {pass 38, halt 2, recorded_difference 3, total 43}.
+
+  THE BARRIER, STATED PLAINLY. The gate authorises nothing. Both halt
+  conditions it recorded still stand - this one, and the graph-identity
+  contradiction re-verified in
+  harness/artifacts/logs/reverification-f2-graph-identity.txt. Under AAP 0.3.2
+  and 0.8.1 this run may neither create nor clear either tree, so the condition
+  is reported and not repaired; under AAP 0.9.2 it is one of the conditions
+  that stop the run. Clearing the trees would satisfy the gate by destroying
+  the evidence that it cannot be satisfied, which is precisely what the rule
+  exists to prevent.
+
+  What only a human or a re-provisioning can do: start a new generation from
+  provisioning that presents genuinely empty canonical raw/ and logs/ trees -
+  which, because the entries are git-tracked, requires removing them from the
+  index of this branch rather than deleting files from a working tree - and
+  then let the gate measure that emptiness. No action available inside this
+  run reaches it.
+
+  THIS PASS PERFORMED MEASUREMENT ONLY. No runner invoked, nothing written
+  into raw/, no dataset row produced, no stage advanced.
+
+Read this file with:
+  harness/artifacts/logs/gate-record.json                       - the Stage 0 gate, its census and both halts
+  harness/artifacts/logs/reverification-f2-graph-identity.txt   - the second halt, re-verified first-hand
+  harness/artifacts/MANIFEST.json                               - the per-file size-and-sha256 publication of both trees
+  oss-scan-results/run-record.md                                - where the halt and the work done after it are published
+
+================================================================================
+END - reverification-f1-artifact-trees.txt
+================================================================================

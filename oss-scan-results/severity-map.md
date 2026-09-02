@@ -61,7 +61,7 @@ figure of **this** generation and of no earlier one:
 | `findings.json` | 4,408,640 bytes, sha256 `d4e28c823fd1e76c2158130dc941762e0c6cf23424c0c990c930cc84ece6fc54` |
 | `findings.csv` | 2,081,618 bytes, sha256 `9f646532494fcba3ad95a8e10f15f77957b9f16bea0b486b513e2a830f5445e6` |
 | Rows | 9,430 |
-| Normalizer invocation | started 2026-09-01T15:54:03Z, finished 2026-09-01T15:54:08Z, exit 0 (`normalize-run.json` `started_at_utc`, `finished_at_utc`, `exit_status`) |
+| Normalizer invocation | started 2026-09-02T17:49:20Z, finished 2026-09-02T17:49:25Z, exit 0 (`normalize-run.json` `started_at_utc`, `finished_at_utc`, `exit_status`) |
 
 The publication identifier is **content-derived** — a sha256 over the scheme name
 followed by one `<role>\t<sha256>` line per member in ascending role order,
@@ -510,7 +510,7 @@ it:
 | --- | --- | ---: |
 | `joern-process-exec` | `HIGH` | 55 |
 | `joern-unsafe-deserialization` | `HIGH` | 178 |
-| `joern-reflection-forname` | `MEDIUM` | 412 |
+| `joern-reflection-forname` | `MEDIUM` | 413 |
 | `joern-message-digest` | `MEDIUM` | 23 |
 | `joern-cipher-getinstance` | `MEDIUM` | 11 |
 | `joern-xml-factory` | `MEDIUM` | 13 |
@@ -531,8 +531,10 @@ separates this tool from the other eight, and the graph is identified once
 elsewhere rather than described again here. Its identity — 541,309,809 bytes,
 sha256 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` — is
 owned by `harness/artifacts/logs/cpg-identity.txt`, the one record of account for
-it; how that graph was built, what it covers per module, and every divergence
-that follows are owned by `oss-scan-results/build-record.md` and carried in
+it, which also records that those bytes were **written by provisioning and not by
+this run**, over an input set narrower than every JAR the reactor produced; how
+that graph was built, what it covers per module, and every divergence that
+follows are owned by `oss-scan-results/build-record.md` and carried in
 `oss-scan-results/run-record.md`. This document neither restates nor recomputes
 any of it: the only thing the mapping needs from the graph is that the literals
 above were observed over it, and nothing about the mapping policy depends on it —

@@ -13,7 +13,7 @@
     "sha256": "4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7",
     "record_of_account": "harness/artifacts/logs/cpg-identity.txt",
     "identity_reverified_before_load": true,
-    "written_by": "provisioning, 2026-08-30T19:18:37Z — not by this run, whose frontend terminated at the flatgraph array-length ceiling over the complete staged input and wrote no accepted graph (harness/artifacts/logs/cpg-frontend.log, re-verified at two heaps in cpg-ceiling-reverify.log)"
+    "written_by": "provisioning, 2026-08-30T19:18:37Z — not by this run, whose frontend terminated at the flatgraph array-length ceiling over the complete staged input and wrote no accepted graph (harness/artifacts/logs/cpg-frontend.log, mechanism re-verified at three heaps - 8g, 64g and 128g - in cpg-ceiling-reverify.log)"
   },
   "measurements_joined": {
     "which_evidence_exists": "harness/artifacts/logs/cpg-input-inventory.json, coverage_witnesses",
@@ -29,7 +29,98 @@
     "witnesses_observed_present_in_the_graph": 26,
     "presence_verdicts": 0,
     "prefix_verdicts": 0,
-    "note": "Every COVERED verdict rests on a named exclusive class that was then observed as a type declaration in the graph under its exact full name. No verdict rests on presence in the input, on a shared package prefix, or on any witness kind beyond the two the test admits."
+    "note": "Every COVERED verdict rests on a named exclusive class that was then observed as a type declaration in the graph under its exact full name. No verdict rests on presence in the input, on a shared package prefix, or on any witness kind beyond the two the test admits.",
+    "jar_producing_reactor_projects": 38,
+    "of_those_38_covered": 26,
+    "of_those_38_without_a_covered_verdict": 12,
+    "of_the_12_in_the_input_but_owning_no_admissible_witness": 5,
+    "of_the_12_with_no_archive_in_the_input_at_all": 7,
+    "denominator_note": "Two denominators are in play and neither substitutes for the other. 31 is the number of modules contributing an archive to THIS graph's input set, and 26 of 31 carry a COVERED verdict. 38 is the number of JAR-packaging projects the full reactor built, which is the denominator AAP 0.5.1 sets, and 26 of 38 carry a COVERED verdict. Every figure in this file states which of the two it is counted against."
+  },
+  "aap_0_5_1_coverage_of_all_38_jar_producing_projects": {
+    "requirement": "AAP 0.5.1 requires an injective per-module coverage verdict for every one of the 38 JAR-packaging projects the full-reactor build produced.",
+    "obtainable_from_this_graph": false,
+    "verdict": "NOT OBTAINABLE. A COVERED verdict exists for 26 of the 38 JAR-producing projects. For the remaining 12 no verdict of either admissible kind can be obtained from this graph, and none is asserted. This file therefore does not, and cannot, certify coverage for all 38.",
+    "how_the_26_were_established": "a class present in that project's primary artifact and absent from every other module's artifacts in the input set, then observed in the graph as a type declaration under its exact full name (harness/artifacts/logs/cpg-verify.log PHASE 2, the witness table; per-project rows in this file's entries[])",
+    "why_the_shortfall_is_not_a_build_outcome": "All 38 JAR-packaging projects DID produce their own main artifact. The reactor build succeeded with Maven exit code 0 over all 40 projects (harness/artifacts/logs/build-reactor.log; 'jar-packaging WITHOUT one : []'), and oss-scan-results/build-record.md owns that verdict at '38 of 38 with their own main artifact'. Not one of the twelve is missing because its project failed to build.",
+    "attribution_of_the_shortfall": "The shortfall is a consequence of the GRAPH'S PROVENANCE, not of the build. The graph every stage of this run loads was written by provisioning over a 62-archive staging tree that contains archives from only 31 of the 38 projects, and that vendors five further modules' classes into other modules' shaded archives. This run's own frontend invocation over the complete 191-archive input set failed in flatgraph's string-pool serialization and wrote no accepted graph (harness/artifacts/logs/cpg-frontend.log, mechanism re-verified at three heaps in harness/artifacts/logs/cpg-ceiling-reverify.log), so the all-JAR graph that would carry all 38 projects' bytecode does not exist. That unmet requirement is published as a divergence rather than repaired by trimming the input set or by weakening the witness test.",
+    "what_is_never_done_here": "No verdict is inferred from a shared package prefix, from presence in the input set, from another module's shaded archive, or from any graph other than the one named in this file's graph block. A project with no admissible witness is recorded as having no verdict, never as covered.",
+    "projects_without_a_covered_verdict": {
+      "common/network-common": {
+        "reason_class": "in the input set, but owns no admissible witness",
+        "reason": "all 2,170 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into common/network-yarn's shaded shuffle uber-jar, so no node is exclusively its own and neither admissible witness kind exists",
+        "module_key_in_entries": "common_network-common",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
+      },
+      "common/network-shuffle": {
+        "reason_class": "in the input set, but owns no admissible witness",
+        "reason": "all 92 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into common/network-yarn's shaded shuffle uber-jar",
+        "module_key_in_entries": "common_network-shuffle",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
+      },
+      "common/utils-java": {
+        "reason_class": "in the input set, but owns no admissible witness",
+        "reason": "all 40 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into common/network-yarn's shaded shuffle uber-jar",
+        "module_key_in_entries": "common_utils-java",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
+      },
+      "sql/api": {
+        "reason_class": "in the input set, but owns no admissible witness",
+        "reason": "all 1,203 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into sql/connect/client/jvm's shaded archive",
+        "module_key_in_entries": "sql_api",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
+      },
+      "sql/connect/common": {
+        "reason_class": "in the input set, but owns no admissible witness",
+        "reason": "all 1,879 classes of its primary artifact, and its META-INF/maven pom.properties, are also vendored into sql/connect/server's shaded archive",
+        "module_key_in_entries": "sql_connect_common",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES WITH NO OBTAINABLE WITNESS"
+      },
+      "connector/kafka-0-10": {
+        "reason_class": "no archive in the graph's input set",
+        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
+        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+      },
+      "connector/kafka-0-10-assembly": {
+        "reason_class": "no archive in the graph's input set",
+        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
+        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+      },
+      "connector/kafka-0-10-sql": {
+        "reason_class": "no archive in the graph's input set",
+        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
+        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+      },
+      "connector/kafka-0-10-token-provider": {
+        "reason_class": "no archive in the graph's input set",
+        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
+        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+      },
+      "examples": {
+        "reason_class": "no archive in the graph's input set",
+        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact, which the build record notes is written to target/scala-2.13/jars rather than to the build directory's root",
+        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+      },
+      "sql/connect/shims": {
+        "reason_class": "no archive in the graph's input set",
+        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact, and the provisioning runbook excluded its two archives from the staging tree deliberately. One consequence is measurable and is recorded rather than left implicit: because the shims archives are absent, the eleven classes this project ships as client-only stubs appear in the graph with their real implementations rather than as stubs (harness/artifacts/logs/cpg-shims-collision-measurement.log)",
+        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+      },
+      "tools": {
+        "reason_class": "no archive in the graph's input set",
+        "reason": "the graph carries none of this project's bytecode, so no witness of either kind can be sought; the project itself built and produced its own artifact",
+        "module_key_in_entries": "no entry - this file's entries list covers only the 31 modules with an archive in the graph input, and this project has none, so there is no entry to point at rather than an unfilled one",
+        "evidence": "harness/artifacts/logs/cpg-verify.log PHASE 2, MODULES OF THE FULL REACTOR ABSENT FROM THIS INPUT SET ENTIRELY; and this file's reactor_jar_projects_absent_from_the_graph_input"
+      }
+    },
+    "count_check": "5 projects in the input with no admissible witness + 7 projects with no archive in the input = 12 without a COVERED verdict; 12 + 26 covered = 38, the full count of JAR-packaging reactor projects.",
+    "a_verdict_for_all_38_would_require": "a graph over every archive the full-reactor build produced, which the pinned frontend cannot persist at this input breadth (harness/artifacts/logs/cpg-frontend.log STEP 8), and whose absence is divergence D1 in oss-scan-results/run-record.md. Nothing in this file substitutes a narrower graph for it."
   },
   "reactor_jar_projects_absent_from_the_graph_input": {
     "connector/kafka-0-10": "no archive of this project is in the staging tree, so the graph carries none of its bytecode and no coverage verdict is obtainable for it",

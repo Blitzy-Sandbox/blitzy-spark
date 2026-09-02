@@ -13,10 +13,18 @@ WHAT THIS FILE ESTABLISHES
 
   It replaces a citation that had gone stale. An earlier lane measured this against a
   narrowed graph built over one primary artifact per module, which INCLUDED the shims
-  archive; that graph does not exist in this generation and no substitute for the
-  mandated graph is presented, so its stub-side counts are neither re-measured here
-  nor restated as this generation's. What follows is measured first-hand against the
-  graph every stage of this run loaded.
+  archive. CORRECTED 2026-09-02: that narrowed graph does survive on disk, at
+  /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/cpg/witness.cpg,
+  418,777,229 bytes / sha256 8d3462b78d3c4b009c994d1ae838b6266aa2af3e68b3c0fbdcbd3b3f630ad41d,
+  and this generation did load it - the load is harness/artifacts/logs/cpg-verify.log
+  PART 2, whose STEP P5 carries the stub-side counts. An earlier edition of this file
+  stated that the graph did not exist in this generation, which was wrong, and the
+  sentence is corrected here rather than left standing. What has NOT changed is the
+  reason its counts are not restated below: it is a narrowed graph over one primary
+  artifact per module, it is no substitute for the mandated all-JAR graph, and no
+  conclusion about the graph every stage of this run loaded may be drawn from it. So
+  its stub-side counts stay with their own owner in cpg-verify.log PART 2 STEP P5,
+  and what follows is measured first-hand against the graph this run loaded.
 
 --------------------------------------------------------------------------------
 THE GRAPH MEASURED, AND ITS IDENTITY RE-VERIFIED BEFORE THE LOAD

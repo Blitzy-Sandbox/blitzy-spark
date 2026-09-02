@@ -9,8 +9,11 @@ WHAT THIS FILE ESTABLISHES
   under the five mandated profile flags with tests skipped, and what it produced
   project by project. Every per-project JAR outcome this run publishes traces to
   this file: oss-scan-results/build-record.md states the outcomes and
-  harness/artifacts/logs/cpg-input-inventory.json inventories the artifacts, and both
-  cite the measurements recorded here rather than re-deriving them (AAP 0.6.1, 0.6.4).
+  harness/artifacts/logs/cpg-frontend-input-manifest.json records those artifacts
+  file by file with their byte sizes and digests, and both cite the measurements
+  recorded here rather than re-deriving them (AAP 0.6.1, 0.6.4).
+  harness/artifacts/logs/cpg-input-inventory.json is NOT that inventory. It measures
+  a different and narrower tree, and STEP 15 states which file owns which figure.
 
   RESULT: BUILD SUCCESS, Maven exit code 0. The reactor contained 40 Maven
   projects; the reactor summary carries 40 SUCCESS lines, 0 FAILURE and 0 SKIPPED;
@@ -9953,8 +9956,15 @@ pom declares for it. Location alone is not provenance at this pin: examples relo
 its main artifact into ${jars.target.dir}, common/network-yarn writes a shaded shuffle
 JAR named for the project VERSION with shadedArtifactAttached false, and the root pom's
 copy-module-dependencies execution copies OTHER projects' JARs into that same directory.
-The full per-file inventory with sizes and digests is
-harness/artifacts/logs/cpg-input-inventory.json; this step is the per-project outcome.
+This step is the per-project outcome, and the stdout block below it is the OWNER of
+the 191-artifact figures: own artifacts, own artifact bytes, archives enumerated and
+the two exclusion counts are that block's own measurement. The per-file record of the
+same 191-archive set - every name with its byte size and sha256 - is
+harness/artifacts/logs/cpg-frontend-input-manifest.json, which holds 189 ordered
+staged entries plus the 2 it withheld. It is NOT
+harness/artifacts/logs/cpg-input-inventory.json: that file measures the 62-archive
+provisioned staging tree /opt/blitzy-harness/cpg-input, a different and narrower
+tree, and STEP 15 states the distinction in full.
 
   MODULE PATH                            PKG  OWN    MAIN  PRIMARY ARTIFACT (or the reason there is none)
   (root parent)                          pom  1      n/a   no JAR expected: packaging=pom
@@ -10059,9 +10069,44 @@ READING
 ================================================================================
 STEP 15 - What this build's artifacts are used for, and what was NOT done
 ================================================================================
-  The 191 own artifacts this build produced are the graph's entire input set. They are
-  inventoried, staged and asserted in harness/artifacts/logs/cpg-input-inventory.json,
-  and the frontend invocation over them is harness/artifacts/logs/cpg-frontend.log.
+  The 191 own artifacts this build produced are the input set the graph was required
+  to be built over. Where every figure about them lives, so that a reader following a
+  pointer lands on data that matches it (AAP 0.6.4):
+
+    191 own artifacts, 431,184,822 own artifact bytes, 627 archives enumerated under
+    the build directories, 422 copied runtime dependencies and 14 test-resource
+    fixtures excluded, 0 undecided
+        OWNER: STEP 13 of this file. Those six values are the stdout of the
+        measurement run there. 422 + 14 = 436 exclusions and 191 + 436 = 627, so the
+        addend chain closes on itself, and no other document may restate any of the
+        six as a second measurement.
+
+    the same 191 archives file by file, each with its byte size and sha256
+        OWNER: harness/artifacts/logs/cpg-frontend-input-manifest.json - 189 ordered
+        staged entries totalling 308,385,184 bytes, plus the 2 archives it withheld,
+        with the measured reason for each.
+
+    the frontend invocation over that set, and its outcome
+        OWNER: harness/artifacts/logs/cpg-frontend.log, whose STEP 1 records the set
+        actually supplied to the frontend.
+
+  harness/artifacts/logs/cpg-input-inventory.json owns NONE of those figures, and an
+  earlier edition of this step wrongly said it owned all of them. It is a separate
+  and narrower measurement of a DIFFERENT tree: the 62-archive provisioned staging
+  tree /opt/blitzy-harness/cpg-input, 285,122,371 bytes over 31 modules, which is the
+  input of the graph this run's Joern stages actually load. It holds no exclusion
+  ledger at all, so no exclusion count may be cited from it, and nothing about the
+  191-artifact set above should be inferred from its 62 archives - the two are
+  different stagings of different sets of files, not a whole and a subset.
+
+  One arithmetic difference between the two owners named above, measured 2026-09-02
+  and recorded here rather than reconciled, because this file may not restate another
+  owner's measurement as its own: the per-file manifest's 189 staged bytes
+  (308,385,184) plus its 2 withheld (122,799,779) sum to 431,184,963, which is 141
+  bytes above this file's own_artifact_bytes of 431,184,822. The two were measured in
+  two different clones of this run, over two separately built trees whose JARs differ
+  in the timestamps they embed, so they are two measurements of the same nominal set
+  rather than one measurement cited twice. Neither figure was altered here.
 
   NOT DONE, deliberately:
     - No test suite was run, in any language: the build carried -DskipTests, and Spark's

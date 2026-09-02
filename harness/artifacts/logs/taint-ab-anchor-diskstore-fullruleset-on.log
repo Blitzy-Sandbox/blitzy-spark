@@ -1,23 +1,192 @@
-arm               : on (--taint-intrafile present)
-the one variable  : --taint-intrafile, the ONLY taint discriminator opengrep 1.27.1 exposes
-engine            : 1.27.1 (/opt/blitzy-tools/bin/opengrep)
-ruleset           : /opt/blitzy-harness/rules/opengrep-rules (commit f1d2b562b414783763fd02a6ed2736eaed622efa)
-configs passed    : 29 rule-bearing directories, the Stage 3 runner's own selection
-argv elements     : 58 (one --config plus one path per directory; 29 x 2)
-config directories: ai/ apex/ bash/ c/ clojure/ csharp/ dockerfile/ elixir/ generic/ go/ html/ java/ javascript/ json/ kotlin/ ocaml/ php/ problem-based-packs/ python/ ruby/ rust/ scala/ scripts/ solidity/ swift/ terraform/ trusted_python/ typescript/ yaml/ 
-exact argv        : opengrep scan --config /opt/blitzy-harness/rules/opengrep-rules/ai/ --config /opt/blitzy-harness/rules/opengrep-rules/apex/ --config /opt/blitzy-harness/rules/opengrep-rules/bash/ --config /opt/blitzy-harness/rules/opengrep-rules/c/ --config /opt/blitzy-harness/rules/opengrep-rules/clojure/ --config /opt/blitzy-harness/rules/opengrep-rules/csharp/ --config /opt/blitzy-harness/rules/opengrep-rules/dockerfile/ --config /opt/blitzy-harness/rules/opengrep-rules/elixir/ --config /opt/blitzy-harness/rules/opengrep-rules/generic/ --config /opt/blitzy-harness/rules/opengrep-rules/go/ --config /opt/blitzy-harness/rules/opengrep-rules/html/ --config /opt/blitzy-harness/rules/opengrep-rules/java/ --config /opt/blitzy-harness/rules/opengrep-rules/javascript/ --config /opt/blitzy-harness/rules/opengrep-rules/json/ --config /opt/blitzy-harness/rules/opengrep-rules/kotlin/ --config /opt/blitzy-harness/rules/opengrep-rules/ocaml/ --config /opt/blitzy-harness/rules/opengrep-rules/php/ --config /opt/blitzy-harness/rules/opengrep-rules/problem-based-packs/ --config /opt/blitzy-harness/rules/opengrep-rules/python/ --config /opt/blitzy-harness/rules/opengrep-rules/ruby/ --config /opt/blitzy-harness/rules/opengrep-rules/rust/ --config /opt/blitzy-harness/rules/opengrep-rules/scala/ --config /opt/blitzy-harness/rules/opengrep-rules/scripts/ --config /opt/blitzy-harness/rules/opengrep-rules/solidity/ --config /opt/blitzy-harness/rules/opengrep-rules/swift/ --config /opt/blitzy-harness/rules/opengrep-rules/terraform/ --config /opt/blitzy-harness/rules/opengrep-rules/trusted_python/ --config /opt/blitzy-harness/rules/opengrep-rules/typescript/ --config /opt/blitzy-harness/rules/opengrep-rules/yaml/ --taint-intrafile --sarif --sarif-output <path> --dataflow-traces --timeout 300 --timeout-threshold 0 --max-target-bytes 20000000 --x-ignore-semgrepignore-files --disable-version-check core/src/main/scala/org/apache/spark/storage/DiskStore.scala
-subject file      : core/src/main/scala/org/apache/spark/storage/DiskStore.scala (the AAP 0.5.1 anchor)
-scan root         : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src
-exit code         : 0
-elapsed seconds   : 72
-sarif             : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-001_1ec0b6/harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-on.sarif (2939276 bytes)
-sarif sha256      : fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51
+this file                : harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-on.log
+provenance               : re-measured by this run in checkout w-022, at the pinned clone
+                           /opt/spark-src. The copy retained before this rewrite recorded scan root
+                           /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-001/spark-src,
+                           which is not the pinned clone, so it was not a current-run measurement at
+                           the pinned root; it is superseded by every figure in this file, none of
+                           which is carried over
+arm                      : on (--taint-intrafile present)
+the one variable         : --taint-intrafile present
+argv delta               : ["--taint-intrafile",
+                           "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-022_77c1e7/harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-on.sarif"]
+                           (measured against the sibling arm; the --sarif-output value differs
+                           because each arm writes its own file)
+engine                   : 1.27.1 (/opt/blitzy-tools/bin/opengrep)
+ruleset                  : /opt/blitzy-harness/rules/opengrep-rules (commit
+                           f1d2b562b414783763fd02a6ed2736eaed622efa)
+ruleset commit, expected : f1d2b562b414783763fd02a6ed2736eaed622efa
+configs passed           : 29 rule-bearing directories, derived exactly as
+                           harness/bin/run-opengrep.sh derives them (every top-level directory
+                           except dotfiles, stats, libsonnet and template*)
+config directories       : ai/ apex/ bash/ c/ clojure/ csharp/ dockerfile/ elixir/ generic/ go/
+                           html/ java/ javascript/ json/ kotlin/ ocaml/ php/ problem-based-packs/
+                           python/ ruby/ rust/ scala/ scripts/ solidity/ swift/ terraform/
+                           trusted_python/ typescript/ yaml/
+subject file             : core/src/main/scala/org/apache/spark/storage/DiskStore.scala (the AAP
+                           0.5.1 anchor)
+argv elements            : 74 in total, of which 58 are the --config pairs (29 x 2); the remainder
+                           are the analysis flags, the output path and the target
+subject identity         : 380 lines, 12045 bytes, sha256
+                           bc5491ac8a6bd9a8822ef5b4a55ac32c47ecb9ed25e2ca1770a1c9040739d02e
+scan root                : /opt/spark-src
+cwd                      : /opt/spark-src
+pinned HEAD, observed    : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+pinned HEAD, expected    : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+run id                   : w022-20260902T144244Z
+command                  : /opt/blitzy-tools/bin/opengrep scan --config
+                           /opt/blitzy-harness/rules/opengrep-rules/ai/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/apex/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/bash/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/c/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/clojure/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/csharp/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/dockerfile/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/elixir/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/generic/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/go/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/html/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/java/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/javascript/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/json/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/kotlin/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/ocaml/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/php/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/problem-based-packs/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/python/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/ruby/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/rust/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/scala/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/scripts/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/solidity/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/swift/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/terraform/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/trusted_python/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/typescript/ --config
+                           /opt/blitzy-harness/rules/opengrep-rules/yaml/ --taint-intrafile --sarif
+                           --sarif-output
+                           /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-022_77c1e7/harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-on.sarif
+                           --dataflow-traces --timeout 300 --timeout-threshold 0 --max-target-bytes
+                           20000000 --x-ignore-semgrepignore-files --disable-version-check
+                           core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+exit code                : 0
+started -> ended         : 2026-09-02T14:43:25.378Z -> 2026-09-02T14:44:36.662Z
+elapsed seconds          : 71.284
+sarif                    : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-022_77c1e7/harness/artifacts/logs/taint-ab-anchor-diskstore-fullruleset-on.sarif
+                           (2939276 bytes)
+sarif sha256             : fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51
+sarif driver             : Opengrep OSS 1.27.1
+findings                 : 1 at line(s) 72; 1 of 1 carry a dataflow trace
+sibling arm              : 1 finding(s) at line(s) 72, 1 traced, 2939276 bytes, sha256
+                           fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51
+verdict for the pair     : UNMET ANCHOR (halt-class under AAP 0.9.2, reported and not repaired) -
+                           non-discriminating on the mandated subject, under the whole pinned
+                           ruleset as well as under the single pinned rule. Both arms produced 1
+                           finding at line 72 and the two SARIF outputs are byte-identical, so
+                           widening the rule set from 1 rule to 2,006 changes nothing about the
+                           contrast: the discriminator is the engine's option surface, and it
+                           exposes no option that disables taint analysis (measured below). The
+                           AAP's 1-on/0-off anchor is NOT met and is reported as an engine-caused
+                           divergence. The HiveShim pair (taint-ab-hiveshim-{on,off}.log)
+                           discriminates 2-on/0-off at this same pinned root and stands beside this
+                           unmet anchor rather than in place of it.
+containment              : written under harness/artifacts/logs/, never harness/artifacts/raw/;
+                           contributes no dataset row (AAP 0.3.2). raw/ re-verified after this arm:
+                           eight runner artifacts, no taint-ab-* file
+
+  Why this pair exists at all: the single-rule pair (taint-ab-on.log, taint-
+  ab-off.log) could in principle have been non-discriminating because one rule
+  is too narrow a probe. This pair re-runs the same A/B with the entire pinned
+  ruleset loaded - 2,006 Code rules, of which the engine selected 266 for this
+  file - so the non-discrimination is established against the whole ruleset
+  and not against a single rule. The 29 --config directories are listed above
+  and the exact argv is recorded verbatim below.
 
 --- every finding this arm produced, from its own SARIF ---
-  line=   72 level=None codeFlows=1 dataflow_steps=2 ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=core/src/main/scala/org/apache/spark/storage/DiskStore.scala line=72 level=None codeFlows=1 dataflow_steps=2
   findings: 1
 
---- rules scanned / files, from the arm's own stderr ---
+--- the engine's taint option surface, measured by this run ---
+$ opengrep scan --help | grep -c "^ \+--"
+107
+
+$ COLUMNS=80 opengrep scan --help | grep -c "^ \+--"
+107
+
+  Both commands were run by this run against the engine named above, and both
+  returned 107. The figure this evidence set published before this
+  re-measurement was 106 - in APPENDIX C of taint-ab-on.log and
+  taint-ab-off.log - and it is CORRECTED TO 107, which is what the command
+  actually prints. The help text is 558 lines at either width and the two
+  matched-line lists are diff-identical, so terminal width does not move the
+  number.
+
+  What the 107 matched lines are, so the figure is not read as more than it
+  is: 101 of them are option declarations at 7-space indent (101 distinct
+  names, no repeats), and 6 are wrapped description continuation lines at
+  11-space indent that merely begin with '--' - help lines 162, 168, 224, 385,
+  435 and 520.
+
+  The engine's true long-option surface is 110. The help declares 110 options
+  at 7-space indent, and 9 of them are declared with a short alias first, so
+  they can never match '^ \+--':
+
+    -a, --autofix                   (help line  25)
+    -d, --dump-command-for-core     (help line  53)
+    -e VAL, --pattern=VAL           (help line 106)
+    -f VAL, -c VAL, --config=VAL    (help line 149)
+    -j INT, --jobs=INT              (help line 236)
+    -l VAL, --lang=VAL              (help line 252)
+    -o VAL, --output=VAL            (help line 332)
+    -q, --quiet                     (help line 379)
+    -v, --verbose                   (help line 487)
+
+  EVERY OPTION WHOSE NAME MENTIONS TAINT, verbatim:
+
+$ opengrep scan --help | grep -nE "^ +--(no-)?[a-z0-9-]*taint[a-z0-9-]*$"
+192:       --guarded-taint-signatures
+445:       --taint-intrafile
+
+$ opengrep scan --help | grep -ni "taint"
+192:       --guarded-taint-signatures
+193:           Attach branch-condition guards to taint effects and evaluate them
+445:       --taint-intrafile
+446:           Enable intra-file inter-procedural taint analysis. Supported
+
+  Two options out of 110, and a case-insensitive search of the whole help text
+  for 'taint' matches nothing but those two option names and their own
+  descriptions - no other option's description mentions taint at all. NEITHER
+  OF THE TWO DISABLES TAINT ANALYSIS. --taint-intrafile ENABLES intra-file
+  inter-procedural taint and its own text says the fallback is
+  'intraprocedural analysis only', not no analysis; --guarded-taint-signatures
+  attaches branch-condition guards to taint effects and requires
+  --experimental. There is no --no-taint, --disable-taint, --taint-off or
+  equivalent at this version, so in this A/B 'taint off' means
+  'intraprocedural taint' and a truly taint-free arm is not constructible.
+
+$ opengrep scan --help | grep -A5 -E "^ +--taint-intrafile$"
+       --taint-intrafile
+           Enable intra-file inter-procedural taint analysis. Supported
+           languages: Apex, C, Clojure, C#, C++, Dart, Elixir, Go, Java,
+           JavaScript, Julia, Kotlin, Lua, Python, Ruby, Rust, Scala, Swift,
+           TypeScript, Visual Basic. Other languages will fall back to
+           intraprocedural analysis only.
+
+$ opengrep scan --help | grep -A4 -E "^ +--guarded-taint-signatures$"
+       --guarded-taint-signatures
+           Attach branch-condition guards to taint effects and evaluate them
+           at call sites, dropping effects whose guard is false. Without this
+           flag only Clojure keeps the arity guards that implement
+           multi-arity dispatch. REQUIRES --experimental
+
+--- rules scanned / files, from the arm's own stderr, verbatim ---
+[00.08][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 1 file tracked by git with 2006 Code rules:
+                                                                                                                        
   Language      Rules   Files          Origin   Rules                                                                   
  ─────────────────────────────        ────────────────                                                                  
   <multilang>     241       1          Custom    2006                                                                   

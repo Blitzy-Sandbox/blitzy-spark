@@ -7,13 +7,14 @@ harness/artifacts/logs/taint-ab-discriminating-off.log
 WHAT THIS FILE ESTABLISHES
 ================================================================================
 
-  One arm of the DISCRIMINATING pair this run measured itself, on Spark's own
-  Scala, to answer the capability question the mandated pair could not: is
-  Opengrep's taint engine active on this code, and does the taint setting
-  demonstrably change what it reports? This pair is corroboration measured
-  first-hand. It is NOT a substitute for the mandated subject, whose anchored
-  expectation is reported unmet in taint-ab-on.log and taint-ab-off.log, and
-  it is not compared against any figure inherited from the environment record.
+  One arm of the DISCRIMINATING pair this run measured itself, at the pinned
+  root, on Spark's own Scala, to answer the capability question the mandated
+  subject could not: is Opengrep's taint engine active on this code, and does
+  the taint setting demonstrably change what it reports? This pair is
+  corroboration measured first-hand. It is NOT a substitute for the mandated
+  subject, whose anchored expectation is reported unmet in taint-ab-on.log and
+  taint-ab-off.log, and no figure in it is inherited from the environment
+  record or from any other clone.
 
 ================================================================================
 WHY THIS FILE IS UNDER logs/ AND NEVER UNDER raw/
@@ -34,10 +35,12 @@ WHY THIS FILE IS UNDER logs/ AND NEVER UNDER raw/
 SUBJECT, RULE AND ENGINE IDENTITY
 ================================================================================
 
-  Run id                    : w013-20260901T132807Z
-  Clone index               : 13
-  Pinned commit             : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
-  Pinned clone (SPARK_SRC)  : /opt/spark-src   (never edited)
+  Run id                    : w022-20260902T144244Z
+  Checkout                  : w-022 (this checkout; BLITZY_CLONE_INDEX unset)
+  Pinned commit, expected   : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+  Pinned commit, observed   : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+  Pinned clone (SPARK_SRC)  : /opt/spark-src   (read only; never edited)
+  Scan root / cwd           : /opt/spark-src
   Subject file              : sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala
   Subject file, resolved    : /opt/spark-src/sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala
   Subject size              : 979 lines, 37986 bytes
@@ -45,11 +48,13 @@ SUBJECT, RULE AND ENGINE IDENTITY
   Rule                      : /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml
   Rule size                 : 2824 bytes
   Rule sha256               : 24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d
+  Rule id / mode            : tainted-sql-string / taint
   Ruleset                   : /opt/blitzy-harness/rules/opengrep-rules
   Ruleset commit, observed  : f1d2b562b414783763fd02a6ed2736eaed622efa
   Ruleset commit, expected  : f1d2b562b414783763fd02a6ed2736eaed622efa
   Engine                    : Opengrep 1.27.1  (/opt/blitzy-tools/bin/opengrep)
   Engine version, expected  : 1.27.1
+  SARIF driver, as written  : Opengrep OSS 1.27.1
   Arm output (SARIF)        : harness/artifacts/logs/taint-ab-discriminating-off.sarif
   Arm output bytes          : 28279
   Arm output sha256         : 8c20bbd46dcda3967738677f35bb59f0b9b6b135a7b4a57ff3d89fa4ae9b646f
@@ -59,22 +64,36 @@ SUBJECT, RULE AND ENGINE IDENTITY
 STATUS - READ THIS BEFORE ANY NUMBER BELOW
 ================================================================================
 
-  This arm RAN, in clone 13, against the pinned clone named above, and every
-  figure below comes from its own output rather than from any record.
+  This arm RAN in this checkout (w-022), against the pinned clone named above,
+  and every figure below was read back out of its own output on disk rather
+  than from any record.
 
-  THIS ARM   : taint-intrafile absent, exit 0, 2026-09-01T13:48:50.278Z -> 2026-09-01T13:48:52.318Z, elapsed 2.04 s
+  PROVENANCE OF THESE NUMBERS: the copy of this file retained before this
+  rewrite carried run id w013-20260901T132807Z and output paths under the
+  w-013 checkout, so its figures were another clone's measurement. Every
+  figure in this file was produced by the invocation recorded below, run from
+  cd /opt/spark-src in this checkout, and it supersedes the earlier copy.
+  Nothing here is carried over.
+
+  THIS ARM   : taint-intrafile absent, exit 0, 2026-09-02T14:47:26.702Z -> 2026-09-02T14:47:29.118Z, elapsed 2.417 s
                11 finding(s) at line(s) 268, 286, 296, 309, 544, 603, 615, 683, 700, 702, 714; 11 of 11 carry a dataflow trace
-  OTHER ARM  : taint-intrafile present, exit 0, 2026-09-01T13:48:47.945Z -> 2026-09-01T13:48:50.277Z, elapsed 2.332 s
+  OTHER ARM  : taint-intrafile present, exit 0, 2026-09-02T14:47:24.593Z -> 2026-09-02T14:47:26.701Z, elapsed 2.108 s
                12 finding(s) at line(s) 268, 286, 296, 309, 603, 615, 659, 666, 670, 676, 683, 714; 12 of 12 carry a dataflow trace
 
   VERDICT FOR THE PAIR: DISCRIMINATING. 12 findings with --taint-intrafile
   against 11 without it, over the same file, the same rule and the same
   engine, with that flag the only analysis difference. Lines reported ONLY
-  with the flag: 659, 666, 670, 676. The two SARIF outputs are not byte-
-  identical. This is a first-hand measurement of this run that Opengrep's
-  taint engine is active on Spark's own Scala and that the taint setting
-  changes what it reports; it is recorded beside the mandated pair's halt,
-  never in place of it.
+  with the flag: 659, 666, 670, 676. Lines reported ONLY without it: 544, 700,
+  702 - the flag changes which source-to-sink routes the engine can see, in
+  both directions, which is why the count is reported as a contrast and not as
+  a ranking. The two SARIF outputs are not byte-identical (37787 bytes against
+  28279 bytes). This is a first-hand measurement of this run, at the pinned
+  root, that Opengrep's taint engine is active on Spark's own Scala and that
+  the taint setting changes what it reports; it is recorded BESIDE the
+  mandated pair's unmet anchor (taint-ab-on.log, taint-ab-off.log), never in
+  place of it. Note that 'without the flag' still means intraprocedural taint
+  rather than no taint: the engine exposes no option that disables taint
+  analysis, as APPENDIX C measures.
 
 ================================================================================
 THE COMMAND, VERBATIM
@@ -84,7 +103,7 @@ $ cd /opt/spark-src
 $ /opt/blitzy-tools/bin/opengrep scan \
     --config /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml \
     --dataflow-traces \
-    --sarif-output /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/taint-ab-discriminating-off.sarif \
+    --sarif-output /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-022_77c1e7/harness/artifacts/logs/taint-ab-discriminating-off.sarif \
     --timeout 120 \
     --timeout-threshold 0 \
     --max-target-bytes 20000000 \
@@ -92,15 +111,40 @@ $ /opt/blitzy-tools/bin/opengrep scan \
     --disable-version-check \
     sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala
 
-  [exit]    0    started 2026-09-01T13:48:50.278Z, ended 2026-09-01T13:48:52.318Z, elapsed 2.04 s
+  [exit]    0    started 2026-09-02T14:47:26.702Z, ended 2026-09-02T14:47:29.118Z, elapsed 2.417 s
   The only analysis difference between the two arms of this pair is the
   presence or absence of --taint-intrafile. The --sarif-output path
   necessarily differs too, because each arm writes its own file; that argument
   selects a destination and does not affect the analysis. Argv delta measured
-  against the other arm: ['/tmp/blitzy/blitzy-
+  against the other arm: ["/tmp/blitzy/blitzy-
   spark/blitzy-f38258d3-f87d-44f5-bedc-
-  af512c69e0ab-w-013_59d11b/harness/artifacts/logs/taint-ab-discriminating-
-  off.sarif']
+  af512c69e0ab-w-022_77c1e7/harness/artifacts/logs/taint-ab-discriminating-
+  off.sarif"]
+
+================================================================================
+FINDINGS, READ BACK FROM THIS ARM'S OWN SARIF
+================================================================================
+
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala line=268 level=None codeFlows=1 dataflow_steps=2
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala line=286 level=None codeFlows=1 dataflow_steps=2
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala line=296 level=None codeFlows=1 dataflow_steps=2
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala line=309 level=None codeFlows=1 dataflow_steps=2
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala line=544 level=None codeFlows=1 dataflow_steps=2
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala line=603 level=None codeFlows=1 dataflow_steps=2
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala line=615 level=None codeFlows=1 dataflow_steps=2
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala line=683 level=None codeFlows=1 dataflow_steps=2
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala line=700 level=None codeFlows=1 dataflow_steps=2
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala line=702 level=None codeFlows=1 dataflow_steps=2
+  ruleId=opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string path=sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala line=714 level=None codeFlows=1 dataflow_steps=2
+  findings: 11
+
+  Each row above was parsed out of harness/artifacts/logs/taint-ab-
+  discriminating-off.sarif after the write: the rule identifier as the engine
+  emitted it, the path as it appears in the SARIF, the region start line, the
+  SARIF level, the number of codeFlows objects attached to the result and the
+  number of locations in the first thread flow. The output's own byte size and
+  sha256, measured from the same file on disk, are in the identity block
+  above.
 
 ================================================================================
 APPENDIX A - stdout, verbatim
@@ -274,12 +318,11 @@ APPENDIX A - stdout, verbatim
     
 
 
-
 ================================================================================
 APPENDIX B - stderr, verbatim
 ================================================================================
 
-[00.09][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
+[00.08][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
                
                
 ┌─────────────┐
@@ -300,19 +343,70 @@ Ran 1 rule on 1 file: 11 findings.
 APPENDIX C - engine capability: the taint options, verbatim
 ================================================================================
 
+$ opengrep scan --help | grep -c "^ \+--"
+107
+
+$ COLUMNS=80 opengrep scan --help | grep -c "^ \+--"
+107
+
+  Both commands were run by this run against the engine named above, and both
+  returned 107. The figure this evidence set published before this
+  re-measurement was 106 - in APPENDIX C of taint-ab-on.log and
+  taint-ab-off.log - and it is CORRECTED TO 107, which is what the command
+  actually prints. The help text is 558 lines at either width and the two
+  matched-line lists are diff-identical, so terminal width does not move the
+  number.
+
+  What the 107 matched lines are, so the figure is not read as more than it
+  is: 101 of them are option declarations at 7-space indent (101 distinct
+  names, no repeats), and 6 are wrapped description continuation lines at
+  11-space indent that merely begin with '--' - help lines 162, 168, 224, 385,
+  435 and 520.
+
+  The engine's true long-option surface is 110. The help declares 110 options
+  at 7-space indent, and 9 of them are declared with a short alias first, so
+  they can never match '^ \+--':
+
+    -a, --autofix                   (help line  25)
+    -d, --dump-command-for-core     (help line  53)
+    -e VAL, --pattern=VAL           (help line 106)
+    -f VAL, -c VAL, --config=VAL    (help line 149)
+    -j INT, --jobs=INT              (help line 236)
+    -l VAL, --lang=VAL              (help line 252)
+    -o VAL, --output=VAL            (help line 332)
+    -q, --quiet                     (help line 379)
+    -v, --verbose                   (help line 487)
+
+  EVERY OPTION WHOSE NAME MENTIONS TAINT, verbatim:
+
 $ opengrep scan --help | grep -nE "^ +--(no-)?[a-z0-9-]*taint[a-z0-9-]*$"
 192:       --guarded-taint-signatures
 445:       --taint-intrafile
 
-$ opengrep scan --help | grep -c "^ \+--"
-106
+$ opengrep scan --help | grep -ni "taint"
+192:       --guarded-taint-signatures
+193:           Attach branch-condition guards to taint effects and evaluate them
+445:       --taint-intrafile
+446:           Enable intra-file inter-procedural taint analysis. Supported
 
-$ opengrep scan --help | grep -A3 -E "^ +--taint-intrafile$"
+  Two options out of 110, and a case-insensitive search of the whole help text
+  for 'taint' matches nothing but those two option names and their own
+  descriptions - no other option's description mentions taint at all. NEITHER
+  OF THE TWO DISABLES TAINT ANALYSIS. --taint-intrafile ENABLES intra-file
+  inter-procedural taint and its own text says the fallback is
+  'intraprocedural analysis only', not no analysis; --guarded-taint-signatures
+  attaches branch-condition guards to taint effects and requires
+  --experimental. There is no --no-taint, --disable-taint, --taint-off or
+  equivalent at this version, so in this A/B 'taint off' means
+  'intraprocedural taint' and a truly taint-free arm is not constructible.
+
+$ opengrep scan --help | grep -A5 -E "^ +--taint-intrafile$"
        --taint-intrafile
            Enable intra-file inter-procedural taint analysis. Supported
            languages: Apex, C, Clojure, C#, C++, Dart, Elixir, Go, Java,
            JavaScript, Julia, Kotlin, Lua, Python, Ruby, Rust, Scala, Swift,
            TypeScript, Visual Basic. Other languages will fall back to
+           intraprocedural analysis only.
 
 $ opengrep scan --help | grep -A4 -E "^ +--guarded-taint-signatures$"
        --guarded-taint-signatures
@@ -332,7 +426,9 @@ APPENDIX D - containment: raw/ untouched, no dataset row
   no A/B output appears there. The normalizer discovers artifacts by the nine
   fixed raw names only (harness/lib/normalize/shape.py,
   harness/lib/normalize/cli.py), so no arm of this A/B can contribute a
-  dataset row to oss-scan-results/findings.json or findings.csv.
+  dataset row to oss-scan-results/findings.json or findings.csv. Re-verified
+  after this arm ran: harness/artifacts/raw/ holds exactly its eight runner
+  artifacts and no taint-ab-* file.
 
 ================================================================================
 END - taint-ab-discriminating-off.log

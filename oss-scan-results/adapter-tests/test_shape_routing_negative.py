@@ -1927,11 +1927,23 @@ class ContentNotFilenameTests(ShapeTestCase):
 # --------------------------------------------------------------------------------------
 
 
-#: The eight command-line options ``cli.build_parser`` declares, paired with the
-#: namespace attribute each one sets and the metavar it advertises. Written out here
-#: rather than read from the parser: reading the parser's own declaration and comparing
-#: it with itself would assert nothing, and this table is what the module docstring's
-#: CLI contract promises a caller.
+#: The one command-line option that declares a *root* rather than a path: the repository
+#: root that owns ``findings.json`` and ``findings.csv``. It differs from the eight below
+#: in both ways that matter to the tables here -- it is optional, because two further
+#: declarations stand behind it ($HARNESS_REPO_ROOT, then the repository this module is
+#: installed in), and it is borne by no ``cli.Inputs`` field, because what it settles is
+#: where the two dataset paths default to and which root they are contained against
+#: rather than a path of its own. It exists because the owner root was the only input the
+#: CLI contract left without a flag, which meant a caller could not declare an isolated
+#: owner root before sourcing ``harness/env.sh`` -- that file assigns
+#: ``HARNESS_REPO_ROOT`` unconditionally, so a pre-set value did not survive it.
+CLI_ROOT_OPTION = ("--repo-root", "repo_root", "DIR")
+
+#: The nine command-line options ``cli.build_parser`` declares, in the parser's own order,
+#: paired with the namespace attribute each one sets and the metavar it advertises.
+#: Written out here rather than read from the parser: reading the parser's own declaration
+#: and comparing it with itself would assert nothing, and this table is what the module
+#: docstring's CLI contract promises a caller.
 CLI_OPTIONS = (
     ("--raw-dir", "raw_dir", "DIR"),
     ("--runner-metadata", "runner_metadata", "FILE"),
@@ -1940,7 +1952,17 @@ CLI_OPTIONS = (
     ("--spark-src", "spark_src", "DIR"),
     ("--findings-json", "findings_json", "FILE"),
     ("--findings-csv", "findings_csv", "FILE"),
+    CLI_ROOT_OPTION,
     ("--run-record", "run_record", "FILE"),
+)
+
+#: The eight of those nine that carry a path, are required, and each name one
+#: ``cli.Inputs`` field. Derived from the table above rather than written out a second
+#: time, so the two cannot disagree about the order: the required-input list a
+#: configuration fault names, and the field order of ``cli.Inputs``, are both asserted
+#: against this and both are the parser's order with the root option removed.
+CLI_PATH_OPTIONS = tuple(
+    option for option in CLI_OPTIONS if option != CLI_ROOT_OPTION
 )
 
 #: The relative locations the documented defaults are built from, restated
@@ -3747,7 +3769,7 @@ class CliTestCase(unittest.TestCase):
 
 
 class CliParserContractTests(CliTestCase):
-    """``cli.build_parser`` declares eight value-taking options and no default.
+    """``cli.build_parser`` declares nine value-taking options and no default.
 
     Two properties are load-bearing. **No option carries a default here**, because a
     default resolved at parser-construction time would read the environment at import
@@ -3786,7 +3808,7 @@ class CliParserContractTests(CliTestCase):
                 )
 
     def test_no_option_carries_a_default_so_importing_reads_nothing(self) -> None:
-        """An empty invocation leaves all eight attributes ``None`` and nothing else.
+        """An empty invocation leaves all nine attributes ``None`` and nothing else.
 
         The defaults live in :func:`cli.resolve_inputs`, at call time, against an
         environment mapping the caller supplies. A default baked into the parser would
@@ -3797,7 +3819,7 @@ class CliParserContractTests(CliTestCase):
         self.assertEqual(
             sorted(vars(namespace)),
             sorted(destination for _, destination, _ in CLI_OPTIONS),
-            msg="the parser must declare exactly the eight documented destinations",
+            msg="the parser must declare exactly the nine documented destinations",
         )
         for destination in vars(namespace):
             with self.subTest(destination=destination):
@@ -3939,6 +3961,11 @@ class CliInputResolutionTests(CliTestCase):
 
         Asserted as the complete list rather than as "at least one": a fault that named
         the first missing input only would send a caller round the loop eight times.
+
+        ``--repo-root`` is the ninth declared option and is deliberately **not** in the
+        list: two further declarations stand behind it, so its absence is not a missing
+        input. What its absence does is leave ``--findings-json`` and ``--findings-csv``
+        undefaulted, and those two are named -- which is the message a caller can act on.
         """
         with self.assertRaises(cli.ConfigurationFault) as raised:
             cli.resolve_inputs(self.namespace(), {})
@@ -3951,8 +3978,16 @@ class CliInputResolutionTests(CliTestCase):
         missing = fault.details["missing"]
         self.assertEqual(
             [entry["input"] for entry in missing],
-            [flag for flag, _, _ in CLI_OPTIONS],
+            [flag for flag, _, _ in CLI_PATH_OPTIONS],
             msg="every unresolvable input must be named, in the parser's own order",
+        )
+        self.assertNotIn(
+            CLI_ROOT_OPTION[0],
+            [entry["input"] for entry in missing],
+            msg=(
+                "--repo-root declares a root two other declarations stand behind, so its "
+                "absence is not a missing input"
+            ),
         )
         for entry in missing:
             with self.subTest(input=entry["input"]):
@@ -3983,7 +4018,7 @@ class CliInputResolutionTests(CliTestCase):
             cli.resolve_inputs(self.namespace(), environ)
         self.assertEqual(
             [entry["input"] for entry in raised.exception.details["missing"]],
-            [flag for flag, _, _ in CLI_OPTIONS],
+            [flag for flag, _, _ in CLI_PATH_OPTIONS],
         )
 
     def test_the_environment_supplies_every_default_it_documents(self) -> None:
@@ -4046,7 +4081,7 @@ class CliInputResolutionTests(CliTestCase):
             "run_record": argument_root / "log_dir" / "run_record",
         }
         arguments: list[str] = []
-        for flag, destination, _ in CLI_OPTIONS:
+        for flag, destination, _ in CLI_PATH_OPTIONS:
             arguments.extend([flag, str(stated[destination])])
         environ = {
             "HARNESS_RAW_DIR": str(directory / "environment" / "raw"),
@@ -4056,7 +4091,7 @@ class CliInputResolutionTests(CliTestCase):
             "HARNESS_REPO_ROOT": str(argument_root),
         }
         inputs = cli.resolve_inputs(self.namespace(*arguments), environ)
-        for flag, destination, _ in CLI_OPTIONS:
+        for flag, destination, _ in CLI_PATH_OPTIONS:
             with self.subTest(option=flag):
                 value = getattr(inputs, destination)
                 self.assertEqual(
@@ -4135,13 +4170,13 @@ class CliInputResolutionTests(CliTestCase):
             return f"relative/{destination}"
 
         arguments: list[str] = []
-        for flag, destination, _ in CLI_OPTIONS:
+        for flag, destination, _ in CLI_PATH_OPTIONS:
             arguments.extend([flag, relative_for(destination)])
         inputs = cli.resolve_inputs(
             self.namespace(*arguments), {"HARNESS_REPO_ROOT": os.getcwd()}
         )
 
-        for _, destination, _ in CLI_OPTIONS:
+        for _, destination, _ in CLI_PATH_OPTIONS:
             with self.subTest(field=destination):
                 value = getattr(inputs, destination)
                 as_path = Path(value)
@@ -4154,7 +4189,7 @@ class CliInputResolutionTests(CliTestCase):
                 )
 
         expanded = cli.resolve_inputs(
-            self.namespace(*[part for flag, destination, _ in CLI_OPTIONS
+            self.namespace(*[part for flag, destination, _ in CLI_PATH_OPTIONS
                              for part in (flag, f"~/tilde/{relative_for(destination)}")]),
             {"HARNESS_REPO_ROOT": os.path.expanduser("~")},
         )
@@ -4175,7 +4210,7 @@ class CliInputResolutionTests(CliTestCase):
         inputs = self.dummy_inputs(directory)
 
         self.assertTrue(dataclasses.is_dataclass(inputs))
-        option_fields = tuple(destination for _, destination, _ in CLI_OPTIONS)
+        option_fields = tuple(destination for _, destination, _ in CLI_PATH_OPTIONS)
         field_names = tuple(field.name for field in dataclasses.fields(cli.Inputs))
         self.assertEqual(
             field_names[: len(option_fields)],
@@ -4676,14 +4711,26 @@ class CliRawDirectoryBoundaryTests(CliTestCase):
             shutil.copyfile(source, raw_dir / name)
         return directory, raw_dir
 
-    def test_only_the_nine_fixed_filenames_are_read_and_the_rest_reported(self) -> None:
-        """Two artifacts are read; a stray file and a mis-typed entry are reported.
+    def test_only_the_nine_fixed_filenames_are_read_and_the_rest_halts(self) -> None:
+        """Both unexpected-entry conditions stop the run, with the evidence recorded.
 
-        A reported condition rather than a halt: AAP 0.8.1 has this module report an
-        unexpected entry and never fingerprint a document to guess its writer. The
-        directory named ``trivy.json`` is the second, distinct condition -- an expected
-        artifact *name* that is not a regular file -- and it must not be mistaken for a
-        present artifact.
+        The condition is a halt rather than a line on stderr because the alternative
+        cannot be caught downstream: ``raw/`` admits one artifact per tool that writes
+        one and nothing else ever (AAP 0.8.1, AAP 0.6.1), so a child nothing adapted
+        leaves every per-artifact identity and the dataset sum holding while an input
+        sits unconsumed beside the ones the rows came from -- and a row-only
+        ``findings.json`` cannot show that a document was skipped.
+
+        Two conditions reach it and both must stay distinguishable in the evidence,
+        because they are corrected differently: ``stray-note.txt`` is a name that does
+        not belong in the tree, while the directory named ``trivy.json`` is that tool's
+        artifact missing and its name occupied. The second must also not be mistaken for
+        a present artifact.
+
+        The recognised artifacts are still identified before the run stops, and
+        ``record["raw_directory"]`` is still populated and JSON-round-trippable, so the
+        run record published on the halting path carries the same enumeration a
+        successful run would.
         """
         directory, raw_dir = self.raw_tree("gitleaks.json", "checkov.json")
         (raw_dir / "stray-note.txt").write_text("not a runner artifact\n", encoding="utf-8")
@@ -4692,21 +4739,45 @@ class CliRawDirectoryBoundaryTests(CliTestCase):
         record: dict = {}
         stderr = io.StringIO()
         with contextlib.redirect_stderr(stderr):
-            present = cli._enumerate_raw_directory(
-                self.dummy_inputs(directory, raw_dir=raw_dir), record
-            )
+            with self.assertRaises(cli.NormalizeHalt) as raised:
+                cli._enumerate_raw_directory(
+                    self.dummy_inputs(directory, raw_dir=raw_dir), record
+                )
+        halt = self.assertHalt(
+            raised.exception,
+            reason=cli.HALT_RAW_DIRECTORY_UNEXPECTED,
+            exit_code=cli.EXIT_HALT,
+        )
+        # A condition in the input tree, exactly like the out-of-tree symlink below --
+        # not a fault in the invocation, so exit 1 rather than 78.
+        self.assertNotIsInstance(
+            halt,
+            cli.ConfigurationFault,
+            msg="an unconsumed document inside the tree is a data halt, exit 1",
+        )
+        self.assertEqual(halt.details["raw_dir"], str(raw_dir))
+        self.assertEqual(halt.details["unexpected_entry_count"], 2)
+        self.assertEqual(
+            halt.details["expected_artifact_filenames"], list(shape.ARTIFACT_FILENAMES)
+        )
+        detailed = {entry["name"]: entry for entry in halt.details["unexpected_entries"]}
+        self.assertEqual(sorted(detailed), ["stray-note.txt", "trivy.json"])
+        for name in detailed:
+            with self.subTest(entry=name):
+                self.assertIn(name, halt.message)
+                self.assertIn(detailed[name]["condition"], halt.message)
 
-        self.assertEqual(sorted(present), ["checkov", "gitleaks"])
-        for tool, path in present.items():
-            with self.subTest(tool=tool):
-                self.assertEqual(path, raw_dir / shape.artifact_filename_for(tool))
-                self.assertTrue(path.is_file())
-
+        # The recognised artifacts were identified before the run stopped, and the
+        # record carries the enumeration a reader diagnoses from.
         raw_record = record["raw_directory"]
         self.assertEqual(raw_record["artifacts_present"], ["gitleaks", "checkov"])
         self.assertEqual(
             raw_record["artifacts_absent"],
-            [tool for tool in shape.CANONICAL_TOOLS if tool not in present],
+            [
+                tool
+                for tool in shape.CANONICAL_TOOLS
+                if tool not in ("gitleaks", "checkov")
+            ],
         )
         self.assertEqual(raw_record["unexpected_entry_count"], 2)
         conditions = {
@@ -4723,8 +4794,72 @@ class CliRawDirectoryBoundaryTests(CliTestCase):
         self.assertEqual(
             raw_record["expected_artifact_filenames"], list(shape.ARTIFACT_FILENAMES)
         )
-        self.assertIn("reported condition", stderr.getvalue())
-        self.assertIn("stray-note.txt", stderr.getvalue())
+        self.assertEqual(json.loads(json.dumps(raw_record)), raw_record)
+        self.assertEqual(json.loads(json.dumps(halt.as_dict())), halt.as_dict())
+        # The evidence is the filesystem's, not the file's: byte size, directory and
+        # symlink flags and the expected-name flag, and nothing derived from content.
+        stray = detailed["stray-note.txt"]
+        self.assertEqual(stray["bytes"], len(b"not a runner artifact\n"))
+        self.assertFalse(stray["is_directory"])
+        self.assertFalse(stray["is_symlink"])
+        self.assertFalse(stray["is_expected_artifact_name"])
+        occupied = detailed["trivy.json"]
+        self.assertTrue(occupied["is_directory"])
+        self.assertFalse(occupied["is_symlink"])
+        self.assertTrue(occupied["is_expected_artifact_name"])
+        self.assertIsNone(occupied["bytes"])
+        self.assertEqual(
+            sorted(stray),
+            [
+                "bytes",
+                "condition",
+                "is_directory",
+                "is_expected_artifact_name",
+                "is_symlink",
+                "name",
+                "path",
+            ],
+            msg=(
+                "no field derived from the document's content may appear here: reading "
+                "an unexpected file on the halting path would bypass every ingestion "
+                "bound this module applies to the inputs it does consume, and AAP 0.8.1 "
+                "forbids fingerprinting a document in this tree to identify a writer"
+            ),
+        )
+        # One diagnostic, not two: the reporting path prints the halt, so the module no
+        # longer prints a "reported condition" line of its own beside it.
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_a_tree_holding_only_recognised_artifacts_returns_normally(self) -> None:
+        """The positive control: nothing unexpected, no halt, and no false report.
+
+        Without this, a boundary that refused every tree at all would satisfy the halt
+        assertion above while stopping every real run. Two fixtures rather than all nine
+        for the same reason the helper takes a list: the rule is "no unexpected child",
+        never "all nine present" -- eight of the nine were present in this run and one
+        legitimately wrote nothing (AAP 0.5.4).
+        """
+        directory, raw_dir = self.raw_tree("gitleaks.json", "checkov.json")
+        record: dict = {}
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            present = cli._enumerate_raw_directory(
+                self.dummy_inputs(directory, raw_dir=raw_dir), record
+            )
+
+        self.assertEqual(sorted(present), ["checkov", "gitleaks"])
+        for tool, path in present.items():
+            with self.subTest(tool=tool):
+                self.assertEqual(path, raw_dir / shape.artifact_filename_for(tool))
+                self.assertTrue(path.is_file())
+        raw_record = record["raw_directory"]
+        self.assertEqual(raw_record["unexpected_entries"], [])
+        self.assertEqual(raw_record["unexpected_entry_count"], 0)
+        self.assertEqual(raw_record["artifacts_present"], ["gitleaks", "checkov"])
+        self.assertEqual(
+            raw_record["entries"], sorted(["gitleaks.json", "checkov.json"])
+        )
+        self.assertEqual(stderr.getvalue(), "")
         self.assertEqual(json.loads(json.dumps(raw_record)), raw_record)
 
     def test_a_missing_raw_directory_is_a_configuration_fault(self) -> None:
@@ -4775,6 +4910,246 @@ class CliRawDirectoryBoundaryTests(CliTestCase):
         self.assertEqual(halt.details["tool"], "opengrep")
         self.assertEqual(halt.details["resolved_path"], os.path.realpath(outside))
         self.assertEqual(halt.details["raw_dir"], os.path.realpath(raw_dir))
+
+
+# --------------------------------------------------------------------------------------
+# The same boundary through the top-level entry point, where publication is at stake
+# --------------------------------------------------------------------------------------
+
+
+class CliUnexpectedRawEntryPublicationTests(CliTestCase):
+    """An unexpected raw child stops ``cli.main`` **before** either deliverable is written.
+
+    The stage assertions above establish that :func:`cli._enumerate_raw_directory` raises.
+    They cannot establish the fact that matters to a reader of ``oss-scan-results/``: that
+    the process exits non-zero, that ``normalize-run.json`` on disk names the reason, and
+    that ``findings.json`` and ``findings.csv`` already at the output paths are left
+    exactly as they were. A boundary that raised an exception some caller swallowed would
+    satisfy every assertion in the class above while still publishing a dataset over an
+    input tree holding a document nothing adapted -- so this class drives the real entry
+    point over a real workspace and compares the two output files byte for byte.
+
+    Both output files are seeded with a valid, recognisable pair first, for the same
+    reason: an assertion that they do not *exist* would pass for a run that never got as
+    far as writing them and equally for one that deleted them, and neither is the
+    guarantee. The guarantee is that the previously published bytes survive.
+    """
+
+    def workspace(self) -> dict:
+        """Build a hermetic workspace the real ``cli.main`` can be pointed at.
+
+        Every input is a real file inside one temporary directory: the twelve
+        authoritative globs (taken from ``paths.ALLOWLIST_GLOBS``, never retyped here),
+        a minimal runner-metadata document recording the same scan root the argument
+        names, a raw tree holding two committed artifacts, and an owner root holding the
+        seeded dataset pair.
+
+        The metadata is deliberately minimal -- a path base and a resolved root per tool.
+        This class asserts where the run stops and what survives, so a fuller document
+        would only make the fixture a second copy of the real record.
+        """
+        directory = self.temporary_directory()
+        raw_dir = directory / "raw"
+        log_dir = directory / "logs"
+        owner = directory / "owner"
+        results = owner / "oss-scan-results"
+        scan_root = directory / "spark-src"
+        for created in (raw_dir, log_dir, results, scan_root):
+            created.mkdir(parents=True, exist_ok=True)
+
+        for name in ("gitleaks.json", "checkov.json"):
+            source = FIXTURES_DIR / name
+            if not source.is_file():
+                self.fail(f"blocking gap: required fixture {name!r} is absent")
+            shutil.copyfile(source, raw_dir / name)
+
+        allowlist = directory / "allowlist.txt"
+        allowlist.write_text(
+            "".join(f"{glob}\n" for glob in paths.ALLOWLIST_GLOBS), encoding="utf-8"
+        )
+
+        metadata_path = log_dir / "runner-metadata.json"
+        metadata_path.write_text(
+            json.dumps(
+                {
+                    "purpose": (
+                        "Minimal runner metadata for the raw-directory publication "
+                        "regression. Written and read inside a temporary directory; it "
+                        "is not this run's record."
+                    ),
+                    "spark_src": str(scan_root),
+                    "tools": {
+                        tool: {
+                            "canonical_tool_identifier": tool,
+                            "path_base": {"kind": "scan_root", "value": str(scan_root)},
+                            "resolved_scan_root": str(scan_root),
+                        }
+                        for tool in shape.CANONICAL_TOOLS
+                    },
+                },
+                indent=1,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
+        findings_json = results / "findings.json"
+        findings_csv = results / "findings.csv"
+        findings_json.write_text(
+            json.dumps(
+                [
+                    {
+                        "tool": "gitleaks",
+                        "scanner_class": "secret",
+                        "rule_id": "previously-published-row",
+                        "message": "a row from the dataset already at this path",
+                        "severity_native": None,
+                        "severity_norm": "Info",
+                        "path": "core/src/main/scala/org/apache/spark/SparkConf.scala",
+                        "start_line": 1,
+                        "cwe": None,
+                        "cve": None,
+                        "package_coordinate": None,
+                        "in_scope": True,
+                    }
+                ],
+                indent=1,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        findings_csv.write_text(
+            ",".join(emit.FIELDS)
+            + "\n"
+            + "gitleaks,secret,previously-published-row,a row from the dataset already "
+            "at this path,,Info,core/src/main/scala/org/apache/spark/SparkConf.scala,1"
+            ",,,,True\n",
+            encoding="utf-8",
+        )
+
+        return {
+            "directory": directory,
+            "raw_dir": raw_dir,
+            "log_dir": log_dir,
+            "owner": owner,
+            "findings_json": findings_json,
+            "findings_csv": findings_csv,
+            "run_record": log_dir / cli.RUN_RECORD_FILENAME,
+            "argv": [
+                "--raw-dir", str(raw_dir),
+                "--runner-metadata", str(metadata_path),
+                "--allowlist", str(allowlist),
+                "--log-dir", str(log_dir),
+                "--spark-src", str(scan_root),
+                "--findings-json", str(findings_json),
+                "--findings-csv", str(findings_csv),
+                "--run-record", str(log_dir / cli.RUN_RECORD_FILENAME),
+            ],
+        }
+
+    def run_main(self, workspace: dict) -> tuple[int, str, str]:
+        """Call ``cli.main`` in process, with only the owner root in the environment.
+
+        ``main`` reads ``os.environ`` itself, so the environment is replaced rather than
+        extended: only the dataset's owner root is exported and every other input is
+        passed explicitly, which makes the invocation under test the one a reader of the
+        run record would see rather than one shaped by whatever the runner inherited.
+        """
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with unittest.mock.patch.dict(
+                os.environ,
+                {"HARNESS_REPO_ROOT": str(workspace["owner"])},
+                clear=True,
+            ):
+                code = cli.main(list(workspace["argv"]))
+        return code, stdout.getvalue(), stderr.getvalue()
+
+    def test_an_unexpected_child_stops_the_run_and_preserves_both_deliverables(
+        self,
+    ) -> None:
+        """Non-zero exit, the reason on disk, and both seeded files byte-identical."""
+        workspace = self.workspace()
+        shutil.copyfile(
+            FIXTURES_DIR / UNKNOWN_SHAPE_FIXTURE,
+            workspace["raw_dir"] / UNKNOWN_SHAPE_FIXTURE,
+        )
+        before = {
+            key: workspace[key].read_bytes()
+            for key in ("findings_json", "findings_csv")
+        }
+
+        code, stdout, stderr = self.run_main(workspace)
+
+        self.assertNotEqual(code, cli.EXIT_OK)
+        self.assertEqual(code, cli.EXIT_HALT)
+        self.assertIn(cli.HALT_RAW_DIRECTORY_UNEXPECTED, stderr)
+        self.assertIn(UNKNOWN_SHAPE_FIXTURE, stderr)
+        self.assertNotIn("row(s)", stdout)
+
+        record = json.loads(workspace["run_record"].read_text(encoding="utf-8"))
+        self.assertEqual(record["halt"]["reason"], "raw-directory-unexpected-entry")
+        self.assertEqual(
+            record["halt"]["reason"], cli.HALT_RAW_DIRECTORY_UNEXPECTED
+        )
+        self.assertEqual(record["halt"]["exit_code"], cli.EXIT_HALT)
+        self.assertEqual(record["exit_status"]["code"], cli.EXIT_HALT)
+        self.assertEqual(
+            [
+                entry["name"]
+                for entry in record["halt"]["details"]["unexpected_entries"]
+            ],
+            [UNKNOWN_SHAPE_FIXTURE],
+        )
+        # The evidence a successful run would have recorded is in the record too, and it
+        # identifies the artifacts that *were* recognised.
+        self.assertEqual(
+            record["raw_directory"]["artifacts_present"], ["gitleaks", "checkov"]
+        )
+        self.assertEqual(record["raw_directory"]["unexpected_entry_count"], 1)
+
+        for key, original in before.items():
+            with self.subTest(output=key):
+                self.assertEqual(
+                    workspace[key].read_bytes(),
+                    original,
+                    msg=(
+                        "publication must not have happened: the dataset already at "
+                        "this path is what a consumer is reading"
+                    ),
+                )
+
+    def test_the_same_workspace_without_the_child_stops_somewhere_else(self) -> None:
+        """The control: the stray file is what stopped the run, not the workspace.
+
+        Without it the identical tree reaches the absent-artifact stage instead -- seven
+        of the nine tools wrote nothing here and none of them has a recognised no-work
+        statement (AAP 0.5.4) -- so the run still stops and still preserves the seeded
+        pair, under a different and equally named reason. That is what makes the
+        assertion above attributable to the unexpected child rather than to the fixture.
+        """
+        workspace = self.workspace()
+        before = {
+            key: workspace[key].read_bytes()
+            for key in ("findings_json", "findings_csv")
+        }
+
+        code, stdout, _stderr = self.run_main(workspace)
+
+        self.assertNotEqual(code, cli.EXIT_OK)
+        record = json.loads(workspace["run_record"].read_text(encoding="utf-8"))
+        self.assertIn(record["halt"]["reason"], cli.HALT_REASONS)
+        self.assertNotEqual(
+            record["halt"]["reason"], cli.HALT_RAW_DIRECTORY_UNEXPECTED
+        )
+        self.assertEqual(
+            record["halt"]["reason"], cli.HALT_ABSENT_WITHOUT_STATED_REASON
+        )
+        self.assertEqual(record["raw_directory"]["unexpected_entry_count"], 0)
+        self.assertNotIn("row(s)", stdout)
+        for key, original in before.items():
+            with self.subTest(output=key):
+                self.assertEqual(workspace[key].read_bytes(), original)
 
 
 # --------------------------------------------------------------------------------------

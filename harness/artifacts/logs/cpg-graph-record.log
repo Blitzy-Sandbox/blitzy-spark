@@ -25,11 +25,28 @@ Expected vs observed (prior provisioning record):
   AAP floor: methods must be >= 853,420 -> 1,396,899 is far above it (recorded, not halted:
   the AAP's own rule is that more JARs cannot mean fewer methods, so above-anchor is expected)
 
-Input set : 62 JARs / 273 MB / 31 modules, hard-linked into one staging dir with
-            collision-safe names <module_with_underscores>__<filename>.
+Input set : 62 JARs / 285,122,371 bytes / 31 modules, HARD-LINKED into one staging dir with
+            collision-safe names <module_with_underscores>__<filename>. The byte figure is
+            cpg-input-inventory.json's total_bytes, cited rather than re-rounded; this line
+            previously read "273 MB", which matched neither the decimal nor the binary reading of
+            that total and named no owner.
             Staging verified 1:1 BEFORE the frontend ran: 62 entries = 62 staged files,
             62 distinct sha256, total and injective in both directions, 0 mismatches.
-            Of 252 .jar files under the build tree, 190 excluded with a per-file reason:
+            THAT ASSERTION WAS TRUE WHEN MADE AND IS NO LONGER TRUE OF THE TREE. The staging is
+            hard links into /opt/spark-src, a build tree shared with other clones and writable
+            through those other paths, rather than immutable copies. A census taken 2026-09-02
+            found 23 of the 62 members overwritten since, and only 45 distinct sha256 left across
+            the 62 names. That census, its per-member evidence and the reproducibility limitation
+            it establishes are OWNED by harness/artifacts/logs/cpg-input-inventory.json, node
+            live_staging_tree_census_2026-09-02, and are cited rather than restated here. The
+            consequence for this record: the graph's input bytes can no longer be re-proved from
+            the surviving tree, so every figure below is the write-time measurement and none of
+            them is reproducible from disk today.
+            Of 252 .jar files under the build tree, 62 staged and 190 excluded with a reason per
+            CATEGORY — not per file. The five categories below are the whole of the exclusion
+            record and they sum to 190 (77+64+33+14+2), and 62+190=252; no per-file exclusion
+            ledger was retained by the staging that produced this tree, so no document may cite
+            one from here or from cpg-input-inventory.json, which holds no exclusion data at all:
               77 copied dependency / not a build output (other coordinates)
               64 sources jars (no bytecode)
               33 -tests jars        <- EXCLUDED BY RUNBOOK INSTRUCTION
@@ -39,13 +56,35 @@ Input set : 62 JARs / 273 MB / 31 modules, hard-linked into one staging dir with
 Frontend metrics, observed rather than expected:
   Overwriting class file warnings : 31598 (prior record 31,598 — EXACT MATCH)
   distinct class files overwritten: 26221
-  AstCreationPass warnings        : 429 (prior record 173)
+  AstCreationPass warnings        : 429 (prior record 173 - see note below)
+
+  NOTE ON THE 429 AGAINST THE PRIOR RECORD'S 173. These are two measurements of two
+  DIFFERENT frontend invocations, not two readings of one. 429 is this graph's, the
+  one on disk at 541,309,809 bytes / sha256 4616845a...4730c7, built by the
+  re-provisioning of 2026-08-30. 173 is the figure harness/ENVIRONMENT.md line 316
+  states, with its own breakdown of 104 org/sparkproject/io and 69 org/apache/spark;
+  it belongs to the SUPERSEDED graph that provisioning built on 2026-08-24 at
+  541,255,894 bytes / sha256 26d327cc...fcffc, which is not on disk. The same
+  PRIOR-vs-NOW table above separates the pair the same way on every other field
+  (methods 1,397,339 -> 1,396,899; typeDecls 119,691 -> 119,721), so the difference
+  here is the graph having been rebuilt rather than a disagreement about one build.
+  Both values are recorded with their provenance; neither supersedes the other as a
+  measurement of its own invocation.
   ERROR-level lines               : 0 (none)
   LIMITATION: per-class provenance for an overwritten class is NOT measurable from this
   frontend's output — the warning names the destination class, never the surviving JAR.
   The ordered staging manifest makes the input set reproducible; a winner map does not exist.
 
-Per-module coverage — 31 of 31 contributing modules covered, 0 missing.
+Per-module coverage — THIS RECORD IS SUPERSEDED ON THIS FIGURE.
+  The summary line here previously read "31 of 31 contributing modules covered, 0 missing", which
+  this record's own body below contradicts: it lists 26 modules with a class unique to that module
+  and 5 with none, and under the AAP 0.5.1 injective test a module with no exclusive witness is
+  not covered. That figure is withdrawn rather than restated.
+  OWNER of the coverage verdict: harness/artifacts/logs/cpg-module-coverage.json, established by
+  the load recorded in harness/artifacts/logs/cpg-verify.log PHASE 2. It records, over the 31
+  modules present in the graph input, 26 COVERED on injective evidence and 5 NO VERDICT
+  OBTAINABLE. That verdict is CITED here and is not remeasured by this file; the listing below is
+  retained as the witness detail it always was, not as a second verdict.
   Test: a class present in that module's primary artifact and ABSENT from every other module's
   artifacts. A shared package prefix is NOT evidence. Every witness was then confirmed present
   as a type declaration in the graph (cpg.typeDecl.fullNameExact).
@@ -76,15 +115,48 @@ Per-module coverage — 31 of 31 contributing modules covered, 0 missing.
     sql/hive-thriftserver              org.apache.spark.sql.hive.thriftserver.ArrayFetchIterator              typeDecls=2
     sql/pipelines                      org.apache.spark.sql.pipelines.AnalysisWarning                         typeDecls=2
     streaming                          org.apache.spark.status.api.v1.streaming.ApiStreamingApp               typeDecls=2
-  5 modules with NO exclusive class -> named weaker witness (the class reached the graph, but is
-  also vendored into the shaded artifact(s) named, so it cannot attribute to this module alone):
+  5 modules with NO exclusive class -> NO VERDICT OBTAINABLE, per the owner named above. The
+  class listed for each did reach the graph, but it is also vendored into the shaded artifact(s)
+  named beside it, so it attributes to no single module; and the AAP's named fallback, a
+  module-exclusive META-INF/maven/**/pom.properties node, is not obtainable for them either — see
+  the measured pom.properties note below. Presence is not a coverage verdict, so none is claimed:
     common/network-common      org.apache.spark.network.TransportContext                    also shipped by: common/network-yarn
     common/network-shuffle     org.apache.spark.network.shuffle.AppsWithRecoveryDisabled    also shipped by: common/network-yarn
     common/utils-java          org.apache.spark.QueryContext                                also shipped by: common/network-yarn
     sql/api                    org.apache.spark.sql.AnalysisException                       also shipped by: sql/connect/client/jvm
     sql/connect/common         org.apache.spark.sql.connect.Catalog                         also shipped by: sql/connect/client/jvm, sql/connect/server
 
-  NOTE: META-INF/maven/**/pom.properties was NOT available as a fallback witness — no Spark
-  artifact at this pin contains one (same finding as the prior record).
+  pom.properties — MEASURED 2026-09-02, CORRECTING THIS RECORD. The note here previously read
+  "META-INF/maven/**/pom.properties was NOT available as a fallback witness — no Spark artifact at
+  this pin contains one". The second half of that is FALSE and is withdrawn; it also contradicted
+  cpg-verify.log PHASE 1, which reports 102 pom.properties file nodes in the loaded graph.
+  What was measured, over all 62 archives of /opt/blitzy-harness/cpg-input, twice and by two
+  independent readers — JDK 17 `jar tf` and the Python standard library's zipfile (`unzip` is NOT
+  installed on this host: `unzip -l` exits 127, so it cannot be the command of record):
+    62 of 62 archives carry at least one META-INF/maven/**/pom.properties entry
+    123 entries in total, over 79 distinct entry paths
+    31 of those distinct paths are under groupId org.apache.spark — exactly one per module in
+       the input — and 48 are vendored third-party descriptors under 11 other groupIds
+    core__spark-core_2.13-4.1.0-SNAPSHOT.jar contains, verbatim,
+       META-INF/maven/org.apache.spark/spark-core_2.13/pom.properties
+  So the entries exist, and they are Spark's own as well as vendored. What IS true is the narrower
+  statement the coverage owner makes: for the 5 modules above no module-EXCLUSIVE descriptor
+  exists, because the shaded archive that vendors their classes vendors their descriptor too. On
+  the live tree the spark-network-common_2.13, spark-network-shuffle_2.13 and
+  spark-common-utils-java_2.13 descriptors each appear in common/network-yarn's shaded shuffle
+  archive as well as in their own module's — 3 of the 31 Spark descriptors are held by more than
+  one module. (On the live tree the sql/api and sql/connect/common descriptors now appear only in
+  their own module's archives. That is an effect of the staging drift recorded in
+  harness/artifacts/logs/cpg-input-inventory.json, not evidence about the graph: the shaded
+  sql/connect archives that vendored them have since been overwritten and shrank from 26,050,367
+  to 30,303 and from 17,182,152 to 930,474 bytes. The verdict for those two stays the owner's.)
+  RECONCILIATION with the graph, and its limit: cpg-verify.log PHASE 1's 102 pom.properties file
+  nodes cannot be reconciled exactly against the 79 distinct entry paths measurable in the staging
+  tree today, and the reason is measured rather than assumed. 23 of the 62 staged members were
+  overwritten after this graph was written, and 17 descriptors that cpg-input-inventory.json's
+  retained coverage_witnesses named on 2026-09-01 — 10 jetty, 5 arrow, flatbuffers-java and
+  pmml-model — are no longer present in any archive on disk. The graph-time input therefore held
+  maven descriptors the tree no longer holds, which is the direction 102 > 79 requires; the exact
+  figure is not recoverable from a tree that has since changed, and it is not claimed here.
   sql/connect/shims has NO coverage verdict: it is excluded from the graph input by runbook
   instruction, so it contributes nothing to cover. By design, not a gap.

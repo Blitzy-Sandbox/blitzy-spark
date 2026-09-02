@@ -67,27 +67,46 @@ requirements, and nothing in this file is a user-specified rule.
 | `harness/artifacts/logs/maven-preflight.log` | the Maven pre-check verdict (section 1) |
 | `harness/artifacts/logs/build-reactor.log` | the build command, the JVM major and Maven version used, the reactor's project count and build order, the per-project `SUCCESS`/`FAILURE`, the build's own wall clock and exit status, and the on-disk per-project artifact outcome (sections 2 and 3) |
 | `harness/artifacts/logs/cpg-frontend.log` | this run's frontend invocation over the complete 191-archive staged input set: its serialization failure with the bytecode-level diagnosis, the partial write it refused, the mitigations examined, and the observed overwrite and AST-creation-failure metrics measured over that complete set (sections 4 and 5) |
-| `harness/artifacts/logs/cpg-ceiling-reverify.log` | this generation's own first-hand re-verification of that serialization ceiling, at two heaps (section 5) |
+| `harness/artifacts/logs/cpg-ceiling-reverify.log` | this generation's own first-hand re-verification of that serialization ceiling, at **three** heaps — 8 GiB, 64 GiB and 128 GiB (section 5) |
 | `harness/artifacts/logs/cpg-input-inventory.json` | the input set of the graph the Joern stages actually load — its 62 archives with their digests, the 31 reactor projects present in it, the 7 absent, and the per-module witness computation (sections 4 and 6) |
 | `harness/artifacts/logs/cpg-identity.txt` | the one record of account for the graph's identity and its provenance (STATUS, sections 5 and 6) |
 | `harness/artifacts/logs/cpg-verify.log` | the `importCpg` verification load of exactly those bytes: the three counts against their expected values, and the per-module coverage witness queries (sections 5 and 6) |
+| `harness/artifacts/logs/cpg-graph-record.log` | the write-time record of the graph on disk — the provisioning invocation's command, JDK, heap and elapsed time, its own frontend metrics over that 62-archive input, the five exclusion categories and the reproducibility limitation it states, and the withdrawal of its former summary coverage figure (STATUS, sections 4, 5, 6 and 7) |
+| `harness/artifacts/logs/cpg-module-coverage.json` | the owner of record of the per-module coverage verdict — the file `cpg-graph-record.log:70-74` and `cpg-verify.log:258-260` both name as owning it and both cite rather than remeasure: its 31-module and 38-project views of that one verdict, its `count_check` arithmetic, and its own `written_by` and `supersedes` fields (section 6) |
+| `harness/artifacts/logs/cpg-shims-collision-measurement.log` | the per-class method counts of the eleven `sql/connect/shims` stub classes as the graph on disk holds them, measured first-hand against that graph's re-verified identity (section 5) |
 | `harness/artifacts/logs/joern-preflight.log` | the Stage 3 identity gate's comparison of the graph against its record of account — its verdict, and the time and clone it ran in (section 5) |
 | `harness/artifacts/logs/joern.runner-console.log` | the Stage 3 Joern runner's own recompute of the graph's byte size and digest at load time, with the invocation header that brackets it (sections 5 and 7) |
 | `harness/artifacts/logs/runner-sequence.json` | cited once, for one value this file does not own: which invocation the Stage 3 console log, artifact, streams and status file belong to (section 7) |
 | `harness/artifacts/logs/gate-record.json` | cited twice, for two values this file does not own: the gate verdict, and the environment-record graph-identity contradiction (STATUS, sections 5 and 7) |
 | `harness/cpg/spark.cpg` | the graph at the path the AAP names — a 33-byte provisioned symlink whose resolved target is host-global and was written by provisioning, not by this run (STATUS, section 5) |
+| `harness/artifacts/logs/reverification-f3-writer-bound.txt` with its `.json` | the 2026-09-02 re-measurement of the serialization ceiling at three heaps in this clone, the frontend's re-enumerated option surface, and the permitted-action matrix (STATUS) |
+| `harness/artifacts/logs/reverification-f4-module-witness-full-input-set.json` with its `.log` | the 2026-09-02 measurement of the same two witness kinds over the 191-archive set this run's frontend was given: the inventory reconciliation, the per-module rows for both input sets, and the eight modules with no accepted witness (section 6) |
 
-Two absences are stated rather than left to be noticed. No
-`harness/artifacts/logs/build-<module-path>.log` exists, and none is cited: section 3 records why none
-was needed. And `harness/artifacts/logs/cpg-module-coverage.json` is present in the tree but is not an
-**independent** source of fact here: it is a machine-readable rendering of the same two measurements
-section 6 reads — `cpg-input-inventory.json`'s per-module witness exclusivity joined against
-`cpg-verify.log` PHASE 2's witness queries — so every figure it carries is one of those measurements
-cited a second time rather than a second measurement of the same thing. It agrees with section 6 row
-for row: 31 modules in the graph input, 26 COVERED on injective evidence, 5 NO VERDICT OBTAINABLE, and
-**0** verdicts resting on presence or on a shared package prefix, against the graph identity section 5
-states. Its own `schema_version` is `2` and its `supersedes` field names what it replaced: an edition
-written in clone `w-001` on `2026-08-31T16:11:52Z` describing a graph of 605,687,359 bytes and sha256
+One absence is stated rather than left to be noticed: no
+`harness/artifacts/logs/build-<module-path>.log` exists, and none is cited — section 3 records why none
+was needed.
+
+**And one record's standing is stated rather than left to be inferred.**
+`harness/artifacts/logs/cpg-module-coverage.json` is the **owner of record** of the per-module coverage
+verdict. `cpg-graph-record.log:70-74` names it as that owner, "established by the load recorded in
+harness/artifacts/logs/cpg-verify.log PHASE 2", and cites its figures rather than remeasuring them;
+`cpg-verify.log:258-260` says the same of the per-project map, "owned by
+harness/artifacts/logs/cpg-module-coverage.json; the figures here are that file's, cited rather than
+re-derived". Being the owner does not make it a **second measurement**: it renders the same two
+measurements section 6 reads — `cpg-input-inventory.json`'s per-module witness exclusivity joined
+against `cpg-verify.log` PHASE 2's witness queries — so every figure it carries is one of those
+measurements cited again rather than taken again. It agrees with section 6 at **both** denominators,
+which it also keeps apart in its own `denominator_note`: over the **31** modules contributing an
+archive to the graph's input, **26** COVERED on injective evidence and **5** NO VERDICT OBTAINABLE;
+over the **38** JAR-packaging reactor projects AAP §0.5.1 sets as the denominator, **26** covered and
+**12** without a covered verdict, split **5** that own no admissible witness and **7** with no archive
+in the input at all, under its own `count_check` — `5 + 7 = 12; 12 + 26 = 38`. It carries **0** verdicts
+resting on presence and **0** on a shared package prefix, against the graph identity section 5 states,
+and its `written_by` field records that graph as provisioning's own write of `2026-08-30T19:18:37Z`,
+naming this run's frontend termination at the flatgraph ceiling and that mechanism's re-verification
+"at three heaps - 8g, 64g and 128g" as the reason no all-JAR graph stands behind it. Its
+`schema_version` is `2` and its `supersedes` field names what it replaced: an edition written in clone
+`w-001` on `2026-08-31T16:11:52Z` describing a graph of 605,687,359 bytes and sha256
 `ceefe60e58308ffcfc1d93f8ed6226bf25bac85678f1a54caf826340a25542a6` over 39 producing modules — a graph
 that is not the file on disk, and a module count that is not this input set's.
 
@@ -106,6 +125,18 @@ that is not the file on disk, and a module count that is not this input set's.
 > written by this run exists**, and **every count and every coverage verdict below describes the graph
 > provisioning wrote**, which carries the bytecode of 31 of the 38 JAR-packaging projects and of no
 > others.
+>
+> **Both halves of that were re-verified first-hand on 2026-09-02**, after runtime testing raised them
+> as blocking findings, and both still hold. The array-length bound was re-measured at **three** heaps
+> in this clone — `-Xmx8g`, `-Xmx64g`, `-Xmx128g` — and in all three the writer buffers exactly
+> 2,147,483,639 bytes and then throws `Required array length 2147483639 + 77 is too large`: over a 16×
+> heap range the failure point does not move by one byte, so no heap value clears it and the frontend's
+> own option surface (12 named options, enumerated again) offers no chunked or streaming write.
+> `harness/artifacts/logs/reverification-f3-writer-bound.txt` and its `.json` carry that measurement.
+> And section 6 now carries a **second** coverage measurement, over the 191-archive set this run's
+> frontend was given rather than the 62 the loaded graph holds, which establishes that **30 of the 38**
+> modules would be verdictable even in the mandated graph and **8** would not — a property of the
+> witness rule against Spark's shaded artifacts rather than of the narrowed input.
 
 Five facts bound what the numbers in this file describe, and reading a coverage figure without them
 would misread it.
@@ -126,7 +157,7 @@ would misread it.
   one reason only: this run's frontend produced no graph, so there was no write-time pair of its own
   to prefer. The pair was re-measured from the bytes on disk for every one of the five loads and every
   check is logged, and **four of the five comparisons ran immediately before the load they gate**: the
-  Stage 2 verification load (`cpg-verify.log:47-50`, "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY BEFORE
+  Stage 2 verification load (`cpg-verify.log:54-57`, under the heading "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY BEFORE
   THE LOAD") and each of the three Stage 5 probe queries
   (`harness/artifacts/logs/probe-*.identity.txt`).
 - **For the Stage 3 Joern runner the measurement was contemporaneous and the comparison was not, and
@@ -141,7 +172,7 @@ would misread it.
   no substitution occurred: the control ran late, the outcome is sound, and section 5 states both.
 - **The requirement that this run create that graph is unmet and unmeetable at this pin**, for the
   measured reason the blockquote states and section 5 evidences from the failing method's own
-  bytecode and from a two-heap re-verification. It is published as a divergence, carried in the run's
+  bytecode and from a **three**-heap re-verification spanning a sixteenfold range of reported heap. It is published as a divergence, carried in the run's
   divergence register in `oss-scan-results/run-record.md` §13 under the label **D1**, which the
   producer records themselves use. Nothing in this file repairs it and nothing substitutes for it:
 
@@ -157,13 +188,19 @@ would misread it.
     `spark.cpg.PARTIAL-TRUNCATED-DO-NOT-LOAD` — was recorded as evidence and **explicitly not
     accepted**; it was never linked at `harness/cpg/spark.cpg` and no stage loaded it.
     (`cpg-frontend.log` STEPS 2, 4, 5, 8 and 9.)
-  - **Why no heap clears it, established by measurement rather than by argument.**
-    `cpg-ceiling-reverify.log` re-ran the ceiling probe in this clone at **`-Xmx64g`** and at
-    **`-Xmx128g`**: both threw `java.lang.OutOfMemoryError: Required array length 2147483639 + 77 is
-    too large` with 2,147,483,639 bytes already buffered, while the JVM's reported `maxMemory` doubled
-    from 68,719,476,736 to 137,438,953,472 bytes. **The failure point did not move by one byte.** The
-    bound is on one array's length, not on the heap, and it scales with the total UTF-8 size of the
-    graph's distinct strings — that is, with the breadth of the input set.
+  - **Why no heap clears it, established by measurement rather than by argument, now at three heaps.**
+    `cpg-ceiling-reverify.log`, section *THE PROBE, AND ALL THREE ARMS VERBATIM*, re-ran the ceiling
+    probe in this clone at **`-Xmx8g`**, **`-Xmx64g`** and **`-Xmx128g`**. All three threw
+    `java.lang.OutOfMemoryError: Required array length 2147483639 + 77 is too large` with
+    **2,147,483,639** bytes already buffered, while the JVM's reported `maxMemory` spanned **a factor of
+    sixteen** across the arms — **8,589,934,592**, **68,719,476,736** and **137,438,953,472** bytes. The
+    8 GiB arm's own stdout is `maxMemory bytes = 8589934592`, `buffered bytes = 2147483639`,
+    `MESSAGE = Required array length 2147483639 + 77 is too large`. **The failure point did not move by
+    one byte across a 16× heap span.** The bound is on one array's length, not on the heap, and it scales
+    with the total UTF-8 size of the graph's distinct strings — that is, with the breadth of the input
+    set. The probe's message reads `+ 77` because the probe writes the 77 further bytes the frontend's
+    next string would have written; the frontend's own message reads `+ 72` for its own next string, and
+    the two are each their own measurement rather than a discrepancy.
   - **Why it is not repaired.** `cpg-frontend.log` STEP 10 enumerates every mitigation against the
     frontend's actual flag surface. The only lever that would work is excluding inputs
     (`--exclude`, `--exclude-regex`, dropping pre-shade / `-tests` / shims artifacts, or bounding
@@ -189,13 +226,19 @@ own **no injective witness of either kind the AAP permits**. All twelve are repo
 OBTAINABLE**, each with what was tried and why it is unobtainable. No third kind of evidence is
 admitted, and no narrower graph is presented as a substitute for the one the AAP mandates.
 
-**A third coverage statement exists, belongs to the graph on disk, and is attributed to its own
-record.** `cpg-graph-record.log` carries the coverage verdict the provisioning invocation measured over
-its own 62-JAR input set — **31 of 31 contributing modules covered, 0 missing**, 26 of them by a class
-unique to the module and 5 by a named weaker witness. That denominator is *contributing modules*, not
-*JAR-producing modules*, so it is not the same measurement as section 6's first column and is never
-totalled with it. Section 6 names it and its denominator before its own verdict table, and section 7
-adjudicates the environment record's copy of it against that verdict.
+**A figure that used to read as a third coverage statement has been withdrawn by the record that
+carried it, and is not restated here.** `cpg-graph-record.log`'s summary line once read **31 of 31
+contributing modules covered, 0 missing** over the provisioning invocation's own 62-JAR input set. That
+record now withdraws it in its own words — "THIS RECORD IS SUPERSEDED ON THIS FIGURE … That figure is
+withdrawn rather than restated" — because its own witness listing contradicted it: 26 modules with a
+class unique to that module and 5 with none, and under AAP §0.5.1's injective test a module with no
+exclusive witness is not covered. The same record now names `harness/artifacts/logs/cpg-module-coverage.json`
+as the owner of the coverage verdict and **cites** rather than remeasures it, over the same 31 modules
+present in the graph's input: **26 COVERED on injective evidence and 5 NO VERDICT OBTAINABLE**. That is
+section 6's own first-column figure at that denominator, so there is one verdict cited twice rather than
+two verdicts to keep apart, and this file states no third coverage figure. What section 7 still
+adjudicates is the *inherited environment record's* copy of the withdrawn claim
+(`harness/ENVIRONMENT.md:605`, repeated at `:323`) against section 6's verdict.
 
 ---
 
@@ -628,11 +671,21 @@ No per-project breakdown of those exclusions is stated, because no record in thi
 STEP 13 publishes the four totals above and the per-project **own-artifact** counts, and this file
 states exactly what it can cite.
 
-### Staged input set 1 — the 191 archives this run's frontend was given
+### Staged input set 1 — the 191 archives this run's frontend was given (**invocation A**)
 
 The bundled `jimple2cpg` accepts **one** input path, so "every JAR the build produced" and "one input
 path" are reconciled by staging the inventory into a single directory. Everything below is
 `cpg-frontend.log`'s record of that invocation, and the honest state of the evidence is stated with it.
+
+**Which invocation this is, named before its figures.** `cpg-frontend.log` opens with an INVOCATION
+INDEX recording that **three** distinct frontend invocations exist across this generation's lanes, over
+three different input sets, and labelling them so no figure can be read against the wrong one. The set
+below is **invocation A**, "THE MANDATED COMPLETE INPUT SET", recorded by that file's STEPS 1 to 12 in
+the `w-005` lane: 191 own artifacts, 431,184,822 bytes, `-J-Xmx128g` under JDK major 21, exit **1** in
+flatgraph serialization with no graph accepted. The other two are named where they appear and never
+here: **invocation B**, the 38-artifact per-module witness graph, in section 5's `sql/connect/shims`
+subsection, and **invocation C**, the 189-archive attempt with two archives withheld, in the halt-class
+disclosure later in this subsection. Every 191-archive figure in this subsection is invocation A's.
 
 | Property | Value | Record |
 | --- | --- | --- |
@@ -645,27 +698,43 @@ path" are reconciled by staging the inventory into a single directory. Everythin
 | Exclusion flags used | **none** — "no `--exclude`, no `--exclude-regex`, no `--depth`", `--recurse` as the AAP mandates, stdin closed | STEP 4 |
 | Invoked | 2026-08-30T23:21:24.942Z, working directory outside every repository checkout | STEPS 1 and 4 |
 
-**What is no longer measurable, stated rather than implied.** The staging tree itself was written into
-the private scratch of the clone that ran the frontend and was removed with it, so `cpg-frontend.log`
-STEP 1 records the staged-file count and the manifest-entry count as **not measurable at
-log-generation time** (`None`) rather than restating them. **This checkout contains no staging tree**:
-`harness/artifacts/` holds `MANIFEST.json`, `logs/` and `raw/` and nothing else, and no
-`harness/artifacts/cpg-input*` path is tracked. `harness/artifacts/MANIFEST.json` records the two
-staging trees rather than publishing them, under `cpg_input_records`: it names both as
+**What is measurable, where it is measurable from, and what is not — stated rather than implied.**
+**This checkout contains no staging tree**: `harness/artifacts/` holds `MANIFEST.json`, `logs/` and
+`raw/` and nothing else, and no `harness/artifacts/cpg-input*` path is tracked. But the tree itself was
+not lost with the clone that ran the frontend: `cpg-frontend.log` STEP 11 records that **"the staging
+tree of invocation A survives on disk"** in the `w-005` lane, and STEP 1 has since re-run the assertion
+against it rather than re-quoting it — **files in the staging directory 191, total bytes 431,184,822,
+members byte- and digest-identical to the asserted manifest 191 of 191, members drifted 0**, alongside
+the counts an earlier edition of this file reported as unmeasurable: inventory entries 191, staged files
+on disk 191, manifest entries 191, distinct staged names 191, distinct sha256 189, entries unmapped 0,
+files unmapped 0, digest re-verification 0 mismatches. `harness/artifacts/MANIFEST.json` still records
+the two staging trees rather than publishing them, under `cpg_input_records`: it names both as
 `not_present_in_this_checkout`, names the artifact that owns each, and — stated in its own
 `why_no_per_file_entries` — deliberately restates **no per-file number**, because a previous revision's
 per-file copies disagreed with their owners. So the record of the 191-archive set is the aggregate its
-owners state, and no tree and no per-archive entry is cited as though a reader could walk it.
+owners state plus the member-by-member assertion STEP 1 owns, and no tree in *this* checkout and no
+per-archive entry in *this* tree is cited as though a reader could walk it here.
 
-**Per-archive identity for this set is consequently not retained anywhere in the two trees, and is
-named rather than estimated.** The aggregate is established twice over — 191 archives and 431,184,822
-bytes in `build-reactor.log` STEP 13 and again in `cpg-frontend.log` STEP 1 — but no name/size/sha256
-entry for an individual member of it survives in `harness/artifacts/`: `MANIFEST.json`'s
+**Per-archive identity for this set is not persisted as an ordered manifest, and what is persisted
+instead is named rather than estimated.** The aggregate — 191 archives and 431,184,822 bytes — is
+`build-reactor.log` STEP 13's measurement, and STEP 15 of that file declares the ownership in terms this
+file honours: "no other document may restate any of the six as a second measurement". `cpg-frontend.log`
+STEP 1 cites it as the set actually supplied and, in its RE-MEASURED block, re-hashes every member of the
+surviving tree against the asserted manifest at **191 of 191 identical, 0 drifted**. What does **not**
+exist is a per-entry list, and `cpg-frontend.log` STEP 11 states that exactly: "A persisted ordered
+per-entry manifest of invocation A's 191 members is not among the files of this tree; what is persisted
+is the assertion over them, re-measured in STEP 1." The same step names the two files a reader might
+mistake for its owner — `cpg-input-inventory.json`, which inventories the 62-archive provisioned staging
+tree, and `cpg-frontend-input-manifest.json`, which carries the ordered per-entry manifest of a
+different and narrower **189**-archive input set, the withheld-input attempt labelled **invocation C**
+by that log's own INVOCATION INDEX and disclosed later in this subsection. Inside `harness/artifacts/` no
+name/size/sha256 entry for an individual member of the 191 survives either: `MANIFEST.json`'s
 `regenerated.corrections` records that the 191 per-file entries it once carried were withdrawn together
 with their **431,184,903** total, which disagreed with the owners' 431,184,822 by 81 bytes, and
 `cpg-input-inventory.json` was regenerated in this generation to describe the 62-archive set instead.
-This file therefore states the aggregate and nothing per-archive for the 191, and `run-record.md` §14
-carries the loss as a value that could not be established.
+This file therefore states the aggregate and the member-by-member assertion, nothing per-archive for the
+191, and `run-record.md` §14 carries the absent ordered manifest as a value that could not be
+established.
 
 **Why the bidirectional form of the assertion is the one that matters.** A set discards multiplicity,
 so two different multisets can share both a count and a hash set — and this input set is a live example:
@@ -678,8 +747,8 @@ so it cannot have been shaped to fit what a frontend happened to ingest.
 `cpg-frontend.log` STEP 1 prints it as `distinct sha256 189` in the assertion block beside the
 191-archive supplied set: 191 staged files carrying 189 distinct digests, a shortfall of two, which is
 what makes the multiset argument above concrete rather than hypothetical. A different 189 appears in the
-withheld-input divergence cross-referenced two paragraphs below — the **number of archives a superseded
-attempt supplied**. The two are different measurements that happen to coincide numerically, and neither
+withheld-input divergence disclosed later in this subsection — the **number of archives invocation C
+supplied**. The two are different measurements that happen to coincide numerically, and neither
 is derived from or evidence for the other.
 
 **What this establishes, and what it cannot — and it is a statement about the invocation on record,
@@ -693,11 +762,14 @@ at all about the graph that exists, because that invocation produced no graph (S
 whether a module's own code reached the graph the Joern stages load — is a different question against a
 different input set, and it is section 6's.
 
-**A superseded attempt did withhold two archives, and that is a halt-class departure registered
-elsewhere.** `harness/artifacts/logs/cpg-frontend-input-manifest.json`, written in a **w-000** clone and
-retained in the logs tree as evidence, records `full_inventory_archive_count` **191** against
-`frontend_input_archive_count` **189**, `frontend_input_bytes` **308,385,184** and
-`withheld_archive_count` **2** — its own `assertion` holding for the reduced set with
+**A superseded attempt — invocation C — did withhold two archives, and that is a halt-class departure
+registered elsewhere.** `cpg-frontend.log`'s INVOCATION INDEX labels it **C**, "A 189-ARCHIVE INPUT SET
+WITH TWO ARCHIVES WITHHELD", run in the **w-000** lane at `-J-Xmx160g` under JDK major 21, exit **0**
+after 19,482 s — it did serialize, into that lane's own checkout, and no runner or probe ever loaded
+it. `harness/artifacts/logs/cpg-frontend-input-manifest.json`, written in that **w-000** clone and
+retained in the logs tree as evidence, is the file the index names as owning C's staging figures: it
+records `full_inventory_archive_count` **191** against `frontend_input_archive_count` **189**,
+`frontend_input_bytes` **308,385,184** and `withheld_archive_count` **2** — its own `assertion` holding for the reduced set with
 `assertion_errors` empty, so the trim is declared rather than concealed. The two withheld archives, with
 the byte size, digest and stated reason the manifest itself gives:
 
@@ -714,6 +786,17 @@ get repaired. §0.5.1's answer to a vendored witness is the module-exclusive `po
 not the removal of the archive that vendored it, and section 6 uses only the two witness kinds §0.5.1
 names.
 
+**The two input totals are two measurements of two different trees, and this file states them as such
+rather than reconciling them.** `cpg-frontend.log`'s INVOCATION INDEX is explicit about how to read
+them: "191 own artifacts / 431,184,822 bytes is invocation A's input, the complete set this file's STEP
+8 records failing; 189 archives / 308,385,184 bytes is invocation C's input, two archives short of that
+inventory. Each figure is one measurement cited once, of a different thing. Neither corrects the other."
+Adding invocation C's 189 staged bytes to the two archives it withheld does **not** return invocation
+A's total, and `build-reactor.log` STEP 15 records that arithmetic without reconciling it. This file
+therefore never states the two as one figure, never sums across them, and takes no position on the
+difference: `oss-scan-results/run-record.md` §13 owns the run's divergence register and the
+adjudication.
+
 **No delivered measurement in this file rests on that attempt.** Every 191-archive figure above is
 `build-reactor.log` STEP 13's and `cpg-frontend.log` STEP 1's, both of the complete set; every graph
 count and every coverage verdict in sections 5 and 6 is measured over the **62**-archive input set of
@@ -728,18 +811,37 @@ carries the disposition and the decision a human must take.
 This is the input set every figure in sections 5 and 6 belongs to. It was measured member by member
 from the tree on disk by `harness/artifacts/logs/cpg-input-inventory.json`, which states its own
 provenance in the same file: the graph is `/opt/blitzy-harness/cpg/spark.cpg` and "**It was written by
-PROVISIONING over this staging tree, not by this run.**"
+PROVISIONING over this staging tree, not by this run.**" Every value in the table below is that
+measurement, **taken on 2026-09-01 and no longer re-provable from the tree** — the paragraph after the
+table states the limitation and its owner, and no figure here is presented as something a reader could
+re-derive from the live tree today.
 
 | Property | Value |
 | --- | --- |
 | Staging tree | `/opt/blitzy-harness/cpg-input` — host-global, provisioning's, read-only to this run |
 | Archives | **62** |
-| Total bytes | **285,122,371** |
-| Distinct sha256 | **62** — the archive-to-digest mapping is injective in both directions, so no two members are the same bytes under two names and no member is missing a digest |
+| Total bytes | **285,122,371** — as measured 2026-09-01; the live tree now totals 234,609,958 |
+| Distinct sha256 | **62** at measurement time — the archive-to-digest mapping was injective in both directions, so no two members were the same bytes under two names and no member was missing a digest. The owner marks this key `SUPERSEDED FOR THE LIVE TREE`, on which 45 distinct digests remain across the 62 names |
 | Class entries across them | **76,151** |
 | Reactor projects represented | **31** of the 38 JAR-packaging projects |
 | Reactor projects absent entirely | **7**, each named in the record with the same reason: no archive of that project is in the tree |
 | Archives marked that module's primary artifact | 32 — `common/network-yarn` has two, its main artifact and its unattached shaded shuffle JAR |
+
+**Why the table above is a write-time measurement rather than a check a reader can repeat, and who owns
+the limitation.** The staging tree is **hard links into `/opt/spark-src`**, a build tree shared with the
+host's other clones and writable through those other paths, rather than immutable copies.
+`cpg-input-inventory.json`'s own node `live_staging_tree_census_2026-09-02` records a first-hand census
+of it: the 62 names are all still there, **39 members still match the retained inventory and 23 have
+drifted**, the live total is **234,609,958** bytes against the retained **285,122,371**, and the entire
+50,512,413-byte difference falls on those 23 drifted members. **32** of the 62 still share an inode with
+a file under `/opt/spark-src/**/target/`. Every drifted member was last written on 2026-09-02, after the
+frontend that wrote the graph started on 2026-08-30T18:28:00Z, and all 39 matching members were last
+written before it. The owner states the consequence in its own words — the surviving tree "CANNOT
+RECREATE THE GRAPH AND CANNOT PROVE THE GRAPH'S INPUT BYTES" — and `cpg-graph-record.log` records the
+same limitation against the graph. So the figures above describe the input the graph was actually built
+from, and they are cited from the record that measured it rather than offered as reproducible from disk.
+Nothing in this file re-derives them, and nothing was re-staged or re-linked to make them checkable
+again: AAP §0.8.1 forbids this run from touching that tree.
 
 The 7 absent projects are `connector/kafka-0-10`, `connector/kafka-0-10-assembly`,
 `connector/kafka-0-10-sql`, `connector/kafka-0-10-token-provider`, `examples`, `sql/connect/shims` and
@@ -782,7 +884,7 @@ clone**. That is stated as the ordering defect it is, not as a pass, in the subs
 
 | Load | When the check ran | Record | Result |
 | --- | --- | --- | --- |
-| Stage 2 `importCpg` verification load | 2026-09-01T13:31:15.334Z, before the load | `cpg-verify.log:47-50`, "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY BEFORE THE LOAD" | MATCH on both fields |
+| Stage 2 `importCpg` verification load | 2026-09-01T13:31:15.334Z, before the load | `cpg-verify.log:54-57`, under the heading "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY BEFORE THE LOAD" at `:51` | MATCH on both fields |
 | Stage 3 Joern runner — recompute, contemporaneous | inside the invocation, 2026-09-01T14:25:10Z → 14:41:24Z | `harness/bin/run-joern.sh:57-58` computing `stat -c%s` and `sha256sum` over the resolved target, printed at `joern.runner-console.log:14-15` | `cpg bytes : 541309809`, `cpg sha256 : 4616845a…4730c7` |
 | Stage 3 Joern runner — comparison against the record of account, **after the fact** | 2026-09-01T14:52:54Z, `Clone index 0` (`joern-preflight.log:17-18`) — about 11.5 min after the load ended, in another clone | `joern-preflight.log:27-28` recorded pair, `:36-37` re-measured `MATCH`/`MATCH`, `:43` | **VERDICT: PASS**, but not a pre-load check for this load |
 | Stage 5 probe query 01 | 2026-09-01T14:56:12.096Z, before the load | `probe-01-callgraph-unguarded-driver-launch.identity.txt` | `bytes=541309809`, same sha256 |
@@ -867,9 +969,12 @@ one.
 
 Both metrics below are `harness/artifacts/logs/cpg-frontend.log`'s recount from the frontend's own
 preserved output stream, and both are **observed facts of this run's own invocation — the one that
-failed and produced no graph — rather than pre-approved expectations**. They describe processing of the
-complete 191-artifact set, not the graph on disk, whose own figures are the subsection above. Neither is
-treated as acceptable because a document expected some other number.
+failed and produced no graph — rather than pre-approved expectations**. That invocation is the one that
+file's INVOCATION INDEX labels **invocation A**, and the index names STEPS 6 and 7 of the same file as
+the owners of both figures, so neither belongs to invocation B's witness graph or to invocation C's
+189-archive attempt. They describe processing of the complete 191-artifact set, not the graph on disk,
+whose own figures are the subsection above. Neither is treated as acceptable because a document expected
+some other number.
 
 | Observed metric | Value |
 | --- | --- |
@@ -943,44 +1048,87 @@ measured facts bound what may be stated about it, and nothing beyond them is cla
   as NO VERDICT OBTAINABLE — an input-set fact, not a graph defect and not a build failure, since
   section 3 records the project producing its own main artifact.
 
-**No method counts are quoted for those classes, deliberately.** The only load this file cites,
-`cpg-verify.log`, queried the 26 module coverage witnesses (PHASE 2) and the four probe-surface classes
-(PHASE 3); it did not query `org.apache.spark.SparkConf`, `SparkContext`, `rdd.RDD` or
-`api.java.JavaRDD`. No record in this tree carries their counts for this graph, so none is stated here,
-and no comparison is made against a narrower graph because none was retained (STATUS).
+**Method counts for those classes are measured, and they are measured against this graph.** An earlier
+edition of this paragraph declined to state them on the ground that no record in this tree carried them.
+One does. `cpg-verify.log` alone would not settle it — it queried the 26 module coverage witnesses
+(PHASE 2) and the four probe-surface classes (PHASE 3) and none of the shims classes — but
+`harness/artifacts/logs/cpg-shims-collision-measurement.log` queried exactly those classes in the graph
+every stage of this run loaded, with the identity re-verified as **541,309,809 / `4616845a…4730c7`**
+before and after the load, under JDK major **21** at `-J-Xmx64g`, by `importCpg` only, over a load
+reporting **1,396,899** methods. Every one of the eleven carries its **real** implementation rather than
+a shims stub: `SparkConf` **298** methods, `SparkContext` **1,100**, `rdd.RDD` **1,022**,
+`api.java.JavaRDD` **74**, `sql.ExperimentalMethods` **7**, `SparkSessionExtensions` **112**,
+`execution.QueryExecution` **280**, `internal.SessionState` **76**, `internal.SharedState` **128**,
+`sources.BaseRelation` **12** and `util.ExecutionListenerManager` **116**. That is the per-class evidence
+for the bullet above rather than a new claim: both shims archives are absent from this graph's input, so
+no stub displaced anything. It is still **not** a winner map — it states what the graph contains, not
+which archive the frontend read last — and it establishes nothing about a graph that *does* contain the
+shims archives, which is what the mandated complete-input graph would have been.
+
+**A narrower graph was retained, and what it does and does not establish is stated rather than
+implied.** An earlier edition of this paragraph also said no comparison against a narrower graph was
+made because none was retained. One was: the per-module witness graph `cpg-frontend.log`'s INVOCATION
+INDEX labels **invocation B** — 38 primary artifacts, one per JAR-producing module, 130,718,491 bytes of
+input — persists at **418,777,229** bytes and was loaded first-hand under `importCpg` on 2026-09-02,
+recorded as `cpg-verify.log` **PART 2**. Its input *includes* the shims primary artifact, so its STEP P5
+holds the other side of the comparison: eleven of the twelve classes it queries at stub-sized method
+counts of 2, 4 or 8. Three limits are the records' own and are repeated rather than softened. PART 2
+states that graph is "not the mandated graph, not at `harness/cpg/spark.cpg`, loaded by no runner,
+contributing no dataset row", and that **no witness recorded in it is a coverage verdict** for the graph
+the runners read — those verdicts are section 6's. Which definition survived any one collision is no
+more measurable there than here, so still no winner map. And the two records disagree on whether that
+graph exists at all: `cpg-shims-collision-measurement.log` states the narrowed graph "does not exist in
+this generation", while `cpg-verify.log` PART 2 records loading it, and the file is on disk at the size
+PART 2 states. Both statements are carried here with their sources rather than adjudicated, because no
+figure in this file's sections 5 or 6 is taken from invocation B and the disagreement therefore moves
+nothing; `oss-scan-results/run-record.md` §13 owns the run's divergence register.
 
 ---
 
 ## 6. The per-module graph coverage verdict
 
-This file owns this verdict. It has exactly two inputs and neither is a document:
-`harness/artifacts/logs/cpg-input-inventory.json`, which computed witness exclusivity by walking the
-62 archives of the graph's input set, and `harness/artifacts/logs/cpg-verify.log` PHASE 2, which
-queried each surviving witness in the graph under the single `importCpg` load whose identity section 5
-states. `harness/artifacts/logs/cpg-module-coverage.json` is **not a third input**: it is a rendering of
-those same two files, regenerated in this generation against the graph identity section 5 states, and it
-agrees with the table below row for row — 31 modules, 26 COVERED, 5 NO VERDICT OBTAINABLE, 0 presence
-verdicts, 0 prefix verdicts. Nothing below is derived from it, and its `supersedes` field records the
-clone `w-001` edition it replaced.
+This file owns this verdict **as the document**, which is the ownership AAP §0.6.4 assigns; among the
+evidence files the owner of record is `harness/artifacts/logs/cpg-module-coverage.json`, which
+`cpg-graph-record.log:70-74` and `cpg-verify.log:258-260` both name as owning it and both cite rather
+than remeasure. Neither ownership adds a measurement. The verdict has exactly two measured inputs and
+neither is a document: `harness/artifacts/logs/cpg-input-inventory.json`, which computed witness
+exclusivity by walking the 62 archives of the graph's input set, and
+`harness/artifacts/logs/cpg-verify.log` PHASE 2, which queried each surviving witness in the graph
+under the single `importCpg` load whose identity section 5 states. `cpg-module-coverage.json` is
+**not a third input**: it is a rendering of those same two files, regenerated in this generation
+against the graph identity section 5 states, and it agrees with the tables below at both denominators —
+31 modules in the graph's input with 26 COVERED and 5 NO VERDICT OBTAINABLE, and 38 JAR-packaging
+reactor projects with 26 covered and 12 without a covered verdict split 5 and 7, under its own
+`count_check` of `5 + 7 = 12; 12 + 26 = 38` — with 0 presence verdicts and 0 prefix verdicts either
+way. So every figure below is one of the two measurements read once and cited by both this section and
+that file, never taken twice; and that file's `supersedes` field records the clone `w-001` edition it
+replaced.
 
 **Which graph generation the first verdict column measures, stated before the table rather than after
 it.** It is the one graph this run loaded and the one identity section 5 states: **541,309,809 bytes,
 sha256 `4616845a…4730c7`**. `cpg-verify.log` records a **single** `importCpg` load, performed by this
-generation in clone 13 (`cpg-verify.log:27-28`), against exactly those bytes — its SUBJECT block states
-them at `:33-34` and its pre-load identity check re-measures them at `:47-50`. Every "graph result" and
+generation in clone 13 (`cpg-verify.log:34-35`), against exactly those bytes — its SUBJECT block states
+them at `:40-41` and its pre-load identity check re-measures them at `:54-57`. Every "graph result" and
 every verdict in the first column below, and the type-declaration cross-reference at the end of this
-section, are that load's PHASE 2 measurements (`cpg-verify.log:105-228`) of those bytes. No verdict here
+section, are that load's PHASE 2 measurements (`cpg-verify.log:124-266`) of those bytes. No verdict here
 is a measurement of the superseded **541,255,894 / `26d327cc…`** generation: that pair is the inherited
 environment record's (`harness/ENVIRONMENT.md:284-288`), it is stated in section 5's and section 7's
-contradiction tables as the contradiction, and `cpg-verify.log` names it only at its own `:76-80`, and
+contradiction tables as the contradiction, and `cpg-verify.log` names it only at its own `:84-88`, and
 only to identify the record the filesystem contradicts.
 
-A **third** coverage statement exists and belongs to a different denominator: `cpg-graph-record.log:48`
-records the provisioning invocation's own verdict over its 62-JAR input set as **31 of 31 contributing
-modules covered, 0 missing**. It is stated in full in this file's STATUS block, and section 7's
-authority-rule subsection adjudicates the environment record's copy of it against the verdict below.
-*Contributing modules* is not *JAR-producing modules*, so it is never totalled with this section's first
-column and neither is substituted for the other.
+A figure that once read as a **third** coverage statement at a different denominator is **withdrawn by
+its own record**, so no third verdict is stated below. `cpg-graph-record.log:65-69` withdraws the summary
+line that read **31 of 31 contributing modules covered, 0 missing** — "THIS RECORD IS SUPERSEDED ON THIS
+FIGURE … That figure is withdrawn rather than restated" — on the ground that the record's own witness
+listing shows 26 modules with an exclusive class and 5 with none, and a module with no exclusive witness
+is not covered under the test above. `cpg-graph-record.log:70-74` then names
+`harness/artifacts/logs/cpg-module-coverage.json` as the owner of the coverage verdict, established by
+the load `cpg-verify.log` PHASE 2 records, and **cites** its **26 COVERED on injective evidence and 5 NO
+VERDICT OBTAINABLE** over the 31 modules present in the graph's input rather than remeasuring it. Those
+are this section's own first-column figures at that denominator — one measurement cited twice — and they
+are still never totalled with the 38-project column. This file's STATUS block states the withdrawal, and
+section 7's authority-rule subsection adjudicates the inherited environment record's copy of the
+withdrawn claim against the verdict below.
 
 ### The two questions, kept apart
 
@@ -1129,6 +1277,90 @@ narrower graph — section 4's second input account and STATUS record why no suc
 The two reasons behind the 12 are different and stay separate: 5 are a property of a *complete-enough*
 input set, where fat artifacts vendor everything smaller modules ship, and 7 are a property of this
 input set being *narrower than the build*, which is the coverage cost of the unmet all-JAR requirement.
+This 38-project view of the verdict is the owner's own:
+`harness/artifacts/logs/cpg-module-coverage.json` carries it under
+`aap_0_5_1_coverage_of_all_38_jar_producing_projects`, with `obtainable_from_this_graph` **false**, the
+same 26 and 12 and the same 5-and-7 split, each of the twelve named individually with its reason class,
+and the arithmetic asserted in its `count_check` — `5 + 7 = 12; 12 + 26 = 38`. The table above is that
+one verdict at that one denominator, not a second count of it. The same file states the attribution in
+terms this section reaches independently from `build-reactor.log` STEP 13: the shortfall "is a
+consequence of the GRAPH'S PROVENANCE, not of the build", and "not one of the twelve is missing because
+its project failed to build".
+
+### The same test over the input set the plan requires — a second measurement, never merged with the first
+
+Everything above is measured over the **62** archives the graph that loads was built from. That
+leaves one question the record could not previously answer: **would a graph over every JAR the
+build produced be verdictable module by module?** It is worth answering separately because the
+answer is not "yes, once D1 is cleared" — the witness rule's shortfall is only partly caused by the
+narrowed input.
+
+Measured on **2026-09-02**, first-hand from the pinned tree, over all **191** project outputs — the
+set section 4 accounts for, reconciled here independently as **627** JARs enumerated, **191** the
+projects' own, **422** copied runtime dependencies, **14** test-resource fixtures and **0**
+undecided, with the arithmetic checked — under the same AAP §0.5.1 test and the same two admissible
+witness kinds:
+
+| Outcome, over the 191-archive set | Count |
+| --- | --- |
+| **JAR-producing modules under the test** | **38** |
+| Witness kind (a): a class exclusive to the module's primary artifact | **29** |
+| Witness kind (b): the module-exclusive `META-INF/maven/**/pom.properties` node — `sql/connect/shims` | **1** |
+| **Modules with an accepted witness** | **30** |
+| **NO VERDICT OBTAINABLE** — neither witness kind exists | **8** |
+| — because the module has no archive in the set | 0 |
+| Verdicts resting on presence, or on a shared prefix | **0** |
+| Witness kinds admitted beyond the two AAP §0.5.1 names | **0** |
+
+The eight, each with the archive that vendors both its classes and its descriptor, and the count of
+the module's own primary classes that archive carries:
+
+| Module | Primary classes | Also carried by | of those |
+| --- | --- | --- | --- |
+| `common/network-common` | 2,170 | the `network-yarn` shuffle uber-JAR | 2,170 |
+| `common/network-shuffle` | 92 | the same | 92 |
+| `common/utils-java` | 40 | the same | 40 |
+| `common/tags` | 12 | `connector/kafka-0-10-assembly`'s main JAR | 12 |
+| `connector/kafka-0-10` | 47 | the same | 47 |
+| `connector/kafka-0-10-token-provider` | 17 | the same | 17 |
+| `sql/api` | 1,203 | `spark-connect-client-jvm` | 1,203 |
+| `sql/connect/common` | 1,879 | `spark-connect` (server) | 1,879 |
+
+**What that means, stated as the measurement and not as a softening of it.** Even a graph built
+over every JAR the reactor produced — the graph AAP §0.1.1 requires and **D1** records as
+unobtainable — could be verdicted for at most **30 of the 38** modules under the two witness kinds
+the plan admits. The shortfall for these eight is a property of the **rule against Spark's shaded
+artifacts**, not of the narrowed input: a fat artifact that vendors a module whole vendors its
+Maven descriptor with it, so both admissible witnesses disappear together. It is **reported, not
+repaired**: no presence-for-exclusivity substitution, no shared package prefix, and no shaded
+archive dropped from the comparison to manufacture uniqueness — each of those three would let one
+archive vouch for a module whose own artifact might be absent, which is exactly what injectivity
+exists to prevent. AAP §0.9.4's required outcome for a value that cannot be established is to name
+it, and the eight are named here and in `run-record.md` §14.
+
+**The two measurements differ in both directions, which is why they are two.** `common/tags` has an
+exclusive class over the 62-archive set and **none** over the 191, because `kafka-0-10-assembly` —
+absent from the graph's input, present in the build — vendors all twelve of its classes.
+`sql/connect/shims` has no archive at all in the 62 and gains its descriptor fallback in the 191.
+Six modules differ in witness kind between the sets. Neither measurement is a correction of the
+other and no total is taken across them: the 62-archive verdict is the coverage **this graph**
+supports, and the 191-archive verdict is the coverage the **rule** can support at this pin.
+
+**Provenance of this measurement.** `harness/artifacts/logs/reverification-f4-module-witness-full-input-set.json`
+carries the per-module rows for both sets, each with primary artifact, primary and exclusive class
+counts, witness kind and name, exclusive descriptor nodes, verdict, and every vendoring archive with
+the count of the module's classes it carries;
+`harness/artifacts/logs/reverification-f4-module-witness-full-input-set.log` carries the human-readable
+record with the commands, the inventory reconciliation and the verdict. Both were written by a
+measurement pass that loaded **no** graph — the archive analysis is `zipfile` over the 110
+bytecode-carrying archives of the 191, and every graph-side figure in this section remains the
+`cpg-verify.log` load's. Two figures in that pass disagree with section 4's cited totals and both
+values are published there rather than reconciled: own-artifact bytes **434,306,178** observed
+against **431,184,822** cited, and class entries **101,752** against **99,723** — the pinned tree's
+`target/` trees having been rebuilt after the lane that staged them, with 11 of 37 `original-`/main
+pre-shade pairs now class-identical. Class exclusivity is a question about class names rather than
+bytes, and the 62-archive measurement reproduces the existing verdict module for module, which is
+the cross-check that bears on it.
 
 ### Cross-reference against the counts the verification load reports
 
@@ -1308,7 +1540,8 @@ Each of these is a recorded difference under AAP §0.9.3, with both values on th
   input set, plus 14 test-resource fixtures, out of 627 JARs enumerated.
 - **The observed overwrite and AST-creation-failure counts** — **33,784** warnings over **27,843**
   distinct entry paths and **23** failures over 23 distinct classes, measured over this run's own
-  complete 191-artifact input set, split by entry kind, attributed by contributing module under the
+  complete 191-artifact input set — **invocation A** by `cpg-frontend.log`'s INVOCATION INDEX — split by
+  entry kind, attributed by contributing module under the
   log's own overlap caveat, with the **403** nested-archive entries recorded as such, the provenance
   limitation stated and no winner map presented. The provisioned record's own frontend figures over its
   62-archive input (31,598 / 26,221 / 173) are recorded beside them in section 5 as a different
@@ -1352,7 +1585,14 @@ taint on and zero with it off, from two invocations differing only in that setti
 ### The mandated pair, arm by arm
 
 Both arms ran the same pinned rule from the same pinned ruleset against the same subject file, with
-taint as the **sole** difference. Per-arm figures are each arm's own log and its own SARIF.
+taint as the **sole** difference. Per-arm figures are each arm's own log and its own SARIF. **Every arm
+in this section — the mandated pair, the whole-ruleset pair, the two controls and the separate
+`HiveShim.scala` pair — was run at scan root `/opt/spark-src` with `cwd` there, against observed
+`HEAD` `59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d` equal to the expected pin, in this checkout under run
+id `w022-20260902T144244Z`**, each arm's log stating its own root and observed HEAD. So no figure below
+is inherited: all of them are this run's own measurement at the pinned root, and each arm's log records
+that the copy retained before its rewrite had measured a *different* root and that none of those earlier
+figures was carried over.
 
 | Property | Value |
 | --- | --- |
@@ -1403,6 +1643,21 @@ the only taint options are `--taint-intrafile` and `--guarded-taint-signatures` 
 family requires the proprietary engine, which is unlicensed and deliberately unused (AAP §0.3.2). So
 "taint off" here means *intraprocedural taint*, not *no taint*.
 
+**The option surface behind that statement, with the two figures it involves kept apart.** APPENDIX C
+of `harness/artifacts/logs/taint-ab-off.log` carries the measurement verbatim, and it publishes two
+different numbers that a reader must not merge. `opengrep scan --help | grep -c "^ \+--"` returns
+**107** at either terminal width — the appendix records that this run re-measured it and **corrected the
+figure this evidence set previously published, 106, to 107**, "which is what the command actually
+prints", noting that 101 of the 107 matched lines are option declarations and 6 are wrapped description
+continuations. The engine's **true long-option surface is 110**, because 9 options are declared with a
+short alias first and can never match that pattern. Against either denominator the taint result is the
+same and is what this subsection rests on: exactly **two** options have a name mentioning taint, and
+the appendix shows them as the engine's own `grep -n` over its help text returned them —
+`192:       --guarded-taint-signatures` and `445:       --taint-intrafile`. A case-insensitive search of
+the whole 558-line help text for "taint" matches nothing but those two names and their own descriptions,
+and **neither disables taint analysis**. There is no `--no-taint`,
+`--disable-taint` or `--taint-off` at this version.
+
 Both facts explain the observation. **Neither converts it into a pass**, and neither was used to. The
 expectation anchored to the mandated file remains unmet.
 
@@ -1417,11 +1672,16 @@ Measured from `harness/artifacts/logs/taint-ab-hiveshim-on.log` with
 `harness/artifacts/logs/taint-ab-hiveshim-on.sarif`, and from
 `harness/artifacts/logs/taint-ab-hiveshim-off.log` with
 `harness/artifacts/logs/taint-ab-hiveshim-off.sarif`. **A naming caveat that a later reader will
-otherwise trip over:** those two logs record their output path under the **pre-rename** names
-`taint-ab-on.sarif` and `taint-ab-off.sarif`. The files were renamed to their subject-bearing names
-afterwards, the digests above are the digests of the renamed files on disk, and no `taint-ab-on.sarif`
-or `taint-ab-off.sarif` exists on disk — so the log's own output-path field is stale where its digest
-is not.
+otherwise trip over, restated because the files it described have changed:** an earlier edition of this
+paragraph reported that these two logs recorded their output under the **pre-rename** names
+`taint-ab-on.sarif` and `taint-ab-off.sarif`, and that neither of those files existed. Both halves are
+now false and are withdrawn. Each `HiveShim.scala` log records its own subject-bearing output path —
+`harness/artifacts/logs/taint-ab-hiveshim-on.sarif` and `…-off.sarif` — in its `sarif` field and in its
+verbatim command, and the digests above are those files'. And `harness/artifacts/logs/taint-ab-on.sarif`
+and `harness/artifacts/logs/taint-ab-off.sarif` **do** exist: they are the mandated-subject arms' own
+outputs, 4,753 bytes each and both `7949617b…845778`, the same pair the anchor-named files carry, which
+is what `taint-ab-hiveshim-on.log` means when it says this pair "stands BESIDE the mandated pair's unmet
+anchor (taint-ab-on.log / taint-ab-off.log), never in place of it".
 
 **This pair does not satisfy the AAP requirement and is not offered as satisfying it.** It is a
 discriminating result — 2 against 0 from one flag — on a file the AAP does not name, and the AAP names
@@ -1433,8 +1693,25 @@ the mandated pair's verdict above stands unchanged.
 
 | Control | Rule change | Observed | What it excludes |
 | --- | --- | --- | --- |
-| Search-mode | the same patterns with `mode: taint` **removed**, the rule preserved verbatim at `harness/artifacts/logs/taint-ab-off-control-rule.txt` | **2** findings, `DiskStore.scala` lines **72** and **215**, **no** `codeFlows` on either — `harness/artifacts/logs/taint-ab-search-control.sarif`, 4,424 bytes, sha256 `272a530fea4ef95417cd539b5964a70f6805e5def72ab58264cf73dbbbdb8ceb` | that the taint rule's line-72 result is merely a pattern match: the pattern alone matches a **second** site the taint rule never reports |
-| Source-removed | `mode: taint` kept, `pattern-sources` replaced with an unmatchable marker, the rule preserved verbatim at `harness/artifacts/logs/taint-ab-source-removed-control-rule.txt` | **0** findings — `harness/artifacts/logs/taint-ab-source-removed-control.sarif`, 2,347 bytes, sha256 `e98c1e1fb37c66cbf7dac92838485314b57a4561a41a6d15d9043eebbaac745f` | that the line-72 result is source-independent: remove the source and it disappears, so it is genuinely source-driven |
+| Search-mode | the same patterns with `mode: taint` **removed**, the rule preserved verbatim at `harness/artifacts/logs/taint-ab-off-control-rule.txt` | **2** findings, `DiskStore.scala` lines **72** and **215**, **no** `codeFlows` on either — `harness/artifacts/logs/taint-ab-search-control.sarif`, **4,589** bytes, sha256 `4dc4aec5f35425f7ff47712baa55a02bcd1f034627d23b0d6f38ba209213b116` | that the taint rule's line-72 result is merely a pattern match: the pattern alone matches a **second** site the taint rule never reports |
+| Source-removed | `mode: taint` kept, `pattern-sources` replaced with an unmatchable marker, the rule preserved verbatim at `harness/artifacts/logs/taint-ab-source-removed-control-rule.txt` | **0** findings — `harness/artifacts/logs/taint-ab-source-removed-control.sarif`, **2,455** bytes, sha256 `9c54e593e7a9dda361ef2de373bcdb17f0ed4c219c8f18057cf12ca2b1469172` | that the line-72 result is source-independent: remove the source and it disappears, so it is genuinely source-driven |
+
+**Why both control digests moved while both controls' findings did not, disclosed because a changed
+digest beside an unchanged result otherwise reads as tampering.** Both controls were re-run by this run
+at the pinned root, from `cd /opt/spark-src`, with the retained control-rule file itself passed as
+`--config`, so the rule text published here is the exact text the engine read. Opengrep derives the
+SARIF `ruleId` from the path of the directory that `--config` file sits in, and that directory is now
+this checkout's `harness/artifacts/logs/` rather than the scratch directory of the clone the previously
+retained copies came from — the search-mode control's results carry
+`tmp.blitzy.blitzy-spark.blitzy-…-w-022_77c1e7.harness.artifacts.logs.tainted-sql-string` — so the
+embedded identifier and therefore the bytes of the report change even though nothing about the analysis
+does. `taint-ab-off.log` APPENDIX E states that cause in the same terms and gives the two control rule
+files' own identities, 1,982 bytes / `a1039db8…` and 2,498 bytes / `a8bc7f99…`, each verified to
+reproduce the retained rule bytes exactly. The findings are what the controls are for and they are
+unchanged: **2** results at `DiskStore.scala` lines **72** and **215** with `codeFlows` absent on both,
+and **0** results respectively, under driver `Opengrep OSS 1.27.1` in both files. Both byte sizes and
+both digests above were re-measured from the files on disk with `stat -c%s` and `sha256sum`, and both
+result sets were re-parsed from the same files, at the time this section was written.
 
 Both controls are on the mandated file and neither is offered as an A/B arm. `oss-scan-results/run-record.md`
 §7.4 owns the run-level statement of both, and carries in addition an **inherited and unanchored**
@@ -1479,20 +1756,29 @@ neither is substituted for by anything here and nothing here softens either.
 
 ## Self-check against this file's validation contract
 
-1. **Every figure names a producer record, and that record is one of the twelve listed at the top.**
+1. **Every figure names a producer record, and that record is one of the seventeen listed at the top.**
    PASS — section 1 cites `maven-preflight.log`; sections 2 and 3 cite `build-reactor.log` by step
    (STEPS 3, 4, 6 to 15), and `harness/ENVIRONMENT.md:205-272` only to say where the expected-values
    table's 32 producers came from; section 4 cites `build-reactor.log` STEP 13, `cpg-frontend.log`
-   STEPS 1 and 4, `harness/artifacts/MANIFEST.json` and `cpg-input-inventory.json`; section 5 cites
-   `cpg-identity.txt`, `cpg-verify.log`, `joern-preflight.log`, `joern.runner-console.log`, the three
-   `probe-*.identity.txt` files, `cpg-frontend.log` STEPS 6, 7 and 11, `cpg-ceiling-reverify.log` and
-   `gate-record.json`; section 6 cites `cpg-input-inventory.json` and `cpg-verify.log` PHASES 1 and 2;
-   section 7 cites `joern.runner-console.log`, `runner-sequence.json`, `joern.status` for what it does
-   **not** carry, and `harness/ENVIRONMENT.md` as the contradicted record. Checked mechanically as well as
-   by reading: every multi-digit figure in this file was extracted and matched against those records,
-   with none unmatched, and every `pom.xml`/`build/mvn`/module-pom line citation was resolved in the
-   pinned tree. The absence of any `build-<module-path>.log` is itself recorded, and
-   `cpg-module-coverage.json` is named as superseded with nothing taken from it.
+   STEPS 1, 4 and 11, `harness/artifacts/MANIFEST.json`, `cpg-input-inventory.json` and
+   `cpg-graph-record.log`; section 5 cites `cpg-identity.txt`, `cpg-verify.log` including its PART 2,
+   `joern-preflight.log`, `joern.runner-console.log`, the three `probe-*.identity.txt` files,
+   `cpg-frontend.log` STEPS 6, 7 and 11 and its INVOCATION INDEX, `cpg-ceiling-reverify.log`,
+   `cpg-shims-collision-measurement.log` and `gate-record.json`; section 6 cites
+   `cpg-input-inventory.json`, `cpg-verify.log` PHASES 1 and 2, for its second measurement
+   `reverification-f4-module-witness-full-input-set.json` with its `.log`, and `cpg-graph-record.log:65-74` for the
+   withdrawal of its former summary coverage figure and for the owner it now names, and
+   `cpg-module-coverage.json` as that owner for the same verdict at its 38-project denominator; section 7 cites
+   `joern.runner-console.log`, `runner-sequence.json`, `joern.status` for what it does **not** carry, and
+   `harness/ENVIRONMENT.md` as the contradicted record. Checked mechanically as well as by reading: every
+   multi-digit figure in this file was extracted and matched against those records, with none unmatched,
+   and every `pom.xml`/`build/mvn`/module-pom line citation was resolved in the pinned tree. The absence
+   of any `build-<module-path>.log` is itself recorded, and `cpg-module-coverage.json` is named for what
+   it is — the owner of record of the coverage verdict, which `cpg-graph-record.log:70-74` and
+   `cpg-verify.log:258-260` both name as owning it and both cite rather than remeasure, and which is
+   itself a rendering of the two measurements section 6 reads rather than a second measurement of them —
+   with its own `supersedes` field naming the `w-001` edition it replaced and nothing taken from that
+   edition.
 2. **All 40 projects appear exactly once; the two `pom`-packaging projects are marked expected; all 38
    JAR producers are accounted for.** PASS — the section 3 table has 40 numbered rows, the root parent
    and `assembly` are marked *produced none — EXPECTED, `packaging=pom`*, and the remaining 38 each
@@ -1505,19 +1791,31 @@ neither is substituted for by anything here and nothing here softens either.
    named individually with what was tried. **0** verdicts rest on presence of a class another module
    ships, **0** on a package prefix, and **0** additional witness kinds are admitted. No second verdict
    column exists, and no narrowed or witness graph is presented as a substitute for the mandated one.
+   The **second measurement** added on 2026-09-02 applies the same two witness kinds to the
+   **191**-archive set the plan requires and is kept separate from the first rather than merged with
+   it: **30** modules with an accepted witness, **8** with neither, every one of the eight named with
+   the archive that vendors both its classes and its descriptor, and the same three zeros. Its producer
+   records — `reverification-f4-module-witness-full-input-set.json` and its `.log` — are named where it
+   is stated, it loaded no graph, and the two figures in it that disagree with section 4's cited totals
+   are published with both values rather than reconciled.
 4. **The staged input sets are described accurately, and the assertion is described as recorded before
    the frontend ran.** PASS — section 4 keeps the two apart. For the 191-archive set this run's frontend
    was given it reports `cpg-frontend.log` STEP 1's own values, including `assertion result True` taken
    before the invocation, the 191-versus-189-distinct-digest multiset argument for why a bidirectional
-   mapping is the only sufficient form, and — stated rather than implied — that STEP 1 records the
-   staged-file and manifest-entry counts as not measurable at log-generation time and that no staging
-   tree exists in this checkout. For the 62-archive set the graph was built over it reports
-   `cpg-input-inventory.json`'s member-by-member measurement.
+   mapping is the only sufficient form, and — stated rather than implied — that STEP 1 has since re-run
+   that assertion first-hand against the surviving tree at 191 of 191 identical and 0 drifted, that no
+   staging tree exists in **this** checkout, and that no persisted ordered per-entry manifest of those
+   191 members exists in this tree at all (STEP 11). For the 62-archive set the graph was built over it
+   reports `cpg-input-inventory.json`'s member-by-member measurement, and states with it that the
+   measurement is no longer re-provable from the live tree, on that file's own census.
 5. **No winner map is claimed anywhere; the provenance limitation is stated.** PASS — section 5 states
    the limitation in terms, quotes `cpg-frontend.log` STEP 6's own caveat that module attribution
    overlaps by construction, and publishes no destination-package or containment grouping at all. The
    `sql/connect/shims` collision is reported to exactly the depth the records support: 361 warnings
-   attributed to that module, and both its archives absent from the graph that loads.
+   attributed to that module, both its archives absent from the graph that loads, and — from
+   `cpg-shims-collision-measurement.log`, measured against that graph rather than inferred — the eleven
+   stub classes carrying their real implementations there. None of that names a surviving archive for any
+   one collision, which remains unmeasurable.
 6. **No sentence compares one tool against another or judges any finding.** PASS — no scanner's output
    and no finding of any kind appears anywhere in this file; the only tools named are the Maven wrapper,
    the Joern bytecode frontend and the `importCpg` load, each as a step in the build-and-graph pipeline
@@ -1530,8 +1828,12 @@ neither is substituted for by anything here and nothing here softens either.
    is recorded with its evidence rather than deferred or softened.** PASS — the STATUS block states the
    all-JAR requirement **UNMET, ATTEMPTED AND BLOCKED** before any count appears, with the 8 h 01 m
    invocation over the complete input set, the commit proof at the heap used, the bytecode-level
-   diagnosis of the fixed array-length bound, the two-heap re-verification, the refused partial write
-   with its size and digest, and the six mitigations examined against the frontend's own flag surface.
+   diagnosis of the fixed array-length bound, the three-heap re-verification across a 16× reported-heap
+   span, the refused partial write with its size and digest, and the six mitigations examined against the
+   frontend's own flag surface.
+   The 2026-09-02 pass's re-measurement of that same bound in this clone — 8, 64 and 128 GiB,
+   identical buffered byte count and identical message — is cited in the STATUS block with its own
+   producer records rather than folded into the earlier figure.
 9. **One graph identity, stated wherever the graph is cited, with its provenance and its
    re-verification.** PASS — one pair, 541,309,809 bytes and sha256 `4616845a…4730c7`, with
    `cpg-identity.txt` named as the record of account and `record_of_account()` named as how it was

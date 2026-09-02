@@ -1,4 +1,65 @@
 {
+ "which_invocation_this_manifest_describes": {
+  "invocation_label": "C",
+  "label_defined_in": "harness/artifacts/logs/cpg-frontend.log, section INVOCATION INDEX",
+  "one_line": "This file is the ordered staging manifest of ONE frontend invocation - the 189-archive invocation C run in clone lane w-000 - and of no other. Its 189 / 308,385,184 figures are that invocation's input. They neither restate nor correct the 191 / 431,184,822 input of the mandated complete-set invocation A, whose persistence failure is recorded in cpg-frontend.log STEP 8.",
+  "invocation_c": {
+   "clone_lane": "w-000",
+   "input_directory": "harness/artifacts/cpg-frontend-input-189 in the w-000 checkout (frontend_input_directory_absolute below)",
+   "archives_supplied": 189,
+   "bytes_supplied": 308385184,
+   "withheld_from_the_full_inventory": 2,
+   "full_inventory_it_was_drawn_from": 191,
+   "heap": "-J-Xmx160g",
+   "frontend_exit_code": 0,
+   "elapsed_seconds": 19482,
+   "graph_written_bytes": 791927027,
+   "graph_written_to": "harness/artifacts/cpg/spark.cpg in the w-000 checkout - NOT the sanctioned path harness/cpg/spark.cpg, and loaded by no runner and by no probe in this run",
+   "overwrite_warnings": 28714,
+   "distinct_overwritten_paths": 23168,
+   "ast_creation_failures": 487,
+   "error_level_lines": 0,
+   "extraction_temp_dir_marker": "jimple2cpg-1224669325458780856",
+   "sibling_evidence_from_this_same_invocation": [
+    {
+     "file": "harness/artifacts/logs/cpg-frontend-verbatim.log",
+     "what_it_is": "this invocation's verbatim console, 39,428 lines",
+     "provenance_check": "byte-identical to w-000 scratch g1/frontend189.console, both sha256 6396eda9fdd55f7b6c84a3233eca708adf5bc8b01f6d90b9d276124357a9dd38"
+    },
+    {
+     "file": "harness/artifacts/logs/cpg-ast-failed-classes.txt",
+     "what_it_is": "this invocation's 487 AST-creation failures, one per line, every line carrying the temp-dir marker above",
+     "provenance_check": "byte-identical to w-000 scratch g1/ast-failed-classes-189.txt, both sha256 2592123f2c85d099defc5d5fc90587f80643d9bad0c1702925d7d2105f9e66d0"
+    }
+   ]
+  },
+  "invocation_a_for_contrast_not_described_here": {
+   "clone_lane": "w-005",
+   "archives_supplied": 191,
+   "bytes_supplied": 431184822,
+   "withheld": 0,
+   "heap": "-J-Xmx128g",
+   "frontend_exit_code": 1,
+   "outcome": "ran to completion and died in persistence at flatgraph's single-array string-pool bound; wrote no accepted graph",
+   "owner_of_its_figures": "harness/artifacts/logs/cpg-frontend.log STEPS 1 to 12"
+  },
+  "why_invocation_c_does_not_satisfy_the_aap_requirement_either": "AAP 0.5.1 requires the graph built over EVERY JAR the reactor produced, and AAP 0.3.2 forbids excluding any archive from the input. Invocation C withheld two archives, so its graph is not an all-JAR graph. The two withholding reasons recorded under 'withheld' below are witness-preservation reasons measured at the time; they are recorded as what was done, not as a licence to trim the mandated input. Nothing in this file may be read as this run's AAP-compliant all-JAR output.",
+  "relation_to_the_graph_the_runners_loaded": "None. The graph at the sanctioned path harness/cpg/spark.cpg is 541,309,809 bytes, sha256 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7, written by PROVISIONING over a 62-archive tree, as recorded in harness/artifacts/logs/cpg-identity.txt and cpg-verify.log PROVENANCE. No invocation described in this file wrote it, and no archive listed in this file entered it.",
+  "re_measured_first_hand": {
+   "measured_at_utc": "2026-09-02T15:03:00Z",
+   "measured_by": "the citation-reconciliation pass in clone lane w-022",
+   "staging_directory_re_read": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/cpg-frontend-input-189",
+   "files_on_disk": 189,
+   "manifest_entries": 189,
+   "name_sets_equal": true,
+   "members_byte_and_digest_identical": 189,
+   "members_drifted": 0,
+   "total_bytes_on_disk": 308385184,
+   "total_bytes_in_manifest": 308385184,
+   "distinct_sha256": 187,
+   "note": "distinct_sha256 is 187 over 189 entries because two pairs of staged members are the same bytes under two names, both pairs in connector/kafka-0-10-assembly: its 'original-' pre-shade artifact equals its '-tests' artifact byte for byte, and its '-sources' equals its '-test-sources'. Both members of each pair are present and were supplied, so no entry was dropped; the digest count is 187 because the bytes repeat."
+  }
+ },
  "frontend_input_directory_absolute": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/cpg-frontend-input-189",
  "full_inventory_directory_absolute": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/cpg-input",
  "full_inventory_archive_count": 191,

@@ -115,6 +115,21 @@ The two roots are not interchangeable, and neither is a convenience:
   documents this module authors for the behaviours the committed fixtures do not reach.  Its
   referenced paths are materialised so the root is a real tree rather than a bare string.
 
+What an expected file *records* about its fixture is measured too
+----------------------------------------------------------------
+Each expectation states its fixture's path, sha256, byte count and line count, and those
+are claims a reader takes on trust when reasoning about provenance.
+:class:`RecordedFixtureMetadataTest` measures every one of them against the file on disk,
+over every pair this module reads, together with the serialization the corpus is written
+in: LF only, and every leading-space run a whole multiple of the file's own indentation
+width.  It exists because ``bytes`` and ``lines`` were previously asserted for exactly one
+of the nine pairs, which is how ``expected/dependency-check.rows.json`` came to record 414
+lines for a 415-line file -- a number measured under the newline convention rather than
+this corpus's.  ``fixture.lines`` is the **logical** line count throughout,
+``len(text.splitlines())``, stated as :data:`RECORDED_LINE_COUNT_CONVENTION`; both captures
+here end without a trailing newline, so the two readings are genuinely different numbers
+and a corpus measured both ways cannot be checked at all.
+
 Derived documents, and why they exist
 -------------------------------------
 Three behaviours the AAP requires asserted are not reached by any committed fixture, and
@@ -258,6 +273,28 @@ ADAPTER_TESTS_DIR = Path(__file__).resolve().parent
 FIXTURES_DIR = ADAPTER_TESTS_DIR / "fixtures"
 EXPECTED_DIR = ADAPTER_TESTS_DIR / "expected"
 
+#: ``fixtures/`` as an expected file records it: repository-root-relative and POSIX.
+#: Derived from the directory rather than spelled out, so a moved corpus fails on the
+#: recorded path it no longer matches instead of on a literal kept in step by hand.
+FIXTURES_RELPATH = FIXTURES_DIR.relative_to(REPO_ROOT).as_posix()
+
+#: The ONE line-count convention every ``fixture.lines`` in this corpus is measured under,
+#: stated where a reader meets the number rather than left to inference.
+#:
+#: ``len(text.splitlines())`` counts a final line that carries no trailing newline, so it is
+#: one greater than the newline count for a file that does not end in one and equal to it for
+#: a file that does.  Both of this module's captures are files with no trailing newline --
+#: ``fixtures/dependency-check.json`` is 415 logical lines over 414 newlines -- so the two
+#: readings genuinely differ here, and this one is the corpus's: it is what the other
+#: adapters' expected files already record and what "108 lines" means for the Trivy capture.
+#: A corpus whose numbers are measured two ways cannot be checked at all, which is why
+#: :class:`RecordedFixtureMetadataTest` asserts this one and every expected file that states
+#: its convention states this exact sentence.
+RECORDED_LINE_COUNT_CONVENTION = (
+    "logical lines: len(text.splitlines()), which counts a final line that carries no "
+    "trailing newline"
+)
+
 #: The canonical tool identifier, hyphenated -- the literal every row's ``tool`` field
 #: carries and the key of this tool's entry in ``runner-metadata.json``.  Written here as an
 #: independent restatement and asserted against ``dependency_check.TOOL``.
@@ -393,6 +430,16 @@ METADATA_VARIANT_FIXTURES = ("reject-dependency-check-unresolvable-path",)
 #: only by assertions about the *files* -- presence, digest, parseability -- never by one that
 #: adapts a document under an assumed base.
 EVERY_COMMITTED_FIXTURE = ALL_FIXTURES + METADATA_VARIANT_FIXTURES
+
+#: Every fixture/expectation pair this module reads, including the captured positive one
+#: :data:`ALL_FIXTURES` deliberately leaves out because its rows are stated against a root
+#: derived from the document itself.  This is the inventory
+#: :class:`RecordedFixtureMetadataTest` audits, and it is asserted equal to
+#: :data:`FIXTURE_SHA256`'s key set so the two cannot drift apart: a fixture with a recorded
+#: digest but no metadata audit, or the reverse, is a gap rather than a choice.
+EVERY_FIXTURE_WITH_RECORDED_METADATA = EVERY_COMMITTED_FIXTURE + (
+    CAPTURED_VULNERABILITY_FIXTURE,
+)
 
 #: The raw artifact the captured fixture is a copy of.  Read directly by
 #: :class:`RawArtifactProvenanceTest`, which is what makes the capture claim a measurement
@@ -564,6 +611,84 @@ def load_expected(name: str) -> dict:
 def sha256_of(path: Path) -> str:
     """Return the sha256 of a file, read in binary so no newline handling can alter it."""
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def fixture_text(name: str) -> str:
+    """Return a committed fixture's text, failing with its path if it is absent.
+
+    The byte-level counterpart of :func:`load_fixture`: the recorded-metadata assertions
+    measure the file rather than the document it parses to, so they read it as text.
+
+    Raises:
+        FileNotFoundError: Naming the missing fixture. A fixture whose recorded metadata
+            cannot be measured is reported with its path, never skipped -- a skipped test
+            is a green suite that asserted nothing.
+    """
+    location = fixture_path(name)
+    if not location.is_file():
+        raise FileNotFoundError(
+            f"blocking gap: the Dependency-Check adapter test measures the committed "
+            f"fixture {location} against its expected file's recorded metadata and it is "
+            "absent. Reported, not skipped."
+        )
+    return location.read_text(encoding="utf-8")
+
+
+def logical_lines(text: str) -> int:
+    """Return the logical line count under :data:`RECORDED_LINE_COUNT_CONVENTION`."""
+    return len(text.splitlines())
+
+
+def indent_runs(text: str) -> list[int]:
+    """Return the leading-space run of every indented, non-blank line in a document."""
+    return [
+        len(line) - len(line.lstrip(" "))
+        for line in text.splitlines()
+        if line.startswith(" ") and line.strip()
+    ]
+
+
+def indent_spaces(text: str) -> int:
+    """Return a JSON document's indentation width in spaces, or 0 if it has none.
+
+    The smallest positive leading-space run in the file.  ``json.dump(indent=n)`` writes
+    every nesting level as a multiple of ``n``, so the minimum is ``n`` itself.  Measured
+    rather than read off the first indented line, which reads the same for every width.
+    """
+    runs = indent_runs(text)
+    return min(runs) if runs else 0
+
+
+def ends_with_newline(text: str) -> bool:
+    """Return whether a document's last byte is a newline."""
+    return text.endswith("\n")
+
+
+def recorded_source_fixture(block: dict) -> str | None:
+    """Return the committed fixture an expectation's ``fixture`` block derives from.
+
+    ``derived_from`` is written two ways across this folder's expected files: as a mapping
+    that may carry a ``fixture`` member naming a committed source document, and as a bare
+    string.  In *this* module's corpus every one of them is prose naming
+    ``harness/artifacts/raw/dependency-check.json`` -- the raw artifact the shapes were
+    modelled on -- rather than a path into ``fixtures/``, so today this returns ``None``
+    for every pair and the source-formatting comparison in
+    :meth:`RecordedFixtureMetadataTest.test_every_fixture_is_serialized_the_way_its_record_claims`
+    has no pair to run against.  It is written generically all the same: the Trivy corpus
+    carried exactly the drift it catches, and a Dependency-Check fixture derived from a
+    committed sibling would otherwise arrive with its serialization unchecked.
+
+    Returns:
+        The repository-root-relative path of the source fixture where the block names one
+        that exists in ``fixtures/``, and ``None`` where it names no committed document.
+    """
+    recorded = block.get("derived_from")
+    candidate = recorded.get("fixture") if isinstance(recorded, dict) else recorded
+    if not isinstance(candidate, str):
+        return None
+    if not candidate.startswith(f"{FIXTURES_RELPATH}/"):
+        return None
+    return candidate if (REPO_ROOT / candidate).is_file() else None
 
 
 # --------------------------------------------------------------------------------------
@@ -1207,6 +1332,199 @@ class FixtureIntegrityTest(AdapterTestCase):
                 emit.FIELDS,
                 f"{name}: field_order is emit.FIELDS",
             )
+
+
+class RecordedFixtureMetadataTest(AdapterTestCase):
+    """Every expectation's recorded ``fixture`` metadata describes the file on disk.
+
+    An expectation states measurable facts about its fixture -- the path, the sha256, the
+    byte count, the line count and how the document is serialized -- and a reader takes
+    every one of them on trust when reasoning about provenance.  Before this class, this
+    module asserted the digest of each fixture (:class:`FixtureIntegrityTest`, against
+    :data:`FIXTURE_SHA256` rather than against what the expectation records) and asserted
+    an expectation's own ``fixture`` block for exactly **one** document, the metadata
+    variant.  Seven of the nine pairs' recorded ``bytes`` and ``lines`` were asserted
+    nowhere at all, and ``expected/dependency-check.rows.json`` recorded 414 lines for a
+    415-line file for as long as that held: a number measured under the other convention,
+    which nothing was in a position to notice.
+
+    The sibling Trivy corpus carried the sharper form of the same gap -- a fixture
+    re-serialized from 3,412 bytes to 3,844 with only its digest refreshed, its recorded
+    byte count and its recorded formatting left describing a document that no longer
+    existed, and its module green throughout.  So the audit here runs over **every** pair
+    the module reads (:data:`EVERY_FIXTURE_WITH_RECORDED_METADATA`), captured, derived and
+    negative alike, and a fixture that cannot be read fails naming its path
+    (:func:`fixture_text`) rather than being skipped.
+    """
+
+    def test_the_audited_inventory_is_every_fixture_with_a_recorded_digest(self) -> None:
+        """The inventory this class iterates is the module's, not a third list.
+
+        :data:`FIXTURE_SHA256` is what :class:`FixtureIntegrityTest` re-checks, so a
+        fixture missing from one of the two inventories would be audited for one property
+        and not the other.  Asserting the sets equal is what keeps them one corpus.
+        """
+        self.assertEqual(
+            sorted(EVERY_FIXTURE_WITH_RECORDED_METADATA),
+            sorted(FIXTURE_SHA256),
+            "every fixture with a recorded digest is audited here and every audited "
+            "fixture has a recorded digest; a name in one set only is a coverage gap",
+        )
+        self.assertEqual(
+            len(set(EVERY_FIXTURE_WITH_RECORDED_METADATA)),
+            len(EVERY_FIXTURE_WITH_RECORDED_METADATA),
+            "no fixture is audited twice under the same name",
+        )
+
+    def test_every_expectation_names_the_fixture_it_describes(self) -> None:
+        """Each expectation's ``fixture.path`` is the fixture under test, and nothing else.
+
+        The wiring assertion: an expectation describing a different document would
+        otherwise be caught only by whichever recorded value happened to disagree.
+        """
+        for name in EVERY_FIXTURE_WITH_RECORDED_METADATA:
+            with self.subTest(fixture=name):
+                self.assertEqual(
+                    load_expected(name)["fixture"]["path"],
+                    f"{FIXTURES_RELPATH}/{name}.json",
+                    f"{name}.rows.json records the path of the fixture it describes; a "
+                    "mismatch means the expectation and the fixture are not the pair the "
+                    "loaders read them as",
+                )
+
+    def test_every_expectation_records_the_fixtures_measured_digest_and_size(self) -> None:
+        """Each recorded ``sha256`` and ``bytes`` is the file's, measured here.
+
+        Both, not either.  A digest refreshed after a fixture was re-serialized while the
+        recorded byte count was left behind is precisely the drift the sibling Trivy
+        corpus carried, and an audit of the digest alone would have called that file green.
+        The digest is additionally asserted equal to :data:`FIXTURE_SHA256`, so the
+        expectation and the module agree on one measurement rather than holding two.
+        """
+        for name in EVERY_FIXTURE_WITH_RECORDED_METADATA:
+            with self.subTest(fixture=name):
+                block = load_expected(name)["fixture"]
+                raw = fixture_text(name).encode("utf-8")
+                self.assertEqual(
+                    block["sha256"],
+                    sha256_of(fixture_path(name)),
+                    f"{name}.rows.json records a sha256 that is not {name}.json's. One of "
+                    "the pair moved without the other: diagnose which, rather than "
+                    "refreshing the digest",
+                )
+                self.assertEqual(
+                    block["sha256"],
+                    FIXTURE_SHA256[name],
+                    f"{name}: the expectation's digest and this module's are one "
+                    "measurement of one file, so they cannot differ",
+                )
+                self.assertEqual(
+                    block["bytes"],
+                    len(raw),
+                    f"{name}.rows.json records {block['bytes']} bytes for {name}.json, "
+                    f"which is {len(raw)} bytes on disk. A recorded size that no longer "
+                    "describes the file makes every provenance statement beside it "
+                    "unverifiable",
+                )
+
+    def test_every_expectation_records_the_fixtures_logical_line_count(self) -> None:
+        """Each recorded ``lines`` is the fixture's logical line count, one convention.
+
+        ``len(text.splitlines())``, as :data:`RECORDED_LINE_COUNT_CONVENTION` states: the
+        final line counts whether or not it carries a trailing newline.  Both captures in
+        this corpus end without one -- ``dependency-check.json`` is 415 logical lines over
+        414 newlines and ``captured-dependency-check-vulnerabilities.json`` 1,263 over
+        1,262 -- so the two readings differ here rather than coinciding, and the key is
+        required for every pair so the convention holds over the corpus rather than over
+        the files that happen to carry it.
+        """
+        for name in EVERY_FIXTURE_WITH_RECORDED_METADATA:
+            with self.subTest(fixture=name):
+                block = load_expected(name)["fixture"]
+                text = fixture_text(name)
+                self.assertIn(
+                    "lines",
+                    block,
+                    f"{name}.rows.json records no line count for {name}.json, so the one "
+                    "convention this corpus measures under cannot be checked for it",
+                )
+                self.assertEqual(
+                    block["lines"],
+                    logical_lines(text),
+                    f"{name}.rows.json records {block['lines']} lines for {name}.json, "
+                    f"which is {logical_lines(text)} under the corpus's one convention -- "
+                    f"{RECORDED_LINE_COUNT_CONVENTION}. The raw newline count is a "
+                    "different number for a file with no trailing newline and is not what "
+                    "this corpus records",
+                )
+                if "lines_convention" in block:
+                    self.assertEqual(
+                        block["lines_convention"],
+                        RECORDED_LINE_COUNT_CONVENTION,
+                        f"{name}.rows.json states a line-count convention other than the "
+                        "corpus's; two conventions in one corpus means no recorded line "
+                        "count can be checked",
+                    )
+
+    def test_every_fixture_is_serialized_the_way_its_record_claims(self) -> None:
+        """Each fixture is LF-only and uniformly indented, and matches any source it names.
+
+        Three properties, and the first two hold for every document here: no CR byte
+        anywhere -- which is what the ``line_ending`` the negative expectations record
+        means -- and every leading-space run a whole multiple of the file's own
+        indentation width, which a document half-rewritten by hand or by a second
+        serializer does not satisfy.
+
+        The third is the source comparison: where an expectation names a committed fixture
+        as the document its own was derived from, the two must share an indentation width
+        and a trailing-newline state, so that a diff between them shows the derivation and
+        nothing else.  Every ``derived_from`` in *this* corpus is prose naming the raw
+        artifact rather than a path into ``fixtures/``, so that branch has no pair to run
+        against today and :func:`recorded_source_fixture` says so in as many words; it is
+        asserted generically because the sibling Trivy corpus carried exactly the drift it
+        catches, and a fixture derived from a committed sibling must not arrive here with
+        its serialization unchecked.
+        """
+        for name in EVERY_FIXTURE_WITH_RECORDED_METADATA:
+            with self.subTest(fixture=name):
+                text = fixture_text(name)
+                self.assertNotIn(
+                    "\r",
+                    text,
+                    f"{name}.json carries a CR: this corpus is LF-only, which is what the "
+                    "recorded line_ending states and what keeps a byte count and a line "
+                    "count comparable across checkouts",
+                )
+                width = indent_spaces(text)
+                self.assertGreater(
+                    width, 0, f"{name}.json is an indented JSON document, not one line"
+                )
+                self.assertEqual(
+                    sorted({run for run in indent_runs(text) if run % width}),
+                    [],
+                    f"{name}.json has leading-space runs that are not multiples of its "
+                    f"own {width}-space indentation, so part of it was written by "
+                    "something other than the serializer that wrote the rest",
+                )
+                source = recorded_source_fixture(load_expected(name)["fixture"])
+                if source is None:
+                    continue
+                source_text = (REPO_ROOT / source).read_text(encoding="utf-8")
+                self.assertEqual(
+                    width,
+                    indent_spaces(source_text),
+                    f"{name}.json is indented {width} spaces where {Path(source).name}, "
+                    f"the source its expectation names, is indented "
+                    f"{indent_spaces(source_text)}. A re-serialized derivation hides its "
+                    "own change in a whole-file diff",
+                )
+                self.assertEqual(
+                    ends_with_newline(text),
+                    ends_with_newline(source_text),
+                    f"{name}.json and {Path(source).name} disagree on the trailing "
+                    "newline, so the two differ on their last line for a reason that has "
+                    "nothing to do with the derivation",
+                )
 
 
 class RawArtifactProvenanceTest(AdapterTestCase):
@@ -3576,14 +3894,22 @@ class MetadataVariantFixtureTests(AdapterTestCase):
         self.assertEqual(records, self.expected["counts"]["raw_finding_records"])
 
     def test_the_fixture_agrees_with_its_recorded_digest_and_size(self) -> None:
-        """The expectation's ``fixture`` block describes the file on disk, byte for byte."""
+        """The expectation's ``fixture`` block describes the file on disk, byte for byte.
+
+        The line count is measured under :data:`RECORDED_LINE_COUNT_CONVENTION`, the one
+        convention this corpus records: this fixture ends with a newline, so its logical
+        and newline counts coincide and it cannot distinguish the two -- which is exactly
+        why it is measured the documented way here rather than the other way that also
+        happens to pass.  :class:`RecordedFixtureMetadataTest` holds every pair in the
+        corpus, including the two captures where the readings do differ, to the same one.
+        """
         block = self.expected["fixture"]
         path = fixture_path(self.FIXTURE)
         raw = path.read_bytes()
         self.assertEqual(block["path"], f"oss-scan-results/adapter-tests/{path.parent.name}/"
                          f"{path.name}")
         self.assertEqual(block["bytes"], len(raw))
-        self.assertEqual(block["lines"], raw.count(b"\n"))
+        self.assertEqual(block["lines"], logical_lines(fixture_text(self.FIXTURE)))
         self.assertEqual(block["sha256"], sha256_of(path))
         self.assertEqual(block["sha256"], FIXTURE_SHA256[self.FIXTURE])
         self.assertNotIn(b"\r", raw, "LF only, per the recorded line_ending")

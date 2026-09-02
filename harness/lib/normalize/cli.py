@@ -55,13 +55,12 @@ COMPOSITION ORDER -- the order this module runs, and the reason for it
 
 THE CLI CONTRACT
 ----------------
-Every input is an explicit argument and no repository-relative path is hardcoded.
-Defaults are derived only from the environment the provisioned ``harness/env.sh``
-exports -- ``HARNESS_RAW_DIR``, ``HARNESS_LOG_DIR``, ``HARNESS_SCOPE_FILE``,
-``HARNESS_REPO_ROOT`` and ``SPARK_SRC`` -- and an explicit argument always wins.  Nothing
-is read at import time: no file, no environment variable, no filesystem probe.  A required
-input that can be neither supplied nor defaulted is a configuration fault naming the flag
-and the variable that would have supplied it.
+Every input is an explicit argument and no repository-relative path is hardcoded.  Defaults
+come only from the environment ``harness/env.sh`` exports -- ``HARNESS_RAW_DIR``,
+``HARNESS_LOG_DIR``, ``HARNESS_SCOPE_FILE``, ``HARNESS_REPO_ROOT`` and ``SPARK_SRC`` -- and
+an explicit argument always wins.  Nothing is read at import time: no file, no environment
+variable, no filesystem probe.  A required input that can be neither supplied nor defaulted
+is a configuration fault naming the flag and the variable that would have supplied it.
 
     --raw-dir           the runner-only artifact tree            (HARNESS_RAW_DIR)
     --runner-metadata   runner-metadata.json                     ($HARNESS_LOG_DIR/...)
@@ -70,6 +69,7 @@ and the variable that would have supplied it.
     --spark-src         the pinned clone every path is relative to (SPARK_SRC)
     --findings-json     oss-scan-results/findings.json           ($HARNESS_REPO_ROOT/...)
     --findings-csv      oss-scan-results/findings.csv            ($HARNESS_REPO_ROOT/...)
+    --repo-root         the root that owns those two files       (HARNESS_REPO_ROOT)
     --run-record        normalize-run.json                       ($HARNESS_LOG_DIR/...)
 
 The exact command as invoked, the interpreter's absolute path and its reported version are
@@ -81,14 +81,14 @@ WHERE AN OUTPUT MAY BE WRITTEN -- three rules, all of them halts
 ---------------------------------------------------------------
 The three configured outputs are the only files this module writes, and each has exactly
 one owner root.  ``findings.json`` and ``findings.csv`` must resolve inside the repository
-root the run declares (``$HARNESS_REPO_ROOT``, else the repository this module is installed
-in); ``normalize-run.json`` must resolve inside the log tree.  A path outside its owner is a
-configuration fault naming the path and the root (CWE-73), not a location.  The three must
-be three distinct files and none of them may name an input -- the raw directory, any
-artifact in it, the allowlist or ``runner-metadata.json`` -- because an output written over
-an input destroys the evidence the dataset was derived from, and two outputs at one path
-make the second write destroy the first while every count still reconciles.  Finally the
-target and every component at or below its owner root are checked with ``lstat``, and a
+root the run declares (``--repo-root``, then ``$HARNESS_REPO_ROOT``, then this module's own
+repository); ``normalize-run.json`` must resolve inside the log tree.  A path outside its
+owner is a configuration fault naming the path and the root (CWE-73), not a location.  The
+three must be three distinct files and none of them may name an input -- the raw directory,
+any artifact in it, the allowlist or ``runner-metadata.json`` -- because an output written
+over an input destroys the evidence the dataset was derived from, and two outputs at one
+path make the second write destroy the first while every count still reconciles.  Finally
+the target and every component at or below its owner root are checked with ``lstat``, and a
 symbolic link anywhere among them is refused with the component named (CWE-59).
 
 Every write then goes through ONE discipline in ``emit.py``, which this module uses rather
@@ -127,13 +127,13 @@ capability-probe subject, whose results land under ``queries/joern/results/``.  
 appearances *"write outside ``harness/artifacts/raw/`` and contribute no dataset row"*, and
 *"reading the double appearance as a duplication would corrupt both counts."*
 
-The taint A/B arms are valid SARIF and would route perfectly, which is exactly why the
-boundary is enforced rather than trusted: only the nine fixed filenames are read, only as
-direct children of the raw directory, and each one's real path is asserted to still sit
-inside that directory -- so a symlink pointing at a log-tree file is a halt rather than a
-silent extra count.  An unexpected filename in the raw tree is a **reported condition**
-(AAP: not something to guess at); no document there is ever fingerprinted to identify a
-writer, because ``shape.py`` keys the native adapter by the runner that wrote it.
+The taint A/B arms are valid SARIF and would route perfectly, which is why the boundary is
+enforced rather than trusted: only the nine fixed filenames are read, only as direct
+children, and each one's real path must still sit inside the tree.  A symlink to a log-tree
+file halts; so does an unexpected direct child, whose two conditions and filesystem-level
+evidence :func:`_enumerate_raw_directory` states -- a dataset reconciling while an
+unadapted input sits beside the ones its rows came from is the one failure reconciliation
+cannot catch, and no document there is opened or fingerprinted to identify a writer.
 
 THE FOUR PARSE STATUSES (AAP 0.5.4)
 -----------------------------------
@@ -331,9 +331,9 @@ Exit codes
 ----------
 ``0``  the dataset was written and all three reconciliation stages and the typed
        comparison passed.
-``1``  a halting condition in the data: an unknown artifact shape, an absent artifact with
-       no stated reason, an adapter's structural halt, a failed reconciliation identity or
-       a failed output comparison.
+``1``  a halting condition in the data: an unknown artifact shape, an unexpected or
+       out-of-tree entry in the raw tree, an absent artifact with no stated reason, an
+       adapter's structural halt, a failed reconciliation identity or output comparison.
 ``2``  argparse usage error (argparse's own convention).
 ``78`` a configuration fault, the same ``EX_CONFIG`` the provisioned runners use through
        ``harness/lib/scope.sh``: unreadable or incomplete runner metadata, a scan root that
@@ -567,6 +567,15 @@ HALT_ALLOWLIST_UNREADABLE: str = "allowlist-unreadable"
 HALT_ALLOWLIST_NOT_AUTHORITATIVE: str = "allowlist-not-authoritative"
 HALT_RAW_DIRECTORY_MISSING: str = "raw-directory-missing"
 HALT_RAW_DIRECTORY_BOUNDARY: str = "raw-directory-boundary-violation"
+#: A direct child of the raw tree that this module will not consume: a name outside the
+#: nine runner artifacts, or one of those nine names carried by something that is not a
+#: regular file.  Its own reason rather than a detail on the boundary violation above,
+#: because the two are different diagnoses -- that one is an artifact reached from
+#: OUTSIDE the tree, this one is a document sitting INSIDE it that nothing adapted --
+#: and a reader enumerating this vocabulary should not have to open the details to tell
+#: them apart.  Both are conditions in the input tree rather than in the invocation, so
+#: both exit 1.
+HALT_RAW_DIRECTORY_UNEXPECTED: str = "raw-directory-unexpected-entry"
 HALT_ARTIFACT_UNREADABLE: str = "artifact-unreadable"
 HALT_ARTIFACT_INVALID_JSON: str = "artifact-invalid-json"
 HALT_ARTIFACT_NOT_UTF8: str = "artifact-not-utf-8"
@@ -619,6 +628,7 @@ HALT_REASONS: tuple[str, ...] = (
     HALT_ALLOWLIST_NOT_AUTHORITATIVE,
     HALT_RAW_DIRECTORY_MISSING,
     HALT_RAW_DIRECTORY_BOUNDARY,
+    HALT_RAW_DIRECTORY_UNEXPECTED,
     HALT_ARTIFACT_UNREADABLE,
     HALT_ARTIFACT_INVALID_JSON,
     HALT_ARTIFACT_NOT_UTF8,
@@ -1028,10 +1038,10 @@ INGESTION_BOUNDS: Mapping[str, Any] = MappingProxyType(
             "status_file_bytes": 278,
             "status_file_bytes_file": "datadog-static-analyzer.status",
             "status_numeric_digits": 8,
-            "runner_metadata_bytes": 175_770,
+            "runner_metadata_bytes": 189_356,
             "runner_metadata_depth": 8,
-            "runner_metadata_nodes": 2_164,
-            "runner_metadata_string_characters": 1_396,
+            "runner_metadata_nodes": 2_173,
+            "runner_metadata_string_characters": 1_496,
             "node_definition": (
                 "a node is a JSON value; an object member name is length-checked against "
                 "the string cap but is not itself counted as a node"
@@ -2528,6 +2538,17 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--repo-root",
+        metavar="DIR",
+        default=None,
+        help=(
+            "the repository root that owns findings.json and findings.csv -- both are "
+            "defaulted under it and both are refused outside it; defaults to "
+            "$HARNESS_REPO_ROOT, else the repository containing "
+            "harness/lib/normalize/cli.py"
+        ),
+    )
+    parser.add_argument(
         "--run-record",
         metavar="FILE",
         default=None,
@@ -2615,17 +2636,46 @@ def _within(path: Path, root: Path) -> bool:
     return real_parent == real_root or real_root in real_parent.parents
 
 
-def _declared_repository_root(environ: Mapping[str, str]) -> tuple[Path, str]:
+def _declared_repository_root(
+    environ: Mapping[str, str],
+    argument: str | None = None,
+) -> tuple[Path, str]:
     """Return the repository root that owns the dataset files, and where it came from.
 
-    ``$HARNESS_REPO_ROOT`` where the provisioned ``harness/env.sh`` exported it -- the run's
-    own declaration, and the same variable the ``--findings-json`` default is derived from.
-    Where it is unset, the root is *this module's own repository*, three levels above this
-    file, which is a fact about the installed harness rather than about whatever directory
-    the caller happened to be in.  The working directory is deliberately not a candidate:
-    an output root taken from the cwd is an output that lands wherever the run was started
-    (CWE-73).
+    Three candidates, in one precedence, and the label of whichever supplied the answer is
+    returned with it -- ``output_guards["repository_root_source"]`` publishes that label in
+    the run record, so a reader can see *which* declaration the containment check was
+    answered against rather than only what it decided:
+
+    1.  ``--repo-root``, the explicit declaration.  It exists because the owner root was
+        the one input with no flag of its own, which contradicted this module's own CLI
+        contract (*"Every input is an explicit argument … and an explicit argument always
+        wins"*) and left an isolated run unable to declare its owner root *before* sourcing
+        ``harness/env.sh`` -- that file assigns ``HARNESS_REPO_ROOT`` unconditionally, so
+        a caller's pre-set value does not survive it and the containment check below then
+        correctly refused the isolated output the caller had asked for.  The flag closes
+        that gap on this side, without editing the environment file (AAP 0.3.1 reads it and
+        never writes it; AAP 0.6.3 permits changing exactly two provisioned paths under
+        ``harness/`` and neither is that one).
+    2.  ``$HARNESS_REPO_ROOT`` where ``harness/env.sh`` exported it -- the run's own
+        declaration, and the same variable the ``--findings-json`` default derives from.
+    3.  Failing both, *this module's own repository*, three levels above this file, which
+        is a fact about the installed harness rather than about whatever directory the
+        caller happened to be in.
+
+    An explicit value that is empty or whitespace is treated as unset, exactly as
+    :func:`_environment_value` treats an exported-but-empty variable: it is an override
+    nobody intended rather than a location, and reading it as one would resolve every
+    output against ``/`` -- a root that contains every path, which is the containment check
+    passing while checking nothing.
+
+    The working directory is deliberately not a candidate at any level: an output root
+    taken from the cwd is an output that lands wherever the run was started (CWE-73).
     """
+    if argument is not None:
+        explicit = argument.strip()
+        if explicit:
+            return _absolute(explicit), "--repo-root"
     declared = _environment_value(environ, "HARNESS_REPO_ROOT")
     if declared is not None:
         return _absolute(declared), "$HARNESS_REPO_ROOT"
@@ -2676,8 +2726,14 @@ def _require_safe_components(path: Path, *, name: str, owner: Path) -> dict[str,
 def _validate_output_targets(
     inputs: Inputs,
     environ: Mapping[str, str],
+    repo_root_argument: str | None = None,
 ) -> dict[str, Any]:
     """Establish that the three outputs are contained, distinct and unaliased.
+
+    ``repo_root_argument`` is ``--repo-root`` as the caller passed it, or ``None``: the
+    dataset's owner root is adjudicated against the same three-level declaration
+    :func:`resolve_inputs` defaulted the two dataset paths from, so a run cannot be
+    defaulted under one root and then contained against another.
 
     Three questions, each asked of every output, and each a halt rather than a warning:
 
@@ -2713,7 +2769,9 @@ def _validate_output_targets(
         ConfigurationFault: On the first condition that fails, naming the path, the owner
             root and -- for an alias -- the other path it collides with.
     """
-    repo_root, repo_root_source = _declared_repository_root(environ)
+    repo_root, repo_root_source = _declared_repository_root(
+        environ, repo_root_argument
+    )
     owners: tuple[tuple[str, Path, Path, str], ...] = (
         ("--findings-json", inputs.findings_json, repo_root, f"the repository root ({repo_root_source})"),
         ("--findings-csv", inputs.findings_csv, repo_root, f"the repository root ({repo_root_source})"),
@@ -2939,7 +2997,16 @@ def resolve_inputs(
 
     log_dir_value, metadata_value = _log_tree_values(namespace, env)
 
-    repo_root_value = _environment_value(env, "HARNESS_REPO_ROOT")
+    # The dataset's owner root, by the same three-level precedence
+    # _declared_repository_root applies -- the explicit flag, then the variable, then this
+    # module's own repository. Only the first two can supply a *default* for the two
+    # dataset paths: the third is a fallback for adjudicating containment, and defaulting
+    # a deliverable into the installed harness's own checkout because neither declaration
+    # was made would write the dataset somewhere nobody asked for.
+    repo_root_argument = namespace.repo_root.strip() if namespace.repo_root else None
+    repo_root_value = repo_root_argument or _environment_value(
+        env, "HARNESS_REPO_ROOT"
+    )
     findings_json_value = namespace.findings_json
     if findings_json_value is None and repo_root_value is not None:
         findings_json_value = os.path.join(repo_root_value, FINDINGS_JSON_RELATIVE)
@@ -2978,12 +3045,12 @@ def resolve_inputs(
     findings_json_value = require(
         findings_json_value,
         flag="--findings-json",
-        source=f"$HARNESS_REPO_ROOT/{FINDINGS_JSON_RELATIVE}",
+        source=f"$HARNESS_REPO_ROOT/{FINDINGS_JSON_RELATIVE}, or --repo-root",
     )
     findings_csv_value = require(
         findings_csv_value,
         flag="--findings-csv",
-        source=f"$HARNESS_REPO_ROOT/{FINDINGS_CSV_RELATIVE}",
+        source=f"$HARNESS_REPO_ROOT/{FINDINGS_CSV_RELATIVE}, or --repo-root",
     )
     run_record_value = require(
         run_record_value,
@@ -3030,7 +3097,9 @@ def resolve_inputs(
     # after the artifacts have been parsed would only mean finding it later.
     return dataclasses.replace(
         inputs,
-        output_guards=MappingProxyType(_validate_output_targets(inputs, env)),
+        output_guards=MappingProxyType(
+            _validate_output_targets(inputs, env, repo_root_argument)
+        ),
     )
 
 
@@ -4845,8 +4914,39 @@ def _enumerate_raw_directory(
     contribute no dataset row, so a symlink that reached one would corrupt both that tool's
     count and the dataset total.
 
-    An unexpected entry is reported rather than guessed at: no document is fingerprinted to
-    identify a writer.
+    AN UNEXPECTED DIRECT CHILD HALTS THE RUN
+    ----------------------------------------
+    AAP 0.8.1 gives this tree exactly one admissible content -- *"one artifact per tool
+    that writes one and nothing else ever"* -- and AAP 0.6.1 enumerates that content file
+    by file.  A direct child outside it is therefore an input this module will not consume,
+    and continuing past it publishes a dataset that reconciles perfectly *while an
+    unadapted input sits beside the ones it was built from*: every per-artifact identity
+    holds, the dataset sum holds, and nothing in the row-only ``findings.json`` can show
+    that a document was skipped.  A complete-looking dataset over an incompletely consumed
+    input tree is the one failure a reconciliation cannot catch, so the condition is a halt
+    (:data:`HALT_RAW_DIRECTORY_UNEXPECTED`) rather than a line on stderr.
+
+    Two conditions reach it and both are named individually in the evidence, because they
+    are corrected differently: a name that is not one of the nine runner artifacts is
+    something that does not belong in the tree, while one of those nine names carried by
+    something that is not a regular file -- a directory called ``trivy.json``, say -- is
+    that tool's artifact missing and its name occupied.
+
+    ``record["raw_directory"]`` is written **before** the halt is raised, so the run record
+    published on the halting path carries the same enumeration a successful run would.
+
+    THE EVIDENCE IS FILESYSTEM-LEVEL ONLY, DELIBERATELY
+    --------------------------------------------------
+    Each unexpected entry is described by its name, whether it is a directory, whether it
+    is a symbolic link, its byte size where it is a regular file, whether its name is one
+    of the nine, and which of the two conditions it met.  Nothing here opens it, reads it,
+    parses it or inspects its structure: this is a narrower evidence scope than "quote the
+    document's safe top-level structure" on purpose, because reading an unexpected file on
+    the halting path would take an untrusted document through none of the bounds every
+    other read in this module passes (the byte cap, the pre-parse structural gate, the
+    strict decode), and AAP 0.8.1 forbids fingerprinting a document in this tree to decide
+    who wrote it -- ``shape.py`` keys the native adapter by the runner that wrote it, by
+    filename, and never by content.
     """
     raw_dir = inputs.raw_dir
     if not raw_dir.is_dir():
@@ -4877,11 +4977,17 @@ def _enumerate_raw_directory(
         if tool is not None and candidate.is_file():
             present[tool] = candidate
             continue
+        # Filesystem-level evidence only: nothing here opens, reads or parses the entry.
+        # candidate.is_dir() and is_file() follow a link, which is what a reader needs to
+        # know about the thing occupying the name; is_symlink() reports the spelling
+        # separately, so a link to a directory is not silently indistinguishable from a
+        # directory.
         unexpected.append(
             {
                 "name": name,
                 "path": str(candidate),
                 "is_directory": candidate.is_dir(),
+                "is_symlink": candidate.is_symlink(),
                 "is_expected_artifact_name": tool is not None,
                 "bytes": (
                     candidate.stat().st_size if candidate.is_file() else None
@@ -4926,17 +5032,47 @@ def _enumerate_raw_directory(
             "this directory, and each one's real path is asserted to remain inside it. "
             "The Opengrep taint A/B arms (harness/artifacts/logs/taint-ab-*.sarif) and the "
             "Joern probe results (queries/joern/results/) are deliberate second "
-            "appearances that contribute no dataset row (AAP 0.1.3)."
+            "appearances that contribute no dataset row (AAP 0.1.3). An unexpected direct "
+            "child halts the run rather than being reported past: this tree admits one "
+            "artifact per tool that writes one and nothing else ever (AAP 0.8.1, AAP "
+            "0.6.1), so an unconsumed child would leave the dataset reconciling while an "
+            "input nobody adapted sat beside the ones it was built from."
         ),
     }
     if unexpected:
-        print(
-            f"normalize: reported condition: {len(unexpected)} unexpected entr"
-            f"{'y' if len(unexpected) == 1 else 'ies'} in {raw_dir}: "
-            + ", ".join(entry["name"] for entry in unexpected)
-            + " -- harness/artifacts/raw/ is runner-only. Recorded in the run record; no "
-            "document there is fingerprinted to identify a writer.",
-            file=sys.stderr,
+        # The record above is already written, so the run record published on this path
+        # carries the same enumeration a successful run would -- and the halt's own
+        # details name every offending entry, so a reader diagnosing from the record
+        # alone never has to list the directory again. No document is opened: the
+        # evidence is the filesystem's, not the file's (see this function's docstring).
+        described = "; ".join(
+            f"{entry['name']} ({entry['condition']})" for entry in unexpected
+        )
+        raise _halt(
+            HALT_RAW_DIRECTORY_UNEXPECTED,
+            f"{len(unexpected)} unexpected direct "
+            f"{'child' if len(unexpected) == 1 else 'children'} of the raw artifact tree "
+            f"{raw_dir}: {described}. harness/artifacts/raw/ is runner-only and admits "
+            "exactly one artifact per tool that writes one and nothing else ever (AAP "
+            "0.8.1, AAP 0.6.1), so this is a halt rather than a condition to continue "
+            "past: an unconsumed child means the dataset would reconcile -- every "
+            "per-artifact identity and the dataset sum alike -- while an input nobody "
+            "adapted sat beside the ones the rows were built from, and a row-only "
+            "findings.json cannot show that a document was skipped. Move the file out of "
+            "this tree, or give it the runner artifact name whose adapter should consume "
+            "it. Nothing here was opened, read or parsed: no document in this tree is "
+            "ever fingerprinted to identify a writer.",
+            raw_dir=str(raw_dir),
+            unexpected_entries=unexpected,
+            unexpected_entry_count=len(unexpected),
+            expected_artifact_filenames=list(shape.ARTIFACT_FILENAMES),
+            evidence_scope=(
+                "filesystem-level only -- name, directory, symlink, byte size, whether "
+                "the name is one of the nine, and which condition it met. No unexpected "
+                "document is opened, decoded, parsed or structurally quoted, because "
+                "that read would bypass every ingestion bound this module applies to the "
+                "inputs it does consume."
+            ),
         )
     return present
 

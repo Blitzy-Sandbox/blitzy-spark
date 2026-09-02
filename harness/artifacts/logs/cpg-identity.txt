@@ -46,6 +46,51 @@ equal the pair above:
   observed byte size      : 541309809   MATCH
   observed sha256         : 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7   MATCH
 
+----------------------------------------------------------------------------------------------------
+THE OTHER PAIR IN THIS TREE - harness/ENVIRONMENT.md - AND WHY IT IS NOT THE PAIR ABOVE
+----------------------------------------------------------------------------------------------------
+
+One further document states a graph identity, and it states a DIFFERENT one. The environment
+record harness/ENVIRONMENT.md section 7 describes, for the same resolved path
+/opt/blitzy-harness/cpg/spark.cpg, a graph of:
+
+  bytes                   : 541255894
+  sha256                  : 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+  methods                 : 1,397,339   (internal 1,307,552)
+  type declarations       : 119,691
+  files                   : 45,037
+  input set it names      : 62 JARs from 31 modules, -tests and connect-shims excluded by
+                            instruction; build elapsed 53m04s; 31,598 overwrite warnings over
+                            26,221 distinct class files
+  same figures restated at: harness/ENVIRONMENT.md lines 284-288 and 838-850
+
+Those bytes are not on disk. The path resolves to the pair at the top of this file, re-read and
+re-hashed in full while writing it, and the verification load of those bytes reports 1,396,899
+methods, 119,721 type declarations and 45,037 files (harness/artifacts/logs/cpg-verify.log
+PHASE 1) - three figures of which only the file count agrees with the record. So the two are
+records of two different graphs over the same 62-archive input set, and this file's pair is the
+one any load actually opens.
+
+  which pair governs a load : the pair at the top of this file, because it is the pair the bytes
+                              on disk carry and the pair harness/lib/preflight_graph_identity.py
+                              record_of_account() resolves for the Stage 3 gate
+  status of the difference  : a reported halt, gate.environment_record_graph_identity_agreement -
+                              an observable fact contradicting the environment record on an
+                              inherited field the expected-values table does not adjudicate, which
+                              AAP 0.1.3 and 0.9.2 require be recorded with BOTH values and stopped
+                              on rather than repaired
+  what was NOT done         : harness/ENVIRONMENT.md was not edited, and neither pair was quietly
+                              preferred over the other. It is a provisioning record; correcting it
+                              to match an observation would destroy the evidence of the halt
+
+Both pairs are stated here so that neither can be cited from this file without the other, and so
+that a reader meeting 541,255,894 or 26d327cc... elsewhere in the tree can see immediately which
+graph it belongs to. Note also what neither pair licenses: both describe a graph built by
+PROVISIONING over 62 archives from 31 modules, so neither is this run's all-JAR output, and the
+AAP 0.5.1 requirement for a graph over every JAR the reactor produced is unmet at this pin - see
+cpg-verify.log PROVENANCE and cpg-frontend.log STEP 8 for why, and cpg-module-coverage.json for
+what per-module coverage is and is not obtainable from these bytes.
+
 Read this file with:
   harness/artifacts/logs/cpg-frontend.log  - the failed frontend invocation, and divergence D1
   harness/artifacts/logs/cpg-verify.log    - the importCpg verification load of these bytes

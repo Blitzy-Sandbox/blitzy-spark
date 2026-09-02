@@ -109,6 +109,23 @@ Absence is reported, never skipped.  A missing fixture is a blocking gap raised 
 :class:`FixtureCorpusTest`, and a missing raw artifact is an explicit failure naming
 the path rather than a skip -- a skipped test is a green suite that asserted nothing.
 
+What an expected file *records* about its fixture is measured too
+----------------------------------------------------------------
+Each expected file states its fixture's path, sha256, byte count and line count, and
+where the fixture is derived, the indentation width, trailing-newline state and
+derivation distance that make a diff against its source reviewable.
+:class:`RecordedFixtureMetadataTest` measures every one of those against the file on
+disk, for **every** pair this module reads.  It exists because those values were
+previously asserted for the two positive fixtures and, digest and size only, for the
+four halt fixtures -- so ``fixtures/reject-trivy-absent-path.json`` could be
+re-serialized from 3,412 bytes to 3,844 with only its digest refreshed, leaving a
+recorded byte count and a recorded formatting statement describing a document that no
+longer existed while every test here passed.  ``fixture.lines`` is the **logical** line
+count throughout, ``len(text.splitlines())``, stated as
+:data:`RECORDED_LINE_COUNT_CONVENTION` and asserted under that one convention: the
+capture is 108 logical lines over 107 newlines, so the two readings are different
+numbers and a corpus measured both ways cannot be checked at all.
+
 Prohibitions this module observes (AAP 0.3.2, AAP 0.8.2)
 --------------------------------------------------------
 **No cross-tool interpretation of any kind.**  Trivy's three sections are not
@@ -139,6 +156,7 @@ Public API
 
 import copy
 import dataclasses
+import difflib
 import hashlib
 import json
 import sys
@@ -176,6 +194,29 @@ from normalize.adapters import trivy  # noqa: E402
 ADAPTER_TESTS_DIR = Path(__file__).resolve().parent
 FIXTURES_DIR = ADAPTER_TESTS_DIR / "fixtures"
 EXPECTED_DIR = ADAPTER_TESTS_DIR / "expected"
+
+#: ``fixtures/`` as an expected file records it: repository-root-relative and POSIX.
+#: Derived from the directory itself rather than spelled out, so a moved corpus fails on
+#: the recorded path it no longer matches instead of on a literal kept in step by hand.
+FIXTURES_RELPATH = FIXTURES_DIR.relative_to(REPO_ROOT).as_posix()
+
+#: The ONE line-count convention every ``fixture.lines`` in this corpus is measured
+#: under, stated where a reader meets the number rather than left to inference.
+#:
+#: ``len(text.splitlines())`` counts a final line that carries no trailing newline, so it
+#: is one greater than the newline count for a file that does not end in one and equal to
+#: it for a file that does.  Four of this corpus's five distinguishing cases already used
+#: it -- ``trivy.json`` at 108 lines over 107 newlines and the three one-space halt
+#: siblings -- and "108 lines" is what the capture's own expected file means, so it is the
+#: convention adopted here.  The alternative reading, the raw newline count, is what
+#: ``expected/dependency-check.rows.json`` recorded at 414 for a 415-line file; a corpus
+#: whose numbers are measured two ways cannot be checked at all, which is why
+#: :class:`RecordedFixtureMetadataTest` asserts this one and every oracle that states its
+#: convention states this exact sentence.
+RECORDED_LINE_COUNT_CONVENTION = (
+    "logical lines: len(text.splitlines()), which counts a final line that carries no "
+    "trailing newline"
+)
 
 # --------------------------------------------------------------------------------------
 # The twelve authoritative scope globs (AAP 0.3.1), byte-exact and in the request's
@@ -544,6 +585,101 @@ def required_expected_names() -> tuple[str, ...]:
 def _sha256(location: Path) -> str:
     """Return the hex sha256 of a file, read as bytes."""
     return hashlib.sha256(location.read_bytes()).hexdigest()
+
+
+def _fixture_text(name: str) -> str:
+    """Return one committed fixture's text, failing with its path if it is absent.
+
+    The byte-level counterpart of :func:`load_fixture`: the metadata assertions measure
+    the file rather than the document it parses to, so they read it as text.
+
+    Raises:
+        FileNotFoundError: Naming the missing fixture as a blocking gap, for the same
+            reason :func:`load_fixture` does. A fixture whose metadata cannot be measured
+            is reported, never skipped.
+    """
+    location = FIXTURES_DIR / name
+    if not location.is_file():
+        raise FileNotFoundError(
+            f"blocking gap: the Trivy adapter test measures the committed fixture "
+            f"{location} against its expected file's recorded metadata and it is "
+            "absent. Reported, not skipped."
+        )
+    return location.read_text(encoding="utf-8")
+
+
+def _logical_lines(text: str) -> int:
+    """Return the logical line count under :data:`RECORDED_LINE_COUNT_CONVENTION`."""
+    return len(text.splitlines())
+
+
+def _indent_spaces(text: str) -> int:
+    """Return a JSON document's indentation width in spaces, or 0 if it has none.
+
+    The smallest positive leading-space run in the file.  ``json.dump(indent=n)`` writes
+    every nesting level as a multiple of ``n``, so the minimum is ``n`` itself: 1 for the
+    capture's one-space serialization and 2 for a two-space one.  Measured rather than
+    inferred from the first indented line, which would read the same for both.
+    """
+    runs = [
+        len(line) - len(line.lstrip(" "))
+        for line in text.splitlines()
+        if line.startswith(" ") and line.strip()
+    ]
+    return min(runs) if runs else 0
+
+
+def _ends_with_newline(text: str) -> bool:
+    """Return whether a document's last byte is a newline."""
+    return text.endswith("\n")
+
+
+def _replaced_line_counts(source: str, derived: str) -> tuple[int, int]:
+    """Return (lines removed, lines added) between two documents, as a unified diff.
+
+    ``difflib.unified_diff`` with no context, so the return is the derivation distance
+    and nothing else: a derivation that replaces one line in place reports one removed
+    and one added, and a re-serialization of the whole document reports a count near the
+    document's length on both sides.  The two are returned separately because a
+    derivation that inserts a member removes nothing, and collapsing them would hide the
+    difference between replacing a line and adding one.
+    """
+    diff = list(
+        difflib.unified_diff(source.splitlines(True), derived.splitlines(True), n=0)
+    )
+    removed = sum(1 for line in diff if line.startswith("-") and not line.startswith("---"))
+    added = sum(1 for line in diff if line.startswith("+") and not line.startswith("+++"))
+    return removed, added
+
+
+def _recorded_source_fixture(block: Any) -> str | None:
+    """Return the committed fixture an expected file's ``fixture`` block derives from.
+
+    ``derived_from`` is written three ways in this corpus, and each has to be read for
+    what it is rather than guessed at:
+
+    * a mapping carrying a ``fixture`` member naming the source document -- the four
+      halt fixtures and ``reject-trivy-absent-path``;
+    * a bare string holding that path -- the nine other reject fixtures;
+    * a mapping with no ``fixture`` member, which is how ``derived-trivy-features``
+      states that it was authored to Trivy's declared shape rather than derived from a
+      committed document.
+
+    Returns:
+        The repository-root-relative path of the source fixture where the block names
+        one that exists in ``fixtures/``, and ``None`` where it names no committed
+        document -- an authored fixture, or prose naming something outside the corpus.
+        ``None`` means "no source-formatting claim to check", never "unchecked".
+    """
+    if not isinstance(block, dict):
+        return None
+    recorded = block.get("derived_from")
+    candidate = recorded.get("fixture") if isinstance(recorded, dict) else recorded
+    if not isinstance(candidate, str):
+        return None
+    if not candidate.startswith(f"{FIXTURES_RELPATH}/"):
+        return None
+    return candidate if (REPO_ROOT / candidate).is_file() else None
 
 
 def setUpModule() -> None:
@@ -1205,6 +1341,288 @@ class FixtureIntegrityTest(TrivyAdapterTestCase):
             load_fixture(POSITIVE_FIXTURE)["Results"][0]["Target"],
             second["Results"][0]["Target"],
             msg="and leaves the file on disk untouched",
+        )
+
+
+class RecordedFixtureMetadataTest(TrivyAdapterTestCase):
+    """Every expected file's recorded ``fixture`` metadata describes the file on disk.
+
+    An expected file states four measurable facts about its fixture -- the path, the
+    sha256, the byte count and the line count -- and, where it is derived, three about
+    how it was written: its indentation width, whether it ends in a newline, and how many
+    lines its derivation replaces.  Every one of those is a claim a reader takes on trust
+    when reasoning about provenance, and until this class existed **none of them was
+    asserted for a negative or halt fixture**.
+
+    That gap is not hypothetical.  ``fixtures/reject-trivy-absent-path.json`` was at some
+    point re-serialized at two-space indentation with a trailing newline -- 3,844 bytes
+    over a document whose minimal derivation from the capture is 3,412 -- and only its
+    expected file's sha256 was refreshed.  The recorded byte count stayed at 3,412, the
+    recorded formatting sentence went on claiming the capture's one-space indentation and
+    no trailing newline, and 194 Trivy tests passed for as long as it was wrong: the
+    positive contract asserts path, digest and size for the two POSITIVE fixtures only,
+    the halt contract asserts them for the four halt fixtures without the line count, and
+    ``_FIXTURE_DIGESTS`` is measured at module setup precisely so that
+    :class:`FixtureIntegrityTest` can prove no test mutated a file -- it is never
+    compared with what an expected file records, and comparing it would prove nothing
+    about the record either way.
+
+    So this class asserts the record against the measurement, over **every** pair this
+    module reads -- positive, halt and reject alike -- reading the corpus from
+    :func:`required_fixture_names` and :func:`required_expected_names` so a fixture added
+    to the module arrives with its metadata checked rather than needing to be added here
+    too.  A fixture that cannot be read fails naming its path (:func:`_fixture_text`),
+    never skipped.
+    """
+
+    def pairs(self) -> tuple[tuple[str, str], ...]:
+        """Return every (fixture filename, expected stem) pair this module reads.
+
+        Derived from the module's own two inventories rather than from a third list, and
+        the two are asserted to correspond stem for stem by
+        :meth:`test_every_expectation_names_the_fixture_it_describes` -- so a pair that
+        drifted out of step fails there rather than being silently dropped from a loop.
+        """
+        stems = tuple(name.removesuffix(".json") for name in required_fixture_names())
+        return tuple(zip(required_fixture_names(), stems))
+
+    def test_every_expectation_names_the_fixture_it_describes(self) -> None:
+        """Each expected file's ``fixture.path`` is the fixture under test.
+
+        Also that the two inventories correspond stem for stem, so a pair that drifted
+        out of step fails here rather than being dropped from a loop.  The wiring
+        assertion, generalised from the positive contract's own to the whole corpus: an
+        expected file describing a different document would otherwise be caught only by
+        whichever recorded value happened to disagree.
+        """
+        self.assertEqual(
+            required_expected_names(),
+            tuple(f"{stem}.rows.json" for _, stem in self.pairs()),
+            msg=(
+                "the fixture and expected inventories are one corpus: every fixture "
+                "<stem>.json is paired with expected/<stem>.rows.json, which is this "
+                "folder's convention and what the loaders assume"
+            ),
+        )
+        for name, stem in self.pairs():
+            with self.subTest(fixture=name):
+                self.assertEqual(
+                    load_expected(stem)["fixture"]["path"],
+                    f"{FIXTURES_RELPATH}/{name}",
+                    msg=(
+                        f"{stem}.rows.json records the path of the fixture it describes; "
+                        "a mismatch means the expectation and the fixture are not the "
+                        "pair the loaders read them as"
+                    ),
+                )
+
+    def test_every_expectation_records_the_fixtures_measured_digest_and_size(self) -> None:
+        """Each recorded ``sha256`` and ``bytes`` is the file's, measured here.
+
+        Both, not either: a digest refreshed after a fixture was re-serialized while the
+        byte count was left behind is exactly the drift this corpus carried, and a class
+        asserting only the digest would have called that file green.
+        """
+        for name, stem in self.pairs():
+            with self.subTest(fixture=name):
+                location = FIXTURES_DIR / name
+                block = load_expected(stem)["fixture"]
+                raw = _fixture_text(name).encode("utf-8")
+                self.assertEqual(
+                    block["sha256"],
+                    _sha256(location),
+                    msg=(
+                        f"{stem}.rows.json records a sha256 that is not {name}'s. One of "
+                        "the pair moved without the other: diagnose which, rather than "
+                        "refreshing the digest"
+                    ),
+                )
+                self.assertEqual(
+                    block["bytes"],
+                    len(raw),
+                    msg=(
+                        f"{stem}.rows.json records {block['bytes']} bytes for {name}, "
+                        f"which is {len(raw)} bytes on disk. A recorded size that no "
+                        "longer describes the file makes every provenance statement "
+                        "beside it unverifiable"
+                    ),
+                )
+
+    def test_every_expectation_records_the_fixtures_logical_line_count(self) -> None:
+        """Each recorded ``lines`` is the fixture's logical line count, one convention.
+
+        ``len(text.splitlines())``, as :data:`RECORDED_LINE_COUNT_CONVENTION` states:
+        the final line counts whether or not it carries a trailing newline.  The
+        distinction is not academic for this corpus -- ``trivy.json`` is 108 logical
+        lines over 107 newlines -- and where an expected file states its convention in
+        so many words, that sentence is asserted to be this one rather than a second
+        reading of the same number.
+        """
+        for name, stem in self.pairs():
+            with self.subTest(fixture=name):
+                block = load_expected(stem)["fixture"]
+                text = _fixture_text(name)
+                self.assertIn(
+                    "lines",
+                    block,
+                    msg=(
+                        f"{stem}.rows.json records no line count for {name}. Every "
+                        "fixture this module reads states one, so the convention holds "
+                        "over the whole corpus rather than over the files that happen "
+                        "to carry the key"
+                    ),
+                )
+                self.assertEqual(
+                    block["lines"],
+                    _logical_lines(text),
+                    msg=(
+                        f"{stem}.rows.json records {block['lines']} lines for {name}, "
+                        f"which is {_logical_lines(text)} under the corpus's one "
+                        f"convention -- {RECORDED_LINE_COUNT_CONVENTION}. The raw "
+                        "newline count is a different number for a file with no "
+                        "trailing newline and is not what this corpus records"
+                    ),
+                )
+                if "lines_convention" in block:
+                    self.assertEqual(
+                        block["lines_convention"],
+                        RECORDED_LINE_COUNT_CONVENTION,
+                        msg=(
+                            f"{stem}.rows.json states a line-count convention other "
+                            "than the corpus's; two conventions in one corpus means no "
+                            "recorded line count can be checked"
+                        ),
+                    )
+
+    def test_every_derived_fixture_carries_its_named_sources_formatting(self) -> None:
+        """A fixture derived from another is written the way its source is written.
+
+        Each derived document in this corpus states that it carries its source's
+        serialization -- the same indentation width and the same trailing-newline state
+        -- so that a byte diff between the two shows the derivation and nothing else.
+        That is what makes a derivation reviewable: a re-serialized document differs from
+        its source on almost every line, and the one changed value is then invisible in
+        the noise.
+
+        Asserted over every pair whose ``derived_from`` names a committed fixture,
+        whichever of the three ways it is written (:func:`_recorded_source_fixture`).  A
+        fixture authored to Trivy's declared shape rather than derived from a document
+        names no source and is skipped by the loop rather than by a skipped test -- there
+        is no source for it to match, and the count below keeps that from quietly
+        becoming "no pair was checked".
+        """
+        checked = 0
+        for name, stem in self.pairs():
+            block = load_expected(stem)["fixture"]
+            source = _recorded_source_fixture(block)
+            if source is None:
+                continue
+            checked += 1
+            with self.subTest(fixture=name, source=source):
+                derived_text = _fixture_text(name)
+                source_text = (REPO_ROOT / source).read_text(encoding="utf-8")
+                self.assertEqual(
+                    _indent_spaces(derived_text),
+                    _indent_spaces(source_text),
+                    msg=(
+                        f"{name} is indented {_indent_spaces(derived_text)} spaces where "
+                        f"{Path(source).name}, the source its expected file names, is "
+                        f"indented {_indent_spaces(source_text)}. A re-serialized "
+                        "derivation hides its own single change in a whole-file diff"
+                    ),
+                )
+                self.assertEqual(
+                    _ends_with_newline(derived_text),
+                    _ends_with_newline(source_text),
+                    msg=(
+                        f"{name} and {Path(source).name} disagree on the trailing "
+                        "newline, so the two files differ on their last line for a "
+                        "reason that has nothing to do with the derivation"
+                    ),
+                )
+        self.assertGreater(
+            checked,
+            0,
+            msg=(
+                "no expected file named a committed source fixture, so this assertion "
+                "measured nothing. Either the corpus lost its derived documents or "
+                "_recorded_source_fixture no longer reads the way derived_from is written"
+            ),
+        )
+
+    def test_every_recorded_derivation_distance_is_the_measured_diff(self) -> None:
+        """A recorded derivation distance is the measured one, and so is the formatting.
+
+        Where an expected file records how its fixture differs from the source it names,
+        the measurement agrees in all three recorded values: lines replaced, indentation
+        width and trailing newline.
+
+        ``derived_from`` states its provenance in prose, which is not checkable, and
+        beside it the three values that are: ``indent_spaces``, ``trailing_newline`` and
+        ``differing_lines_from_source``.  The last is the derivation distance measured as
+        ``difflib.unified_diff(source, derived, n=0)``, with the removed and added line
+        counts each equal to it -- one line replaced in place for a derivation that
+        changes one value, against the hundred-odd of a document that was re-serialized.
+
+        Only a fixture whose expected file carries those keys is asserted here, and at
+        least one must, so the assertion cannot pass by finding nothing to measure.
+        """
+        measured = 0
+        for name, stem in self.pairs():
+            block = load_expected(stem)["fixture"]
+            recorded = block.get("derived_from")
+            if not isinstance(recorded, dict):
+                continue
+            keys = ("indent_spaces", "trailing_newline", "differing_lines_from_source")
+            if not any(key in recorded for key in keys):
+                continue
+            source = _recorded_source_fixture(block)
+            self.assertIsNotNone(
+                source,
+                msg=(
+                    f"{stem}.rows.json records a derivation distance without naming a "
+                    "committed source fixture to measure it against"
+                ),
+            )
+            measured += 1
+            with self.subTest(fixture=name, source=source):
+                derived_text = _fixture_text(name)
+                source_text = (REPO_ROOT / str(source)).read_text(encoding="utf-8")
+                self.assertEqual(
+                    recorded["indent_spaces"],
+                    _indent_spaces(derived_text),
+                    msg=f"{stem}.rows.json records {name}'s indentation width wrongly",
+                )
+                self.assertEqual(
+                    recorded["trailing_newline"],
+                    _ends_with_newline(derived_text),
+                    msg=(
+                        f"{stem}.rows.json records {name}'s trailing-newline state "
+                        "wrongly"
+                    ),
+                )
+                removed, added = _replaced_line_counts(source_text, derived_text)
+                distance = recorded["differing_lines_from_source"]
+                self.assertEqual(
+                    (removed, added),
+                    (distance, distance),
+                    msg=(
+                        f"{stem}.rows.json records that {name} differs from "
+                        f"{Path(str(source)).name} by {distance} replaced line(s); the "
+                        f"unified diff reports {removed} removed and {added} added. A "
+                        "count larger than the derivation means the document was "
+                        "rewritten rather than derived"
+                    ),
+                )
+        self.assertGreater(
+            measured,
+            0,
+            msg=(
+                "no expected file recorded a machine-checkable derivation distance, so "
+                "this assertion measured nothing. reject-trivy-absent-path.rows.json "
+                "carries indent_spaces, trailing_newline and "
+                "differing_lines_from_source and must be measured here"
+            ),
         )
 
 

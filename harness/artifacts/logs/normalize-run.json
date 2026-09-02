@@ -18,13 +18,48 @@
   "embedded_text": "a runner stream's own words are embedded only where the artifact is absent and the classification therefore depends on them (AAP 0.5.4), bounded by text_excerpt_limit and flagged text_truncated when cut. Where the words are not embedded the entry carries a text_null_reason: the stream is still measured by size and sha256 and retained verbatim on disk, so the bound never loses evidence silently.",
   "text_excerpt_limit": 20000
  },
- "started_at_utc": "2026-09-01T19:41:23Z",
- "finished_at_utc": "2026-09-01T19:41:28Z",
+ "untrusted_verbatim_text": {
+  "what": "the fields listed below carry text this pipeline did not author -- a runner's own stream words and its own .status lines -- byte for byte, unescaped and unrewritten",
+  "fields": [
+   "artifacts[].tool_words.streams.stderr.text",
+   "artifacts[].tool_words.streams.stdout.text",
+   "artifacts[].tool_words.stated_reason",
+   "artifacts[].runner_status.fields.*",
+   "artifacts[].runner_status.exit_code_literal",
+   "artifacts[].runner_status.artifact_bytes_literal",
+   "artifacts[].runner_status.scan_root",
+   "artifacts[].runner_status.scan_root_source",
+   "artifacts[].runner_status.unparsed_lines[].excerpt",
+   "artifacts[].runner_status.duplicate_fields[].value",
+   "artifacts[].network_fetch.statements.*"
+  ],
+  "why_verbatim": "AAP 0.5.4 requires the parser error 'retained verbatim' and settles the absent-artifact verdict 'using only the tool's own stated words'; AAP 0.6.1 and AAP 0.6.2 require an absent artifact's stderr 'verbatim' and a tool's reduced-reach condition 'in the tool's own words'. A rewritten byte is a rewritten verdict, so escaping these fields would satisfy a rendering concern by destroying the evidence contract three AAP clauses make mandatory. Retention here is required, not preferred.",
+  "container": "JSON is a safe container for these bytes: RFC 8259 section 7 requires every character below U+0020 to be escaped in the encoded form, and a parser returns them as data rather than as structure. No value carried here can break out of this document or add a member to it.",
+  "consumer_obligation": "a consumer rendering any field above into Markdown, HTML or a terminal MUST escape it first. CommonMark permits raw HTML, and a backtick run inside a value closes a fence of equal or shorter length, so unescaped text can inject markup or restructure the document (CWE-116); a bare CR, LF or ESC reaching a terminal or a line-oriented log can overwrite or forge a record (CWE-117). The minimum is: neutralise backslash, backtick, pipe, less-than, greater-than and ampersand, neutralise the characters that open a block construct when a value starts a line, describe every control character rather than reproducing it, and choose a fence at least one backtick longer than the longest backtick run in the payload. queries/joern/*.sc do exactly this for the reports they author, in mdSafe, plainSafe and mdFence.",
+  "measurement": "each field above is published beside a control-character inventory measured over the exact text embedded: which code points occur, how many times each, the class and standard abbreviation of each, and what each one does to a consumer that renders it unescaped. The inventory never reproduces the character it reports -- character_reproduced is false in every one -- so a reader sees the hazard without inheriting it. An inventory with occurrences 0 is a measurement that found none, which is a different fact from measured false, and both are said.",
+  "measurement_fields": [
+   "artifacts[].tool_words.streams.stderr.text_control_characters",
+   "artifacts[].tool_words.streams.stdout.text_control_characters",
+   "artifacts[].tool_words.stated_reason_control_characters",
+   "artifacts[].runner_status.text_control_characters"
+  ],
+  "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+  "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+  "deliberately_not_listed": "a halt's message and details, and every rejection, are NOT in the list above: they are composed prose rather than retained evidence, and each is already neutralised at its own persistence boundary -- NormalizeHalt.as_dict through paths.sanitise_diagnostic and paths.sanitise_persisted, and paths.Rejection.as_dict through sanitise_diagnostic -- with URI userinfo redacted and control characters escaped. The list was taken by tracing every string in this record back to its author, not by pattern.",
+  "residual_risk": "the bytes above are untrusted and are retained, and nothing in this module makes them safe to paste into a rendered document. The risk is disclosed and measured rather than removed, because removing it is prohibited by the AAP clauses named above; the residue is that a hostile runner stream could carry markup, a fence-closing backtick run or a terminal escape into any consumer that renders it without escaping. It is latent rather than live: no committed stream or status file carries such a payload, and the inventories are what let a reader confirm that rather than take it on trust.",
+  "not_applicable_here": "this module writes no Markdown and emits no fenced block of its own, so it has nothing to escape on its own output (AAP 0.6.4: 'The Markdown is an output of the pipeline, never an input to it'). The obligation is the renderer's, and it is stated here because this record is where the renderer's input comes from.",
+  "cwe": [
+   "CWE-116",
+   "CWE-117"
+  ]
+ },
+ "started_at_utc": "2026-09-02T17:49:20Z",
+ "finished_at_utc": "2026-09-02T17:49:25Z",
  "command": {
-  "program": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/lib/normalize/cli.py",
+  "program": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/lib/normalize/cli.py",
   "argv": [],
-  "command_line": "/usr/bin/python3 /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/lib/normalize/cli.py",
-  "working_directory": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b"
+  "command_line": "/usr/bin/python3 /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/lib/normalize/cli.py",
+  "working_directory": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0"
  },
  "interpreter": {
   "executable": "/usr/bin/python3",
@@ -38,36 +73,36 @@
   "note": "A difference of any kind is recorded with both values and the run continues (AAP 0.4.1). The normalizer uses the standard library only, so it runs on this base interpreter independently of any scanner's virtualenv."
  },
  "inputs": {
-  "raw_dir": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw",
-  "runner_metadata": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/runner-metadata.json",
-  "allowlist": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/scope/allowlist.txt",
-  "log_dir": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs",
+  "raw_dir": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw",
+  "runner_metadata": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/runner-metadata.json",
+  "allowlist": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/scope/allowlist.txt",
+  "log_dir": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs",
   "spark_src": "/opt/spark-src",
-  "findings_json": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.json",
-  "findings_csv": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.csv",
-  "run_record": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/normalize-run.json",
+  "findings_json": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
+  "findings_csv": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
+  "run_record": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/normalize-run.json",
   "output_guards": {
-   "repository_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b",
+   "repository_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
    "repository_root_source": "$HARNESS_REPO_ROOT",
-   "log_tree": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs",
+   "log_tree": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs",
    "owners": {
-    "--findings-json": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b",
-    "--findings-csv": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b",
-    "--run-record": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs"
+    "--findings-json": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
+    "--findings-csv": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
+    "--run-record": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs"
    },
    "identities": {
-    "--findings-json": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.json",
-    "--findings-csv": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.csv",
-    "--run-record": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/normalize-run.json"
+    "--findings-json": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
+    "--findings-csv": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
+    "--run-record": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/normalize-run.json"
    },
    "input_identities_compared_against": 12,
    "component_checks": {
     "--findings-json": {
-     "target": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.json",
-     "owner_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b",
+     "target": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
+     "owner_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
      "components_checked": [
-      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results",
-      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.json"
+      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results",
+      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json"
      ],
      "symlinked_components": [],
      "target_exists": true,
@@ -78,11 +113,11 @@
      ]
     },
     "--findings-csv": {
-     "target": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.csv",
-     "owner_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b",
+     "target": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
+     "owner_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0",
      "components_checked": [
-      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results",
-      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.csv"
+      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results",
+      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv"
      ],
      "symlinked_components": [],
      "target_exists": true,
@@ -93,10 +128,10 @@
      ]
     },
     "--run-record": {
-     "target": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/normalize-run.json",
-     "owner_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs",
+     "target": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/normalize-run.json",
+     "owner_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs",
      "components_checked": [
-      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/normalize-run.json"
+      "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/normalize-run.json"
      ],
      "symlinked_components": [],
      "target_exists": true,
@@ -224,14 +259,94 @@
    "partial",
    "failed",
    "absent"
-  ]
+  ],
+  "halt_reasons": [
+   "vocabulary-mismatch",
+   "missing-required-input",
+   "runner-metadata-unusable",
+   "scan-root-disagreement",
+   "scan-root-not-absolute",
+   "allowlist-unreadable",
+   "allowlist-not-authoritative",
+   "raw-directory-missing",
+   "raw-directory-boundary-violation",
+   "raw-directory-unexpected-entry",
+   "artifact-unreadable",
+   "artifact-invalid-json",
+   "artifact-not-utf-8",
+   "artifact-exceeds-byte-cap",
+   "artifact-exceeds-depth-cap",
+   "artifact-exceeds-node-cap",
+   "artifact-exceeds-string-cap",
+   "artifact-ingestion-exhausted-memory",
+   "artifact-ingestion-exhausted-stack",
+   "artifact-literal-not-convertible",
+   "unknown-artifact-shape",
+   "missing-adapter-module",
+   "adapter-structural-halt",
+   "adapter-contract-fault",
+   "artifact-absent-without-stated-reason",
+   "artifact-absent-without-no-work-statement",
+   "runner-resolved-another-tree",
+   "runner-scanned-smoke-target",
+   "source-index-empty",
+   "source-index-incomplete",
+   "reconciliation-failed",
+   "output-write-failed",
+   "output-comparison-failed",
+   "output-path-outside-its-owner-root",
+   "output-path-aliases-another-path",
+   "output-path-has-a-symlinked-component",
+   "run-record-not-persisted",
+   "unexpected-error"
+  ],
+  "status_defect_classes": [
+   "duplicate-key",
+   "unparsable-line",
+   "file-exceeds-byte-cap",
+   "numeric-literal-exceeds-digit-cap"
+  ],
+  "ingestion_bounds": {
+   "artifact_bytes": 536870912,
+   "json_depth": 64,
+   "json_nodes": 5000000,
+   "json_string_characters": 8388608,
+   "status_file_bytes": 4194304,
+   "status_numeric_digits": 64,
+   "runner_metadata_bytes": 67108864,
+   "runner_metadata_depth": 32,
+   "runner_metadata_nodes": 200000,
+   "runner_metadata_string_characters": 1048576,
+   "tool_words_excerpt_characters": 20000,
+   "observed_maxima": {
+    "measured_over": "the eight committed artifacts in harness/artifacts/raw/",
+    "artifact_bytes": 73768116,
+    "artifact_bytes_file": "opengrep.sarif",
+    "json_depth": 13,
+    "json_nodes": 230900,
+    "json_depth_and_nodes_file": "datadog-static-analyzer.sarif",
+    "json_string_characters": 449681,
+    "json_string_characters_files": [
+     "opengrep.sarif",
+     "semgrep.sarif"
+    ],
+    "status_file_bytes": 278,
+    "status_file_bytes_file": "datadog-static-analyzer.status",
+    "status_numeric_digits": 8,
+    "runner_metadata_bytes": 189356,
+    "runner_metadata_depth": 8,
+    "runner_metadata_nodes": 2173,
+    "runner_metadata_string_characters": 1496,
+    "node_definition": "a node is a JSON value; an object member name is length-checked against the string cap but is not itself counted as a node"
+   }
+  }
  },
  "runner_metadata": {
   "file": {
-   "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/runner-metadata.json",
+   "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/runner-metadata.json",
    "present": true,
-   "bytes": 175770,
-   "sha256": "cb1c199a93de7c0a27c4986cab823fa3be62d3b18a5f935c74e1eba26f186d17"
+   "bytes": 189356,
+   "sha256": "08c6f0bc5cf15e36b5253b611d0309b9b17491b4f0a6f991ea15352b4ae9b744"
   },
   "schema_version": "runner-metadata/2.0.0",
   "spark_src": "/opt/spark-src",
@@ -265,7 +380,7 @@
  },
  "allowlist": {
   "file": {
-   "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/scope/allowlist.txt",
+   "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/scope/allowlist.txt",
    "present": true,
    "bytes": 343,
    "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1"
@@ -330,8 +445,8 @@
   }
  },
  "raw_directory": {
-  "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw",
-  "resolved_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw",
+  "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw",
+  "resolved_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw",
   "entries": [
    "checkov.json",
    "datadog-static-analyzer.sarif",
@@ -369,7 +484,7 @@
   ],
   "unexpected_entries": [],
   "unexpected_entry_count": 0,
-  "boundary": "Only the nine fixed artifact filenames are read, only as direct children of this directory, and each one's real path is asserted to remain inside it. The Opengrep taint A/B arms (harness/artifacts/logs/taint-ab-*.sarif) and the Joern probe results (queries/joern/results/) are deliberate second appearances that contribute no dataset row (AAP 0.1.3)."
+  "boundary": "Only the nine fixed artifact filenames are read, only as direct children of this directory, and each one's real path is asserted to remain inside it. The Opengrep taint A/B arms (harness/artifacts/logs/taint-ab-*.sarif) and the Joern probe results (queries/joern/results/) are deliberate second appearances that contribute no dataset row (AAP 0.1.3). An unexpected direct child halts the run rather than being reported past: this tree admits one artifact per tool that writes one and nothing else ever (AAP 0.8.1, AAP 0.6.1), so an unconsumed child would leave the dataset reconciling while an input nobody adapted sat beside the ones it was built from."
  },
  "source_index": {
   "built": true,
@@ -394,10 +509,27 @@
    "present": true,
    "parse_status": "clean",
    "artifact": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/opengrep.sarif",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/opengrep.sarif",
     "present": true,
     "bytes": 73768116,
-    "sha256": "740ab140d1224064ce3754470c0a90de66d730febec7fb10073421542b085758"
+    "sha256": "740ab140d1224064ce3754470c0a90de66d730febec7fb10073421542b085758",
+    "ingestion": {
+     "bounds": {
+      "artifact_bytes": 536870912,
+      "json_depth": 64,
+      "json_nodes": 5000000,
+      "json_string_characters": 8388608
+     },
+     "refused": false,
+     "observed_bytes": 73768116,
+     "bytes_read": 73768116,
+     "depth": 11,
+     "nodes": 63675,
+     "longest_string": 449681,
+     "node_definition": "a node is a JSON value; an object member name is length-checked against the string cap but is not itself counted as a node",
+     "walk": "iterative, one iterator per open container, so the traversal's own memory is bounded by the depth cap rather than by the document's breadth",
+     "measured_before_routing": true
+    }
    },
    "routing": {
     "tool": "opengrep",
@@ -406,7 +538,7 @@
     "adapter_module": "normalize.adapters.sarif",
     "scanner_class": "sast",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/opengrep.sarif",
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/opengrep.sarif",
     "detection": {
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
@@ -529,7 +661,7 @@
     "non_filesystem_proportion": 0.0
    },
    "runner_status": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/opengrep.status",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/opengrep.status",
     "present": true,
     "bytes": 251,
     "sha256": "65507e366b7f8ea3e1c301cad20f6336714fcd9a21759ae170b6449ab5d8184d",
@@ -550,7 +682,27 @@
     "duplicate_fields": [],
     "duplicate_field_count": 0,
     "defects": [],
-    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field. A numeric field is converted only where its value is ASCII digits with an optional leading sign and at most 64 of them; a longer literal is retained verbatim beside a null value and recorded under defects. A file above 4194304 bytes is measured and retained but not parsed at all.",
+    "text_control_characters": {
+     "measured": true,
+     "characters_measured": 251,
+     "occurrences": 7,
+     "distinct_code_points": 1,
+     "by_code_point": [
+      {
+       "code_point": "U+000A",
+       "class": "c0-control",
+       "abbreviation": "LF",
+       "count": 7,
+       "rendering_effect": "ends the line: a consumer writing one record per line sees two records, and a Markdown table row ends in the middle of a cell (CWE-117)"
+      }
+     ],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text"
+    },
+    "text_escaping_contract": "untrusted_verbatim_text",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -560,7 +712,7 @@
     "scan_root_source": "SPARK_SRC"
    },
    "network_fetch": {
-    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/opengrep.status",
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/opengrep.status",
     "status_fields_scanned": 7,
     "statements": {},
     "statement_count": 0,
@@ -569,27 +721,67 @@
    "tool_words": {
     "streams": {
      "stderr": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/opengrep.stderr.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/opengrep.stderr.log",
       "present": true,
       "bytes": 2560,
       "sha256": "f683d85f35d12b6ec790c4a0df65b6e4124c96aba9ecca4c061b11791548e938",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/opengrep.stdout.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/opengrep.stdout.log",
       "present": true,
       "bytes": 73768117,
       "sha256": "6f2a5746ed9eacde51b2dd3a1ece47bedefc6c7c1d9874bf5222fdec766407b0",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
     "stated_reason_stream": null,
-    "stated_reason_present": false
+    "stated_reason_present": false,
+    "stated_reason_control_characters": {
+     "measured": false,
+     "characters_measured": null,
+     "occurrences": null,
+     "distinct_code_points": null,
+     "by_code_point": [],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text",
+     "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+    },
+    "stated_reason_control_characters_source": "no stream carried words, so there is no inventory to project",
+    "stated_reason_escaping_contract": "untrusted_verbatim_text"
    },
    "extras": {},
    "notes": []
@@ -602,10 +794,27 @@
    "present": true,
    "parse_status": "clean",
    "artifact": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/semgrep.sarif",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/semgrep.sarif",
     "present": true,
     "bytes": 40661984,
-    "sha256": "7111001f6518803274a80844c2a3d8249edd8f19ba68a771d309fa5d33da03cf"
+    "sha256": "7111001f6518803274a80844c2a3d8249edd8f19ba68a771d309fa5d33da03cf",
+    "ingestion": {
+     "bounds": {
+      "artifact_bytes": 536870912,
+      "json_depth": 64,
+      "json_nodes": 5000000,
+      "json_string_characters": 8388608
+     },
+     "refused": false,
+     "observed_bytes": 40661984,
+     "bytes_read": 40661984,
+     "depth": 11,
+     "nodes": 65358,
+     "longest_string": 449681,
+     "node_definition": "a node is a JSON value; an object member name is length-checked against the string cap but is not itself counted as a node",
+     "walk": "iterative, one iterator per open container, so the traversal's own memory is bounded by the depth cap rather than by the document's breadth",
+     "measured_before_routing": true
+    }
    },
    "routing": {
     "tool": "semgrep",
@@ -614,7 +823,7 @@
     "adapter_module": "normalize.adapters.sarif",
     "scanner_class": "sast",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/semgrep.sarif",
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/semgrep.sarif",
     "detection": {
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
@@ -737,7 +946,7 @@
     "non_filesystem_proportion": 0.0
    },
    "runner_status": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/semgrep.status",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/semgrep.status",
     "present": true,
     "bytes": 248,
     "sha256": "47f12c9714d377477fdc968156a0a31f6d4356464eb2845e893f7a7eee811974",
@@ -758,7 +967,27 @@
     "duplicate_fields": [],
     "duplicate_field_count": 0,
     "defects": [],
-    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field. A numeric field is converted only where its value is ASCII digits with an optional leading sign and at most 64 of them; a longer literal is retained verbatim beside a null value and recorded under defects. A file above 4194304 bytes is measured and retained but not parsed at all.",
+    "text_control_characters": {
+     "measured": true,
+     "characters_measured": 248,
+     "occurrences": 7,
+     "distinct_code_points": 1,
+     "by_code_point": [
+      {
+       "code_point": "U+000A",
+       "class": "c0-control",
+       "abbreviation": "LF",
+       "count": 7,
+       "rendering_effect": "ends the line: a consumer writing one record per line sees two records, and a Markdown table row ends in the middle of a cell (CWE-117)"
+      }
+     ],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text"
+    },
+    "text_escaping_contract": "untrusted_verbatim_text",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -768,7 +997,7 @@
     "scan_root_source": "SPARK_SRC"
    },
    "network_fetch": {
-    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/semgrep.status",
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/semgrep.status",
     "status_fields_scanned": 7,
     "statements": {},
     "statement_count": 0,
@@ -777,27 +1006,67 @@
    "tool_words": {
     "streams": {
      "stderr": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/semgrep.stderr.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/semgrep.stderr.log",
       "present": true,
       "bytes": 5079,
       "sha256": "d282ddb8cf484139e1294aebf3feb4933a1b8beeb20a0fb59e3313bc3387dd79",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/semgrep.stdout.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/semgrep.stdout.log",
       "present": true,
       "bytes": 40661985,
       "sha256": "c4294a7251f0fe2cdea4375ec19d43a910ddd8ec9b1a5b7ec4c46e7288b4e881",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
     "stated_reason_stream": null,
-    "stated_reason_present": false
+    "stated_reason_present": false,
+    "stated_reason_control_characters": {
+     "measured": false,
+     "characters_measured": null,
+     "occurrences": null,
+     "distinct_code_points": null,
+     "by_code_point": [],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text",
+     "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+    },
+    "stated_reason_control_characters_source": "no stream carried words, so there is no inventory to project",
+    "stated_reason_escaping_contract": "untrusted_verbatim_text"
    },
    "extras": {},
    "notes": []
@@ -810,10 +1079,27 @@
    "present": true,
    "parse_status": "clean",
    "artifact": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/datadog-static-analyzer.sarif",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/datadog-static-analyzer.sarif",
     "present": true,
     "bytes": 5723938,
-    "sha256": "a71dc70d69fa9d93b84eed180e46b568dea98581e25e5cb3ebd5ae4668465372"
+    "sha256": "a71dc70d69fa9d93b84eed180e46b568dea98581e25e5cb3ebd5ae4668465372",
+    "ingestion": {
+     "bounds": {
+      "artifact_bytes": 536870912,
+      "json_depth": 64,
+      "json_nodes": 5000000,
+      "json_string_characters": 8388608
+     },
+     "refused": false,
+     "observed_bytes": 5723938,
+     "bytes_read": 5723938,
+     "depth": 13,
+     "nodes": 230900,
+     "longest_string": 4269,
+     "node_definition": "a node is a JSON value; an object member name is length-checked against the string cap but is not itself counted as a node",
+     "walk": "iterative, one iterator per open container, so the traversal's own memory is bounded by the depth cap rather than by the document's breadth",
+     "measured_before_routing": true
+    }
    },
    "routing": {
     "tool": "datadog-static-analyzer",
@@ -822,7 +1108,7 @@
     "adapter_module": "normalize.adapters.sarif",
     "scanner_class": "sast",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/datadog-static-analyzer.sarif",
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/datadog-static-analyzer.sarif",
     "detection": {
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
@@ -934,7 +1220,7 @@
     "non_filesystem_proportion": 0.0
    },
    "runner_status": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/datadog-static-analyzer.status",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/datadog-static-analyzer.status",
     "present": true,
     "bytes": 278,
     "sha256": "7c6de52302804bb0b9ca052ad1fb4bfd88a851df0cce5e48e8c4fdaff5dac6f2",
@@ -955,7 +1241,27 @@
     "duplicate_fields": [],
     "duplicate_field_count": 0,
     "defects": [],
-    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field. A numeric field is converted only where its value is ASCII digits with an optional leading sign and at most 64 of them; a longer literal is retained verbatim beside a null value and recorded under defects. A file above 4194304 bytes is measured and retained but not parsed at all.",
+    "text_control_characters": {
+     "measured": true,
+     "characters_measured": 278,
+     "occurrences": 7,
+     "distinct_code_points": 1,
+     "by_code_point": [
+      {
+       "code_point": "U+000A",
+       "class": "c0-control",
+       "abbreviation": "LF",
+       "count": 7,
+       "rendering_effect": "ends the line: a consumer writing one record per line sees two records, and a Markdown table row ends in the middle of a cell (CWE-117)"
+      }
+     ],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text"
+    },
+    "text_escaping_contract": "untrusted_verbatim_text",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -965,7 +1271,7 @@
     "scan_root_source": "SPARK_SRC"
    },
    "network_fetch": {
-    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/datadog-static-analyzer.status",
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/datadog-static-analyzer.status",
     "status_fields_scanned": 7,
     "statements": {},
     "statement_count": 0,
@@ -974,27 +1280,67 @@
    "tool_words": {
     "streams": {
      "stderr": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/datadog-static-analyzer.stderr.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/datadog-static-analyzer.stderr.log",
       "present": true,
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/datadog-static-analyzer.stdout.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/datadog-static-analyzer.stdout.log",
       "present": true,
       "bytes": 4043,
       "sha256": "a311e2d20e16173649c38602a4ed684daea77a4dba92298b8813bc1621e62ae1",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
     "stated_reason_stream": null,
-    "stated_reason_present": false
+    "stated_reason_present": false,
+    "stated_reason_control_characters": {
+     "measured": false,
+     "characters_measured": null,
+     "occurrences": null,
+     "distinct_code_points": null,
+     "by_code_point": [],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text",
+     "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+    },
+    "stated_reason_control_characters_source": "no stream carried words, so there is no inventory to project",
+    "stated_reason_escaping_contract": "untrusted_verbatim_text"
    },
    "extras": {},
    "notes": []
@@ -1007,10 +1353,27 @@
    "present": true,
    "parse_status": "clean",
    "artifact": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/gitleaks.json",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/gitleaks.json",
     "present": true,
     "bytes": 561,
-    "sha256": "12d50cf783bb966c77608cae6f93c50c688e0384e84662041ecfb1b6935d8467"
+    "sha256": "12d50cf783bb966c77608cae6f93c50c688e0384e84662041ecfb1b6935d8467",
+    "ingestion": {
+     "bounds": {
+      "artifact_bytes": 536870912,
+      "json_depth": 64,
+      "json_nodes": 5000000,
+      "json_string_characters": 8388608
+     },
+     "refused": false,
+     "observed_bytes": 561,
+     "bytes_read": 561,
+     "depth": 3,
+     "nodes": 20,
+     "longest_string": 101,
+     "node_definition": "a node is a JSON value; an object member name is length-checked against the string cap but is not itself counted as a node",
+     "walk": "iterative, one iterator per open container, so the traversal's own memory is bounded by the depth cap rather than by the document's breadth",
+     "measured_before_routing": true
+    }
    },
    "routing": {
     "tool": "gitleaks",
@@ -1019,7 +1382,7 @@
     "adapter_module": "normalize.adapters.gitleaks",
     "scanner_class": "secret",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/gitleaks.json",
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/gitleaks.json",
     "detection": {
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "array",
@@ -1097,7 +1460,7 @@
     "non_filesystem_proportion": 0.0
    },
    "runner_status": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/gitleaks.status",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/gitleaks.status",
     "present": true,
     "bytes": 243,
     "sha256": "8afcf8f13b6aaaf29c959a5acb7fb94e3ddc0b9a98b33215c77afe6bcd880f89",
@@ -1118,7 +1481,27 @@
     "duplicate_fields": [],
     "duplicate_field_count": 0,
     "defects": [],
-    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field. A numeric field is converted only where its value is ASCII digits with an optional leading sign and at most 64 of them; a longer literal is retained verbatim beside a null value and recorded under defects. A file above 4194304 bytes is measured and retained but not parsed at all.",
+    "text_control_characters": {
+     "measured": true,
+     "characters_measured": 243,
+     "occurrences": 7,
+     "distinct_code_points": 1,
+     "by_code_point": [
+      {
+       "code_point": "U+000A",
+       "class": "c0-control",
+       "abbreviation": "LF",
+       "count": 7,
+       "rendering_effect": "ends the line: a consumer writing one record per line sees two records, and a Markdown table row ends in the middle of a cell (CWE-117)"
+      }
+     ],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text"
+    },
+    "text_escaping_contract": "untrusted_verbatim_text",
     "exit_code": 2,
     "exit_code_literal": "2",
     "exit_status": "exited",
@@ -1128,7 +1511,7 @@
     "scan_root_source": "SPARK_SRC"
    },
    "network_fetch": {
-    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/gitleaks.status",
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/gitleaks.status",
     "status_fields_scanned": 7,
     "statements": {},
     "statement_count": 0,
@@ -1137,27 +1520,67 @@
    "tool_words": {
     "streams": {
      "stderr": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/gitleaks.stderr.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/gitleaks.stderr.log",
       "present": true,
       "bytes": 26,
       "sha256": "98467e49ee1b5e56b9b03a596c97f828f907bf0362096ef2bb74f9a5f5718177",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/gitleaks.stdout.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/gitleaks.stdout.log",
       "present": true,
       "bytes": 1422,
       "sha256": "461feae54405afc40c7d81025a7859d192654879a5db5fc91a79f3e1b28e5195",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
     "stated_reason_stream": null,
-    "stated_reason_present": false
+    "stated_reason_present": false,
+    "stated_reason_control_characters": {
+     "measured": false,
+     "characters_measured": null,
+     "occurrences": null,
+     "distinct_code_points": null,
+     "by_code_point": [],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text",
+     "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+    },
+    "stated_reason_control_characters_source": "no stream carried words, so there is no inventory to project",
+    "stated_reason_escaping_contract": "untrusted_verbatim_text"
    },
    "extras": {},
    "notes": [
@@ -1172,10 +1595,27 @@
    "present": true,
    "parse_status": "clean",
    "artifact": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/checkov.json",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/checkov.json",
     "present": true,
     "bytes": 8380,
-    "sha256": "91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643"
+    "sha256": "91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643",
+    "ingestion": {
+     "bounds": {
+      "artifact_bytes": 536870912,
+      "json_depth": 64,
+      "json_nodes": 5000000,
+      "json_string_characters": 8388608
+     },
+     "refused": false,
+     "observed_bytes": 8380,
+     "bytes_read": 8380,
+     "depth": 8,
+     "nodes": 227,
+     "longest_string": 558,
+     "node_definition": "a node is a JSON value; an object member name is length-checked against the string cap but is not itself counted as a node",
+     "walk": "iterative, one iterator per open container, so the traversal's own memory is bounded by the depth cap rather than by the document's breadth",
+     "measured_before_routing": true
+    }
    },
    "routing": {
     "tool": "checkov",
@@ -1184,7 +1624,7 @@
     "adapter_module": "normalize.adapters.checkov",
     "scanner_class": "misconfig",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/checkov.json",
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/checkov.json",
     "detection": {
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
@@ -1307,7 +1747,7 @@
     "non_filesystem_proportion": 0.0
    },
    "runner_status": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/checkov.status",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/checkov.status",
     "present": true,
     "bytes": 242,
     "sha256": "d05f2b35d50da2cd202ccc307857d7a950d9733abe6eb7c5b988f2a6e5924da1",
@@ -1328,7 +1768,27 @@
     "duplicate_fields": [],
     "duplicate_field_count": 0,
     "defects": [],
-    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field. A numeric field is converted only where its value is ASCII digits with an optional leading sign and at most 64 of them; a longer literal is retained verbatim beside a null value and recorded under defects. A file above 4194304 bytes is measured and retained but not parsed at all.",
+    "text_control_characters": {
+     "measured": true,
+     "characters_measured": 242,
+     "occurrences": 7,
+     "distinct_code_points": 1,
+     "by_code_point": [
+      {
+       "code_point": "U+000A",
+       "class": "c0-control",
+       "abbreviation": "LF",
+       "count": 7,
+       "rendering_effect": "ends the line: a consumer writing one record per line sees two records, and a Markdown table row ends in the middle of a cell (CWE-117)"
+      }
+     ],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text"
+    },
+    "text_escaping_contract": "untrusted_verbatim_text",
     "exit_code": 1,
     "exit_code_literal": "1",
     "exit_status": "exited",
@@ -1338,7 +1798,7 @@
     "scan_root_source": "SPARK_SRC"
    },
    "network_fetch": {
-    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/checkov.status",
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/checkov.status",
     "status_fields_scanned": 7,
     "statements": {},
     "statement_count": 0,
@@ -1347,27 +1807,67 @@
    "tool_words": {
     "streams": {
      "stderr": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/checkov.stderr.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/checkov.stderr.log",
       "present": true,
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/checkov.stdout.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/checkov.stdout.log",
       "present": true,
       "bytes": 140105,
       "sha256": "3c1d72a44cfa7d4c7665373b2375e40c4e16f10f208489bd42d829de58ffa854",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
     "stated_reason_stream": null,
-    "stated_reason_present": false
+    "stated_reason_present": false,
+    "stated_reason_control_characters": {
+     "measured": false,
+     "characters_measured": null,
+     "occurrences": null,
+     "distinct_code_points": null,
+     "by_code_point": [],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text",
+     "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+    },
+    "stated_reason_control_characters_source": "no stream carried words, so there is no inventory to project",
+    "stated_reason_escaping_contract": "untrusted_verbatim_text"
    },
    "extras": {
     "parsing_errors": [],
@@ -1402,10 +1902,27 @@
    "present": true,
    "parse_status": "clean",
    "artifact": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/trivy.json",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/trivy.json",
     "present": true,
     "bytes": 3496,
-    "sha256": "979ad0ffbec3502f62ea0e2cd46fae549aaa5e1b7cc4a0d59153a5c2448766ec"
+    "sha256": "979ad0ffbec3502f62ea0e2cd46fae549aaa5e1b7cc4a0d59153a5c2448766ec",
+    "ingestion": {
+     "bounds": {
+      "artifact_bytes": 536870912,
+      "json_depth": 64,
+      "json_nodes": 5000000,
+      "json_string_characters": 8388608
+     },
+     "refused": false,
+     "observed_bytes": 3496,
+     "bytes_read": 3496,
+     "depth": 7,
+     "nodes": 87,
+     "longest_string": 121,
+     "node_definition": "a node is a JSON value; an object member name is length-checked against the string cap but is not itself counted as a node",
+     "walk": "iterative, one iterator per open container, so the traversal's own memory is bounded by the depth cap rather than by the document's breadth",
+     "measured_before_routing": true
+    }
    },
    "routing": {
     "tool": "trivy",
@@ -1414,7 +1931,7 @@
     "adapter_module": "normalize.adapters.trivy",
     "scanner_class": "per-record",
     "scanner_class_per_record": true,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/trivy.json",
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/trivy.json",
     "detection": {
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
@@ -1591,7 +2108,7 @@
     "non_filesystem_proportion": 0.0
    },
    "runner_status": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/trivy.status",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/trivy.status",
     "present": true,
     "bytes": 238,
     "sha256": "7d9d9df0a15fba5eb6360796d97988400595fe7a6a4a6aa7c5b79bac1866be79",
@@ -1612,7 +2129,27 @@
     "duplicate_fields": [],
     "duplicate_field_count": 0,
     "defects": [],
-    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field. A numeric field is converted only where its value is ASCII digits with an optional leading sign and at most 64 of them; a longer literal is retained verbatim beside a null value and recorded under defects. A file above 4194304 bytes is measured and retained but not parsed at all.",
+    "text_control_characters": {
+     "measured": true,
+     "characters_measured": 238,
+     "occurrences": 7,
+     "distinct_code_points": 1,
+     "by_code_point": [
+      {
+       "code_point": "U+000A",
+       "class": "c0-control",
+       "abbreviation": "LF",
+       "count": 7,
+       "rendering_effect": "ends the line: a consumer writing one record per line sees two records, and a Markdown table row ends in the middle of a cell (CWE-117)"
+      }
+     ],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text"
+    },
+    "text_escaping_contract": "untrusted_verbatim_text",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -1622,7 +2159,7 @@
     "scan_root_source": "SPARK_SRC"
    },
    "network_fetch": {
-    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/trivy.status",
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/trivy.status",
     "status_fields_scanned": 7,
     "statements": {},
     "statement_count": 0,
@@ -1631,27 +2168,67 @@
    "tool_words": {
     "streams": {
      "stderr": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/trivy.stderr.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/trivy.stderr.log",
       "present": true,
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/trivy.stdout.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/trivy.stdout.log",
       "present": true,
       "bytes": 1422,
       "sha256": "335c28b2e4b984d10259f8e6fd8a9a318a551ef2f4c8e9e76e815fb40519eacb",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
     "stated_reason_stream": null,
-    "stated_reason_present": false
+    "stated_reason_present": false,
+    "stated_reason_control_characters": {
+     "measured": false,
+     "characters_measured": null,
+     "occurrences": null,
+     "distinct_code_points": null,
+     "by_code_point": [],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text",
+     "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+    },
+    "stated_reason_control_characters_source": "no stream carried words, so there is no inventory to project",
+    "stated_reason_escaping_contract": "untrusted_verbatim_text"
    },
    "extras": {
     "supported_sections": {
@@ -1674,7 +2251,7 @@
    "present": false,
    "parse_status": "absent",
    "artifact": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/osv-scanner.json",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/osv-scanner.json",
     "present": false,
     "bytes": null,
     "sha256": null,
@@ -1690,7 +2267,7 @@
    "counter_summary": {},
    "path_kinds": {},
    "runner_status": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/osv-scanner.status",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/osv-scanner.status",
     "present": true,
     "bytes": 254,
     "sha256": "920ba69be84df9436b06ec592ce2ec96b8c6ef52af9cf009503e5280429d6ea8",
@@ -1711,7 +2288,27 @@
     "duplicate_fields": [],
     "duplicate_field_count": 0,
     "defects": [],
-    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field. A numeric field is converted only where its value is ASCII digits with an optional leading sign and at most 64 of them; a longer literal is retained verbatim beside a null value and recorded under defects. A file above 4194304 bytes is measured and retained but not parsed at all.",
+    "text_control_characters": {
+     "measured": true,
+     "characters_measured": 254,
+     "occurrences": 7,
+     "distinct_code_points": 1,
+     "by_code_point": [
+      {
+       "code_point": "U+000A",
+       "class": "c0-control",
+       "abbreviation": "LF",
+       "count": 7,
+       "rendering_effect": "ends the line: a consumer writing one record per line sees two records, and a Markdown table row ends in the middle of a cell (CWE-117)"
+      }
+     ],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text"
+    },
+    "text_escaping_contract": "untrusted_verbatim_text",
     "exit_code": 128,
     "exit_code_literal": "128",
     "exit_status": "exited",
@@ -1721,7 +2318,7 @@
     "scan_root_source": "SPARK_SRC"
    },
    "network_fetch": {
-    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/osv-scanner.status",
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/osv-scanner.status",
     "status_fields_scanned": 7,
     "statements": {},
     "statement_count": 0,
@@ -1730,25 +2327,80 @@
    "tool_words": {
     "streams": {
      "stderr": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/osv-scanner.stderr.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/osv-scanner.stderr.log",
       "present": true,
       "bytes": 967,
       "sha256": "03e42fd9fe0c83921df8bc7f4377231723a69ebad6cf48095fa39e4f7fe31cf5",
       "text": "Scanning dir common/network-common/src/main\nScanning dir common/network-shuffle/src/main\nScanning dir common/network-yarn/src/main\nScanning dir core/src/main\nScanning dir python/pyspark\nScanning dir resource-managers/kubernetes/core/src/main\nScanning dir resource-managers/kubernetes/core/volcano/src/main\nScanning dir resource-managers/kubernetes/docker/src/main\nScanning dir resource-managers/yarn/src/main\nScanning dir sql/catalyst/src/main\nScanning dir sql/connect/client/jdbc/src/main\nScanning dir sql/connect/client/jvm/src/main\nScanning dir sql/connect/common/src/main\nScanning dir sql/connect/server/src/main\nScanning dir sql/connect/shims/src/main\nScanning dir sql/core/src/main\nScanning dir sql/hive-thriftserver/src/main\nScanning dir sql/hive/src/main\nStarting filesystem walk for root: /\nEnd status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 296.87925ms elapsed, 296.87957ms wall time\nNo package sources found, --help for usage information.\n",
-      "text_truncated": false
+      "text_truncated": false,
+      "text_control_characters": {
+       "measured": true,
+       "characters_measured": 967,
+       "occurrences": 21,
+       "distinct_code_points": 1,
+       "by_code_point": [
+        {
+         "code_point": "U+000A",
+         "class": "c0-control",
+         "abbreviation": "LF",
+         "count": 21,
+         "rendering_effect": "ends the line: a consumer writing one record per line sees two records, and a Markdown table row ends in the middle of a cell (CWE-117)"
+        }
+       ],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
+      "text_read_bounded_at": 20000
      },
      "stdout": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/osv-scanner.stdout.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/osv-scanner.stdout.log",
       "present": true,
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "text": "",
-      "text_truncated": false
+      "text_truncated": false,
+      "text_control_characters": {
+       "measured": true,
+       "characters_measured": 0,
+       "occurrences": 0,
+       "distinct_code_points": 0,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
+      "text_read_bounded_at": 20000
      }
     },
     "stated_reason": "Scanning dir common/network-common/src/main\nScanning dir common/network-shuffle/src/main\nScanning dir common/network-yarn/src/main\nScanning dir core/src/main\nScanning dir python/pyspark\nScanning dir resource-managers/kubernetes/core/src/main\nScanning dir resource-managers/kubernetes/core/volcano/src/main\nScanning dir resource-managers/kubernetes/docker/src/main\nScanning dir resource-managers/yarn/src/main\nScanning dir sql/catalyst/src/main\nScanning dir sql/connect/client/jdbc/src/main\nScanning dir sql/connect/client/jvm/src/main\nScanning dir sql/connect/common/src/main\nScanning dir sql/connect/server/src/main\nScanning dir sql/connect/shims/src/main\nScanning dir sql/core/src/main\nScanning dir sql/hive-thriftserver/src/main\nScanning dir sql/hive/src/main\nStarting filesystem walk for root: /\nEnd status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 296.87925ms elapsed, 296.87957ms wall time\nNo package sources found, --help for usage information.\n",
     "stated_reason_stream": "stderr",
     "stated_reason_present": true,
+    "stated_reason_control_characters": {
+     "measured": true,
+     "characters_measured": 967,
+     "occurrences": 21,
+     "distinct_code_points": 1,
+     "by_code_point": [
+      {
+       "code_point": "U+000A",
+       "class": "c0-control",
+       "abbreviation": "LF",
+       "count": 21,
+       "rendering_effect": "ends the line: a consumer writing one record per line sees two records, and a Markdown table row ends in the middle of a cell (CWE-117)"
+      }
+     ],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text"
+    },
+    "stated_reason_control_characters_source": "streams.stderr.text_control_characters",
+    "stated_reason_escaping_contract": "untrusted_verbatim_text",
     "no_work_classification": {
      "tool": "osv-scanner",
      "recognised_statements": [
@@ -1808,10 +2460,27 @@
    "present": true,
    "parse_status": "clean",
    "artifact": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/dependency-check.json",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/dependency-check.json",
     "present": true,
     "bytes": 17097,
-    "sha256": "2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799"
+    "sha256": "2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799",
+    "ingestion": {
+     "bounds": {
+      "artifact_bytes": 536870912,
+      "json_depth": 64,
+      "json_nodes": 5000000,
+      "json_string_characters": 8388608
+     },
+     "refused": false,
+     "observed_bytes": 17097,
+     "bytes_read": 17097,
+     "depth": 5,
+     "nodes": 379,
+     "longest_string": 173,
+     "node_definition": "a node is a JSON value; an object member name is length-checked against the string cap but is not itself counted as a node",
+     "walk": "iterative, one iterator per open container, so the traversal's own memory is bounded by the depth cap rather than by the document's breadth",
+     "measured_before_routing": true
+    }
    },
    "routing": {
     "tool": "dependency-check",
@@ -1820,7 +2489,7 @@
     "adapter_module": "normalize.adapters.dependency_check",
     "scanner_class": "vuln",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/dependency-check.json",
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/dependency-check.json",
     "detection": {
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
@@ -1959,7 +2628,7 @@
     "non_filesystem_proportion": 0.0
    },
    "runner_status": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/dependency-check.status",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/dependency-check.status",
     "present": true,
     "bytes": 260,
     "sha256": "a888d8b4ecb7261c70fff7978b5e16867af0047b2c39983057bc12e93a2765a2",
@@ -1980,7 +2649,27 @@
     "duplicate_fields": [],
     "duplicate_field_count": 0,
     "defects": [],
-    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field. A numeric field is converted only where its value is ASCII digits with an optional leading sign and at most 64 of them; a longer literal is retained verbatim beside a null value and recorded under defects. A file above 4194304 bytes is measured and retained but not parsed at all.",
+    "text_control_characters": {
+     "measured": true,
+     "characters_measured": 260,
+     "occurrences": 7,
+     "distinct_code_points": 1,
+     "by_code_point": [
+      {
+       "code_point": "U+000A",
+       "class": "c0-control",
+       "abbreviation": "LF",
+       "count": 7,
+       "rendering_effect": "ends the line: a consumer writing one record per line sees two records, and a Markdown table row ends in the middle of a cell (CWE-117)"
+      }
+     ],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text"
+    },
+    "text_escaping_contract": "untrusted_verbatim_text",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -1990,7 +2679,7 @@
     "scan_root_source": "SPARK_SRC"
    },
    "network_fetch": {
-    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/dependency-check.status",
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/dependency-check.status",
     "status_fields_scanned": 7,
     "statements": {},
     "statement_count": 0,
@@ -1999,27 +2688,67 @@
    "tool_words": {
     "streams": {
      "stderr": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/dependency-check.stderr.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/dependency-check.stderr.log",
       "present": true,
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/dependency-check.stdout.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/dependency-check.stdout.log",
       "present": true,
       "bytes": 2067,
       "sha256": "59a529f2329ff7c64a33671d764486807e5b955203bd3fb2d3b58f45b37ab814",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
     "stated_reason_stream": null,
-    "stated_reason_present": false
+    "stated_reason_present": false,
+    "stated_reason_control_characters": {
+     "measured": false,
+     "characters_measured": null,
+     "occurrences": null,
+     "distinct_code_points": null,
+     "by_code_point": [],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text",
+     "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+    },
+    "stated_reason_control_characters_source": "no stream carried words, so there is no inventory to project",
+    "stated_reason_escaping_contract": "untrusted_verbatim_text"
    },
    "extras": {},
    "notes": []
@@ -2032,10 +2761,27 @@
    "present": true,
    "parse_status": "partial",
    "artifact": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/joern.json",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/joern.json",
     "present": true,
     "bytes": 354817,
-    "sha256": "bb73a8c657fd31ddf31dc8081f248103e42e2db4fb1b000cca447682c43d8014"
+    "sha256": "bb73a8c657fd31ddf31dc8081f248103e42e2db4fb1b000cca447682c43d8014",
+    "ingestion": {
+     "bounds": {
+      "artifact_bytes": 536870912,
+      "json_depth": 64,
+      "json_nodes": 5000000,
+      "json_string_characters": 8388608
+     },
+     "refused": false,
+     "observed_bytes": 354817,
+     "bytes_read": 354817,
+     "depth": 5,
+     "nodes": 6300,
+     "longest_string": 232,
+     "node_definition": "a node is a JSON value; an object member name is length-checked against the string cap but is not itself counted as a node",
+     "walk": "iterative, one iterator per open container, so the traversal's own memory is bounded by the depth cap rather than by the document's breadth",
+     "measured_before_routing": true
+    }
    },
    "routing": {
     "tool": "joern",
@@ -2044,7 +2790,7 @@
     "adapter_module": "normalize.adapters.joern",
     "scanner_class": "sast",
     "scanner_class_per_record": false,
-    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/joern.json",
+    "artifact_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/joern.json",
     "detection": {
      "test": "a document is SARIF when version == \"2.1.0\" AND runs is an array; those two together are the whole test (AAP 0.5.4). Nothing else is consulted: not $schema, not the filename, not tool.driver.",
      "top_level_type": "object",
@@ -11022,7 +11768,7 @@
     "non_filesystem_proportion": 0.0
    },
    "runner_status": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/joern.status",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/joern.status",
     "present": true,
     "bytes": 241,
     "sha256": "cd94f62129b07e851b35e933e49389231e9b3374527c19cd6f5f983aa8204c05",
@@ -11043,7 +11789,27 @@
     "duplicate_fields": [],
     "duplicate_field_count": 0,
     "defects": [],
-    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field.",
+    "parser_contract": "A field is a line whose first non-space character is not '#', which carries an '=', and whose text before the first '=' is a plain field name at column zero ([A-Za-z_][A-Za-z0-9_]*) not already seen. A duplicate key is a defect in the status file: the first occurrence is kept and the duplicate is recorded under duplicate_fields. Every other line carrying an '=' is recorded under unparsed_lines rather than becoming a field. A numeric field is converted only where its value is ASCII digits with an optional leading sign and at most 64 of them; a longer literal is retained verbatim beside a null value and recorded under defects. A file above 4194304 bytes is measured and retained but not parsed at all.",
+    "text_control_characters": {
+     "measured": true,
+     "characters_measured": 241,
+     "occurrences": 7,
+     "distinct_code_points": 1,
+     "by_code_point": [
+      {
+       "code_point": "U+000A",
+       "class": "c0-control",
+       "abbreviation": "LF",
+       "count": 7,
+       "rendering_effect": "ends the line: a consumer writing one record per line sees two records, and a Markdown table row ends in the middle of a cell (CWE-117)"
+      }
+     ],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text"
+    },
+    "text_escaping_contract": "untrusted_verbatim_text",
     "exit_code": 0,
     "exit_code_literal": "0",
     "exit_status": "exited",
@@ -11053,7 +11819,7 @@
     "scan_root_source": "SPARK_SRC"
    },
    "network_fetch": {
-    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/joern.status",
+    "source": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/joern.status",
     "status_fields_scanned": 7,
     "statements": {},
     "statement_count": 0,
@@ -11062,27 +11828,67 @@
    "tool_words": {
     "streams": {
      "stderr": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/joern.stderr.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/joern.stderr.log",
       "present": true,
       "bytes": 699,
       "sha256": "1344952be0dea952067d3225a7e4350f654f61a39451a60f754b2092c4b514bd",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      },
      "stdout": {
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/joern.stdout.log",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/joern.stdout.log",
       "present": true,
       "bytes": 14911,
       "sha256": "3c22ef95664acf10bfdc5225828e17d17eeb1bb513e582f339a0fa67976c19ae",
       "text": null,
       "text_truncated": false,
+      "text_control_characters": {
+       "measured": false,
+       "characters_measured": null,
+       "occurrences": null,
+       "distinct_code_points": null,
+       "by_code_point": [],
+       "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+       "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+       "character_reproduced": false,
+       "escaping_contract": "untrusted_verbatim_text",
+       "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+      },
+      "text_escaping_contract": "untrusted_verbatim_text",
       "text_null_reason": "the artifact is present, so its classification comes from the artifact rather than from the tool's own words; this stream is measured by size and sha256 above and retained verbatim on disk at the path named, so nothing is lost by not embedding it here"
      }
     },
     "stated_reason": null,
     "stated_reason_stream": null,
-    "stated_reason_present": false
+    "stated_reason_present": false,
+    "stated_reason_control_characters": {
+     "measured": false,
+     "characters_measured": null,
+     "occurrences": null,
+     "distinct_code_points": null,
+     "by_code_point": [],
+     "subject_set": "Unicode general category Cc -- the C0 controls U+0000-U+001F, DELETE U+007F and the C1 controls U+0080-U+009F -- together with the twelve bidirectional formatting characters of category Cf that reorder rendered text without being visible",
+     "method": "one pass over the distinct characters of the embedded text, then str.count for each distinct character that is in the subject set; ordered by code point ascending, so the same text produces the same inventory on every run",
+     "character_reproduced": false,
+     "escaping_contract": "untrusted_verbatim_text",
+     "null_reason": "no text is embedded at this entry, so there is nothing to measure; these nulls describe an absent value rather than a measurement that was skipped"
+    },
+    "stated_reason_control_characters_source": "no stream carried words, so there is no inventory to project",
+    "stated_reason_escaping_contract": "untrusted_verbatim_text"
    },
    "extras": {
     "source_index": {
@@ -11717,7 +12523,7 @@
     "right": 9430,
     "passed": true,
     "status": "pass",
-    "method": "parsed findings.json at /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.json",
+    "method": "parsed findings.json at /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
     "detail": "the parsed JSON row count equals the dataset-level emitted rows"
    },
    {
@@ -11728,7 +12534,7 @@
     "right": 9430,
     "passed": true,
     "status": "pass",
-    "method": "parsed findings.csv at /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.csv",
+    "method": "parsed findings.csv at /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
     "detail": "the parsed CSV row count equals the dataset-level emitted rows, asserted separately from the JSON comparison rather than inferred from it"
    },
    {
@@ -11739,7 +12545,7 @@
     "right": 9430,
     "passed": true,
     "status": "pass",
-    "method": "parsed findings.json at /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.json; parsed findings.csv at /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.csv",
+    "method": "parsed findings.json at /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json; parsed findings.csv at /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
     "detail": "both output files parse to the same number of rows"
    }
   ],
@@ -11773,19 +12579,19 @@
    "package_coordinate",
    "in_scope"
   ],
-  "json_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.json",
-  "csv_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.csv",
+  "json_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
+  "csv_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
   "first_mismatch": null
  },
  "outputs": {
   "findings_json": {
-   "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.json",
+   "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
    "present": true,
    "bytes": 4408640,
    "sha256": "d4e28c823fd1e76c2158130dc941762e0c6cf23424c0c990c930cc84ece6fc54"
   },
   "findings_csv": {
-   "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.csv",
+   "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
    "present": true,
    "bytes": 2081618,
    "sha256": "9f646532494fcba3ad95a8e10f15f77957b9f16bea0b486b513e2a830f5445e6"
@@ -11797,17 +12603,25 @@
    "members": [
     {
      "role": "findings_json",
-     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.json",
+     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
      "bytes": 4408640,
      "sha256": "d4e28c823fd1e76c2158130dc941762e0c6cf23424c0c990c930cc84ece6fc54",
-     "publication_id": "1cbb9d77d199323c62d9da1354f6583b"
+     "publication_id": "1cbb9d77d199323c62d9da1354f6583b",
+     "mode": 420,
+     "mode_octal": "0o644",
+     "mode_promised_octal": "0o644",
+     "mode_verified": "measured with fstat on the published file after the rename and required to equal the promised mode; a publication whose member does not carry it raises rather than reporting the member"
     },
     {
      "role": "findings_csv",
-     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.csv",
+     "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
      "bytes": 2081618,
      "sha256": "9f646532494fcba3ad95a8e10f15f77957b9f16bea0b486b513e2a830f5445e6",
-     "publication_id": "1cbb9d77d199323c62d9da1354f6583b"
+     "publication_id": "1cbb9d77d199323c62d9da1354f6583b",
+     "mode": 420,
+     "mode_octal": "0o644",
+     "mode_promised_octal": "0o644",
+     "mode_verified": "measured with fstat on the published file after the rename and required to equal the promised mode; a publication whose member does not carry it raises rather than reporting the member"
     }
    ],
    "rows": 9430,
@@ -11829,8 +12643,8 @@
      "package_coordinate",
      "in_scope"
     ],
-    "json_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.json",
-    "csv_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.csv",
+    "json_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
+    "csv_path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
     "first_mismatch": null
    },
    "staging": {
@@ -11841,7 +12655,10 @@
     "temporary_name_pattern": ".<target-name>.<24 random hex characters>.staged",
     "temporary_randomness_bits": 96,
     "open_flags": "O_CREAT|O_EXCL|O_WRONLY|O_NOFOLLOW",
-    "file_mode": "0o666",
+    "file_mode": "0o644",
+    "file_mode_assignment": "0o644 is REQUESTED on the exclusive open and then ASSIGNED with os.fchmod on the descriptor that call returned, because the mode argument to os.open is reduced by the process umask -- under a permissive umask the request alone leaves a deliverable group- and world-writable, and under a restrictive one it leaves it unreadable by the reconciler that has to verify it. fchmod addresses the open file rather than the pathname, so nothing can be swapped in between",
+    "file_mode_verification": "the staged file's mode is measured before anything is renamed, and the published file's mode is measured again with fstat AFTER the rename (which preserves it); either measurement differing from the promised mode fails the publication rather than being recorded. Every published member carries its measured mode in the publication result",
+    "file_mode_rationale": "0o644 rather than 0o600: these deliverables are read by processes other than the writer -- the reconciler, the record renderers, any consumer recomputing a published digest -- so what has to be excluded is GROUP AND WORLD WRITE (CWE-732), not all outside access",
     "addressing": "openat/renameat/unlinkat against an open descriptor on the validated directory",
     "durability": "each staged file is flushed and os.fsync'd before it is measured, and the containing directory is os.fsync'd after the rename",
     "atomicity": "os.replace within one directory, which replaces the target path itself and follows no symlink at it; every member is staged and validated before the first member is moved",
@@ -11894,9 +12711,11 @@
     "measured": "counted by the CSV writer as it rendered each cell, so this is the number of cells actually written escaped rather than a second pass over the rows"
    },
    "completion_manifest": {
-    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/findings-publication.json",
-    "bytes": 3003,
-    "sha256": "7c2bfcb15f67e98fe636643d1a15f23e995ab56e5a2294c92523e93c78d48094",
+    "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/findings-publication.json",
+    "bytes": 2985,
+    "sha256": "1d17bd019a6a5807c37a62db56c043943da55e552e106fb066fb97c93d745dcc",
+    "mode": 420,
+    "mode_octal": "0o644",
     "member_set_id": "7cf07ad9a5f5508383e126dabd8bfcd3",
     "renamed": "last, after every member it names was in place",
     "verified_by_producer": true,

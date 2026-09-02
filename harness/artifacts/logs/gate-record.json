@@ -644,7 +644,7 @@
   },
   {
    "check_id": "gate.ruleset_identity.datadog-static-analyzer",
-   "description": "The datadog SAST config's digest, against AAP 0.4.2's expected identity. This is the largest reproducibility gap the provisioning closed: left alone the tool fetches about 1,093 rules from its API mid-scan with no recorded digest, and provisioning captured them into one local config the runner reads offline with -r.",
+   "description": "The datadog SAST config's digest, against AAP 0.4.2's expected identity. This is the largest reproducibility gap the provisioning closed: left alone the tool fetches its rules from its API mid-scan with no recorded digest, and provisioning captured them into one local config the runner reads offline with -r. The figure of about 1,093 rules is the inherited environment record's reading of that endpoint and not a property of the tool; the same endpoint returned 1,147 rules over 53 rulesets when provisioning captured it at 2026-08-30T17:51:40Z, which is what the observed field below records and what makes the moving endpoint the gap rather than any single count.",
    "command": "sha256sum \"$DD_SAST_RULES_FILE\"",
    "command_as_run": ". harness/env.sh >/dev/null 2>&1; sha256sum \"$DD_SAST_RULES_FILE\"",
    "shell": "harness/env.sh sourced in a non-login shell, then the command run in the repo root",

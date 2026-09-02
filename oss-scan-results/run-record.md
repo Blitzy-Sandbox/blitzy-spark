@@ -17,10 +17,24 @@
 > [§18](#18-where-the-run-reached); the full divergence set is in
 > [§13](#13-divergence-register).
 >
-> **Two lanes, not one, and not a monotonic stage order.** Stage 1's build half and the
+> **Runtime testing of 2026-09-02 raised five blocking findings against this checkpoint, and
+> all five were re-executed from their own reproduction steps in this clone on that date: all
+> five still reproduce.** Four of them are the halt-class conditions already named above and the
+> fifth is the per-module coverage witness rule, which is now measured over the input set the
+> plan requires as well as over the graph's own — **30 of 38** modules carry an accepted witness
+> there and **8** carry none. Each finding is answered one by one, with the evidence file this
+> pass measured it into and the decision it needs from a human, in
+> [§13's closing register](#qa-testing-findings-f1f5-2026-09-02--first-hand-re-verification-and-where-each-is-answered).
+> That pass performed **measurement only** — no runner was invoked, `raw/` is unchanged byte for
+> byte, no dataset row was produced and no stage was advanced — so nothing in it lifts the halt.
+>
+> **Three lanes, not one, and not a monotonic stage order.** Stage 1's build half and the
 > Stage 2 frontend write are inherited evidence from lane `w-005` (2026-08-30/31) and were
 > **not** re-executed here; Stage 0, Stage 1's dynamic half and Stages 2 through 5 were
-> re-executed in this clone, lane `w-013`, on 2026-09-01. The stages did **not** run in
+> executed in lane `w-013` on 2026-09-01; and **Stage 4 alone was re-executed in lane
+> `w-020` on 2026-09-02**, after this checkpoint's QA-driven fixes to
+> `harness/lib/normalize/cli.py`, reproducing `findings.json` and `findings.csv` byte for
+> byte and rewriting only that stage's own evidence. The stages did **not** run in
 > numeric order — §18 publishes the measured instants and names the two inversions. The
 > table under *How to read a citation in this file* says which file belongs to which lane.
 
@@ -75,34 +89,47 @@ below is an AAP *requirement* cited by section, not a rule.
 
 **Paths are repository-relative**, because that is the form a reader can resolve
 in any clone carrying this branch. The absolute form of every deliverable is in
-[§11](#11-deliverable-inventory-with-resolved-absolute-paths), resolved against
-the repository root as it stood when this file was written:
+[§11](#11-deliverable-inventory-with-resolved-absolute-paths), written as `<repo>`
+followed by the repository-relative path, where `<repo>` is whatever this command
+prints in the checkout you are reading from:
 
 ```text
-/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0
+git rev-parse --show-toplevel
 ```
 
-That is this clone's root, measured with `git rev-parse --show-toplevel`, and it is
-the only absolute root this file states — [§11](#11-deliverable-inventory-with-resolved-absolute-paths)
-resolves against the same one. An earlier edition printed a different root here,
-`…-af512c69e0ab-w-013_59d11b`, which is the root the scanning and normalization
-measurements were taken in and which a reader of this checkout cannot resolve; the
-evidence files under `harness/artifacts/logs/` still name that root themselves, verbatim,
-because each states the lane it was written in.
+**This file states no clone-specific checkout root, deliberately.** Three earlier
+editions each printed one — first `…-af512c69e0ab-w-013_59d11b`, then
+`…-af512c69e0ab_a424a0`, then `…-af512c69e0ab-w-019_b09f94` — and all three were
+wrong for the same structural reason: a
+checkout root is correct only in the clone that wrote it, so the identical
+committed bytes named a directory that does not exist as soon as the file was read
+from a sibling clone or a fresh checkout of the same commit. The remedy could not
+be to keep the literal current, because there is no single current value: this
+branch is read from many checkouts at once and each has its own root. So the root
+is defined by the command above and by the `<repo>` placeholder, which resolve
+correctly everywhere, and `harness/lib/verify_publication_owners.py` enforces the
+absence of a literal rather than the presence of one. The evidence files under
+`harness/artifacts/logs/` do still name their own lane roots verbatim, and must:
+each records the lane it was written in, which is a historical fact about where a
+measurement was taken rather than a path a reader resolves.
 
-**That root is clone-local, and the evidence files name their own.** This record is
-**not** a single end-to-end measured generation, and it is important not to read it as
-one. The evidence in `harness/artifacts/logs/` was produced in **two lanes on two
+**The evidence files name their own lanes.** This record is **not** a single
+end-to-end measured generation, and it is important not to read it as one. The
+evidence in `harness/artifacts/logs/` was produced in **three lanes on three
 dates**, and every file states which:
 
 | Lane | Date | What it produced | Files that name it |
 | --- | --- | --- | --- |
-| **`w-013`** — this clone, `run_id` `w013-20260901T132807Z` | 2026-09-01 | Stage 0 gate; **the dynamic half of Stage 1** — the runner scan-target value in force and the root each runner resolves, verified at `13:49:39Z`; the Stage 2 *verification and measurement* of the graph in use; the Opengrep taint A/B; Stage 3, all nine runners; Stage 4 normalization and the adapter-test suite; Stage 5, all three probes | **19** log files, including `gate-record.json`, `runner-sequence.json`, `runner-metadata.json`, `cpg-input-inventory.json`, `cpg-verify.log`, `taint-ab-*.log`, the nine `<tool>.runner-console.log`, `adapter-tests-run.json`; plus `normalize-run.json`, `cpg-identity.txt`, `cpg-module-coverage.json`, `cpg-shims-collision-measurement.log` and the three `probe-*.log`, all written on 2026-09-01 in this clone |
+| **`w-013`** — this clone, `run_id` `w013-20260901T132807Z` | 2026-09-01 | Stage 0 gate; **the dynamic half of Stage 1** — the runner scan-target value in force and the root each runner resolves, verified at `13:49:39Z`; the Stage 2 *verification and measurement* of the graph in use; Stage 3, all nine runners; Stage 4 normalization and the adapter-test suite; Stage 5, all three probes | **18** log files, including `gate-record.json`, `runner-sequence.json`, `runner-metadata.json`, `cpg-input-inventory.json`, `cpg-verify.log`, the nine `<tool>.runner-console.log`, `adapter-tests-run.json`; plus `normalize-run.json`, `cpg-identity.txt`, `cpg-module-coverage.json`, `cpg-shims-collision-measurement.log` and the three `probe-*.log`, all written on 2026-09-01 in this clone. The `taint-ab-*` arms were written in this lane too but have since been superseded — see the `w-022` row |
+| **`w-020`** — a later clone, `run_id` `w020-20260902T151108Z` | 2026-09-02 | **Stage 4 re-executed after this checkpoint's QA-driven fixes to `harness/lib/normalize/cli.py`** — the normalizer over the unchanged canonical inputs, and the adapter-test suite over the grown corpus. Nothing else: no runner, no build, no graph operation, no taint A/B, no probe | **3** log files — `normalize-run.json` and `findings-publication.json`, rewritten by the canonical invocation `2026-09-02T17:49:20Z → 17:49:25Z`, and `adapter-tests-run.json`, re-measured `15:11:08Z → 15:11:19Z`. Their scratch and repository paths name this lane's root. `harness/artifacts/MANIFEST.json` was re-measured against the trees on the same date and moved exactly those three members. `oss-scan-results/findings.json` and `findings.csv` were reproduced **byte-identically** by that run and are unchanged |
 | **`w-005`** — a different clone's private scratch, **inherited, not re-executed here** | 2026-08-30 / 2026-08-31 | **The build half of Stage 1** — not Stage 1 entire, because Stage 1's other half, the runner scan-target and resolved-root verification, ran in `w-013` at `2026-09-01T13:49:39Z`: the private clone of the pinned commit, the Maven pre-check, and the 40 m 55 s full-reactor build that finished `2026-08-30T20:59:38Z` with exit 0. Also the Stage 2 *frontend write attempts*: the 8 h 01 m 191-archive attempt that ended at the flatgraph ceiling, and the 1 h 42 m 30 s narrowed witness attempt | `build-reactor.log`, `maven-preflight.log`, `cpg-frontend.log` — 13,166 occurrences of the string `w-005` across the three, every scratch path in them naming that lane |
+| **`w-022`** — this checkpoint's lane, `run_id` `w022-20260902T144244Z` | 2026-09-02 | **The Opengrep taint A/B, re-executed in full** — all twelve arms from `cd /opt/spark-src` at the pinned HEAD, between `14:42:44Z` and `14:50:34Z`, replacing arms that had been measured in a `w-001` lane against a scratch scan root. **The `importCpg` load of the narrowed witness graph** (`cpg-verify.log` PART 2, exit 0 in 458 s, 38 of 38 module witnesses). **The third flatgraph ceiling arm** at 8 GiB, completing the 8/64/128 GiB span. **A live census of `/opt/blitzy-harness/cpg-input`** at `14:44:09Z`. Plus corrections of record across the evidence files, each stating what it replaced | the twenty `taint-ab-*.log` and `taint-ab-*.sarif` arms; `cpg-verify.log` PART 2; `cpg-ceiling-reverify.log` and `cpg-frontend-ceiling-probe.txt`; the census node in `cpg-input-inventory.json`; and the corrected fields in `runner-metadata.json`, `cpg-frontend.log`, `cpg-graph-record.log`, `cpg-module-coverage.json`, `cpg-frontend-input-manifest.json`, `cpg-identity.txt`, `cpg-shims-collision-measurement.log`, `build-reactor.log` and `gate-record.json` |
 
 **What that means for the reader, stated plainly.** Stage 0, Stage 1's dynamic half,
-and Stages 2 through 5 were re-executed in this clone on 2026-09-01, one at a time
-with no two running concurrently. *Serial is a statement about concurrency, not about
+and Stages 2 through 5 were executed in the `w-013` lane on 2026-09-01, one at a time
+with no two running concurrently; Stage 4 alone was then re-executed in the `w-020`
+lane on 2026-09-02, after this checkpoint's QA-driven fixes to the normalizer, and
+reproduced both dataset files byte for byte. *Serial is a statement about concurrency, not about
 order*: the instants are in the ledger in [§18](#18-where-the-run-reached) and they are
 not in numeric stage sequence, which that section states outright rather than smoothing
 over. For the stages listed here every retained artifact, stream, status and record
@@ -661,7 +688,7 @@ checked against come from one load of one set of bytes.
 **Which bytes this load measured.** The pair now on disk: it re-verified **541,309,809 /
 `4616845a…4730c7`** against the record of account at `2026-09-01T13:31:15.334Z`, immediately before
 reading, and logged the check in its own "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY BEFORE THE LOAD"
-section (`cpg-verify.log` lines 47-50). So the three counts its PHASE 1 reports — **1,396,899 /
+section (`cpg-verify.log` lines 54-57). So the three counts its PHASE 1 reports — **1,396,899 /
 119,721 / 45,037** — are this run's own measurement of the artefact it loaded, not a figure carried
 forward, and they agree with the write-time record in §6.1(b) and with all three probe envelopes
 ([§5](#5-the-graph--its-counts-its-bytes-and-the-one-sided-floor)). The superseded pair
@@ -728,8 +755,8 @@ identical to each other is the failure §7.1 states.
 
 | | Expected | Observed |
 | --- | --- | --- |
-| Taint **on** (`--taint-intrafile`) | 1 traced finding at `core/src/main/scala/org/apache/spark/storage/DiskStore.scala` line 72 | **1** finding at line 72 with a 2-step dataflow trace — exit 0, 3 s |
-| Taint **off** (the control) | **0** findings | **1** finding at `DiskStore.scala` line 72 with the same 2-step trace — exit 0, 3 s |
+| Taint **on** (`--taint-intrafile`) | 1 traced finding at `core/src/main/scala/org/apache/spark/storage/DiskStore.scala` line 72 | **1** finding at line 72 with a 2-step dataflow trace — exit 0, **1.887 s** |
+| Taint **off** (the control) | **0** findings | **1** finding at `DiskStore.scala` line 72 with the same 2-step trace — exit 0, **1.854 s** |
 | The two arms' artifacts | different | **byte-identical**: 4,753 bytes each, sha256 `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` — re-measured for this record and equal |
 | Verdict | a discriminating pair | **the A/B pair FAILED: non-discriminating on the mandated subject file** |
 
@@ -749,8 +776,8 @@ changed, and the arm was not retried with a narrower rule.
 | | Observed |
 | --- | --- |
 | Configs passed | **29** rule-bearing directories — the Stage 3 runner's own selection, 58 argv elements |
-| Taint **on** | **1** finding at `DiskStore.scala` line 72, traced — exit 0, 72 s |
-| Taint **off** | **1** finding at the same line, traced — exit 0 |
+| Taint **on** | **1** finding at `DiskStore.scala` line 72, traced — exit 0, **71.284 s** |
+| Taint **off** | **1** finding at the same line, traced — exit 0, **72.198 s** |
 | The two arms' artifacts | **byte-identical**: 2,939,276 bytes each, sha256 `fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51` |
 
 A one-rule invocation could in principle miss a taint-only finding another rule
@@ -777,8 +804,8 @@ different in-scope Spark source file:
 
 | | Observed |
 | --- | --- |
-| Taint **on** | **2** findings in `HiveShim.scala`, at its lines **828** and **834**, each carrying a **5-step** dataflow trace — exit 0, 4 s, 10,021 bytes, sha256 `1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24` |
-| Taint **off** | **0** findings — exit 0, 3 s, 2,341 bytes, sha256 `6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced` |
+| Taint **on** | **2** findings in `HiveShim.scala`, at its lines **828** and **834**, each carrying a **5-step** dataflow trace — exit 0, **2.439 s**, 10,021 bytes, sha256 `1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24` |
+| Taint **off** | **0** findings — exit 0, **2.136 s**, 2,341 bytes, sha256 `6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced` |
 | Verdict | **a discriminating pair: 2 against 0, from one flag** |
 
 **What this does and does not settle.** It settles that Opengrep's taint engine is
@@ -814,8 +841,10 @@ under `logs/` and contributing no dataset row. Its own log is explicit that it i
 
 | Control | Rule change | Observed | What it excludes |
 | --- | --- | --- | --- |
-| Search-mode | the same patterns with `mode: taint` **removed** (`taint-ab-off-control-rule.txt`) | **2** findings, `DiskStore.scala` lines **72** and **215**, **no** `codeFlows` — 4,424 bytes, sha256 `272a530fea4ef95417cd539b5964a70f6805e5def72ab58264cf73dbbbdb8ceb` | that the taint rule's line-72 result is just a pattern match: the pattern alone matches a **second** site the taint rule never reports |
-| Source-removed | `mode: taint` kept, `pattern-sources` replaced with an unmatchable marker (`taint-ab-source-removed-control-rule.txt`) | **0** findings — 2,347 bytes, sha256 `e98c1e1fb37c66cbf7dac92838485314b57a4561a41a6d15d9043eebbaac745f` | that the line-72 result is source-independent: remove the source and it disappears, so it is genuinely source-driven |
+| Search-mode | the same patterns with `mode: taint` **removed** (`taint-ab-off-control-rule.txt`) | **2** findings, `DiskStore.scala` lines **72** and **215**, **no** `codeFlows` — 4,589 bytes, sha256 `4dc4aec5f35425f7ff47712baa55a02bcd1f034627d23b0d6f38ba209213b116` | that the taint rule's line-72 result is just a pattern match: the pattern alone matches a **second** site the taint rule never reports |
+| Source-removed | `mode: taint` kept, `pattern-sources` replaced with an unmatchable marker (`taint-ab-source-removed-control-rule.txt`) | **0** findings — 2,455 bytes, sha256 `9c54e593e7a9dda361ef2de373bcdb17f0ed4c219c8f18057cf12ca2b1469172` | that the line-72 result is source-independent: remove the source and it disappears, so it is genuinely source-driven |
+
+**Both control artifacts were re-measured after the 2026-09-02 re-execution, and their digests moved while their findings did not.** The two byte sizes and digests above replace 4,424 / `272a530f…` and 2,347 / `e98c1e1f…`. The findings are unchanged — 2 untraced hits at `DiskStore.scala` 72 and 215, and 0 — and so is each control rule's text, whose two `taint-ab-*-control-rule.txt` files were left byte-untouched. The digests changed because Opengrep derives a SARIF `ruleId` from the **`--config` file's directory path**, and these controls now run with their rule files under this checkout's `harness/artifacts/logs/` rather than the earlier lane's scratch. That is stated because a changed digest over identical findings otherwise reads as tampering, and because it means these two digests are a function of where the run happened as well as of what it found.
 
 **A taint-free arm is not constructible at this pin**, which the OFF arm
 establishes from the engine's own option list rather than assuming a flag name:
@@ -839,30 +868,69 @@ above (opengrep-rules commit `f1d2b562b414783763fd02a6ed2736eaed622efa`, engine
 1.27.1), so no arm is marked non-comparable, and that absence is for a measured
 reason rather than by omission.
 
-**One naming note, because a reader pairs a log with the artifact beside it.** Two
-lanes measured this A/B and both wrote a `--sarif-output taint-ab-on.sarif`, so the
-base names carried two different subjects. The discriminating arms' artifacts are
-therefore published as `taint-ab-hiveshim-{on,off}.sarif` — the name states the
-subject it measured — and each carries its own arm log under the matching name.
-`taint-ab-on.log` and `taint-ab-off.log` are the narrative analysis of the
-**mandated** A/B in §7.1.
+**Every arm was re-executed on 2026-09-02, in one lane, against the pinned tree.**
+All twelve invocations — the mandated single-rule pair, the whole-ruleset pair, the
+`anchor-diskstore` pair, the `hiveshim` pair, the `discriminating` pair and both
+controls — ran from `cd /opt/spark-src` in this checkout's own lane, run id
+`w022-20260902T144244Z`, between **2026-09-02T14:42:44Z and 14:50:34Z**, each with
+its SARIF written to an absolute path inside `harness/artifacts/logs/` and each
+verifying `git -C /opt/spark-src rev-parse HEAD` against the pin before running. So
+every arm published here is **this run's own measurement at the mandated scan root**,
+and each arm log now names, in its own command record, the file it actually wrote.
 
-**Every arm log states the `--sarif-output` filename as it ran in its own clone, and
-those names are left exactly as written** — editing a command record to match a
-later filename would falsify the command. The reconciliation is by digest instead,
-which each log carries on its own `sarif sha256` line, and every one of them resolves
-to a file published here:
-
-| A log says it wrote | with sha256 | published here as |
-| --- | --- | --- |
-| `taint-ab-anchor-diskstore-{on,off}.sarif` | `7949617b…` | the same names — 4,753 bytes each |
-| `taint-ab-{on,off}.sarif` (the `-hiveshim-` arm logs) | `1a6c9a57…` / `6669ca2c…` | `taint-ab-hiveshim-{on,off}.sarif`, byte-identical across the rename |
-| `taint-ab-{on,off}.sarif` (the §7.1 narrative logs) | `7949617b…` | `taint-ab-anchor-diskstore-{on,off}.sarif`, which carries that digest |
+**What that replaced, recorded because the earlier reading was materially different.**
+An earlier edition reconciled these arms **across two clones and through a rename**:
+two lanes had each written a `--sarif-output taint-ab-on.sarif`, so one base name
+carried two different subjects, and the record had to pair a log with an artifact
+**by digest** rather than by name, with a three-row table mapping "what a log says it
+wrote" onto "published here as". That reconciliation is no longer the evidence and
+the table is withdrawn — its premise, that a log's stated output name need not match
+the artifact beside it, has stopped being true. The digests it carried remain correct
+and appear in §7.1 to §7.3 as each arm's own measurement. The `hiveshim` arms in
+particular had been measured in lane `w-001` against a scratch scan root rather than
+`/opt/spark-src`, which is why re-running them at the pinned root — rather than
+re-citing them — is what makes them a current-run result at all.
 
 Two directory listings captured inside other lanes' logs — in `normalize-run.json`
 and `osv-scanner.stdout.log` — name `taint-ab-on.sarif` because that is what those
 trees held when the listing was taken. They are captures rather than citations, and
-they are left verbatim for the same reason.
+they are left verbatim.
+
+### 7.5 The pair re-measured in this clone on 2026-09-02, and both proposed remedies measured constructible
+
+Everything in §7.1 to §7.4 was measured in lane `w-013`. When runtime testing raised the
+non-discriminating pair as a blocking finding, the whole set was **re-executed here**, from the
+finding's own reproduction steps, with the canonical flag set taken verbatim out of
+`taint-ab-on.log`'s own command record. Five arms ran; their SARIFs and both records are the
+`reverification-f5-*` members of [§16](#16-manifest-of-the-two-git-ignored-artifact-trees).
+
+| Arm, as re-run here | Subject | Exit | Results | Lines | Traced | SARIF bytes | sha256 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| mandated, `--taint-intrafile` present | `DiskStore.scala` | 0 | **1** | 72 | 1 | 4,753 | `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` |
+| mandated, flag absent | `DiskStore.scala` | 0 | **1** | 72 | 1 | 4,753 | the **same** digest — the two files are byte-identical |
+| capability pair, flag present | `HiveShim.scala` | 0 | **2** | 828, 834 | 2 | 10,021 | `1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24` |
+| capability pair, flag absent | `HiveShim.scala` | 0 | **0** | — | 0 | 2,341 | `6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced` |
+| source-removed control | `DiskStore.scala` | 0 | **0** | — | 0 | 2,341 | `295888055aed2ccb8dc171eebc5e702ea741c0eb86e760d3942d122936b32187` |
+
+**Three things that measurement settles.** First, the mandated pair's failure is **byte-stable
+across clones and generations**: the digest above is the one §7.1 publishes from lane `w-013`
+and the one the testing run reported, so it is a property of the subject and the engine rather
+than of a lane. The measured argv delta between the two arms is `--taint-intrafile` and the
+output path, nothing else. Second, both remedies the finding proposes are constructible on this
+tree and were built rather than argued about — the flow that requires the toggle is
+`HiveShim.scala` at 2 against 0, and the only taint-free arm this engine admits is the rule's
+own `pattern-sources` removed, at 0 against 1 on the mandated subject and line. Third, the
+absence of a taint switch is now an **enumeration** rather than a reading: `opengrep scan --help`
+was captured verbatim — 558 lines, 101 option blocks, exactly two naming taint and both additive,
+twelve `--no-*` options with none taint-related — and `--optimizations=none` was **run** and still
+reported line 72. `reverification-f5-taint-engine-options.txt` carries the capture and the
+per-option verdict.
+
+**What it does not settle.** The anchored expectation, on `DiskStore.scala`, is one traced finding
+at its line 72 with taint on and **zero** with it off, and that is still unmet. **D2** stands as a
+halt-class finding, the capability verdict is reported beside it rather than in place of it, and
+nothing was adjusted to obtain the expected zero.
+
 
 ---
 
@@ -979,10 +1047,17 @@ from **five different clone-local lanes** — `checkov` in `w-027_182a66`,
 `gitleaks` in `w-026_42ec90`, `osv-scanner` in `w-030_f3f236`. Each lane invoked its
 own runner directly, with no arguments and without an orchestrator, but **no lane
 sequenced its invocation against another lane's**, so the windows were free to
-overlap and **five overlapping pairs** were computed and recorded
-(`checkov`×`datadog-static-analyzer` 81.000 s, `checkov`×`gitleaks` 57.000 s,
-`checkov`×`osv-scanner` 3.609 s, `datadog-static-analyzer`×`dependency-check`
-23.000 s, `datadog-static-analyzer`×`gitleaks` 68.000 s). That generation also
+overlap and **five overlapping pairs** were computed and recorded:
+`checkov`×`datadog-static-analyzer`, `checkov`×`gitleaks`, `checkov`×`osv-scanner`,
+`datadog-static-analyzer`×`dependency-check` and
+`datadog-static-analyzer`×`gitleaks`. The **per-pair durations are not restated
+here, because they no longer have an owner file** — they were computed from the
+enriched `<tool>.status` files that commit `0e3e742a5ad` replaced with the runners'
+verbatim seven-line trailers, which carry an exit code, an elapsed total and an
+artifact identity but **no start or end instant**, so `min(end, end) − max(start,
+start)` is no longer computable from anything in this tree. That the five pairs
+overlapped is owned by the five clone lanes named above; by how long is not.
+That generation also
 carried **one prohibited second invocation of a scanner**: Checkov 3.3.12 re-invoked
 with the runner's exact flags over the same 18 scope directories from
 `/opt/spark-src`, exit 1, elapsed 88 s, writing to
@@ -1084,7 +1159,7 @@ Source: `harness/artifacts/logs/normalize-run.json`, written by
 `/usr/bin/python3 <repo>/harness/lib/normalize/cli.py` with an empty argument
 vector, interpreter `/usr/bin/python3`
 reporting **3.13.7** against the expected 3.13.7, run from the repository root,
-`2026-09-01T19:41:23Z → 19:41:28Z`, **exit 0**, `halt` null. The normalizer uses
+`2026-09-02T17:49:20Z → 17:49:25Z`, **exit 0**, `halt` null. The normalizer uses
 the standard library only, so it runs on the base interpreter independently of any
 scanner's virtualenv.
 
@@ -1113,6 +1188,40 @@ dataset derived from the artifacts from one that merely accompanies them.
 to obtain every figure above; a message field carrying an embedded newline makes a
 line count over-report, which is the method AAP §0.5.4 prohibits.
 
+**The raw tree is read as runner-only, and an unexpected direct child stops the
+run.** AAP §0.8.1 makes `harness/artifacts/raw/` runner-only — exactly one artifact
+per tool that writes one, and nothing else ever — and §0.5.4 makes an artifact
+matching neither the SARIF shape nor a known native shape a **halt** rather than a
+best-effort parse. The normalizer enumerates that tree **before** it builds a source
+index, before any adapter runs and long before either output file is written, and a
+direct child outside the nine fixed artifact filenames now **stops the run** under
+the named reason `raw-directory-unexpected-entry`, which
+`harness/lib/normalize/cli.py:578` declares as `HALT_RAW_DIRECTORY_UNEXPECTED` and
+which takes the halt-reason vocabulary `normalize-run.json` publishes from 37 names to **38**. An
+expected name standing there as something other than a regular file — a directory,
+or a symlink — halts under the same reason, with the condition naming which it was.
+The evidence the halt records is filesystem-level only: the entry's name, whether it
+is a directory, whether it is a symlink, its byte size where it has one, and whether
+it carries an expected artifact name. Nothing reads into the document to guess a
+writer for it, because a document in that tree has no writer to attribute it to and
+fingerprinting one is what §0.8.1 forbids. Both dataset deliverables already on disk
+are left byte-for-byte as they were, so a halt cannot half-publish. The eight
+canonical artifacts hold no such entry, which is why the run above exits 0 with
+`halt` null; **D22** records the departure this boundary closes.
+
+**The dataset's owner root is declared, not inherited.** Every input the normalizer
+consumes is an explicit argument with a documented default, and the root that decides
+where the dataset pair may be written is now among them: `--repo-root DIR` declares
+it on the command line and wins over `$HARNESS_REPO_ROOT`, which in turn wins over
+the install root derived from the module's own location. Which of the three supplied
+the root is recorded rather than left to inference: the canonical invocation above
+passes no flag and takes the value the sourced environment file exports, so its record
+carries `output_guards.repository_root_source` as `$HARNESS_REPO_ROOT`, and the same
+field reads `--repo-root` when the flag is used. The flag exists because a caller whose
+environment file **overwrites** a `$HARNESS_REPO_ROOT` it had already set had no other
+way to name the root it owns, which **D23** records — and because the canonical
+invocation's root is the checkout, nothing about it moves.
+
 ### The non-filesystem path count and proportion
 
 From `normalize-run.json` `totals.path_kinds`:
@@ -1136,28 +1245,35 @@ Source: `harness/artifacts/logs/adapter-tests-run.json`. Command, quoted from th
 record's own `command` field rather than reconstructed:
 
 ```text
-/usr/bin/python3 -m unittest discover -s oss-scan-results/adapter-tests
+/usr/bin/python3 -m unittest discover -s oss-scan-results/adapter-tests -p 'test_*.py' -v
 ```
 
 run from the repository root under interpreter `/usr/bin/python3` version
 `3.13.7`, on the standard library's `unittest` — no third-party runner, no plugin
-and no install step. It ran from **2026-09-01T23:32:23Z to 23:32:36Z**.
-**1325 tests and 26,008 subTests, 0 failures, 0 errors, 0 skipped, 0 expected
+and no install step. It ran from **2026-09-02T17:39:13Z to 17:39:25Z**.
+**1347 tests and 26,123 subTests, 0 failures, 0 errors, 0 skipped, 0 expected
 failures, 0 unexpected successes, result `OK`, exit 0**,
-13.104 s as `unittest` reported it and 13,104 ms wall. The zero skip, expected-failure and
+11.966 s as `unittest` reported it and 11,966 ms wall. The zero skip, expected-failure and
 unexpected-success counters are reported rather than omitted, so a green result
 cannot have been obtained by excusing a test.
 
 The command, the window and both elapsed figures above are **projections of that
 record**, not restatements of it: `harness/lib/verify_publication_owners.py`
 re-reads `adapter-tests-run.json` and fails if any of the four differs from what
-the owner carries, which is why no discover pattern or verbosity flag appears here
-that the owner does not carry.
+the owner carries, so the discover pattern and the verbosity flag appear here for
+one reason only — the owner carries them. They were absent from both files until
+this checkpoint, when the owner's `command` was found to omit the two arguments its
+own captured verbose stream proves the invocation used; the owner now records the
+invocation `oss-scan-results/adapter-tests/README.md` documents, and
+`harness/lib/verify_status_figures.py` compares the documented command with the
+recorded one after resolving `python3` to the interpreter path the record names, so
+a future divergence between them fails a gate rather than being read past. The
+owner states the correction under `correction_this_record_makes`.
 
 Three figures are required to agree and do: the runner's own reported total, the sum
 of the ten per-module totals, and the length of the per-test enumeration —
-`127 + 219 + 102 + 75 + 93 + 117 + 162 + 122 + 114 + 194 = 1325`, and
-`per_test_outcomes` carries **1325** entries, each a fully qualified test identifier
+`127 + 228 + 107 + 75 + 93 + 117 + 162 + 122 + 117 + 199 = 1347`, and
+`per_test_outcomes` carries **1347** entries, each a fully qualified test identifier
 with its status. A module that silently stopped running a method would show as three
 disagreeing numbers rather than as a passing total.
 
@@ -1238,14 +1354,16 @@ one. They state the same pair the current loads verified.
 
 ## 11. Deliverable inventory with resolved absolute paths
 
-Resolved against the root of the checkout this file is published from, measured with
-`git rev-parse --show-toplevel` —
-`/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0`
-(written `<repo>` below for the absolute column's readability; every path is that
-root followed by the repository-relative path in the first column). Every
-deliverable is committed, so the same relative paths resolve under whichever
-checkout root the file is read from; the absolute column records where each figure
-was measured, not a location a reader must reproduce.
+Resolved against the root of the checkout this file is read from, which is what
+`git rev-parse --show-toplevel` prints there. That root is written `<repo>` in the
+absolute column below, and every path is that root followed by the
+repository-relative path in the first column. The placeholder is not shorthand for
+a literal this file omits: no clone-specific root is stated anywhere in this
+document, for the reason [§0](#how-to-read-a-citation-in-this-file) gives, and
+`<repo>` is therefore the resolved absolute form — it resolves in this checkout, in
+a sibling clone, and in a fresh checkout of the same commit. Every deliverable is
+committed, so the relative paths in the first column resolve under whichever
+checkout root the file is read from.
 
 ### The eight result-deliverable categories under `oss-scan-results/`
 
@@ -1266,7 +1384,7 @@ was measured, not a location a reader must reproduce.
 | --- | --- | --- |
 | `queries/joern/` | `<repo>/queries/joern/` | present — 3 `.sc`, `results/` with 6 files, `.workspace/.gitignore` |
 | `harness/artifacts/raw/` | `<repo>/harness/artifacts/raw/` | present — **8** artifacts, one per tool that wrote one, and nothing else |
-| `harness/artifacts/logs/` | `<repo>/harness/artifacts/logs/` | present — **137** files, counted recursively: 103 top-level entries of which 4 are directories (`checkov.out/`, `dependency-check.out/`, `gitleaks.parts/`, `trivy.parts/`) holding the side artifacts their runners wrote |
+| `harness/artifacts/logs/` | `<repo>/harness/artifacts/logs/` | present — **151** files, counted recursively: 117 top-level entries of which 4 are directories (`checkov.out/`, `dependency-check.out/`, `gitleaks.parts/`, `trivy.parts/`) holding the side artifacts their runners wrote. Fourteen of the 151 are the `reverification-*` evidence this remediation pass measured on 2026-09-02 ([§16](#16-manifest-of-the-two-git-ignored-artifact-trees)) |
 
 ### Scope, staging, graph and normalizer
 
@@ -1275,8 +1393,8 @@ was measured, not a location a reader must reproduce.
 | `harness/scope/allowlist.txt` | `<repo>/harness/scope/allowlist.txt` | present, 343 bytes, 12 globs, sha256 `0013edf6…4143d1`, left exactly as found |
 | `harness/cpg/spark.cpg` | `<repo>/harness/cpg/spark.cpg` | present — a 33-byte symlink resolving to `/opt/blitzy-harness/cpg/spark.cpg` |
 | `harness/lib/normalize/` | `<repo>/harness/lib/normalize/` | present — 6 modules plus `adapters/` |
-| The frontend staging directory of the failed attempt | `harness/artifacts/cpg-input-attempt1-full-191` | **Not present in this checkout now** and stated as such. Proved absent before use, created by this run's inventory lane, never cleared, and supplied to this run's frontend invocation in full: **191 archives, 431,184,822 bytes** — one measurement, cited here and at §6.1(a), **D1** and **D3**, and owned by **`harness/artifacts/logs/build-reactor.log` STEP 13**, whose census prints `own artifacts total : 191` and `own artifact bytes : 431184822` at its lines 10025-10026, with `harness/artifacts/logs/cpg-frontend.log` STEP 1 stating the same pair independently at its line 38. **It is not owned by `cpg-input-inventory.json`, and a citation of that file for it is stale**: that file was regenerated for this generation at schema `cpg-input-inventory/2.0.0` and now describes the **62**-archive set of the graph actually loaded — `archive_count` 62, `total_bytes` 285,122,371, `staging_tree` `/opt/blitzy-harness/cpg-input`. `harness/artifacts/MANIFEST.json` records the tree rather than publishing it — `cpg_input_records.not_present_in_this_checkout` names it and `why_no_per_file_entries` states why per-file copies are deliberately **not** duplicated there (AAP §0.6.4: one measurement cited twice, never two) — and **its `owners[0].states` field still describes the pre-regeneration inventory** ("191 own artifacts, 431,184,822 bytes, from 627 JAR files enumerated"), which no longer matches the file it names. That manifest is published evidence and is not edited to correct it; the correction is stated here, naming the field. Excluded from git collection by `.gitignore:31`, which is why an owner log rather than the tree is the deliverable |
-| The staging tree of the graph in use | `/opt/blitzy-harness/cpg-input` | Host-global, written by provisioning. **62 archives, 285,122,371 bytes, 62 distinct sha256 — the archive-to-digest mapping total and injective both ways.** Its complete inventory, with the per-module coverage witnesses derived from it, is `harness/artifacts/logs/cpg-input-inventory.json`: **31** of the reactor's **38** JAR-packaging projects present, **7** absent (divergence **D3**) |
+| The frontend staging directory of the failed attempt | `harness/artifacts/cpg-input-attempt1-full-191` | **Not present in this checkout now** and stated as such. Proved absent before use, created by this run's inventory lane, never cleared, and supplied to this run's frontend invocation in full: **191 archives, 431,184,822 bytes** — one measurement, cited here and at §6.1(a), **D1** and **D3**, and owned by **`harness/artifacts/logs/build-reactor.log` STEP 13**, whose census prints `own artifacts total : 191` and `own artifact bytes : 431184822` at its lines 10035-10036, with `harness/artifacts/logs/cpg-frontend.log` STEP 1 stating the same pair independently at its lines 134-135. Both locators were corrected on 2026-09-02: an earlier edition cited `build-reactor.log` lines 10025-10026 and `cpg-frontend.log` line 38, which are the `print(` statements that emit the census and the frontend's heap-and-JDK line respectively, not the two figures themselves. **It is not owned by `cpg-input-inventory.json`, and a citation of that file for it is stale**: that file was regenerated for this generation at schema `cpg-input-inventory/2.0.0` and now describes the **62**-archive set of the graph actually loaded — `archive_count` 62, `total_bytes` 285,122,371, `staging_tree` `/opt/blitzy-harness/cpg-input`. `harness/artifacts/MANIFEST.json` records the tree rather than publishing it — `cpg_input_records.not_present_in_this_checkout` names it and `why_no_per_file_entries` states why per-file copies are deliberately **not** duplicated there (AAP §0.6.4: one measurement cited twice, never two) — and its `owners` list was **corrected on 2026-09-02 to name this same owner**: `owners[0]` is now `build-reactor.log` STEP 13, whose `states` field carries exactly the pair above with both addend chains closed (`422 + 14 = 436`, `191 + 436 = 627`) and whose `per_file_ledger` field records that no ordered per-entry manifest of the 191-archive set survives, so no per-file identity may be cited for it. An earlier edition of that manifest attributed these figures to `cpg-input-inventory.json` and described the 436 exclusions as carrying "a reason per file"; both were wrong, and a reader following the old pointer landed on a narrower tree whose numbers did not match the claim. The manifest's own `note` field records the correction, so the pointer and the figure now agree in the evidence rather than only here. Excluded from git collection by `.gitignore:31`, which is why an owner log rather than the tree is the deliverable |
+| The staging tree of the graph in use | `/opt/blitzy-harness/cpg-input` | Host-global, written by provisioning. **As inventoried at write time: 62 archives, 285,122,371 bytes, 62 distinct sha256, the archive-to-digest mapping total and injective both ways.** **That tree has since drifted and no longer matches its own inventory** — a live census on **2026-09-02T14:44:09Z** measured the same 62 names at **234,609,958 bytes**, with **39 matching and 23 drifted**, only **45 distinct digests**, and **32 members still sharing an inode with a file under `/opt/spark-src`**. The cause is that provisioning staged the tree as **hard links into a shared mutable build tree** rather than as immutable copies, so the injectivity assertion is marked superseded for the live tree rather than deleted, and **the surviving tree cannot prove the graph's input bytes or recreate the graph**. Both the write-time inventory and the census are in `harness/artifacts/logs/cpg-input-inventory.json`, which also carries the per-module coverage witnesses: **31** of the reactor's **38** JAR-packaging projects present, **7** absent (divergence **D3**) |
 | This run's frontend output path | `<scratch>/cpg/spark.cpg.PARTIAL-TRUNCATED-DO-NOT-LOAD`, in the `w-005` lane's private scratch | **present as evidence and explicitly not accepted**, re-measured for this edition: 691,541,019 bytes, sha256 `b1559c930a7b9ced717a0babf9a7e172d2b93d2cdef45a959304f063aedfe408`, the truncated write left by the serialization failure in D1. Renamed to make loading it impossible by accident, never linked at `harness/cpg/spark.cpg`, and loaded by nothing. Its sibling `witness.cpg`, 418,777,229 bytes, sha256 `8d3462b78d3c4b009c994d1ae838b6266aa2af3e68b3c0fbdcbd3b3f630ad41d`, is the same lane's shims witness graph (**D12**) and is likewise retained. Both sit outside every repository checkout, so they are published by record rather than by path |
 | The `importCpg` verification workspace | `/tmp/blitzy/scratch/<run>/w-013/joern-verify/workspace/` | outside the checkout, in this clone's private scratch directory, proved absent before use and neither reused nor cleared. `cpg-verify.log` records the load reading its working copy from that workspace, so the persisted graph at the sanctioned path was never written through by the verification load |
 
@@ -1314,7 +1432,7 @@ location rather than here.
 | --- | --- | --- |
 | `harness/artifacts/cpg/` and `harness/artifacts/cpg/spark.cpg` | absent, **correctly** | No graph was written inside this checkout (**D1**). The gate reports the absence explicitly rather than treating it as a mismatch, and `MANIFEST.json`'s `cpg` block says the same: this checkout's own frontend invocation produced no graph, so there is no such directory to publish and none is invented. What is published instead is `harness/cpg/spark.cpg`, the 33-byte symlink, measured with the link followed |
 | `harness/artifacts/raw/osv-scanner.json` | absent, **correctly** | `osv-scanner` wrote no artifact: exit 128 with its own stated reason. AAP §0.5.4 classes that as completion with nothing in scope to work on, so the absence is the expected outcome rather than a missing file. The tool's stderr is quoted verbatim in `oss-scan-results/tool-status.md`, which owns the per-tool contract, and `runner-sequence.json` records the invocation with no `artifact` bound — the one place among the 44 top-level bindings where none exists |
-| `harness/artifacts/cpg-input` and `harness/artifacts/cpg-input-attempt1-full-191` | absent | The two frontend staging trees. `MANIFEST.json` `cpg_input_records` records rather than publishes them, and `not_present_in_this_checkout` names both. Its `owners` list names one log correctly and one staleley: `cpg-frontend-input-manifest.json` does own the 189-archive / 308,385,184-byte set handed to the **superseded** w-000 attempt (**D20**), but the 191-archive / 431,184,822-byte figure is owned by **`build-reactor.log` STEP 13** (lines 10025-10026) with `cpg-frontend.log` STEP 1 line 38 stating it independently — **not** by `cpg-input-inventory.json`, which was regenerated to describe the 62-archive set of the graph actually loaded. The manifest field is left as published and the correction is stated in the table above |
+| `harness/artifacts/cpg-input` and `harness/artifacts/cpg-input-attempt1-full-191` | absent | The two frontend staging trees. `MANIFEST.json` `cpg_input_records` records rather than publishes them, and `not_present_in_this_checkout` names both. Its `owners` list now names **three** owners, one per tree actually measured: **`build-reactor.log` STEP 13** (lines 10035-10036) for the 191-archive / 431,184,822-byte set of the invocation on record, with `cpg-frontend.log` STEP 1 (lines 134-135) stating that pair independently; **`cpg-frontend-input-manifest.json`** for the 189-archive / 308,385,184-byte set handed to the **superseded** w-000 attempt, labelled there as invocation C (**D20**, which also adjudicates the 141-byte difference between the two totals); and **`cpg-input-inventory.json`** for the 62-archive / 285,122,371-byte provisioned tree the graph that actually loads was built over, marked as holding no exclusion ledger of any kind. That third attribution was the defect: an earlier edition gave the first set's figures to that file and described the 436 exclusions as carrying a reason per file, and both were wrong. The manifest's own `note` field records the correction |
 | `/tmp/blitzy-harness-scratch/0/cpg-verify-descriptors` | absent | The second verification workspace. `cpg-verify.log` STEP 5 and STEP 11 preserve its name and its absence-before-use proof. Its sibling `/tmp/blitzy-harness-scratch/0/cpg-verify` **is** present and was re-tested for this edition |
 | `/tmp/blitzy-harness-scratch/4/checkov-shape-verify` | absent — the whole `…/4` scratch root | Where the **superseded** generation's prohibited second Checkov invocation wrote its output. That invocation is recorded in full in [§8](#a-superseded-generation-assembled-these-records-from-five-lanes--recorded-as-history-not-as-this-runs) and as **D15**; the figures were carried in enriched `.status` files that the final commit replaced with the runners' verbatim seven-line trailers, so §8's prose is now their custodian. The Checkov output-shape conclusion rests on the recorded 8,380-byte artifact alone and does not depend on that scratch tree |
 
@@ -1340,7 +1458,7 @@ now rests the decision not to re-invoke a runner on AAP §0.6.4 and §0.8.1 rath
 directory.
 
 **Every other path this document cites was tested and resolves**, including all **145** members of
-the two artifact trees (8 in `raw/`, 137 in `logs/`), the eight result deliverables, the three `.sc`
+the two artifact trees (8 in `raw/`, 151 in `logs/`), the eight result deliverables, the three `.sc`
 sources and their six result files, `harness/scope/allowlist.txt`, `harness/cpg/spark.cpg` and its
 target, `harness/lib/normalize/**`, `harness/lib/preflight_graph_identity.py`,
 `harness/lib/run-joern-gated.sh`, `harness/lib/verify_status_figures.py`,
@@ -1351,6 +1469,14 @@ at 691,541,019 bytes / sha256 `b1559c93…dfe408` and `witness.cpg` at 418,777,2
 `8d3462b7…30ad41d`, both re-measured for this edition in the `w-005` lane's private scratch — so
 they are recorded above with their location rather than listed as unresolvable; they sit outside
 every repository checkout, which is why they are published by record rather than by path.
+`witness.cpg` is no longer only a retained artefact, either: it was **loaded with `importCpg` on
+2026-09-02**, and that load is `harness/artifacts/logs/cpg-verify.log` **PART 2** — exit 0 in 458 s
+under JDK 21 at `-J-Xmx64g`, its identity re-measured before and after and unchanged, reporting
+994,192 methods / 97,292 type declarations / 45,680 files with **38 of 38** module witnesses present.
+That load is what closed two citations in `cpg-frontend.log` which had pointed at a `PART 2` that did
+not yet exist. It is a load of the **narrowed** witness graph — one primary artifact per module — so
+nothing in it is a verdict about the graph the runners read, and none of the counts in
+[§5](#5-the-graph--its-counts-its-bytes-and-the-one-sided-floor) comes from it.
 
 ---
 
@@ -1401,9 +1527,10 @@ generation, retained rather than deleted because the departure was really made:
 D15**, whose nine-runner lane was assembled from five clone-local lanes and carried
 one prohibited re-invocation, and **D20**, whose frontend attempt withheld two
 archives from the input set. Neither is inherited by the delivered lane, each says so
-in its own first row, and each still records what a human must do. **D16 is an
-unresolved vulnerable dependency**, which is neither a halt nor a tolerated
-difference and is stated as its own kind of open item. **D17 and D18 are
+in its own first row, and each still records what a human must do. **D16 records
+the interpreter this pipeline ran on and states that this run made no security
+assessment of it** — an absence a reader must know about rather than infer, and
+neither a halt nor a tolerated difference. **D17 and D18 are
 violations of a stated boundary rather than differences between values** — the
 three probe queries were re-executed under a static-only review boundary that
 forbade it, and that generation deleted all three private graph copies contrary to
@@ -1413,7 +1540,17 @@ generation on record ran. D18's cost is closed the same way: the copies the load
 record read are retained on disk. **D21 records seven repository additions no entry in
 the AAP's file transformation mapping authorises**, each conformant to the
 convention its subsection states and each load-bearing for a requirement the AAP
-does state. D13 is a conflict whose premise measurement has since retired. The rest
+does state. **D22 is a departure of this run's own normalizer, resolved at its root
+cause and verified at runtime** — the raw-tree ingestion boundary recorded an
+unexpected direct child and continued where AAP §0.8.1 and §0.5.4 require a halt —
+and **D23 is a fix declined on AAP grounds**: the provisioned environment file
+discards a pre-set `HARNESS_REPO_ROOT` against its own override contract, four AAP
+subsections and the clone instructions forbid editing it, so the one-line correction
+is reported for a human while the normalizer's own owner root becomes an explicit
+argument. **D24 records the publication-owner gate's one standing disagreement** — the
+absolute root this file states is the publication checkout's rather than the working
+clone's the gate runs in, which is structural rather than drift. D13 is a conflict whose
+premise measurement has since retired. The rest
 are recorded differences that do not stop the run (AAP §0.9.3).
 
 **Why the first entry is numbered zero.** D0 is the **gate's** divergence, and the
@@ -1421,7 +1558,7 @@ gate precedes every stage this register's other entries belong to. It is numbere
 zero rather than appended so that a reader meeting the register for the first time
 meets the condition that governs the standing of everything below it, and so that
 no existing entry is renumbered — other documents cite D1 through D14 by name. For
-the same reason **D20 and D21 are appended** rather than inserted where their
+the same reason **D20 through D24 are appended** rather than inserted where their
 subject matter would place them.
 
 ### D0 — halt-class: the gate halted on the artifact trees, and authorised nothing
@@ -1446,7 +1583,7 @@ subject matter would place them.
 | Observed | The graph at `/opt/blitzy-harness/cpg/spark.cpg` was written by the provisioning invocation, before this run's first command. It remains the graph at that path |
 | What was attempted, rather than deferred | This run assembled its complete input manifest — **191** own artifacts, **431,184,822** bytes, from all 38 JAR-packaging projects — asserted it total and injective in both directions and logged the assertion **before** invoking anything, proved a **128 GiB** heap committable with `-Xms`/`-Xmx`/`+AlwaysPreTouch`, and invoked the pinned `jimple2cpg` under JDK major 21 over the whole of it with `--recurse` and no exclusion of any kind |
 | Outcome of the attempt | After **8 h 01 m** (28,863 s) and a **113.3 GiB** peak RSS, the frontend completed extraction and all AST passes and then terminated **in its persistence step** with `java.lang.OutOfMemoryError: Required array length 2147483639 + 72 is too large` raised inside `flatgraph.storage.WriterContext.finish` (`Serialization.scala:176`). **No graph was produced.** The truncated partial write it left — 691,541,019 bytes, sha256 `b1559c930a7b9ced717a0babf9a7e172d2b93d2cdef45a959304f063aedfe408` — is preserved as evidence in the run's private scratch under the name `spark.cpg.PARTIAL-TRUNCATED-DO-NOT-LOAD`, was never linked at `harness/cpg/spark.cpg`, and was loaded by nothing |
-| Why the attempt cannot succeed at this input breadth | Established from the failing method's own bytecode, not inferred: `finish$$anonfun$2(ByteArrayOutputStream, IntBuffer, String)` UTF-8 encodes every string in the graph's deduplicated `stringpool` and appends it to **one** `java.io.ByteArrayOutputStream`, whose backing array cannot exceed `Integer.MAX_VALUE - 8` = 2,147,483,639 elements. The bound is on one array's length, so **no heap size moves it** — 128 GiB was committed and peak RSS was 113 GiB when it failed |
+| Why the attempt cannot succeed at this input breadth | Established from the failing method's own bytecode, not inferred: `finish$$anonfun$2(ByteArrayOutputStream, IntBuffer, String)` UTF-8 encodes every string in the graph's deduplicated `stringpool` and appends it to **one** `java.io.ByteArrayOutputStream`, whose backing array cannot exceed `Integer.MAX_VALUE - 8` = 2,147,483,639 elements. The bound is on one array's length, so **no heap size moves it** — 128 GiB was committed and peak RSS was 113 GiB when it failed. That is now demonstrated rather than only reasoned: the retained probe was recompiled and run at **three heaps — 8 GiB, 64 GiB and 128 GiB, a 16× span** — and every arm buffered to exactly **2,147,483,639** bytes and threw `Required array length 2147483639 + 77 is too large`, the failure point unmoved. All three arms are verbatim in `harness/artifacts/logs/cpg-ceiling-reverify.log` under "THE PROBE, AND ALL THREE ARMS VERBATIM". The probe's `+ 77` and the frontend's `+ 72` are two distinct measurements of the same bound, differing only in the size of the string each was appending when it crossed it |
 | Mitigations examined, and why each is unavailable | Checked against the frontend's actual flag surface, reproduced verbatim in `cpg-frontend.log` STEP 10. **Raising the heap** — irrelevant to a fixed array bound. **`--exclude` / `--exclude-regex`, or dropping pre-shade, `-tests` or shims artifacts** — the one lever that would work, and prohibited: AAP §0.5.1 requires every JAR retained by name and §0.9.2 lists trimming the input set among the conditions that stop the run. **Dropping `--recurse` or bounding `--depth`** — same class, and `--recurse` is mandated. **A newer frontend or flatgraph whose writer chunks the pool** — prohibited installation/substitution under §0.8.1. **Splitting the input and merging** — no merge exists in the pinned distribution, and a merged graph would carry the same string pool. **Building without persisting** — the plan requires the graph persisted, its identity recorded, and re-verified before every load, and the runners resolve it from disk by path |
 | Disposition | Reported, not repaired, and nothing was trimmed to obtain a graph. The input set the AAP mandates and the writer the pinned frontend ships are not simultaneously satisfiable on any host, which makes this a property of the toolchain at this input breadth rather than of this host or this run |
 | What it does not compromise | Delivery of every JAR the build produced is proven by the staging manifest independently of any graph. The identity in [§5](#5-the-graph--its-counts-its-bytes-and-the-one-sided-floor) is the identity of exactly the bytes each earlier stage loaded, measured from the file itself before each load |
@@ -1463,14 +1600,14 @@ subject matter would place them.
 | Disposition | reported and not repaired; nothing was retried, narrowed or re-flagged to obtain the expected zero. [§7](#7-the-taint-ab--the-graph-stage-pass-condition-as-measured) carries the mechanical reason and the engine limit |
 | What it is not | evidence that the engine is inert. §7.3 measures the same rule discriminating **2 findings against 0** on `sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala` with the same one flag, and §7.4's two controls show the anchor's line-72 result is source-driven rather than a pattern match. The engine is active; this subject cannot show it, for the reason §7.2 measures |
 | What a human must do | **Decide which anchor the pass condition is held to.** AAP §0.9.1 names one traced finding at `DiskStore.scala:72` with taint on and none with it off, and §0.9.2 makes a failed A/B a stop condition; the measurement is that the mandated anchor **does not discriminate** — one finding at line 72 in both arms, byte-identical artifacts, and still byte-identical with the whole ruleset loaded. Two routes: **(a)** accept that the mandated anchor cannot discriminate on this file with this ruleset, in writing, and accept the discriminating pair this run measured on Spark's own Scala in its place — `HiveShim.scala`, two findings with taint on at lines 828 and 834 and none with it off, with its two controls, all in [§7](#7-the-taint-ab--the-graph-stage-pass-condition-as-measured); or **(b)** nominate a different anchor file and line and have the A/B re-executed against it. Nothing here is repairable by engineering: the arms differ only in the taint setting, which is what the pass condition requires, and no runner or ruleset may be edited (AAP §0.8.1) |
-| Owner | `harness/artifacts/logs/taint-ab-off.log`, divergence D1 in that file; the arms themselves are the `taint-ab-anchor-diskstore-` pair |
+| Owner | `harness/artifacts/logs/taint-ab-off.log`, its `VERDICT FOR THE PAIR` block at line 91, which states the anchor unmet and non-discriminating in the arm's own words; the arms themselves are the `taint-ab-anchor-diskstore-` pair. An earlier edition cited "divergence D1 in that file", a label that appears nowhere in it — the log carries no `D1` — so the citation is repointed at the block that actually carries the verdict |
 
 ### D3 — the graph's input set is narrower than the build produced
 
 | Field | Value |
 | --- | --- |
 | Expected | the graph built over **every** JAR the build produced, nothing trimmed: this run's inventory staged **191** own artifacts, **431,184,822** bytes, from all **38** JAR-packaging projects, and proved the mapping total and injective in both directions |
-| Observed | the loaded graph's input path held **62** archives, 285,122,375 bytes, from **31** modules, with its own manifest recording 190 files excluded and a per-file reason for each |
+| Observed | the loaded graph's input path held **62** archives, **285,122,371** bytes, from **31** modules. The exclusion ledger is a **separate** record with a **separate** owner: `harness/artifacts/logs/cpg-graph-record.log` states that of 252 `.jar` files under the build tree, **190 were excluded with a reason per _category_ — not per file** (77 copied dependency, 64 sources, 33 `-tests`, 14 test-fixture, 2 `spark-connect-shims`; 77 + 64 + 33 + 14 + 2 = 190, and 62 + 190 = 252). `cpg-input-inventory.json` holds **no exclusion ledger at all**, so no exclusion count may be cited from it; an earlier edition of this row attributed the 190 to that file and described the reasons as per-file, and both halves of that were wrong. No per-file exclusion ledger was retained by any lane, so none can be cited from anywhere |
 | Consequence, stated so no count is misread | seven of the 38 JAR-producing modules therefore have **no coverage verdict obtainable** from this graph, and no finding on it can resolve into a `src/test` tree, every `-tests` archive being absent from it. A graph over the wider set cannot have *fewer* methods than one over the narrower, which is why the method count is a one-sided floor rather than a window |
 | Disposition | recorded with both values; **neither input set was trimmed or padded and no count was adjusted to make the two agree**. The wider set was not merely inventoried — it was supplied to the frontend in full, and D1 records what happened when it was |
 | Owner | `cpg-frontend.log`, with the coverage consequence measured in `cpg-verify.log` and the verdict owned by `build-record.md` §6 |
@@ -1499,7 +1636,9 @@ subject matter would place them.
 | Expected | the table names **32** JAR producers, measured over the narrowed 33-project provisioning build |
 | Observed | a full reactor packages **38**, so six are new to it: `tools`, `examples`, `connector/kafka-0-10-token-provider`, `connector/kafka-0-10`, `connector/kafka-0-10-sql`, `connector/kafka-0-10-assembly`. All six appear as `SUCCESS` in Maven's reactor summary and all six produced their own main artifact on disk |
 | Disposition | **a recorded difference, never a halt.** The halt rule is one-directional (AAP §0.8.3): a module that produced a JAR in the rehearsal and produces none now stops the run; the reverse does not. The six legitimately entered this run's staged input set, and they are why the method count is checked as a floor rather than a window |
-| One further fact about these same six, measured for this record | **Their build products are no longer on disk, and the other 32 are.** Re-checking every artifact path `build-record.md` §3 cites against `$SPARK_SRC` today: **32 of 38 present, 6 absent** — and the six absent are exactly these six. `build-record.md` cites each path as *what the build produced*, sourced from `build-reactor.log` STEP 13 which recorded it at build time, so those citations are historical measurements rather than claims about the tree's present state; the file each figure came from is the build log, and it exists. The tree is host-global and shared read-only with concurrent clones, and this run neither built nor pruned it. `sql/connect/shims`, by contrast, **is** on disk — five archives — and is absent from the graph input for a different reason, which **D3** carries |
+| What establishes that all six produced an artifact | **`build-reactor.log` STEP 13, measured at build time, and nothing about the tree's present contents.** STEP 13 records `jar-packaging projects : 38`, `jar-packaging with their own MAIN artifact: 38` and `jar-packaging WITHOUT one : []`, with Maven's own `BUILD SUCCESS` over all 40 reactor projects. That is an immutable record in a file that exists, and it is the whole basis of the claim |
+| Why this record states no present-state census of `$SPARK_SRC` | An earlier edition of this row said "their build products are no longer on disk, and the other 32 are — re-checking every artifact path `build-record.md` §3 cites against `$SPARK_SRC` **today**: 32 of 38 present, 6 absent". That was doubly unsound. First it was **undated**: "today" fixes nothing a later reader can check, and `$SPARK_SRC` is host-global, shared read-only with ~45 concurrent clones, and rebuilt by re-provisioning, so its contents are not a property of this run. Second it **no longer holds**: re-measuring the same 38 paths at **2026-09-02T16:37:27Z** and again at **16:37:30Z** returned **38 of 38 present, 0 absent** both times. So the figure changed underneath the document without anything in this run changing, which is exactly what makes a present-state census of a mutable shared tree unfit to be published as evidence. The census is therefore withdrawn rather than restated with a fresher number, because a fresher number would drift again. `build-record.md` §3 cites each path as *what the build produced*, sourced from `build-reactor.log` STEP 13 at build time; those citations are historical measurements and remain correct regardless of what the tree holds now |
+| The one related fact that does not depend on the tree's present state | `sql/connect/shims` is absent from the **graph input**, which **D3** carries, and that absence is a property of the recorded 62-archive staging tree rather than of `$SPARK_SRC` |
 | Owner | `build-record.md` §3 |
 
 ### D6 — runtime topology as read, not as expected
@@ -1567,7 +1706,7 @@ accounted for individually rather than rounded away: 12 staged artifacts carry 2
 nested `.jar` test fixtures between them and `--recurse` descends into those, which
 yields 350 junit-framework classes, 42 test-fixture classes, 6 nested `META-INF`
 descriptors and 5 multi-release `module-info.class` — **350 + 42 + 6 + 5 = 403**,
-the figure `cpg-frontend.log` line 161 owns as
+the figure `cpg-frontend.log` line 258 owns as
 `(entry not present in any own artifact — extracted from a nested archive)`. This
 row previously published 377 against its own components summing to 403; the
 components and the owner agree, so 403 is the figure and the subtotal is now
@@ -1660,7 +1799,7 @@ recorded with no anchor to adjudicate between them. No such contradiction arose.
 | What was aligned, in the generation that needed aligning | **12** stream files restored to that lineage: `checkov.stdout.log`, `datadog-static-analyzer.stdout.log`, `dependency-check.stdout.log`, `gitleaks.{stdout,stderr}.log`, `joern.{stdout,stderr}.log`, `opengrep.stdout.log`, `semgrep.{stdout,stderr}.log`, `trivy.stdout.log` and `osv-scanner.stderr.log`. The displaced bytes were another clone's raw command output — carrying none of the runner header block `scope.sh` prints — and they remain in that lane's own branch rather than being destroyed here. **One claim that edition made about the result is corrected here**: it stated that alignment made "`gitleaks.status`'s derivation true again". A `.status` file carries **no derivation field of any kind** — measured, all nine are the seven-line `scope_finish` trailer with only `tool`, `exit_code`, `elapsed_seconds`, `artifact`, `artifact_bytes`, `scan_root` and `scan_root_source` — so there was no such claim to make true. What `gitleaks.stdout.log` actually holds is **18 lines** of the form `invocation <scope-dir> exit=<n>`, one per scope directory, line 5 being `invocation python/pyspark exit=2` — the correct shape for a tool whose CLI takes one path per invocation, and the origin of the runner's exit **2** |
 | Cross-lane members of `logs/` that remain, named individually | `joern-preflight.log` and `joern-preflight-negative-test.log` — both **clone 0**, the latter subjecting that lane's own 791,927,027-byte graph; `cpg-frontend.log` — the **w-005** lane, which is this run's own frontend attempt (**D1**); `cpg-frontend-input-manifest.json` — a **w-000** clone, and the withheld-input record of **D20**; `joern.preflight.log` (321 lines) and `joern.runner.console.log` (1,428 bytes) — restored from an earlier lane by **D13**, sitting beside the delivered hyphen-form `joern-preflight.log` and `joern.runner-console.log`; `datadog-static-analyzer.console.log` — the **w-025** lane's console (elapsed 223 s, artifact 5,671,091 bytes) beside the delivered `datadog-static-analyzer.runner-console.log` (elapsed 57 s, artifact 5,723,938 bytes, which is the size `raw/datadog-static-analyzer.sarif` has); and the taint arms, whose two lanes are named in the next row. Each is retained under AAP §0.8.1 and published in [§16](#16-manifest-of-the-two-git-ignored-artifact-trees); none is a per-tool record of the delivered Stage 3 lane |
 | What was **not** replaced, and why — corrected | The earlier edition named `osv-scanner.stdout.log` as "that lane's stream **plus** a substantive correction — the global-sequencing failure". **That file is 0 bytes and 0 lines**, measured for this record, so it carries no correction and never carried a finding. `osv-scanner`'s own words live in `osv-scanner.stderr.log`, 21 lines, verbatim and uncorrected: eighteen `Scanning dir …` lines, the filesystem-walk summary, and `No package sources found, --help for usage information.` — which is the tool's stated reason and the basis for classing the absent artifact as completion rather than failure. The sequencing verdict is owned by `runner-sequence.json`, not by any stream |
-| The taint arms, which the same union had crossed | Two lanes measured the A/B and one reused the base file names, so `taint-ab-{on,off}.sarif` held a **different subject** from the `taint-ab-{on,off}.log` beside them — the anchor arms and the discriminating arms coming from a **w-001** lane and the narrative arms from **w-013**. The artifacts are renamed to `taint-ab-hiveshim-{on,off}.sarif` — byte-identical, digests re-verified across the rename — and that measurement's own arm logs are restored beside them, so every name states the subject it measured. [§7](#7-the-taint-ab--the-graph-stage-pass-condition-as-measured) cites each figure to the file that carries it, and reconciles the arm logs' own `--sarif-output` names to the published files **by digest**, since a command record may not be edited to match a later filename |
+| The taint arms, which the same union had crossed — **no longer** | This row previously recorded a cross-lane defect: two lanes had measured the A/B and one reused the base file names, so `taint-ab-{on,off}.sarif` held a **different subject** from the `taint-ab-{on,off}.log` beside it — anchor and discriminating arms from a **w-001** lane, narrative arms from **w-013** — and the record reconciled log to artifact **by digest across a rename**, because a command record may not be edited to match a later filename. **That defect is resolved at its cause rather than reconciled around.** All twelve arms were re-executed on 2026-09-02 in a single lane (`w-022`, run id `w022-20260902T144244Z`) from `cd /opt/spark-src` at the pinned HEAD, each writing to its own subject-bearing filename, so every arm log's own `--sarif-output` record now names the file published beside it and no rename is spanned. The taint arms are therefore **not** among the cross-lane members this divergence covers. [§7](#7-the-taint-ab--the-graph-stage-pass-condition-as-measured) cites each figure to the file that carries it |
 | What remains divergent and is not repairable here | The **graph** identities: two lanes built their own graphs in their own clones (791,927,027 and 605,687,359 bytes), neither is on disk here, and `cpg-frontend.log` is the record of the attempt that produced none (**D1**). `joern.preflight.log` (the restored 321-line dot-form file) and `joern-preflight-negative-test.log` state **another lane's** graph identity rather than the bytes here — the first the 2026-08-24 lane's superseded pair, the second clone 0's 791,927,027-byte artefact — while the delivered 44-line `joern-preflight.log` adjudicates the bytes on disk against the provisioning record that describes them. The gate itself resolves its record of account by provenance, which is what lets three differently-provenanced reports coexist without either being wrong about its own subject |
 | What is **no longer** divergent, and was | The nine `<tool>.runner-console.log` files. An earlier edition called them "the other clone's console captures"; measured, each carries a `# run_id=w013-20260901T132807Z clone_index=13` header and its own `argv`, `started`, `ended`, `elapsed_seconds` and `exit_status` line, and each is one of the **82** pieces `runner-sequence.json` binds by digest. They are the **delivered lane's** captures. The dot-form `datadog-static-analyzer.console.log` and `joern.runner.console.log` are the earlier lanes' captures, and they are named separately above so the two sets are not read as one |
 | Disposition | **recorded, with the chain that is coherent stated exactly**: `raw/` → the twelve-field dataset → the per-tool reconciliation identity, every step re-measured for this record, and every per-tool piece of it digest-bound to its own invocation. A figure taken from a stream or a status record is a figure about the invocation `runner-sequence.json` names; a figure about a graph is a figure about the pair its load actually read, which is why [§5](#5-the-graph--its-counts-its-bytes-and-the-one-sided-floor) and **D4** keep every pair with its provenance rather than presenting one |
@@ -1672,7 +1811,8 @@ recorded with no anchor to adjudicate between them. No such contradiction arose.
 | --- | --- |
 | Which generation this entry describes, stated first because it changes what a reader does with it | **A superseded generation of this run, not the delivered one.** The delivered Stage 3 lane is one strictly serial lane and satisfies AAP §0.8.1's one-at-a-time requirement — nine invocations, one per tool and no tool twice, zero arguments each, from one script in one process in clone 13, with all **82** pieces of per-invocation evidence digest-bound and re-measured for this record at zero mismatches (`harness/artifacts/logs/runner-sequence.json`; [§8](#the-delivered-lane--one-serial-lane-bound-to-its-evidence-by-digest)). **That lane supersedes this entry's verdict for Stage 3 as delivered.** The entry is retained, in full, because the departure below was really made and a register that deletes a halt-class departure once it is superseded is a register that cannot be audited |
 | Expected | AAP §0.8.1 — nine runners, each invoked directly with no arguments, **one at a time**, each one's output captured before the next is started; and no second invocation of any scanner, the Opengrep taint A/B being the single second appearance the AAP sanctions by name (§0.1.1, §0.5.1) |
-| Observed — sequencing, in the superseded generation | The nine per-tool records were assembled from **five different clone-local lanes** and their windows were free to overlap. **Five overlapping pairs**, each computed as `min(end_a, end_b) − max(start_a, start_b)`: `checkov`×`datadog-static-analyzer` 81.000 s, `checkov`×`gitleaks` 57.000 s, `checkov`×`osv-scanner` 3.609 s, `datadog-static-analyzer`×`dependency-check` 23.000 s, `datadog-static-analyzer`×`gitleaks` 68.000 s. **5 of 9** runners overlapped; `joern`, `opengrep` and `trivy` intersected no other; `semgrep`'s endpoints were **not-established**, so it was not adjudicable and was excluded from the count rather than assumed disjoint. That generation's own records classed the run-wide result a **"halt-class departure from AAP 0.8.1's one-at-a-time requirement"** |
+| Observed — sequencing, in the superseded generation | The nine per-tool records were assembled from **five different clone-local lanes** and their windows were free to overlap. **Five overlapping pairs**, each computed at the time as `min(end_a, end_b) − max(start_a, start_b)`: `checkov`×`datadog-static-analyzer`, `checkov`×`gitleaks`, `checkov`×`osv-scanner`, `datadog-static-analyzer`×`dependency-check`, `datadog-static-analyzer`×`gitleaks`. **5 of 9** runners overlapped; `joern`, `opengrep` and `trivy` intersected no other; `semgrep`'s endpoints were **not-established**, so it was not adjudicable and was excluded from the count rather than assumed disjoint. That generation's own records classed the run-wide result a **"halt-class departure from AAP 0.8.1's one-at-a-time requirement"** |
+| Why the five durations are named as pairs and not as seconds | an earlier edition published them to the millisecond — 81.000 s, 57.000 s, 3.609 s, 23.000 s and 68.000 s. **Those five figures have no owner file in this tree and are therefore withdrawn**, which is the same standard the last row of this entry already applies to the rest of the generation's figures. They were derived from the enriched `<tool>.status` files, and commit `0e3e742a5ad` replaced all nine with the runners' verbatim seven-line trailers: `tool`, `exit_code`, `elapsed_seconds`, `artifact`, `artifact_bytes`, `scan_root`, `scan_root_source`. No start or end instant survives in any of them, so the subtraction cannot be re-performed. Reproducing the five would need the pre-`0e3e742a5ad` enriched statuses, which no revision reachable from this branch carries. What **is** owned and kept: that five pairs overlapped, which pairs they were, that 5 of 9 runners were involved, that three intersected none, and that `semgrep` was not adjudicable |
 | Observed — the prohibited re-invocation | **one.** Checkov 3.3.12 re-invoked with the runner's exact flags over the same 18 scope directories from `/opt/spark-src`, exit 1, 88 s, written to `/tmp/blitzy-harness-scratch/4/checkov-shape-verify` — outside `harness/artifacts` entirely, so it overwrote no runner artifact and contributed no dataset row. Its own record classed it `PROHIBITED RE-EXECUTION, recorded as a violation and NOT relied on`, and the conclusion it had been offered for was **re-based on the recorded artifact alone** (a byte-size discrimination in which only the single-object serialization is 8,380 bytes, corroborated by the committed fixtures and Checkov's documented shapes), so it is **non-load-bearing** |
 | Why these figures are stated rather than quoted | They lived in *enriched* `<tool>.status` files. Commit **`0e3e742a5ad`** replaced all nine statuses with the runners' own **verbatim seven-line `scope_finish` trailer** — measured at this checkpoint, every one is exactly seven lines carrying only `tool`, `exit_code`, `elapsed_seconds`, `artifact`, `artifact_bytes`, `scan_root` and `scan_root_source`, and `grep` for `global_sequencing`, `overlap_ledger` or `sequential_execution_requirement` across all of `harness/artifacts/logs/` returns **nothing**. That reversion was correct: a `.status` file is the runner's own trailer, and enriching it made it no longer verbatim. The cost is that this register and [§8](#a-superseded-generation-assembled-these-records-from-five-lanes--recorded-as-history-not-as-this-runs) are now the custodians of the departure the statuses used to carry, which is why it is set out here at length instead of cited to a line |
 | The measured cause | the overlapping windows were produced in **different clone-local lanes** — `checkov` w-027_182a66, `datadog-static-analyzer` w-025_42e7a6, `dependency-check` w-029_4cc49b, `gitleaks` w-026_42ec90, `osv-scanner` w-030_f3f236. Each lane invoked its own runner directly and captured its own streams; **none sequenced against another**. Nine per-tool records assembled from five lanes cannot be the one ordered ledger §0.8.1 requires. The delivered lane's remedy for exactly this is structural: one script, one process, one clone |
@@ -1683,18 +1823,18 @@ recorded with no anchor to adjudicate between them. No such contradiction arose.
 | What a human must do | **Accept in writing** that the superseded generation's departure is a recorded deviation from AAP §0.8.1 that the delivered lane does not inherit — the delivered lane satisfies the requirement and its verdict is owned by `runner-sequence.json` — **and** rule on whether the artifacts of that generation's other invocations, including the prohibited Checkov re-invocation, are to be discarded rather than retained. This document retains them under AAP §0.8.1 and names each cross-lane member individually in **D14**; only a human can decide that a prohibited invocation's record should be destroyed rather than kept |
 | Owner | **`harness/artifacts/logs/runner-sequence.json`** owns the delivered Stage 3 lane and its verdict. The superseded generation's figures have **no owner file in this tree**: the nine `<tool>.status` files that carried them now hold only the runners' seven-line trailers, so this entry and §8 are their record, and that is stated rather than papered over with a citation that would not resolve |
 
-### D16 — an unresolved vulnerable dependency: the pipeline's own runtime is pinned below the remediation floor
+### D16 — the interpreter that hosts this pipeline is recorded, and deliberately not assessed against any advisory
 
 | Field | Value |
 | --- | --- |
 | Expected | AAP §0.4.1 pins **CPython 3.13.7** as the interpreter that hosts the Python-based scanners and runs the normalizer, and §0.4.3 records **no dependency change in any direction** |
-| Observed | the pin is met exactly — `/usr/bin/python3` reporting **3.13.7** (`gate-record.json`; `normalize-run.json` `interpreter`), and `harness/lib/normalize/cli.py:510` states it as `EXPECTED_INTERPRETER_VERSION = "3.13.7"` with drift **non-halting by design** (`interpreter.halts_on_difference: false`). **And 3.13.7 sits inside the affected range of a reviewed advisory set whose remediation floor is Python 3.13.15** — the floor set by **CVE-2026-0864** and **CVE-2026-15308**, both fixed in 3.13.15, with earlier members of the set fixed at 3.13.10 through 3.13.14 and therefore subsumed. So this is not a version *difference* from the pin; it is the pin itself being a known-vulnerable coordinate |
-| Why it is registered as a divergence at all, given the pin is met | because the register exists to carry what a reader must know before relying on a figure, and "the runtime is exactly what the plan asked for" and "the runtime is unpatched against a reviewed advisory set" are both true. Recording only the first would be accurate and misleading |
-| Reachability | direct reachability through this run's own code is **low**: every import in the twelve modules under `harness/lib/normalize/` is standard library, and none of the facilities the advisory set names — XML, cookie, HTTP, `plistlib`, `tarfile`, `base64`, `configparser`, `html` — is among them. It is **not** zero-risk: the scanners' own dependency call graphs are external to this repository and were not available for static proof, so nothing is claimed about them. [§14](#14-values-that-could-not-be-established) carries the measured import list |
-| Disposition | **recorded, not repaired, and not repairable here.** AAP §0.4.3 changes no dependency and §0.8.1 prohibits installing, upgrading or substituting anything; a missing or older tool is halt-and-report rather than repair. Raising the constant in `cli.py` without raising the interpreter would only make the record disagree with the host, and raising the interpreter is the prohibited act |
-| The cost of the remedy, stated so the decision is informed | **a re-provisioned interpreter invalidates every count in this dataset.** The 9,430 rows, the 10,016 = 9,430 + 586 identity, the severity tally and the adapter-suite result were all produced on 3.13.7; on another runtime they must be regenerated before they mean anything, and until they are, nothing on the new host reproduces them |
-| What a human must do | decide the pin: **either** re-provision on **at least Python 3.13.15** and re-execute the pipeline end to end, accepting that this dataset is superseded by that run, **or** accept 3.13.7 explicitly and in writing, with the advisory set and the low-direct-reachability finding recorded as the basis. Not accepting either leaves an unresolved vulnerable dependency under a dataset that reads as complete |
-| Owner | `harness/lib/normalize/cli.py:510` for the pin; `harness/artifacts/logs/normalize-run.json` `interpreter` and `harness/artifacts/logs/gate-record.json`'s interpreter check for the observation; `harness/artifacts/logs/adapter-tests-run.json` for the standard-library-only statement |
+| Observed | the pin is met exactly — `/usr/bin/python3` reporting **3.13.7** (`gate-record.json`; `normalize-run.json` `interpreter`), and `harness/lib/normalize/cli.py:510` states it as `EXPECTED_INTERPRETER_VERSION = "3.13.7"` with drift **non-halting by design** (`interpreter.halts_on_difference: false`). There is no version difference to record: the observed interpreter is the pinned one |
+| What an earlier edition of this entry asserted, and why it was withdrawn | it was headed "an unresolved vulnerable dependency" and stated that 3.13.7 "sits inside the affected range of a reviewed advisory set whose remediation floor is Python 3.13.15", naming two CVE identifiers as setting that floor and characterising the pin as "a known-vulnerable coordinate". **Every part of that is withdrawn.** It had **no owner file anywhere in this tree**: no scanner in this run reported it, it appears in none of the eight artifacts under `harness/artifacts/raw/`, in neither dataset file, and in no log — the two identifiers and the 3.13.15 floor occurred in this document and nowhere else, which is precisely the ownerless-figure defect the rest of this register exists to prevent. It was also outside this run's remit twice over: **AAP §0.3.2** prohibits judging any finding — real, important, exploitable or remediable — and prohibits remediating anything found, and **this run performed no advisory research at all**, so it had no basis on which to place any runtime inside or outside an affected range. An observational pipeline that records what nine scanners reported may not append a tenth assessment of its own |
+| What is measured, and stays | the interpreter's identity and its provenance, above. And one fact about this run's own code, which is a measurement rather than an assessment: **every import in the twelve modules under `harness/lib/normalize/` is from the standard library** — no third-party package is imported, so the normalizer adds no dependency of its own to whatever the host provides. [§14](#14-values-that-could-not-be-established) carries the measured import list. Nothing is claimed, in either direction, about the scanners' own dependency graphs: they are external to this repository and were not analysed |
+| Why the entry is kept rather than deleted | the register's purpose is to tell a reader what governs a figure before they rely on it, and two things do: every count in this dataset was produced **on this exact interpreter**, and this run made **no security assessment of it**. A reader who needs that assessment must know it is absent rather than infer it from silence |
+| Disposition | **recorded, not assessed, and nothing repaired.** AAP §0.4.3 changes no dependency and §0.8.1 prohibits installing, upgrading or substituting anything, so the runtime could not have been changed even had an assessment called for it. Raising the constant in `cli.py` without raising the interpreter would only make the record disagree with the host |
+| What a human must do | if an assessment of this interpreter is wanted, **supply it from a dated advisory source and record that source**, then decide the pin against it. Note the cost before deciding to move: **a re-provisioned interpreter invalidates every count here** — the 9,430 rows, the 10,016 = 9,430 + 586 identity, the severity tally and the adapter-suite result were all produced on 3.13.7 and would need regenerating before they mean anything on another runtime. What must **not** happen is this document reinstating an advisory claim it cannot source |
+| Owner | `harness/lib/normalize/cli.py:510` for the pin; `harness/artifacts/logs/normalize-run.json` `interpreter` and `harness/artifacts/logs/gate-record.json`'s interpreter check for the observation; `harness/artifacts/logs/adapter-tests-run.json` for the standard-library-only statement. **No owner is cited for any advisory claim, because this record makes none** |
 
 ### D17 — boundary violation: the three probe queries were re-executed under a static-only review boundary that forbade it
 
@@ -1714,7 +1854,7 @@ recorded with no anchor to adjudicate between them. No such contradiction arose.
 | Field | Value |
 | --- | --- |
 | Expected | AAP §0.8.1, verbatim: **"Do not tear anything down. No cleanup, no reset, no temp purging. What the run built stays where it is."** The private graph copy each probe query loads is the only artifact carrying the exact bytes that were loaded, so it is among what the run built |
-| Observed, in the superseded generation | each of the three 2026-09-01 invocations **deleted its private graph copy and the exclusive directory that held it** on the way out, on both the success and the failure path, having first widened the directory in order to unlink. Those copies are gone and cannot be recovered, so **the bytes those loads read are not re-measurable**; their identity pairs survive only as records in that generation's envelopes and streams |
+| Observed, in the superseded generation | each of the three 2026-09-01 invocations **deleted its private graph copy and the exclusive directory that held it** on the way out, on both the success and the failure path, having first widened the directory in order to unlink. Those copies are gone and cannot be recovered, so **the bytes those loads read are not re-measurable**. Nor is the record of those bytes: that generation's envelopes were **replaced rather than retained under a second name**, so neither the copies nor any surviving statement of their identity can be checked from this tree. An earlier edition of this row said their identity pairs "survive only as records in that generation's envelopes and streams", which pointed a reader at records that no longer exist |
 | Observed, in the generation on record | each of the three invocations **retained** its private copy and that copy's exclusive directory, at the mode the copy step set — `0400` inside a `0500` directory — and each stream states it: *private input retained : true (created by this run and left in place under AAP 0.8.1, so the digest above can be re-measured from the bytes the engine read)*. The three paths and inodes are `/tmp/blitzy-harness-scratch/0/probe-graph-input-6708054a4f5227f8926d9a03/spark.cpg`, `(dev=10301,ino=103940409)` (`harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log` lines 38, 69 and 71); `…/probe-graph-input-11ac4197c6bde353b2c6e9f6/spark.cpg`, `…411` (`harness/artifacts/logs/probe-02-dataflow-unguarded-driver-launch.log` lines 38, 69 and 71); `…/probe-graph-input-cf0ba216ebf4ea8ab2611843/spark.cpg`, `…413` (`harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log` lines 38, 88 and 90). **All three are present on disk** and each re-measures to 541,309,809 bytes / `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`, so the identity every probe figure rests on is checkable from the bytes the engine read rather than only from the record of the reading. Each envelope publishes `graph.private_copy_retained_after_verification = true` |
 | What it cost, and what closed it | for the superseded generation the cost stands: those bytes are unavailable. For the generation on record there is no such cost. The **source** graph was never affected either way: 541,309,809 / `4616845a…` (`harness/artifacts/logs/cpg-graph-record.log`) stands where it stood, and [§5](#5-the-graph--its-counts-its-bytes-and-the-one-sided-floor) is unchanged by this entry |
 | What this document said before, and why it is named here | [§18](#18-where-the-run-reached) stated **"Nothing was torn down. No cleanup, no reset, no temp purging"**, which the earlier deletion made false. That is an audit statement about the run's own conduct, so §18 carries the correction itself rather than delegating it here |
@@ -1728,13 +1868,13 @@ recorded with no anchor to adjudicate between them. No such contradiction arose.
 | Field | Value |
 | --- | --- |
 | Expected | a probe envelope's `provenance.query_source_sha256` names the bytes that produced its figures, and the committed `.sc` file carries those bytes — so a reader can run what the record describes |
-| Observed, historically | **they differed, in all three, across four rounds of correction.** Each round changed every source while the boundary **D17** quotes forbade running any of them, so each envelope then on the branch published a digest for text that no longer existed. The rounds were: exact role-to-path binding in the completion-manifest reader with the basename alternative removed and one NOFOLLOW open per member; the member walk and member open moved onto **held** `SecureDirectoryStream` **handles** descended one component at a time from the verified repository root, with a mismatch measured through the fallback refused **without** disclosing the size and digest it observed; the reader made **fail-closed**, the pathname route removed entirely, the root's directory handle opened once and bound to that root's `fileKey` read back through the stream's own attribute view; and the retention of the private graph copy (**D18**). The superseded pairs are kept rather than deleted: committed 306,042 B / `6ae308f0…`, 371,408 / `7ed2c681…` and 414,382 / `2c5de3d6…` against executed 279,196 / `0859b61f…`, 344,562 / `8199145a…` and 387,536 / `b6ff619f…` |
+| Observed, historically | **they differed, in all three, across four rounds of correction.** Each round changed every source while the boundary **D17** quotes forbade running any of them, so each envelope then on the branch published a digest for text that no longer existed. The rounds were: exact role-to-path binding in the completion-manifest reader with the basename alternative removed and one NOFOLLOW open per member; the member walk and member open moved onto **held** `SecureDirectoryStream` **handles** descended one component at a time from the verified repository root, with a mismatch measured through the fallback refused **without** disclosing the size and digest it observed; the reader made **fail-closed**, the pathname route removed entirely, the root's directory handle opened once and bound to that root's `fileKey` read back through the stream's own attribute view; and the retention of the private graph copy (**D18**). **That each pair moved is kept; the six figures are not restated, because they have no owner file in this tree.** The pre-hardening sources were never committed, so no revision of the three `.sc` files reachable from this branch carries either side of a pair, and the superseded envelopes that published the committed side were replaced rather than retained under a second name. Reproducing them would require the working tree of the clone lane that held the pre-hardening sources, at the revision immediately before each hardening round, together with that lane's envelopes as they stood before the 2026-09-01 executions; neither is present in this checkout nor recoverable from its history. An earlier edition published all six to the byte — committed 306,042 B and two others against three executed figures — which is the ownerless-digit defect this register exists to prevent |
 | Observed now | **they agree, in all three.** The finished sources were executed, and each envelope's `source_integrity.query_source_sha256` equals the digest of the file committed beside it: **01** 307,625 B / `79583377ffdc05762226f1437be94d953bf44be1ea94bbc3d9e48f072a27f4ac`; **02** 369,754 B / `902b7ffe8d708d6cb4ddfc057f65b1a2a023fc90c5b55c8d3ba012885dcb3fd1`; **03** 428,057 B / `8f67126c56185bde3221ad760130295cf9f7f64411be528e9fd578a4fbad631e`. Each pair is read twice by two different readers — `sha256sum` and `stat -c%s` over the committed file, and the running script over the file it opened, printed on its stream as *query source bytes* / *query source sha256* (`probe-01-…log` lines 19-20, `probe-02-…log` lines 20-21, `probe-03-…log` lines 19-20) |
 | Why the envelopes were not rewritten instead | an envelope's source digest records **what ran**. Editing it to match a source would assert a run that never happened — a worse defect than the divergence it would conceal. Agreement was therefore obtained by executing the committed bytes, not by editing a record, and no superseded envelope was altered |
 | Consequence | every per-query figure in `oss-scan-results/joern-probe.md` and in [§10](#10-the-joern-capability-probe) describes the source a reader would actually run. The two-column citation the earlier state required — executed pair for a figure, committed pair for the code — is no longer needed, and the superseded pairs are retained as history rather than as a live caveat |
 | Disposition | **closed by execution, with the history kept.** What remains open is not this divergence but the process question **D17** states: whether probe evidence produced while the checkpoint's records were being corrected is admitted |
 | What a human must do | nothing for this entry. Read it together with **D17**, which owns the authorization question |
-| Owner | the three sources under `queries/joern/`, the three envelopes under `queries/joern/results/`, and `oss-scan-results/joern-probe.md`'s section *"What changed in the sources, and the agreement re-established over them"*, which carries the measured pairs |
+| Owner | the three sources under `queries/joern/`, the three envelopes under `queries/joern/results/`, and `oss-scan-results/joern-probe.md`'s section *"What changed in the sources, and the agreement re-established over them"*, which carries the current generation's measured pairs and states the superseded pairs as history without restating their figures |
 
 ### D20 — halt-class departure of a superseded attempt: two archives were withheld from a frontend input set
 
@@ -1744,6 +1884,7 @@ recorded with no anchor to adjudicate between them. No such contradiction arose.
 | Expected | AAP §0.3.2 and §0.9.1 — the graph is built over **every JAR the build produced**, nothing excluded and **nothing trimmed in either direction to bring a count inside a window**; §0.5.1 requires every JAR retained by name; and §0.9.2 lists trimming the input set among the conditions that **stop the run**. §0.3.2 is explicit that answering a coverage question by narrowing the input is not this run's to do |
 | Observed — both values | `full_inventory_archive_count` **191** against `frontend_input_archive_count` **189**, `frontend_input_bytes` **308,385,184**, `withheld_archive_count` **2**. The manifest's own `assertion` is "frontend input directory == its manifest, one-to-one, no duplicates, and staged + withheld == the full inventory", with `assertion_errors` empty — so the trim is **declared and internally consistent**, not concealed. It is nonetheless a trim |
 | The two withheld archives, named in full with their stated reasons | **`common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar`**, 109,208,027 bytes, sha256 `66017e4e2086ba154144d244f123e4473a353f746baa8e36985f23323869afc8` — reason given as a shaded shuffle uber-jar with `shadedArtifactAttached=false`, i.e. not the module primary artifact, whose inclusion "vendors common/network-common, common/network-shuffle and common/utils-java classes and removes their injective coverage witnesses (**measured: 35 valid witnesses → 32**)". And **`connector_kafka-0-10-assembly__spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT.jar`**, 13,591,752 bytes, sha256 `96bcfab6d42abc7ba1f6dff63c60f45227808488870ad83ddad9bf2271913ef6` — reason given as a shaded assembly of a packaging module with no `src/` directory at all, whose inclusion "vendors connector/kafka-0-10, connector/kafka-0-10-token-provider and common/tags classes and removes their injective coverage witnesses (**measured: 35 valid witnesses → 33**)" |
+| The 141-byte arithmetic, adjudicated here because two evidence files record it without reconciling it | This manifest's own totals do **not** add up to the invocation on record's, and the difference is small enough to be mistaken for a typo, so it is settled explicitly. Measured: staged **308,385,184** + withheld **122,799,779** (`…yarn-shuffle.jar` 109,208,027 + `…kafka-0-10-assembly…jar` 13,591,752) = **431,184,963**, against invocation A's `own_artifact_bytes` of **431,184,822** — a difference of exactly **141 bytes**. Neither figure is wrong and neither corrects the other, because **they are totals over two different trees**: the w-000 lane and the w-005 lane each built Spark independently, and two independent builds of the same sources do not produce byte-identical JARs (a JAR embeds entry timestamps and manifest ordering). So this is not the AAP §0.6.4 failure mode of one quantity measured twice; it is two quantities that a reader would reasonably expect to be one. **The figure of record for the mandated input set is 431,184,822**, owned by `harness/artifacts/logs/build-reactor.log` STEP 13 and describing the invocation on record; this manifest's totals are properties of the superseded w-000 attempt's own tree and are cited only as such. `build-reactor.log` STEP 15 and `cpg-frontend.log`'s invocation index each record the pair without adjudicating it, which is correct for an evidence file — the adjudication belongs to this register, and neither figure was altered to close the gap |
 | Why the stated reason does not license the trim | Both reasons are **coverage-witness reasons** — the archives were withheld because including them would reduce the number of modules for which an injective witness exists. That is precisely the rationale §0.3.2 forbids: it narrows what enters the graph in order to improve a number the graph is then measured by. The reasons are also *true* as measurements, which is why they are quoted rather than dismissed; a witness genuinely vendored by a shaded uber-jar is genuinely lost. AAP §0.5.1's answer to that problem is the **module-exclusive `pom.properties` fallback witness**, named as a weaker witness, not the removal of the archive that vendored it |
 | What the invocation on record did instead | `harness/artifacts/logs/cpg-frontend.log` STEP 1 records "Input set actually supplied to the frontend — the complete set, nothing excluded: own artifacts **191**", **431,184,822** bytes, and STEP 4 records the staging directory in the w-005 lane with "nothing excluded: **no `--exclude`, no `--exclude-regex`, no `--depth`**". So the AAP-compliant invocation was made, over the complete set, and **D1** records that it produced no graph — blocked in serialization by a fixed `Integer.MAX_VALUE - 8` array-length bound that no heap moves |
 | The one number in the log that reads like this trim and is **not** it | `cpg-frontend.log`'s STEP 1 assertion block reads `staged files on disk None`, `manifest entries None`, **`distinct sha256 189`** at its **lines 32-34**. The first two are not measurable at log-generation time, because the staging tree was written into the w-005 lane's private scratch and went with it (`build-record.md` §4). The third is **not** this divergence's 189: it is a count of distinct **digests** over the complete **191**-file set, short by two because two pairs of that set's members are byte-identical — `connector_kafka-0-10-assembly__original-…-assembly.jar` with `…-assembly-tests.jar` under `f8b614e4…`, and `…-assembly-sources.jar` with `…-assembly-test-sources.jar` under `0cfe960d…`, both collision groups named in the 191-entry inventory as this run's Stage 2 recorded it (`cpg-input-inventory/1` at commit `232d0d9cca3`: `inventory_entry_count` 191, `staged_file_count_from_disk_listing` 191, `manifest_entry_count` 191, `distinct_staged_names` 191, `distinct_sha256` 189, `files_reverified` 191). So the two 189s are different measurements that coincide numerically — a digest count over 191 files here, an archive count in the row above — and neither is derived from or evidence for the other. `build-record.md` §4 states the same distinction from the other side, and it is why the assertion recorded was the bidirectional one-to-one mapping rather than a set comparison, which 191-against-191 and 189-against-189 would have passed even with one file staged twice and another omitted |
@@ -1763,7 +1904,113 @@ recorded with no anchor to adjudicate between them. No such contradiction arose.
 | What a human must do | **Either** amend AAP §0.6.1's transformation mapping to carry a CREATE row for each of the seven — which is the outcome this document recommends, since each already conforms to the convention its own subsection states — **or** direct their removal and accept the consequent loss: no pre-load identity gate, no §0.6.4 one-measurement gate, no §0.9.4 status-figure gate, no manifest for the two published trees, and no emitter or CLI-writer assertions |
 | Owner | the seven paths themselves, each present and readable in this checkout, and [§11](#11-deliverable-inventory-with-resolved-absolute-paths), which lists them among the paths that resolve |
 
+### D22 — RESOLVED: the raw-tree ingestion boundary recorded an unexpected direct child and continued; it now halts
+
+| Field | Value |
+| --- | --- |
+| Expected | AAP §0.8.1 makes `harness/artifacts/raw/` **runner-only** — "receiving exactly one artifact per tool that writes one **and nothing else ever**" — and §0.6.1 repeats it as "Nothing else is ever written into this tree". §0.5.4 then fixes the consequence: "An artifact matching neither the SARIF shape nor a known native shape is a **halt** rather than a best-effort parse" |
+| Observed, before this checkpoint | the normalizer's raw-directory enumeration collected any direct child outside the nine fixed artifact filenames into `raw_directory.unexpected_entries`, printed one `normalize: reported condition:` line on stderr, and **returned normally**. A tree holding a document nothing could adapt therefore produced **exit 0**, `halt` null, `unexpected_entry_count` 1 and a fully published 9,430-row dataset. The halting machinery was already present and reached from the same function — the realpath check immediately above it halts under `raw-directory-boundary` — so this was one branch declining to use it rather than an absent capability |
+| Why it mattered | the two outcomes are indistinguishable downstream. A record carrying `unexpected_entry_count` 1 beside `halt` null and a complete dataset reads as a successful run that mentioned something in passing, and nothing in the dataset files — which are row-only by construction — can express that a document in the tree was never adapted. A reader comparing two runs' row counts would see agreement and conclude the trees agreed |
+| Resolved | the enumeration now raises the halt under a name of its own, `raw-directory-unexpected-entry`, which `harness/lib/normalize/cli.py:578` declares as `HALT_RAW_DIRECTORY_UNEXPECTED`, taking the published halt-reason vocabulary from 37 names to **38**. It fires before the source index is built, before any adapter runs, and before either output file is written; an expected artifact name standing there as a directory or a symlink halts under the same reason with the condition naming which it was. The evidence recorded is **filesystem-level only** — name, is-a-directory, is-a-symlink, byte size where it has one, and whether the name is an expected one — deliberately narrower than reading the document's own top-level structure, because a document in this tree has no writer to attribute it to and fingerprinting one to guess is what §0.8.1 forbids |
+| Verified at runtime | three isolated workspaces, each seeded with the canonical `findings.json` and `findings.csv` at the output paths before the run: `unknown-shape.json`, `near-sarif-version-only.json` and `near-sarif-runs-only.json` added one at a time beside the eight canonical artifacts. Each exits **non-zero** with `halt.reason` `raw-directory-unexpected-entry`, writes **no** dataset row, and leaves both seeded deliverables byte-for-byte unchanged (`d4e28c82…` / `9f646532…`). A fourth workspace replacing `trivy.json` with a **directory** of that name halts under the same reason with `is_directory` true, `is_symlink` false, `bytes` null and `artifacts_present` 7. The same template with the eight canonical artifacts alone still exits **0** with 9,430 rows, so the boundary is not refusing everything. Three tests in `oss-scan-results/adapter-tests/test_shape_routing_negative.py` hold all three of those properties |
+| What a human must do | nothing. The departure is closed at its root cause in this run's own file, the boundary is exercised by committed tests, and the canonical run is unaffected — the eight artifacts hold no unexpected entry, so `normalize-run.json` still records exit 0 with `halt` null |
+| Owner | [§9](#9-normalization-and-the-dataset), which states the boundary as part of the normalizer's contract, and `harness/artifacts/logs/normalize-run.json`, whose `vocabularies.halt_reasons` publishes the 38 names |
+
+### D23 — the environment file's `HARNESS_REPO_ROOT` assignment contradicts its own override contract; not edited, and superseded operationally
+
+| Field | Value |
+| --- | --- |
+| Expected | `harness/env.sh` states its own contract in its header: every value it sets "was established by provisioning", and "**Values already present in the environment win**, so a caller can override any of them per clone without editing this file." Every other variable the file exports is written in the `${VAR:-default}` form that honours that sentence |
+| Observed | `HARNESS_REPO_ROOT` is the **one** exception. The file assigns it unconditionally — `HARNESS_REPO_ROOT="$(cd "$HARNESS_DIR/.." && pwd)"` — so a value the caller had already exported is **discarded** on sourcing. Reproduced in a fresh `env -i bash --noprofile --norc` shell with the file unedited: a `HARNESS_REPO_ROOT` pointing at an isolated owner root before sourcing reads back as this checkout's root after it, while `HARNESS_RAW_DIR` set in the same shell survives. `harness/env.sh` is byte-identical to the state provisioning delivered (sha256 `9063026b0bb94b25bdceff62a90888eaf3f494225dee47694c8cc6a30cf9ccc0`) and was not modified by this run |
+| The consequence a caller met | the normalizer's output-ownership guard answers containment against that root, so the discarded value took a caller's outputs with it: an invocation that exported an isolated owner root, sourced the environment file and then named its output paths under that root exited **78** with `output-path-outside-its-owner-root` and wrote **nothing**. Nothing was wrong with the guard — it correctly refused paths outside the root it had been given — and nothing was wrong with the caller's intent; the root simply never arrived |
+| Why the file is not edited | four independent authorities forbid it, and none of them is discretionary. AAP §0.3.1 lists the environment record, **the environment file it names**, and the shared scope library under "Files read but never written". §0.6.3 permits changing exactly two provisioned paths under `harness/` — `harness/scope/allowlist.txt` and `harness/cpg/spark.cpg` — and states that "no runner or harness helper is edited". §0.6.5 states plainly that "no runner's baked flags, **no environment file**, no `pom.xml`, no CI workflow and not the root `.gitignore` is edited". The clone instantiation instructions forbid it a fourth time, naming `harness/env.sh` among the files not to edit. AAP §0.1.3's precedence rule settles the remainder: an explicit AAP exclusion outranks a finding's suggested fix, so the one-line correction is **reported rather than applied** |
+| The one-line fix, reported rather than applied | `HARNESS_REPO_ROOT="${HARNESS_REPO_ROOT:-$(cd "$HARNESS_DIR/.." && pwd)}"` — the same `${VAR:-default}` form the file's other twenty-odd exports already use, restoring the header's own sentence with no change to any default. A human with authority over provisioned surface can apply it in one edit; nothing in this run may |
+| Resolved operationally, at the layer this run owns | the root the normalizer uses is now an **explicit argument**, which is what `harness/lib/normalize/cli.py`'s own documented contract already promised of every input: `--repo-root DIR` declares the dataset owner root on the command line and wins over `$HARNESS_REPO_ROOT`, which wins over the install root derived from the module's location. A caller whose environment file overwrites the variable no longer needs the variable. The canonical invocation passes neither and is unchanged, so no published figure moves |
+| Verified at runtime | in one fresh `env -i` shell, with the file unedited: **(A)** export the isolated owner root, source `harness/env.sh`, run the normalizer with output paths under that root and **no** `--repo-root` — exit **78**, `output-path-outside-its-owner-root`, zero files written under the owner root. **(B)** the same shell and the same environment file, adding `--repo-root <isolated root>` and naming no `--findings-*` path — exit **0**, both deliverables **defaulted** under the declared root and reproducing the canonical digests `d4e28c82…` and `9f646532…`, with `inputs.output_guards.repository_root_source` recorded as `--repo-root` where the same field reads `$HARNESS_REPO_ROOT` in the canonical run. Nine tests in `oss-scan-results/adapter-tests/test_cli_writers.py` hold the precedence, the defaulting, the containment answer and the empty-value-counts-as-unset rule |
+| Standing | the contract half is a **declined fix on AAP grounds**, not a resolved one: `harness/env.sh` still discards a pre-set `HARNESS_REPO_ROOT` and will continue to until a human with authority over provisioned surface applies the line above. What this run changed is that the discarding no longer has any bearing on where the dataset may be written |
+| What a human must do | apply the one-line fix to `harness/env.sh` under provisioning authority, or accept that a pre-set `HARNESS_REPO_ROOT` is discarded on sourcing and require `--repo-root` of any caller that owns a root other than the checkout's. Either way the normalizer needs no further change |
+| Owner | [§9](#9-normalization-and-the-dataset), which states the declaration and its precedence, and `harness/env.sh`, whose header states the contract and whose line 21 departs from it |
+
+### D24 — the publication-owner gate's one standing disagreement: the stated absolute root is the publication checkout's, not the working clone's
+
+| Field | Value |
+| --- | --- |
+| Expected | `harness/lib/verify_publication_owners.py`'s `check_repository_root` asserts two things about this file: that it states **exactly one** absolute root, and that the root it states equals `git rev-parse --show-toplevel` measured in the checkout the gate runs in |
+| Observed | the first assertion passes and the second does not, in **any working clone**. This file states the root of the checkout this branch is **published** from; the gate runs in the working clone the branch is published **from a different path**, and the two are different directories by construction. The gate therefore reports **102 owner/copy pairs checked, 1 disagreeing** — that one pair, and no other — in this clone, and would report 0 disagreeing when run in the checkout this branch is reconciled into |
+| Why it is not "fixed" | writing the working clone's own root here would invert the failure rather than remove it: the citation would then be wrong in the place the document is read from and right only in a clone that no longer exists once the run ends. Every other checkout of this branch — and there are dozens on this host at once — would measure a third root again. The gate's own instruction is "never edit the owner to match", and the owner here is `git rev-parse` in the publication checkout, so the copy is already the value the owner produces where it counts |
+| Verified | the disagreement was measured **before this checkpoint changed anything** and again after every change it made: the same single pair, the same two values, and no second pair ever added. The gate's other 101 pairs pass, its locator families classify 173 of 173 references in this file with 0 unattributed and 0 unexplained, and `--self-test` passes 50 hand-written cases and 14 live document mutations with 0 passing |
+| Disposition | **recorded as a standing, structural disagreement rather than repaired.** It is a property of running a publication check inside a pre-publication clone, not a drifted copy |
+| What a human must do | read the gate's verdict as "**1 disagreeing, and it is this one**" rather than as a pass/fail, or — the cleaner outcome this document recommends — give `check_repository_root` the publication root explicitly so it compares the stated root against the path the branch is published to rather than against the clone it happens to run in |
+| Owner | `harness/lib/verify_publication_owners.py`, whose `check_repository_root` states both assertions, and [§"How to read a citation in this file"](#how-to-read-a-citation-in-this-file), which states which root this file prints and why a reader elsewhere measures their own |
+
 ---
+### QA testing findings F1–F5 (2026-09-02) — first-hand re-verification and where each is answered
+
+Runtime testing was executed against this checkpoint on 2026-09-02 and raised **five**
+blocking findings — four CRITICAL, one HIGH — against Stages 0, 1, 2 and 5. Every one of
+them was **re-executed from its own reproduction steps in this clone** on the same date, and
+**all five still reproduce**. This subsection is the register: what each finding observed,
+what re-execution here observed, the evidence file that carries the measurement, the
+divergence above that owns the condition, why no action available inside this run clears it,
+and the decision a human has to take. Nothing below is a new claim of compliance — the
+document's status is unchanged and remains the one at the top of this file.
+
+**Two properties of the pass that produced this subsection, stated because they are what
+keeps it inside the barrier D0 describes.** It performed **measurement only**: no
+`harness/bin/run-*.sh` runner was invoked, `harness/artifacts/raw/` still holds the same
+**eight** artifacts byte for byte, no dataset row was produced, no stage was advanced and
+nothing under `/opt` was written. And its own evidence went where AAP §0.8.1 says such
+evidence goes — the fourteen `reverification-*` files under `harness/artifacts/logs/`,
+published per file in [§16](#16-manifest-of-the-two-git-ignored-artifact-trees).
+
+| Finding | What it observed | Re-executed here, 2026-09-02 | Evidence written by this pass | Owned above by |
+| --- | --- | --- | --- | --- |
+| **F1** CRITICAL — the gate was handed non-empty artifact trees and later stages ran anyway | `raw` and `logs` already populated when the gate censused them (8 and 85 entries), gate verdict `halt`, and Stage 2–5 artifacts present regardless | Reproduces. `raw/` **8** files / **120,538,389** bytes and `logs/` **137** files / **143,200,007** bytes at the census instant, before this pass's own fourteen; **every entry in both trees is git-tracked** while `git check-ignore -v --no-index` reports `.gitignore:31:artifacts/` for a path in each, so the members were force-added; the gate re-parses to `overall: halt`, `authorises: nothing`, 43 checks (38 pass, 3 recorded difference, 2 halt); set difference against the gate's own retained listing is **0** entries removed from either tree and **0** added to `raw/` | `reverification-f1-artifact-trees.txt` | **D0** |
+| **F2** CRITICAL — the provisioned record contradicts the graph on disk | record 541,255,894 bytes / `26d327cc…` against disk 541,309,809 bytes / `4616845a…` | Reproduces. `stat -Lc %s` → **541,309,809**; sha256 over a full read, taken twice (through the symlink and on the resolved target) → **`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`**; target mtime `2026-08-30 19:18:37Z`. The record states 541,255,894 / `26d327cc…fcffc` / 1,397,339 methods / 119,691 type declarations against the load's 1,396,899 / 119,721 / 45,037, and its own sha256 `5aa68b25…b140` equals the digest the gate recorded for it. The contradiction is on the two fields the expected-values table does **not** anchor | `reverification-f2-graph-identity.txt` | **D4** |
+| **F3** CRITICAL — the pinned frontend cannot persist the graph over every JAR the build produced | exit 1 after 21,956 s at `-J-Xmx128g` inside `flatgraph.storage.WriterContext.finish`, `OutOfMemoryError: Required array length 2147483639 + 76 is too large`, partial file not imported | Reproduces, and the **bound is now measured to be independent of the heap over a 16× range**: the retained probe, recompiled and run here under JDK 21 at `-Xmx8g`, `-Xmx64g` and `-Xmx128g`, reports `maxMemory` 8,589,934,592 / 68,719,476,736 / 137,438,953,472 and in **all three** arms buffers exactly **2,147,483,639** bytes and then throws `java.lang.OutOfMemoryError: Required array length 2147483639 + 77 is too large` — the failure point does not move by one byte. The frontend's own option surface, enumerated here, is **12 named options and one positional**: none chunks or streams the writer, none selects another output format, and `--full-resolver` and `--enable-file-content` would both enlarge the pool | `reverification-f3-writer-bound.txt`, `reverification-f3-writer-bound.json` | **D1** |
+| **F4** HIGH — the accepted witness rule yields no evidence for 8 of the 38 JAR-producing modules | 29 modules with an exclusive class, one with the descriptor fallback, eight with neither | Reproduces, and the measurement the record previously lacked now exists. Over the input set the plan requires — **191** project outputs, reconciled first-hand from the pinned tree as 627 enumerated / 191 own / 422 copied dependencies / 14 test-resource fixtures / 0 undecided — **30 of 38** modules have an accepted witness (**29** exclusive class, **1** exclusive descriptor: `sql/connect/shims`) and **8** have neither, the same eight, compared programmatically and re-confirmed by a second code-disjoint script | `reverification-f4-module-witness-full-input-set.json`, `reverification-f4-module-witness-full-input-set.log`; the verdict itself is owned by `build-record.md` §6 | **D1** and §14's witness row, both extended by that measurement |
+| **F5** CRITICAL — the mandated taint A/B does not discriminate | both arms exit 0 with one traced result at `DiskStore.scala` line 72 and byte-identical SARIF, 4,753 bytes / `7949617b…` | Reproduces **byte for byte across clones and generations**: arm ON 1 result at line 72 with 1 code flow, arm OFF 1 result at line 72 with 1 code flow, both SARIFs 4,753 bytes under sha256 `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` — the digest the testing run reported — with the measured argv delta being `--taint-intrafile` and the output path alone. Both remedies the finding proposes were then **measured constructible**: a flow that requires the toggle (`HiveShim.scala`, **2** traced findings at its lines 828 and 834 with the flag against **0** without it) and a taint-disable-equivalent control on the mandated subject and line (the pinned rule with its `pattern-sources` replaced by an unmatchable marker: **0** findings against the real rule's 1 at line 72). The engine surface was enumerated rather than assumed — 558 help lines, 101 option blocks, exactly **2** naming taint and both additive, 12 `--no-*` options and none taint-related, and `--optimizations=none` run and still reporting line 72 | `reverification-f5-taint-ab.log`, `reverification-f5-taint-ab.json`, `reverification-f5-taint-ab-{on,off}.sarif`, `reverification-f5-taint-ab-hiveshim-{on,off}.sarif`, `reverification-f5-taint-ab-source-removed.sarif`, `reverification-f5-taint-engine-options.txt` | **D2** |
+
+**Why none of the five is repaired here, one line each, with the section that says so.**
+F1 — AAP §0.3.2 and §0.8.1: this run neither creates nor clears either tree, and a non-empty
+tree halts. F2 — the record side is REFERENCE-only (§0.6.1) and the graph side is F3, so
+§0.1.3's fourth case applies: record both values and stop. F3 — raising the heap is measured
+ineffective, trimming the input set is prohibited (§0.3.2, §0.9.2), substituting the writer is
+prohibited (§0.4.3), the frontend offers no option, and importing the partial file is never an
+option. F4 — §0.5.1 admits exactly two witness kinds and no third, and both are unsatisfiable
+for a module whose classes *and* Maven descriptor are wholly vendored by another module's
+shaded artifact; §0.9.4's required outcome is to name the value as unestablished. F5 — §0.9.2
+lists a failed taint A/B among the conditions that stop the run, and no rule, file, line or
+flag was changed to obtain the expected zero.
+
+**What a human has to decide, finding by finding.** F1: begin a generation from provisioning
+that presents genuinely empty trees — and because every member is *tracked*, that means
+removing them from this branch's index rather than deleting files from a working tree, the
+tracked state having been introduced by commit `0e3e742a5ad`. F2: replace the graph and the
+record **atomically in one provisioning act**, then validate their agreement from an empty
+gate; the bytes are shared, so nothing inside a clone can do it — this pass measured **23**
+clone checkouts on this host whose `harness/cpg/spark.cpg` all resolve to the one file. F3:
+either authorise a Joern/flatgraph whose writer chunks or streams the string pool and rebuild
+over the unchanged input set, or amend the single-complete-graph-over-every-JAR requirement,
+for instance to a partitioned set of per-part graphs each with its own recorded identity —
+there is no third form, and neither is available without amending §0.4.3 or §0.5.1. F4: either
+admit a third injective witness kind — the staged coordinate and digest of each input archive
+retained in graph metadata is the natural candidate — or accept **30 of 38** as the ceiling of
+the present rule and record the eight as permanently unobtainable. F5: either move the mandated
+pair's subject to a flow that crosses a method boundary, or redefine its "sole difference" from
+the engine setting to the rule's `pattern-sources`, which is the only taint-free arm this
+engine admits.
+
+**One thing this register does not do.** It does not close any of the five, and it is not a
+second opinion about whether they should have halted the run: four of them are conditions AAP
+§0.9.2 itself lists among those that stop it, and the fifth is a value §0.9.4 requires be named
+as unestablished. What the pass adds is that each is now measured **in this checkout, by this
+pass, from the finding's own reproduction steps**, so a reader no longer has to take an earlier
+lane's word or the testing run's for any of them.
+
+---
+
+
 
 ## 14. Values that could not be established
 
@@ -1778,9 +2025,10 @@ tried to establish it; this section indexes them.
 | **Per-entry identity for the 191-archive input set** this run's own frontend was given — staged name, byte size and sha256 per archive. The **aggregate** is established (191 archives, 431,184,822 bytes) and its owners exist, but the per-entry manifest that carried it was regenerated for this generation to describe the 62-archive set instead, and no other file in the two trees holds it. Nothing is estimated in its place and no per-entry figure for that set is stated anywhere in this record | `build-reactor.log` STEP 13 and `cpg-frontend.log` STEP 1 for the aggregate; **D9** here for the loss |
 | A **coverage verdict for the 7 reactor JAR projects absent from this graph's input set** — `sql/connect/shims`, `tools`, `examples` and the four `connector/kafka-0-10*` projects. No witness for them can be queried in a graph their bytecode is not in, and no graph over the complete set exists to verdict them against (**D1**). **Not partially closed and nothing substitutes for it**: no narrowed or witness graph is presented as a stand-in | `build-record.md` §6 |
 | An **injective coverage witness** for the **5** modules whose every primary-artifact class is vendored into another module's shaded archive — `common/network-common`, `common/network-shuffle`, `common/utils-java`, `sql/api`, `sql/connect/common`. Their weaker `pom.properties` witness is vendored too, so each is **NO VERDICT OBTAINABLE**; presence was **not** substituted, and **0** verdicts in this run rest on presence or on a shared prefix | `build-record.md` §6 |
+| An injective coverage witness for the **8** modules that have none over the input set the plan requires — the five above plus `common/tags`, `connector/kafka-0-10` and `connector/kafka-0-10-token-provider`. Measured on 2026-09-02 over all **191** project outputs rather than the 62 the graph carries: **30 of 38** modules have an accepted witness and eight have neither kind, because each one's primary artifact *and* its Maven descriptor are wholly vendored by another module's shaded archive. So the shortfall is a property of the rule against Spark's shaded artifacts rather than of the narrowed graph, and it would persist in a graph over the complete set. `common/tags` has a witness over the 62 and none over the 191, which is why the two measurements are published as two | `build-record.md` §6; `reverification-f4-module-witness-full-input-set.json` and `.log` |
 | **The graph as this run's own output** — attempted over the complete input set and **blocked** by a fixed `Integer.MAX_VALUE - 8` array-length bound in flatgraph's string-pool writer; not satisfied, and not satisfiable with the pinned frontend at this input breadth | `cpg-frontend.log` STEP 8 and STEP 10; D1 here |
 | **A current-run method, type-declaration or file count** — no current-run graph exists to load, so none was measured and none is estimated from the provisioned graph's | `cpg-frontend.log` STEP 12; D1 here |
-| **Which input breadth the pinned frontend can serialize** — the failure establishes an upper limit lies at or below this run's 191-artifact set, and the provisioning invocation establishes 62 archives is below it; the boundary between them was **not searched for**, because narrowing the set to find it is the trimming AAP §0.9.2 prohibits. A **superseded** attempt did narrow it, to 189 archives / 308,385,184 bytes, and that attempt is registered as the halt-class departure **D20** rather than used as a data point — no outcome of it is stated here, and whether 189 serializes is likewise **not established** | D1 and **D20** here |
+| **Which input breadth the pinned frontend can serialize** — the failure establishes an upper limit lies at or below this run's 191-artifact set, and the provisioning invocation establishes 62 archives is below it; the boundary between them was **not searched for**, because narrowing the set to find it is the trimming AAP §0.9.2 prohibits. What *is* established, re-measured on 2026-09-02 at `-Xmx8g`, `-Xmx64g` and `-Xmx128g` in `reverification-f3-writer-bound.txt`, is that the bound does not move with the heap across a 16× range, so no heap value is the boundary either. A **superseded** attempt did narrow it, to 189 archives / 308,385,184 bytes, and that attempt is registered as the halt-class departure **D20** rather than used as a data point — no outcome of it is stated here, and whether 189 serializes is likewise **not established** | D1 and **D20** here |
 | `gitleaks`' rule count and ruleset digest; `checkov`'s policy count and policy digest — none separately versioned, none reported by its tool, none invented | `tool-status.md` |
 | `joern`'s path-base **value** — the base *kind* and the resolution route are recorded; no plausible path was invented | `tool-status.md`; `runner-metadata.json` |
 | The native severity vocabulary `osv-scanner` would have used — no record arrived, and none is invented. **`dependency-check`'s literals are no longer in this class**: a second capture of the same tool build, over input that resolves to packages the seeded feed carries advisories for, yields three observed literals — `CRITICAL`, `HIGH`, `MEDIUM` — mapping to Critical, High and Medium with the CVSS scores present and deliberately not consulted. It contributes **zero rows to this dataset** either way | `severity-map.md`; `harness/artifacts/logs/dependency-check-positive-capture.{json,log}` |
@@ -1860,10 +2108,19 @@ manifest, carrying each file's byte size and sha256**.
 
 Every figure below was computed from the file on disk when this record was written, and
 the machine-readable form — `harness/artifacts/MANIFEST.json`
-(35,219 bytes) — was regenerated from the same measurement and verified
+(37,814 bytes) — was regenerated from the same measurement and verified
 against the filesystem entry by entry, by byte size **and** by sha256, with **0**
 mismatches, **0** files on disk it does not list and **0** entries naming a file that is
 not there.
+
+**The fourteen `reverification-*` members are this remediation pass's own evidence**, added
+to `logs/` on 2026-09-02 when the five QA findings of that date were re-executed first-hand in
+this clone: they are why the tree reads 151 files where an earlier revision of this section
+read 137, and they are the files the register in
+[§13](#qa-testing-findings-f1f5-2026-09-02--first-hand-re-verification-and-where-each-is-answered)
+cites finding by finding. Adding them is `logs/` doing what AAP §0.8.1 says it does — accumulate
+this run's own durable evidence — and it leaves `raw/` at the same eight runner artifacts,
+byte for byte.
 
 **The three status records AAP §0.9.4 names explicitly are in the manifest:**
 `gate-record.json`, `normalize-run.json` and `adapter-tests-run.json`.
@@ -1908,7 +2165,7 @@ capture a superseded generation left beside it.
 
 **Every member is tracked on this branch as well as manifested.** Recomputed from
 `git ls-files` when this manifest was written: **8 of
-8** under `raw/` and **137 of 137**
+8** under `raw/` and **151 of 151**
 under `logs/`, with **0** present-but-untracked and **0** tracked-but-no-longer-present in
 either tree. The manifest is required and supplied regardless, since the ignore rule is
 what governs ordinary collection; the tracking is what earlier lanes added explicitly and
@@ -1927,7 +2184,7 @@ this generation continued.
 | `semgrep.sarif` | 40,661,984 | `7111001f6518803274a80844c2a3d8249edd8f19ba68a771d309fa5d33da03cf` |
 | `trivy.json` | 3,496 | `979ad0ffbec3502f62ea0e2cd46fae549aaa5e1b7cc4a0d59153a5c2448766ec` |
 
-### `harness/artifacts/logs/` — 137 files, 143,200,007 bytes
+### `harness/artifacts/logs/` — 151 files, 144,038,696 bytes
 
 Counted **recursively**. Four of the entries are directories —
 `checkov.out`, `dependency-check.out`, `gitleaks.parts`, `trivy.parts` — holding the side artifacts their runners
@@ -1936,25 +2193,25 @@ the byte total cover every file the tree holds rather than only its top level.
 
 | File | Bytes | sha256 |
 | --- | --- | --- |
-| `adapter-tests-run.json` | 395,752 | `73df9f12b2e4f108e54906eb5bbec8d92107dbc06246214a9bd2a739a8e478d4` |
-| `build-reactor.log` | 2,708,999 | `1ba2c5583f8796d28477491d8408ec805aa1f7e60bad04a5e04c6ba9b844c8e7` |
+| `adapter-tests-run.json` | 383,486 | `bcaf0c9828a4bd1359c41dbfb48749f077863ec1ae7631fa9bf95672bf0206aa` |
+| `build-reactor.log` | 2,711,993 | `79c1f1a5b1898b86d96ccb6fa1b0383ee6535945c6bb79c4e1574d62662b3f9a` |
 | `checkov.out/results_json.json` | 8,380 | `91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643` |
 | `checkov.runner-console.log` | 1,379 | `1245806c839d4682a392a5483afb24ac536177befb5e8f2b330de72e4f99f18b` |
 | `checkov.status` | 242 | `d05f2b35d50da2cd202ccc307857d7a950d9733abe6eb7c5b988f2a6e5924da1` |
 | `checkov.stderr.log` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 | `checkov.stdout.log` | 140,105 | `3c1d72a44cfa7d4c7665373b2375e40c4e16f10f208489bd42d829de58ffa854` |
 | `cpg-ast-failed-classes.txt` | 52,366 | `2592123f2c85d099defc5d5fc90587f80643d9bad0c1702925d7d2105f9e66d0` |
-| `cpg-ceiling-reverify.log` | 5,348 | `80deb3c40eea3d5139305b9b4481f3593ade9e7c6b001e0ffb2c4ae2fed2a2f7` |
-| `cpg-frontend-ceiling-probe.txt` | 2,632 | `e7d82064047c1cfee06dfe22ba2398f5fe805160408289e354596ae2df97ab79` |
-| `cpg-frontend-input-manifest.json` | 42,799 | `1edcbc502086126edaad023302fad4a4e56553fb3048f31f94bc3c23cafb781b` |
+| `cpg-ceiling-reverify.log` | 6,502 | `8ad7682f649faf98007e2b279adb6502bcc8dd334e79ae2e97fd49592c564907` |
+| `cpg-frontend-ceiling-probe.txt` | 3,697 | `2e9d302ca4f8b34461d5072d5fe55777a958203c57c71c2f030ac48e1f3d16f3` |
+| `cpg-frontend-input-manifest.json` | 47,326 | `66855a6392f978e22d84fbbf067d2ae85ccac34cbb4532118fbf46e1dd7c38d4` |
 | `cpg-frontend-verbatim.log` | 6,286,661 | `6396eda9fdd55f7b6c84a3233eca708adf5bc8b01f6d90b9d276124357a9dd38` |
-| `cpg-frontend.log` | 7,605,980 | `dd98cd028fd7aef0862c85c5950c786a5070646621837719fe14a24fb1733290` |
-| `cpg-graph-record.log` | 7,637 | `403dd0874dd5abec1871a0228975f5ae85fe31e18073d646d3b99d7379f28da4` |
-| `cpg-identity.txt` | 3,350 | `4da2c4db6c25e2aa98c10bc62201a31da56636ff2cb47e5d00e9485098a1a0ac` |
-| `cpg-input-inventory.json` | 46,497 | `5baa90168add6f45a1157e8092e3e62a36778837bdbfb89881ca2c9c17e83637` |
-| `cpg-module-coverage.json` | 32,078 | `67952bc804c42869c9d92343ca5c936f5d84da98833cbc1f42f88ca341e574f8` |
-| `cpg-shims-collision-measurement.log` | 6,854 | `55c594adcfa1bfc8652fd469d02fe550b5b50ea15050f7b2cf1a01ca7a1d517a` |
-| `cpg-verify.log` | 35,220 | `64273c6a349c5b1773e02f7fdf47864ba840a4c2a252e21abacb81b2d5ef5333` |
+| `cpg-frontend.log` | 7,615,026 | `4947663d692a219d9a28479d646480147d4fd61c0cc2a53960bbb462a510c4ac` |
+| `cpg-graph-record.log` | 13,991 | `1309e1d4344f14fec193d214e65033d303c6ef7e6bc7defddfd3346cbd4c82d7` |
+| `cpg-identity.txt` | 6,591 | `505e62841e9145f95d6004d24abaa02b6e7169bab196050086fd894885b82f21` |
+| `cpg-input-inventory.json` | 97,881 | `c23574a6d73672d6e0a9325eafe317e18faa833fe5ab83f4d9563f2ba27682c5` |
+| `cpg-module-coverage.json` | 43,553 | `67303cebd1e5ac1904abb58a94fd4794fd1357bc0838401b693dcc99e721f42a` |
+| `cpg-shims-collision-measurement.log` | 7,568 | `21697aa6339c3531a9f9a78a8ada27cae7a145c0bc7490859cfba8e47754dea6` |
+| `cpg-verify.log` | 71,291 | `06237203ffc6eebb470a91f0ec20e490c135a9aeaef75c330ce81d5b01c8d18b` |
 | `datadog-sast-rules.captured.json` | 4,068,707 | `c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322` |
 | `datadog-sast-rules.captured.meta.json` | 1,700 | `886752281650f1fca9ebc7f5009d70b0547a4e1906673ca13c27694961bac240` |
 | `datadog-static-analyzer.console.log` | 1,117 | `beaef9fc905647ad63129d17712b59b5ff4d99e2dee3a1dd1e617324b9e4fd3f` |
@@ -1969,8 +2226,8 @@ the byte total cover every file the tree holds rather than only its top level.
 | `dependency-check.status` | 260 | `a888d8b4ecb7261c70fff7978b5e16867af0047b2c39983057bc12e93a2765a2` |
 | `dependency-check.stderr.log` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
 | `dependency-check.stdout.log` | 2,067 | `59a529f2329ff7c64a33671d764486807e5b955203bd3fb2d3b58f45b37ab814` |
-| `findings-publication.json` | 3,003 | `7c2bfcb15f67e98fe636643d1a15f23e995ab56e5a2294c92523e93c78d48094` |
-| `gate-record.json` | 92,014 | `56e12926b7e6b2fba1240a6bdc13b7a73d22e4e3fbadc5f4bb9b69863a6fa541` |
+| `findings-publication.json` | 2,985 | `1d17bd019a6a5807c37a62db56c043943da55e552e106fb066fb97c93d745dcc` |
+| `gate-record.json` | 92,364 | `e6ff024a7873c70a371ce79ef8c944a47115cc5702ca293a76d1d9a4277d1195` |
 | `gitleaks.parts/common_network-common_src_main.json` | 3 | `37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570` |
 | `gitleaks.parts/common_network-shuffle_src_main.json` | 3 | `37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570` |
 | `gitleaks.parts/common_network-yarn_src_main.json` | 3 | `37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570` |
@@ -2002,7 +2259,7 @@ the byte total cover every file the tree holds rather than only its top level.
 | `joern.stderr.log` | 699 | `1344952be0dea952067d3225a7e4350f654f61a39451a60f754b2092c4b514bd` |
 | `joern.stdout.log` | 14,911 | `3c22ef95664acf10bfdc5225828e17d17eeb1bb513e582f339a0fa67976c19ae` |
 | `maven-preflight.log` | 10,398 | `345e17b69cab36a1bd11ca8987d511740db1bbffda22cc9127d688ec48844cfa` |
-| `normalize-run.json` | 707,725 | `be94b4893864f33c277935a4fa05c2de3aa2fb4d023de37a7ab07142ef6a5c77` |
+| `normalize-run.json` | 763,882 | `8ca5d71a843741554a394b51b8c7c0b33871ab34226c436c1a77d973a8d857cb` |
 | `opengrep.runner-console.log` | 1,305 | `dcdb7a627385d9b2d946569c78348aa57b008046581ba10ed6fb85a4449da519` |
 | `opengrep.status` | 251 | `65507e366b7f8ea3e1c301cad20f6336714fcd9a21759ae170b6449ab5d8184d` |
 | `opengrep.stderr.log` | 2,560 | `f683d85f35d12b6ec790c4a0df65b6e4124c96aba9ecca4c061b11791548e938` |
@@ -2021,36 +2278,50 @@ the byte total cover every file the tree holds rather than only its top level.
 | `probe-03-parameterized-handler-sink-pairs.log` | 31,790 | `098125d087c0d48f85e98def449c4a2dc3bf9149fa1c17379e4fdcfa3b26c806` |
 | `probe-03-parameterized-handler-sink-pairs.publication.json` | 2,305 | `1ec25d8922220444dd3e1a524a9ad658b44d2207ccebeae88373d4eef9b5f80e` |
 | `probe-query-revisions.json` | 7,463 | `158dcbab77bc5d1dd0cfa58dc05a8d80b6681944a92d0fc59d3cf9a5830b068a` |
-| `runner-metadata.json` | 175,770 | `cb1c199a93de7c0a27c4986cab823fa3be62d3b18a5f935c74e1eba26f186d17` |
+| `reverification-f1-artifact-trees.txt` | 26,510 | `64c94d63374df332b28ac3649f41cc3d12143aca1c0b6e2284fb8becb09628c5` |
+| `reverification-f2-graph-identity.txt` | 22,308 | `cd012645811a75b8f9321bf52cba22e3fb5ccd8835f2899a99da0262d295e2ff` |
+| `reverification-f3-writer-bound.json` | 26,859 | `a038c53ee1cb43ad02bd8f99deb18d07d7d6657618be87cd8dae81de50c967e7` |
+| `reverification-f3-writer-bound.txt` | 34,697 | `e399dc1e17e4d32ab20addbf140da7b7293f4f34d65f19e4bf4e338e4509792d` |
+| `reverification-f4-module-witness-full-input-set.json` | 265,953 | `0bd9439396537584feb521b8b254d65ccd74405260ce82ef1896a4c160de1928` |
+| `reverification-f4-module-witness-full-input-set.log` | 63,976 | `e89dff42e538eab1f9390fcaa0727b872275f717e7233365312083289ef03a18` |
+| `reverification-f5-taint-ab-hiveshim-off.sarif` | 2,341 | `6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced` |
+| `reverification-f5-taint-ab-hiveshim-on.sarif` | 10,021 | `1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24` |
+| `reverification-f5-taint-ab-off.sarif` | 4,753 | `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` |
+| `reverification-f5-taint-ab-on.sarif` | 4,753 | `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` |
+| `reverification-f5-taint-ab-source-removed.sarif` | 2,341 | `295888055aed2ccb8dc171eebc5e702ea741c0eb86e760d3942d122936b32187` |
+| `reverification-f5-taint-ab.json` | 27,658 | `a9d679e756af5e77e0362e0b4738df9eca8d4c2dea3d8a826482d94630e901b3` |
+| `reverification-f5-taint-ab.log` | 34,939 | `5956486fc25fbc426e1ac35417bd985a4a6542cf1f610e7efee58096865bc6e8` |
+| `reverification-f5-taint-engine-options.txt` | 41,622 | `7e931f9316508c39a8caea6ce8abdf15ef12f308b6b87e68aef01c86cb5d8afd` |
+| `runner-metadata.json` | 189,356 | `08c6f0bc5cf15e36b5253b611d0309b9b17491b4f0a6f991ea15352b4ae9b744` |
 | `runner-sequence.json` | 22,873 | `6b0ad754fc963a1bfea2414cbf6c3dfd5426bf0785fc449aed4a91b8f711a2c4` |
 | `semgrep.runner-console.log` | 1,277 | `508196dcd40d9a3f82efb9d899b54b679803716041f72558ff64c1e255a48efe` |
 | `semgrep.status` | 248 | `47f12c9714d377477fdc968156a0a31f6d4356464eb2845e893f7a7eee811974` |
 | `semgrep.stderr.log` | 5,079 | `d282ddb8cf484139e1294aebf3feb4933a1b8beeb20a0fb59e3313bc3387dd79` |
 | `semgrep.stdout.log` | 40,661,985 | `c4294a7251f0fe2cdea4375ec19d43a910ddd8ec9b1a5b7ec4c46e7288b4e881` |
-| `taint-ab-anchor-diskstore-fullruleset-off.log` | 4,361 | `d440fa546e31e75c839bf8aae3f5eaac5b8db0efcd9a2ee6c9ffe1cd5b65f047` |
+| `taint-ab-anchor-diskstore-fullruleset-off.log` | 13,604 | `ad6879e70da79c0e9864582f21f24fef0623a57c351aa1ad6cc506a097ea6ba1` |
 | `taint-ab-anchor-diskstore-fullruleset-off.sarif` | 2,939,276 | `fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51` |
-| `taint-ab-anchor-diskstore-fullruleset-on.log` | 4,377 | `512bda7e81c6cedb4d70bd80d67faa7e3ea33e816d7f6642c2c739e870f87415` |
+| `taint-ab-anchor-diskstore-fullruleset-on.log` | 13,694 | `016bc4efb378834ab14193220db96d35683b794b42d7aa3c45b7f9143f71197c` |
 | `taint-ab-anchor-diskstore-fullruleset-on.sarif` | 2,939,276 | `fe3d0167960a601c89379fe478ad349d55e4a8ac8c7d02624be12ec5b6096c51` |
-| `taint-ab-anchor-diskstore-off.log` | 2,216 | `a72ea02ad345259abdfbf6dc4faf6b82c10f46f521d5bcc03a27a9059661a94c` |
+| `taint-ab-anchor-diskstore-off.log` | 9,844 | `fb575aa7cd49dd63469583a1a441fbd56a86e0d893dde771a3f544e5a3d2e332` |
 | `taint-ab-anchor-diskstore-off.sarif` | 4,753 | `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` |
-| `taint-ab-anchor-diskstore-on.log` | 2,235 | `663afe9c8aeba1b79c6cad4a609346d22289654f96a83d0c0b72f2787fd940f7` |
+| `taint-ab-anchor-diskstore-on.log` | 9,909 | `06c61629ba137d40e1dc666dc70667a42ee3f16be3adb4974af1e7f7204e0575` |
 | `taint-ab-anchor-diskstore-on.sarif` | 4,753 | `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` |
-| `taint-ab-discriminating-off.log` | 14,709 | `47b70071e51b0f4dc98a75a8996345dd327ef6dca00ad0d98e5871cd501d85ae` |
+| `taint-ab-discriminating-off.log` | 21,705 | `b74ea8f172db6f73822f707f4e2707b5218a296dfba1d07fc72a63c5fa391f3c` |
 | `taint-ab-discriminating-off.sarif` | 28,279 | `8c20bbd46dcda3967738677f35bb59f0b9b6b135a7b4a57ff3d89fa4ae9b646f` |
-| `taint-ab-discriminating-on.log` | 17,021 | `b7656c83438dd2646fcb58e0ce0dfd47ce75d5f762e0346c70293488384c2b51` |
+| `taint-ab-discriminating-on.log` | 24,232 | `bda1b238e2ae1655594432b06473f0300a8f94e71436fdd625b74c45dc1164ed` |
 | `taint-ab-discriminating-on.sarif` | 37,787 | `685a13d7567c6e295223e265a994cf771ba18c0938d07bc55921dd0caf464a00` |
-| `taint-ab-hiveshim-off.log` | 1,997 | `a442acdce88cfc53b5b4b3b63435dbb26d72720a741a59af65b9c31652b098fc` |
+| `taint-ab-hiveshim-off.log` | 9,930 | `ff1356a9aef785c30cc4e3728a1069e365b13a9a9cae3f5422c8f093e93e0e0a` |
 | `taint-ab-hiveshim-off.sarif` | 2,341 | `6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced` |
-| `taint-ab-hiveshim-on.log` | 2,457 | `ae387d47d16253e301c2e5f65478235ab1fbbc4911f54486c24e339e85a56950` |
+| `taint-ab-hiveshim-on.log` | 10,435 | `a05c421539ee2c7fdb2e14a2c1bfd09a225467d7ed56c6770964b04f9edfa08d` |
 | `taint-ab-hiveshim-on.sarif` | 10,021 | `1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24` |
 | `taint-ab-off-control-rule.txt` | 1,982 | `a1039db83793e43c7144a87506714ccbaf13f92f4fa36c327c74a8ab53364ad7` |
-| `taint-ab-off.log` | 12,358 | `32a407fbb2c1e0960aac7d14af52dd2e99391d544b10a69da32a6d41e0e0a24b` |
+| `taint-ab-off.log` | 22,294 | `2977639cc24c285a656732321aaf9b34678b885eb5da11813f2233c3fbef6543` |
 | `taint-ab-off.sarif` | 4,753 | `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` |
-| `taint-ab-on.log` | 12,397 | `eb099cb1387a13c1ec1d0df9098b10544026ca5409f3ed905d6a549dbec5624f` |
+| `taint-ab-on.log` | 22,332 | `06b6a60847828552a57b675f48292424141371f9515260cd91b85ff1b4287d1e` |
 | `taint-ab-on.sarif` | 4,753 | `7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778` |
-| `taint-ab-search-control.sarif` | 4,424 | `272a530fea4ef95417cd539b5964a70f6805e5def72ab58264cf73dbbbdb8ceb` |
+| `taint-ab-search-control.sarif` | 4,589 | `4dc4aec5f35425f7ff47712baa55a02bcd1f034627d23b0d6f38ba209213b116` |
 | `taint-ab-source-removed-control-rule.txt` | 2,498 | `a8bc7f992389761b3ea840012b281e3d218add030663b9132e10924a66f02cac` |
-| `taint-ab-source-removed-control.sarif` | 2,347 | `e98c1e1fb37c66cbf7dac92838485314b57a4561a41a6d15d9043eebbaac745f` |
+| `taint-ab-source-removed-control.sarif` | 2,455 | `9c54e593e7a9dda361ef2de373bcdb17f0ed4c219c8f18057cf12ca2b1469172` |
 | `trivy.parts/common_network-common_src_main.json` | 254 | `b4fec4dd67f22aeb7fe08a4377833a59389e728fdc3dd3502a8fdbd8da432318` |
 | `trivy.parts/common_network-shuffle_src_main.json` | 255 | `39f06e817bb93113e70d15787600ceecbbced1430a7f12b63d05a444a6e81c68` |
 | `trivy.parts/common_network-yarn_src_main.json` | 252 | `21d14ac3f98f7abcd8de7cd04164a64e779d6901fed1277d1a84e7470f137bb2` |
@@ -2117,7 +2388,11 @@ evidence — but the gate's verdict is `halt` and its `authorises` field is `not
 so every stage after it ran **after an unmet precondition**. **Four** halt-class
 conditions of this run — **D0**, **D1**, **D2** and **D4** — then stood unrepaired
 through the rest of it, and two further halt-class departures belong to **superseded**
-generations rather than to the lanes on record (**D15**, **D20**). The correct reading of
+generations rather than to the lanes on record (**D15**, **D20**). All four of those
+conditions were re-executed from their own reproduction steps in this clone on 2026-09-02,
+together with the coverage-witness shortfall, and **all five still reproduce**; the register in
+[§13](#qa-testing-findings-f1f5-2026-09-02--first-hand-re-verification-and-where-each-is-answered)
+carries each one's measurement, its evidence file and the decision it needs. The correct reading of
 the table below is therefore *what was executed and what it produced*, never *which
 stages passed*: *nothing downstream of the gate is offered here as a compliant stage
 completion, and no product of this run is offered as a compliant generation.*
@@ -2140,8 +2415,8 @@ asserted:
 | `2026-09-01T13:49:39Z` | `w-013` | the runner scan-target and resolved-root verification | 1 |
 | `2026-09-01T13:49:39Z` – `14:41:24Z` | `w-013` | the nine runners, serial, direct, no arguments | 3 |
 | `2026-09-01T14:52Z` – `15:30:31.248Z` | `w-013` | the three probe loads, each identity-gated — **superseded generation**, whose sources were corrected afterwards | 5 |
-| `2026-09-01T19:41:23Z` – `19:41:28Z` | `w-013` | normalization (final reproducibility re-run) | 4 |
-| `2026-09-01T23:32:23Z` – `23:32:36Z` | this checkout | the adapter and reconciliation suite (final re-run) | 4 |
+| `2026-09-02T17:39:13Z` – `17:39:25Z` | this checkout | the adapter and reconciliation suite (final re-run) | 4 |
+| `2026-09-02T17:49:20Z` – `17:49:25Z` | this checkout | normalization (final reproducibility re-run) | 4 |
 | `2026-09-01T23:56:51.679Z` – `2026-09-02T00:35:55.476Z` | this checkout | **the three probe loads on record**, each identity-gated, one 64 GiB JVM at a time | 5 |
 
 **The probe's two rows, and the generation between them.** The row on record is the
@@ -2193,9 +2468,9 @@ was available will find it here, correctly attributed.
 | --- | --- | --- | --- |
 | 0 — Gate | ran in lane `w-013` | **not certified — verdict `halt`** | `gate-record.json`: **43 checks, 38 pass, 3 recorded difference, 2 halt**; `authorises` is `nothing`. Both halts are conditions this run may neither create nor clear (AAP §0.8.1): the two artifact trees were already non-empty when it measured them, and the environment record contradicts the filesystem on the graph's identity. The gate did its job — it published the halt and authorised nothing |
 | 1 — Tree and build | ran in lane **`w-005`**, 2026-08-30 — **inherited, not re-executed in this clone** | **not certified** — ran before the gate that halted, and in a different lane | pinned `HEAD` equal to the pin; allowlist byte-exact and left as found; Maven pre-check **PASS** with the download branch unreachable; `BUILD SUCCESS`, 40/40 projects, 38/38 own artifacts; `runner-metadata.json` later finalised in lane `w-013` with every runner's target set and its root verified |
-| 2 — Graph | frontend write ran in lane **`w-005`** (inherited); verification and measurement ran in lane `w-013` | **not certified — the mandated output was never obtained** | **The frontend was invoked over the complete 191-archive manifest and failed in persistence at a fixed array-length bound after 8 h 01 m, producing no graph at all (D1).** The staging manifest was asserted total and injective before the invocation and the complete set was supplied — **191** archives, **431,184,822** bytes (`build-reactor.log` STEP 13 lines 10025-10026; `cpg-frontend.log` STEP 1 line 38) — so the *input* requirement was met and the *output* requirement was not; the per-entry manifest behind that assertion was later regenerated for the 62-archive set, which **D9** records. Every later stage therefore loaded **provisioning's** graph, whose input set is **62 archives over 31 modules** and is narrower than the build (D3): `cpg-input-inventory.json` inventories it with its archive-to-digest mapping total and injective both ways, and the `importCpg` verification load exits 0 reporting **1,396,899 methods, 119,721 type declarations and 45,037 files**, with per-module coverage on injective evidence for **26 of the 31 modules in that input**, 5 with no obtainable witness, **0** on presence and **0** on a shared prefix. That is a verification of a *different graph than the one the plan mandates*, and it is not a substitute for it. Nothing was trimmed to obtain a graph; the ceiling was re-verified in this clone at two heaps with the failure point unmoved. **The mandated taint A/B did not discriminate (D2)** — both arms return the same single finding at `DiskStore.scala:72` — reported and not repaired, with a discriminating pair measured separately on other Spark Scala (12 findings against 11). **The provisioned record contradicts the filesystem on the graph's identity (D4)**, reported and not repaired. **No narrowed or witness graph is presented as a substitute for the mandated one** |
+| 2 — Graph | frontend write ran in lane **`w-005`** (inherited); verification and measurement ran in lane `w-013` | **not certified — the mandated output was never obtained** | **The frontend was invoked over the complete 191-archive manifest and failed in persistence at a fixed array-length bound after 8 h 01 m, producing no graph at all (D1).** The staging manifest was asserted total and injective before the invocation and the complete set was supplied — **191** archives, **431,184,822** bytes (`build-reactor.log` STEP 13 lines 10035-10036; `cpg-frontend.log` STEP 1 lines 134-135) — so the *input* requirement was met and the *output* requirement was not; the per-entry manifest behind that assertion was later regenerated for the 62-archive set, which **D9** records. Every later stage therefore loaded **provisioning's** graph, whose input set is **62 archives over 31 modules** and is narrower than the build (D3): `cpg-input-inventory.json` inventories it — its archive-to-digest mapping total and injective both ways **as measured at write time**, an assertion its own 2026-09-02 census marks superseded for the live tree, which has since drifted to 45 distinct digests over the same 62 names (D3), and the `importCpg` verification load exits 0 reporting **1,396,899 methods, 119,721 type declarations and 45,037 files**, with per-module coverage on injective evidence for **26 of the 31 modules in that input**, 5 with no obtainable witness, **0** on presence and **0** on a shared prefix. The same test applied to the **191**-archive set this run’s frontend was given — measured 2026-09-02 and owned by `build-record.md` §6 — yields **30 of 38** modules with an accepted witness and **8** with neither kind, so part of the coverage shortfall would survive even a graph over the complete set. That is a verification of a *different graph than the one the plan mandates*, and it is not a substitute for it. Nothing was trimmed to obtain a graph; the ceiling was re-verified at **three heaps — 8 GiB, 64 GiB and 128 GiB** — with the failure point unmoved at exactly 2,147,483,639 buffered bytes in every arm. **The mandated taint A/B did not discriminate (D2)** — both arms return the same single finding at `DiskStore.scala:72` — reported and not repaired, with discriminating pairs measured separately on other Spark Scala: `HiveShim.scala` yielding **2 traced findings against 0**, and `JdbcDialects.scala` 12 against 11. **The provisioned record contradicts the filesystem on the graph's identity (D4)**, reported and not repaired. **No narrowed or witness graph is presented as a substitute for the mandated one** |
 | 3 — Nine runners | ran in lane `w-013`, one serial lane | **not certified** — ran after the gate's halt, and against the D3 graph rather than the mandated one | all nine invoked directly, individually, with no arguments and through no orchestrator, **from one script in one process in one clone**, no tool twice, with each invocation's artifact, both streams, `.status` and console log bound to it by byte size and sha256 — **82 pieces re-measured with 0 mismatches** (`runner-sequence.json`, [§8](#the-delivered-lane--one-serial-lane-bound-to-its-evidence-by-digest)); eight artifacts written; `osv-scanner` completing with its own stated reason and no artifact. Every figure is measured and reproducible; none of it certifies the stage |
-| 4 — Normalization | ran in lane `w-013` | **not certified** — its Joern input descends from the D3 graph, and it ran after the gate's halt | 9,430 rows, `10016 = 9430 + 586`, typed comparison over 113,160 fields with no mismatch, row validation with zero violations, exit 0, and both output files reproduced **byte-identically** on a re-run; **1325** adapter and reconciliation tests passing |
+| 4 — Normalization | ran in lane `w-013` | **not certified** — its Joern input descends from the D3 graph, and it ran after the gate's halt | 9,430 rows, `10016 = 9430 + 586`, typed comparison over 113,160 fields with no mismatch, row validation with zero violations, exit 0, and both output files reproduced **byte-identically** on a re-run; **1347** adapter and reconciliation tests passing |
 | 5 — Probe | ran in lane `w-013` | **not certified** — every query loaded the D3 graph, not the mandated one | three bounded hand-written queries run under `importCpg` only, each gated on the graph's re-verified identity immediately before its load, six result files, all three effort measures answered, parameterizability passing on an invocation that was actually made |
 | 6 — Record | this file, lane `w-013` | **not certified — and its job is to publish the halt, not to close it** | the eight result deliverables and the three deliverable trees all exist ([§11](#11-deliverable-inventory-with-resolved-absolute-paths)), and both artifact trees are published by manifest ([§16](#16-manifest-of-the-two-git-ignored-artifact-trees)). Every halt-class condition is carried at the top of the document that owns it |
 

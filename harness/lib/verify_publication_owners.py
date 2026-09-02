@@ -87,7 +87,6 @@ import pathlib
 import contextlib
 import io
 import re
-import subprocess
 import sys
 from typing import Any, Callable
 
@@ -109,6 +108,11 @@ TOOL_STATUS = RESULTS / "tool-status.md"
 PROBE_REPORT = RESULTS / "joern-probe.md"
 BUILD_RECORD = RESULTS / "build-record.md"
 SEVERITY_MAP = RESULTS / "severity-map.md"
+
+# The length of the file the two length-asserting self-test cases cite, measured rather
+# than restated, so growing that evidence file cannot leave those cases asserting a
+# length nothing has.
+_CPG_VERIFY_LINES = len((LOGS / "cpg-verify.log").read_text().splitlines())
 
 # Every result document the citation families are adjudicated over.  Named as a tuple
 # rather than globbed so that adding a result document is a deliberate act: a new file
@@ -263,8 +267,13 @@ def check_suite_identity(g: Gate, adapter: dict, rr: str, ts: str) -> None:
     sr = adapter["suite_result"]
     owner = rel(ADAPTER_RUN)
 
-    # The command must be reproduced verbatim.  A document that adds a discover
-    # pattern or a verbosity flag is describing an invocation nobody made.
+    # The command must be reproduced verbatim, whatever arguments it carries: the
+    # copy is the owner's argv or it is describing an invocation nobody made.  The
+    # owner does carry the discover pattern and the verbosity flag -- its own
+    # captured verbose stream is what proves both were used -- so a copy that drops
+    # either one is the drift this check exists to catch.  Whether the DOCUMENTED
+    # command agrees with the owner is asserted separately, by the command-equality
+    # family in harness/lib/verify_status_figures.py.
     command = adapter["command"]
     g.check("suite command (run-record)", owner, command, rel(RUN_RECORD),
             first(r"^(/usr/bin/python3 -m unittest discover[^\n]*)$", rr))
@@ -326,6 +335,17 @@ def check_normalize_window(g: Gate, norm: dict, rr: str, ts: str) -> None:
             rel(RUN_RECORD),
             first(r"`(20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ \u2192 \d\d:\d\d:\d\dZ)`,"
                   r" \*\*exit 0\*\*", rr))
+    # severity-map.md projects the same window in its own long form.  It was
+    # unchecked until 2026-09-02, and an actual drift survived a whole generation
+    # there undetected while the two projections above passed, which is precisely
+    # the gap a per-document pair closes: an unchecked projection is not a projection
+    # that agrees, it is one nobody compared.
+    sev = text(SEVERITY_MAP)
+    sev_pattern = (r"started (20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ), finished "
+                   r"(20\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ), exit 0")
+    g.check("normalize window (severity-map)", owner, f"{start} {finish}",
+            rel(SEVERITY_MAP),
+            f"{first(sev_pattern, sev)} {first(sev_pattern, sev, 2)}")
 
 
 def check_chronology_ledger(g: Gate, adapter: dict, norm: dict, rr: str) -> None:
@@ -620,14 +640,53 @@ def check_probe_revisions(g: Gate, rr: str, probe: str) -> None:
 
 
 def check_repository_root(g: Gate, rr: str) -> None:
-    """The one absolute root the run record states must be this checkout's."""
-    real = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=ROOT,
-                          capture_output=True, text=True, check=True).stdout.strip()
-    roots = set(re.findall(r"^(/tmp/blitzy/blitzy-spark/[^\s`]+)$", rr, re.M))
-    g.check("run-record states exactly one absolute root", "git rev-parse", "1",
-            rel(RUN_RECORD), str(len(roots)))
-    g.check("that root is this checkout", "git rev-parse", real, rel(RUN_RECORD),
-            next(iter(roots)) if len(roots) == 1 else sorted(roots))
+    """The run record must name its own root relocatably, never by a literal.
+
+    This check was inverted until 2026-09-02.  It used to require the document to
+    state exactly one literal ``/tmp/blitzy/blitzy-spark/<clone>`` root and to
+    equal ``git rev-parse --show-toplevel`` in the checkout the gate ran from.
+    That is not an invariant of the document, it is an invariant of one clone: a
+    hard-coded checkout root is correct in the clone that wrote it and wrong in
+    every other, so the same committed bytes failed the gate as soon as they were
+    read from anywhere else, and the remedy the old failure text proposed --
+    regenerate the copy from the owner -- could not converge, because the owner it
+    named is a different string in each clone.
+
+    The invariant that does hold, and that the document already implements in its
+    section 11 through a ``<repo>`` placeholder, is the opposite: a published
+    deliverable states no clone-specific checkout root at all, and defines its
+    root by the command a reader runs to obtain it.  That is what is asserted
+    here, and it is strictly stronger -- it holds in this clone, in a sibling, and
+    in a fresh checkout of the same commit.
+
+    Historical scratch and lane paths are deliberately not caught.  A path under
+    ``/tmp/blitzy-harness-scratch/<n>`` or ``/tmp/blitzy/scratch/<run>/w-<n>`` is a
+    record of where something ran, is never resolved by a reader, and stays.  Only
+    a *checkout* root -- ``/tmp/blitzy/blitzy-spark/...`` -- is forbidden, because
+    that is the one a reader would try to resolve and find absent.
+    """
+    literals = sorted(set(re.findall(r"/tmp/blitzy/blitzy-spark/[^\s`)|]+", rr)))
+    g.check("run-record states no clone-specific checkout root",
+            "the relocatable-root invariant", "0",
+            rel(RUN_RECORD), str(len(literals)))
+    if literals:
+        g.rows.append((False, "the clone roots found (each must become <repo>)",
+                       "the relocatable-root invariant", rel(RUN_RECORD),
+                       f"found={literals!r}"))
+
+    # Stating no literal is only half of it: the document must still tell a reader
+    # how to resolve the root, or the absolute paths section 11 promises become
+    # unresolvable.  Both halves are required, so the placeholder convention and
+    # the command that yields the root are each asserted present.
+    g.present("run-record defines its root by command, not by literal",
+              "the relocatable-root invariant", rel(RUN_RECORD),
+              first(r"(git rev-parse --show-toplevel)", rr),
+              "run-record.md no longer tells a reader how to resolve <repo>")
+    g.present("run-record uses the <repo> placeholder for absolute paths",
+              "the relocatable-root invariant", rel(RUN_RECORD),
+              first(r"(<repo>)", rr),
+              "run-record.md no longer carries the <repo> placeholder its "
+              "absolute-path column depends on")
 
 
 def check_no_stage_certified(g: Gate, rr: str, gate_rec: dict) -> None:
@@ -1512,15 +1571,18 @@ SELF_TEST_CASES: tuple[tuple[str, bool, str, str, tuple[str, object]], ...] = (
     # that asserted nothing would be satisfied by a family that never read the citation
     # -- which is the defect these cases exist to prevent, wearing a pass.
     #
-    # File lengths used below are read from disk by the checks themselves:
-    # cpg-verify.log is 420 lines, joern.status 7, joern-scan.sc 122, run-joern.sh 76,
-    # run-checkov.sh 58, run-trivy.sh 124, probe-01-...log 178.  The cases cite either
-    # absurd numbers or safely small ones, so they stay true as those files change.
+    # File lengths used below are read from disk by the checks themselves: joern.status is
+    # 7 lines, joern-scan.sc 122, run-joern.sh 76, run-checkov.sh 58, run-trivy.sh 124,
+    # probe-01-...log 178.  The cases cite either absurd numbers or safely small ones, so
+    # they stay true as those files change.  The two cases that assert on the refusal's
+    # stated length take it from _CPG_VERIFY_LINES rather than repeating a literal, because
+    # a literal there is the one part of this block that does NOT stay true as the file
+    # grows -- cpg-verify.log has gained an importCpg load since the literal was written.
 
     # ---------------------------------------------------------------- LINE, per form
     ("attached locator `file:N`, out of range",
      True, "line", "`harness/artifacts/logs/cpg-verify.log:99999` states it.",
-     ("offender", "but that file has 420 lines")),
+     ("offender", f"but that file has {_CPG_VERIFY_LINES} lines")),
     ("attached locator `file:N-M`, both ends adjudicated",
      False, "line", "`harness/artifacts/logs/cpg-verify.log:33-34` states it.",
      ("live", 2)),
@@ -1545,7 +1607,7 @@ SELF_TEST_CASES: tuple[tuple[str, bool, str, str, tuple[str, object]], ...] = (
      ("offender", "line 99999")),
     ("bare locator `at N-M` with no line keyword, out of range",
      True, "line", "`harness/artifacts/logs/cpg-verify.log`" + " records it at 99998-99999.",
-     ("offender", "but that file has 420 lines")),
+     ("offender", f"but that file has {_CPG_VERIFY_LINES} lines")),
     ("list continuation `lines A, B, C and D`, every member adjudicated",
      False, "line",
      "`harness/lib/joern-scan.sc`" + " declares the six entries at lines 51, 55, 59, 63, 67 and 71.",

@@ -7,6 +7,8 @@
     "path": "oss-scan-results/adapter-tests/fixtures/captured-dependency-check-vulnerabilities.json",
     "sha256": "ee48683145332f02d5dd101fa0d5fb1b812667b53eec81a97c962b7939911af1",
     "bytes": 46684,
+    "lines": 1263,
+    "lines_convention": "logical lines: len(text.splitlines()), which counts a final line that carries no trailing newline",
     "captured_from": "harness/artifacts/logs/dependency-check-positive-capture.json",
     "capture_is_byte_for_byte": true,
     "excerpt_kind": "unmodified captured artifact",

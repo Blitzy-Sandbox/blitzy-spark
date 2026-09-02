@@ -2,9 +2,9 @@
   "schema_version": 1,
   "document": "harness/artifacts/MANIFEST.json",
   "purpose": "Both artifact trees are excluded from ordinary git collection, so publishing them means stating every file's byte size and sha256. Every number any record document quotes about an artifact or a log traces to an entry here. The two trees published per-file are `raw/` and `logs/`: every entry below was measured from this checkout's disk when this manifest was written, so an entry naming a file that is not present cannot occur. A staging tree recorded by an artifact in `logs/` but not present in this checkout is CITED to that artifact rather than restated per file, because a value restated in two places is two measurements that can disagree rather than one measurement cited twice.",
-  "written_at_utc": "2026-09-02T00:58:23Z",
+  "written_at_utc": "2026-09-02T17:39:25Z",
   "regenerated": {
-    "why": "Re-measured from this checkout's disk after the log tree took the evidence of the re-executed probe queries and the re-measured adapter-test run. Every entry below is a measurement of the file as it is on disk now; the tree and this manifest agree member for member.",
+    "why": "Re-measured from this checkout's disk after the QA-driven corrections of this checkpoint. harness/lib/normalize/cli.py gained a named halt for an unexpected direct child of harness/artifacts/raw/ and the --repo-root owner-root declaration, and the normalizer was re-run over the unchanged canonical inputs so its run record describes the code that is committed. The adapter-test corpus gained the fixture-provenance corrections and the RecordedFixtureMetadataTest contracts, and the suite was re-measured over the combined corpus. The log tree took the evidence of the remaining corrections: the twelve re-executed Opengrep taint arms, the importCpg load of the narrowed witness graph recorded as cpg-verify.log PART 2, the third flatgraph ceiling arm at 8 GiB, the live census of /opt/blitzy-harness/cpg-input, corrections of record in runner-metadata.json, cpg-frontend.log, cpg-graph-record.log, cpg-module-coverage.json, cpg-frontend-input-manifest.json, cpg-identity.txt, cpg-shims-collision-measurement.log, build-reactor.log and gate-record.json, and the fourteen reverification-f1 through f5 evidence files that publish the disposition of the five re-executed blocking findings. Every entry below is a measurement of the file as it is on disk now; the tree and this manifest agree member for member.",
     "corrections": [
       {
         "kind": "deleted member restored",
@@ -38,6 +38,30 @@
           "cpg_input_attempt1"
         ],
         "detail": "The previous revision published 153 and 191 per-file entries for `harness/artifacts/cpg-input` and `harness/artifacts/cpg-input-attempt1-full-191`. Neither directory exists in this checkout, and the owner artifacts record the staging trees in other clones of this run, so the entries were not a publication of anything present here. They also duplicated values owned by artifacts that ARE published in the `logs` section, and disagreed with them: four entries per section carried a digest the owner contradicts, one of them a byte size too (517,235 here against the owner's 517,208), and the 191-file total read 431,184,903 against the owner's 431,184,822. Replaced by `cpg_input_records`, which cites the owner and restates no per-file number."
+      },
+      {
+        "kind": "digest refreshed after this checkpoint's normalizer fixes",
+        "count": 3,
+        "names": [
+          "normalize-run.json",
+          "findings-publication.json",
+          "adapter-tests-run.json"
+        ],
+        "detail": "normalize-run.json and findings-publication.json were rewritten by the canonical normalizer invocation re-run in this checkout (`/usr/bin/python3 <repo>/harness/lib/normalize/cli.py`, empty argument vector, from the repository root): the record now carries the current producer's full schema, including vocabularies.halt_reasons with the new raw-directory-unexpected-entry reason. adapter-tests-run.json was re-measured for the grown suite. oss-scan-results/findings.json and findings.csv were reproduced BYTE-IDENTICALLY by that run and are unchanged, which is why no dataset entry appears here."
+      },
+      {
+        "kind": "member re-measured after the suite it records was re-measured",
+        "count": 1,
+        "names": [
+          "adapter-tests-run.json"
+        ],
+        "bytes_before": [
+          408810
+        ],
+        "bytes_after": [
+          381586
+        ],
+        "detail": "harness/artifacts/logs/adapter-tests-run.json was regenerated from one fresh measurement of the committed suite, because the suite it records grew: the normalizer-boundary tests and the fixture-provenance tests of this checkpoint now stand in one tree, so test_cli_writers runs 228 where it ran 219, test_shape_routing_negative 117 where it ran 114, test_trivy_adapter 199 where it ran 194 and test_dependency_check_adapter 107 where it ran 102, and the suite total is 1347 with 26123 subTests. Every module entry, the per-test outcome inventory and the whole-suite figures come from that single measurement, and oss-scan-results/{run-record,tool-status}.md and oss-scan-results/adapter-tests/README.md project it rather than restating it. Every member of both trees was re-read from disk for this revision and this is the only one whose size or digest moved, so the member-for-member agreement this manifest claims is a measurement rather than an assumption. logs.total_bytes moves with it; logs.file_count does not, because no member was added or removed."
       }
     ]
   },
@@ -100,24 +124,24 @@
     "path": "harness/artifacts/logs",
     "git_status": "Excluded from ordinary git collection by .gitignore:31 'artifacts/'. Publication is THIS manifest, which states every file's byte size and sha256; whatever the commit tracks under this path is there because it was force-added.",
     "tracked_at_the_moment_this_manifest_was_written": {
-      "tracked_and_present": 137,
+      "tracked_and_present": 151,
       "present_but_not_yet_tracked": 0,
       "untracked_names": [],
       "tracked_but_no_longer_present": [],
       "note": "Every file present in the tree is listed above whether or not it is tracked: the ignore rule governs ordinary collection, and this manifest is the publication. Each count here is measured against `git ls-files` and the tree as it stands at the moment stated in written_at_utc, so the file count in this section and the number of entries below are necessarily the same number."
     },
-    "file_count": 137,
-    "total_bytes": 143200007,
+    "file_count": 151,
+    "total_bytes": 144038696,
     "files": [
       {
         "name": "adapter-tests-run.json",
-        "bytes": 395752,
-        "sha256": "73df9f12b2e4f108e54906eb5bbec8d92107dbc06246214a9bd2a739a8e478d4"
+        "bytes": 383486,
+        "sha256": "bcaf0c9828a4bd1359c41dbfb48749f077863ec1ae7631fa9bf95672bf0206aa"
       },
       {
         "name": "build-reactor.log",
-        "bytes": 2708999,
-        "sha256": "1ba2c5583f8796d28477491d8408ec805aa1f7e60bad04a5e04c6ba9b844c8e7"
+        "bytes": 2711993,
+        "sha256": "79c1f1a5b1898b86d96ccb6fa1b0383ee6535945c6bb79c4e1574d62662b3f9a"
       },
       {
         "name": "checkov.out/results_json.json",
@@ -151,18 +175,18 @@
       },
       {
         "name": "cpg-ceiling-reverify.log",
-        "bytes": 5348,
-        "sha256": "80deb3c40eea3d5139305b9b4481f3593ade9e7c6b001e0ffb2c4ae2fed2a2f7"
+        "bytes": 6502,
+        "sha256": "8ad7682f649faf98007e2b279adb6502bcc8dd334e79ae2e97fd49592c564907"
       },
       {
         "name": "cpg-frontend-ceiling-probe.txt",
-        "bytes": 2632,
-        "sha256": "e7d82064047c1cfee06dfe22ba2398f5fe805160408289e354596ae2df97ab79"
+        "bytes": 3697,
+        "sha256": "2e9d302ca4f8b34461d5072d5fe55777a958203c57c71c2f030ac48e1f3d16f3"
       },
       {
         "name": "cpg-frontend-input-manifest.json",
-        "bytes": 42799,
-        "sha256": "1edcbc502086126edaad023302fad4a4e56553fb3048f31f94bc3c23cafb781b"
+        "bytes": 47326,
+        "sha256": "66855a6392f978e22d84fbbf067d2ae85ccac34cbb4532118fbf46e1dd7c38d4"
       },
       {
         "name": "cpg-frontend-verbatim.log",
@@ -171,38 +195,38 @@
       },
       {
         "name": "cpg-frontend.log",
-        "bytes": 7605980,
-        "sha256": "dd98cd028fd7aef0862c85c5950c786a5070646621837719fe14a24fb1733290"
+        "bytes": 7615026,
+        "sha256": "4947663d692a219d9a28479d646480147d4fd61c0cc2a53960bbb462a510c4ac"
       },
       {
         "name": "cpg-graph-record.log",
-        "bytes": 7637,
-        "sha256": "403dd0874dd5abec1871a0228975f5ae85fe31e18073d646d3b99d7379f28da4"
+        "bytes": 13991,
+        "sha256": "1309e1d4344f14fec193d214e65033d303c6ef7e6bc7defddfd3346cbd4c82d7"
       },
       {
         "name": "cpg-identity.txt",
-        "bytes": 3350,
-        "sha256": "4da2c4db6c25e2aa98c10bc62201a31da56636ff2cb47e5d00e9485098a1a0ac"
+        "bytes": 6591,
+        "sha256": "505e62841e9145f95d6004d24abaa02b6e7169bab196050086fd894885b82f21"
       },
       {
         "name": "cpg-input-inventory.json",
-        "bytes": 46497,
-        "sha256": "5baa90168add6f45a1157e8092e3e62a36778837bdbfb89881ca2c9c17e83637"
+        "bytes": 97881,
+        "sha256": "c23574a6d73672d6e0a9325eafe317e18faa833fe5ab83f4d9563f2ba27682c5"
       },
       {
         "name": "cpg-module-coverage.json",
-        "bytes": 32078,
-        "sha256": "67952bc804c42869c9d92343ca5c936f5d84da98833cbc1f42f88ca341e574f8"
+        "bytes": 43553,
+        "sha256": "67303cebd1e5ac1904abb58a94fd4794fd1357bc0838401b693dcc99e721f42a"
       },
       {
         "name": "cpg-shims-collision-measurement.log",
-        "bytes": 6854,
-        "sha256": "55c594adcfa1bfc8652fd469d02fe550b5b50ea15050f7b2cf1a01ca7a1d517a"
+        "bytes": 7568,
+        "sha256": "21697aa6339c3531a9f9a78a8ada27cae7a145c0bc7490859cfba8e47754dea6"
       },
       {
         "name": "cpg-verify.log",
-        "bytes": 35220,
-        "sha256": "64273c6a349c5b1773e02f7fdf47864ba840a4c2a252e21abacb81b2d5ef5333"
+        "bytes": 71291,
+        "sha256": "06237203ffc6eebb470a91f0ec20e490c135a9aeaef75c330ce81d5b01c8d18b"
       },
       {
         "name": "datadog-sast-rules.captured.json",
@@ -276,13 +300,13 @@
       },
       {
         "name": "findings-publication.json",
-        "bytes": 3003,
-        "sha256": "7c2bfcb15f67e98fe636643d1a15f23e995ab56e5a2294c92523e93c78d48094"
+        "bytes": 2985,
+        "sha256": "1d17bd019a6a5807c37a62db56c043943da55e552e106fb066fb97c93d745dcc"
       },
       {
         "name": "gate-record.json",
-        "bytes": 92014,
-        "sha256": "56e12926b7e6b2fba1240a6bdc13b7a73d22e4e3fbadc5f4bb9b69863a6fa541"
+        "bytes": 92364,
+        "sha256": "e6ff024a7873c70a371ce79ef8c944a47115cc5702ca293a76d1d9a4277d1195"
       },
       {
         "name": "gitleaks.parts/common_network-common_src_main.json",
@@ -441,8 +465,8 @@
       },
       {
         "name": "normalize-run.json",
-        "bytes": 707725,
-        "sha256": "be94b4893864f33c277935a4fa05c2de3aa2fb4d023de37a7ab07142ef6a5c77"
+        "bytes": 763882,
+        "sha256": "8ca5d71a843741554a394b51b8c7c0b33871ab34226c436c1a77d973a8d857cb"
       },
       {
         "name": "opengrep.runner-console.log",
@@ -535,9 +559,79 @@
         "sha256": "158dcbab77bc5d1dd0cfa58dc05a8d80b6681944a92d0fc59d3cf9a5830b068a"
       },
       {
+        "name": "reverification-f1-artifact-trees.txt",
+        "bytes": 26510,
+        "sha256": "64c94d63374df332b28ac3649f41cc3d12143aca1c0b6e2284fb8becb09628c5"
+      },
+      {
+        "name": "reverification-f2-graph-identity.txt",
+        "bytes": 22308,
+        "sha256": "cd012645811a75b8f9321bf52cba22e3fb5ccd8835f2899a99da0262d295e2ff"
+      },
+      {
+        "name": "reverification-f3-writer-bound.json",
+        "bytes": 26859,
+        "sha256": "a038c53ee1cb43ad02bd8f99deb18d07d7d6657618be87cd8dae81de50c967e7"
+      },
+      {
+        "name": "reverification-f3-writer-bound.txt",
+        "bytes": 34697,
+        "sha256": "e399dc1e17e4d32ab20addbf140da7b7293f4f34d65f19e4bf4e338e4509792d"
+      },
+      {
+        "name": "reverification-f4-module-witness-full-input-set.json",
+        "bytes": 265953,
+        "sha256": "0bd9439396537584feb521b8b254d65ccd74405260ce82ef1896a4c160de1928"
+      },
+      {
+        "name": "reverification-f4-module-witness-full-input-set.log",
+        "bytes": 63976,
+        "sha256": "e89dff42e538eab1f9390fcaa0727b872275f717e7233365312083289ef03a18"
+      },
+      {
+        "name": "reverification-f5-taint-ab-hiveshim-off.sarif",
+        "bytes": 2341,
+        "sha256": "6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced"
+      },
+      {
+        "name": "reverification-f5-taint-ab-hiveshim-on.sarif",
+        "bytes": 10021,
+        "sha256": "1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24"
+      },
+      {
+        "name": "reverification-f5-taint-ab-off.sarif",
+        "bytes": 4753,
+        "sha256": "7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778"
+      },
+      {
+        "name": "reverification-f5-taint-ab-on.sarif",
+        "bytes": 4753,
+        "sha256": "7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778"
+      },
+      {
+        "name": "reverification-f5-taint-ab-source-removed.sarif",
+        "bytes": 2341,
+        "sha256": "295888055aed2ccb8dc171eebc5e702ea741c0eb86e760d3942d122936b32187"
+      },
+      {
+        "name": "reverification-f5-taint-ab.json",
+        "bytes": 27658,
+        "sha256": "a9d679e756af5e77e0362e0b4738df9eca8d4c2dea3d8a826482d94630e901b3"
+      },
+      {
+        "name": "reverification-f5-taint-ab.log",
+        "bytes": 34939,
+        "sha256": "5956486fc25fbc426e1ac35417bd985a4a6542cf1f610e7efee58096865bc6e8"
+      },
+      {
+        "name": "reverification-f5-taint-engine-options.txt",
+        "bytes": 41622,
+        "sha256": "7e931f9316508c39a8caea6ce8abdf15ef12f308b6b87e68aef01c86cb5d8afd"
+      },
+      {
         "name": "runner-metadata.json",
-        "bytes": 175770,
-        "sha256": "cb1c199a93de7c0a27c4986cab823fa3be62d3b18a5f935c74e1eba26f186d17"
+        "bytes": 189356,
+        "sha256": "08c6f0bc5cf15e36b5253b611d0309b9b17491b4f0a6f991ea15352b4ae9b744"
       },
       {
         "name": "runner-sequence.json",
@@ -566,8 +660,8 @@
       },
       {
         "name": "taint-ab-anchor-diskstore-fullruleset-off.log",
-        "bytes": 4361,
-        "sha256": "d440fa546e31e75c839bf8aae3f5eaac5b8db0efcd9a2ee6c9ffe1cd5b65f047"
+        "bytes": 13604,
+        "sha256": "ad6879e70da79c0e9864582f21f24fef0623a57c351aa1ad6cc506a097ea6ba1"
       },
       {
         "name": "taint-ab-anchor-diskstore-fullruleset-off.sarif",
@@ -576,8 +670,8 @@
       },
       {
         "name": "taint-ab-anchor-diskstore-fullruleset-on.log",
-        "bytes": 4377,
-        "sha256": "512bda7e81c6cedb4d70bd80d67faa7e3ea33e816d7f6642c2c739e870f87415"
+        "bytes": 13694,
+        "sha256": "016bc4efb378834ab14193220db96d35683b794b42d7aa3c45b7f9143f71197c"
       },
       {
         "name": "taint-ab-anchor-diskstore-fullruleset-on.sarif",
@@ -586,8 +680,8 @@
       },
       {
         "name": "taint-ab-anchor-diskstore-off.log",
-        "bytes": 2216,
-        "sha256": "a72ea02ad345259abdfbf6dc4faf6b82c10f46f521d5bcc03a27a9059661a94c"
+        "bytes": 9844,
+        "sha256": "fb575aa7cd49dd63469583a1a441fbd56a86e0d893dde771a3f544e5a3d2e332"
       },
       {
         "name": "taint-ab-anchor-diskstore-off.sarif",
@@ -596,8 +690,8 @@
       },
       {
         "name": "taint-ab-anchor-diskstore-on.log",
-        "bytes": 2235,
-        "sha256": "663afe9c8aeba1b79c6cad4a609346d22289654f96a83d0c0b72f2787fd940f7"
+        "bytes": 9909,
+        "sha256": "06c61629ba137d40e1dc666dc70667a42ee3f16be3adb4974af1e7f7204e0575"
       },
       {
         "name": "taint-ab-anchor-diskstore-on.sarif",
@@ -606,8 +700,8 @@
       },
       {
         "name": "taint-ab-discriminating-off.log",
-        "bytes": 14709,
-        "sha256": "47b70071e51b0f4dc98a75a8996345dd327ef6dca00ad0d98e5871cd501d85ae"
+        "bytes": 21705,
+        "sha256": "b74ea8f172db6f73822f707f4e2707b5218a296dfba1d07fc72a63c5fa391f3c"
       },
       {
         "name": "taint-ab-discriminating-off.sarif",
@@ -616,8 +710,8 @@
       },
       {
         "name": "taint-ab-discriminating-on.log",
-        "bytes": 17021,
-        "sha256": "b7656c83438dd2646fcb58e0ce0dfd47ce75d5f762e0346c70293488384c2b51"
+        "bytes": 24232,
+        "sha256": "bda1b238e2ae1655594432b06473f0300a8f94e71436fdd625b74c45dc1164ed"
       },
       {
         "name": "taint-ab-discriminating-on.sarif",
@@ -626,8 +720,8 @@
       },
       {
         "name": "taint-ab-hiveshim-off.log",
-        "bytes": 1997,
-        "sha256": "a442acdce88cfc53b5b4b3b63435dbb26d72720a741a59af65b9c31652b098fc"
+        "bytes": 9930,
+        "sha256": "ff1356a9aef785c30cc4e3728a1069e365b13a9a9cae3f5422c8f093e93e0e0a"
       },
       {
         "name": "taint-ab-hiveshim-off.sarif",
@@ -636,8 +730,8 @@
       },
       {
         "name": "taint-ab-hiveshim-on.log",
-        "bytes": 2457,
-        "sha256": "ae387d47d16253e301c2e5f65478235ab1fbbc4911f54486c24e339e85a56950"
+        "bytes": 10435,
+        "sha256": "a05c421539ee2c7fdb2e14a2c1bfd09a225467d7ed56c6770964b04f9edfa08d"
       },
       {
         "name": "taint-ab-hiveshim-on.sarif",
@@ -651,8 +745,8 @@
       },
       {
         "name": "taint-ab-off.log",
-        "bytes": 12358,
-        "sha256": "32a407fbb2c1e0960aac7d14af52dd2e99391d544b10a69da32a6d41e0e0a24b"
+        "bytes": 22294,
+        "sha256": "2977639cc24c285a656732321aaf9b34678b885eb5da11813f2233c3fbef6543"
       },
       {
         "name": "taint-ab-off.sarif",
@@ -661,8 +755,8 @@
       },
       {
         "name": "taint-ab-on.log",
-        "bytes": 12397,
-        "sha256": "eb099cb1387a13c1ec1d0df9098b10544026ca5409f3ed905d6a549dbec5624f"
+        "bytes": 22332,
+        "sha256": "06b6a60847828552a57b675f48292424141371f9515260cd91b85ff1b4287d1e"
       },
       {
         "name": "taint-ab-on.sarif",
@@ -671,8 +765,8 @@
       },
       {
         "name": "taint-ab-search-control.sarif",
-        "bytes": 4424,
-        "sha256": "272a530fea4ef95417cd539b5964a70f6805e5def72ab58264cf73dbbbdb8ceb"
+        "bytes": 4589,
+        "sha256": "4dc4aec5f35425f7ff47712baa55a02bcd1f034627d23b0d6f38ba209213b116"
       },
       {
         "name": "taint-ab-source-removed-control-rule.txt",
@@ -681,8 +775,8 @@
       },
       {
         "name": "taint-ab-source-removed-control.sarif",
-        "bytes": 2347,
-        "sha256": "e98c1e1fb37c66cbf7dac92838485314b57a4561a41a6d15d9043eebbaac745f"
+        "bytes": 2455,
+        "sha256": "9c54e593e7a9dda361ef2de373bcdb17f0ed4c219c8f18057cf12ca2b1469172"
       },
       {
         "name": "trivy.parts/common_network-common_src_main.json",
@@ -822,25 +916,37 @@
     "loads_that_read_these_bytes": "all three probe queries of this run. Each re-verified this size and digest against the record of account immediately before loading, copied the graph to a private input under $HARNESS_SCRATCH_DIR, imported only that copy and re-verified it after the load. The identity is published per query in queries/joern/results/<id>.json under graph.identity_record, graph.bytes and graph.sha256."
   },
   "cpg_input_records": {
-    "what_this_is": "The frontend staging trees are recorded rather than published: neither is present in this checkout, and each is owned by an artifact that IS published per-file in the `logs` section above, with its own byte size and sha256. Every per-file identity remains traceable through that owner.",
+    "what_this_is": "The frontend staging trees are recorded rather than published: neither is present in this checkout, and each figure below is owned by an artifact that IS published per-file in the `logs` section above, with its own byte size and sha256. Per-file identity is traceable through an owner ONLY where that owner retained it: the 189-archive set has a per-file record, and the 191-archive set does not, because no ordered per-entry manifest of it was persisted (harness/artifacts/logs/cpg-frontend.log STEP 11). The aggregate totals for the 191-archive set are owned by harness/artifacts/logs/build-reactor.log STEP 13.",
     "not_present_in_this_checkout": [
       "harness/artifacts/cpg-input",
       "harness/artifacts/cpg-input-attempt1-full-191"
     ],
     "owners": [
       {
-        "owner": "harness/artifacts/logs/cpg-input-inventory.json",
-        "records": "the full JAR inventory and the ordered staging manifest",
-        "states": "191 own artifacts, 431,184,822 bytes, from 627 JAR files enumerated, with 436 excluded and a reason per file",
-        "staging_directory_it_records": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-005_c73c29/harness/artifacts/cpg-input",
-        "note": "that absolute path is in another clone of this run, so this checkout never held the tree it describes"
+        "owner": "harness/artifacts/logs/build-reactor.log",
+        "locator": "STEP 13",
+        "records": "the aggregate totals of the full-reactor artifact set this build produced, measured at build time",
+        "states": "191 own artifacts, 431,184,822 bytes, from 627 JAR files enumerated under the build directories, with 436 excluded in two categories - 422 copied runtime dependencies and 14 test-resource fixtures - and 0 undecided. The addend chains close: 422 + 14 = 436 and 191 + 436 = 627",
+        "per_file_ledger": "none. No ordered per-entry manifest of the 191-archive set was persisted, which cpg-frontend.log STEP 11 states, so no per-file identity may be cited for it. The only exclusion record that survives is by CATEGORY, not by file: cpg-graph-record.log line 32 and its five category lines",
+        "note": "This owner was corrected on 2026-09-02. An earlier edition of this manifest attributed all of these figures to harness/artifacts/logs/cpg-input-inventory.json and described the 436 exclusions as carrying 'a reason per file'. Both were wrong: that file measures a different and narrower tree - 62 archives, 285,122,371 bytes, 31 modules - and holds no exclusion ledger of any kind, so a reader following the old pointer landed on data that did not match the claim. build-reactor.log STEP 15 now states the same owner map in the evidence itself"
       },
       {
         "owner": "harness/artifacts/logs/cpg-frontend-input-manifest.json",
-        "records": "the ordered set actually handed to the frontend, and what was withheld from it",
+        "records": "the ordered set actually handed to the frontend in ONE invocation, and what was withheld from it",
+        "describes_which_invocation": "invocation C - the w-000 lane's -J-Xmx160g attempt that exited 0 while withholding two archives. It is NOT the invocation on record; run-record.md divergence D20 carries the departure and adjudicates the 141-byte difference between this manifest's totals and build-reactor.log STEP 13's, which arises because the two lanes built Spark independently",
         "states": "189 archives, 308,385,184 bytes, 2 withheld from a 191-archive full inventory",
-        "staging_directory_it_records": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/cpg-frontend-input-189",
-        "note": "also in another clone of this run"
+        "per_file_ledger": "yes - 189 ordered entries, each with its byte size and sha256, plus both withheld archives named with their sizes and digests",
+        "staging_directory_it_records": "the w-000 clone's harness/artifacts/cpg-frontend-input-189",
+        "note": "in another clone of this run, so this checkout never held the tree it describes"
+      },
+      {
+        "owner": "harness/artifacts/logs/cpg-input-inventory.json",
+        "records": "the provisioned staging tree the graph that actually loads was built over - a different, narrower tree than either set above",
+        "states": "62 archives, 285,122,371 bytes, from 31 modules, as measured when the inventory was written",
+        "per_file_ledger": "yes - 62 archive entries, plus a live census taken 2026-09-02 recording that 23 of the 62 members have since drifted from those recorded bytes",
+        "holds_no_exclusion_ledger": "correct and load-bearing: there is no exclusion list, no exclusion count and no per-file exclusion reason anywhere in this file, in any edition of it, so NO exclusion figure may be cited from it",
+        "staging_directory_it_records": "/opt/blitzy-harness/cpg-input",
+        "note": "host-global and shared read-only with concurrent clones; its members are hard links into a shared mutable build tree, which is why they drifted"
       }
     ],
     "why_no_per_file_entries": "AAP 0.6.4: a count appearing in two documents must be one measurement cited twice, never two measurements. The previous per-file copies disagreed with their owner, which is exactly the failure that rule prevents."

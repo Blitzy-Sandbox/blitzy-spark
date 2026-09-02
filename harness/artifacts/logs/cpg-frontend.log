@@ -12,10 +12,78 @@ establishes that from the bytecode of the failing method. STEP 10 enumerates eve
 examined and states why each is unavailable under the plan's own constraints.
 
 Read this file with:
-  harness/artifacts/logs/cpg-input-inventory.json — the input manifest and its assertion
-  harness/artifacts/logs/cpg-verify.log           — the verification load, and PART 2's witness graph
-  oss-scan-results/build-record.md §5, §6         — graph status and the per-module coverage verdicts
+  harness/artifacts/logs/cpg-verify.log           — the verification load of the graph the Joern
+                                                    stages read (PHASES 1-3) and, in PART 2, the
+                                                    load of this file's PART 2 witness graph
+  harness/artifacts/logs/cpg-identity.txt         — the record of account for the graph at the
+                                                    sanctioned path, which this invocation did NOT write
+  harness/artifacts/logs/cpg-ceiling-reverify.log — the serialization ceiling of STEP 8, re-verified
+                                                    first-hand at three heaps: 8g, 64g and 128g
+  oss-scan-results/build-record.md sections 5, 6  — graph status and the per-module coverage verdicts
   oss-scan-results/run-record.md §5, §13          — the graph-identity record and divergence D1
+
+====================================================================================================
+INVOCATION INDEX — three frontend invocations exist in this evidence set, and which file owns which
+====================================================================================================
+Three separate jimple2cpg invocations were run across this generation's lanes, over three different
+input sets. Their figures are NOT alternative statements about one invocation, and nothing below is
+a re-measurement of anything above it. Every evidence file in harness/artifacts/logs/ that carries
+frontend figures is listed here against the invocation it belongs to, so no figure can be read
+against the wrong input set.
+
+  A — THE MANDATED COMPLETE INPUT SET. Recorded by PART 1 of this file, STEPS 1 to 12.
+      lane                 w-005
+      input                the complete staged set: 191 own artifacts, 431,184,822 bytes
+      input path           <w-005 checkout>/harness/artifacts/cpg-input
+      heap / JDK           -J-Xmx128g, major 21
+      started / ended      2026-08-30T23:21:24.942Z / 2026-08-31T07:22:27.599Z
+      exit                 1 — FAILED in flatgraph serialization (STEP 8). No graph accepted.
+      extraction temp dir  /tmp/jimple2cpg-10231185247794343149  (the tag that identifies its
+                           verbatim output; 33,807 lines of this file carry it)
+      figures owned        STEPS 1-12 and 'VERBATIM FRONTEND OUTPUT, PART 1' of this file:
+                           33,784 overwrite warnings / 27,843 distinct entries (STEP 6),
+                           23 AST-creation failures (STEP 7), the 691,541,019-byte partial (STEP 9)
+
+  B — THE PER-MODULE WITNESS GRAPH. Recorded by PART 2 of this file.
+      lane                 w-005
+      input                38 primary artifacts, one per JAR-producing module, 130,718,491 bytes
+      heap / JDK           -J-Xmx128g, major 21
+      started / ended      2026-08-31T07:33:36.391Z / 2026-08-31T09:16:06.158Z
+      exit                 0 — wrote witness.cpg, 418,777,229 bytes
+      extraction temp dir  /tmp/jimple2cpg-8107871523722204183  (7,230 lines of this file)
+      figures owned        PART 2 W1-W8 and 'VERBATIM FRONTEND OUTPUT, PART 2' of this file;
+                           the load of that graph is cpg-verify.log PART 2
+      what it is not       not the mandated graph, not at harness/cpg/spark.cpg, loaded by no
+                           runner, contributing no dataset row
+
+  C — A 189-ARCHIVE INPUT SET WITH TWO ARCHIVES WITHHELD. NOT described by any STEP of this file.
+      lane                 w-000
+      input                189 archives, 308,385,184 bytes — the same 191-archive full inventory
+                           minus 2 shaded archives withheld with a stated reason
+      heap / JDK           -J-Xmx160g, major 21
+      started / ended      first console line 2026-08-31 17:45:16.139, last 2026-08-31 18:57:09.371,
+                           process exit at 23:08 after silent serialization; elapsed 19,482 s
+      exit                 0 — it DID serialize, and wrote a graph inside that lane's own checkout
+      extraction temp dir  /tmp/jimple2cpg-1224669325458780856
+      figures owned        harness/artifacts/logs/cpg-frontend-input-manifest.json (its staging
+                           manifest: 189 archives / 308,385,184 bytes, 2 withheld from 191),
+                           harness/artifacts/logs/cpg-frontend-verbatim.log (its complete console
+                           output, 6,286,661 bytes / 39,428 lines: 28,714 overwrite warnings,
+                           23,168 distinct overwritten entry paths, 487 AST-creation exceptions,
+                           0 ERROR-level lines — all four counted from that file),
+                           harness/artifacts/logs/cpg-ast-failed-classes.txt (those 487 classes,
+                           487 lines, 487 distinct)
+      what it is not       Its output is not this run's graph: withholding two archives is exactly
+                           the input-set trimming AAP 0.3.2 forbids, so it does not satisfy the
+                           all-JAR requirement either. It was never written to harness/cpg/spark.cpg,
+                           it is not on this checkout's path, no runner or probe loaded it, and it
+                           contributes no dataset row. It is retained because its console output and
+                           its AST-failure list are real frontend measurements over a real input set.
+
+  Read the two input figures together in exactly this way: 191 own artifacts / 431,184,822 bytes is
+  invocation A's input, the complete set this file's STEP 8 records failing; 189 archives /
+  308,385,184 bytes is invocation C's input, two archives short of that inventory. Each figure is one
+  measurement cited once, of a different thing. Neither corrects the other.
 
 ====================================================================================================
 STEP 1 — Precondition — the input manifest was asserted BEFORE this invocation
@@ -25,13 +93,42 @@ directions, and logged, before the frontend runs. Ordering, from the filesystem'
 
   staging directory created   True
   staging absent before use   True
-  assertion recorded          see cpg-input-inventory.json
+  assertion recorded          lane w-005's inventory measurement, which built this staging tree and
+                              asserted it; its staging tree survives and was re-counted and
+                              re-hashed for this record, member by member (see RE-MEASURED below)
   frontend invoked            2026-08-30T23:21:24.942Z
 
   assertion result            True
-  staged files on disk        None
-  manifest entries            None
-  distinct sha256             189
+  inventory entries           191
+  staged files on disk        191
+  manifest entries            191
+  distinct staged names       191
+  distinct sha256             189   (191 files, two pairs of which are the same bytes under two
+                                     names, both in connector/kafka-0-10-assembly, a packaging
+                                     module with no src/ of its own: its 'original-' pre-shade
+                                     artifact equals its '-tests' artifact byte for byte, and its
+                                     '-sources' equals its '-test-sources'. Both members of each
+                                     pair are staged and supplied; the distinct-digest count is
+                                     189 because the bytes repeat, not because a file was dropped)
+  inventory -> staged total   True
+  staged -> inventory total   True
+  entries unmapped            0
+  files unmapped              0
+  digest re-verification      0 mismatches
+
+RE-MEASURED, first-hand, from the staging tree of invocation A as it stands on disk:
+  files in the staging directory   191
+  total bytes                      431,184,822
+  members byte- and digest-identical to the asserted manifest   191 of 191
+  members drifted                  0
+  This is the assertion re-run rather than re-quoted: every one of the 191 staged members was
+  re-hashed and compared, so the total-and-injective claim above is checkable rather than inherited.
+
+  Where the owner of these numbers is NOT: harness/artifacts/logs/cpg-input-inventory.json in this
+  checkout inventories the 62-archive / 285,122,371-byte staging tree of the PROVISIONED graph at
+  /opt/blitzy-harness/cpg-input — a different input set, of a different invocation, which this run
+  did not perform. It is not the manifest of invocation A and states nothing about these 191
+  archives. Reading its 62 against this 191 would be reading two input sets as one.
 
 Input set actually supplied to the frontend — the complete set, nothing excluded:
   own artifacts               191
@@ -341,8 +438,14 @@ not dismissed on judgement.
 ====================================================================================================
 STEP 11 — Provenance of overwritten entries — the stated limitation
 ====================================================================================================
-The ordered staging manifest is persisted, so the input set is reproducible byte for byte
-(cpg-input-inventory.json). But the frontend's directory walk is not ordered by this run, and its
+The input set is reproducible byte for byte: the staging tree of invocation A survives on disk and
+every one of its 191 members was re-hashed against the asserted manifest in STEP 1 above, 191 of
+191 identical, 0 drifted. STEP 1 of this file is the owner of that assertion. Two files that could
+be mistaken for its owner are not: cpg-input-inventory.json inventories the 62-archive provisioned
+staging tree, and cpg-frontend-input-manifest.json carries the ordered per-entry manifest of
+invocation C's 189-archive set (see the INVOCATION INDEX above). A persisted ordered per-entry
+manifest of invocation A's 191 members is not among the files of this tree; what is persisted is
+the assertion over them, re-measured in STEP 1. But the frontend's directory walk is not ordered by this run, and its
 overwrite warning names the destination entry rather than the archive that supplied the surviving
 definition. Per-entry provenance for overwritten entries is therefore NOT measurable from this
 frontend's output, and no winner map is claimed. Where a specific collision matters to a
@@ -428,7 +531,10 @@ W4 — the output, with its identity measured from the bytes on disk
     bytes               418,777,229
     sha256              8d3462b78d3c4b009c994d1ae838b6266aa2af3e68b3c0fbdcbd3b3f630ad41d
     Recorded immediately after the write, from the bytes on disk, and re-verified before
-    the load in cpg-verify.log PART 2.
+    the load recorded in cpg-verify.log PART 2, whose STEP P1 carries that comparison. The
+    file itself is retained at the path above and was re-measured for this record: 418,777,229
+    bytes and sha256 8d3462b7...ad41d, equal to the write-time pair, so every PART 2 figure
+    below has a live owner rather than a remembered one.
 
     That this graph could be serialized while the complete-input graph could not is the
     PART 1 diagnosis behaving exactly as diagnosed: the bound is on the total UTF-8 size of
@@ -459,18 +565,25 @@ W7 — the provenance limitation applies here too
     built from an input set that EXCLUDED the shims archives - carry a full implementation's
     worth (SparkConf 298, SparkContext 1,100, rdd.RDD 1,022, api.java.JavaRDD 74). So in a graph
     that contains the shims artifact, the stub definitions displaced the real ones for those
-    eleven classes. This is reported as an observed property of this graph, with the counts, in
-    cpg-verify.log PART 2 STEP P5. It is NOT a winner map: it says what is in the graph, not
+    eleven classes. Both sides of that comparison are published with their counts, each by the
+    file that measured it: the stub-sized side, in THIS graph, in cpg-verify.log PART 2 STEP P5;
+    the full-implementation side, in the graph at the sanctioned path, in
+    harness/artifacts/logs/cpg-shims-collision-measurement.log, which queried that graph
+    first-hand. It is NOT a winner map: it says what is in the graph, not
     which archive the frontend read last. It does corroborate the provisioning runbook's own
     instruction to exclude the shims archive, and it is a real cost of the complete input set
     the AAP mandates - recorded, not acted on, because the AAP forbids the exclusion.
 
 W8 — what PART 2 does and does not establish
     Establishes: whether this frontend, from a module's own primary artifact, produces that
-    module's witness into a loadable graph. cpg-verify.log PART 2 runs those queries.
+    module's witness into a loadable graph. cpg-verify.log PART 2 runs those 38 queries — one
+    per JAR-producing module — against this graph, and STEP P4 there carries their results.
     Does not establish: coverage of the graph at harness/cpg/spark.cpg, which is a different
     graph over a different input set; and does not satisfy D1, which requires the mandated
-    complete-input graph.
+    complete-input graph. A witness present in THIS graph is therefore never counted as a
+    coverage verdict for the graph the runners read: those verdicts are in
+    harness/artifacts/logs/cpg-module-coverage.json and cpg-verify.log PHASE 2, and 12 of the
+    38 JAR-producing projects have no COVERED verdict there for the reasons that file names.
 
 ====================================================================================================
 VERBATIM FRONTEND OUTPUT, PART 1 — the complete 191-artifact input set

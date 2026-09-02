@@ -650,6 +650,280 @@ class OutputContainmentTest(_OutputTargetTestCase):
         self.assertFalse(cli._within(self.tmp / "x.json", self.repo))
 
 
+class DeclaredOwnerRootTest(_OutputTargetTestCase):
+    """``--repo-root`` declares the dataset's owner root, and wins over the environment.
+
+    The owner root used to be the one input with no flag of its own: it came from
+    ``$HARNESS_REPO_ROOT`` or from the repository this module is installed in, and from
+    nowhere else.  That contradicted the CLI contract this module states for every other
+    input -- *"Every input is an explicit argument … and an explicit argument always
+    wins"* -- and it had a runtime consequence rather than only a documentary one.
+    ``harness/env.sh`` assigns ``HARNESS_REPO_ROOT`` unconditionally, unlike every other
+    value in that file, so a caller who exported an isolated owner root **before** sourcing
+    it did not keep the value; the containment check then correctly refused the isolated
+    output the caller had asked for, and the run exited 78 having written no dataset.  The
+    only way through was to assign the variable *after* sourcing, which made a supported
+    isolated run order-dependent.
+
+    So the declaration is now an argument, with the environment behind it and this
+    module's own repository behind that.  These tests assert all three levels, and
+    -- the pair that is the regression itself -- that containment is answered against the
+    root the *flag* names: an output outside it is still refused, and an output inside it
+    is accepted where the environment's root would have refused it.
+
+    The environment file is deliberately not edited to fix this: AAP 0.3.1 lists it among
+    the files read and never written, AAP 0.6.3 permits changing exactly two provisioned
+    paths under ``harness/`` and neither is that one, and AAP 0.6.5 states that no
+    environment file is edited.
+    """
+
+    @property
+    def isolated_owner(self) -> Path:
+        """A directory outside ``self.repo``, holding an ``oss-scan-results/`` tree.
+
+        Outside the repository root the environment declares, on purpose: that is what
+        makes it the root the environment would refuse and the flag must accept.
+        """
+        owner = self.tmp / "isolated-owner"
+        (owner / "oss-scan-results").mkdir(parents=True, exist_ok=True)
+        return owner
+
+    def test_the_flag_wins_over_a_different_environment_root(self) -> None:
+        """Three levels, one precedence, and the label of whichever answered."""
+        owner = self.isolated_owner
+        # The environment declares self.repo; the argument names somewhere else entirely.
+        self.assertNotEqual(owner, self.repo)
+        declared, source = cli._declared_repository_root(self.env, str(owner))
+        self.assertEqual(declared, owner)
+        self.assertEqual(source, "--repo-root")
+
+        inputs = self.resolve("--repo-root", str(self.isolated_owner))
+        guards = inputs.output_guards
+        self.assertEqual(guards["repository_root"], str(self.isolated_owner))
+        self.assertEqual(guards["repository_root_source"], "--repo-root")
+        self.assertNotEqual(guards["repository_root"], str(self.repo))
+        # The environment still declared self.repo; the argument is what was used.
+        self.assertEqual(self.env["HARNESS_REPO_ROOT"], str(self.repo))
+        self.assertEqual(
+            guards["owners"]["--findings-json"], str(self.isolated_owner)
+        )
+        self.assertEqual(guards["owners"]["--findings-csv"], str(self.isolated_owner))
+        # The run record's owner is unaffected: it belongs to the log tree, not to the
+        # repository root, and the flag must not move it.
+        self.assertEqual(guards["owners"]["--run-record"], str(self.log_dir))
+
+    def test_both_dataset_paths_default_under_the_flags_root(self) -> None:
+        """No ``--findings-json`` or ``--findings-csv``: both default under the flag."""
+        inputs = self.resolve("--repo-root", str(self.isolated_owner))
+        self.assertEqual(
+            inputs.findings_json,
+            self.isolated_owner / cli.FINDINGS_JSON_RELATIVE,
+        )
+        self.assertEqual(
+            inputs.findings_csv,
+            self.isolated_owner / cli.FINDINGS_CSV_RELATIVE,
+        )
+        self.assertEqual(inputs.run_record, self.log_dir / cli.RUN_RECORD_FILENAME)
+
+    def test_containment_is_answered_against_the_flags_root(self) -> None:
+        """The regression, as a pair: refused outside the flag's root, accepted inside.
+
+        The second half is the one the finding is about. ``self.isolated_owner`` is
+        outside the environment's declared root, so before the flag existed this exact
+        invocation exited 78 with ``output-path-outside-its-owner-root`` -- the observed
+        failure -- and it must now be accepted, while an output outside the flag's own
+        root must still be refused just as firmly.
+        """
+        owner = self.isolated_owner
+        stray = self.tmp / "elsewhere.json"
+        for flag in ("--findings-json", "--findings-csv"):
+            with self.subTest(flag=flag, direction="outside the flag's root"):
+                fault = self.refusal("--repo-root", str(owner), flag, str(stray))
+                self.assertEqual(fault.reason, cli.HALT_OUTPUT_OUTSIDE_OWNER)
+                self.assertEqual(fault.details["owner_root"], str(owner))
+                self.assertIn("--repo-root", fault.details["owner_root_source"])
+
+        inside = owner / "oss-scan-results" / "findings.json"
+        with self.subTest(direction="inside the flag's root"):
+            # The environment's root would refuse this exact path...
+            refused = self.refusal("--findings-json", str(inside))
+            self.assertEqual(refused.reason, cli.HALT_OUTPUT_OUTSIDE_OWNER)
+            self.assertEqual(refused.details["owner_root"], str(self.repo))
+            # ...and declaring the root it belongs to accepts it.
+            inputs = self.resolve(
+                "--repo-root", str(owner), "--findings-json", str(inside)
+            )
+            self.assertEqual(inputs.findings_json, inside)
+            self.assertEqual(
+                inputs.output_guards["repository_root_source"], "--repo-root"
+            )
+
+    def test_an_empty_or_whitespace_flag_value_counts_as_unset(self) -> None:
+        """``--repo-root ""`` is an override nobody intended, not the filesystem root.
+
+        Read as a location it would resolve to the working directory or, absolutised,
+        to a root that contains every path -- which is the containment check passing
+        while checking nothing. So it falls through to the environment, exactly as
+        :func:`cli._environment_value` treats an exported-but-empty variable.
+        """
+        for value in ("", "   "):
+            with self.subTest(value=repr(value)):
+                declared, source = cli._declared_repository_root(self.env, value)
+                self.assertEqual(declared, self.repo)
+                self.assertEqual(source, "$HARNESS_REPO_ROOT")
+                inputs = self.resolve("--repo-root", value)
+                self.assertEqual(
+                    inputs.findings_json, self.repo / cli.FINDINGS_JSON_RELATIVE
+                )
+                self.assertEqual(
+                    inputs.output_guards["repository_root_source"],
+                    "$HARNESS_REPO_ROOT",
+                )
+
+    def test_the_environment_only_and_neither_supplied_routes_are_unchanged(self) -> None:
+        """Levels two and three still answer exactly as they did before the flag."""
+        declared, source = cli._declared_repository_root(self.env)
+        self.assertEqual(declared, self.repo)
+        self.assertEqual(source, "$HARNESS_REPO_ROOT")
+        declared, source = cli._declared_repository_root(self.env, None)
+        self.assertEqual(declared, self.repo)
+        self.assertEqual(source, "$HARNESS_REPO_ROOT")
+
+        fallback, fallback_source = cli._declared_repository_root({}, None)
+        self.assertEqual(fallback, REPO_ROOT)
+        self.assertIn("cli.py", fallback_source)
+        # And the working directory is a candidate at no level (CWE-73).
+        saved = os.getcwd()
+        try:
+            os.chdir(self.tmp)
+            self.assertNotEqual(cli._declared_repository_root({}, None)[0], self.tmp)
+            self.assertNotEqual(cli._declared_repository_root({}, "")[0], self.tmp)
+        finally:
+            os.chdir(saved)
+
+    def test_neither_declaration_leaves_both_dataset_paths_undefaulted(self) -> None:
+        """The third level adjudicates containment; it never defaults a deliverable.
+
+        Defaulting the dataset into the installed harness's own checkout because nobody
+        declared a root would write a deliverable somewhere no caller asked for, so the
+        two dataset flags are reported as having no default instead -- naming both
+        routes that would have supplied one.
+        """
+        fault = self.refusal(
+            environment={
+                "HARNESS_LOG_DIR": str(self.log_dir),
+                "HARNESS_RAW_DIR": str(self.raw_dir),
+                "HARNESS_SCOPE_FILE": str(self.allowlist),
+                "SPARK_SRC": str(self.spark_src),
+            }
+        )
+        self.assertEqual(fault.reason, cli.HALT_MISSING_INPUT)
+        missing = {entry["input"]: entry["defaulted_from"] for entry in fault.details["missing"]}
+        self.assertEqual(sorted(missing), ["--findings-csv", "--findings-json"])
+        for flag, source in missing.items():
+            with self.subTest(flag=flag):
+                self.assertIn("$HARNESS_REPO_ROOT", source)
+                self.assertIn("--repo-root", source)
+
+    def test_the_flag_is_declared_and_documented_as_taking_a_directory(self) -> None:
+        """The option exists on the parser, takes a value, and defaults to ``None``."""
+        namespace = cli.build_parser().parse_args(["--repo-root", str(self.repo)])
+        self.assertEqual(namespace.repo_root, str(self.repo))
+        self.assertIsNone(cli.build_parser().parse_args([]).repo_root)
+        help_text = cli.build_parser().format_help()
+        self.assertIn("--repo-root DIR", help_text)
+        self.assertIn("$HARNESS_REPO_ROOT", help_text)
+
+    def run_cli(
+        self,
+        *argv: str,
+        environment: Mapping[str, str] | None = None,
+        execute: Callable[..., None] | None = None,
+    ) -> tuple[int, str, str]:
+        """Run ``cli.main`` with a captured environment and console.
+
+        ``main`` reads ``os.environ`` itself, so the environment has to be installed
+        rather than passed -- which is exactly the condition the finding is about, and
+        the reason this end-to-end route is worth driving rather than only
+        :func:`cli.resolve_inputs`.  The pipeline is stubbed: what is under test here is
+        which root ``main`` resolved the deliverables under, not what the adapters put
+        in them.
+        """
+        saved_environ = dict(os.environ)
+        saved_execute = cli._execute
+        out, err = io.StringIO(), io.StringIO()
+        try:
+            os.environ.clear()
+            os.environ.update(self.env if environment is None else environment)
+            if execute is not None:
+                cli._execute = execute  # type: ignore[assignment]
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+                code = cli.main(list(argv))
+        finally:
+            cli._execute = saved_execute  # type: ignore[assignment]
+            os.environ.clear()
+            os.environ.update(saved_environ)
+        return code, out.getvalue(), err.getvalue()
+
+    @staticmethod
+    def _publishing_execute(inputs: cli.Inputs, record: dict[str, Any]) -> None:
+        """Stand in for the pipeline, writing both deliverables where it was told to."""
+        for path, text in (
+            (inputs.findings_json, "[]\n"),
+            (inputs.findings_csv, ",".join(emit.FIELDS) + "\n"),
+        ):
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        record["totals"] = {"rows": 0, "artifacts_present": 0, "artifacts_absent": 9}
+
+    def test_an_isolated_owner_root_declared_on_the_command_line_succeeds(self) -> None:
+        """The finding's reproduction, end to end and through ``main``.
+
+        ``$HARNESS_REPO_ROOT`` names the checkout, exactly as ``harness/env.sh`` leaves it
+        for any caller who sourced that file, while ``--repo-root`` names an isolated
+        directory.  Before the flag existed this invocation could not be expressed: the
+        variable could not be declared ahead of sourcing, so the isolated output was
+        refused with ``output-path-outside-its-owner-root`` and no dataset was written.
+        """
+        owner = self.isolated_owner
+        code, out, err = self.run_cli(
+            "--repo-root", str(owner), execute=self._publishing_execute
+        )
+        self.assertEqual(code, cli.EXIT_OK, msg=err)
+        self.assertIn("wrote 0 row(s)", out)
+
+        # Both deliverables landed under the declared root...
+        self.assertTrue((owner / cli.FINDINGS_JSON_RELATIVE).is_file())
+        self.assertTrue((owner / cli.FINDINGS_CSV_RELATIVE).is_file())
+        # ...and nothing was written under the root the environment declared.
+        self.assertEqual(sorted(entry.name for entry in self.results_dir.iterdir()), [])
+
+        record = json.loads(
+            (self.log_dir / cli.RUN_RECORD_FILENAME).read_text(encoding="utf-8")
+        )
+        guards = record["inputs"]["output_guards"]
+        self.assertEqual(guards["repository_root"], str(owner))
+        self.assertEqual(guards["repository_root_source"], "--repo-root")
+        self.assertEqual(record["exit_status"], {"code": 0, "outcome": "completed"})
+        # The run record still belongs to the log tree, which the flag does not move.
+        self.assertEqual(guards["log_tree"], str(self.log_dir))
+
+    def test_without_the_flag_the_same_environment_writes_under_the_checkout(self) -> None:
+        """The control: the environment's root is still honoured when nobody overrides it."""
+        code, _out, err = self.run_cli(execute=self._publishing_execute)
+        self.assertEqual(code, cli.EXIT_OK, msg=err)
+        self.assertTrue((self.repo / cli.FINDINGS_JSON_RELATIVE).is_file())
+        self.assertTrue((self.repo / cli.FINDINGS_CSV_RELATIVE).is_file())
+        self.assertFalse((self.isolated_owner / cli.FINDINGS_JSON_RELATIVE).exists())
+        record = json.loads(
+            (self.log_dir / cli.RUN_RECORD_FILENAME).read_text(encoding="utf-8")
+        )
+        self.assertEqual(
+            record["inputs"]["output_guards"]["repository_root_source"],
+            "$HARNESS_REPO_ROOT",
+        )
+
+
 class OutputDistinctnessTest(_OutputTargetTestCase):
     """The three outputs are three different files, and none of them is an input."""
 

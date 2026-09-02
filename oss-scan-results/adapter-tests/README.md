@@ -69,6 +69,16 @@ the documented arguments and the recorded ones must be the same arguments, or a 
 reproducing the run is reproducing something slightly different from what was measured,
 and would not know it.
 
+The `-v` is part of it for the same reason and for one more: it is what produces the
+per-test stream whose byte size and digest the run record retains, so a record whose
+command omitted it would not describe the invocation that produced its own evidence. That
+is not hypothetical. The edition this record supersedes recorded the command with neither
+argument while holding a 315,753-byte verbose stream, which is the disagreement its
+`correction_this_record_makes` now states; `harness/lib/verify_status_figures.py`
+compares both commands above against the ones the record carries, after resolving
+`python3` to the interpreter path the record names, so the next divergence between this
+file and that one fails a gate instead of being read past.
+
 One module at a time — the form each per-module measurement in the run record was taken
 with:
 
@@ -88,7 +98,9 @@ discovery treat the start directory as an importable package, which it is not, a
 
 The interpreter is the base CPython the gate recorded — expected **3.13.7**, observed
 **3.13.7** at `/usr/bin/python3`, CPython `3.13.7 (main, Mar  3 2026, 12:19:54)
-[GCC 15.2.0]`, as the run record carries it — reached as `python3` on `PATH`. Because the tests import only the standard library they run on that
+[GCC 15.2.0]` — the run record's `interpreter` node carrying that absolute path and the
+`3.13.7` version, and `harness/artifacts/logs/gate-record.json` the full version string
+quoted here — reached as `python3` on `PATH`. Because the tests import only the standard library they run on that
 base interpreter and touch neither of the two scanner virtualenvs that host the
 Python-based scanners, so nothing here depends on a scanner's environment being active.
 
@@ -107,9 +119,9 @@ without anything being installed.
 `harness/artifacts/logs/adapter-tests-run.json` carries the exact command line, the
 interpreter's absolute path and version, **an outcome for every test that executed**, a
 per-module outcome, **a separate entry for every one of the 72 negative fixtures**, and
-the exit status. It records exit status 0 over 1,325 tests and 26,008 subtests with zero
+the exit status. It records exit status 0 over 1,347 tests and 26,123 subtests with zero
 failures, errors, skips, expected failures and unexpected successes; its per-module test
-counts sum to exactly that 1,325, and its per-test outcome inventory holds exactly 1,325
+counts sum to exactly that 1,347, and its per-test outcome inventory holds exactly 1,347
 entries — so a module that had silently stopped contributing tests would show up as three
 disagreeing numbers rather than as a passing run.
 
@@ -375,25 +387,27 @@ fixture written to suit the other.
 10 modules. Each was also run on its own, so the test count beside it is that
 module's own measurement rather than a share of the aggregate; all 10 counts are
 recorded in `harness/artifacts/logs/adapter-tests-run.json`, and they sum to the
-suite's 1,325.
+suite's 1,347.
 
 | Module | Subject | Tests |
 | --- | --- | --- |
 | `test_sarif_adapter.py` | `adapters/sarif.py` | 122 |
-| `test_trivy_adapter.py` | `adapters/trivy.py` | 194 |
+| `test_trivy_adapter.py` | `adapters/trivy.py` | 199 |
 | `test_gitleaks_adapter.py` | `adapters/gitleaks.py` | 93 |
 | `test_checkov_adapter.py` | `adapters/checkov.py` | 127 |
-| `test_dependency_check_adapter.py` | `adapters/dependency_check.py` | 102 |
+| `test_dependency_check_adapter.py` | `adapters/dependency_check.py` | 107 |
 | `test_joern_adapter.py` | `adapters/joern.py` | 117 |
-| `test_shape_routing_negative.py` | `shape.py` | 114 |
+| `test_shape_routing_negative.py` | `shape.py`, and the raw-directory ingestion boundary in `cli.py` that consumes it | 117 |
 | `test_reconciliation.py` | `reconcile.py` | 162 |
-| `test_cli_writers.py` | `cli.py` — the composition, its option surface and the output-ownership guard | 219 |
+| `test_cli_writers.py` | `cli.py` — the composition, its option surface and the output-ownership guard | 228 |
 | `test_emit_publication.py` | `emit.py` — the staged all-or-nothing publication of the dataset pair | 75 |
 
 The last two subject the modules that carry no adapter of their own: `cli.py`'s
-composition and its refusal to write outside the log directory it owns, and `emit.py`'s
-publication protocol — the staged write, the typed re-parse of both written files, and
-the boundary that refuses a `start_line` below 1.
+composition, its option surface — including `--repo-root`, the flag by which the dataset
+owner root is declared on the command line rather than inherited from the environment —
+and its refusal to write outside the roots it owns; and `emit.py`'s publication
+protocol — the staged write, the typed re-parse of both written files, and the boundary
+that refuses a `start_line` below 1.
 
 One property is common to all 10 and is stated once: every rejection class is
 asserted **by name** against a member of `normalize.paths.REJECT_CLASSES` read from the
@@ -561,6 +575,23 @@ three SARIF producers share one key, that the routing decision is a key rather t
 module, that an `osv-scanner` key exists so a legitimately written artifact would have
 routed rather than falling into the halt path, that an unknown shape halts by name, and
 that detection is **content-based, not filename-based**.
+
+Detection only decides how a document that is read is routed, so this module also asserts
+the boundary that decides **which documents are read at all**. AAP 0.8.1 makes the raw
+tree runner-only — one artifact per tool that writes one, and nothing else ever — so a
+direct child of that tree outside the nine fixed filenames is a condition the run cannot
+adapt around: there is no writer to attribute it to and no shape it is licensed to have.
+Three tests hold that line. One asserts a tree of recognised artifacts alone returns
+normally, so the boundary is not simply refusing everything. One asserts an unexpected
+direct child **stops the run** under the named halt reason
+`raw-directory-unexpected-entry` and that both dataset deliverables already on disk are
+left byte-for-byte as they were, so a halt cannot half-publish. One asserts the same
+workspace **without** that child stops somewhere else entirely, which is what
+distinguishes a boundary that fired on the child from one that would have failed anyway.
+The evidence the halt records is deliberately filesystem-level only — the name, whether
+it is a directory or a symlink, its byte size, and whether it carries an expected
+name — because reading further into a document in that tree to guess a writer for it is
+the fingerprinting AAP 0.8.1 forbids.
 
 ### `test_reconciliation.py`
 

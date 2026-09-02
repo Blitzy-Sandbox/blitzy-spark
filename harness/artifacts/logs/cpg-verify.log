@@ -20,6 +20,13 @@ WHAT THIS FILE ESTABLISHES
   are recorded separately, with the graph's identity re-verified immediately
   before the load.
 
+  HOW THIS FILE IS ORGANISED. PHASES 1 to 3 and APPENDIX A are about the graph
+  at the sanctioned path, the one every stage of this run loaded. PART 2, at
+  the end of the file, is about a DIFFERENT graph: the per-module witness graph
+  of harness/artifacts/logs/cpg-frontend.log PART 2, loaded in its own JVM to
+  answer a frontend-capability question. Nothing in PART 2 is a verdict about
+  the graph the runners read, and PART 2 states that at its head.
+
 ================================================================================
 SUBJECT
 ================================================================================
@@ -66,8 +73,9 @@ PROVENANCE - WHO BUILT THIS GRAPH, STATED BEFORE ITS NUMBERS ARE USED
   harness/artifacts/logs/cpg-input-inventory.json. This run's own frontend
   invocation over the full-reactor build's complete 191-archive input set
   failed at flatgraph's string-pool ceiling and wrote no graph
-  (harness/artifacts/logs/cpg-frontend.log; the mechanism re-verified at two
-  heaps in harness/artifacts/logs/cpg-ceiling-reverify.log). The AAP
+  (harness/artifacts/logs/cpg-frontend.log; the mechanism re-verified at
+  three heaps - 8g, 64g and 128g - in
+  harness/artifacts/logs/cpg-ceiling-reverify.log). The AAP
   requirement that the graph be created by this run over every JAR the build
   produced is UNMET, is unmeetable at this pin, and is published as a
   divergence. What this file establishes is what the graph the Joern stages DO
@@ -82,6 +90,17 @@ PROVENANCE - WHO BUILT THIS GRAPH, STATED BEFORE ITS NUMBERS ARE USED
 ================================================================================
 PHASE 1 - THE THREE COUNTS, AGAINST THE EXPECTED VALUES
 ================================================================================
+
+  WHAT GRAPH THESE THREE COUNTS ARE OF: the bytes at the sanctioned path, which
+  PROVISIONING wrote over a 62-archive / 285,122,371-byte input set drawn from
+  31 modules, with -tests and connect-shims archives excluded by its own
+  instruction (PROVENANCE above; harness/artifacts/logs/cpg-graph-record.log).
+  They are NOT the counts of a graph over every JAR the reactor produced - no
+  such graph exists at this pin, for the reason in cpg-frontend.log STEP 8 - and
+  no figure in this PHASE may be cited as one. The expected column is the AAP's
+  anchor set, which was itself measured over a narrower input set again; the
+  comparison below is anchor-versus-observed and is not, and cannot be, a
+  check that an all-JAR graph was built.
 
   count                     expected    observed       delta  rule
   methods                    898,336   1,396,899    +498,563  ONE-SIDED: floor 853,420, no upper bound
@@ -224,6 +243,27 @@ PHASE 2 - PER-MODULE COVERAGE, BY INJECTIVE EVIDENCE
   and no coverage verdict is obtainable for any of them. This is a direct
   consequence of the graph being provisioning's rather than this run's, and it
   is the coverage cost of the unmet all-JAR requirement.
+
+  TALLY AGAINST THE 38 JAR-PRODUCING PROJECTS OF THE FULL REACTOR:
+
+    COVERED on injective evidence                                 26
+    in this input set but owning no admissible witness             5
+    with no archive in this input set at all                       7
+                                                                 ---
+    without a COVERED verdict                                     12
+    total JAR-producing reactor projects                          38
+
+  So a coverage verdict for all 38 JAR-producing projects is NOT obtainable
+  from this graph: twenty-six are established here, twelve are not, and each of
+  the twelve is named above with the reason it is not. The per-project map, with
+  one entry and one reason per project, is owned by
+  harness/artifacts/logs/cpg-module-coverage.json; the figures here are that
+  file's, cited rather than re-derived. The shortfall is attributable to the
+  graph's provenance and NOT to the build: all 38 JAR-packaging projects did
+  produce their own artifact (harness/artifacts/logs/build-reactor.log, BUILD
+  SUCCESS with 'jar-packaging WITHOUT one : []'), and all 191 own artifacts were
+  staged and supplied to this run's own frontend, which then failed in
+  persistence (cpg-frontend.log STEP 1 and STEP 8).
 
 ================================================================================
 PHASE 3 - THE PROBE SURFACE THE STAGE 5 QUERIES REASON ABOUT
@@ -414,6 +454,365 @@ probe-surface org.apache.spark.deploy.rest.StandaloneRestServer -> typeDecls=2 m
 probe-surface org.apache.spark.storage.DiskStore -> typeDecls=2 methods=114
 wrote /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-013/cpg-verify-measured.json
 closing/saving project `spark.cpg`
+
+####################################################################################################
+PART 2 - THE PER-MODULE WITNESS GRAPH: importCpg LOAD AND THE 38 MODULE WITNESSES
+####################################################################################################
+
+  WHAT THIS PART IS. PHASES 1 to 3 above verify the graph at the sanctioned path - the graph
+  every stage of this run loaded, written by provisioning. PART 2 verifies a DIFFERENT graph:
+  the per-module witness graph recorded in harness/artifacts/logs/cpg-frontend.log PART 2,
+  built by an earlier lane of this generation over exactly one primary artifact per
+  JAR-producing module. It exists to answer one question and nothing more: does this frontend,
+  from a module's own primary artifact, produce that module's witness into a loadable graph?
+
+  WHAT IT IS NOT. Not the graph AAP 0.5.1 mandates. Not written to harness/cpg/spark.cpg, which
+  is unchanged by it. Loaded by no runner and by no probe query. Contributing no row to
+  findings.json or findings.csv. It does not satisfy divergence D1, and no witness recorded
+  below is a coverage verdict for the graph the runners read - those verdicts are PHASE 2 above
+  and harness/artifacts/logs/cpg-module-coverage.json, where 12 of the 38 JAR-producing
+  projects have no COVERED verdict and none is asserted for them.
+
+====================================================================================================
+STEP P1 - the graph's identity, re-verified immediately before this load, and again after it
+====================================================================================================
+
+  path                /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/cpg/witness.cpg
+  write-time bytes    418,777,229          (cpg-frontend.log PART 2, W4)
+  write-time sha256   8d3462b78d3c4b009c994d1ae838b6266aa2af3e68b3c0fbdcbd3b3f630ad41d
+  pre-load bytes      418,777,229
+  pre-load sha256     8d3462b78d3c4b009c994d1ae838b6266aa2af3e68b3c0fbdcbd3b3f630ad41d
+  post-load bytes     418,777,229
+  post-load sha256    8d3462b78d3c4b009c994d1ae838b6266aa2af3e68b3c0fbdcbd3b3f630ad41d
+  match, all three    True
+  identity unchanged by the load  true
+  measured at         2026-09-02T14:47:26.573Z (before) / 2026-09-02T14:55:17.059Z (after)
+
+  The rule the plan applies to the mandated graph is applied here without relaxation: identity
+  recorded at write time, recomputed and compared immediately before the load, and the
+  comparison logged. A mismatch would have stopped this measurement rather than weakened it.
+  The post-load pair is recorded as well because this graph is retained evidence published by
+  record in oss-scan-results/run-record.md, so a load that altered it would be a defect in
+  itself: importCpg took its own working copy, and the bytes are provably untouched.
+
+====================================================================================================
+STEP P2 - the load, and the workspace it wrote into
+====================================================================================================
+
+  workspace           /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-022/F3/joern-witness-verify-ws
+  absent before use   True - the driver refuses to reuse an existing workspace (exit 91)
+  outside every repository checkout, never reused and never cleared
+  JDK major           21 (openjdk version "21.0.12.1" 2026-08-18 LTS)
+  heap                -J-Xmx64g with JAVA_TOOL_OPTIONS=-Xmx64g
+  commit proof        java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version exit=0
+  script              /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-022/F3/verify-witness-w022.sc
+  script sha256       2ae4a1fc6624fdb4f90b22c120bf22c6ee8b5ed65ac3990321a69922297d7242
+  importCode          used nowhere: 0 occurrences in the script
+  exit code           0
+  load elapsed        458 s
+
+  importCpg is called as a STATEMENT and the ambient cpg is used: it returns Option[Cpg], so
+  binding it and dereferencing .method would not compile. This JVM is additional to the AAP's
+  four heap-bound invocations - the frontend build, the verification load of PHASES 1 to 3, the
+  Stage 3 Joern runner and the Stage 5 probe. It loads a graph the AAP did not mandate, so it is
+  recorded here with its own command, JDK and heap and is not counted among those four.
+
+====================================================================================================
+STEP P3 - counts reported by the load
+====================================================================================================
+
+  methods                          994,192
+  methods_greater_than_zero        True
+  type_declarations                97,292
+  files                            45,680
+  file nodes ending .class         45,493
+  file nodes ending pom.properties 84
+  file nodes containing META-INF   176
+
+  These counts are NOT compared against the expected-values table and no floor is applied to
+  them. The 898,336 / 87,381 / 38,818 anchors and the 853,420 one-sided floor govern the
+  mandated complete-input graph; applying them to a deliberately narrower capability graph
+  would be comparing two different things. They are reported as what this graph contains, over
+  38 artifacts, 130,718,491 bytes and 52,584 class entries - against 99,723 class entries in
+  the complete 191-archive set whose serialization failed (cpg-frontend.log STEP 8).
+
+====================================================================================================
+STEP P4 - the 38 module witnesses, one query each
+====================================================================================================
+
+The test is AAP 0.5.1's, unchanged: a class present in that module's PRIMARY artifact and
+absent from every other module's artifacts. Exclusivity was established against the COMPLETE
+191-archive inventory rather than against this narrower input set - the stronger reading, and
+the one that keeps these witnesses comparable with PHASE 2's. Where no class is exclusive the
+row is labelled for what it is: a least-shared class, which is PRESENCE evidence and NOT a
+coverage verdict, or the module-exclusive pom.properties node, which is the one weaker witness
+AAP 0.5.1 admits.
+
+  module                                 witness kind                decls methods  pres  witness
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------
+  common/sketch                          class exclusive to the module     1      14  True  org.apache.spark.util.sketch.BitArray
+  common/kvstore                         class exclusive to the module     1       2  True  org.apache.spark.util.kvstore.ArrayWrappers
+  common/network-common                  least-shared class - presence evidence only     1      19  True  org.apache.spark.network.TransportContext
+  common/network-shuffle                 least-shared class - presence evidence only     1       7  True  org.apache.spark.network.sasl.ShuffleSecretManager
+  common/unsafe                          class exclusive to the module     1       6  True  org.apache.spark.sql.catalyst.expressions.HiveHasher
+  common/utils                           class exclusive to the module     1       8  True  org.apache.spark.BreakingChangeInfo
+  common/utils-java                      least-shared class - presence evidence only     1       8  True  org.apache.spark.QueryContext
+  common/variant                         class exclusive to the module     1       4  True  org.apache.spark.types.variant.ShreddingUtils
+  common/tags                            least-shared class - presence evidence only     2       0  True  org.apache.spark.annotation.AlphaComponent
+  sql/connect/shims                      module-exclusive pom.properties - the weaker witness     1          True  META-INF/maven/org.apache.spark/spark-connect-shims_2.13/pom.properties
+  core                                   class exclusive to the module     1      27  True  org.apache.spark.Aggregator
+  graphx                                 class exclusive to the module     1      60  True  org.apache.spark.graphx.Edge
+  mllib                                  class exclusive to the module     1      10  True  org.apache.spark.ml.Estimator
+  mllib-local                            class exclusive to the module     1       6  True  org.apache.spark.ml.impl.Utils
+  tools                                  class exclusive to the module     1       2  True  org.apache.spark.tools.GenerateMIMAIgnore
+  streaming                              class exclusive to the module     1       8  True  org.apache.spark.status.api.v1.streaming.ApiStreamingApp
+  sql/api                                least-shared class - presence evidence only     2       2  True  org.apache.spark.api.java.function.FlatMapGroupsWithStateFunction
+  sql/catalyst                           class exclusive to the module     1      20  True  org.apache.spark.sql.catalyst.AliasIdentifier
+  sql/core                               class exclusive to the module     1       7  True  org.apache.parquet.filter2.predicate.SparkFilterApi
+  sql/hive                               class exclusive to the module     1       7  True  org.apache.hadoop.hive.ql.exec.HiveFunctionRegistryUtils
+  sql/pipelines                          class exclusive to the module     1       0  True  org.apache.spark.sql.pipelines.AnalysisWarning
+  sql/connect/server                     class exclusive to the module     1      63  True  com.google.apps.card.v1.Action
+  sql/connect/common                     least-shared class - presence evidence only     2       6  True  javax.annotation.Generated
+  sql/connect/client/jdbc                class exclusive to the module     1       8  True  org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver
+  sql/connect/client/jvm                 class exclusive to the module     1       1  True  org.apache.spark.sql.application.ConnectRepl
+  examples                               class exclusive to the module     1       1  True  org.apache.spark.examples.AccumulatorMetricsTest
+  repl                                   class exclusive to the module     1      12  True  org.apache.spark.repl.Main
+  launcher                               class exclusive to the module     1      15  True  org.apache.spark.launcher.AbstractAppHandle
+  connector/kafka-0-10-token-provider    least-shared class - presence evidence only     2       2  True  org.apache.spark.kafka010.ExceptionsHelper
+  connector/kafka-0-10                   least-shared class - presence evidence only     2      50  True  org.apache.spark.streaming.kafka010.Assign
+  connector/kafka-0-10-assembly          class exclusive to the module     1       0  True  com.fasterxml.jackson.annotation.JacksonAnnotation
+  connector/kafka-0-10-sql               class exclusive to the module     1      61  True  org.apache.spark.sql.kafka010.AssignStrategy
+  connector/avro                         class exclusive to the module     1      53  True  org.apache.spark.sql.avro.AvroDataToCatalyst
+  connector/protobuf                     class exclusive to the module     1      41  True  org.apache.spark.sql.protobuf.CatalystDataToProtobuf
+  resource-managers/yarn                 class exclusive to the module     1       9  True  org.apache.spark.deploy.yarn.AmIpFilter
+  common/network-yarn                    class exclusive to the module     1      18  True  org.apache.spark.network.yarn.YarnShuffleService
+  resource-managers/kubernetes/core      class exclusive to the module     1     127  True  org.apache.spark.deploy.k8s.Config
+  sql/hive-thriftserver                  class exclusive to the module     1      13  True  org.apache.hive.service.AbstractService
+  ------------------------------------------------------------------------------------------------------------------------------------------------------------
+  witness rows 38   present 38   absent 0
+  by kind: 29 a class exclusive to the module, 1 the module-exclusive pom.properties node,
+           8 a least-shared class carrying presence evidence only
+
+  WHAT THIS ESTABLISHES: for every one of the 38 JAR-producing modules, the frontend did
+  produce that module's own primary artifact into a loadable graph - the witness resolves in
+  the graph in all 38 cases, including the 7 projects that have no archive at all in the
+  sanctioned graph's input set and the 5 whose classes are vendored away there. That is a
+  statement about THIS graph and about the frontend, and it is exactly why the 12 missing
+  verdicts in cpg-module-coverage.json are attributable to the sanctioned graph's input set
+  rather than to the build or to the frontend.
+
+  WHAT IT DOES NOT ESTABLISH: coverage of the graph at harness/cpg/spark.cpg. A witness found
+  here says nothing about a graph built from a different input set, and the 8 presence-only
+  rows would not be admissible as coverage verdicts even for this graph.
+
+====================================================================================================
+STEP P5 - the sql/connect/shims collision, resolved by querying this graph
+====================================================================================================
+
+In THIS input set the shims primary artifact is present, so the collision AAP 0.5.1 anticipates
+is real here: each stub class the shims artifact ships is also shipped by core or sql/core.
+Which definition survived extraction is NOT measurable from the frontend's output, so no winner
+map is claimed. What IS in the graph is queried and reported.
+
+  class                                                       decls  methods
+  org.apache.spark.SparkConf                                      2        8
+  org.apache.spark.SparkContext                                   2        2
+  org.apache.spark.rdd.RDD                                        2        8
+  org.apache.spark.api.java.JavaRDD                               2        2
+  org.apache.spark.sql.ExperimentalMethods                        2        2
+  org.apache.spark.sql.SparkSessionExtensions                     2        2
+  org.apache.spark.sql.execution.QueryExecution                   2        4
+  org.apache.spark.sql.internal.SessionState                      2        2
+  org.apache.spark.sql.internal.SharedState                       2        2
+  org.apache.spark.sql.sources.BaseRelation                       2        2
+  org.apache.spark.sql.util.ExecutionListenerManager              2        2
+  org.apache.spark.unused.UnusedStubClass                        34       34
+
+  Eleven of the twelve carry stub-sized method counts - 2, 4 or 8 methods each - which is what
+  the shims artifact ships them as. The twelfth, org.apache.spark.unused.UnusedStubClass, is
+  the marker class every Spark artifact carries; its 34 declarations are one per contributing
+  archive and it is listed for completeness rather than as a stub measurement.
+
+  THE OTHER SIDE OF THE COMPARISON IS OWNED ELSEWHERE, AND IS NOT RESTATED HERE AS THIS
+  GRAPH'S: in the graph at the sanctioned path, whose input set EXCLUDES both shims archives,
+  the same eleven classes carry full implementations (SparkConf 298, SparkContext 1,100,
+  rdd.RDD 1,022, api.java.JavaRDD 74 and so on). That measurement is
+  harness/artifacts/logs/cpg-shims-collision-measurement.log, taken first-hand against that
+  graph. Reading the two together: in a graph that contains the shims artifact, the stub
+  definitions displaced the real ones for those eleven classes. That is a recorded forward cost
+  of the complete input set the AAP mandates - reported, not acted on, because the AAP forbids
+  the exclusion that would avoid it.
+
+====================================================================================================
+STEP P6 - provenance of this record: who ran this load, when, and what it replaces
+====================================================================================================
+
+  This PART was written on 2026-09-02 by the pass that reconciled this evidence set's
+  citations, and the load it reports was run first-hand at that time in clone w-022. It is not
+  a transcription: the script, the workspace, the console output in STEP P7 and every figure
+  above belong to that run, whose command and digests are in STEP P2.
+
+  What it replaces. cpg-frontend.log PART 2 cited "cpg-verify.log PART 2" and
+  "cpg-verify.log PART 2 STEP P5" for these figures, and this file carried no PART 2 at all:
+  the earlier lane that built the witness graph ran the same 38 witness queries and the same
+  shims queries on 2026-08-31 but its PART 2 was never rendered into this file, so those
+  citations pointed at text that did not exist. They now point here.
+
+  The earlier lane's figures survive in that lane's private scratch and agree with this load
+  exactly, which is recorded because it makes this a second independent measurement rather than
+  a replacement of a lost one: methods 994,192, type declarations 97,292, files 45,680, file
+  nodes ending .class 45,493, ending pom.properties 84, containing META-INF 176, all 38
+  witnesses present, and all twelve shims classes at the same declaration and method counts.
+  Two loads, two JVMs, two clones, one set of figures.
+
+====================================================================================================
+STEP P7 - verbatim console output of this load
+====================================================================================================
+
+Picked up JAVA_TOOL_OPTIONS: -Xmx64g
+Picked up JAVA_TOOL_OPTIONS: -Xmx64g
+executing /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-022/F3/verify-witness-w022.sc
+Creating project `witness.cpg` for CPG at `/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/cpg/witness.cpg`
+Creating working copy of CPG to be safe
+Loading base CPG from: /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-022/F3/joern-witness-verify-ws/workspace/witness.cpg/cpg.bin.tmp
+Adding default overlays to base CPG
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=471787; id=141734392555] -> io.shiftleft.codepropertygraph.generated.nodes.Literal[label=LITERAL; seq=621571; id=90194934787].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.catalyst.util.SparkDateTimeUtils.stringToTimestamp:scala.Option(org.apache.spark.unsafe.types.UTF8String,java.time.ZoneId).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=471787; id=141734392555] -> io.shiftleft.codepropertygraph.generated.nodes.Identifier[label=IDENTIFIER; seq=4852752; id=68724329488].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.catalyst.util.SparkDateTimeUtils.stringToTimestamp:scala.Option(org.apache.spark.unsafe.types.UTF8String,java.time.ZoneId).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=471787; id=141734392555] -> io.shiftleft.codepropertygraph.generated.nodes.Call[label=CALL; seq=3960151; id=30068731223].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.catalyst.util.SparkDateTimeUtils.stringToTimestamp:scala.Option(org.apache.spark.unsafe.types.UTF8String,java.time.ZoneId).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=471787; id=141734392555] -> io.shiftleft.codepropertygraph.generated.nodes.Call[label=CALL; seq=3960148; id=30068731220].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.catalyst.util.SparkDateTimeUtils.stringToTimestamp:scala.Option(org.apache.spark.unsafe.types.UTF8String,java.time.ZoneId).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=471788; id=141734392556] -> io.shiftleft.codepropertygraph.generated.nodes.Call[label=CALL; seq=3960207; id=30068731279].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.catalyst.util.SparkDateTimeUtils.stringToTimestampWithoutTimeZone:scala.Option(org.apache.spark.unsafe.types.UTF8String,boolean).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=471788; id=141734392556] -> io.shiftleft.codepropertygraph.generated.nodes.Call[label=CALL; seq=3960210; id=30068731282].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.catalyst.util.SparkDateTimeUtils.stringToTimestampWithoutTimeZone:scala.Option(org.apache.spark.unsafe.types.UTF8String,boolean).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=471788; id=141734392556] -> io.shiftleft.codepropertygraph.generated.nodes.Identifier[label=IDENTIFIER; seq=4852902; id=68724329638].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.catalyst.util.SparkDateTimeUtils.stringToTimestampWithoutTimeZone:scala.Option(org.apache.spark.unsafe.types.UTF8String,boolean).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=471788; id=141734392556] -> io.shiftleft.codepropertygraph.generated.nodes.Literal[label=LITERAL; seq=621585; id=90194934801].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.catalyst.util.SparkDateTimeUtils.stringToTimestampWithoutTimeZone:scala.Option(org.apache.spark.unsafe.types.UTF8String,boolean).
+Number of outgoing CFG edges from RETURN node: 2
+[WARN ] Found CDG edge starting at RETURN node io.shiftleft.codepropertygraph.generated.nodes.Return[label=RETURN; seq=471790; id=141734392558] -> io.shiftleft.codepropertygraph.generated.nodes.Literal[label=LITERAL; seq=621630; id=90194934846].
+This is most likely caused by an invalid CFG in method org.apache.spark.sql.catalyst.util.SparkDateTimeUtils.stringToTime:scala.Option(org.apache.spark.unsafe.types.UTF8String).
+Number of outgoing CFG edges from RETURN node: 2
+The graph has been modified. You may want to use the `save` command to persist changes to disk.  All changes will also be saved collectively on exit
+[WARN ] org.apache.spark.sql.catalyst.parser.SqlBaseParser.statement:org.apache.spark.sql.catalyst.parser.SqlBaseParser$StatementContext() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.optimizer.DecorrelateInnerQuery$.decorrelate$1:scala.Tuple3(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan,org.apache.spark.sql.catalyst.expressions.AttributeSet,boolean,boolean,boolean) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.util.HyperLogLogPlusPlusHelper$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.internal.LogKeys.$values:org.apache.spark.internal.LogKeys[]() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.internal.LogKeys.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.streaming.ui.StreamingQueryStatisticsPage.generateStatTable:scala.collection.immutable.Seq(org.apache.spark.sql.streaming.ui.StreamingQueryUIData,jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.execution.datasources.v2.DataSourceV2Strategy.apply:scala.collection.immutable.Seq(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.sparkproject.io.netty.handler.codec.http2.HpackHuffmanDecoder.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.streaming.ui.StreamingPage.generateStatTable:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.ui.jobs.JobPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.analysis.FunctionRegistry$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.ui.env.EnvironmentPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.analysis.CheckAnalysis.$anonfun$checkAnalysis0$2:void(org.apache.spark.sql.catalyst.analysis.CheckAnalysis,org.apache.spark.sql.catalyst.plans.logical.LogicalPlan,org.apache.spark.sql.catalyst.plans.logical.LogicalPlan) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.SparkSubmit.prepareSubmitEnvironment:scala.Tuple4(org.apache.spark.deploy.SparkSubmitArguments,scala.Option) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.master.ui.ApplicationPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.master.ui.EnvironmentPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.internal.config.package$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.deploy.master.ui.MasterPage.render:scala.collection.immutable.Seq(jakarta.servlet.http.HttpServletRequest) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.expressions.ScalaUDF.<init>:void(java.lang.Object,org.apache.spark.sql.types.DataType,scala.collection.immutable.Seq,scala.collection.immutable.Seq,scala.Option,scala.Option,boolean,boolean) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.kafka.common.utils.PureJavaCrc32C.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.execution.SparkStrategies$BasicOperators$.apply:scala.collection.immutable.Seq(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.analysis.ResolveSessionCatalog$$anonfun$apply$1.applyOrElse:java.lang.Object(org.apache.spark.sql.catalyst.plans.logical.LogicalPlan,scala.Function1) has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.catalyst.parser.SqlBaseParser.statement:org.apache.spark.sql.catalyst.parser.SqlBaseParser$StatementContext() has more than 4000 definitions
+[WARN ] Skipping.
+[WARN ] org.apache.spark.sql.internal.SQLConf$.<clinit>:void() has more than 4000 definitions
+[WARN ] Skipping.
+The graph has been modified. You may want to use the `save` command to persist changes to disk.  All changes will also be saved collectively on exit
+graph-loaded methods=994192 type_declarations=97292 files=45680
+methods_greater_than_zero=true
+witness common/sketch                            decls=  1 methods=    14 org.apache.spark.util.sketch.BitArray
+witness common/kvstore                           decls=  1 methods=     2 org.apache.spark.util.kvstore.ArrayWrappers
+witness common/network-common                    decls=  1 methods=    19 org.apache.spark.network.TransportContext
+witness common/network-shuffle                   decls=  1 methods=     7 org.apache.spark.network.sasl.ShuffleSecretManager
+witness common/unsafe                            decls=  1 methods=     6 org.apache.spark.sql.catalyst.expressions.HiveHasher
+witness common/utils                             decls=  1 methods=     8 org.apache.spark.BreakingChangeInfo
+witness common/utils-java                        decls=  1 methods=     8 org.apache.spark.QueryContext
+witness common/variant                           decls=  1 methods=     4 org.apache.spark.types.variant.ShreddingUtils
+witness common/tags                              decls=  2 methods=     0 org.apache.spark.annotation.AlphaComponent
+witness sql/connect/shims                        file_nodes=  1 META-INF/maven/org.apache.spark/spark-connect-shims_2.13/pom.properties
+witness core                                     decls=  1 methods=    27 org.apache.spark.Aggregator
+witness graphx                                   decls=  1 methods=    60 org.apache.spark.graphx.Edge
+witness mllib                                    decls=  1 methods=    10 org.apache.spark.ml.Estimator
+witness mllib-local                              decls=  1 methods=     6 org.apache.spark.ml.impl.Utils
+witness tools                                    decls=  1 methods=     2 org.apache.spark.tools.GenerateMIMAIgnore
+witness streaming                                decls=  1 methods=     8 org.apache.spark.status.api.v1.streaming.ApiStreamingApp
+witness sql/api                                  decls=  2 methods=     2 org.apache.spark.api.java.function.FlatMapGroupsWithStateFunction
+witness sql/catalyst                             decls=  1 methods=    20 org.apache.spark.sql.catalyst.AliasIdentifier
+witness sql/core                                 decls=  1 methods=     7 org.apache.parquet.filter2.predicate.SparkFilterApi
+witness sql/hive                                 decls=  1 methods=     7 org.apache.hadoop.hive.ql.exec.HiveFunctionRegistryUtils
+witness sql/pipelines                            decls=  1 methods=     0 org.apache.spark.sql.pipelines.AnalysisWarning
+witness sql/connect/server                       decls=  1 methods=    63 com.google.apps.card.v1.Action
+witness sql/connect/common                       decls=  2 methods=     6 javax.annotation.Generated
+witness sql/connect/client/jdbc                  decls=  1 methods=     8 org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver
+witness sql/connect/client/jvm                   decls=  1 methods=     1 org.apache.spark.sql.application.ConnectRepl
+witness examples                                 decls=  1 methods=     1 org.apache.spark.examples.AccumulatorMetricsTest
+witness repl                                     decls=  1 methods=    12 org.apache.spark.repl.Main
+witness launcher                                 decls=  1 methods=    15 org.apache.spark.launcher.AbstractAppHandle
+witness connector/kafka-0-10-token-provider      decls=  2 methods=     2 org.apache.spark.kafka010.ExceptionsHelper
+witness connector/kafka-0-10                     decls=  2 methods=    50 org.apache.spark.streaming.kafka010.Assign
+witness connector/kafka-0-10-assembly            decls=  1 methods=     0 com.fasterxml.jackson.annotation.JacksonAnnotation
+witness connector/kafka-0-10-sql                 decls=  1 methods=    61 org.apache.spark.sql.kafka010.AssignStrategy
+witness connector/avro                           decls=  1 methods=    53 org.apache.spark.sql.avro.AvroDataToCatalyst
+witness connector/protobuf                       decls=  1 methods=    41 org.apache.spark.sql.protobuf.CatalystDataToProtobuf
+witness resource-managers/yarn                   decls=  1 methods=     9 org.apache.spark.deploy.yarn.AmIpFilter
+witness common/network-yarn                      decls=  1 methods=    18 org.apache.spark.network.yarn.YarnShuffleService
+witness resource-managers/kubernetes/core        decls=  1 methods=   127 org.apache.spark.deploy.k8s.Config
+witness sql/hive-thriftserver                    decls=  1 methods=    13 org.apache.hive.service.AbstractService
+shims-class org.apache.spark.SparkConf                                 decls=  2 methods=     8
+shims-class org.apache.spark.SparkContext                              decls=  2 methods=     2
+shims-class org.apache.spark.rdd.RDD                                   decls=  2 methods=     8
+shims-class org.apache.spark.api.java.JavaRDD                          decls=  2 methods=     2
+shims-class org.apache.spark.sql.ExperimentalMethods                   decls=  2 methods=     2
+shims-class org.apache.spark.sql.SparkSessionExtensions                decls=  2 methods=     2
+shims-class org.apache.spark.sql.execution.QueryExecution              decls=  2 methods=     4
+shims-class org.apache.spark.sql.internal.SessionState                 decls=  2 methods=     2
+shims-class org.apache.spark.sql.internal.SharedState                  decls=  2 methods=     2
+shims-class org.apache.spark.sql.sources.BaseRelation                  decls=  2 methods=     2
+shims-class org.apache.spark.sql.util.ExecutionListenerManager         decls=  2 methods=     2
+shims-class org.apache.spark.unused.UnusedStubClass                    decls= 34 methods=    34
+file_nodes_ending_pom_properties=84 file_nodes_containing_META-INF=176 file_nodes_ending_class=45493
+wrote /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-022/F3/witness-verify-result.json
+WITNESS-VERIFY-COMPLETE
+closing/saving project `witness.cpg`
+
+====================================================================================================
+END OF PART 2
+====================================================================================================
 
 ================================================================================
 END - cpg-verify.log

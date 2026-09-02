@@ -9,8 +9,9 @@ WHAT THIS FILE ESTABLISHES
 
   That the failure which prevents this run from persisting a graph over the
   complete input set is a fixed JVM array-length bound rather than a heap
-  shortage, established by running the probe at two different heaps in this
-  clone rather than by citing an earlier run's conclusion. flatgraph 0.1.32
+  shortage, established by running the probe at three different heaps in this
+  clone - 8 GiB, 64 GiB and 128 GiB - rather than by citing an earlier run's
+  conclusion. flatgraph 0.1.32
   serialises the graph's entire deduplicated string pool by UTF-8 encoding
   each string and appending it to ONE java.io.ByteArrayOutputStream
   (flatgraph.storage.WriterContext.finish, Serialization.scala:174-176). A
@@ -28,11 +29,11 @@ WHY IT MATTERS HERE
   phase, having already built the graph in memory:
   'java.lang.OutOfMemoryError: Required array length 2147483639 + 72 is too
   large' (harness/artifacts/logs/cpg-frontend.log). Raising the heap cannot
-  move a bound on one array's length, and the two arms below are the
+  move a bound on one array's length, and the three arms below are the
   measurement that says so rather than an argument that it should be so.
 
 ================================================================================
-THE PROBE, AND BOTH ARMS VERBATIM
+THE PROBE, AND ALL THREE ARMS VERBATIM
 ================================================================================
 
   Source: harness/artifacts/logs/cpg-frontend-ceiling-probe.txt, retained
@@ -41,6 +42,14 @@ THE PROBE, AND BOTH ARMS VERBATIM
   length and then writes the 77 further bytes the frontend's next string would
   have written. Compiled and run in this clone with the JDK 21 every Joern JVM
   uses (Temurin 21.0.12.1+1).
+
+  Three arms are recorded below, and this file is the only owner of any of
+  them: the -Xmx64g and -Xmx128g arms as first run here, and the -Xmx8g arm
+  added on 2026-09-02T14:52:19.095Z by the pass that reconciled this evidence
+  set's citations, because the probe file states the probe was run at three
+  heaps and the third arm's output had no owner anywhere in the tree. It was
+  not transcribed from anything: the probe source was recompiled with the same
+  javac and run again at 8 GiB, and what follows is that run's stdout.
 
 $ /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/javac CeilingProbe.java && java -Xmx64g CeilingProbe
 java.version      = 21.0.12.1
@@ -64,15 +73,27 @@ THREW            = java.lang.OutOfMemoryError
 MESSAGE          = Required array length 2147483639 + 77 is too large
 buffered bytes   = 2147483639
 
+$ /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/javac CeilingProbe.java && java -Xmx8g CeilingProbe
+java.version      = 21.0.12.1
+java.vm.name      = OpenJDK 64-Bit Server VM
+maxMemory bytes   = 8589934592
+SOFT_MAX          = 2147483639
+buffered bytes    = 2147483639 (== SOFT_MAX: true)
+now writing 77 more bytes, exactly as the frontend's next string would
+THREW            = java.lang.OutOfMemoryError
+MESSAGE          = Required array length 2147483639 + 77 is too large
+buffered bytes   = 2147483639
+
 ================================================================================
-WHAT THE TWO ARMS SHOW
+WHAT THE THREE ARMS SHOW
 ================================================================================
 
-  Identical failure at -Xmx64g and at -Xmx128g: java.lang.OutOfMemoryError
-  'Required array length 2147483639 + 77 is too large', with 2,147,483,639
-  bytes already buffered in both cases. The maxMemory the JVM reports differs
-  by a factor of two between the arms and the failure point does not move by
-  one byte. The bound is therefore on the array, not on the heap, and it
+  Identical failure at -Xmx8g, at -Xmx64g and at -Xmx128g:
+  java.lang.OutOfMemoryError 'Required array length 2147483639 + 77 is too
+  large', with 2,147,483,639 bytes already buffered in all three cases. The
+  maxMemory the JVM reports spans a factor of sixteen across the arms -
+  8,589,934,592, 68,719,476,736 and 137,438,953,472 bytes - and the failure
+  point does not move by one byte. The bound is therefore on the array, not on the heap, and it
   scales with the breadth of the input set - the total UTF-8 size of the
   graph's distinct method, type and file names - rather than with the memory
   or time spent building the graph.

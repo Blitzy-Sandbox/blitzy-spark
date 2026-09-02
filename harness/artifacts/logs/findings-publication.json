@@ -1,6 +1,6 @@
 {
   "schema": "findings-publication-manifest/1.0.0",
-  "document": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs/findings-publication.json",
+  "document": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/findings-publication.json",
   "member_set_id": "7cf07ad9a5f5508383e126dabd8bfcd3",
   "member_set_id_method": "sha256 over each published member's role and content sha256 -- NUL-separated within a member, newline-separated between members, in the order the manifest lists them -- truncated to 32 lowercase hex characters. Computable by a consumer from nothing but the files on disk, which is what makes it a completion record: a set missing a member, or assembled from two generations, yields a value matching neither generation's manifest.",
   "publication_id": "1cbb9d77d199323c62d9da1354f6583b",
@@ -12,13 +12,13 @@
   "members": [
     {
       "role": "findings_json",
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.json",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.json",
       "bytes": 4408640,
       "sha256": "d4e28c823fd1e76c2158130dc941762e0c6cf23424c0c990c930cc84ece6fc54"
     },
     {
       "role": "findings_csv",
-      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/oss-scan-results/findings.csv",
+      "path": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/oss-scan-results/findings.csv",
       "bytes": 2081618,
       "sha256": "9f646532494fcba3ad95a8e10f15f77957b9f16bea0b486b513e2a830f5445e6"
     }
