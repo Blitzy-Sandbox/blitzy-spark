@@ -128,18 +128,26 @@ fixed before any output is observed.
 
 from __future__ import annotations
 
-# Standard library only, and only these four modules:
+# Standard library only, and only these seven modules:
+#   hashlib         -- sha256, so a bounded excerpt is still identified by its whole value;
+#   re              -- the one anchored userinfo pattern, compiled once at import;
 #   collections.abc -- Mapping, so the detector accepts any parsed-JSON mapping;
 #   dataclasses     -- the frozen RoutingDecision;
 #   pathlib         -- PurePath, to take an artifact's filename without importing os;
 #   types           -- MappingProxyType, so the authored tables cannot be mutated by a
-#                      consumer (these are closed sets; a mutable dict invites drift).
+#                      consumer (these are closed sets; a mutable dict invites drift);
+#   typing          -- Final, which the five bounded-guard constants below are annotated
+#                      with. ``from __future__ import annotations`` defers evaluating an
+#                      annotation, it does not supply the name, so Final is imported like
+#                      anything else the module annotates with -- the convention paths.py,
+#                      the six adapters and every helper under harness/lib already follow.
 import hashlib
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import PurePath
 from types import MappingProxyType
+from typing import Final
 
 __all__ = [
     # SARIF detection

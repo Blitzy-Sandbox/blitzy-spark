@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run-joern-gated.sh — the single committed execution path for Stage 3.
+# run-joern-gated.sh — a committed gated execution path for Stage 3.
 #
 # WHY A WRAPPER RATHER THAN A CHANGE TO THE RUNNER
 # ------------------------------------------------
@@ -10,20 +10,43 @@
 # figure exists. AAP 0.8.1 forbids editing a runner or a baked flag, so the check cannot
 # live in the thing it guards.
 #
-# It lives here, and the binding is structural rather than advisory: there is exactly one
-# path through this script to the runner, and it is downstream of a gate exit of 0. A
-# non-zero gate returns from this script without the runner having been invoked at all.
-# That is the whole purpose of the file — an exit status only binds something that reads
-# it, so the reader is committed alongside the gate.
+# It lives here, and WHEN THE RUNNER IS INVOKED THROUGH THIS SCRIPT the binding is
+# structural rather than advisory: there is exactly one path through this script to the
+# runner, and it is downstream of a gate exit of 0. A non-zero gate returns from this
+# script without the runner having been invoked at all. That is the whole purpose of the
+# file — an exit status only binds something that reads it, so the reader is committed
+# alongside the gate.
+#
+# WHAT THIS SCRIPT IS NOT: THE ONLY ROUTE TO THE RUNNER
+# -----------------------------------------------------
+# The binding above is conditional on this script being the caller, and nothing makes it
+# the only caller. harness/bin/run-joern.sh is executable in its own right, and AAP 0.8.1
+# requires each runner invoked directly with no arguments, so Stage 3 can be run without
+# this wrapper — in which case this gate is not read and does not bind.
+#
+# The Stage 3 invocation ON RECORD was exactly that: line 3 of
+# harness/artifacts/logs/joern.runner-console.log records
+# argv=["./harness/bin/run-joern.sh"] for the load that started 2026-09-01T14:25:10Z,
+# ended 14:41:24Z and exited 0, and harness/artifacts/logs/runner-sequence.json records
+# the same argv for its ninth invocation. So this script is committed and available, but
+# it was NOT the executed path for that load and its gate was therefore not exercised
+# for it.
+#
+# The contemporaneous identity evidence for that load is the runner's own recompute:
+# harness/bin/run-joern.sh lines 57-58 stat and sha256 the resolved graph and print both
+# at load time, and they appear verbatim on joern.runner-console.log lines 14-15 as
+# 541309809 / 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7. That is a
+# print, not a comparison — which is the gap this script closes for any invocation routed
+# through it, and which an operator calling the runner directly does not get.
 #
 # WHAT IT DOES NOT DO
 # -------------------
 # It does not modify, wrap or re-order anything inside the runner, and it passes the
 # runner NO arguments — AAP 0.8.1 requires each runner invoked directly with none, and a
-# runner handed one exits 64 without scanning. It sets no baked flag. The heap is raised
-# only through the runner's own documented JAVA_TOOL_OPTIONS override, which AAP 0.6.5
-# classifies as a runtime value rather than a configuration edit; raising is permitted and
-# reported, lowering is not, so this script refuses to lower it.
+# runner handed one exits 64 without scanning. It sets no baked flag. The heap reaches the
+# query's JVM only through the runner's own documented JAVA_TOOL_OPTIONS override, which
+# AAP 0.6.5 classifies as a runtime value rather than a configuration edit; raising is
+# permitted and reported, lowering is not, so this script refuses to lower it.
 #
 # EXIT STATUS
 # -----------
@@ -75,20 +98,41 @@ if [ "$_gate_rc" -ne 0 ]; then
   exit "$_gate_rc"
 fi
 
-# The heap, raised through the runner's own documented override and reported.
+# The heap the query's own JVM runs at, supplied through the runner's documented override
+# and printed.
 #
 # harness/bin/run-joern.sh bakes -J-Xmx"$HARNESS_JOERN_HEAP" (64g by default), but
 # `joern --script` forks a CHILD JVM and does not forward -J-Xmx to it, so the heap the
-# query actually runs at is whatever JAVA_TOOL_OPTIONS supplies. This run needs more than
-# the 64 g minimum -- the verification load over this graph peaked at ~193 GB RSS -- so the
-# value is raised here and printed, which AAP 0.6.5 classifies as a runtime value rather
-# than a configuration edit.
+# query actually runs at is whatever JAVA_TOOL_OPTIONS supplies. That mechanism is why
+# this line exists at all; AAP 0.6.5 classifies supplying the value here as a runtime
+# value rather than a configuration edit.
+#
+# 64 g is BOTH the floor and the default here, which is AAP 0.8.2's "minimum and default"
+# taken literally, and it is the value the delivered Stage 3 invocation ran at:
+# oss-scan-results/run-record.md 6.3 and runner-metadata.json's
+# tools.joern.heap_override.value_in_force both record 64g, "not raised and never
+# lowered". So the default reserves nothing this run has not already committed.
+#
+# HARNESS_JOERN_JVM_HEAP_G raises it, and AAP 0.8.2 requires any value above the floor to
+# be itself proven committable BEFORE use, by the same test the gate applies --
+#     java -Xms<n>g -Xmx<n>g -XX:+AlwaysPreTouch -version    exiting 0
+# -- with the raise reported. Two values carry that commit proof in this run's evidence and
+# no others do: 64 GiB and 128 GiB, both arms recorded in
+# harness/artifacts/logs/cpg-frontend.log STEP 2, and 64 GiB again in the gate's own
+# -Xms64g -Xmx64g +AlwaysPreTouch proof. harness/artifacts/logs/cpg-ceiling-reverify.log
+# additionally ran the 21 JDK at -Xmx64g and -Xmx128g, which corroborates that both heaps
+# start on this host without being a pre-touch proof itself. Raising above 128 g therefore
+# means producing the proof first rather than assuming the host will commit it -- and this
+# host is shared, so an unproven reservation is somebody else's failure as well as this
+# run's. For scale, the committed cost figures are the frontend's 113.3 GiB peak RSS
+# against a -J-Xmx128g heap (cpg-frontend.log STEP 5) and the importCpg verification
+# load's own run at -J-Xmx64g (cpg-verify.log).
 #
 # AAP 0.8.2's rule has a DIRECTION: raising is permitted and reported, lowering is not,
 # because a heap made to fit produces a truncated result whose silence is indistinguishable
 # from a clean one. That direction is enforced below rather than trusted: a value under the
 # 64 g floor is refused outright.
-_heap_g="${HARNESS_JOERN_JVM_HEAP_G:-160}"
+_heap_g="${HARNESS_JOERN_JVM_HEAP_G:-64}"
 case "$_heap_g" in
   ''|*[!0-9]*)
     printf 'run-joern-gated.sh: HARNESS_JOERN_JVM_HEAP_G must be whole gigabytes, got %s\n' \
@@ -107,7 +151,7 @@ export JAVA_TOOL_OPTIONS="-Xmx${_heap_g}g"
 
 # Reached only on a gate exit of 0. There is no other route to the line below.
 printf '\n== step 2/2: the Stage 3 runner, directly, with no arguments ==\n'
-printf 'heap raised to  : %s (the runner bakes -J-Xmx%s, which joern --script does not\n' \
+printf 'heap in force   : %s (the runner bakes -J-Xmx%s, which joern --script does not\n' \
   "$JAVA_TOOL_OPTIONS" "$HARNESS_JOERN_HEAP"
 printf '                  forward to the child JVM that runs the query)\n'
 printf 'runner started  : %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"

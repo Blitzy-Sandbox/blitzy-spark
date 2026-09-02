@@ -27,6 +27,43 @@ tree state, a frontend subtotal, and the probe revision triple.  The two overlap
 on the suite's elapsed pair, deliberately: that figure drifted more often than any
 other, and a second independent check on it costs nothing.
 
+The three citation families, and the failure that put them here
+--------------------------------------------------------------
+Neither module originally checked the *shape* of a citation, only the value it
+carried, and a whole class of defect lives in that gap.  One commit replaced the nine
+``<tool>.status`` files with the runners' own seven-line trailers and replaced
+``cpg-verify.log``, both correct changes -- and left sixteen prose citations pointing
+at fields and line numbers that had ceased to exist, plus four passages asserting that
+files the same commit had *restored* were absent.  Every one of those citations named a
+file that exists, so no owner/copy value disagreed and both gates passed while a reader
+following the document was sent nowhere.  AAP 0.9.4 requires every number to name a
+file that exists; what it means in practice is that the *locator* must resolve too.
+
+So three further families are adjudicated here, each over every result document:
+
+* **``.status`` field citations.**  A ``<tool>.status`` file is the runner's verbatim
+  ``scope_finish`` trailer and carries exactly seven ``key=value`` lines.  The owner is
+  the file itself, read at run time, so the check survives a runner that adds a field.
+  A citation naming anything else fails.
+* **Line-number citations.**  ``file line N`` and ``file:N-M``, resolved against the
+  cited file's actual length.  Restricted to this run's own surface -- the evidence
+  trees, the harness, the queries and the result documents -- because a citation into
+  the pinned Spark tree or the private build clone is expressed against another root
+  and cannot be adjudicated from here.
+* **Absence claims.**  A path published as absent must be absent, and the converse:
+  the failure observed was a table listing six present files as unresolvable, which is
+  worse than a broken citation because it is load-bearing for a conclusion.
+
+Each family distinguishes a **live** citation from one **labelled as history**.  A
+document that says "an earlier generation quoted an enriched ``joern.status`` at lines
+274-275; that field no longer exists" is doing exactly what AAP 0.9.4 asks -- naming a
+superseded locator so a reader is not sent to it -- and must not fail for quoting the
+thing it is retracting.  The markers are a fixed vocabulary, listed in
+``HISTORY_MARKERS`` and scoped to the containing table row or paragraph, so a
+document cannot excuse a live citation by mentioning the word "superseded" elsewhere.
+History-marked citations are counted and reported rather than hidden, because a gate
+that can be silenced by a marker needs its silences visible.
+
 Design notes
 ------------
 * Every assertion names the owner and the copy.  A failure that says only "these
@@ -68,6 +105,56 @@ MANIFEST = ROOT / "harness/artifacts/MANIFEST.json"
 RUN_RECORD = RESULTS / "run-record.md"
 TOOL_STATUS = RESULTS / "tool-status.md"
 PROBE_REPORT = RESULTS / "joern-probe.md"
+BUILD_RECORD = RESULTS / "build-record.md"
+SEVERITY_MAP = RESULTS / "severity-map.md"
+
+# Every result document the citation families are adjudicated over.  Named as a tuple
+# rather than globbed so that adding a result document is a deliberate act: a new file
+# that nobody added here would go unchecked, and silently.
+RESULT_DOCUMENTS = (RUN_RECORD, TOOL_STATUS, PROBE_REPORT, BUILD_RECORD, SEVERITY_MAP)
+
+# Phrases that mark a citation as one the document is RETRACTING rather than relying
+# on.  Deliberately narrow, and matched only inside the citation's own table row or
+# paragraph: a document must not be able to excuse a live citation by using the word
+# "superseded" three sections away.
+HISTORY_MARKERS = (
+    "supersed",           # superseded, supersedes, supersession
+    "earlier generation",
+    "an earlier revision",
+    "earlier edition",
+    "previous edition",
+    "as history",
+    "no longer",
+    "does not carry",
+    "holds no",
+    "ceased to exist",
+    "was replaced",
+    "were replaced",
+    "replaced all nine",
+    "not a source",
+    "which no longer exists",
+    "previously listed",
+    "previously published",
+    "have been removed from the table",
+)
+
+# The subtrees a line-number citation can be adjudicated against.  A citation into the
+# pinned Spark tree (`pom.xml:29`), into the private by-SHA build clone, or into a
+# staging tree that no longer exists is expressed against another root and is out of
+# this gate's reach -- saying so is honest, and pretending otherwise would make the
+# gate fail on correct citations.
+ADJUDICABLE_PREFIXES = (
+    "harness/artifacts/logs/",
+    "harness/artifacts/raw/",
+    "harness/artifacts/MANIFEST.json",
+    "harness/lib/",
+    "harness/bin/",
+    "harness/scope/",
+    "harness/ENVIRONMENT.md",
+    "harness/env.sh",
+    "queries/joern/",
+    "oss-scan-results/",
+)
 
 
 # ----------------------------------------------------------------- result plumbing
@@ -101,6 +188,22 @@ class Gate:
         ok = found not in (None, "", [], ())
         self.rows.append((ok, name, owner, copy_source,
                           "" if ok else (why or "projection absent from the document")))
+
+    def clear(self, name: str, owner: str, copy_source: str,
+              offenders: list[str]) -> None:
+        """Record that a whole class of citation resolves, naming every one that does not.
+
+        The owner/copy form above compares two values.  A citation family has no single
+        value to compare -- what it has is a population, and the assertion is that the
+        population of unresolvable members is empty.  Every offender is named in the
+        detail, because a count alone sends the reader hunting for which one broke.
+        """
+        ok = not offenders
+        detail = "" if ok else (
+            f"{len(offenders)} unresolvable: " + "; ".join(offenders[:12])
+            + ("" if len(offenders) <= 12 else f"; (+{len(offenders) - 12} more)")
+        )
+        self.rows.append((ok, name, owner, copy_source, detail))
 
     def report(self) -> int:
         width = max(len(r[1]) for r in self.rows)
@@ -554,6 +657,259 @@ def check_manifest_totals(g: Gate, manifest: dict, rr: str) -> None:
                       rf"([\d,]+) bytes", rr))
 
 
+# --------------------------------------------------- the three citation families
+
+def units(body: str) -> list[tuple[int, str]]:
+    """Split a document into the scopes a history marker is allowed to cover.
+
+    A table row is one scope and a blank-line-separated paragraph is another, which is
+    the granularity these documents actually reason at: a divergence register row
+    retracts one citation, and the row beside it must not inherit the retraction.
+    Returns (start offset, text) so a citation's offset can be mapped back to its scope.
+    """
+    out: list[tuple[int, str]] = []
+    offset = 0
+    buf: list[str] = []
+    buf_start = 0
+    for line in body.splitlines(keepends=True):
+        stripped = line.lstrip()
+        if stripped.startswith("|"):
+            if buf:
+                out.append((buf_start, "".join(buf)))
+                buf = []
+            out.append((offset, line))
+        elif not stripped:
+            if buf:
+                out.append((buf_start, "".join(buf)))
+                buf = []
+        else:
+            if not buf:
+                buf_start = offset
+            buf.append(line)
+        offset += len(line)
+    if buf:
+        out.append((buf_start, "".join(buf)))
+    return out
+
+
+def scope_of(offset: int, scopes: list[tuple[int, str]]) -> str:
+    """The table row or paragraph containing `offset`."""
+    found = ""
+    for start, body in scopes:
+        if start <= offset < start + len(body):
+            found = body
+        elif start > offset:
+            break
+    return found
+
+
+def history_marked(scope: str) -> bool:
+    low = scope.lower()
+    return any(marker in low for marker in HISTORY_MARKERS)
+
+
+def status_trailer_fields() -> tuple[set[str], dict[str, int]]:
+    """The nine trailers' actual field names and line counts, read from disk.
+
+    The owner is the file, never a literal here: a runner that grew its trailer would
+    move this set, and a gate carrying its own copy of it would then fail on a correct
+    citation.
+    """
+    fields: set[str] = set()
+    lines: dict[str, int] = {}
+    for path in sorted(LOGS.glob("*.status")):
+        body = text(path)
+        lines[path.name] = len(body.splitlines())
+        for line in body.splitlines():
+            if "=" in line:
+                fields.add(line.split("=", 1)[0].strip())
+    return fields, lines
+
+
+def shell_function_names() -> set[str]:
+    """Function names the shared scope library defines.
+
+    `scope_finish` is the function that WRITES a trailer, so a document naming it beside
+    a `.status` citation is naming the writer rather than claiming a field.  Derived from
+    the library so a renamed function cannot turn into a false positive here.
+    """
+    names: set[str] = set()
+    lib = ROOT / "harness/lib/scope.sh"
+    if lib.exists():
+        names |= set(re.findall(r"^([A-Za-z_][A-Za-z0-9_]*)\s*\(\)\s*\{", text(lib), re.M))
+    return names
+
+
+def check_status_field_citations(g: Gate, docs: dict[str, str]) -> None:
+    """Every `.status` field a document cites must be a field the trailer carries.
+
+    Three citation idioms are recognised, because all three appear in these documents:
+    `field `x``/`fields `x`, `y`` after the filename, a backticked `x=value` beside it,
+    and the bare ``joern.status` `elapsed_seconds`` juxtaposition.  A token that is a
+    sha256, a shell function name or a filename is not a field claim and is not read as
+    one.
+    """
+    fields, _lines = status_trailer_fields()
+    owner = "harness/artifacts/logs/*.status (nine verbatim trailers)"
+    g.present("status trailers readable as the owner of their own field set",
+              owner, owner, sorted(fields),
+              "no harness/artifacts/logs/*.status file could be read")
+    functions = shell_function_names()
+    for name, body in docs.items():
+        scopes = units(body)
+        offenders: list[str] = []
+        history = 0
+        live = 0
+        for m in re.finditer(r"`?([a-z0-9\-]+\.status)`?", body):
+            tail = body[m.end():m.end() + 200]
+            claimed: list[str] = []
+            claimed += re.findall(r"\bfields?\s+`([a-z_][a-z0-9_]*)`", tail)
+            claimed += re.findall(r"`([a-z_][a-z0-9_]*)=", tail)
+            juxtaposed = re.match(r"\s*`([a-z_][a-z0-9_]*)`", tail)
+            if juxtaposed:
+                claimed.append(juxtaposed.group(1))
+            for token in claimed:
+                if token in functions or token in fields:
+                    if token in fields:
+                        live += 1
+                    continue
+                line_no = body.count("\n", 0, m.start()) + 1
+                if history_marked(scope_of(m.start(), scopes)):
+                    history += 1
+                    continue
+                offenders.append(f"{name}:{line_no} cites `{token}` in {m.group(1)}")
+        g.clear(f"status field citations resolve ({name})", owner, name, offenders)
+        print(f"        [{name}: {live} live field citations resolved, "
+              f"{history} retracted as history]")
+
+
+def check_line_number_citations(g: Gate, docs: dict[str, str]) -> None:
+    """Every line citation into this run's own surface must be within the file.
+
+    The failure this catches is the one that actually happened: a 516-line log replaced
+    by a 7-line trailer, leaving `joern.status:391-398` and `lines 274-275` pointing past
+    the end of a file that still exists.
+    """
+    owner = "the cited files themselves, measured on disk"
+    resolved_cache: dict[str, int | None] = {}
+
+    def line_count(candidate: str) -> int | None:
+        if candidate in resolved_cache:
+            return resolved_cache[candidate]
+        target: pathlib.Path | None = None
+        if candidate.startswith(ADJUDICABLE_PREFIXES):
+            target = ROOT / candidate
+        elif "/" not in candidate:
+            probe = LOGS / candidate
+            if probe.exists():
+                target = probe
+        count = None
+        if target is not None and target.is_file():
+            try:
+                count = len(target.read_text(encoding="utf-8", errors="replace")
+                            .splitlines())
+            except OSError:
+                count = None
+        resolved_cache[candidate] = count
+        return count
+
+    # `file lines 12-34`, `file line 12`, and `file:12-34` / `file:12`.
+    patterns = (
+        r"`([A-Za-z0-9_./\-]+\.(?:log|status|json|txt|sarif|md|py|sh|sc))`"
+        r"[^.\n|]{0,40}?\blines?\s+\*{0,2}(\d+)(?:\s*[\u2013\u2014-]\s*(\d+))?",
+        r"`([A-Za-z0-9_./\-]+\.(?:log|status|json|txt|sarif|md|py|sh|sc))"
+        r":(\d+)(?:\s*[\u2013\u2014-]\s*(\d+))?`",
+    )
+    for name, body in docs.items():
+        scopes = units(body)
+        offenders: list[str] = []
+        history = 0
+        live = 0
+        seen: set[tuple[int, str]] = set()
+        for pattern in patterns:
+            for m in re.finditer(pattern, body):
+                cited, low, high = m.group(1), int(m.group(2)), m.group(3)
+                total = line_count(cited)
+                if total is None:                       # another root, or not a file here
+                    continue
+                worst = max(low, int(high) if high else low)
+                key = (m.start(), cited)
+                if key in seen:
+                    continue
+                seen.add(key)
+                if worst <= total:
+                    live += 1
+                    continue
+                line_no = body.count("\n", 0, m.start()) + 1
+                if history_marked(scope_of(m.start(), scopes)):
+                    history += 1
+                    continue
+                offenders.append(
+                    f"{name}:{line_no} cites {cited} line {worst} of {total}")
+        g.clear(f"line citations resolve ({name})", owner, name, offenders)
+        print(f"        [{name}: {live} live line citations resolved, "
+              f"{history} retracted as history]")
+
+
+def check_absence_claims(g: Gate, docs: dict[str, str]) -> None:
+    """A path published as absent must be absent, and one published as present present.
+
+    Both directions matter and both have failed.  A path wrongly listed as absent is the
+    worse of the two, because a conclusion gets built on it -- "no re-execution is
+    possible here" rested on six files that were present all along.
+
+    Scoped to repository-relative paths deliberately.  A claim about a path in another
+    clone's scratch directory is a claim about this host at the moment the document was
+    written, and a sibling clone can create or remove such a path at any time; a gate
+    that flipped with it would be reporting the host's weather rather than the
+    document's correctness.  What is durable, and what failed, is the repository surface.
+    """
+    owner = "the filesystem of this checkout"
+    # The verdict cell must OPEN with the absence verdict.  A cell that merely contains
+    # the word -- "its 62 archives, the 31 present, the 7 absent" is a description of a
+    # reactor, not a claim about the file -- is not an absence claim, and reading it as
+    # one would fail the gate on a correct row.
+    absent_row = re.compile(
+        r"^\|\s*(?P<paths>`[^|]+`)\s*\|\s*(?P<verdict>\**\s*"
+        r"(?:absent|not present|not resolvable|missing)\b[^|]*)\|", re.M | re.I)
+    inline = re.compile(
+        r"`((?:harness|queries|oss-scan-results)/[A-Za-z0-9_./\-]+)`"
+        r"[^.\n|]{0,60}?\b(?:is|are)\s+\*{0,2}absent\b")
+    for name, body in docs.items():
+        scopes = units(body)
+        offenders: list[str] = []
+        checked = 0
+        for m in absent_row.finditer(body):
+            # For a table verdict the history scope is the VERDICT CELL, not the whole
+            # row.  A divergence-register row runs to several hundred words and can
+            # mention a superseded generation for an unrelated reason; letting that
+            # exempt the row's own absence verdict is how a claim stops being checked.
+            # Prose is different and keeps the paragraph scope below, because prose
+            # genuinely does retract an earlier edition's absence claims.
+            if history_marked(m.group("verdict")):
+                continue
+            line_no = body.count("\n", 0, m.start()) + 1
+            for cited in re.findall(r"`([A-Za-z0-9_./\-]+)`", m.group("paths")):
+                if not cited.startswith(("harness/", "queries/", "oss-scan-results/")):
+                    continue
+                checked += 1
+                if (ROOT / cited).exists():
+                    offenders.append(
+                        f"{name}:{line_no} publishes `{cited}` as absent; it is present")
+        for m in inline.finditer(body):
+            scope = scope_of(m.start(), scopes)
+            if history_marked(scope):
+                continue
+            cited = m.group(1)
+            checked += 1
+            if (ROOT / cited).exists():
+                line_no = body.count("\n", 0, m.start()) + 1
+                offenders.append(
+                    f"{name}:{line_no} states `{cited}` is absent; it is present")
+        g.clear(f"absence claims are true ({name})", owner, name, offenders)
+        print(f"        [{name}: {checked} absence claims tested]")
+
+
 # ------------------------------------------------------------------------ entrypoint
 
 
@@ -580,6 +936,14 @@ def main() -> int:
     check_repository_root(g, rr)
     check_no_stage_certified(g, rr, gate_rec)
     check_manifest_totals(g, manifest, rr)
+
+    # The three citation families, over every result document rather than the three
+    # this module already had loaded: the cascade these catch reached build-record.md
+    # and joern-probe.md as well.
+    docs = {rel(path): text(path) for path in RESULT_DOCUMENTS if path.exists()}
+    check_status_field_citations(g, docs)
+    check_line_number_citations(g, docs)
+    check_absence_claims(g, docs)
 
     return g.report()
 

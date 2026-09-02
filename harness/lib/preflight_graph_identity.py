@@ -17,9 +17,12 @@ Two things in the Stage 3 path make that impossible to satisfy from inside the r
 
 Neither file may be edited: AAP 0.8.1 forbids changing a runner or a baked flag, and
 0.3.2 forbids runner reconfiguration. So the check cannot live inside the thing it
-guards. It lives here instead, and the guarantee it provides is structural rather than
-advisory: this module **exits non-zero before the runner is invoked at all**, so a
-mismatch cannot reach the engine.
+guards. It lives here instead, and **for an invocation routed through a caller that
+reads this exit status** the guarantee is structural rather than advisory: this module
+exits non-zero before that caller reaches the runner, so a mismatch cannot reach the
+engine. An invocation that does not read the status is not bound by it -- the EXIT STATUS
+section below names the committed gated caller and says which route the Stage 3
+invocation on record actually took.
 
 WHAT IT COMPARES, AND WHY BOTH VALUES
 =====================================
@@ -120,12 +123,20 @@ EXIT STATUS, AND THE CALLER THAT MAKES IT BINDING
        and distinct from the runners' own 64 (bad argument) and 78 (configuration
        fault) so the three are never conflated in a log.
 
-An exit status only binds something that reads it, so the caller is committed too:
-``harness/lib/run-joern-gated.sh`` is the single execution path for Stage 3. It sources
+An exit status only binds something that reads it, so a caller is committed alongside it:
+``harness/lib/run-joern-gated.sh`` is a committed gated path for Stage 3. It sources
 ``env.sh``, runs this module against the effective ``HARNESS_CPG``, and reaches the
-runner only on 0 -- there is no branch through it that invokes Joern after a non-zero
-gate. That is what makes the guarantee structural rather than a convention a future
-caller could forget.
+runner only on 0 -- there is one route through it to the runner and no branch that
+invokes Joern after a non-zero gate. That makes the guarantee structural **for an
+invocation routed through that wrapper**, rather than a convention a future caller could
+forget.
+
+It does not make the wrapper the only route. ``harness/bin/run-joern.sh`` is executable in
+its own right and AAP 0.8.1 requires each runner invoked directly with no arguments, so
+Stage 3 can be -- and for the invocation on record was -- started without the wrapper, in
+which case this exit status is never read and this gate does not bind that load. The
+wrapper's own header records which route the delivered Stage 3 invocation took and names
+the contemporaneous identity evidence for it.
 
 The negative test proving both directions is preserved verbatim beside this module's own
 output, at ``harness/artifacts/logs/joern-preflight-negative-test.log``: it drives the
@@ -381,9 +392,11 @@ def main(argv: list[str] | None = None) -> int:
     emit("  beside the graph itself. The runner resolves and PRINTS its")
     emit("  input without comparing it, and harness/lib/joern-scan.sc calls importCpg and")
     emit("  then counts, so a mismatch would otherwise reach the engine. A mismatch here")
-    emit(f"  exits {HALT_EXIT}, and harness/lib/run-joern-gated.sh -- the only committed")
-    emit("  execution path for Stage 3 -- has no branch that reaches the runner after a")
-    emit("  non-zero gate, so the runner is never invoked.")
+    emit(f"  exits {HALT_EXIT}, and harness/lib/run-joern-gated.sh -- a committed gated")
+    emit("  path for Stage 3 -- has no branch that reaches the runner after a non-zero")
+    emit("  gate, so an invocation routed through that wrapper never reaches the load.")
+    emit("  The runner is also invocable directly, and an invocation that does not read")
+    emit("  this exit status is not bound by it.")
     emit()
     emit(f"  Gate source             : harness/lib/preflight_graph_identity.py")
     emit(f"  Binding caller          : harness/lib/run-joern-gated.sh")

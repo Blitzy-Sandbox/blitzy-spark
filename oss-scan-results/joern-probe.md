@@ -332,11 +332,16 @@ results record that the absence was established by searching those files rather
 than inferred from what the run happened to do. **The textual check was
 performed, and it passed.**
 
-The graph's identity was **re-verified immediately before every load**, by byte
-size and sha256 with the symlink **followed** — the named path
-`harness/cpg/spark.cpg` is a small symlink, so measuring the link itself would
-record a few dozen bytes rather than the graph. Each load was compared against the
-record of account for the bytes it was about to read, and each comparison matched:
+The graph's identity was **re-verified immediately before each of the three probe
+loads this report owns**, by byte size and sha256 with the symlink **followed** —
+the named path `harness/cpg/spark.cpg` is a small symlink, so measuring the link
+itself would record a few dozen bytes rather than the graph. Each of those three
+loads was compared against the record of account for the bytes it was about to
+read, and each comparison matched. The run's other two loads are not this report's
+to certify and no claim is made here about them: the Stage 2 verification load is
+`cpg-verify.log`'s to record, and the Stage 3 Joern runner's belongs to
+`oss-scan-results/build-record.md` §5 and to `oss-scan-results/run-record.md` §13
+**D4**, where the ordering of that check against its load is stated in full.
 
 | Query | Graph, symlink-followed | sha256 | Verified against | Result |
 | --- | --- | --- | --- | --- |
@@ -365,9 +370,16 @@ provenance, and the corroborating record that agrees with it
 (`identity_record_candidates_read = 2`, `identity_comparison_result = match`).
 Ambiguity inside one record and disagreement between two are both fatal to the
 query, so a silently-chosen pair is not expressible. An earlier generation of this
-path carried 541,255,894 / `26d327cc…` — the pair `cpg-verify.log` and `joern.status`
-own and each re-verified for its own load — and it is kept with its provenance in
-`run-record.md` **D4**. It is **not** what any load reported here read.
+shared path carried 541,255,894 / `26d327cc…`, and in this tree that pair is stated
+by **one** file: the inherited provisioning record `harness/ENVIRONMENT.md` §7, at
+its lines 284-288. It is kept with its provenance in `run-record.md` **D4**, the
+register entry that holds both generations. Two files a reader might expect to own
+it do not: `harness/artifacts/logs/cpg-verify.log` records the **current** pair —
+541,309,809 / `4616845a…`, at its lines 33-34 and again at 47-50 — and mentions the
+earlier one only at its lines 76-80, to name the record the filesystem contradicts;
+and `harness/artifacts/logs/joern.status` is the runner's seven-line `scope_finish`
+trailer and states **no graph identity at all**. The earlier pair is **not** what
+any load reported here read.
 
 Both names for the graph — the plan's `harness/cpg/spark.cpg` and the
 environment's exported variable — resolve to the same file for every one of the
@@ -377,13 +389,15 @@ resolved target)*. No absolute host path is emitted by any envelope.
 **The table above carries one pair, and that is a fact about the graph on disk
 rather than about the method.** The path is a host-shared read-only file this run
 neither rebuilds nor replaces, and it has held more than one generation across this
-run's lanes. `run-record.md` **D4** keeps every generation **for which a committed
-artifact of this run states the identity** — the earlier 541,255,894 / `26d327cc…`,
-owned by `cpg-verify.log` and `joern.status`, and the current 541,309,809 /
-`4616845a…`, owned by all three probe envelopes. A generation no committed artifact
-records is not restated as though it were measured. Every load reported here verified
-against the record of account for the bytes it was about to read and matched it, which
-is a property of the check rather than of which generation happened to be on disk.
+run's lanes. `run-record.md` **D4** keeps both generations **with the record that
+states each** — the earlier 541,255,894 / `26d327cc…`, stated by the inherited
+`harness/ENVIRONMENT.md` §7 and by nothing this run measured, and the current
+541,309,809 / `4616845a…`, measured by all three probe envelopes and stated as well
+by `cpg-identity.txt`, `cpg-verify.log` and the Stage 3 runner's own console log. A
+generation no record states is not restated as though it were measured. Every load
+reported here verified against the record of account for the bytes it was about to
+read and matched it, which is a property of the check rather than of which
+generation happened to be on disk.
 
 **On the reproduction check, this file follows its owners exactly.** Each envelope
 publishes `determinism.reproduction_check_status` as **not attempted from inside this
@@ -1388,11 +1402,14 @@ and reading them as measurements would overstate what the probe established:
   541,309,809 / `4616845a…` — each verified against the record of account resolved
   by provenance, `provision-log/cpg-identity.txt` corroborated by `cpg-record.txt`.
   This path has held an earlier generation across this run's lanes, 541,255,894 /
-  `26d327cc…`, whose figures are owned by `cpg-verify.log` and `joern.status`; they
-  are kept with their provenance in `run-record.md` **D4** rather than restated here
-  as though they described the current graph. The graph is a host-shared read-only file
-  this run neither rebuilds nor replaces, and every load was verified against the
-  record of account for the bytes it read before reading them.
+  `26d327cc…`, whose figures are stated in this tree by the inherited
+  `harness/ENVIRONMENT.md` §7 alone — not by `cpg-verify.log`, which records the
+  current pair and its own counts, and not by `joern.status`, which records no graph
+  identity at all. They are kept with their provenance in `run-record.md` **D4**
+  rather than restated here as though they described the current graph. The graph is a
+  host-shared read-only file this run neither rebuilds nor replaces, and each of the
+  three loads reported here was verified against the record of account for the bytes
+  it read before reading them.
 
 ## Provenance — every figure to its file
 

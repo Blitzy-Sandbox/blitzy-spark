@@ -118,6 +118,7 @@ import tempfile
 import types
 import unittest
 import unittest.mock
+from collections.abc import Mapping
 from pathlib import Path
 
 # --------------------------------------------------------------------------------------

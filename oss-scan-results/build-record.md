@@ -71,7 +71,9 @@ requirements, and nothing in this file is a user-specified rule.
 | `harness/artifacts/logs/cpg-input-inventory.json` | the input set of the graph the Joern stages actually load — its 62 archives with their digests, the 31 reactor projects present in it, the 7 absent, and the per-module witness computation (sections 4 and 6) |
 | `harness/artifacts/logs/cpg-identity.txt` | the one record of account for the graph's identity and its provenance (STATUS, sections 5 and 6) |
 | `harness/artifacts/logs/cpg-verify.log` | the `importCpg` verification load of exactly those bytes: the three counts against their expected values, and the per-module coverage witness queries (sections 5 and 6) |
-| `harness/artifacts/logs/joern-preflight.log` | the Stage 3 pre-load identity gate and its verdict (section 5) |
+| `harness/artifacts/logs/joern-preflight.log` | the Stage 3 identity gate's comparison of the graph against its record of account — its verdict, and the time and clone it ran in (section 5) |
+| `harness/artifacts/logs/joern.runner-console.log` | the Stage 3 Joern runner's own recompute of the graph's byte size and digest at load time, with the invocation header that brackets it (sections 5 and 7) |
+| `harness/artifacts/logs/runner-sequence.json` | cited once, for one value this file does not own: which invocation the Stage 3 console log, artifact, streams and status file belong to (section 7) |
 | `harness/artifacts/logs/gate-record.json` | cited twice, for two values this file does not own: the gate verdict, and the environment-record graph-identity contradiction (STATUS, sections 5 and 7) |
 | `harness/cpg/spark.cpg` | the graph at the path the AAP names — a 33-byte provisioned symlink whose resolved target is host-global and was written by provisioning, not by this run (STATUS, section 5) |
 
@@ -105,7 +107,7 @@ that is not the file on disk, and a module count that is not this input set's.
 > provisioning wrote**, which carries the bytecode of 31 of the 38 JAR-packaging projects and of no
 > others.
 
-Four facts bound what the numbers in this file describe, and reading a coverage figure without them
+Five facts bound what the numbers in this file describe, and reading a coverage figure without them
 would misread it.
 
 - **The full-reactor build was performed by this run.** `build-reactor.log` records it end to end:
@@ -117,15 +119,26 @@ would misread it.
   `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` — and
   `harness/artifacts/logs/cpg-identity.txt` is the single record of account for it. That record was
   produced by calling `harness/lib/preflight_graph_identity.py`'s own `record_of_account()`, the same
-  function the Stage 3 pre-load gate calls, so the record and the gate cannot state different pairs.
+  function the Stage 3 identity gate calls, so the record and the gate cannot state different pairs.
   That function prefers this checkout's own frontend write-time pair and falls back to the record
   written beside the graph at write time (`/opt/blitzy-harness/provision-log/cpg-identity.txt`,
   corroborated by `cpg-record.txt`, both read and in agreement) — and the fallback applied here for
   one reason only: this run's frontend produced no graph, so there was no write-time pair of its own
-  to prefer. The pair is re-measured from the bytes on disk and re-verified immediately before every
-  load: the Stage 2 verification load (`cpg-verify.log`, "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY
-  BEFORE THE LOAD"), the Stage 3 Joern runner (`joern-preflight.log`, **VERDICT: PASS**), and each of
-  the three Stage 5 probe queries (`harness/artifacts/logs/probe-*.identity.txt`).
+  to prefer. The pair was re-measured from the bytes on disk for every one of the five loads and every
+  check is logged, and **four of the five comparisons ran immediately before the load they gate**: the
+  Stage 2 verification load (`cpg-verify.log:47-50`, "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY BEFORE
+  THE LOAD") and each of the three Stage 5 probe queries
+  (`harness/artifacts/logs/probe-*.identity.txt`).
+- **For the Stage 3 Joern runner the measurement was contemporaneous and the comparison was not, and
+  both halves are stated wherever either is.** The runner recomputed the size and digest itself and
+  printed `cpg bytes : 541309809` / `cpg sha256 : 4616845a…4730c7` inside its own
+  `2026-09-01T14:25:10Z → 14:41:24Z` invocation (`joern.runner-console.log:14-15`, from
+  `harness/bin/run-joern.sh:57-58`). The comparison of that pair against the record of account —
+  `joern-preflight.log`, **VERDICT: PASS** — is stamped `2026-09-01T14:52:54Z` with `Clone index 0`,
+  about **11.5 minutes after that load ended and from a different clone**. So AAP §0.8.2's
+  "immediately before every load" is **not** satisfied for that one load, and this file does not claim
+  it is. The resolved file's mtime precedes every check and all five checks state the one pair above, so
+  no substitution occurred: the control ran late, the outcome is sound, and section 5 states both.
 - **The requirement that this run create that graph is unmet and unmeetable at this pin**, for the
   measured reason the blockquote states and section 5 evidences from the failing method's own
   bytecode and from a two-heap re-verification. It is published as a divergence, carried in the run's
@@ -181,8 +194,8 @@ record.** `cpg-graph-record.log` carries the coverage verdict the provisioning i
 its own 62-JAR input set — **31 of 31 contributing modules covered, 0 missing**, 26 of them by a class
 unique to the module and 5 by a named weaker witness. That denominator is *contributing modules*, not
 *JAR-producing modules*, so it is not the same measurement as section 6's first column and is never
-totalled with it. Section 6 carries it as its own labelled subsection, with the difference in
-denominator stated there.
+totalled with it. Section 6 names it and its denominator before its own verdict table, and section 7
+adjudicates the environment record's copy of it against that verdict.
 
 ---
 
@@ -637,17 +650,22 @@ the private scratch of the clone that ran the frontend and was removed with it, 
 STEP 1 records the staged-file count and the manifest-entry count as **not measurable at
 log-generation time** (`None`) rather than restating them. **This checkout contains no staging tree**:
 `harness/artifacts/` holds `MANIFEST.json`, `logs/` and `raw/` and nothing else, and no
-`harness/artifacts/cpg-input*` path is tracked. So the record of the input set — the log above, and
-the 191 per-archive name/size/sha256 entries `harness/artifacts/MANIFEST.json` retains for it under
-`cpg_input_attempt1`, which marks itself `present_in_this_checkout: false` — is the evidence, and no
-tree is cited as though a reader could walk it.
+`harness/artifacts/cpg-input*` path is tracked. `harness/artifacts/MANIFEST.json` records the two
+staging trees rather than publishing them, under `cpg_input_records`: it names both as
+`not_present_in_this_checkout`, names the artifact that owns each, and — stated in its own
+`why_no_per_file_entries` — deliberately restates **no per-file number**, because a previous revision's
+per-file copies disagreed with their owners. So the record of the 191-archive set is the aggregate its
+owners state, and no tree and no per-archive entry is cited as though a reader could walk it.
 
-**One 81-byte disagreement between two records of that same set, recorded rather than reconciled.**
-`MANIFEST.json`'s `cpg_input_attempt1.total_bytes` is **431,184,903** over the same 191 files, against
-**431,184,822** in `build-reactor.log` STEP 13 and `cpg-frontend.log` STEP 1. This file uses the
-build-and-frontend figure throughout, because those two are independent measurements that agree with
-each other and they are the ones the invocation was made from; the manifest's total is on the record
-beside it and neither is silently dropped.
+**Per-archive identity for this set is consequently not retained anywhere in the two trees, and is
+named rather than estimated.** The aggregate is established twice over — 191 archives and 431,184,822
+bytes in `build-reactor.log` STEP 13 and again in `cpg-frontend.log` STEP 1 — but no name/size/sha256
+entry for an individual member of it survives in `harness/artifacts/`: `MANIFEST.json`'s
+`regenerated.corrections` records that the 191 per-file entries it once carried were withdrawn together
+with their **431,184,903** total, which disagreed with the owners' 431,184,822 by 81 bytes, and
+`cpg-input-inventory.json` was regenerated in this generation to describe the 62-archive set instead.
+This file therefore states the aggregate and nothing per-archive for the 191, and `run-record.md` §14
+carries the loss as a value that could not be established.
 
 **Why the bidirectional form of the assertion is the one that matters.** A set discards multiplicity,
 so two different multisets can share both a count and a hash set — and this input set is a live example:
@@ -656,11 +674,54 @@ to 189 and passed even if one file had been staged twice and another omitted. Th
 therefore the one-to-one mapping in both directions, and it was recorded **before** the frontend ran,
 so it cannot have been shaped to fit what a frontend happened to ingest.
 
-**What this establishes, and what it cannot.** It establishes **delivery**: every JAR this run's build
-produced was assembled into the set the frontend was given, and no archive was withheld from it. It
-establishes nothing at all about the graph that exists, because that invocation produced no graph
-(STATUS). Coverage — whether a module's own code reached the graph the Joern stages load — is a
-different question against a different input set, and it is section 6's.
+**That 189 is a count of digests over 191 files, and it is not the other 189 in this run's record.**
+`cpg-frontend.log` STEP 1 prints it as `distinct sha256 189` in the assertion block beside the
+191-archive supplied set: 191 staged files carrying 189 distinct digests, a shortfall of two, which is
+what makes the multiset argument above concrete rather than hypothetical. A different 189 appears in the
+withheld-input divergence cross-referenced two paragraphs below — the **number of archives a superseded
+attempt supplied**. The two are different measurements that happen to coincide numerically, and neither
+is derived from or evidence for the other.
+
+**What this establishes, and what it cannot — and it is a statement about the invocation on record,
+not about every attempt this run's lanes made.** For the invocation `cpg-frontend.log` records, it
+establishes **delivery**: `cpg-frontend.log` STEP 1 states "Input set actually supplied to the frontend
+— the complete set, nothing excluded: own artifacts **191**", **431,184,822** bytes, and STEP 4 records
+the staging directory in the **w-005** lane with "nothing excluded: no `--exclude`, no
+`--exclude-regex`, no `--depth`". So every JAR this run's build produced was assembled into the set
+**that** frontend invocation was given, and no archive was withheld from **it**. It establishes nothing
+at all about the graph that exists, because that invocation produced no graph (STATUS). Coverage —
+whether a module's own code reached the graph the Joern stages load — is a different question against a
+different input set, and it is section 6's.
+
+**A superseded attempt did withhold two archives, and that is a halt-class departure registered
+elsewhere.** `harness/artifacts/logs/cpg-frontend-input-manifest.json`, written in a **w-000** clone and
+retained in the logs tree as evidence, records `full_inventory_archive_count` **191** against
+`frontend_input_archive_count` **189**, `frontend_input_bytes` **308,385,184** and
+`withheld_archive_count` **2** — its own `assertion` holding for the reduced set with
+`assertion_errors` empty, so the trim is declared rather than concealed. The two withheld archives, with
+the byte size, digest and stated reason the manifest itself gives:
+
+| Withheld archive | Bytes | sha256 | The manifest's own stated reason |
+| --- | --- | --- | --- |
+| `common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar` | 109,208,027 | `66017e4e2086ba154144d244f123e4473a353f746baa8e36985f23323869afc8` | a shaded shuffle uber-jar with `shadedArtifactAttached=false`, i.e. not the module primary artifact; including it "vendors common/network-common, common/network-shuffle and common/utils-java classes and removes their injective coverage witnesses (measured: 35 valid witnesses -> 32)" |
+| `connector_kafka-0-10-assembly__spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT.jar` | 13,591,752 | `96bcfab6d42abc7ba1f6dff63c60f45227808488870ad83ddad9bf2271913ef6` | a shaded assembly of a packaging module "that has no src/ directory at all"; including it "vendors connector/kafka-0-10, connector/kafka-0-10-token-provider and common/tags classes and removes their injective coverage witnesses (measured: 35 valid witnesses -> 33)" |
+
+Both reasons are coverage-witness reasons: the archives were withheld because including them would
+reduce the number of modules for which an injective witness exists. **That is precisely the rationale
+AAP §0.3.2 forbids** — it narrows what enters the graph in order to improve a number the graph is then
+measured by — and §0.9.2 names trimming the input set among the conditions that stop the run rather than
+get repaired. §0.5.1's answer to a vendored witness is the module-exclusive `pom.properties` fallback,
+not the removal of the archive that vendored it, and section 6 uses only the two witness kinds §0.5.1
+names.
+
+**No delivered measurement in this file rests on that attempt.** Every 191-archive figure above is
+`build-reactor.log` STEP 13's and `cpg-frontend.log` STEP 1's, both of the complete set; every graph
+count and every coverage verdict in sections 5 and 6 is measured over the **62**-archive input set of
+the graph that loads (`cpg-input-inventory.json`); and no figure anywhere in this file is taken from the
+189-archive set or from its manifest beyond the disclosure above. The manifest is neither deleted nor
+re-registered here: it is retained as evidence under AAP §0.8.1, and its run-level divergence entry is
+**D20** in `oss-scan-results/run-record.md` §13, which owns the run's single divergence register and
+carries the disposition and the decision a human must take.
 
 ### Staged input set 2 — the 62 archives the graph that loads was built over
 
@@ -710,17 +771,50 @@ reports "All 1 subject(s) resolve to one file: yes". The size is always taken th
 | The record it fell back to | `/opt/blitzy-harness/provision-log/cpg-identity.txt`, written 2026-08-30T19:19:09Z, corroborated by `/opt/blitzy-harness/provision-log/cpg-record.txt`; both were read and agree, and a disagreement between them would have prevented the record being written at all |
 | Re-measured while that record was written | 2026-09-01T14:54:56.741Z — byte size **MATCH**, sha256 **MATCH** |
 
-**Re-verified immediately before every load, and every check logged.** The graph is inherited, so
-nothing about it is assumed between stages: the bytes are re-read and re-hashed before each load and a
-mismatch halts instead of proceeding.
+**Re-measured for every one of the five loads, every check logged — and for one of the five the
+comparison ran after the load rather than before it.** The graph is inherited, so nothing about it is
+assumed between stages: the bytes are re-read and re-hashed for each load and a mismatch halts instead
+of proceeding. Four of the five checks ran **immediately before** the load they gate, which is what
+AAP §0.8.2 requires. The fifth — the Stage 3 Joern runner — is split, and both halves are in the table:
+the runner recomputed the pair itself at load time and printed it, while the comparison of that pair
+against the record of account was performed **about 11.5 minutes after the load and from a different
+clone**. That is stated as the ordering defect it is, not as a pass, in the subsection below.
 
 | Load | When the check ran | Record | Result |
 | --- | --- | --- | --- |
-| Stage 2 `importCpg` verification load | 2026-09-01T13:31:15.334Z | `cpg-verify.log`, "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY BEFORE THE LOAD" | MATCH on both fields |
-| Stage 3 Joern runner | 2026-09-01T14:52:54Z | `joern-preflight.log` | **VERDICT: PASS** — and its binding caller has no branch that reaches the runner after a non-zero gate |
-| Stage 5 probe query 01 | 2026-09-01T14:56:12.096Z | `probe-01-callgraph-unguarded-driver-launch.identity.txt` | `bytes=541309809`, same sha256 |
-| Stage 5 probe query 02 | 2026-09-01T15:08:05.774Z | `probe-02-dataflow-unguarded-driver-launch.identity.txt` | `bytes=541309809`, same sha256 |
-| Stage 5 probe query 03 | 2026-09-01T15:30:31.248Z | `probe-03-parameterized-handler-sink-pairs.identity.txt` | `bytes=541309809`, same sha256 |
+| Stage 2 `importCpg` verification load | 2026-09-01T13:31:15.334Z, before the load | `cpg-verify.log:47-50`, "GRAPH IDENTITY, RE-VERIFIED IMMEDIATELY BEFORE THE LOAD" | MATCH on both fields |
+| Stage 3 Joern runner — recompute, contemporaneous | inside the invocation, 2026-09-01T14:25:10Z → 14:41:24Z | `harness/bin/run-joern.sh:57-58` computing `stat -c%s` and `sha256sum` over the resolved target, printed at `joern.runner-console.log:14-15` | `cpg bytes : 541309809`, `cpg sha256 : 4616845a…4730c7` |
+| Stage 3 Joern runner — comparison against the record of account, **after the fact** | 2026-09-01T14:52:54Z, `Clone index 0` (`joern-preflight.log:17-18`) — about 11.5 min after the load ended, in another clone | `joern-preflight.log:27-28` recorded pair, `:36-37` re-measured `MATCH`/`MATCH`, `:43` | **VERDICT: PASS**, but not a pre-load check for this load |
+| Stage 5 probe query 01 | 2026-09-01T14:56:12.096Z, before the load | `probe-01-callgraph-unguarded-driver-launch.identity.txt` | `bytes=541309809`, same sha256 |
+| Stage 5 probe query 02 | 2026-09-01T15:08:05.774Z, before the load | `probe-02-dataflow-unguarded-driver-launch.identity.txt` | `bytes=541309809`, same sha256 |
+| Stage 5 probe query 03 | 2026-09-01T15:30:31.248Z, before the load | `probe-03-parameterized-handler-sink-pairs.identity.txt` | `bytes=541309809`, same sha256 |
+
+**The Stage 3 ordering, and what it does and does not put in doubt.** The two halves must travel
+together. What was contemporaneous is the **measurement**: the runner reads the graph's size and digest
+from the resolved target itself at `harness/bin/run-joern.sh:57-58` and prints them before it hands the
+path to `harness/lib/joern-scan.sc`, and `joern.runner-console.log:14-15` carries them inside the
+invocation its own header brackets (`argv=["./harness/bin/run-joern.sh"]`,
+`started=2026-09-01T14:25:10Z ended=2026-09-01T14:41:24Z`, `clone_index=13`). What ran late is the
+**comparison** against the record of account: `joern-preflight.log` is stamped
+`Checked at (UTC) : 2026-09-01T14:52:54Z` with `Clone index : 0`. So for this one load AAP §0.8.2's
+"immediately before every load" is **not** satisfied by that gate log, and no sentence in this file says
+it is.
+
+What the late comparison does not put in doubt is *which bytes were read*. The pair the runner
+recomputed equals the pair the record of account states and the pair every other check got; the resolved
+file's mtime, **2026-08-30T19:18:37Z**, precedes all five checks and did not move between them; and the
+gate re-measured the same values at 14:52:54Z. **No substitution occurred — the control ran late and the
+outcome is sound**, and those are two findings rather than one.
+
+**One further statement in that same log overstates, and is corrected here rather than in it.**
+`joern-preflight.log` lines 11-12 describe `harness/lib/run-joern-gated.sh` as "the only committed
+execution path for Stage 3", and lines 12-13 add that it "has no branch that reaches the runner after a
+non-zero gate". The load on record did not take that path: `argv=["./harness/bin/run-joern.sh"]` in the
+console log's own header, so the wrapper's structural gate-binding was **not** what bound this load and
+is not offered here as though it had been. What bound it is the pair in the table — the runner's own
+recompute at load time, and the after-the-fact comparison. The log is published verbatim under AAP
+§0.8.1 and is not edited, which is why the correction is stated in this file. The run-level register
+entry for both this and the ordering above is **D4** in `oss-scan-results/run-record.md` §13.
 
 **One live contradiction, recorded with both values and repaired by nothing.**
 `harness/ENVIRONMENT.md` §7 states this graph's identity explicitly, and the filesystem contradicts it:
@@ -870,15 +964,23 @@ verdicts, 0 prefix verdicts. Nothing below is derived from it, and its `supersed
 clone `w-001` edition it replaced.
 
 **Which graph generation the first verdict column measures, stated before the table rather than after
-it.** `cpg-verify.log`'s two loads read the generation of `/opt/blitzy-harness/cpg/spark.cpg` whose
-identity was **541,255,894 bytes, sha256 `26d327cc…`** (`cpg-verify.log:200-201,258-259`) — the
-generation **D4** names as retired-and-attributed, the same one the Stage 3 Joern runner read. Every
-"graph result" and every verdict in the first column below, and the type-declaration cross-reference at
-the end of this section, are measurements of **that** generation, and they are not restated as
-measurements of the bytes currently on disk. The graph on disk carries its own coverage verdict over its
-own contributing modules, from its own record of account; it is a **third**, differently-denominated
-statement and it has its own labelled subsection below. Neither is totalled with the other, and neither
-is substituted for the other.
+it.** It is the one graph this run loaded and the one identity section 5 states: **541,309,809 bytes,
+sha256 `4616845a…4730c7`**. `cpg-verify.log` records a **single** `importCpg` load, performed by this
+generation in clone 13 (`cpg-verify.log:27-28`), against exactly those bytes — its SUBJECT block states
+them at `:33-34` and its pre-load identity check re-measures them at `:47-50`. Every "graph result" and
+every verdict in the first column below, and the type-declaration cross-reference at the end of this
+section, are that load's PHASE 2 measurements (`cpg-verify.log:105-228`) of those bytes. No verdict here
+is a measurement of the superseded **541,255,894 / `26d327cc…`** generation: that pair is the inherited
+environment record's (`harness/ENVIRONMENT.md:284-288`), it is stated in section 5's and section 7's
+contradiction tables as the contradiction, and `cpg-verify.log` names it only at its own `:76-80`, and
+only to identify the record the filesystem contradicts.
+
+A **third** coverage statement exists and belongs to a different denominator: `cpg-graph-record.log:48`
+records the provisioning invocation's own verdict over its 62-JAR input set as **31 of 31 contributing
+modules covered, 0 missing**. It is stated in full in this file's STATUS block, and section 7's
+authority-rule subsection adjudicates the environment record's copy of it against the verdict below.
+*Contributing modules* is not *JAR-producing modules*, so it is never totalled with this section's first
+column and neither is substituted for the other.
 
 ### The two questions, kept apart
 
@@ -1100,10 +1202,14 @@ nothing. Both values are on the record and neither is chosen: there is no anchor
 them, and repair is not available in any case, because the file is host-global, shared with concurrent
 readers, and was not written by this run.
 
-What is **not** claimed here is that the bytes moved underneath the run. Every load re-verified the
-identity immediately beforehand and all five of those records state the same pair (section 5), so this
-run is internally consistent on exactly one graph. The disagreement is between that one graph and a
-record of an earlier graph at the same shared path.
+What is **not** claimed here is that the bytes moved underneath the run. All five loads had the identity
+re-measured from the bytes and all five of those records state the same pair, and the resolved file's
+mtime of 2026-08-30T19:18:37Z precedes every one of those measurements — so this run is internally
+consistent on exactly one graph. What is **not** claimed either is that all five comparisons ran before
+their load: for the Stage 3 Joern runner the recompute was contemporaneous and the comparison against
+the record of account ran about 11.5 minutes afterwards from a different clone, which section 5 states
+in full and which does not move any value in the table above. The disagreement here is between that one
+graph and a record of an earlier graph at the same shared path.
 
 **Two further environment-record statements are contradicted by observation and are carried with both
 values without stopping the run**, because neither is a field of the expected-values table and neither
@@ -1132,12 +1238,37 @@ contradiction, the identity above:
 now have a write-time record of their own — `cpg-graph-record.log`, byte-identical to
 `/opt/blitzy-harness/provision-log/cpg-record.txt` — which states exactly one identity pair and equals
 them, and all three probe queries verified that pair against that record before their load and
-re-verified it after, each having loaded a private copy of the verified bytes (D4 in STATUS, section 5).
-So a **current** load is anchored. What has not changed is the inherited-record contradiction above,
-which is about an identity stated for a file that was replaced, and the **Stage 3 lineage**: the Joern
-runner read 541,255,894 / `26d327cc…` (`joern.status:391-398`) and the dataset's `joern` rows come from
-that generation, which cannot be regenerated here because `harness/bin/run-joern.sh` is absent from this
-clone and from disk and AAP §0.8.1 forbids re-running a scanner. Both remain reported and unrepaired.
+re-verified it after, each having loaded a private copy of the verified bytes (section 5). So a
+**current** load is anchored. What has not changed is the inherited-record contradiction above, which is
+about an identity stated for a file that was replaced; it is carried as halt-class finding **D4** in
+`oss-scan-results/run-record.md` §13, which owns the register entry and keeps both generations with
+their provenance.
+
+**The Stage 3 lineage is that same one graph, and the superseded pair is no part of it.** The delivered
+Joern runner read **541,309,809 / `4616845a…4730c7`**. `harness/bin/run-joern.sh` lines 57-58 recompute
+the byte size and the digest from the resolved target and print them, and they appear as
+`cpg bytes       : 541309809` and `cpg sha256      : 4616845a…4730c7` at
+`harness/artifacts/logs/joern.runner-console.log` lines 14-15, inside the invocation that log's own
+header brackets — `run_id=w013-20260901T132807Z clone_index=13`, `argv=["./harness/bin/run-joern.sh"]`,
+`started=2026-09-01T14:25:10Z ended=2026-09-01T14:41:24Z elapsed_seconds=974.22 exit_status=0`. And
+`harness/artifacts/logs/runner-sequence.json` binds that console log, the artifact
+`harness/artifacts/raw/joern.json`, both of the runner's streams and its 241-byte status file to that one
+invocation by byte size and sha256. So the dataset's `joern` rows come from the load that read the pair
+section 5 states, and **541,255,894 / `26d327cc…` is the inherited environment record's identity**
+(`harness/ENVIRONMENT.md:284-288`, section 5's contradiction table) rather than a lineage of this run.
+
+**What `joern.status` is, so that nothing is looked for in it that it does not carry.** All nine
+`<tool>.status` files are the runner's verbatim seven-line `scope_finish` trailer, and `joern.status` is
+7 lines and 241 bytes carrying exactly `tool`, `exit_code`, `elapsed_seconds`, `artifact`,
+`artifact_bytes`, `scan_root` and `scan_root_source`. It records **no graph identity of any kind** and no
+command line, and no figure in this file is cited from it.
+
+Neither the runner nor its load is re-run to settle any of this, and the reason is not that anything is
+missing: `harness/bin/run-joern.sh`, `harness/env.sh`, `harness/lib/scope.sh` and
+`harness/lib/joern-scan.sc` are all present and readable in this clone. AAP §0.8.1 forbids re-running a
+scanner, and §0.6.4 makes the measurement already taken the one to cite rather than a second measurement
+of the same thing. Both the inherited-record contradiction and the unmet all-JAR requirement remain
+reported and unrepaired.
 
 ### Values named as not established
 
@@ -1305,8 +1436,18 @@ the mandated pair's verdict above stands unchanged.
 
 Both controls are on the mandated file and neither is offered as an A/B arm. `oss-scan-results/run-record.md`
 §7.4 owns the run-level statement of both, and carries in addition an **inherited and unanchored**
-taint result from the provisioned environment record that this file does not restate, because the record
-it came from is absent from this clone and from the host.
+taint result from the provisioned environment record. That record is **present** in this clone —
+`harness/ENVIRONMENT.md` §11 "Test 5 — the taint A/B, in full", at its lines 609-634 — and this file
+does not restate it for a reason that has nothing to do with availability: AAP §0.6.4 puts the
+run-level statement in one document and that document is `run-record.md` §7.4. What the record holds is
+worth being exact about, because both halves of it bear on this section. Its A/B **proper** is over a
+**different subject file**, `sql/core/src/main/scala/org/apache/spark/sql/jdbc/JdbcDialects.scala`
+(`:614`), not over the subject AAP §0.9.1 mandates, so it is no measurement of the pass condition this
+section reports. And its own second honest note (`:629-632`) records that on the mandated
+`core/src/main/scala/org/apache/spark/storage/DiskStore.scala` **both** arms report one finding at line
+72 and the pair is **non-discriminating** — which is the same outcome this section measured first-hand,
+inherited and unanchored corroboration of it rather than a substitute for it. Neither half makes the
+mandated A/B discriminate, and **D2** stands exactly as stated.
 
 ### It is blocked at root cause, and a human has to clear it
 
@@ -1336,14 +1477,16 @@ neither is substituted for by anything here and nothing here softens either.
 
 ## Self-check against this file's validation contract
 
-1. **Every figure names a producer record, and that record is one of the ten listed at the top.**
+1. **Every figure names a producer record, and that record is one of the twelve listed at the top.**
    PASS — section 1 cites `maven-preflight.log`; sections 2 and 3 cite `build-reactor.log` by step
    (STEPS 3, 4, 6 to 15), and `harness/ENVIRONMENT.md:205-272` only to say where the expected-values
    table's 32 producers came from; section 4 cites `build-reactor.log` STEP 13, `cpg-frontend.log`
    STEPS 1 and 4, `harness/artifacts/MANIFEST.json` and `cpg-input-inventory.json`; section 5 cites
-   `cpg-identity.txt`, `cpg-verify.log`, `joern-preflight.log`, the three `probe-*.identity.txt` files,
-   `cpg-frontend.log` STEPS 6, 7 and 11, `cpg-ceiling-reverify.log` and `gate-record.json`; section 6
-   cites `cpg-input-inventory.json` and `cpg-verify.log` PHASES 1 and 2. Checked mechanically as well as
+   `cpg-identity.txt`, `cpg-verify.log`, `joern-preflight.log`, `joern.runner-console.log`, the three
+   `probe-*.identity.txt` files, `cpg-frontend.log` STEPS 6, 7 and 11, `cpg-ceiling-reverify.log` and
+   `gate-record.json`; section 6 cites `cpg-input-inventory.json` and `cpg-verify.log` PHASES 1 and 2;
+   section 7 cites `joern.runner-console.log`, `runner-sequence.json`, `joern.status` for what it does
+   **not** carry, and `harness/ENVIRONMENT.md` as the contradicted record. Checked mechanically as well as
    by reading: every multi-digit figure in this file was extracted and matched against those records,
    with none unmatched, and every `pom.xml`/`build/mvn`/module-pom line citation was resolved in the
    pinned tree. The absence of any `build-<module-path>.log` is itself recorded, and
@@ -1391,6 +1534,14 @@ neither is substituted for by anything here and nothing here softens either.
    re-verification.** PASS — one pair, 541,309,809 bytes and sha256 `4616845a…4730c7`, with
    `cpg-identity.txt` named as the record of account and `record_of_account()` named as how it was
    resolved; the graph is stated as **written by provisioning on 2026-08-30, not by this run**, at every
-   place it is cited; and the five per-load re-verifications are listed with their timestamps and
-   results in section 5. No superseded identity appears anywhere except in section 5's and section 7's
-   contradiction tables, where the environment record's value is quoted **as** the contradiction.
+   place it is cited. Section 5 lists all five loads with their timestamps and results, and it
+   distinguishes the four whose comparison against the record of account ran immediately before the load
+   from the one — Stage 3 — whose recompute was contemporaneous with the load while its comparison ran
+   2026-09-01T14:52:54Z in clone 0, after the 14:25:10Z→14:41:24Z load; no sentence in this file presents
+   that late comparison as satisfying AAP §0.8.2's *immediately before every load*. Every appearance of a
+   superseded identity is an appearance **as** something superseded, and there are five: the environment
+   record's 541,255,894 / `26d327cc…` quoted as the contradiction in section 5's and section 7's
+   contradiction tables and named as that record's — never as a lineage of this run — in section 6 before
+   its verdict table and in section 7's Stage 3 lineage paragraph; and the 605,687,359 /
+   `ceefe60e…` pair named in the producer-records note above as the graph the superseded
+   `cpg-module-coverage.json` edition described. No figure in this file is taken from any of them.

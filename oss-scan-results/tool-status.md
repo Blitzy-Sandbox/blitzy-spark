@@ -33,7 +33,7 @@ carry the same number it is one measurement cited twice, never two measurements.
 | --- | --- |
 | `harness/artifacts/logs/runner-metadata.json` | Per-tool script classification, scan-target variable and the value set into it, resolved scan root, invocation form, working directory, path base, JDK major, interpreter path and version, baked flags, credential-reporting expression, argument guard, artifact filename |
 | `harness/artifacts/logs/normalize-run.json` | The authoritative per-artifact parsed and rejected counts, the routing decision and its detection evidence, every reconciliation assertion with its result, and the row-validation and output-comparison results |
-| `harness/artifacts/logs/<tool>.status` | The invocation's own outcome: exit code, elapsed seconds, artifact byte size, scan root and its source, plus the authored fields each runner's lane recorded beside them |
+| `harness/artifacts/logs/<tool>.status` | The invocation's own outcome, and **exactly seven fields, nothing beside them**: `tool`, `exit_code`, `elapsed_seconds`, `artifact`, `artifact_bytes`, `scan_root`, `scan_root_source`. Every one of the nine is the runner's own verbatim `scope_finish` trailer at seven lines — 238 to 278 bytes each — so a citation of any other field name, or of a line above 7, names nothing. Anything a reader might expect beside them is owned elsewhere: the lane and its digests by `runner-sequence.json`, the configuration by `runner-metadata.json` |
 | `harness/artifacts/logs/<tool>.stdout.log`, `<tool>.stderr.log` | The tool's own words, verbatim: reduced-reach conditions, and for an absent artifact the stated reason |
 | `harness/artifacts/logs/adapter-tests-run.json` | The per-tool adapter-fixture result, and every adapter-test figure restated here |
 | `harness/artifacts/logs/runner-sequence.json` | The serial lane and its chronology: per invocation the argv and argument count, the start and end stamps, the finer elapsed measurement, and the artifact, stream and `.status` byte sizes and sha256 values measured immediately after that invocation returned |
@@ -409,8 +409,10 @@ Ran 1238 rules on 4094 files: 1162 findings.
 **Timestamps, established for this generation.** `started_at` and `finished_at`
 **are** established here — **2026-09-01T14:13:07Z to 14:22:02Z**, a 535.569-second
 window — and they come from two records rather than from the artifact: the lane
-ledger `runner-sequence.json` `invocations[2]`, and this runner's own console
-stream retained verbatim at `harness/artifacts/logs/semgrep.runner-console.log`,
+ledger `runner-sequence.json`, at its invocation whose `invocation_index` is **2**
+— this tool, second of the nine in canonical tool order — and this runner's own
+console stream retained verbatim at
+`harness/artifacts/logs/semgrep.runner-console.log`,
 which carries `scope_begin`'s header and `scope_finish`'s trailer. The structural
 reason a reader might expect them to be missing still holds and is worth stating:
 this tool prints its SARIF document to stdout, so stdout belongs to
@@ -464,50 +466,88 @@ and parses.
 `--enable-static-analysis true`, `--enable-secrets false`. None appears in the
 expected-values table, so none is an anchor.
 
-**Ruleset provenance — the bytes this tool scanned with are not preserved
-anywhere.** `-r "$DD_SAST_RULES_FILE"` points at a **shared, mutable** path outside
-this repository, `/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json`, and
-what that path holds has moved since the scan. The three identities and their
-sources:
+**Ruleset provenance — the bytes this tool scanned with are identified by a
+scan-time digest and preserved in the log tree.** `-r "$DD_SAST_RULES_FILE"`
+points at a **shared, mutable** path outside this repository,
+`/opt/blitzy-harness/rules/datadog/datadog-sast-rules.json`, so the path alone
+identifies nothing. What identifies the bytes is that the runner measured them
+**before invoking** and printed the digest into its own stream. The three
+identities and their sources:
 
-| Identity | sha256 | Rulesets / rules | Where it is recorded, and whether the bytes still exist |
+| Identity | sha256 | Rulesets / rules | Where it is recorded |
 | --- | --- | ---: | --- |
-| Observed at scan time | `4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1` | 48 / 1,093 | `harness/artifacts/logs/runner-metadata.json` `ruleset_or_feed_identity.observed_identity`, corroborated by the tool's own `#static analysis rules  : 1093` in `datadog-static-analyzer.stdout.log`. **The bytes no longer exist** — not at that path, not in the log tree, not anywhere this run can reach |
+| **Read by this invocation** | `c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322`, 4,068,707 bytes | 53 / 1,147 | printed at scan time by the runner itself — `harness/bin/run-datadog-static-analyzer.sh` lines 37–38 — into `harness/artifacts/logs/datadog-static-analyzer.runner-console.log` as `rules file : /opt/blitzy-harness/rules/datadog/datadog-sast-rules.json (sha256 c5fd464c…)`, a stream the lane ledger binds by byte size and sha256 to this tool's invocation. The same digest is the gate's own `sha256sum "$DD_SAST_RULES_FILE"` reading (`gate-record.json` check `gate.ruleset_identity.datadog-static-analyzer`, `stdout`) and `runner-metadata.json` `ruleset_or_feed_identity.observed_identity`; the counts are from parsing the file — a JSON array of 53 ruleset objects whose `rules` arrays sum to 1,147 — and the tool's own stdout agrees at `#static analysis rules  : 1147` (line 8) and `Rules evaluated: 1147` (line 31) |
 | Expected by the AAP | `e70ede308813b6d8c4087b0995609cdafdb9ab48159a313fe58ac343ff6c44f7` | 48 / 1,093 | the request's expected-values table, carried in `runner-metadata.json` `expected_identity` with `identity_matches_expected: false`. Never observed on this host |
-| At that shared path **now** | `c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322`, 4,068,707 bytes | 53 / 1,147 | re-measured in this checkpoint with `sha256sum` and by parsing the file: a JSON array of 53 ruleset objects whose `rules` arrays sum to 1,147 |
+| Stated by the inherited environment record | `4f397e81414f8e9469d20abc18c80c85c722e72b9f85b8bcf69dbe34b8fef6f1` | 48 / 1,093 | `harness/ENVIRONMENT.md` lines 111 and 814. An inherited statement about the provisioning, not an observation of this invocation |
 
-**The captured copy does not close the gap, and saying which file it equals is the
+**The captured copy is the scan's input, and saying which file it equals is the
 whole point.** `harness/artifacts/logs/datadog-sast-rules.captured.json` is
 4,068,707 bytes with sha256
 `c5fd464c2985119574f23599d44022e22b9442d7083acb17ec84addba354f322` — **byte-identical
-to the shared file as it is now** (`cmp` reports no difference; both parse to 53
-rulesets and 1,147 rules) and therefore **not** the bytes the scan read, whose
-digest was `4f397e81…` over 48 rulesets and 1,093 rules. It is a capture of a later
-generation of a mutable file, and a reader who took it for the scan's input would
-be comparing this tool's findings against rules it never evaluated.
+to the shared file** (`cmp` reports no difference; both parse to 53 rulesets and
+1,147 rules) **and equal to the digest the runner printed before invoking**. So the
+rule bytes this tool evaluated are retained inside this run's own evidence tree,
+and a reader can compare a finding against the rule that produced it rather than
+against a later generation of a moving file.
 
-**The consequence, stated without softening: this tool's 6,832 rows cannot be
-traced to the rule bytes that produced them.** That is a **named reproducibility
-gap** for this tool, of the same kind the `osv-scanner` entry names for its live
-API, and it is the reason this entry's `Comparability` stays **NOT COMPARABLE**
-rather than being lifted by the scan-time counts matching the expected ones. Two
-things nonetheless remain true and measured, and neither repairs the gap: the tool
-made **no API call for rules** at scan time (`fetched_at_scan_time: false`, and its
-own `config method : none`), so the 1,093 rules it evaluated came from a local file
-rather than from a moving endpoint; and its own stdout preserves what that file
-contained where it matters most — 1,093 rules over twelve languages, Scala absent,
-which is a property of the ruleset recorded in the tool's own words rather than
-inferred from the missing bytes.
+**What survives as a reproducibility gap, and what does not.** Two things survive,
+and neither is repaired: the rule set is fetched from Datadog's API at **capture**
+time and the publisher supplies no digest, so the captured file's own sha256 is the
+only identity that exists for it — the same kind of gap the `osv-scanner` entry
+names for its live API; and `-r` reads a shared mutable path, so a later mutation
+would change what a **later** run reads with nothing in the runner to notice it.
+What does **not** survive is the traceability claim an earlier generation of this
+entry made — that this tool's 6,832 rows cannot be traced to the rule bytes that
+produced them. Measured against the files this checkout carries they can, through
+the scan-time print and the retained capture, so that claim is withdrawn rather
+than softened. The `Comparability` mark stays **NOT COMPARABLE WITH THE REHEARSAL**
+on its own separate ground, untouched by any of this: the observed digest is not
+the expected digest and the observed 53 / 1,147 is not the expected 48 / 1,093, so
+this tool's count differs for reasons that have nothing to do with the code. Two
+further facts are measured and neither bears on that mark: the tool made **no API
+call for rules** at scan time (`fetched_at_scan_time: false`, and its own
+`config method : none`), so the rules it evaluated came from a local file rather
+than from a moving endpoint; and its own stdout preserves what that file contained
+where it matters most — 1,147 rules over the fourteen languages its
+`rules languages` line names, Scala absent — which is a property of the ruleset
+recorded in the tool's own words.
 
-**Not repairable in this checkpoint, and why.** The fix is to have the runner read a
-private content-addressed copy instead of a shared mutable path, and that is an edit
-to `harness/bin/run-datadog-static-analyzer.sh` line 48 — a runner edit, which AAP
-0.8.1 forbids outright. There is also no runner here to edit:
-`harness/bin/*`, `harness/env.sh`, `harness/ENVIRONMENT.md` and
-`harness/lib/scope.sh` are absent from this clone and from disk. Copying the current
-shared file again would only re-capture the wrong generation, and re-running the
-scanner to obtain a matched rules-and-findings pair is prohibited by the same rule.
-Nothing was repaired and nothing here is presented as repaired.
+**Superseded generation, retained as history rather than dropped.** An earlier
+generation of this entry published `4f397e81…` over 48 rulesets and 1,093 rules as
+the identity **observed at scan time**, attributed it to
+`runner-metadata.json` `ruleset_or_feed_identity.observed_identity`, read the
+tool's stdout as `#static analysis rules  : 1093` over twelve languages, and stated
+that the bytes "no longer exist — not at that path, not in the log tree, not
+anywhere this run can reach". None of those four readings is a measurement of any
+file in this checkout: `observed_identity` carries `c5fd464c…, 53 rulesets, 1,147
+rules`, the stream reads 1147 at line 8 and `Rules evaluated: 1147` at line 31, its
+`rules languages` line lists fourteen, and the bytes are in the log tree at the
+captured path above. `4f397e81…` is retained in the table as what it actually is,
+the inherited record's own statement.
+
+**One correction that belongs to a file this record may not edit.**
+`runner-metadata.json` `tools.datadog-static-analyzer.ruleset_or_feed_identity`
+carries `observed_identity` `sha256 c5fd464c…, 53 rulesets, 1,147 rules` beside the
+scalar fields `observed_ruleset_count: 48`, `observed_rule_count: 1093` and
+`rule_count_matches_expected: true`. Those three scalars are the superseded
+generation's counts and disagree with that node's own `observed_identity`, with the
+gate's `observed` for the same check, and with the tool's own stdout. **The counts
+of record are 53 rulesets and 1,147 rules**, and `rule_count_matches_expected` is
+therefore **false** against the expected 1,093 — which is the reading the
+`Comparability` row above already applies. `harness/artifacts/` is this run's
+published evidence, byte- and digest-exact against `MANIFEST.json`, so the
+correction is **stated here naming the file and the fields** rather than applied to
+them.
+
+**Not repairable in this checkpoint, and why.** The remaining fix is to have the
+runner read a private content-addressed copy instead of a shared mutable path, and
+that is an edit to `harness/bin/run-datadog-static-analyzer.sh` line 48 — a runner
+edit, which AAP 0.8.1 forbids outright. The runner is **present in this checkout**
+and readable, which is how its lines 37–38 and 46–52 are quoted in this entry;
+reading it is not editing it. Re-running the scanner to obtain a fresh
+rules-and-findings pair is prohibited by the same rule, and AAP 0.6.4 makes a
+second invocation a second measurement of a quantity already measured. Nothing was
+repaired and nothing here is presented as repaired.
 
 **What a human must do.** At **provisioning** time, before any scan: copy the rules
 to a private content-addressed path — `<digest>.json` under a directory this run
@@ -517,12 +557,17 @@ alternative, if the ruleset must come from Datadog rather than from a captured f
 is to attach `DD_API_KEY` and `DD_APP_KEY` so the ruleset is fetched under a
 pinnable configuration — a credential provisioning decision, not something this run
 may take (AAP 0.3.2 prohibits provisioning a credential). The cost is a provisioning
-change plus a re-run of this one tool, whose recorded elapsed time is 223 s, and the
+change plus a re-run of this one tool, whose recorded elapsed time is **57 s**
+(`datadog-static-analyzer.status` `elapsed_seconds=57`, the same measurement the
+`Elapsed` row above cites), and the
 regeneration of every figure that cites its 6,832 rows — which is this tool's row
 count, its severity tally in `oss-scan-results/severity-map.md` and its terms in the
-reconciliation identity. **Until that is done, one thing stays untrue: that any rule
-in any file now on this host is the rule that produced a given one of this tool's
-6,832 rows.**
+reconciliation identity. **Until that is done, two things stay true.** The rule set
+is identifiable only by the digest this run measured itself, the publisher exposing
+none, so nothing outside this evidence tree can confirm which upstream generation
+those 1,147 rules are. And the path the runner reads stays shared and mutable, so
+the identification holds for **this** invocation — pinned by the scan-time print
+and the byte-identical capture — and gives a later run no protection at all.
 
 **Credential safety, stated because this is the stream where it matters most.**
 This is the one runner where the precedent's `${VAR:+set}${VAR:-absent}` form
@@ -691,17 +736,46 @@ nor forced by this run.
 **Which of the two output shapes was written.** The **object** form. The
 alternative — a top-level array of per-framework report objects, which this tool
 emits when more than one framework reports — was **not** written, and the two are
-mutually exclusive. That was determined by measurement over two independent
-routes rather than assumed: byte-size discrimination against the recorded 8,380
-bytes over the candidate serializations of this invocation's own report (the
-single object compact is exactly 8,380; an array holding that one object is 8,382;
-an array of all 18 stdout documents is 92,993; an array of the 11 dockerfile
-documents is 92,202; the single object at indent 4 is 12,648 — only the object
-form matches), and direct observation of a re-invocation with the same flags over
-the same 18 directories, which wrote a file opening and closing with a brace,
-8,380 bytes, top-level keys `check_type`, `results` and `summary`. The runner
-copies the tool's `results_json.json` to the artifact path unchanged, so no field
-was rewritten by the harness.
+mutually exclusive. That was determined by measurement over two independent routes
+rather than assumed, and both routes are computed from bytes this evidence tree
+retains rather than from any second invocation. **Directly, from the artifact
+itself**: `harness/artifacts/raw/checkov.json` opens `{`, closes `}` and carries the
+three top-level keys `check_type`, `results` and `summary`; it is **8,380 bytes**,
+sha256 `91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643`, and it is
+**byte-identical** to the report the tool itself wrote at
+`harness/artifacts/logs/checkov.out/results_json.json`, and
+`harness/artifacts/MANIFEST.json` publishes that same size and digest for both — so
+the runner copies the tool's `results_json.json` to the artifact path unchanged and
+no field was rewritten by the harness. **By byte-size discrimination** against that
+recorded 8,380, over the candidate serializations of this invocation's own report:
+the single object as written is exactly **8,380**; an array holding that one object
+is **8,382**, the same
+bytes inside two brackets; the same object re-serialized at indent 4 is **12,648**;
+and a multi-framework array would have had to carry the per-directory documents this
+tool printed to stdout, of which `harness/artifacts/logs/checkov.stdout.log` retains
+**18** — 11 `dockerfile` documents and 7 carrying no `check_type` — in a stream of
+**140,105 bytes** (`MANIFEST.json`, `logs.files`). That array is measured under both
+serializations a producer could plausibly have written, because the discrimination
+must not rest on a formatting choice: with each document's own retained text
+preserved and the documents joined inside one pair of brackets, all 18 measure
+**140,106 bytes** and the 11 `dockerfile` documents alone **139,140**; re-serialized
+compactly instead, with the same separators the artifact itself uses, the same two
+arrays measure **92,993** and **92,202**. All four figures are an order of magnitude
+away from 8,380, so **only the object form matches, under either serialization** —
+and every one of the four is recomputable from the retained stream by parsing its 18
+documents, which is why four are published rather than the one pair that happens to
+suit the argument.
+
+**One route this paragraph used to take, retired rather than dropped.** An earlier
+generation gave as its second route "direct observation of a re-invocation with the
+same flags over the same 18 directories". That route is withdrawn: AAP 0.8.1 forbids
+re-running a scanner, AAP 0.6.4 makes a second invocation a second measurement of a
+quantity already measured, and no file in this evidence tree records such a
+re-invocation, so nothing here may rest on one. The byte-size discrimination above
+replaces it and needs no second scan. The earlier generation's **92,993** and
+**92,202** are *not* withdrawn with it — they are the compact-serialization pair
+recomputed above and they reproduce exactly, which is why they are republished beside
+the retained-text pair rather than labelled superseded.
 
 **Severity.** `severity` is **null per row** in this unlicensed configuration, so
 `severity_native` is absent on all 6 rows and `severity_norm` takes `Info` with
@@ -952,7 +1026,7 @@ reported what it found. Nothing here reads its zero as evidence about the tool.
 | Field | Value |
 | --- | --- |
 | Version | observed **13.0.0**, expected 13.0.0 — as expected. `$DEPENDENCY_CHECK_HOME/bin/dependency-check.sh --version` printed `dependency-check-cli version 13.0.0` (exit 0), re-measured in the checkout, and the artifact's own `scanInfo.engineVersion` reads 13.0.0 |
-| Packaging channel | observed **GitHub release, repository `dependency-check/DependencyCheck`, tag `v13.0.0`**, archive sha256 `44d920d1ec03e948df862a253f0912782a31b9beee8a7c8895b9cb95760176ed`. Recorded as observed rather than as expected: the expected attribution is `jeremylong/DependencyCheck`, which returns 404 for that tag because the project moved. **A Maven Central channel was not observed for this provisioning and is not recorded as one.** Both attributions stand; the version itself matches, so nothing halts |
+| Packaging channel | observed **GitHub release, repository `dependency-check/DependencyCheck`, tag `v13.0.0`**, archive sha256 `44d920d1ec03e948df862a253f0912782a31b9beee8a7c8895b9cb95760176ed` — the inherited provisioning record's own measurement, `harness/ENVIRONMENT.md` line 82, which is the file that owns it and is present in this checkout. Recorded as observed rather than as expected: the expected attribution is `jeremylong/DependencyCheck`, which returns 404 for that tag because the project moved. **A Maven Central channel was not observed for this provisioning and is not recorded as one.** Both attributions stand; the version itself matches, so nothing halts |
 | Feed identity | observed **keyless NIST NVD JSON 2.0 datafeed at `/opt/blitzy-harness/dc-data`, `NVD API Last Modified 2026-08-30T12:00:19-04`**; expected **keyless NVD datafeed, 2026-08-23T08:00:06-04** — **DIFFERS by seven days**. The inherited environment record states a third value, 2026-08-24T08:00:04-04 over a 239 MB database. All three are keyless NIST JSON 2.0 datafeeds, and every value is recorded |
 | Comparability | **NOT COMPARABLE WITH THE REHEARSAL.** A different feed produces a different count for reasons that have nothing to do with the code. The gate records the same difference as `recorded_difference` — one of the three — rather than as a halt, which is where AAP 0.9.3 puts it. The same status is carried in `oss-scan-results/severity-map.md` |
 | Feed identity provenance | Measured at the gate from the database file itself and the provisioning log's own text: `$HARNESS_DC_DATA_DIR/odc.mv.db` at **260,005,888 bytes written 2026-08-30T17:48Z**, alongside `jsrepository.json` 549,021 B and `publishedSuppressions.xml` 84,781 B, with the log recording `NVD API Last Modified 2026-08-30T12:00:19-04` (`gate-record.json` check `gate.feed_identity.dependency-check`, `stdout` and `observed`). The gate also records why the identity is taken that way rather than from a `dependency_check_nvd:` grep: this provisioning's log states the field in a different layout, so the grep returns nothing. Corroborated from the other direction by the artifact's own `scanInfo.dataSource` block, the tool stating the identity of the data it used |
@@ -978,67 +1052,124 @@ reported what it found. Nothing here reads its zero as evidence about the tool.
 | Heap | **none.** This runner sets no `JAVA_OPTS` and its argv carries no `-Xmx`; it is not one of the four heap-bound JVM invocations, so no heap is claimed for it |
 | Credential expression | `printf 'credential      : NVD_API_KEY=%s  (OSS Index analyzer disabled explicitly)\n' "$(scope_cred_state NVD_API_KEY)"` at runner line 45; fixed token only. **`NVD_API_KEY` absent** — and it must stay unset rather than be set to an empty string, since an empty value makes this tool abort with `Invalid API Key, length of 0 too short`. The Sonatype OSS Index credential is likewise absent |
 
-**Evidence lineage — this tool's status, artifact and streams are NOT one
-invocation's output.** Stated here because every figure in the table above is read
-from one of those three pieces, and a reader is entitled to know which generation
-each came from.
+**Evidence lineage — this tool's artifact, streams and status ARE one invocation's
+output, and a digest binds them.** Stated here because every figure in the table
+above is read from one of those pieces, and a reader is entitled to know which
+invocation each came from and what ties it there.
 
-| Piece of evidence | Generation it came from |
-| --- | --- |
-| The seven-line runner-written trailer, 261 bytes, sha256 `86406a7e596b496f48f71cf773a0bd8e6c8bbb425a838b94ba4e62e76df935bc` (`dependency-check.status` lines 1–7) | the invocation in clone `w-029_4cc49b`, 2026-08-24T22:38:54Z → 22:39:17Z |
-| `harness/artifacts/logs/dependency-check.stdout.log` and `.stderr.log` | that same invocation |
-| `harness/artifacts/raw/dependency-check.json`, 17,097 bytes, sha256 `ebe98aed11973718591f8c7490eedde86f97bf4fb2047a059e499be50e02c3b9`, `projectInfo.reportDate` 2026-08-25T00:53:00.948138152Z | **a different generation.** The report that invocation wrote measured sha256 `6b1f18604146bf4e51c8699ab5df9c419a2e915a26681fc2e77f6a6946af7292` with `projectInfo.reportDate` 2026-08-24T22:39:15.634757586Z (`dependency-check.status` `artifact_sha256_superseded`, `artifact_report_date_superseded`), and that copy is **absent from this checkout** — `output_directory_retained=no`, it was written into the invoking clone's log tree |
+All of it belongs to invocation **8** of the one serial lane
+`harness/artifacts/logs/runner-sequence.json` records — its `invocations` entry
+whose `tool` is `dependency-check` and whose `invocation_index` is **8**, eighth
+of the nine in canonical tool order — run
+`w013-20260901T132807Z`, clone index 13, **2026-09-01T14:25:03Z → 14:25:10Z**,
+elapsed 6.372 s, exit 0, `argv` the single element
+`./harness/bin/run-dependency-check.sh` with `argument_count` **0**. The ledger
+measured each piece by byte size and sha256 **immediately after that invocation
+returned**, which is what binds those bytes to that invocation and makes a later
+substitution detectable:
 
-**What the difference is, measured rather than assumed.**
-`dependency-check.status` `artifact_superseded_figures_difference` records it as
-`projectInfo.reportDate only`: the committed artifact is 17,097 bytes like the
-measured copy, carries the same `scanInfo.engineVersion` 13.0.0, the same
-`projectInfo.name` `spark-pinned-59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d`, the
-same four `dataSource` timestamps including `NVD API Last Modified`
-2026-08-24T08:00:04-04, the same 32 dependency records (`.js` 31, `.json` 1) and
-the same **0** records under the count unit `dependencies[].vulnerabilities[]`.
+| Piece of evidence | Bytes | sha256 |
+| --- | ---: | --- |
+| `harness/artifacts/raw/dependency-check.json` | 17,097 | `2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799` |
+| `harness/artifacts/logs/dependency-check.stdout.log` | 2,067 | `59a529f2329ff7c64a33671d764486807e5b955203bd3fb2d3b58f45b37ab814` |
+| `harness/artifacts/logs/dependency-check.stderr.log` | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| The seven-line runner-written trailer (`dependency-check.status` lines 1–7) | 260 | `a888d8b4ecb7261c70fff7978b5e16867af0047b2c39983057bc12e93a2765a2` |
+| `harness/artifacts/logs/dependency-check.runner-console.log` | 1,419 | `b9669824ed10aa96d0008e2ee518651fe921fa344a242374fe2b78bc66412b3b` |
+| Side report `harness/artifacts/logs/dependency-check.out/dependency-check-report.json` | 17,097 | `2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799` |
 
-**What that means for reading this tool's figures.** Every artifact-derived figure
-in the table — finding count 0, the 32 dependency records, the feed identity, the
-output format and the 17,097 bytes — is measured from the committed artifact and is
-untouched by a wall-clock field, so each is a true measurement of the file this
-repository carries. What is **not** available is the binding: the status's
-`artifact_sha256` was re-measured from the committed file rather than carried from
-the invocation, so **no digest ties this artifact to the trailer and the two
-streams**. A reader can verify that the committed artifact is a report of the same
-shape, engine and feed with the same figures; they cannot verify from the evidence
-in this tree that it is the byte output of the invocation the streams describe.
-That is a data-authenticity gap (CWE-345), and it is recorded as one rather than
-narrowed to a formatting difference.
+Every pair above is `harness/artifacts/MANIFEST.json`'s published measurement,
+which `oss-scan-results/run-record.md` section 16 republishes, and each is
+corroborated by the matching field of the ledger's own dependency-check entry —
+`artifact`, `stdout_log`, `stderr_log`, `status_file`, `runner_console_log` and
+`side_artifacts` — taken there against the same bytes. One measurement cited
+twice, and it agrees in both directions.
 
-**Not repairable in this checkpoint, and why.** The correction is a re-invocation,
-and there is nothing here to re-invoke: `harness/bin/*`, `harness/env.sh`,
-`harness/ENVIRONMENT.md` and `harness/lib/scope.sh` are **absent from this clone
-and from disk** — checked with `test -e` on each of the four; `harness/` holds only
-`artifacts`, `cpg`, `lib` and `scope`, and `harness/lib` only `normalize`,
-`preflight_graph_identity.py`, `run-joern-gated.sh` and `verify_status_figures.py`.
-So the runner whose lines this entry quotes cannot be read, let alone run.
-Independently of that, AAP 0.8.1 forbids re-running a runner from here at all, and
-`dependency-check.status` `reinvoked_by_this_record=false` states the same rule
-from the other side: a second invocation would be a second measurement of a
-quantity already measured (AAP 0.6.4) and would put a second artifact into the
-runner-only raw tree. Nothing in this checkpoint was repaired, and nothing here is
-presented as repaired.
+**Three checks that the pieces belong together, none of them a restatement of
+another.** The raw artifact and the side report the tool itself wrote are
+**byte-identical**, same size and same digest, which is the evidence that the
+runner's copy into `harness/artifacts/raw/` rewrote nothing — and the tool names
+that destination in its own final stdout line, `Writing JSON report to:
+…/harness/artifacts/logs/dependency-check.out/dependency-check-report.json`. The
+artifact's own `projectInfo.reportDate` **2026-09-01T14:25:08.833466245Z** falls
+inside that invocation's own 14:25:03Z → 14:25:10Z window, so the report was
+written by the process the window belongs to. And the console stream carries the
+lane identity in its own header — `run_id=w013-20260901T132807Z clone_index=13`
+and `argv=["./harness/bin/run-dependency-check.sh"]` — above a trailer whose
+`exit code : 0`, `elapsed seconds : 7` and `artifact … (17097 bytes)` equal the
+`.status` trailer's own `exit_code`, `elapsed_seconds` and `artifact_bytes`.
 
-**What a human must do.** Re-provision the harness — the nine runners,
-`harness/env.sh`, `harness/lib/scope.sh` and `harness/ENVIRONMENT.md` — and execute
-**one serialized nine-runner lane** in a single clone, carrying a lane identifier
-that is stamped into the artifact, both streams and the status of every invocation,
-with an atomic completion manifest published per invocation carrying each piece's
-digest and timestamp; then discard every mixed generation rather than reconciling
-it. The cost is the re-provisioning plus a lane whose serialized floor is the sum
-of the nine recorded elapsed times, **3,115 s (51 m 55 s)** — 136 + 223 + 23 + 69 +
-1,074 + 944 + 3 + 621 + 22, read from the nine `.status` files' own
-`elapsed_seconds` — and, because a fresh Dependency-Check report carries a fresh
-`reportDate` and possibly a fresher feed, the regeneration of every figure in every
-document that cites this tool. **Until that is done, one thing stays untrue: that
-this tool's artifact, streams and status are one invocation's output.** This
-document does not assert it anywhere, and no figure above rests on it.
+**The data-authenticity gap this entry once recorded (CWE-345) is CLOSED, and the
+binding is what closes it.** It was recorded when no digest tied this artifact to
+the trailer and the two streams. The ledger's post-return measurement of every
+piece in the table above, the byte-identical side report and the in-window
+`reportDate` are that tie, so a reader can now verify from the evidence in this
+tree — rather than infer it from shape, engine and feed agreeing — that the
+committed artifact is the byte output of the invocation the streams describe.
+Nothing is narrowed away: the gap was real for the generation it was recorded
+against, and it is that generation rather than the finding that was superseded.
+
+**Superseded generation, retained as history rather than dropped.** An earlier
+generation of this entry published a different lineage, and its figures are kept
+here so that nobody reading the two side by side concludes a number was quietly
+removed. It attributed the trailer, at **261 bytes** and sha256
+`86406a7e596b496f48f71cf773a0bd8e6c8bbb425a838b94ba4e62e76df935bc`, to an
+invocation in clone `w-029_4cc49b` at 2026-08-24T22:38:54Z → 22:39:17Z; it
+published the raw artifact at sha256
+`ebe98aed11973718591f8c7490eedde86f97bf4fb2047a059e499be50e02c3b9` with
+`projectInfo.reportDate` 2026-08-25T00:53:00.948138152Z, against a report measured
+at `6b1f18604146bf4e51c8699ab5df9c419a2e915a26681fc2e77f6a6946af7292` with
+`reportDate` 2026-08-24T22:39:15.634757586Z; and it read the four `dataSource`
+timestamps as `NVD API Last Modified` 2026-08-24T08:00:04-04. **Not one of those
+figures is a measurement of any file in this checkout**, and each is superseded by
+the pair beside it in the table above and by the `Feed identity` row's
+2026-08-30T12:00:19-04. That generation also cited four enriched `.status`
+fields — `artifact_sha256_superseded`, `artifact_report_date_superseded`,
+`output_directory_retained` and `artifact_superseded_figures_difference` — and
+**none of them can be quoted from any file on disk**: commit `0e3e742a5ad`
+replaced all nine statuses with the runners' own verbatim trailers, and every one
+of the nine now measures seven lines carrying only `tool`, `exit_code`,
+`elapsed_seconds`, `artifact`, `artifact_bytes`, `scan_root` and
+`scan_root_source`. Where a fact of that generation survives it is cited above
+from the record that does carry it; where it does not, it is stated as history in
+this paragraph and nowhere else.
+
+**Nothing was re-invoked from here, and the reason is the rule rather than an
+absence.** `harness/bin/` and its nine runners, `harness/env.sh`,
+`harness/lib/scope.sh` and `harness/ENVIRONMENT.md` are all **present in this
+checkout** — they are where the invocation form, the baked flags, the working
+directory, the JDK and the credential expression in the table above were read
+from. They were read and deliberately not run: AAP 0.8.1 forbids editing a runner
+or a baked flag and forbids re-invoking a scanner from here; AAP 0.6.4 makes a
+second invocation a second measurement of a quantity already measured; and
+`harness/artifacts/raw/` is runner-only, so a second artifact in it would corrupt
+both this tool's count and the reconciliation identity. No runner was edited, no
+runner was invoked from this record, and nothing in this entry is presented as
+repaired by it. The one further invocation of this **tool** that this document
+describes — the positive fixture capture below — is deliberately not part of that
+scanning lane: it ran the tool's own script directly rather than the runner, over
+input that is not the pinned tree, wrote outside `harness/artifacts/raw/`, was not
+normalized and contributes no row, which is why the lane stays nine invocations and
+this tool's figures stay one measurement each.
+
+**What a human must do.** One item for this tool is open, and it is not the
+lineage: its **feed identity differs from the expected-values table by seven
+days** — observed `NVD API Last Modified` 2026-08-30T12:00:19-04 against an
+expected 2026-08-23T08:00:06-04 — so its counts carry **NOT COMPARABLE WITH THE
+REHEARSAL**, and no re-reading of the delivered evidence can lift that mark.
+Lifting it takes a provisioning decision this run may not take: seed the datafeed
+at the expected timestamp and re-execute, or accept the difference in writing with
+both values on the record. Until one of those is taken, the mark stands. If the
+choice is to re-seed, the cost is the re-provisioning plus one serialized
+nine-runner lane, whose floor is the sum of the nine recorded elapsed times —
+**3,104 s (51 m 44 s)**, from
+1407 + 535 + 57 + 14 + 93 + 17 + 0 + 7 + 974 = 3,104 s, each addend read from that
+tool's own `.status` `elapsed_seconds` field — and, because a fresh
+Dependency-Check report carries a fresh `reportDate` and a fresher feed, the
+regeneration of every figure in every document that cites this tool.
+`runner-sequence.json` measures those same nine windows more finely, at
+1407.786 + 535.569 + 56.25 + 14.451 + 93.009 + 16.624 + 0.507 + 6.372 + 974.22 =
+3,104.788 s: one lane read at two resolutions, whole seconds by construction in
+the trailers and sub-second in the ledger, and not a second lane.
 
 **JDK assignment, recorded as read.** A reader expecting 21 for this tool would be
 wrong for this provisioning, and a reader expecting 17 for every non-Joern tool
@@ -1085,41 +1216,81 @@ test-path exclusion — is recorded as reach, not as an error.
 `harness/artifacts/logs/dependency-check.stderr.log` is 0 bytes, so
 `scope_fail` never ran and the exit 78 path was not taken.
 
-**The captured fixture, and one AAP requirement recorded as UNMET.**
+**The captured fixture, and the one AAP requirement over it — SATISFIED by a second
+capture rather than by a waiver.**
 `oss-scan-results/adapter-tests/fixtures/dependency-check.json` is a byte-for-byte
-copy of this tool's whole artifact — 17,097 bytes, sha256 `ebe98aed…`, the same
-digest — and measured over it directly it carries **32 dependencies, 0 vulnerability
-records and 0 package objects**. One vulnerability record is this shape's count unit,
-so the capture produces **zero rows** and exercises no field of the row builder. AAP
-0.6.2's requirement of an unmodified captured positive fixture that exercises the
-adapter's positive field mapping is therefore **UNMET for this adapter**, and it is
-recorded as unmet rather than as an exception or a waiver:
-`oss-scan-results/adapter-tests/expected/dependency-check.rows.json` carries the
-status `FAILED` with the measurement behind it, and
-`harness/artifacts/logs/adapter-tests-run.json`
-`positive_mapping.per_adapter["dependency-check"]` carries the same status beside the
-module's pass and its scope.
+copy of this tool's whole artifact — **17,097 bytes**, sha256
+`2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799`, the same digest
+as `harness/artifacts/raw/dependency-check.json` — and measured over it directly it
+carries **32 dependencies, 0 vulnerability records and 0 package objects**. One
+vulnerability record is this shape's count unit, so this capture produces **zero
+rows** and exercises no field of the row builder. That measurement stands unchanged,
+and it is why a second capture was needed.
 
-Both facts are true and neither implies the other, which is why the `Adapter fixture`
-row above states them together: the module passes **because** it asserts the
-capture's measured zero-row shape, not because a positive mapping was exercised from
-captured output. Positive mapping for this adapter is exercised on
-`fixtures/derived-dependency-check-features.json`, which is declared **derived** in
-its own expected file and is never presented as captured output.
+**What satisfies AAP 0.6.2, measured rather than asserted.** A second, equally
+genuine capture: `harness/artifacts/logs/dependency-check-positive-capture.json`,
+**46,684 bytes**, sha256
+`ee48683145332f02d5dd101fa0d5fb1b812667b53eec81a97c962b7939911af1`, carrying **2
+dependencies and 5 vulnerability records** — produced by a second invocation of the
+same tool build (Dependency-Check 13.0.0), the same JDK 17.0.20+8, and the same
+seeded NVD datafeed read with `--noupdate` and `--disableOssIndex`. Its exact
+command, tool build, JDK, feed timestamps and measured output are retained verbatim
+in `harness/artifacts/logs/dependency-check-positive-capture.log`. It was copied
+byte-for-byte to
+`oss-scan-results/adapter-tests/fixtures/captured-dependency-check-vulnerabilities.json`
+— `cmp` reports the two files identical, both 46,684 bytes at that same digest — and
+is asserted **field by field** against five hand-verified rows by
+`test_dependency_check_adapter.py`'s `CapturedVulnerabilityFixtureTest`.
 
-**Not closable from inside this run.** The two ways to obtain a capture carrying a
-vulnerability record are both prohibited: widening the twelve scope globs so the tool
-resolves a real dependency manifest (AAP 0.3.2 — the globs stayed byte-exact) and
-re-running the scanner (AAP 0.8.1, and there is no runner here to re-run). So no
-positive fixture was manufactured, no fixture was edited to grow a record, and
-neither an expected failure nor a skip is used to make the gap vanish from a summary.
-**What a human must do:** provision an unmodified real Dependency-Check artifact
-excerpt carrying at least one vulnerability record, **without** widening scan scope,
-then re-run the static fixture tests against it. Until then one thing stays untrue:
-that this adapter's positive field mapping has been exercised by captured tool
-output. Nothing here judges the tool's zero-vulnerability outcome; the unmet
-requirement is a property of the available captured evidence, not of the adapter and
-not of the tool.
+Those five rows exercise `rule_id`, `message`, three distinct native labels
+(`CRITICAL`, `HIGH`, `MEDIUM` mapping to Critical, High and Medium) under
+label-over-score precedence with CVSS scores present, filesystem-absolute path
+relativization, `cve`, `cwe`, and the package-coordinate candidate precedence at its
+first level (`pkg:maven` package URLs). All five carry `in_scope: false` and
+contribute **no dataset row**: the capture was taken outside
+`harness/artifacts/raw/`, over input that is not the pinned tree, and it is never
+normalized. `expected/captured-dependency-check-vulnerabilities.rows.json` holds the
+five expected rows.
+
+**Who states the verdict.** `harness/artifacts/logs/adapter-tests-run.json`
+`positive_mapping.per_adapter["dependency-check"].aap_0_6_2_captured_positive_mapping_requirement.status`
+is **`SATISFIED`**, with `status_superseded_value` **`FAILED`** retained beside it and
+a supersession note on every field the new verdict replaced;
+`oss-scan-results/adapter-tests/expected/dependency-check.rows.json`
+`aap_captured_positive_mapping_requirement.status` is **`SATISFIED`** with the same
+statement and the same `2861fbf4…` fixture digest. The `Adapter fixture` row above
+cites those two statuses, so this is one verdict cited twice rather than two verdicts.
+
+**Superseded verdict, retained as history.** This passage previously published the
+requirement as **UNMET**, the expected file's status as `FAILED`, this fixture's
+digest as `ebe98aed…`, and positive mapping as exercised only on
+`fixtures/derived-dependency-check-features.json`. All four described the state before
+the second capture existed, and the UNMET verdict was correct while the scanning run's
+own artifact was the only candidate capture; they are retained rather than deleted so
+the change of verdict stays visible. The `ebe98aed…` digest belongs to a superseded
+generation of this fixture and matches no file now on disk — the fixture measures
+`2861fbf4…`, equal to the raw artifact's, and `adapter-tests-run.json` publishes that
+same byte-and-digest pair.
+
+**The derived fixture keeps a role, and it is still declared derived.**
+`fixtures/derived-dependency-check-features.json` covers what neither capture reaches:
+a record whose severity label is absent so `severity_norm` falls to the CVSS score,
+package-coordinate candidate levels 1, 3 and 4 including the within-level
+lexicographic tie, and the rejection conditions. It is declared **derived** in its own
+expected file and is not offered as this requirement's evidence.
+
+**Nothing in the scanning lane was re-invoked, and the reason is the rule.** The
+second capture is not a tenth scanning invocation: it wrote outside
+`harness/artifacts/raw/`, contributes no row and was not normalized, so the raw tree
+stays runner-only and each of the nine scanning invocations remains the single
+measurement of its own quantity (AAP 0.6.4). No runner and no baked flag was touched
+(AAP 0.8.1): `harness/bin/run-dependency-check.sh` is present and readable in this
+checkout — every line citation in this entry was read from it — and reading a runner
+is not editing it. The twelve globs stayed byte-exact (AAP 0.3.2), no fixture was
+edited to grow a record, no positive fixture was manufactured, and neither an expected
+failure nor a skip is used to make anything vanish from a summary. Nothing here judges
+the tool's zero-vulnerability outcome on the pinned tree; that outcome is a property
+of the scanned scope, recorded above.
 
 **Absent-artifact stderr and verdict**: not applicable — the artifact is present
 and parses. The zero here is a zero **finding count**, not an absent artifact, and
@@ -1163,16 +1334,33 @@ is the code-property graph rather than a directory tree.
 `--script harness/lib/joern-scan.sc`, `-J-Xmx"$HARNESS_JOERN_HEAP"`, and stdin
 redirected from `/dev/null`. `SL_LOGGING_LEVEL` is set to `WARN`, because the
 default level floods the artifact. None of these is an anchor. **Both files named
-in that sentence — the runner and the script it invokes — are absent from this
-clone and from disk**, for the reason recorded under the two evidence-lineage
-blocks above, so the reading is not re-derivable here and is not presented as
-though it were: what survives is the preserved capture in
-`harness/artifacts/logs/joern.status` lines 274–275, which holds the command
-verbatim (`… joern --script "$SCRIPT" -J-Xmx"$HARNESS_JOERN_HEAP" < /dev/null …`)
-together with `command_source_lines=harness/bin/run-joern.sh lines 67-71`. The
-line numbers are that capture's citation of the runner as it stood at scan time,
-retained because they are the evidence of what was invoked, not an invitation to
-open a file this checkout does not contain.
+in that sentence — the runner and the script it invokes — are present in this
+checkout and readable**, so the reading above is re-derivable rather than taken on
+trust: `harness/bin/run-joern.sh` lines 67–71 carry the invocation verbatim,
+
+```
+JAVA_HOME="$JAVA_HOME_21" SL_LOGGING_LEVEL="${SL_LOGGING_LEVEL:-WARN}" \
+  HARNESS_SCAN_CPG="$CPG_REAL" HARNESS_SCAN_OUT="$ART" HARNESS_SCAN_BOUND="$BOUND" \
+  joern --script "$SCRIPT" \
+    -J-Xmx"$HARNESS_JOERN_HEAP" \
+    < /dev/null > "$OUT" 2> "$ERR"
+```
+
+with line 70 the `-J-Xmx` site, and `harness/lib/joern-scan.sc` lines 1–6 describe
+the baked set as six structural queries in the script's own words. The same facts
+are held structurally by `runner-metadata.json`
+`tools.joern.invocation_form.literal`, whose `source_lines` field reads
+`harness/bin/run-joern.sh lines 67-71` and equals the five lines above token for
+token, and by `tools.joern.baked_flags`. **The `.status` trailer is not a source
+for any of this** and is not cited as one: like the other eight it is seven lines
+carrying only `tool`, `exit_code`, `elapsed_seconds`, `artifact`,
+`artifact_bytes`, `scan_root` and `scan_root_source`, so it holds no command, no
+`command_source_lines` and no line 274. An earlier generation of this entry
+quoted an enriched `joern.status` at lines 274–275 for the command; commit
+`0e3e742a5ad` replaced all nine statuses with the runners' own verbatim trailers,
+which is why that quotation is recorded here as history and the runner itself is
+cited in its place. Reading the runner is not editing it: AAP 0.8.1 forbids
+editing a runner or a baked flag, and nothing here was edited.
 
 **Heap actually used: 64 GB**, as `-J-Xmx64g` (68,719,476,736 bytes), which the
 runner also prints into its own stream. The mechanism is `HARNESS_JOERN_HEAP`, the
@@ -1197,11 +1385,15 @@ size **541,309,809** and sha256
 `4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7` were measured
 at **2026-09-01T14:25:10Z**, when this invocation began, and again at
 **14:41:24Z**, when it returned, and the two measurements are identical
-(`runner-sequence.json` `invocations[9].graph_identity_before_load` and
+(`runner-sequence.json`, at its invocation whose `invocation_index` is **9** — this
+tool, last of the nine — fields `graph_identity_before_load` and
 `graph_identity_after_load`; the link-only 33-byte measurement is recorded only to
 discard it in favour of the symlink-following size). The runner prints the same
 three facts into its own stream before invoking — `cpg`, `cpg bytes` and
-`cpg sha256` in `harness/artifacts/logs/joern.runner-console.log`. The dedicated
+`cpg sha256` at `harness/bin/run-joern.sh` lines 56–58, which the runner is present
+in this checkout to show, landing at
+`harness/artifacts/logs/joern.runner-console.log` lines 13–15 as `541309809` and
+`4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7`. The dedicated
 pre-load gate `harness/lib/preflight_graph_identity.py`, whose output is retained
 at `harness/artifacts/logs/joern-preflight.log`, compares those same bytes against
 the graph's record of account at
@@ -1217,9 +1409,11 @@ serialization ceiling, so the persisted graph is provisioning's, dated
 2026-08-30, and this invocation read it without rebuilding it.
 
 **One disagreement about that identity, recorded rather than smoothed over.** The
-inherited environment record states a different graph — **541,255,894** bytes,
-sha256 `26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`, with
-1,397,339 methods and 119,691 type declarations — against the
+inherited environment record — `harness/ENVIRONMENT.md`, lines 284–287, restated in
+its own inlined-values block at lines 841–846 — states a different graph:
+**541,255,894** bytes, sha256
+`26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`, with
+1,397,339 methods and 119,691 type declarations, against the
 541,309,809 / `4616845a…` / 1,396,899 / 119,721 measured on disk and read by this
 load. The gate records that as one of its **two halts**,
 `gate.environment_record_graph_identity_agreement`, rather than as a tolerated
@@ -1313,7 +1507,12 @@ is **enforced rather than asserted**: `harness/lib/verify_status_figures.py`
 reads `adapter-tests-run.json` and requires every test count, subtest count,
 elapsed reading, module count, fixture count and addend expression restated here
 to equal one of its measurements, exiting non-zero on any drift. Its last run
-checked **35 replicated figures with 0 drifted**.
+checked **44 replicated figures with 0 drifted**. The count of figures moves with
+how many replicated figures these documents carry, so the durable claim is the
+**zero** rather than the count: this document's own nine-tool elapsed sum became one
+of the checked figures only once its addends were rewritten without thousands
+separators, a separator inside an operand being enough to put an expression beyond
+the gate's reach.
 
 A second gate covers what that one does not. `harness/lib/verify_publication_owners.py`
 enforces AAP §0.6.4's ownership rule across a wider surface than numeric figures:
@@ -1325,8 +1524,24 @@ probe revision triple, and the requirement that while the gate's verdict is
 reads the copy out of the document that publishes it, and exits non-zero naming
 both sides on any disagreement — so a document that has drifted from its owner is
 not publishable. It also fails on a projection that is *absent*, because an
-omitted copy is how a value silently stops being checked. Its last run checked
-**47 owner/copy pairs with 0 disagreeing**.
+omitted copy is how a value silently stops being checked.
+
+It additionally adjudicates the **locator** of a citation rather than only the value
+it carries, across all five result documents, in three families: every
+`<tool>.status` field name against the seven the trailers actually hold, every line
+citation into this run's own surface against the cited file's measured length, and
+every path published as absent against the filesystem. That gap is the one this
+checkpoint was opened on — a commit correctly replaced the nine enriched statuses
+with the runners' verbatim trailers and correctly restored sixteen deleted files, and
+left prose citing fields and line numbers that had ceased to exist and asserting that
+restored files were absent, none of which either gate could then see. Each family
+distinguishes a **live** citation from one the document is retracting, so a sentence
+naming a superseded locator in order to warn a reader off it does not fail; the
+retractions are counted and printed rather than hidden. Its last run checked
+**82 owner/copy pairs with 0 disagreeing**, over 13 live field citations, 103 live
+line citations and 5 absence claims, with 1 field and 1 line citation retracted as
+history. Here too the invariant is the zero: the pair count grows as each further
+owner/copy relationship is brought under the gate.
 
 Both gates exist because every measurement re-taken during this work moved several
 published copies at once, and each stale copy was previously found only by someone
