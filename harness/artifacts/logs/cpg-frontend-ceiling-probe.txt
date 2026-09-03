@@ -1,0 +1,66 @@
+This file is the verbatim source of the ByteArrayOutputStream ceiling probe,
+retained as evidence. It is not part of this run's pipeline: nothing imports
+it, nothing invokes it, and no deliverable depends on it. It is kept with a
+.txt extension because AAP 0.6.1 fixes this tree's contents to
+*.{log,status,json,txt,sarif}.
+
+Compiled with $JAVA_HOME_21/bin/javac (Temurin 21.0.12.1+1) and run at
+-Xmx8g, -Xmx64g and -Xmx128g. All three runs' stdout is retained verbatim in
+harness/artifacts/logs/cpg-ceiling-reverify.log, under 'THE PROBE, AND ALL
+THREE ARMS VERBATIM' - that file is the owner of every arm's output, and the
+figures the arms establish are read there.
+
+  On the source's own comment: the javadoc below says the failure can be
+  'observed at two different heaps'. That is the comment as it was written,
+  when two arms had been run, and the source is retained verbatim rather than
+  reworded to match: the source text below is what was extracted from this
+  file and compiled for every arm, including the 8 GiB arm added later, so
+  altering it would break that correspondence. The arms actually run are the
+  three named above, and cpg-ceiling-reverify.log carries all three verbatim.
+
+  A correction of record: an earlier edition of this header cited 'STEP R2.4b
+  of harness/artifacts/logs/cpg-frontend.log' as the place all three outputs
+  were kept. No such step exists in that file and no arm's output was ever in
+  it - grep for CeilingProbe, SOFT_MAX or R2.4 in cpg-frontend.log returns
+  nothing. The citation above names the file that actually holds them.
+
+--- CeilingProbe.java ---------------------------------------------------------
+import java.io.ByteArrayOutputStream;
+
+/**
+ * Does a java.io.ByteArrayOutputStream's growth ceiling move with the heap?
+ *
+ * flatgraph 0.1.32 serialises its string pool through one ByteArrayOutputStream.
+ * This probe drives that class's own growth path past the soft maximum array
+ * length and prints what it throws, so the failure the frontend hit can be
+ * reproduced without the frontend and observed at two different heaps.
+ */
+public final class CeilingProbe {
+    private static final int SOFT_MAX = Integer.MAX_VALUE - 8;   // 2,147,483,639
+
+    public static void main(String[] args) {
+        System.out.println("java.version      = " + System.getProperty("java.version"));
+        System.out.println("java.vm.name      = " + System.getProperty("java.vm.name"));
+        System.out.println("maxMemory bytes   = " + Runtime.getRuntime().maxMemory());
+        System.out.println("SOFT_MAX          = " + SOFT_MAX);
+        ByteArrayOutputStream out = new ByteArrayOutputStream(1 << 20);
+        byte[] chunk = new byte[1 << 24];                        // 16 MiB
+        long written = 0;
+        try {
+            while (written + chunk.length <= SOFT_MAX) {
+                out.write(chunk, 0, chunk.length);
+                written += chunk.length;
+            }
+            int remainder = (int) (SOFT_MAX - written);
+            if (remainder > 0) { out.write(chunk, 0, remainder); written += remainder; }
+            System.out.println("buffered bytes    = " + written + " (== SOFT_MAX: " + (written == SOFT_MAX) + ")");
+            System.out.println("now writing 77 more bytes, exactly as the frontend's next string would");
+            out.write(chunk, 0, 77);
+            System.out.println("UNEXPECTED: the write succeeded, size = " + out.size());
+        } catch (Throwable t) {
+            System.out.println("THREW            = " + t.getClass().getName());
+            System.out.println("MESSAGE          = " + t.getMessage());
+            System.out.println("buffered bytes   = " + written);
+        }
+    }
+}

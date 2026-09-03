@@ -1,0 +1,496 @@
+{
+ "description": "The hand-verified expected result for the negative opengrep SARIF fixture whose percent-encoded URI references decode to control characters. Every value was derived by reading the fixture, the pinned tree and the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/paths.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. The key names follow the template expected/reject-sarif-uribaseid-invalid-uri.rows.json established, minus its invalidity_mechanism block and plus post_decode_validation in its place, because the moment at which the control is detected -- after the decode rather than before it -- is the whole subject of this fixture and no other expected file records it.",
+ "tool": "opengrep",
+ "scanner_class": "sast",
+ "adapter": "harness/lib/normalize/adapters/sarif.py",
+ "resolver": "harness/lib/normalize/paths.py -- parse_uri_reference, resolve_uri_base and resolve_sarif_location. The adapter contributes nothing to this condition beyond passing the artifactLocation through and returning the rejection paths.py composed.",
+ "fixture": {
+  "path": "oss-scan-results/adapter-tests/fixtures/reject-sarif-percent-encoded-control.sarif",
+  "sha256": "d26797bd694e6183ad5a7030fdcd42322cca2437a8fbf78456730255c92c3f0e",
+  "bytes": 16199,
+  "sarif_version": "2.1.0",
+  "runs": 1,
+  "results": 6,
+  "driver_rules": 3,
+  "original_uri_base_ids": 3,
+  "derived_from": "oss-scan-results/adapter-tests/fixtures/opengrep.sarif",
+  "derivation": "Every one of the six results is a captured opengrep record from harness/artifacts/raw/opengrep.sarif in which nothing but the artifactLocation was touched, and two were not touched at all. /runs/0/results/0 is byte-identical to that artifact's results[432] and /runs/0/results/5 to its results[1258]; both are also byte-identical to /runs/0/results/0 and /runs/0/results/2 of the sibling fixture reject-sarif-uribaseid-invalid-uri.sarif, which is where this fixture's envelope, its invocations array and its three driver rules come from. The four defective records are results[521], results[1258], results[432] and results[521] again, each with its artifactLocation object replaced and every other member -- fingerprints, message, properties, ruleId, and the region with its snippet -- carried over verbatim. Results 3 and 4 reuse the descriptors of results 0 and 1, fingerprints included; the adapter reads no fingerprint, and the reuse is stated here rather than disguised by editing a digest into something that would look captured and would not be. All three driver rules are byte-identical to raw rules[592], rules[1283] and rules[1458]. The originalUriBaseIds map is the fixture's own addition -- the engine emits none, measured over the whole artifact -- and it carries three entries where the sibling carries four: %PROJECTROOT% and %SRCROOT% are the sibling's, verbatim, and %ESCROOT% is this fixture's one new base.",
+  "provenance_verification": "Reproducible without this file: parse the fixture and harness/artifacts/raw/opengrep.sarif, blank each record's artifactLocation object on both sides, and compare json.dumps(record, sort_keys=True). Each of the six matches exactly one raw record -- 432, 521, 1258, 432, 521, 1258 in fixture order -- and results 0 and 5 match without blanking anything.",
+  "why_each_alteration_is_the_minimum": "The condition under test is a percent-encoded control character in a URI reference, and a URI reference is exactly what an artifactLocation carries. Changing anything else would put content in the fixture that no producer wrote for no gain, and changing less would not express the condition."
+ },
+ "routing": {
+  "shape": "sarif",
+  "detected_by": "normalize.shape.is_sarif -- a version of \"2.1.0\" together with a runs array; those two together are the whole test",
+  "sarif_version_pointer": "/version",
+  "runs_pointer": "/runs",
+  "adapter_module": "normalize.adapters.sarif",
+  "routing_decision": "normalize.shape.route(\"opengrep\", doc) returns tool \"opengrep\", shape \"sarif\", adapter \"sarif\", scanner_class \"sast\"",
+  "routes_successfully": true,
+  "rejection_is_record_level": true,
+  "not_a_shape_failure": "No normalize.shape.UnknownArtifactShape is expected here. The document is valid SARIF 2.1.0 and routes cleanly; four records inside it name locations that are not URI references once decoded, and the adapter rejects those four while still emitting the other two. The fixtures that own shape-detection failure are near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json."
+ },
+ "post_decode_validation": {
+  "why_this_fixture_exists": "To assert that the control-character check is made after percent-decoding and not only before it. paths.parse_uri_reference tests the raw reference for a control character and then decodes; a check made only on the raw form is not the guard it looks like, because %00, %0d and %1b are four ordinary URI characters each until unquote() turns them into NUL, CR and ESC. The decoded value is what becomes the row's path field, so a single pre-decode check leaves every percent-encoded control to arrive in findings.json, in the path column of findings.csv, in the Markdown records rendered from them and in the run logs (CWE-176 for the decode, CWE-117 for where it arrives).",
+  "the_check_the_fixture_defeats": "Each of the four defective references passes the pre-decode test. Not one of them carries a control character as written: the bytes are the ASCII '%', '1', 'B' and their kind. That is the property that makes this fixture a test of the second guard rather than of the first, and it can be verified without running the adapter -- search the fixture for a byte below 0x20 outside the JSON string escapes and there is none.",
+  "four_decode_sites_and_the_one_extra": "parse_uri_reference decodes in four places, and the fixture reaches three of them directly plus a fourth through resolve_uri_base: the general relative-or-absolute decode (result 1), the file: URI's path (result 2), the archive member of a reference carrying '!' (result 3), and the same general decode reached while walking a base-map entry (result 4). The remaining site -- the member of a reference carrying an archive scheme such as jar: -- is not exercised by a committed fixture and is named under behaviours_not_exercised_by_this_fixture with the test that authors it.",
+  "the_second_guard_is_a_different_moment": "This fixture exercises the decode-time guard. The pre-emission guard -- paths.assert_relative_path refusing a control-bearing path, and paths._emitted_path_or_refusal turning that refusal into a counted rejection instead of a raise -- exists for the paths that reach a row without any URI decoding in their history, which is every native tool's own reported path field. It cannot be exercised from a SARIF fixture, because a SARIF path that would trip it is stopped one step earlier here, and that is the correct order: refusing at the decode names the cause, while refusing at the emission names only the symptom. Its coverage lives in the authored-document tests named below.",
+  "no_repair_and_no_escaping": "The reference is not stripped, not escaped and not re-encoded. AAP 0.5.4 forbids inference, and the path field is a coordinate a consumer joins onto a root: a value this pipeline rewrote would no longer name what the tool reported, and a row carrying it would be a location nobody can check. The record is rejected under invalid_uri and counted.",
+  "the_detail_never_carries_the_control": "Each detail names the decoded control by code point -- U+001B, U+0000, U+000D -- through paths.describe_control_characters, and reproduces neither the character nor the decoded value. The raw reference does appear, and safely: it is still percent-encoded, so it carries no control byte. That distinction is the reason the describer exists rather than an interpolated decoded value: these details are written verbatim into harness/artifacts/logs/ and into normalize-run.json, and an ESC or a CR reaching a terminal or a log line is log injection even when the record that carried it was refused.",
+  "measured_impact_on_the_dataset": "None. Measured over the 9,430 rows of oss-scan-results/findings.json, no row's path field carries a control character, and none carries a '%' either -- so no percent-encoded sequence exists in this provisioning's output for either guard to decode or refuse. Both guards are a defence against a future artifact rather than a change to this one."
+ },
+ "field_order": [
+  "tool",
+  "scanner_class",
+  "rule_id",
+  "message",
+  "severity_native",
+  "severity_norm",
+  "path",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate",
+  "in_scope"
+ ],
+ "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+ "absence_permitted_fields": [
+  "severity_native",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate"
+ ],
+ "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS.",
+ "severity_norm_vocabulary": [
+  "Critical",
+  "High",
+  "Medium",
+  "Low",
+  "Info"
+ ],
+ "allowlist": {
+  "path": "harness/scope/allowlist.txt",
+  "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+  "globs": 12,
+  "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under row_derivations."
+ },
+ "resolution_context": {
+  "path_base_kind": "scan_root",
+  "path_base_equals_scan_root": true,
+  "path_base_source": "harness/artifacts/logs/runner-metadata.json, the opengrep entry's path_base -- read as input, never assumed",
+  "path_basis": "sarif-uri-base-id-chain",
+  "path_basis_authority": "harness/lib/normalize/paths.py, BASIS_SARIF_BASE_CHAIN. Both surviving rows resolve through the map's own chain, so the basis is the walk completing on its own evidence rather than the runner-recorded fallback.",
+  "path_kind": "tree_file",
+  "sarif_original_uri_base_ids_present": true,
+  "walk_outcomes_per_base": {
+   "%PROJECTROOT%": "resolved -- base /opt, the absolute ancestor the other two are expressed beneath",
+   "%SRCROOT%": "resolved -- chain %SRCROOT% -> %PROJECTROOT%, base /opt/spark-src",
+   "%ESCROOT%": "invalid-uri -- its own uri 'spark-src%1B/' decodes to a value carrying U+001B, so the walk stops on its first link and no base is produced"
+  },
+  "walk_is_a_chain_not_one_level": "Both surviving rows resolve through two links: %SRCROOT% carries uri \"spark-src/\" and uriBaseId %PROJECTROOT%, and %PROJECTROOT% carries the absolute file:///opt/, so the relative level is accumulated and joined beneath the absolute ancestor to give /opt/spark-src. That is SARIF 2.1.0 section 3.14.14's own shape, in which one base is expressed relative to another. %ESCROOT% is built the same way on purpose -- one relative level over the same absolute ancestor -- so that the only thing separating it from %SRCROOT% is the percent-encoded control in its own uri.",
+  "why_escroot_is_invalid_uri_and_not_degenerate": "paths.resolve_uri_base classifies a base entry by the form parse_uri_reference gives its uri. A form of invalid yields BASE_OUTCOME_INVALID_URI, which resolve_sarif_location rejects outright under invalid_uri; a base that is well-formed but useless -- a foreign scheme, an archive member, the filesystem root -- yields BASE_OUTCOME_DEGENERATE and is eligible for the runner-recorded fallback. The distinction matters here and is the reason result 4 is rejected even though the runner metadata does record an explicit base for opengrep: a base whose own uri is not a URI reference is not a degenerate base to fall back from, it is a malformed one, and AAP 0.5.4's fallback is not a catch-all.",
+  "root_dependence": "The surviving rows are root-dependent, and the precondition is stated rather than glossed. The chain reconstructs the absolute directory /opt/spark-src, which is the scan root harness/artifacts/logs/runner-metadata.json records, so joining onto it and relativizing back returns each uri unchanged and both rows name a tree_file inside the twelve globs. Given some other root the same two records resolve to ../-prefixed outside_root coordinates and are kept with in_scope false -- kept and counted, never rejected. The rows below are therefore the expectation for the recorded root /opt/spark-src, with or without a trailing slash.",
+  "rejections_are_root_independent": "None of the four rejections depends on the root or on the metadata. Results 1, 2 and 3 are refused inside parse_uri_reference, which is given no root and no base at all; result 4 is refused by the base walk, which reads only the map. All four therefore carry the same class, the same detail and the same record_identity under any root and under any path_base kind, which is why this fixture's outcome is recorded once rather than as two branches.",
+  "severity_source": "No result in this fixture states a level, and no rule states properties.severity or properties.problem.severity, so both emitted rows record no native severity at all. The rules do carry defaultConfiguration.level, and it is deliberately not consulted: AAP 0.5.4 fixes the three sources, and a rule's default configuration is the level the rule would have had rather than the level this result was reported at. severity_norm is Info with the absence stated, never a level assumed.",
+  "cwe_and_cve": "Each emitted row's CWE comes from its rule's properties.tags, whose first entry is a 'CWE-<digits>: <name>' string; the identifier is the token, and the prose after the colon is not part of it. Neither rule carries a CVE-shaped string, and neither carries more than one CWE identifier, so no multi-valued selection is exercised here.",
+  "package_coordinate": "null on both rows. A SARIF result names a code location rather than a package, and this shape supplies no coordinate to carry.",
+  "start_line": "Present on every record, as an integer, in the region of the first location -- including on the four rejected ones, which is what makes their rejection specifically about the path."
+ },
+ "rejection_boundary": {
+  "statement": "A reference whose decoded form is not a valid URI reference is a rejection. A reference that decodes to a perfectly ordinary path is a row, and percent-encoding is not by itself suspicious: %20 in a reference decodes to a space, which is a legal character in a path and is emitted. The four defective records are refused for what they decode to, not for being encoded.",
+  "why_it_can_only_be_a_rejection": "path is one of emit.REQUIRED_FIELDS, so the row must carry one, and the only candidate these records offer is a value carrying a control character. Emitting it would put the control in the dataset; stripping or escaping it would emit a coordinate the tool did not report. Counting the record under invalid_uri is the only outcome that neither drops it nor invents a path for it.",
+  "not_a_rejection": [
+   {
+    "case": "a reference resolving through the same base map's working chain",
+    "expected": "a kept row",
+    "evidence": "Both emitted rows are exactly this case, and they straddle the four rejections: row 0 comes from the first record and row 1 from the last, so a run that abandoned the artifact at the first control could not have produced row 1.",
+    "present_in_this_fixture": true
+   },
+   {
+    "case": "a percent-encoded reference that decodes to a legal path",
+    "expected": "a kept row whose path carries the decoded character",
+    "evidence": "Not present in this fixture, which carries no benign encoding, and covered by the authored test named under behaviours_not_exercised_by_this_fixture. Stating the case matters: a guard that refused every '%' would pass every assertion in this file and would be wrong.",
+    "present_in_this_fixture": false
+   },
+   {
+    "case": "a reference beginning with exactly one slash",
+    "expected": "not rejected as absolute -- the SARIF 2.1.0 errata issue 480 shape",
+    "evidence": "Untouched by this fixture and owned by ErrataConformanceTests. Named because the guard added here sits in the same function, and a control check that also began refusing the errata shape would be a regression this file's rows could not see.",
+    "present_in_this_fixture": false
+   }
+  ],
+  "document_versus_record_scope": "This document parses. Four records inside it are self-defeating, not the file's shape, so the outcome is four per-record rejections and a partial parse rather than a halt."
+ },
+ "counts": {
+  "raw_finding_records": 6,
+  "raw_count_unit": "one element of runs[].results[] -- the unit normalize.reconcile.count_records walks independently of row construction",
+  "raw_count_authority": "normalize.reconcile.count_records(\"opengrep\", doc), whose SARIF traversal sums the length of each run's results array and builds no row, resolves no path and maps no severity. It is the independent half of the identity: a count taken from the traversal that builds the rows would satisfy the assertion while testing nothing.",
+  "rows": 2,
+  "rejections": 4,
+  "rejections_by_class": {
+   "invalid_uri": 4
+  },
+  "reconciliation_identity": "raw_finding_records == rows + rejections",
+  "reconciliation_arithmetic": "6 == 2 + 4",
+  "four_reported_counters": {
+   "authority": "AAP 0.5.4 -- the four counts reported per tool",
+   "names": [
+    "multi_location_records",
+    "multi_valued_cwe_records",
+    "multi_valued_cve_records",
+    "non_filesystem_paths"
+   ],
+   "values_live_in": "counters",
+   "all_four_are_zero_for_this_fixture": true,
+   "note": "Named here rather than restated with their values. The counters block below is the single measurement, and a number carried twice inside one document is a number that can drift; counters_note gives the reason each of the four is zero -- including why non_filesystem_paths is zero despite the fixture carrying an archive reference."
+  },
+  "parse_status": "partial",
+  "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = \"partial\", assigned where there are rejections and clean where there are none. Partial is right precisely because the adapter did not abandon the artifact: every parsable record was emitted and each rejected record is counted under its class, with its reason retained."
+ },
+ "counters": {
+  "runs": 1,
+  "runs_skipped_non_mapping": 0,
+  "runs_without_results_array": 0,
+  "multi_location_records": 0,
+  "multi_valued_cwe_records": 0,
+  "multi_valued_cve_records": 0,
+  "non_filesystem_paths": 0,
+  "rows_in_scope": 2,
+  "rows_out_of_scope": 0,
+  "rule_id_from_rule_id": 6,
+  "rule_id_from_rule_index": 0,
+  "rule_index_unusable": 0,
+  "tool_component_reference_unresolved": 0,
+  "rule_metadata_from_extension": 0,
+  "rule_metadata_unresolved": 0,
+  "severity_from_level": 0,
+  "severity_from_rule_property": 0,
+  "severity_absent": 2,
+  "start_line_absent": 0,
+  "path_kind_tree_file": 2,
+  "path_kind_outside_root": 0,
+  "path_kind_archive_member": 0,
+  "path_kind_bytecode_source": 0,
+  "severity_basis_sarif_level": 0,
+  "severity_basis_label": 0,
+  "severity_basis_cvss_score": 0,
+  "severity_basis_no_vocabulary": 2,
+  "severity_basis_unmapped_literal": 0
+ },
+ "counters_authority": "harness/lib/normalize/adapters/sarif.py, COUNTER_KEYS as returned by new_counters(): nineteen authored keys, one path_kind_* per normalize.paths.PATH_KINDS member and one severity_basis_* per normalize.severity.BASIS_VALUES member, twenty-eight in total.",
+ "counters_note": "Four things a reader must not \"correct\", each of them the classification order made visible. First, rule_id_from_rule_id is 6 rather than 2: the rule identifier is step 2 and the path is step 4, so all six records resolve an identifier and four of them are then refused for their path. That is the counter behaving as documented -- it counts where an identifier came from, not how many rows survived. Second, path_kind_archive_member is 0 even though result 3 carries an archive reference: the reference is refused during parsing, before any form is decided and long before archive_member_path could serialize anything, so no path kind is ever assigned to it -- and non_filesystem_paths is 0 for the same reason. Third, the severity and path counters total 2 because only the two emitted records reach steps 4 and 5. Fourth, severity_absent is 2 and severity_basis_no_vocabulary is 2 rather than either being 0: both rows state no severity anywhere the adapter is authorised to look, and the absence is recorded rather than filled in from defaultConfiguration.level.",
+ "corroboration": {
+  "source": "oss-scan-results/findings.json, the committed dataset",
+  "records_compared": 2,
+  "fields_compared_per_record": 12,
+  "agreement": "complete",
+  "note": "Both emitted rows come from unmodified captured records, so each has a counterpart in the dataset -- the opengrep rows for DiskStore.scala:72 and ProxyUtils.java:75 -- and all twelve fields of both agree. They also agree field for field with expected/reject-sarif-uribaseid-invalid-uri.rows.json, which carries the same two captured records under a different base map. Recorded after the fact rather than as the source of these values. The four rejected records have no counterpart, and that is the point of them: results[521], results[1258] and results[432] are all in the dataset as ordinary rows, and it is this fixture's percent-encoded references alone that refuse them here."
+ },
+ "rows": [
+  {
+   "tool": "opengrep",
+   "scanner_class": "sast",
+   "rule_id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+   "message": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+   "start_line": 72,
+   "cwe": "CWE-89",
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  },
+  {
+   "tool": "opengrep",
+   "scanner_class": "sast",
+   "rule_id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting",
+   "message": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties.",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils.java",
+   "start_line": 75,
+   "cwe": "CWE-200",
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  }
+ ],
+ "rows_note": "Two rows, listed in full rather than referred to, and their positions carry the partial-parse proof: one comes from the first record in the array and one from the last, with all four rejections between them.",
+ "row_derivations": [
+  {
+   "row_index": 0,
+   "result_pointer": "/runs/0/results/0",
+   "raw_artifact_result_index": 432,
+   "rule_pointer": "/runs/0/tool/driver/rules/2",
+   "raw_artifact_rule_index": 1458,
+   "rule_id_source": "the result's own ruleId",
+   "rule_id_counter": "rule_id_from_rule_id",
+   "message_source": "/runs/0/results/0/message/text",
+   "severity_native_source": null,
+   "severity_native_absent_reason": "the result states no level, and the rule states neither properties.severity nor properties.problem.severity; its defaultConfiguration.level of 'error' is deliberately not consulted",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_absent",
+   "path_source": "/runs/0/results/0/locations/0/physicalLocation/artifactLocation -- uri 'core/src/main/scala/org/apache/spark/storage/DiskStore.scala' with uriBaseId '%SRCROOT%'",
+   "path_kind": "tree_file",
+   "path_basis": "sarif-uri-base-id-chain",
+   "path_basis_note": "resolved through the chain %SRCROOT% -> %PROJECTROOT% to the base /opt/spark-src, then relativized back to it, which returns the uri unchanged",
+   "start_line_source": "/runs/0/results/0/locations/0/physicalLocation/region/startLine",
+   "locations_in_record": 1,
+   "cwe_source": "the rule's properties.tags[0], 'CWE-89: Improper Neutralization of Special Elements used in an SQL Command (\\'SQL Injection\\')' -- the identifier is the CWE-89 token, and the prose after the colon is not part of it",
+   "distinct_cwe_identifiers": 1,
+   "cve_source": null,
+   "cve_absent_reason": "no string on this rule matches the CVE-<year>-<sequence> pattern",
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": "core/src/main/**",
+   "file_line_count_at_the_pin": 380,
+   "anchor_note": "Real at the pin: line 72 of DiskStore.scala is the interpolated string inside the SparkException.internalError(...) call opened at line 71, the construct this rule matches, and 72 is within the file's 380 lines. This is the record whose descriptors result 3 reuses, which is what makes the pair falsifiable: the same rule and the same message reach a row here and a rejection there, and the artifactLocation is the only difference between them."
+  },
+  {
+   "row_index": 1,
+   "result_pointer": "/runs/0/results/5",
+   "raw_artifact_result_index": 1258,
+   "rule_pointer": "/runs/0/tool/driver/rules/0",
+   "raw_artifact_rule_index": 592,
+   "rule_id_source": "the result's own ruleId",
+   "rule_id_counter": "rule_id_from_rule_id",
+   "message_source": "/runs/0/results/5/message/text",
+   "severity_native_source": null,
+   "severity_native_absent_reason": "the result states no level, and the rule states neither properties.severity nor properties.problem.severity; its defaultConfiguration.level of 'warning' is deliberately not consulted",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_absent",
+   "path_source": "/runs/0/results/5/locations/0/physicalLocation/artifactLocation -- uri 'resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils.java' with uriBaseId '%SRCROOT%'",
+   "path_kind": "tree_file",
+   "path_basis": "sarif-uri-base-id-chain",
+   "path_basis_note": "the same two-link chain as row 0, reached from the last element of the results array",
+   "start_line_source": "/runs/0/results/5/locations/0/physicalLocation/region/startLine",
+   "locations_in_record": 1,
+   "cwe_source": "the rule's properties.tags[0], 'CWE-200: Exposure of Sensitive Information to an Unauthorized Actor'",
+   "distinct_cwe_identifiers": 1,
+   "cve_source": null,
+   "cve_absent_reason": "no string on this rule matches the CVE-<year>-<sequence> pattern",
+   "distinct_cve_identifiers": 0,
+   "matched_allowlist_glob": "resource-managers/yarn/src/main/**",
+   "file_line_count_at_the_pin": 126,
+   "anchor_note": "Real at the pin: the sendRedirect method opens at line 75 of ProxyUtils.java and 75 is within the file's 126 lines. The row that carries the traversal proof: it comes from the element after all four rejections, so a run that abandoned the artifact at the first control could not have produced it."
+  }
+ ],
+ "rejections": [
+  {
+   "rejection_index": 0,
+   "result_pointer": "/runs/0/results/1",
+   "run_index": 0,
+   "result_index": 1,
+   "raw_artifact_result_index": 521,
+   "locator_note": "The pointer and the run_index / result_index pair name the same record. Both are carried because paths.resolve_sarif_location is given exactly run_index, result_index and rule_id as the record identity and then adds the uri and the uriBaseId itself, so a produced Rejection's record_identity and this expectation compare directly.",
+   "decode_site": "the general relative-or-absolute decode, paths.parse_uri_reference's final unquote",
+   "reject_class": "invalid_uri",
+   "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_INVALID_URI constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten, whose value is the string invalid_uri. Written verbatim rather than paraphrased, and asserted against the module rather than by eye.",
+   "tool": "opengrep",
+   "classification_step": "step 4 of the adapter's fixed classification order -- shape, rule identifier, message, path, start_line. Steps 1 to 3 pass: the element is an object, its ruleId resolves, its message.text is present. Step 5 is never reached.",
+   "raw_reference": "python/pyspark/ml/tests/connect/test_legacy_mode_feature%1B.py",
+   "raw_reference_carries_no_control": true,
+   "decoded_control": "U+001B at index 56",
+   "expected_detail": "the uri str from uri (length 62, sha256 8701f8e1531fd26ee82d0d36721ceb40dad59a9978da4daa9ef2af9d81cddbc1, <redacted-artifact-text>) is not a valid URI reference: the URI reference decodes to a value that carries the control character U+001B at index 56; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
+   "expected_detail_note": "Retained verbatim, as AAP 0.5.4 requires of every rejection's parser reason. The detail is the sub-reason, and it is what distinguishes this record from the other three under the same class: it names which decode produced the control, and the code point. Re-recorded at the SEC-04 remediation: the leading clause named the raw uri with {uri!r}, and a rejection detail is written verbatim into harness/artifacts/logs/ and normalize-run.json, so an artifact that placed a credential in a uri had it persisted in cleartext by the very channel that refused the record. The subject of this clause is a value that FAILED validation, so it is now rendered by paths.safe_diagnostic: the Python type, the field it came from, the value's full character length, its full 64-hex sha256 and the fixed paths.REDACTED_TEXT marker. Every figure is of the WHOLE original, so the record stays measurable and identifiable against the artifact without copying it. The sub-reason after the colon is unchanged and is still retained verbatim, which is what AAP 0.5.4 requires: the value was redacted, the parser's reason was not.",
+   "distinguishing_substrings": [
+    "the URI reference decodes to a value",
+    "U+001B at index 56"
+   ],
+   "expected_detail_must_not_contain": [
+    "\u001b",
+    "python/pyspark/ml/tests/connect/test_legacy_mode_feature%1B.py"
+   ],
+   "expected_detail_must_not_contain_note": "The literal ESC. A detail that reproduced the decoded control would carry it into harness/artifacts/logs/ and normalize-run.json, which is the second half of the finding this fixture exists for -- so the absence is asserted, not assumed. Plus the raw reference the clause used to quote, asserted absent so the SEC-04 redaction is pinned by this corpus rather than only by the module's own tests: a regression that restored the {uri!r} interpolation would fail here.",
+   "expected_record_identity_keys": [
+    "run_index",
+    "result_index",
+    "rule_id",
+    "uri",
+    "uriBaseId"
+   ],
+   "expected_record_identity": {
+    "run_index": 0,
+    "result_index": 1,
+    "rule_id": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle",
+    "uri": "python/pyspark/ml/tests/connect/test_legacy_mode_feature%1B.py",
+    "uriBaseId": "%SRCROOT%"
+   },
+   "record_identity_note": "Five keys. The rule_id is present because it resolved before the path was reached, which is what step order means. The uri appears here in its raw percent-encoded form, carrying no control byte -- the identity is persisted through Rejection.as_dict(), and it is the raw form that makes that safe.",
+   "why_not_a_row": "path is one of the seven never-absent fields, and this record's only candidate for it decodes to a value carrying ESC. Every other field is readable, which is the trap: the row would have looked entirely ordinary apart from one invisible byte in its path.",
+   "contributes_no_row": true,
+   "contributes_no_counter": "This record reaches no counter at all. It resolved an identifier, so rule_id_from_rule_id counts it -- that is the one counter it moves -- and it reaches neither a severity counter nor a path-kind counter, because both are bumped at steps this record never completes.",
+   "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, and it states no level to record even if it were."
+  },
+  {
+   "rejection_index": 1,
+   "result_pointer": "/runs/0/results/2",
+   "run_index": 0,
+   "result_index": 2,
+   "raw_artifact_result_index": 1258,
+   "locator_note": "Same locator convention as rejection 0. This record carries no uriBaseId, so its identity has four keys rather than five.",
+   "decode_site": "the file: URI's path component, paths.parse_uri_reference's unquote of urlsplit(raw).path",
+   "reject_class": "invalid_uri",
+   "reject_class_authority": "harness/lib/normalize/paths.py, REJECT_INVALID_URI",
+   "tool": "opengrep",
+   "classification_step": "step 4, exactly as rejection 0",
+   "raw_reference": "file:///opt/spark-src/resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils%00.java",
+   "raw_reference_carries_no_control": true,
+   "decoded_control": "U+0000 at index 91",
+   "why_a_second_site_needs_its_own_record": "A file: URI takes a different branch and a different decode from a relative reference: urlsplit parses it, the authority is checked, and only its path component is unquoted. A guard placed on the general decode alone would leave this branch open, so the two are separate records with separate details rather than one case standing for both.",
+   "absolute_reference_note": "The reference names a location under the recorded scan root, so had it decoded cleanly it would have relativized to a tree_file inside the twelve globs and become a row. Nothing about the root or the metadata takes part in the refusal, which happens during parsing.",
+   "expected_detail": "the uri str from uri (length 106, sha256 d2ed7fdcaacb0d86b578a9a03fc9beb900dafcb2c8280b59f80a2254272759fe, <redacted-artifact-text>) is not a valid URI reference: the path of the file URI decodes to a value that carries the control character U+0000 at index 91; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
+   "expected_detail_note": "Retained verbatim. The phrase 'the path of the file URI' is what separates this record from rejection 0 under the same class. Re-recorded at the SEC-04 remediation: the leading clause named the raw uri with {uri!r}, and a rejection detail is written verbatim into harness/artifacts/logs/ and normalize-run.json, so an artifact that placed a credential in a uri had it persisted in cleartext by the very channel that refused the record. The subject of this clause is a value that FAILED validation, so it is now rendered by paths.safe_diagnostic: the Python type, the field it came from, the value's full character length, its full 64-hex sha256 and the fixed paths.REDACTED_TEXT marker. Every figure is of the WHOLE original, so the record stays measurable and identifiable against the artifact without copying it. The sub-reason after the colon is unchanged and is still retained verbatim, which is what AAP 0.5.4 requires: the value was redacted, the parser's reason was not.",
+   "distinguishing_substrings": [
+    "the path of the file URI decodes to a value",
+    "U+0000 at index 91"
+   ],
+   "expected_detail_must_not_contain": [
+    "\u0000",
+    "file:///opt/spark-src/resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils%00.java"
+   ],
+   "expected_detail_must_not_contain_note": "The literal NUL, whose presence in a CSV cell or a log line is the CWE-117 outcome this guard exists to prevent. Plus the raw reference the clause used to quote, asserted absent so the SEC-04 redaction is pinned by this corpus rather than only by the module's own tests: a regression that restored the {uri!r} interpolation would fail here.",
+   "expected_record_identity_keys": [
+    "run_index",
+    "result_index",
+    "rule_id",
+    "uri"
+   ],
+   "expected_record_identity": {
+    "run_index": 0,
+    "result_index": 2,
+    "rule_id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting",
+    "uri": "file:///opt/spark-src/resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils%00.java"
+   },
+   "record_identity_note": "Four keys. paths.resolve_sarif_location adds a uriBaseId to the identity only where the artifactLocation states one, and this record states none -- so the key is absent rather than present with a null, which is what makes the key list itself evidence about the record.",
+   "why_not_a_row": "The same reason as rejection 0, reached through a different decode.",
+   "contributes_no_row": true,
+   "contributes_no_counter": "Only rule_id_from_rule_id, as with every rejected record here.",
+   "contributes_no_severity_literal": "Never fed to the tally."
+  },
+  {
+   "rejection_index": 2,
+   "result_pointer": "/runs/0/results/3",
+   "run_index": 0,
+   "result_index": 3,
+   "raw_artifact_result_index": 432,
+   "locator_note": "Same locator convention. No uriBaseId, so four identity keys.",
+   "decode_site": "the archive member of a reference carrying '!' and no scheme, paths.parse_uri_reference's unquote of the member component",
+   "reject_class": "invalid_uri",
+   "reject_class_authority": "harness/lib/normalize/paths.py, REJECT_INVALID_URI",
+   "tool": "opengrep",
+   "classification_step": "step 4, exactly as rejections 0 and 1",
+   "raw_reference": "core/target/spark-core_2.13-4.1.0-SNAPSHOT.jar!/org/apache/spark/storage/DiskStore%0D.class",
+   "raw_reference_carries_no_control": true,
+   "decoded_control": "U+000D at index 35",
+   "decoded_control_note": "The index is into the decoded *member*, 'org/apache/spark/storage/DiskStore\\r.class', not into the whole reference. The describer is given the value that was decoded, which is what makes the index checkable.",
+   "container_is_real_at_the_pin": "core/target/spark-core_2.13-4.1.0-SNAPSHOT.jar exists in the built pinned tree, so the container names a real archive and the reference is refused for its member alone. Nothing in this pipeline opens it: the container's existence is context for the reader, and paths.py resolves archive coordinates by serialization rather than by reading.",
+   "why_archive_member_path_is_never_reached": "The refusal happens while the reference is still being parsed, before a form is assigned, so paths.archive_member_path is not called and the record is never classified archive_member. That is why path_kind_archive_member and non_filesystem_paths are both 0 in a fixture that carries an archive reference -- a reader checking those counters against the fixture's content would otherwise read the zero as a defect.",
+   "expected_detail": "the uri str from uri (length 91, sha256 0ae1bf3563204505ab205f4b0ff36776383d11f7ff1dd9b102355afcc1fe756d, <redacted-artifact-text>) is not a valid URI reference: the member of the archive reference decodes to a value that carries the control character U+000D at index 35; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
+   "expected_detail_note": "Retained verbatim. 'the member of the archive reference' is what separates this record from the other three. Re-recorded at the SEC-04 remediation: the leading clause named the raw uri with {uri!r}, and a rejection detail is written verbatim into harness/artifacts/logs/ and normalize-run.json, so an artifact that placed a credential in a uri had it persisted in cleartext by the very channel that refused the record. The subject of this clause is a value that FAILED validation, so it is now rendered by paths.safe_diagnostic: the Python type, the field it came from, the value's full character length, its full 64-hex sha256 and the fixed paths.REDACTED_TEXT marker. Every figure is of the WHOLE original, so the record stays measurable and identifiable against the artifact without copying it. The sub-reason after the colon is unchanged and is still retained verbatim, which is what AAP 0.5.4 requires: the value was redacted, the parser's reason was not.",
+   "distinguishing_substrings": [
+    "the member of the archive reference decodes to a value",
+    "U+000D at index 35"
+   ],
+   "expected_detail_must_not_contain": [
+    "\r",
+    "core/target/spark-core_2.13-4.1.0-SNAPSHOT.jar!/org/apache/spark/storage/DiskStore%0D.class"
+   ],
+   "expected_detail_must_not_contain_note": "The literal CR, the classic log-forging character: a detail carrying one could split a single log line into two, one of them attacker-composed. Plus the raw reference the clause used to quote, asserted absent so the SEC-04 redaction is pinned by this corpus rather than only by the module's own tests: a regression that restored the {uri!r} interpolation would fail here.",
+   "expected_record_identity_keys": [
+    "run_index",
+    "result_index",
+    "rule_id",
+    "uri"
+   ],
+   "expected_record_identity": {
+    "run_index": 0,
+    "result_index": 3,
+    "rule_id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+    "uri": "core/target/spark-core_2.13-4.1.0-SNAPSHOT.jar!/org/apache/spark/storage/DiskStore%0D.class"
+   },
+   "record_identity_note": "Four keys, and the rule_id is the one row 0 also carries -- the same captured descriptors, refused here for their location.",
+   "why_not_a_row": "An archive member is a legitimate non-filesystem coordinate and would have been kept with in_scope false. It is refused for the control in its member, not for being an archive reference, and the distinction is the reason this record is in the fixture.",
+   "contributes_no_row": true,
+   "contributes_no_counter": "Only rule_id_from_rule_id.",
+   "contributes_no_severity_literal": "Never fed to the tally."
+  },
+  {
+   "rejection_index": 3,
+   "result_pointer": "/runs/0/results/4",
+   "run_index": 0,
+   "result_index": 4,
+   "raw_artifact_result_index": 521,
+   "locator_note": "Same locator convention. This record does carry a uriBaseId, so five identity keys.",
+   "decode_site": "the general decode, reached from paths.resolve_uri_base while walking the base-map entry rather than from the result's own uri",
+   "reject_class": "invalid_uri",
+   "reject_class_authority": "harness/lib/normalize/paths.py, REJECT_INVALID_URI, reached through BASE_OUTCOME_INVALID_URI rather than through a URI_FORM_INVALID on the result's own reference",
+   "tool": "opengrep",
+   "classification_step": "step 4, as the other three -- the walk is part of resolving the path, not a step of its own",
+   "raw_reference": "python/pyspark/ml/tests/connect/test_legacy_mode_feature.py",
+   "raw_reference_carries_no_control": true,
+   "the_record_s_own_uri_is_clean": "This is the one rejection whose own uri is a perfectly ordinary root-relative path -- it is byte-identical to the uri of raw results[521], which is an ordinary row in the committed dataset. What defeats it is the base it names: %ESCROOT%, whose entry's uri 'spark-src%1B/' decodes to a value carrying ESC. The record is included precisely because a guard applied only to the result's own reference would emit this row with a control character joined into the middle of its path from the base.",
+   "decoded_control": "U+001B at index 9",
+   "expected_detail": "the uri str from uri (length 13, sha256 16affccfc4613cae9ad1a02d29309b14ae9d3b066fbda683ead8f23bd28010f4, <redacted-artifact-text>) of the entry for '%ESCROOT%' is not a valid URI reference: the URI reference decodes to a value that carries the control character U+001B at index 9; a percent-encoded control character is still a control character once decoded, and no path in the scanned tree carries one",
+   "expected_detail_note": "Retained verbatim, and note what it names: the *base entry's* uri and the base identifier, not the result's uri. That is paths.resolve_uri_base's own diagnostic passed through unchanged, which is why it reads differently from the other three -- the fault is in the map, and a detail that named the result's clean uri instead would send a reader to the wrong place. Re-recorded at the SEC-04 remediation: the leading clause named the raw uri with {uri!r}, and a rejection detail is written verbatim into harness/artifacts/logs/ and normalize-run.json, so an artifact that placed a credential in a uri had it persisted in cleartext by the very channel that refused the record. The subject of this clause is a value that FAILED validation, so it is now rendered by paths.safe_diagnostic: the Python type, the field it came from, the value's full character length, its full 64-hex sha256 and the fixed paths.REDACTED_TEXT marker. Every figure is of the WHOLE original, so the record stays measurable and identifiable against the artifact without copying it. The sub-reason after the colon is unchanged and is still retained verbatim, which is what AAP 0.5.4 requires: the value was redacted, the parser's reason was not.",
+   "distinguishing_substrings": [
+    "of the entry for '%ESCROOT%'",
+    "the URI reference decodes to a value",
+    "U+001B at index 9"
+   ],
+   "expected_detail_must_not_contain": [
+    "\u001b",
+    "spark-src%1B/"
+   ],
+   "expected_detail_must_not_contain_note": "The literal ESC, for the same reason as rejection 0. Plus the raw reference the clause used to quote, asserted absent so the SEC-04 redaction is pinned by this corpus rather than only by the module's own tests: a regression that restored the {uri!r} interpolation would fail here.",
+   "expected_record_identity_keys": [
+    "run_index",
+    "result_index",
+    "rule_id",
+    "uri",
+    "uriBaseId"
+   ],
+   "expected_record_identity": {
+    "run_index": 0,
+    "result_index": 4,
+    "rule_id": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle",
+    "uri": "python/pyspark/ml/tests/connect/test_legacy_mode_feature.py",
+    "uriBaseId": "%ESCROOT%"
+   },
+   "record_identity_note": "Five keys, and the uriBaseId is the one that matters: it is what ties the record to the malformed base entry the detail names.",
+   "why_not_a_row": "The base could not be established, so there is nothing to join the reference onto. This is not the degenerate-base case AAP 0.5.4 allows the runner-recorded fallback for: an entry whose uri is not a URI reference is malformed rather than useless, and falling back would resolve a record whose own base map contradicts itself.",
+   "contributes_no_row": true,
+   "contributes_no_counter": "Only rule_id_from_rule_id.",
+   "contributes_no_severity_literal": "Never fed to the tally.",
+   "distinguishing_substrings_note": "The first substring is what separates this rejection from the other three: the fault is in the base map rather than in the record's own uri, and the detail says so by naming the entry. It quotes the base IDENTIFIER and not the entry's uri value -- since the SEC-04 remediation the value is redacted, while the identifier is a mapping key this dataset publishes in its own record_identity and is therefore authored prose quoting a coordinate rather than artifact content. The remaining two pin the decode site and the code point."
+  }
+ ],
+ "behaviours_not_exercised_by_this_fixture": [
+  {
+   "behaviour": "the fourth decode site -- the member of a reference carrying an archive scheme such as jar:, where the container is itself parsed recursively",
+   "why_absent": "the fixture already carries an unschemed archive reference for the member decode, and a second record differing only in a 'jar:' prefix would add a record without adding an assertion this file could state differently",
+   "cover_with": "PercentEncodedControlTests.test_every_decode_site_refuses_a_percent_encoded_control, which authors one reference per site including the schemed archive form"
+  },
+  {
+   "behaviour": "a percent-encoded sequence that decodes to a legal character and is therefore emitted",
+   "why_absent": "every encoded sequence in this fixture is a control by design, and a benign one here would be a row indistinguishable from the two already present",
+   "cover_with": "PercentEncodedControlTests.test_a_benign_percent_encoded_reference_still_becomes_a_row"
+  },
+  {
+   "behaviour": "the pre-emission guard reached without any URI decoding -- a reported path field carrying a literal control byte",
+   "why_absent": "a SARIF reference carrying a literal control is refused by the pre-decode check, one step before the pre-emission guard, so no SARIF fixture can reach it",
+   "cover_with": "PercentEncodedControlTests.test_the_pre_emission_guard_refuses_a_control_bearing_path_with_no_decode_involved"
+  },
+  {
+   "behaviour": "a control character surviving into a persisted diagnostic",
+   "why_absent": "no detail in this fixture carries one, which is the property asserted rather than a gap",
+   "cover_with": "PercentEncodedControlTests.test_no_rejection_detail_carries_a_control_character, which checks every negative fixture's details rather than only this one's"
+  }
+ ],
+ "prohibitions_observed": {
+  "no_secret_value": "No field in this file carries a secret, a credential or a token. The fixture is opengrep SAST output over source locations and contains none; each rejection carries indices, a rule identifier and a percent-encoded reference, and no record content beyond the location that made the record defective.",
+  "no_cross_tool_interpretation": "One tool is named in each row's tool field. opengrep is this fixture's producer because the condition is a property of the shared SARIF resolver and one producer's shape exercises it -- not a statement about what any tool found, and not a comparison.",
+  "no_deduplication": "Nothing here is merged. Six records in, two rows and four rejections out, including two pairs that share a rule and a message.",
+  "no_judgement": "Neither emitted row is characterised as real, important, a false positive or a duplicate, and the four rejected records are not characterised as defects in the tool: every percent-encoded reference in this fixture is its own edit, and the artifact they were derived from carries none."
+ }
+}

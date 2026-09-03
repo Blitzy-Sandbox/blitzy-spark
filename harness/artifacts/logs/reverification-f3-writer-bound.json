@@ -1,0 +1,488 @@
+{
+  "schema_version": "1.0.0",
+  "document": "harness/artifacts/logs/reverification-f3-writer-bound.json",
+  "companion_document": "harness/artifacts/logs/reverification-f3-writer-bound.txt",
+  "subject": {
+    "qa_finding": "F3",
+    "qa_finding_title": "Pinned jimple2cpg cannot persist the required complete all-JAR graph",
+    "qa_severity": "CRITICAL",
+    "qa_blocking": true,
+    "qa_category": "Functional",
+    "qa_report_path": "/tmp/blitzy/qa/reports/f38258d3-f87d-44f5-bedc-af512c69e0ab/oss-scan-results_run-record.md/qa/testing/o000_5b89c1691063ea9e.md",
+    "verdict": "condition_still_stands",
+    "disposition": "halt_and_report",
+    "resolvable_by_executing_agent": false
+  },
+  "generated_at_utc": "2026-09-02T14:42:02Z",
+  "measurement_window_utc": {
+    "baseline": "2026-09-02T14:28:55Z",
+    "first_measurement": "2026-09-02T14:31:09Z",
+    "last_measurement": "2026-09-02T14:34:39Z",
+    "post_publication_reverification": "2026-09-02T14:42:41Z"
+  },
+  "post_publication_reverification": {
+    "run_at_utc": "2026-09-02T14:42:41Z",
+    "commands": [
+      "cd /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g3f && /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -Xmx64g CeilingProbe",
+      "cd /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g3f && /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -Xmx128g CeilingProbe",
+      "python3 -m json.tool harness/artifacts/logs/reverification-f3-writer-bound.json > /dev/null"
+    ],
+    "arm_64g_reproduced_identically": true,
+    "arm_128g_reproduced_identically": true,
+    "fields_confirmed": ["java.version", "java.vm.name", "maxMemory bytes", "SOFT_MAX", "buffered bytes", "exception class", "exception message"],
+    "json_tool_verdict": "JSON_OK",
+    "note": "Wall-clock elapsed is the only figure that varies between runs (2-3 s); every measured field above reproduced byte for byte."
+  },
+  "provenance": {
+    "clone_index": 19,
+    "working_checkout": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94",
+    "branch": "blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019",
+    "head_commit": "7fc41251c81e8a10ca9ce542b34af2542d7c1b53",
+    "measurement_root": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g3f",
+    "environment_file": "harness/env.sh",
+    "environment_file_derived_from": "harness/ENVIRONMENT.md line 12",
+    "environment_source_exit_code": 0,
+    "harness_smoke_target": "unset",
+    "always_pre_touch_used": false,
+    "graph_loaded_by_this_pass": false,
+    "frontend_invoked_over_real_input_by_this_pass": false
+  },
+  "probe": {
+    "retained_source_file": "harness/artifacts/logs/cpg-frontend-ceiling-probe.txt",
+    "retained_source_bytes": 2632,
+    "retained_source_sha256_before": "e7d82064047c1cfee06dfe22ba2398f5fe805160408289e354596ae2df97ab79",
+    "retained_source_sha256_after": "e7d82064047c1cfee06dfe22ba2398f5fe805160408289e354596ae2df97ab79",
+    "retained_source_modified": false,
+    "extracted_source_path": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g3f/CeilingProbe.java",
+    "extracted_source_lines": 39,
+    "extracted_source_sha256": "acdfcbd458df396250eea9990324411eccd03f2157c388d8b72b360b054e7a88",
+    "class_file_bytes": 2345,
+    "compiler": "/opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/javac",
+    "compiler_version": "javac 21.0.12.1",
+    "compile_exit_code": 0,
+    "compiled_at_utc": "2026-09-02T14:31:09Z",
+    "runtime": "/opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java",
+    "runtime_banner": "openjdk version \"21.0.12.1\" 2026-08-18 LTS / OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS) / OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)",
+    "soft_max_array_length": 2147483639,
+    "soft_max_definition": "Integer.MAX_VALUE - 8",
+    "bytes_written_past_soft_max": 77,
+    "exit_code_semantics": "The probe catches Throwable and prints it, so the process exit code is 0 in every arm; the OutOfMemoryError printed on stdout is the observed outcome, not a non-zero exit."
+  },
+  "probe_arms": [
+    {
+      "arm": "A",
+      "heap_flag": "-Xmx64g",
+      "command": "/opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -Xmx64g CeilingProbe",
+      "started_utc": "2026-09-02T14:31:19Z",
+      "ended_utc": "2026-09-02T14:31:22Z",
+      "elapsed_seconds": 3,
+      "elapsed_seconds_confirming_rerun": 2,
+      "process_exit_code": 0,
+      "stderr_empty": true,
+      "java_version": "21.0.12.1",
+      "java_vm_name": "OpenJDK 64-Bit Server VM",
+      "max_memory_bytes": 68719476736,
+      "buffered_bytes": 2147483639,
+      "buffered_equals_soft_max": true,
+      "exception_class": "java.lang.OutOfMemoryError",
+      "exception_message": "Required array length 2147483639 + 77 is too large"
+    },
+    {
+      "arm": "B",
+      "heap_flag": "-Xmx128g",
+      "command": "/opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -Xmx128g CeilingProbe",
+      "started_utc": "2026-09-02T14:31:27Z",
+      "ended_utc": "2026-09-02T14:31:30Z",
+      "elapsed_seconds": 3,
+      "elapsed_seconds_confirming_rerun": 2,
+      "process_exit_code": 0,
+      "stderr_empty": true,
+      "java_version": "21.0.12.1",
+      "java_vm_name": "OpenJDK 64-Bit Server VM",
+      "max_memory_bytes": 137438953472,
+      "buffered_bytes": 2147483639,
+      "buffered_equals_soft_max": true,
+      "exception_class": "java.lang.OutOfMemoryError",
+      "exception_message": "Required array length 2147483639 + 77 is too large"
+    },
+    {
+      "arm": "C",
+      "heap_flag": "-Xmx8g",
+      "command": "/opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -Xmx8g CeilingProbe",
+      "started_utc": "2026-09-02T14:31:36Z",
+      "ended_utc": "2026-09-02T14:31:39Z",
+      "elapsed_seconds": 3,
+      "elapsed_seconds_confirming_rerun": 3,
+      "process_exit_code": 0,
+      "stderr_empty": true,
+      "java_version": "21.0.12.1",
+      "java_vm_name": "OpenJDK 64-Bit Server VM",
+      "max_memory_bytes": 8589934592,
+      "buffered_bytes": 2147483639,
+      "buffered_equals_soft_max": true,
+      "exception_class": "java.lang.OutOfMemoryError",
+      "exception_message": "Required array length 2147483639 + 77 is too large",
+      "note": "Deliberately small heap, run to test whether a small heap fails earlier for a different reason. It does not: it reaches the same ceiling and fails at the same byte, so the invariance is proven across a sixteen-fold heap range and no genuine heap exhaustion occurred in any arm."
+    }
+  ],
+  "arms_conclusion": {
+    "max_memory_ratio_largest_to_smallest": 16,
+    "buffered_bytes_identical_across_arms": true,
+    "exception_message_identical_across_arms": true,
+    "failure_point_moved_bytes": 0,
+    "bound_is_on": "the length of one java byte[] array (Integer.MAX_VALUE - 8 = 2147483639)",
+    "bound_scales_with": "total UTF-8 size of the graph's distinct strings, i.e. the breadth of the input set",
+    "bound_does_not_scale_with": "heap size, memory used, or time spent building the graph",
+    "addend_note": "The '+ 77' addend is fixed by the retained probe source; the frontend's own lanes reported '+ 72' (cpg-frontend.log) and '+ 76' (QA F3). The addend is the next string's UTF-8 length; the bound 2147483639 is identical in all cases."
+  },
+  "frontend_option_surface": {
+    "command": "jimple2cpg --help < /dev/null",
+    "run_from": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g3f",
+    "run_at_utc": "2026-09-02T14:32:16Z",
+    "exit_code": 0,
+    "usage_line": "Usage: jimple2cpg [options] input-dir",
+    "named_option_count": 12,
+    "positional_argument_count": 1,
+    "identical_to_option_list_quoted_in": "harness/artifacts/logs/cpg-frontend.log STEP 10",
+    "any_option_chunks_or_streams_the_writer": false,
+    "any_option_selects_alternative_output_format": false,
+    "any_option_writes_graph_in_parts": false,
+    "options": [
+      {
+        "option": "input-dir",
+        "kind": "positional",
+        "help": "source directory",
+        "bearing_on_bound": "Names one input path only; it is why 191 archives must be staged into a single directory. No bearing on the writer."
+      },
+      {
+        "option": "-o, --output",
+        "kind": "named",
+        "help": "output filename",
+        "bearing_on_bound": "Names one output filename. Selects neither a format nor a partitioning."
+      },
+      {
+        "option": "--exclude",
+        "kind": "named",
+        "help": "files or folders to exclude during CPG generation (paths relative to <input-dir> or absolute paths)",
+        "bearing_on_bound": "Would avert the failure by removing inputs; prohibited (matrix row 2)."
+      },
+      {
+        "option": "--exclude-regex",
+        "kind": "named",
+        "help": "a regex specifying files to exclude during CPG generation (paths relative to <input-dir> are matched)",
+        "bearing_on_bound": "Same as --exclude, by pattern; prohibited for the same reason."
+      },
+      {
+        "option": "--enable-early-schema-checking",
+        "kind": "named",
+        "help": "enables early schema validation during AST creation (disabled by default)",
+        "bearing_on_bound": "Affects the build phase, not persistence; the failure is in persistence, after the build."
+      },
+      {
+        "option": "--enable-file-content",
+        "kind": "named",
+        "help": "add the raw source code to the content field of FILE nodes to allow for method source retrieval via offset fields (disabled by default)",
+        "bearing_on_bound": "Adds raw source text to FILE nodes, i.e. adds bytes to the pool that overflows. Strictly worse."
+      },
+      {
+        "option": "--help",
+        "kind": "named",
+        "help": "display this help message",
+        "bearing_on_bound": "None."
+      },
+      {
+        "option": "--android",
+        "kind": "named",
+        "help": "Optional path to android.jar while processing apk file.",
+        "bearing_on_bound": "Irrelevant to this input; no bearing on the writer."
+      },
+      {
+        "option": "--full-resolver",
+        "kind": "named",
+        "help": "enables full transitive resolution of all references found in all classes that are resolved",
+        "bearing_on_bound": "Resolves more references, adding distinct type and method names to the string pool. Reaches the bound sooner, never later."
+      },
+      {
+        "option": "--recurse",
+        "kind": "named",
+        "help": "recursively unpack jars",
+        "bearing_on_bound": "Mandated by the plan; enlarges what is read, never reduces it."
+      },
+      {
+        "option": "--depth",
+        "kind": "named",
+        "help": "maximum depth to recursively unpack jars, default value 1",
+        "bearing_on_bound": "Bounds recursive unpacking, i.e. reads less of the input set. Same class as --exclude; prohibited."
+      },
+      {
+        "option": "--dynamic-dirs",
+        "kind": "named",
+        "help": "Mark all class files in dirs as classes that may be loaded dynamically. Comma separated values for multiple directories.",
+        "bearing_on_bound": "Changes analysis marking, not the writer; does not reduce the string pool."
+      },
+      {
+        "option": "--dynamic-pkgs",
+        "kind": "named",
+        "help": "Marks all class files belonging to the package pkg or any of its subpackages as classes which the application may load dynamically. Comma separated values for multiple packages.",
+        "bearing_on_bound": "Changes analysis marking, not the writer; does not reduce the string pool."
+      }
+    ]
+  },
+  "tool_identity_exercised": {
+    "jimple2cpg_on_path": "/opt/blitzy-tools/bin/jimple2cpg",
+    "jimple2cpg_readlink_f": "/opt/blitzy-tools/bin/jimple2cpg",
+    "jimple2cpg_is_wrapper": true,
+    "jimple2cpg_wrapper_body": "#!/usr/bin/env bash\n# Wrapper: Joern 4.x documents JDK 21 as its tested requirement, but Joern's own\n# launchers use whatever `java` is on PATH (17 here). Pin 21 before delegating.\nexport JAVA_HOME=\"${JAVA_HOME_21:-/opt/blitzy-tools/jdk/jdk-21.0.12.1+1}\"\nexport PATH=\"$JAVA_HOME/bin:$PATH\"\nexec /opt/blitzy-tools/joern-cli/joern-cli/jimple2cpg \"$@\"",
+    "jimple2cpg_delegate": "/opt/blitzy-tools/joern-cli/joern-cli/jimple2cpg",
+    "joern_home": "/opt/blitzy-tools/joern-cli",
+    "joern_banner_command": "printf '' | joern > joern-banner.out 2> joern-banner.err ; grep -m1 -i version joern-banner.out",
+    "joern_banner_run_from": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g3f",
+    "joern_banner_run_at_utc": "2026-09-02T14:32:40Z",
+    "joern_banner_exit_code": 0,
+    "joern_banner_elapsed_seconds": 6,
+    "joern_banner_stdout_bytes": 738,
+    "joern_banner_stderr_bytes": 0,
+    "joern_version": "4.0.607",
+    "joern_workspace_created_in_measurement_root": true,
+    "joern_workspace_present_in_checkout_root": false,
+    "writer_jar": {
+      "path": "/opt/blitzy-tools/joern-cli/joern-cli/frontends/jimple2cpg/lib/io.joern.flatgraph-core_3-0.1.32.jar",
+      "version": "0.1.32",
+      "bytes": 612269,
+      "sha256": "13c99870907a35115be3af6e9f415e712f42e4f970ad3489624dc30f024c1ab0",
+      "also_present_at": "/opt/blitzy-tools/joern-cli/joern-cli/lib/io.joern.flatgraph-core_3-0.1.32.jar (same digest)"
+    },
+    "frontend_jar": {
+      "path": "/opt/blitzy-tools/joern-cli/joern-cli/frontends/jimple2cpg/lib/io.joern.jimple2cpg-4.0.607.jar",
+      "version": "4.0.607",
+      "bytes": 236844,
+      "sha256": "5377cb993d8d8e589e358c426f780595ab61531cf1fc4277df84c19dde6e28e9"
+    },
+    "failing_writer_method": "flatgraph.storage.WriterContext.finish (Serialization.scala:174-176)",
+    "failing_writer_mechanism": "The entire deduplicated string pool is UTF-8 encoded string by string into ONE java.io.ByteArrayOutputStream, which is backed by a single contiguous byte[]."
+  },
+  "cited_frontend_failure": {
+    "label": "CITED, not measured by this pass",
+    "source_file": "harness/artifacts/logs/cpg-frontend.log",
+    "source_bytes": 7605980,
+    "source_lines": 42081,
+    "source_sha256": "dd98cd028fd7aef0862c85c5950c786a5070646621837719fe14a24fb1733290",
+    "source_sha256_verified_at_utc": "2026-09-02T14:28:55Z",
+    "source_unchanged_after_this_pass": true,
+    "occurrences": [
+      {
+        "line": 209,
+        "context": "STEP 8 (heading line 205, 'Verbatim, as the frontend printed it:' line 207); frames at lines 210-240"
+      },
+      {
+        "line": 34771,
+        "context": "section 'VERBATIM FRONTEND OUTPUT, PART 1 - the complete 191-artifact input set', which opens at line 476 and is described there as 34,322 lines / 6,254,213 bytes"
+      }
+    ],
+    "failure_line_verbatim": "java.lang.OutOfMemoryError: Required array length 2147483639 + 72 is too large",
+    "stack_frames_verbatim": [
+      "at java.base/jdk.internal.util.ArraysSupport.hugeLength(ArraysSupport.java:752)",
+      "at java.base/jdk.internal.util.ArraysSupport.newLength(ArraysSupport.java:745)",
+      "at java.base/java.io.ByteArrayOutputStream.ensureCapacity(ByteArrayOutputStream.java:100)",
+      "at java.base/java.io.ByteArrayOutputStream.write(ByteArrayOutputStream.java:132)",
+      "at java.base/java.io.OutputStream.write(OutputStream.java:124)",
+      "at flatgraph.storage.WriterContext.finish$$anonfun$2(Serialization.scala:176)",
+      "at scala.collection.IterableOnceOps.foreach(IterableOnce.scala:632)",
+      "at scala.collection.IterableOnceOps.foreach$(IterableOnce.scala:336)",
+      "at scala.collection.AbstractIterator.foreach(Iterator.scala:1325)",
+      "at flatgraph.storage.WriterContext.finish(Serialization.scala:174)",
+      "at flatgraph.storage.Serialization$.innerWriteGraph(Serialization.scala:288)",
+      "at flatgraph.storage.Serialization$.writeGraph(Serialization.scala:232)",
+      "at flatgraph.Graph.close$$anonfun$2(Graph.scala:163)",
+      "at flatgraph.Graph.close(Graph.scala:159)",
+      "at io.shiftleft.codepropertygraph.generated.Cpg.close(Cpg.scala:55)",
+      "at io.joern.x2cpg.X2CpgFrontend.run$$anonfun$1(X2Cpg.scala:237)",
+      "at io.joern.x2cpg.X2CpgFrontend.run(X2Cpg.scala:236)",
+      "at io.joern.x2cpg.X2CpgFrontend.run$(X2Cpg.scala:222)",
+      "at io.joern.jimple2cpg.Jimple2Cpg.run(Jimple2Cpg.scala:27)",
+      "at io.joern.x2cpg.X2CpgMain.run(X2Cpg.scala:191)",
+      "at io.joern.x2cpg.X2CpgMain.main(X2Cpg.scala:204)",
+      "at io.joern.jimple2cpg.Main.main(Main.scala)"
+    ],
+    "stack_frames_note": "Frames listed in file order from lines 210-240; the scala.runtime/scala.util plumbing frames at lines 223-226 and 230-234 are elided here and present verbatim in the companion .txt.",
+    "invocation_command": "SL_LOGGING_LEVEL=WARN jimple2cpg \"$STAGING\" -o \"$GRAPH\" --recurse -J-Xmx128g < /dev/null",
+    "invocation_command_line_number": 83,
+    "started_utc": "2026-08-30T23:21:24.942Z",
+    "ended_utc": "2026-08-31T07:22:27.599Z",
+    "elapsed_seconds": 28863,
+    "elapsed_line_number": 95,
+    "exit_code": 1,
+    "exit_code_line_number": 97,
+    "heap_flag": "-J-Xmx128g",
+    "peak_rss_kb": 118775976,
+    "peak_rss_gib": 113.3,
+    "input_set": {
+      "own_artifacts": 191,
+      "own_artifact_bytes": 431184822,
+      "archives_carrying_bytecode": 110,
+      "class_entries": 99723,
+      "copied_dependencies_excluded": 422
+    },
+    "partial_output": {
+      "bytes": 691541019,
+      "sha256": "b1559c930a7b9ced717a0babf9a7e172d2b93d2cdef45a959304f063aedfe408",
+      "accepted": false,
+      "renamed_to": "spark.cpg.PARTIAL-TRUNCATED-DO-NOT-LOAD",
+      "linked_at_sanctioned_path": false,
+      "loaded_by_any_stage": false
+    },
+    "brief_discrepancy_recorded": "The dispatch brief characterised this recorded lane as having run at -J-Xmx64g. The log itself states -J-Xmx128g (line 83) and 28,863 s (line 95); the log's own words are what is published. The distinction does not affect the conclusion, since arms A, B and C fail identically at 8g, 64g and 128g."
+  },
+  "cited_qa_finding": {
+    "label": "CITED, not measured by this pass",
+    "source": "/tmp/blitzy/qa/reports/f38258d3-f87d-44f5-bedc-af512c69e0ab/oss-scan-results_run-record.md/qa/testing/o000_5b89c1691063ea9e.md",
+    "invocation": "SL_LOGGING_LEVEL=WARN jimple2cpg <fresh-191-file-stage> -o <fresh-qa-graph> --recurse -J-Xmx128g < /dev/null",
+    "heap_commitment_proven_before_run": "128 GiB under JDK 21",
+    "exit_code": 1,
+    "elapsed_seconds": 21956,
+    "failure_site": "flatgraph.storage.WriterContext.finish",
+    "failure_message": "OutOfMemoryError: Required array length 2147483639 + 76 is too large",
+    "staged_files": 191,
+    "staged_project_output_bytes": 434306178,
+    "staged_bytes_note": "QA's independent inventory measured 434,306,178 bytes where the recorded lane's log states 431,184,822 bytes: two independent inventories of two independently built staging trees, both labelled rather than reconciled.",
+    "partial_output_bytes": 695829405,
+    "partial_output_sha256": "14b1e649e02d27ef89f857507e37a4562d46d921dd03a695e0118ac4c7aac2cf",
+    "partial_output_imported": false,
+    "suggested_fix": "Human/AAP change required: pin a Joern/flatgraph writer that chunks/streams the string pool, or revise the single-complete-graph requirement. Do not lower heap, trim inputs, or load the partial file."
+  },
+  "permitted_action_matrix": [
+    {
+      "id": 1,
+      "action": "Raise the heap further (256 GiB, 512 GiB, any value)",
+      "would_move_the_bound": false,
+      "permitted_by_aap": true,
+      "aap_sections": ["0.5.4", "0.8.2"],
+      "aap_basis": "'raising a heap is permitted and reported, lowering one produces a truncated graph whose silence cannot be distinguished from a clean result'",
+      "verdict": "AVAILABLE, INEFFECTIVE",
+      "evidence": "Arms A, B and C fail at the same byte across a sixteen-fold heap range; the recorded lane was resident at 113.3 GiB inside a 128 GiB heap when it failed.",
+      "taken": false
+    },
+    {
+      "id": 2,
+      "action": "Trim the input set (--exclude, --exclude-regex, --depth, or dropping pre-shade, -tests or shims archives)",
+      "would_move_the_bound": true,
+      "permitted_by_aap": false,
+      "aap_sections": ["0.3.2", "0.5.1", "0.2.1", "0.8.2", "0.9.2"],
+      "aap_basis": "0.3.2 'No trimming of the graph input set, and no exclusion of any JAR the build produced'; 0.5.1 stage the inventory and 'exclude nothing'; 0.2.1 'The input set is never trimmed in either direction to make a number fit'; 0.9.2 preamble 'These are reported, not repaired.'",
+      "verdict": "EFFECTIVE, PROHIBITED",
+      "evidence": "cpg-frontend.log PART 2 records a narrower witness graph over 38 primary artifacts / 52,584 class entries serialising successfully at 418,777,229 bytes (cited from that log).",
+      "taken": false
+    },
+    {
+      "id": 3,
+      "action": "Upgrade or substitute Joern / flatgraph for a version whose writer chunks or streams the string pool",
+      "would_move_the_bound": true,
+      "permitted_by_aap": false,
+      "aap_sections": ["0.4.3", "0.8.1", "0.9.2"],
+      "aap_basis": "0.4.3 'None, in any direction. No dependency is added, updated or removed by this run'; 0.8.1 'Nothing is installed, upgraded, substituted or provisioned.' A missing or inadequate tool is a halt-and-report, never a repair task.",
+      "verdict": "EFFECTIVE, PROHIBITED TO AN EXECUTING AGENT",
+      "evidence": "Installed writer measured as flatgraph-core 0.1.32, sha256 13c99870907a35115be3af6e9f415e712f42e4f970ad3489624dc30f024c1ab0, on the frontend's own classpath.",
+      "taken": false
+    },
+    {
+      "id": 4,
+      "action": "Use a frontend option that chunks, streams, or changes the output format",
+      "would_move_the_bound": false,
+      "permitted_by_aap": null,
+      "aap_sections": [],
+      "aap_basis": "Moot: there is no such option to permit or forbid.",
+      "verdict": "UNAVAILABLE",
+      "evidence": "jimple2cpg --help enumerated first-hand: 12 named options and one positional argument; none chunks or streams the writer, none selects an alternative output format, and --full-resolver and --enable-file-content both enlarge the string pool.",
+      "taken": false
+    },
+    {
+      "id": 5,
+      "action": "Write the graph in parts (split the input, persist per part, merge) or build in memory and query in-process without persisting",
+      "would_move_the_bound": false,
+      "permitted_by_aap": false,
+      "aap_sections": ["0.1.1", "0.5.1", "0.6.4", "0.3.2"],
+      "aap_basis": "0.1.1 requires the graph persisted; 0.5.1 and 0.6.4 require one graph whose byte size and sha256 are recorded at write time and 'recomputed and compared immediately before every one of those loads', and the runners read it from disk by path. Splitting the input is row 2 under another name.",
+      "verdict": "UNAVAILABLE AND NON-COMPLIANT",
+      "evidence": "No merge facility exists in the pinned distribution's option surface, and a merged graph would carry the same deduplicated string pool and hit the same bound at write time.",
+      "taken": false
+    },
+    {
+      "id": 6,
+      "action": "Accept the partial file: link it at the sanctioned path, or import it",
+      "would_move_the_bound": false,
+      "permitted_by_aap": false,
+      "aap_sections": ["0.2.1", "0.9.2"],
+      "aap_basis": "A truncated graph's silence is indistinguishable from a clean result, which is why a graph whose size or digest differs from the value recorded at write time halts the run at any later load.",
+      "verdict": "PROHIBITED AND UNSAFE",
+      "evidence": "QA's 695,829,405-byte partial was marked DO-NOT-IMPORT and never loaded; the recorded lane's 691,541,019-byte partial was renamed spark.cpg.PARTIAL-TRUNCATED-DO-NOT-LOAD, never linked at harness/cpg/spark.cpg and loaded by no stage. This pass loaded neither.",
+      "taken": false
+    },
+    {
+      "id": 7,
+      "action": "Present the inherited, provisioned graph as this run's graph",
+      "would_move_the_bound": false,
+      "permitted_by_aap": false,
+      "aap_sections": ["0.1.3", "0.9.4"],
+      "aap_basis": "Permitted only as a labelled divergence, never as satisfaction: 0.9.4 'every divergence is in the record ... each with both the expected and the observed value.'",
+      "verdict": "NOT SATISFACTION; ALREADY REPORTED AS A DIVERGENCE",
+      "evidence": "The provisioned graph was written over a different input set by provisioning rather than by this run, so it does not satisfy the create-by-this-run requirement.",
+      "taken": false
+    }
+  ],
+  "human_decision_required": {
+    "count": 1,
+    "statement": "Authorise one of exactly two amendments; there is no third form, and neither is within an executing agent's authority.",
+    "options": [
+      {
+        "form": "a",
+        "amends_aap_sections": ["0.4.3", "0.8.1"],
+        "action": "Authorise re-provisioning a Joern/flatgraph whose graph writer chunks or streams the string pool, and rebuild the graph over the unchanged complete input set."
+      },
+      {
+        "form": "b",
+        "amends_aap_sections": ["0.1.1", "0.3.2", "0.5.1"],
+        "action": "Amend the single-complete-graph-over-every-JAR requirement, for example to accept a partitioned set of per-part graphs, each with its own recorded identity, as compliant input."
+      }
+    ]
+  },
+  "continuity": {
+    "pre_existing_files_modified": 0,
+    "files_written_by_this_pass": [
+      "harness/artifacts/logs/reverification-f3-writer-bound.txt",
+      "harness/artifacts/logs/reverification-f3-writer-bound.json"
+    ],
+    "raw_artifact_tree_written_to": false,
+    "result_documents_written_to": false,
+    "retained_evidence_files_rehashed_unchanged": [
+      {
+        "path": "harness/artifacts/logs/cpg-frontend.log",
+        "sha256": "dd98cd028fd7aef0862c85c5950c786a5070646621837719fe14a24fb1733290"
+      },
+      {
+        "path": "harness/artifacts/logs/cpg-ceiling-reverify.log",
+        "sha256": "80deb3c40eea3d5139305b9b4481f3593ade9e7c6b001e0ffb2c4ae2fed2a2f7"
+      },
+      {
+        "path": "harness/artifacts/logs/cpg-frontend-ceiling-probe.txt",
+        "sha256": "e7d82064047c1cfee06dfe22ba2398f5fe805160408289e354596ae2df97ab79"
+      },
+      {
+        "path": "harness/artifacts/logs/cpg-frontend-verbatim.log",
+        "sha256": "6396eda9fdd55f7b6c84a3233eca708adf5bc8b01f6d90b9d276124357a9dd38"
+      }
+    ],
+    "prohibitions_observed": [
+      "no jimple2cpg invocation over any real input set",
+      "no importCpg and no code-property graph load",
+      "no 64 GiB Joern JVM started",
+      "no -XX:+AlwaysPreTouch",
+      "no tool installed, upgraded or substituted",
+      "no heap lowered for any production operation",
+      "no input set trimmed",
+      "no partial graph imported",
+      "nothing written under harness/artifacts/raw/ or oss-scan-results/",
+      "nothing under /opt/spark-src or /opt/blitzy-harness touched",
+      "no commit made"
+    ]
+  }
+}

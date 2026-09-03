@@ -1,0 +1,32 @@
+{
+  "schema": "joern-probe-publication/1.0.0",
+  "document": "harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.publication.json",
+  "query_id": "01-callgraph-unguarded-driver-launch",
+  "member_set_id": "2420e60ab58cabe1263565fa3693e4bf",
+  "member_set_id_derivation": "sha256 over each content member's target filename and sha256, NUL-separated within a member and newline-separated between members, in published order, truncated to 32 hex characters. Derived from member BYTES, so it changes if any member changes, is missing, or came from another generation",
+  "member_count": 3,
+  "publication_id": "efc857cebf2044a130526df24267924e72f70803a5d2f7abebcda3466775c962",
+  "commit_protocol": "Every content member is staged, fsynced and measured from the disk; this manifest is staged after all of them; every content member is then renamed onto its target; and this manifest is renamed LAST. Its presence is therefore the completion signal for the set, and a member on disk disagreeing with the digest recorded here means the set is not one generation",
+  "required_by_consumers": "REQUIRED. The producer re-measures every member named here immediately after publishing and stops the run on any disagreement, so a manifest that nothing checks cannot occur. A downstream consumer must do the same before treating the set as one generation",
+  "self_digest": "absent by construction: a manifest cannot carry its own digest. Its own identity is published in the run record's per-file manifest",
+  "members": [
+    {
+      "role": "01-callgraph-unguarded-driver-launch.json",
+      "path": "queries/joern/results/01-callgraph-unguarded-driver-launch.json",
+      "bytes": 72781,
+      "sha256": "80f49183faf24c33c3047743286cef4204ab788bfca8aa376160d6905c435717"
+    },
+    {
+      "role": "01-callgraph-unguarded-driver-launch.md",
+      "path": "queries/joern/results/01-callgraph-unguarded-driver-launch.md",
+      "bytes": 28045,
+      "sha256": "2ee87f3576a067406881769f9612bff6727bb7d5a8a66386380f9193e7cdd6ee"
+    },
+    {
+      "role": "probe-01-callgraph-unguarded-driver-launch.log",
+      "path": "harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log",
+      "bytes": 17519,
+      "sha256": "4b1643938846f1d54ab09057de6032294041647ff86c9a248840fcde968a33b5"
+    }
+  ]
+}

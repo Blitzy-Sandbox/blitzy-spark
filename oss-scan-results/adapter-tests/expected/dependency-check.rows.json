@@ -1,0 +1,192 @@
+{
+  "description": "The hand-verified expected result for the CAPTURED Dependency-Check fixture. fixtures/dependency-check.json is a byte-for-byte copy of the whole raw artifact harness/artifacts/raw/dependency-check.json, so the fixture's sha256 equals the raw artifact's, and it necessarily produces zero rows: the artifact contains no vulnerability record. AAP 0.6.2's captured-positive-mapping requirement is therefore not satisfied by THIS fixture, which carries no vulnerability record. It is SATISFIED for this adapter by a second, equally genuine capture -- harness/artifacts/logs/dependency-check-positive-capture.json, 46,684 bytes, 2 dependencies and 5 vulnerability records, copied unmodified to fixtures/captured-dependency-check-vulnerabilities.json and mapped field by field in expected/captured-dependency-check-vulnerabilities.rows.json. The requirement is an unmodified captured excerpt of the tool's own output that exercises the adapter's positive field mapping. harness/artifacts/raw/dependency-check.json -- the whole of this tool's output for this run, 17,097 bytes, sha256 2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799 -- contains 32 dependencies, ZERO vulnerability records and ZERO package objects, and one vulnerability record is this shape's count unit. No excerpt of an artifact that contains no record can exercise any field of a row builder, so the captured fixture committed here carries ZERO rows. Positive mapping is exercised instead by fixtures/derived-dependency-check-features.json, which is declared derived in expected/derived-dependency-check-features.rows.json and is not captured output. That derived fixture is not offered as the captured-positive-mapping requirement's evidence, and it is not an exception, a waiver or a substitute for it: the requirement is met by the second capture named above, which is unmodified tool output, while this fixture's zero-row outcome remains a measurement in its own right, stated above and asserted by test_dependency_check_adapter.py's RawArtifactProvenanceTest. Every value below was derived by reading the fixture and the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/dependency_check.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match.",
+  "tool": "dependency-check",
+  "scanner_class": "vuln",
+  "adapter": "harness/lib/normalize/adapters/dependency_check.py",
+  "reference_case_for": [
+    "the recorded failure of AAP 0.6.2's captured-positive-mapping requirement for this adapter -- stated as a failure with its measurement, rather than as an exception",
+    "the zero-record artifact: 32 dependencies, none carrying a vulnerabilities array, is a clean parse with zero rows and zero rejections rather than an error, and the independent traversal and the adapter agree on zero"
+  ],
+  "rules": "No user-specified rule governs this file. review_rules returns exactly one line, 'No user rules provided.', which is the complete document; AAP 0.7 and AAP 0.10.2 say the same. Enterprise best practice applies in their place, held to the AAP's own bar: hand-verify rather than record a run, reject rather than infer, and state an absence rather than omit it. This file exists because of AAP 0.6.1, AAP 0.6.2 and AAP 0.9.4, not because of a rule.",
+  "fixture": {
+    "path": "oss-scan-results/adapter-tests/fixtures/dependency-check.json",
+    "sha256": "2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799",
+    "bytes": 17097,
+    "lines": 415,
+    "lines_convention": "logical lines: len(text.splitlines()), which counts a final line that carries no trailing newline",
+    "report_schema": "1.1",
+    "engine_version": "13.0.0",
+    "dependencies": 32,
+    "dependencies_carrying_a_vulnerabilities_key": 0,
+    "dependencies_carrying_a_packages_key": 0,
+    "vulnerability_records": 0,
+    "provenance": "CAPTURED. The fixture is the whole raw artifact copied byte for byte: same byte count, same sha256, same member order, nothing added, removed, truncated or reformatted.",
+    "captured_from": "harness/artifacts/raw/dependency-check.json",
+    "captured_verbatim": [
+      "the whole document -- reportSchema, scanInfo with all four NVD dataSource timestamps, projectInfo with its three credits, and all 32 dependencies[] entries with their isVirtual, fileName, filePath, md5, sha1, sha256 and evidenceCollected members"
+    ],
+    "capture_verification": "test_dependency_check_adapter.py's RawArtifactProvenanceTest opens harness/artifacts/raw/dependency-check.json directly and asserts the raw file exists, that the fixture's bytes and sha256 equal the raw artifact's, that the parsed documents are equal, that the fixture introduces no member the raw artifact lacks, and that the raw artifact contains zero vulnerability records and zero package objects. The recorded capture failure below is therefore a measured claim rather than a statement in prose.",
+    "observed_content": [
+      "32 dependencies, all mappings, none virtual",
+      "31 vendored .js bundles and one package.json; 31 of the 32 sit under core/src/main/resources/org/apache/spark/ui/static and one under sql/core/src/main/resources/org/apache/spark/sql/execution/ui/static",
+      "every entry's evidenceCollected carries three empty arrays -- vendorEvidence, productEvidence and versionEvidence -- so no entry resolves to a package",
+      "no entry carries a vulnerabilities, packages or vulnerabilityIds member at all"
+    ],
+    "re_derivation_trigger": "These values are re-derived when the fixture changes. The fixture may change only by the raw artifact changing, since the two are byte-identical by assertion."
+  },
+  "aap_captured_positive_mapping_requirement": {
+    "requirement": "AAP 0.6.2 and AAP 0.9.4: an unmodified captured positive fixture per adapter, exercising that adapter's positive field mapping, with a hand-verified expected result asserted field by field.",
+    "status": "SATISFIED",
+    "statement": "AAP 0.6.2's captured-positive-mapping requirement is SATISFIED for this adapter, by GENUINE CAPTURED TOOL OUTPUT rather than by substitution. It is not satisfied by THIS fixture: harness/artifacts/raw/dependency-check.json -- the whole of this tool's output for the scanning run, 17,097 bytes, sha256 2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799 -- contains 32 dependencies, ZERO vulnerability records and ZERO package objects, and one vulnerability record is this shape's count unit, so the capture committed here carries ZERO rows and no excerpt of it could carry more. That measurement stands unchanged and is asserted by test_dependency_check_adapter.py's RawArtifactProvenanceTest. The requirement is met instead by fixtures/captured-dependency-check-vulnerabilities.json, which is the unmodified whole JSON report of a SECOND invocation of the same Dependency-Check build, under the same JDK and the same seeded feed, over two JARs that resolve to packages the feed carries advisories for. Its five vulnerability records exercise the twelve-field positive mapping field by field. Nothing authored is relabelled as a capture: the derived feature fixture remains declared derived and covers only the behaviours the genuine capture does not reach.",
+    "measured_evidence": {
+      "raw_artifact": "harness/artifacts/raw/dependency-check.json",
+      "raw_artifact_bytes": 17097,
+      "raw_artifact_sha256": "2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799",
+      "raw_dependencies": 32,
+      "raw_vulnerability_records": 0,
+      "raw_package_objects": 0,
+      "count_unit": "one element of dependencies[].vulnerabilities[]",
+      "rows_the_capture_produces": 0,
+      "asserted_by": "test_dependency_check_adapter.py, RawArtifactProvenanceTest and CapturedFixtureTest"
+    },
+    "where_positive_mapping_is_exercised_instead": "fixtures/derived-dependency-check-features.json with expected/derived-dependency-check-features.rows.json -- eight vulnerability records over eight dependencies, declared DERIVED in that expected file's fixture block, exercising the twelve-field mapping, absolute-path relativization, the four-level package-coordinate precedence with its within-level tie, and label-over-score severity precedence.",
+    "where_positive_mapping_is_exercised": "fixtures/captured-dependency-check-vulnerabilities.json with expected/captured-dependency-check-vulnerabilities.rows.json -- five vulnerability records over two dependencies, captured unmodified, exercising rule_id, message, three distinct severity labels, label-over-score severity precedence, filesystem-absolute path relativization, cve, cwe including the ascending-numeric-identifier rule over a record listing the larger identifier first, and package_coordinate at candidate level 2. The invocation that produced it is recorded with its command, tool build, JDK and feed timestamps in harness/artifacts/logs/dependency-check-positive-capture.log, and the report it wrote is retained beside that log as dependency-check-positive-capture.json.",
+    "how_it_is_satisfied": "By capturing genuine tool output containing records, which is the first of the two courses open here; the second -- reporting the milestone incomplete -- is no longer needed. The capture is asserted byte for byte against the retained report rather than against a digest this tree owns, so the claim of unmodified capture is falsifiable.",
+    "residual_behaviours_covered_by_the_derived_fixture": "fixtures/derived-dependency-check-features.json, declared DERIVED in its own expected file, still covers what the genuine capture does not reach: a record whose severity label is absent so severity_norm falls to the CVSS score, package-coordinate candidate levels 1, 3 and 4 with the within-level lexicographic tie, and the rejection conditions.",
+    "why_the_scanning_run_artifact_has_no_record": "AAP 0.2.1 measured the scanned surface: exactly one manifest-shaped file is in scope -- core/src/main/resources/org/apache/spark/ui/static/package.json, 5 lines and 80 bytes, with no dependencies block and no lockfile beside it -- so this tool saw only the vendored .js and .css bundles under core/src/main/resources and resolved none of them to a package. Widening the twelve globs to give it something to resolve is prohibited by AAP 0.3.2, so the zero-record artifact is the expected outcome of the scope rather than a runner fault."
+  },
+  "field_order": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_native",
+    "severity_norm",
+    "path",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate",
+    "in_scope"
+  ],
+  "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+  "absence_permitted_fields": [
+    "severity_native",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate"
+  ],
+  "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent.",
+  "severity_norm_vocabulary": [
+    "Critical",
+    "High",
+    "Medium",
+    "Low",
+    "Info"
+  ],
+  "allowlist": {
+    "path": "harness/scope/allowlist.txt",
+    "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+    "globs": 12,
+    "note": "in_scope is decided by that file alone. No row exists here to carry the field, so no glob is exercised by this fixture; rows_in_scope and rows_out_of_scope are both 0 and each is a measured zero rather than an unmeasured one."
+  },
+  "resolution_context": {
+    "root": "/opt/spark-src",
+    "root_dependence": "Every filePath in this artifact is filesystem-absolute and carries the root as a literal prefix, so a row derived from one would be stated for this root -- /opt/spark-src, the value harness/artifacts/logs/runner-metadata.json records as spark_src. No row is derived here, because no record exists to derive one from, so the root is recorded rather than exercised. The root is spelled out here and under path_base_value because the rows this fixture would produce are stated against it.",
+    "path_base_kind": "filesystem_absolute",
+    "path_base_value": "/opt/spark-src",
+    "path_base_source": "harness/artifacts/logs/runner-metadata.json, the dependency-check entry's path_base -- read as input, never assumed",
+    "path_base_evidence": "The runner builds one absolute --scan argument per allowlist directory (18 in a single invocation, invocations_per_run 1), so dependencies[].filePath is filesystem-absolute under the scan root and the resolution is a straight relativization.",
+    "working_directory": "/opt/spark-src -- equal to the scan root, and deliberately NOT the path base: the tool reports absolute paths because it was handed absolute --scan arguments, not because of where the process ran.",
+    "path_basis": "absolute-relativized-to-root -- not reached by any record in this fixture",
+    "path_kind": "no path was resolved: the adapter resolves a path per vulnerability record, and this artifact carries none. All four path_kind_* counters are 0.",
+    "paths_that_would_have_been_resolved": "Had any of the 32 dependencies carried a vulnerability, its path would have relativized to core/src/main/resources/org/apache/spark/ui/static/<file> for 31 of them (in scope, via core/src/main/**) and to sql/core/src/main/resources/org/apache/spark/sql/execution/ui/static/<file> for the remaining one (in scope, via sql/core/src/main/**). Stated as a derivation of the fixture's own filePath values and asserted nowhere as a row, because no row exists.",
+    "start_line": "null on every row, and deliberately so rather than by omission. Dependency-Check reports at dependency granularity -- a vulnerable component, not a line of code -- and this artifact carries no line information in any member, at any depth. Synthesising one would be inference. It is also why no reject-dependency-check-non-integer-start-line fixture exists: there is no start_line in this shape to be non-integer.",
+    "package_coordinate": "Not reached. For this shape an unformable coordinate is a rejection rather than a null field, but no record exists to reach either outcome, so package_coordinate_unformable is 0 and no rejection is produced. The unformable-coordinate rejection is covered by reject-dependency-check-no-package-coordinate.json.",
+    "count_unit": "dependencies[].vulnerabilities[] -- one vulnerability is one record"
+  },
+  "counts": {
+    "raw_finding_records": 0,
+    "raw_count_unit": "one element of dependencies[].vulnerabilities[] -- the unit normalize.reconcile.count_records walks independently of row construction, summing len(vulnerabilities) over dependencies[]",
+    "raw_count_derivation": "sum(len(d.vulnerabilities)) over the 32 dependencies = 0, because no dependency carries a vulnerabilities key at all. Each is counted under dependencies_without_vulnerabilities_array and contributes no record: not a row, and not a rejection.",
+    "rows": 0,
+    "rejections": 0,
+    "rejections_by_class": {},
+    "reconciliation_identity": "raw_finding_records == rows + rejections, that is 0 == 0 + 0",
+    "zero_is_not_absent": "AAP 0.5.4 reserves 'not applicable -- artifact absent' for a tool that wrote no artifact. This tool wrote one, it parsed cleanly and it contains no record, so the identity is asserted at zero rather than declared inapplicable, and the parse status is clean rather than partial.",
+    "independent_count_authority": "harness/lib/normalize/reconcile.py, _count_dependency_check, reached through count_records('dependency-check', doc). It builds no row, which is the whole point of it: a count taken from the traversal that builds the rows satisfies the identity while testing nothing."
+  },
+  "counters": {
+    "dependencies": 32,
+    "dependencies_skipped_non_mapping": 0,
+    "dependencies_without_vulnerabilities_array": 32,
+    "multi_location_records": 0,
+    "multi_valued_cwe_records": 0,
+    "multi_valued_cve_records": 0,
+    "non_filesystem_paths": 0,
+    "archive_references_split": 0,
+    "rows_in_scope": 0,
+    "rows_out_of_scope": 0,
+    "start_line_absent": 0,
+    "severity_label_present": 0,
+    "severity_label_absent": 0,
+    "severity_score_candidates_present": 0,
+    "severity_selected_score_with_source_and_version": 0,
+    "cwe_absent": 0,
+    "cwe_entries_without_identifier": 0,
+    "cve_absent": 0,
+    "package_coordinate_from_record_package_url": 0,
+    "package_coordinate_from_package_object_package_url": 0,
+    "package_coordinate_from_record_fields": 0,
+    "package_coordinate_from_package_object_fields": 0,
+    "package_coordinate_multiple_candidates_at_level": 0,
+    "package_coordinate_unformable": 0,
+    "path_kind_tree_file": 0,
+    "path_kind_outside_root": 0,
+    "path_kind_archive_member": 0,
+    "path_kind_bytecode_source": 0,
+    "severity_basis_sarif_level": 0,
+    "severity_basis_label": 0,
+    "severity_basis_cvss_score": 0,
+    "severity_basis_no_vocabulary": 0,
+    "severity_basis_unmapped_literal": 0
+  },
+  "counters_authority": "harness/lib/normalize/adapters/dependency_check.py, COUNTER_KEYS as returned by new_counters(): thirty-three keys in that order -- twenty-four authored, plus one path_kind_* per normalize.paths.PATH_KINDS member and one severity_basis_* per normalize.severity.BASIS_VALUES member.",
+  "counters_note": "The four counters AAP 0.5.4 has reported per tool are all 0 here, and each is a measured zero: multi_location_records 0 and non_filesystem_paths 0 because no record was mapped at all; multi_valued_cwe_records 0 and multi_valued_cve_records 0 for the same reason. Every counter except dependencies and dependencies_without_vulnerabilities_array is 0 because the row builder is never entered -- the dependency loop counts each of the 32 entries and continues past it.",
+  "counters_arithmetic": [
+    "dependencies 32 == the 32 elements of dependencies[], and equals the count in the raw artifact",
+    "dependencies_skipped_non_mapping 0 + dependencies_without_vulnerabilities_array 32 == the 32 dependencies contributing no record",
+    "rows_in_scope 0 + rows_out_of_scope 0 == rows 0",
+    "severity_basis_* all 0 == rows 0, so the basis decomposition is exact at zero",
+    "path_kind_* all 0 == rows 0",
+    "package_coordinate_from_* all 0 == rows 0, and package_coordinate_unformable 0 == rejections 0"
+  ],
+  "rows": [],
+  "rows_note": "Empty, and empty for a measured reason rather than an omission: the artifact carries no vulnerability record, so the adapter emits no row and rejects nothing. An expected file with no row is the honest expectation for a capture of this artifact, and it is why the captured-positive-mapping requirement above is satisfied by the second capture rather than by this fixture.",
+  "dependencies_contributing_no_record": [
+    {
+      "dependency_pointer": "/dependencies/0 through /dependencies/31 -- all of them",
+      "file_names": "31 vendored .js bundles and one package.json",
+      "reason": "No dependency carries a vulnerabilities member, so each contributes no record: not a row, and not a rejection. Counted under dependencies_without_vulnerabilities_array, and counted as zero records by the independent traversal too, which is what keeps the two readings of 'one record' identical.",
+      "note": "The one manifest among them, core/src/main/resources/org/apache/spark/ui/static/package.json, is 5 lines and 80 bytes at the pin and carries no dependencies block. It is why the vendored surface resolves to no package, and so why the unformable-coordinate rejection covered by reject-dependency-check-no-package-coordinate.json is realistic rather than contrived."
+    }
+  ],
+  "behaviours_not_exercised_by_this_fixture": [
+    {
+      "behaviour": "every field of the twelve-field positive mapping, and every path, severity, identifier and coordinate contract this adapter implements",
+      "why_absent": "the captured artifact carries no vulnerability record, so the row builder is never entered. This is the failure recorded under aap_captured_positive_mapping_requirement, not a gap left unstated",
+      "cover_with": "fixtures/derived-dependency-check-features.json, declared derived, whose expected file asserts all eight rows field by field along with all thirty-three counters"
+    },
+    {
+      "behaviour": "every rejection condition this adapter can produce",
+      "why_absent": "a rejection needs a record to reject, and there is none; rejections is 0",
+      "cover_with": "the reject-dependency-check-<condition> fixtures -- malformed-record, missing-rule-id, missing-message, unresolvable-path and no-package-coordinate -- each asserted to be counted under its class rather than dropped or coerced"
+    },
+    {
+      "behaviour": "a non-integer start_line rejection",
+      "why_absent": "not merely unexercised but impossible for this shape: Dependency-Check reports at dependency granularity and carries no line information in any member, so there is no start_line to be non-integer. This is why no reject-dependency-check-non-integer-start-line fixture exists, and the absence is a stated fact rather than a gap",
+      "cover_with": "nothing -- the condition cannot arise from this artifact shape"
+    }
+  ]
+}

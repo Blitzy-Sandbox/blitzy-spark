@@ -1,0 +1,38 @@
+[00.06][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the semgrep API. They will change or will be removed without notice !!! 
+Rule opt.blitzy-harness.rules.semgrep-rules.php.wordpress-plugins.security.audit.wp-file-inclusion-audit contains an include pattern ''**/wp-content/plugins/**/*.php'' that will soon be interpreted as '/'**/wp-content/plugins/**/*.php'' to comply with the Semgrepignore v2 and Gitignore specifications. To make this pattern permanently unanchored, edit rule opt.blitzy-harness.rules.semgrep-rules.php.wordpress-plugins.security.audit.wp-file-inclusion-audit and change it to '**/'**/wp-content/plugins/**/*.php''. To confirm the anchored behavior and avoid this warning, change it to '/'**/wp-content/plugins/**/*.php''.
+Rule opt.blitzy-harness.rules.semgrep-rules.yaml.github-actions.security.audit.third-party-action-not-pinned-to-commit-sha contains an include pattern '.github/workflows' that will soon be interpreted as '/.github/workflows' to comply with the Semgrepignore v2 and Gitignore specifications. To make this pattern permanently unanchored, edit rule opt.blitzy-harness.rules.semgrep-rules.yaml.github-actions.security.audit.third-party-action-not-pinned-to-commit-sha and change it to '**/.github/workflows'. To confirm the anchored behavior and avoid this warning, change it to '/.github/workflows'.
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 4094 files tracked by git with 2149 Code rules:
+                                                                                                                        
+  Language      Rules   Files          Origin   Rules                                                                   
+ ─────────────────────────────        ────────────────                                                                  
+  <multilang>     274    4094          Custom    2149                                                                   
+  scala            25    2207                                                                                           
+  python          424    1175                                                                                           
+  java            132     591                                                                                           
+  js              234      31                                                                                           
+  yaml             95      23                                                                                           
+  dockerfile       39       3                                                                                           
+  html              4       3                                                                                           
+  bash             13       2                                                                                           
+  json              7       2                                                                                           
+                                                                                                                        
+Rule opt.blitzy-harness.rules.semgrep-rules.php.wordpress-plugins.security.audit.wp-file-inclusion-audit contains an include pattern ''**/wp-content/plugins/**/*.php'' that will soon be interpreted as '/'**/wp-content/plugins/**/*.php'' to comply with the Semgrepignore v2 and Gitignore specifications. To make this pattern permanently unanchored, edit rule opt.blitzy-harness.rules.semgrep-rules.php.wordpress-plugins.security.audit.wp-file-inclusion-audit and change it to '**/'**/wp-content/plugins/**/*.php''. To confirm the anchored behavior and avoid this warning, change it to '/'**/wp-content/plugins/**/*.php''.
+Rule opt.blitzy-harness.rules.semgrep-rules.yaml.github-actions.security.audit.third-party-action-not-pinned-to-commit-sha contains an include pattern '.github/workflows' that will soon be interpreted as '/.github/workflows' to comply with the Semgrepignore v2 and Gitignore specifications. To make this pattern permanently unanchored, edit rule opt.blitzy-harness.rules.semgrep-rules.yaml.github-actions.security.audit.third-party-action-not-pinned-to-commit-sha and change it to '**/.github/workflows'. To confirm the anchored behavior and avoid this warning, change it to '/.github/workflows'.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+✅ Scan completed successfully.
+ • Findings: 1162 (1162 blocking)
+ • Rules run: 1238
+ • Targets scanned: 4094
+ • Parsed lines: ~99.9%
+ • Scan was limited to files tracked by git
+ • For a detailed list of skipped files and lines, run semgrep with the --verbose flag
+Ran 1238 rules on 4094 files: 1162 findings.

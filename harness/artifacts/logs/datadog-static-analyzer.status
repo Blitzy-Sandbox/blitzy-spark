@@ -1,0 +1,7 @@
+tool=datadog-static-analyzer
+exit_code=0
+elapsed_seconds=57
+artifact=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/datadog-static-analyzer.sarif
+artifact_bytes=5723938
+scan_root=/opt/spark-src
+scan_root_source=SPARK_SRC

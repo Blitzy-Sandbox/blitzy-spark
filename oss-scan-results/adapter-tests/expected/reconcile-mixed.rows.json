@@ -1,0 +1,485 @@
+{
+  "description": "The hand-verified expected result for the mixed reconciliation fixture -- the one fixture in this tree holding both valid and rejectable records, and therefore the only input over which raw finding records = dataset rows + rejected records is non-degenerate. Every value below was derived by reading oss-scan-results/adapter-tests/fixtures/reconcile-mixed.json together with the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/ disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match.",
+  "tool": "opengrep",
+  "scanner_class": "sast",
+  "adapter": "harness/lib/normalize/adapters/sarif.py",
+  "reconciler": "harness/lib/normalize/reconcile.py",
+  "count_unit": "one element of runs[].results[] -- the unit normalize.reconcile.count_records walks, in a traversal that builds no rows",
+  "why_this_fixture_exists": "Over an all-valid document the identity collapses to raw = rows, which an implementation that silently drops a malformed record satisfies perfectly. Only a document carrying both outcomes separates the two, which is why this fixture carries V valid and R rejectable records with V != R and neither zero, and why the expectations below state all three numbers rather than only the total.",
+  "structures": {
+    "rows": "the V surviving rows, in emission order, twelve fields each",
+    "rejections": "the R rejection expectations, each located structurally and named with an exact member of paths.REJECT_CLASSES, with per-class counts",
+    "arithmetic": "the identity raw = rows + rejections, the four counters AAP 0.5.4 reports per tool, the parse status, and the absent-artifact sentinel"
+  },
+  "fixture": {
+    "path": "oss-scan-results/adapter-tests/fixtures/reconcile-mixed.json",
+    "sha256": "0b768e33cd5edf63a46d76c951338726020eb653df611dff75a9baada6f76f2c",
+    "bytes": 10411,
+    "sarif_version": "2.1.0",
+    "runs": 1,
+    "results": 7,
+    "driver_rules": 5,
+    "shape": "SARIF -- detected by version \"2.1.0\" together with a runs array, and routed to the one shared SARIF adapter",
+    "single_shape": "The fixture stays strictly inside one tool's shape, so the count unit is unambiguous and no section attribution is in play.",
+    "derived_from": "oss-scan-results/adapter-tests/fixtures/opengrep.sarif",
+    "derivation_note": "A derived fixture rather than unmodified captured output: it keeps the Opengrep SARIF envelope, the driver shape and the root-relative uri convention of the captured artifact, and substitutes fixture.reconcile-mixed.* rule identifiers and hand-built results so that both outcomes occur in one document. The positive captured fixture is opengrep.sarif with its own expected file; this one exists for the arithmetic.",
+    "marker_key_absent": true,
+    "marker_key_note": "No key in the fixture distinguishes a valid record from a rejectable one. Mapping which is which is this file's job, so every rejection below is located by its index in runs[0].results[] and by the structural defect that earns it, never by a flag."
+  },
+  "field_order": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_native",
+    "severity_norm",
+    "path",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate",
+    "in_scope"
+  ],
+  "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+  "absence_permitted_fields": [
+    "severity_native",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate"
+  ],
+  "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- a record whose path could not be resolved is rejected and counted rather than emitted with a null path, which is exactly what happens to one of the three rejections below.",
+  "severity_norm_vocabulary": [
+    "Critical",
+    "High",
+    "Medium",
+    "Low",
+    "Info"
+  ],
+  "allowlist": {
+    "path": "harness/scope/allowlist.txt",
+    "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+    "globs": 12,
+    "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under row_derivations."
+  },
+  "resolution_context": {
+    "root_independence": "Every uri in this fixture that names a file is already root-relative, and the recorded path base for opengrep is the scan root itself, so joining onto the base and relativizing back to the root returns the uri unchanged. These rows therefore hold for whatever absolute scan root the adapter is given, and no absolute path appears anywhere in this file.",
+    "path_base_kind": "scan_root",
+    "path_base_equals_scan_root": true,
+    "path_base_source": "harness/artifacts/logs/runner-metadata.json, the opengrep entry's path_base -- read as input, never assumed",
+    "sarif_uri_base_id_observed": "%SRCROOT%",
+    "sarif_original_uri_base_ids_present": false,
+    "uri_base_id_walk_outcome": "absent",
+    "uri_base_id_walk_consequence": "With no run.originalUriBaseIds the SARIF 2.1.0 section 3.4.4 procedure cannot complete -- the documented producer gap -- and that outcome is eligible for the metadata-backed fallback, so each file-naming path resolves against the runner-recorded base rather than being rejected. The fallback is not a catch-all: the one record here whose uri names nothing in the tree is rejected and counted, not resolved against the base.",
+    "path_basis": "sarif-degenerate-base-metadata-fallback",
+    "path_kind": "tree_file",
+    "severity_source": "No result in this fixture states a level of its own, and no rule carries properties.severity or properties.problem.severity, so every severity_native is the level its own rule states under defaultConfiguration.level -- SARIF 2.1.0's own derivation for a result that omits the property, not an inference -- and every severity_norm comes from the SARIF level table: error High, warning Medium, note Low, none Info.",
+    "package_coordinate": "null on every row. A SARIF result names a code location rather than a package, and this shape supplies no coordinate to carry.",
+    "cwe_and_cve": "null on every row. Every rule in this fixture carries an empty properties.tags array and no properties.cwe, so no CWE or CVE token exists to collect and neither multi-valued counter can fire."
+  },
+  "file_line_counts": {
+    "purpose": "Each row's start_line is asserted to be an integer inside the real line count of the file it names, so those counts are recorded here with their provenance rather than assumed.",
+    "authority": "the pinned tree at 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d -- the only tree anything in this run scans, and the tree this fixture's line numbers were taken against",
+    "files": [
+      {
+        "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+        "lines_at_the_pin": 380,
+        "lines_at_the_working_checkout_tip": 380,
+        "note": "Identical in both trees. Lines 71-73 are the throw of SparkException.internalError, its interpolated message and its category argument, which is the construct the two Scala rows here are reported against."
+      },
+      {
+        "path": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
+        "lines_at_the_pin": 171,
+        "lines_at_the_working_checkout_tip": 171,
+        "note": "Identical in both trees. Line 145 is the logger.error call carrying an exception object."
+      },
+      {
+        "path": "python/pyspark/ml/tests/test_evaluation.py",
+        "lines_at_the_pin": 391,
+        "lines_at_the_working_checkout_tip": 384,
+        "note": "The two trees differ for this file, so both counts are recorded rather than one being adopted silently. At the pin the tempfile.TemporaryDirectory context manager the row is reported against is line 59, which is the fixture's startLine; at the tip the same text is line 58, because the tip drops an import and replaces the test-runner tail. start_line 59 is inside both counts, so the ceiling assertion and in_scope hold either way, and the pin's 391 is the figure that governs -- the fixture's line numbers are the pinned tree's."
+      }
+    ]
+  },
+  "counts": {
+    "raw_finding_records": 7,
+    "raw_count_unit": "one element of runs[].results[] -- the unit normalize.reconcile.count_records walks independently of row construction",
+    "rows": 4,
+    "rejections": 3,
+    "rejections_by_class": {
+      "unresolvable_path": 1,
+      "missing_rule_id": 1,
+      "missing_message": 1
+    },
+    "reconciliation_identity": "raw_finding_records == rows + rejections"
+  },
+  "counts_note": "Carried under the same key and the same field names the sibling expected file uses, so a consumer reading either file finds these numbers in the same place. They are the same measurement as the arithmetic block below states in full, cited once more here rather than measured a second time; the arithmetic block is where the non-degeneracy, the parse status and the absent-artifact verdict live.",
+  "corroboration": {
+    "source": null,
+    "records_compared": 0,
+    "agreement": "not applicable -- no dataset corroboration is possible for this fixture",
+    "note": "The sibling positive fixture is an unmodified excerpt of a raw artifact, so its rows also appear in oss-scan-results/findings.json and can be corroborated against it after the fact. This fixture is derived: its fixture.reconcile-mixed.* rule identifiers appear nowhere in the committed dataset -- verified as zero occurrences -- because no runner emitted them, and its three defective records exist precisely so that they never become rows. So there is nothing in the dataset to compare these values against, and that is stated here rather than left as an absent key. Every value in this file was derived from the fixture and the authored contracts either way; corroboration was never the source of any of them."
+  },
+  "rows": [
+    {
+      "tool": "opengrep",
+      "scanner_class": "sast",
+      "rule_id": "fixture.reconcile-mixed.scala.interpolated-string-in-exception-message",
+      "message": "An interpolated string is passed to an exception constructor.",
+      "severity_native": "warning",
+      "severity_norm": "Medium",
+      "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "start_line": 72,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "opengrep",
+      "scanner_class": "sast",
+      "rule_id": "fixture.reconcile-mixed.java.exception-object-passed-to-logger",
+      "message": "An exception object is passed to a logger call.",
+      "severity_native": "note",
+      "severity_norm": "Low",
+      "path": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
+      "start_line": 145,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "opengrep",
+      "scanner_class": "sast",
+      "rule_id": "fixture.reconcile-mixed.python.temporary-directory-context-manager",
+      "message": "A temporary directory is created through a context manager.",
+      "severity_native": "note",
+      "severity_norm": "Low",
+      "path": "python/pyspark/ml/tests/test_evaluation.py",
+      "start_line": 59,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "opengrep",
+      "scanner_class": "sast",
+      "rule_id": "fixture.reconcile-mixed.scala.exception-constructed-in-catch-clause",
+      "message": "An exception is constructed inside a catch clause.",
+      "severity_native": "error",
+      "severity_norm": "High",
+      "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "start_line": 71,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    }
+  ],
+  "rows_note": "Four rows from seven records, in the document order the adapter preserves and both output files use. The three records that produce no row are the rejections below; their indices are absent from row_derivations, and every row_derivations entry names a record no part of this file marks defective.",
+  "row_derivations": [
+    {
+      "row_index": 0,
+      "result_pointer": "/runs/0/results/0",
+      "rule_pointer": "/runs/0/tool/driver/rules/0",
+      "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+      "message_source": "/runs/0/results/0/message/text",
+      "severity_native_source": "/runs/0/tool/driver/rules/0/defaultConfiguration/level",
+      "severity_native_note": "the result states no level of its own, so the level is the one its rule states -- SARIF 2.1.0's own derivation, not an inference",
+      "severity_basis": "sarif_level",
+      "severity_counter": "severity_from_rule_default_configuration",
+      "path_source": "/runs/0/results/0/locations/0/physicalLocation/artifactLocation/uri",
+      "path_kind": "tree_file",
+      "path_basis": "sarif-degenerate-base-metadata-fallback",
+      "start_line_source": "/runs/0/results/0/locations/0/physicalLocation/region/startLine",
+      "locations_in_record": 1,
+      "cwe_source": null,
+      "cwe_absent_reason": "the rule carries no properties.cwe and its properties.tags array is empty, so no CWE token exists to collect",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "core/src/main/**",
+      "file_line_count_at_the_pin": 380
+    },
+    {
+      "row_index": 1,
+      "result_pointer": "/runs/0/results/2",
+      "rule_pointer": "/runs/0/tool/driver/rules/1",
+      "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+      "message_source": "/runs/0/results/2/message/text",
+      "severity_native_source": "/runs/0/tool/driver/rules/1/defaultConfiguration/level",
+      "severity_native_note": "the result states no level of its own, so the level is the one its rule states -- SARIF 2.1.0's own derivation, not an inference",
+      "severity_basis": "sarif_level",
+      "severity_counter": "severity_from_rule_default_configuration",
+      "path_source": "/runs/0/results/2/locations/0/physicalLocation/artifactLocation/uri",
+      "path_kind": "tree_file",
+      "path_basis": "sarif-degenerate-base-metadata-fallback",
+      "start_line_source": "/runs/0/results/2/locations/0/physicalLocation/region/startLine",
+      "locations_in_record": 1,
+      "cwe_source": null,
+      "cwe_absent_reason": "the rule carries no properties.cwe and its properties.tags array is empty, so no CWE token exists to collect",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "common/network-shuffle/src/main/**",
+      "file_line_count_at_the_pin": 171,
+      "note": "This rule also declares messageStrings.default, which nothing in this row uses: this result carries its own message.text. The template matters only to the record at /runs/0/results/5, which supplies message.id alone and is rejected rather than rendered."
+    },
+    {
+      "row_index": 2,
+      "result_pointer": "/runs/0/results/4",
+      "rule_pointer": "/runs/0/tool/driver/rules/2",
+      "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+      "message_source": "/runs/0/results/4/message/text",
+      "severity_native_source": "/runs/0/tool/driver/rules/2/defaultConfiguration/level",
+      "severity_native_note": "the result states no level of its own, so the level is the one its rule states -- SARIF 2.1.0's own derivation, not an inference",
+      "severity_basis": "sarif_level",
+      "severity_counter": "severity_from_rule_default_configuration",
+      "path_source": "/runs/0/results/4/locations/0/physicalLocation/artifactLocation/uri",
+      "path_kind": "tree_file",
+      "path_basis": "sarif-degenerate-base-metadata-fallback",
+      "start_line_source": "/runs/0/results/4/locations/0/physicalLocation/region/startLine",
+      "locations_in_record": 1,
+      "cwe_source": null,
+      "cwe_absent_reason": "the rule carries no properties.cwe and its properties.tags array is empty, so no CWE token exists to collect",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "python/pyspark/**",
+      "file_line_count_at_the_pin": 391,
+      "in_scope_note": "true, and deliberately so. The path names a Python test module, and the scope exclusion is literal: a path containing src/test is out of scope. This path carries no such segment and sits inside python/pyspark/**, so it is in scope and its row is in scope -- the case a loose reading of \"tests are out of scope\" gets wrong. Being scanned is not being executed: no Spark test suite is run by this pipeline."
+    },
+    {
+      "row_index": 3,
+      "result_pointer": "/runs/0/results/6",
+      "rule_pointer": "/runs/0/tool/driver/rules/3",
+      "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+      "message_source": "/runs/0/results/6/message/text",
+      "severity_native_source": "/runs/0/tool/driver/rules/3/defaultConfiguration/level",
+      "severity_native_note": "the result states no level of its own, so the level is the one its rule states -- SARIF 2.1.0's own derivation, not an inference",
+      "severity_basis": "sarif_level",
+      "severity_counter": "severity_from_rule_default_configuration",
+      "path_source": "/runs/0/results/6/locations/0/physicalLocation/artifactLocation/uri",
+      "path_kind": "tree_file",
+      "path_basis": "sarif-degenerate-base-metadata-fallback",
+      "start_line_source": "/runs/0/results/6/locations/0/physicalLocation/region/startLine",
+      "locations_in_record": 2,
+      "locations_note": "The only multi-location record in the fixture. The row takes locations[0] -- startLine 71, the throw -- and the second location, startLine 72, contributes no row and no second record: one result object is one record, counted once, and multi_location_records counts it as one.",
+      "cwe_source": null,
+      "cwe_absent_reason": "the rule carries no properties.cwe and its properties.tags array is empty, so no CWE token exists to collect",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "core/src/main/**",
+      "file_line_count_at_the_pin": 380
+    }
+  ],
+  "rejections": [
+    {
+      "locator": {
+        "result_pointer": "/runs/0/results/1",
+        "run_index": 0,
+        "result_index": 1
+      },
+      "reject_class": "unresolvable_path",
+      "defect": "The record's only location names uri https://example.invalid/reconcile-mixed/remote-resource-reference -- a well-formed URI in a foreign scheme. It is valid, and it names nothing in the scanned tree, so it cannot be expressed against the scan root.",
+      "classification_step": "step 4, the path. The record passes step 2 (it carries a ruleId) and step 3 (it carries message.text), so the path is what decides it.",
+      "why_not_a_row": "path is not an optional field, so a record whose path cannot be resolved is rejected and counted rather than emitted with a null path -- and no absolute value, URI scheme included, may ever reach the path field.",
+      "why_not_the_metadata_fallback": "The degenerate-base fallback applies to a relative reference whose uriBaseId walk could not complete. This uri is not relative and needs no base: joining it onto one would manufacture a location. The fallback is not a catch-all.",
+      "detail_contains": [
+        "https://example.invalid/reconcile-mixed/remote-resource-reference",
+        "is a valid 'https' URI but names no location in the scanned tree"
+      ],
+      "record_identity_keys": [
+        "run_index",
+        "result_index",
+        "rule_id",
+        "uri"
+      ],
+      "rule_id_carried": "fixture.reconcile-mixed.generic.remote-resource-reference",
+      "contributes_row": false
+    },
+    {
+      "locator": {
+        "result_pointer": "/runs/0/results/3",
+        "run_index": 0,
+        "result_index": 3
+      },
+      "reject_class": "missing_rule_id",
+      "defect": "The result object carries no ruleId, no ruleIndex and no rule reporting-descriptor reference, so no rule identifier can be established by any of the three routes. Its message and its location are otherwise well formed and name a real in-scope file, which is what makes the missing identifier the sole defect.",
+      "classification_step": "step 2, the rule identifier -- reached before the message and the path, so this class is what the record is counted under even though it is defective in no other way.",
+      "why_not_a_row": "rule_id is one of the seven fields that may never be absent, and inventing one from the message text or from a neighbouring record would be inference.",
+      "detail_contains": [
+        "carries no usable ruleId",
+        "no rule could be reached through ruleIndex either"
+      ],
+      "record_identity_keys": [
+        "run_index",
+        "result_index"
+      ],
+      "rule_id_carried": null,
+      "rule_id_carried_note": "No rule_id reaches the rejection record, because none could be established -- that absence is the defect itself, not a gap in the record.",
+      "contributes_row": false
+    },
+    {
+      "locator": {
+        "result_pointer": "/runs/0/results/5",
+        "run_index": 0,
+        "result_index": 5
+      },
+      "reject_class": "missing_message",
+      "defect": "The result's message object carries only {\"id\": \"default\"} and no text. Its rule -- /runs/0/tool/driver/rules/1 -- does declare messageStrings.default.text, so the template is reachable; it is deliberately not rendered, because rendering one would manufacture content the artifact does not carry. The message is therefore absent rather than recoverable.",
+      "classification_step": "step 3, the message. The record passes step 2 (it carries a ruleId) and would have passed step 4 (its location names a real in-scope file at a real line), so the message is what decides it.",
+      "why_not_a_row": "message is one of the seven fields that may never be absent. A structurally wrong message -- one that is not an object at all -- would be malformed_record instead; the two are kept distinct because a reader acts differently on \"this producer omits message text\" than on \"this artifact is not shaped like SARIF\".",
+      "detail_contains": [
+        "carries no text",
+        "supplies only a message template",
+        "manufacture content the artifact does not carry"
+      ],
+      "record_identity_keys": [
+        "run_index",
+        "result_index",
+        "rule_id"
+      ],
+      "rule_id_carried": "fixture.reconcile-mixed.java.exception-object-passed-to-logger",
+      "contributes_row": false
+    }
+  ],
+  "rejections_shape": "An ORDERED ARRAY, one element per rejected record, in the order the adapter produced them -- result_index 1, then 3, then 5. That is the shape production returns: harness/lib/normalize/adapters/*.py hand back a list of paths.Rejection values in record order, and harness/lib/normalize/reconcile.py keeps the ordered list and the per-class mapping as two separate things (ArtifactReconciliation.rejected_records and .rejections_by_class). Every other expected/*.rows.json in this tree records rejections as an array for the same reason, so a loader reading these files generically meets one shape. The aggregate counts sit under their own keys below rather than inside this one: a container holding both the per-record entries and their totals cannot be indexed by a test without the test knowing which it is looking at.",
+  "rejected_records": 3,
+  "rejections_distinct_classes": 3,
+  "rejections_by_class": {
+    "unresolvable_path": 1,
+    "missing_rule_id": 1,
+    "missing_message": 1
+  },
+  "rejections_summary_source": "rejected_records and rejections_by_class above are the same measurement counts.rejections and counts.rejections_by_class state, restated here beside the array so the grouping can be read without leaving the block -- one measurement cited twice, never two measurements. Their names are the ones reconcile.ArtifactReconciliation uses for the same two values, so a reader moving between this file and harness/artifacts/logs/normalize-run.json meets one vocabulary. sum(rejections_by_class.values()) == rejected_records == len(rejections) is asserted in test_reconciliation.py rather than trusted here.",
+  "rejection_class_vocabulary_authority": "harness/lib/normalize/paths.py, the REJECT_CLASSES tuple. Every reject_class in the array above is a literal member of it, spelled exactly -- never a paraphrase, because a test that only counts rejections cannot tell one condition from another.",
+  "rejection_classes_not_exercised": [
+    "absent_path",
+    "invalid_uri",
+    "ambiguous_source_resolution",
+    "non_integer_start_line",
+    "unformable_package_coordinate",
+    "unattributable_section",
+    "malformed_record"
+  ],
+  "rejection_classes_not_exercised_note": "Each is covered by its own single-condition reject-<adapter>-<condition> fixture. This fixture's job is the arithmetic, not per-condition coverage: it needs at least two classes to prove a rejection count discriminates between conditions, and it carries three.",
+  "rejection_verbatim_detail_policy": "Partial parse is a first-class outcome, so nothing here is discarded: each rejected record is counted under its named class and the parser error is retained verbatim in the rejection record -- paths.Rejection.detail, alongside reject_class, tool and record_identity -- rather than being summarised away or dropped. The detail_contains entries in the array above are stable substrings of that retained text, given so an assertion can check the reason without pinning the whole sentence.",
+  "arithmetic": {
+    "identity": "raw finding records = dataset rows for that tool + rejected records",
+    "left_side_source": "normalize.reconcile.count_records(\"opengrep\", document) -- a traversal that walks runs[].results[] and builds no rows. A count taken from the traversal that builds the rows would satisfy the identity while testing nothing, which is why the two code paths must stay independent.",
+    "raw_finding_records": 7,
+    "rows": 4,
+    "rejections": 3,
+    "holds": "7 = 4 + 3",
+    "non_degenerate": {
+      "valid_records_V": 4,
+      "rejectable_records_R": 3,
+      "V_plus_R": 7,
+      "V_not_equal_R": true,
+      "V_greater_than_zero": true,
+      "R_greater_than_zero": true,
+      "why_it_matters": "With V != R and neither zero, an implementation that silently dropped the three defective records would report 7 = 4 + 0 and fail, and one that coerced them into rows would report 7 = 7 + 0 and fail. Either substitution is visible here in a way it could not be over an all-valid document. If a future edit to the fixture makes V equal R, that is a defect in the fixture to report rather than something to paper over in this file."
+    },
+    "counters_reported_per_tool": {
+      "multi_location_records": 1,
+      "multi_valued_cwe_records": 0,
+      "multi_valued_cve_records": 0,
+      "non_filesystem_paths": 0,
+      "note": "The four counters AAP 0.5.4 has reported per tool. These are the same measurement as the correspondingly named entries in the counters block below, cited once more here rather than measured a second time. multi_location_records is 1 for /runs/0/results/6, whose row takes the first of its two locations while the record still counts once. non_filesystem_paths is 0 even though one record names a remote resource: that record is rejected, and the counter counts emitted rows."
+    },
+    "row_count_comparison": "The dataset-level assertion is the sum of the per-artifact identities, and the parsed findings.json and parsed findings.csv row counts are each compared to it separately rather than one being assumed equal to the other. Both counts come from parsing, never from counting lines: a message field carrying an embedded newline makes a line count over-report.",
+    "parse_status": "partial",
+    "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL -- assigned exactly when an artifact parsed and at least one of its records was rejected.",
+    "parse_status_note": "partial is an outcome, not a failure: every parsable record is emitted, every rejected record is counted under a named class, and the parser error is retained verbatim. A valid artifact is never suppressed because some record in it was rejected, and it is never suppressed because its runner exited non-zero.",
+    "absent_artifact": {
+      "applies_to": "a tool that wrote no artifact at all -- no fixture can express it, because it is the absence of one",
+      "expected_verdict": "not applicable — artifact absent",
+      "verdict_authority": "harness/lib/normalize/reconcile.py, the NOT_APPLICABLE_ABSENT constant, returned by reconcile_absent_artifact. Its dash is U+2014 EM DASH and the string is asserted literally, character for character -- which is why it is the only non-ASCII character in this file: every other dash here is ASCII, so a search for U+2014 finds the sentinel and nothing else.",
+      "expected_status": "not_applicable",
+      "expected_counts": "raw, rows and rejections are all reported as not applicable rather than as zero; passed is null rather than true",
+      "why_not_zero_equals_zero": "0 = 0 + 0 is an identity that holds, so recording it would assert that a tool with nothing to reconcile reconciled successfully -- indistinguishable from a tool that ran, resolved records and emitted none. The sentinel keeps the two apart wherever the verdict is read, including tool-status.md.",
+      "expected_instance_in_this_run": "osv-scanner, which resolves no package in scope and writes no artifact. Its absence is a property of the scope, not a failure of the tool, and it still holds an entry in tool-status.md and severity-map.md."
+    }
+  },
+  "counters": {
+    "runs": 1,
+    "runs_skipped_non_mapping": 0,
+    "runs_without_results_array": 0,
+    "multi_location_records": 1,
+    "multi_valued_cwe_records": 0,
+    "multi_valued_cve_records": 0,
+    "non_filesystem_paths": 0,
+    "rows_in_scope": 4,
+    "rows_out_of_scope": 0,
+    "rule_id_from_rule_id": 6,
+    "rule_id_from_rule_index": 0,
+    "rule_index_unusable": 0,
+    "tool_component_reference_unresolved": 0,
+    "rule_metadata_from_extension": 0,
+    "rule_metadata_unresolved": 1,
+    "severity_from_level": 0,
+    "severity_from_rule_default_configuration": 4,
+    "severity_from_rule_property": 0,
+    "severity_absent": 0,
+    "start_line_absent": 0,
+    "path_kind_tree_file": 4,
+    "path_kind_outside_root": 0,
+    "path_kind_archive_member": 0,
+    "path_kind_bytecode_source": 0,
+    "severity_basis_sarif_level": 4,
+    "severity_basis_label": 0,
+    "severity_basis_cvss_score": 0,
+    "severity_basis_no_vocabulary": 0,
+    "severity_basis_unmapped_literal": 0
+  },
+  "counters_authority": "harness/lib/normalize/adapters/sarif.py, COUNTER_KEYS as returned by new_counters(): twenty authored keys, one path_kind_* per path kind and one severity_basis_* per severity basis, twenty-nine in all.",
+  "counters_note": "Three of these values are what a reader most easily gets wrong on a mixed document, so each is stated with its reason. rule_id_from_rule_id is 6, not 4: the rule identifier is resolved at step 2 for every record that carries one, so the two records rejected later -- at the message and at the path -- are counted here as well, and only the record with no identifier at all is not. rule_metadata_unresolved is 1, for that same identifier-less record, since no rule object could be reached for it. severity_from_rule_default_configuration and severity_basis_sarif_level are both 4 rather than 7, because severity is resolved only once a record can no longer be rejected: a rejected record contributes no severity literal, which is what keeps severity-map.md's per-literal counts equal to the row counts it reports them as.",
+  "disjointness": {
+    "row_result_indices": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "rejected_result_indices": [
+      1,
+      3,
+      5
+    ],
+    "intersection": [],
+    "union_covers_every_record": true,
+    "note": "Every one of the seven records appears in exactly one of the two lists -- one row or one rejection, never both and never neither. That is what makes the identity structural rather than asserted after the fact, and it is directly checkable: no rejected record's locator appears among the surviving rows, and no surviving row names a record this file marks defective."
+  },
+  "behaviours_not_exercised_by_this_fixture": [
+    {
+      "behaviour": "the chained uriBaseId walk through run.originalUriBaseIds, with its cycle and depth guards",
+      "why_absent": "this fixture emits no originalUriBaseIds at all, so the walk reports outcome 'absent' and the metadata fallback is the live path for every relative reference",
+      "cover_with": "oss-scan-results/adapter-tests/fixtures/derived-semgrep-features.sarif, which does carry a run.originalUriBaseIds -- the captured semgrep.sarif emits none, as this fixture's own source artifact does not, plus the reject-sarif-uribaseid-{cycle,overdepth,invalid-uri,missing-base,relative-no-absolute-ancestor} fixtures"
+    },
+    {
+      "behaviour": "ascending-numeric CWE and CVE selection where producer order disagrees with numeric order",
+      "why_absent": "every rule here carries an empty properties.tags array and no properties.cwe, so no identifier of either kind exists to select between",
+      "cover_with": "oss-scan-results/adapter-tests/fixtures/opengrep.sarif and semgrep.sarif, whose rules carry CWE tokens, and oss-scan-results/adapter-tests/fixtures/derived-semgrep-features.sarif, whose rule fixture.adapter-tests.semgrep.multi-cve-tag-ordering carries three CVE tokens in a producer order that disagrees with the numeric order -- neither capture carries a CVE identifier at all"
+    },
+    {
+      "behaviour": "the non-filesystem coordinate serialization <container-relative-to-root>!<member>, and a path outside the root keeping its ../ segments",
+      "why_absent": "the one record here naming something other than a tree file names a remote resource, which is rejected under unresolvable_path rather than serialized; every path that does reach a row is a tree file",
+      "cover_with": "a derived fixture carrying an archive reference, and one carrying a location above the root"
+    },
+    {
+      "behaviour": "a kept row with in_scope false",
+      "why_absent": "all four surviving paths fall inside the twelve authoritative globs and none contains the literal src/test, so rows_out_of_scope is 0",
+      "cover_with": "a derived fixture naming a path outside the globs -- kept with in_scope false and counted, never rejected -- and oss-scan-results/adapter-tests/fixtures/derived-joern-features.json for the test-JAR case, whose authored MasterSuite record resolves into core/src/test and is kept with in_scope false"
+    },
+    {
+      "behaviour": "the seven rejection classes this adapter can produce that are not exercised here",
+      "why_absent": "this fixture exists for the arithmetic and carries three classes to prove a rejection count discriminates; one condition per fixture keeps each class's assertion unambiguous",
+      "cover_with": "the reject-sarif-<condition> fixtures, one per condition, each asserted to be counted under its class rather than dropped or coerced"
+    },
+    {
+      "behaviour": "an artifact that matches neither SARIF nor a known native shape, and a native artifact wrongly routed to the SARIF adapter",
+      "why_absent": "this fixture is well-formed SARIF and routes correctly by detection",
+      "cover_with": "oss-scan-results/adapter-tests/fixtures/unknown-shape.json, near-sarif-version-only.json and near-sarif-runs-only.json, asserted through test_shape_routing_negative.py"
+    }
+  ]
+}

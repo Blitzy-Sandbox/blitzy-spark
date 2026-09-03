@@ -1,0 +1,301 @@
+{
+  "reportSchema": "1.1",
+  "scanInfo": {
+    "engineVersion": "13.0.0",
+    "dataSource": [
+      {
+        "name": "NVD API Last Checked",
+        "timestamp": "2026-08-24T12:41:51Z"
+      },
+      {
+        "name": "NVD API Last Modified",
+        "timestamp": "2026-08-24T08:00:04-04"
+      },
+      {
+        "name": "NVD Cache Last Checked",
+        "timestamp": "2026-08-24T12:41:51Z"
+      },
+      {
+        "name": "NVD Cache Last Modified",
+        "timestamp": "2026-08-24T08:00:04-04"
+      }
+    ]
+  },
+  "projectInfo": {
+    "name": "spark-pinned-59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d",
+    "reportDate": "2026-08-25T00:53:00.948138152Z",
+    "credits": {
+      "NVD": "This product uses the NVD API but is not endorsed or certified by the NVD. This report contains data retrieved from the National Vulnerability Database: https://nvd.nist.gov",
+      "CISA": "This report may contain data retrieved from the CISA Known Exploited Vulnerability Catalog: https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+      "NPM": "This report may contain data retrieved from the Github Advisory Database (via NPM Audit API): https://github.com/advisories/",
+      "RETIREJS": "This report may contain data retrieved from the RetireJS community: https://retirejs.github.io/retire.js/",
+      "OSSINDEX": "This report may contain data retrieved from the Sonatype Guide OSS Index API: https://www.sonatype.com/products/sonatype-guide/oss-index-users"
+    }
+  },
+  "dependencies": [
+    {
+      "isVirtual": false,
+      "fileName": "bootstrap.bundle.min.js",
+      "filePath": "/opt/spark-src/core/src/main/resources/org/apache/spark/ui/static/bootstrap.bundle.min.js",
+      "md5": "50703ebfc29f534ad6e432826f1c25e3",
+      "sha1": "f19941f9fd95e8a9bdf9db599bb3d8714d41465a",
+      "sha256": "4d371899aba195b1f0cba3a70de300fb5b327a322cfbe3a30d77af8456d8494e",
+      "evidenceCollected": {
+        "vendorEvidence": [],
+        "productEvidence": [],
+        "versionEvidence": []
+      },
+      "packages": [
+        {
+          "id": "pkg:javascript/bootstrap@4.4.1",
+          "confidence": "HIGH",
+          "url": "https://ossindex.sonatype.org/component/pkg:npm/bootstrap@4.4.1?utm_source=dependency-check&utm_medium=integration&utm_content=13.0.0"
+        }
+      ],
+      "vulnerabilityIds": [
+        {
+          "id": "cpe:2.3:a:getbootstrap:bootstrap:4.4.1:*:*:*:*:*:*:*",
+          "confidence": "HIGHEST",
+          "url": "https://nvd.nist.gov/vuln/search/results?form_type=Advanced&results_type=overview&search_type=all&cpe_vendor=cpe%3A%2F%3Agetbootstrap&cpe_product=cpe%3A%2F%3Agetbootstrap%3Abootstrap&cpe_version=cpe%3A%2F%3Agetbootstrap%3Abootstrap%3A4.4.1"
+        }
+      ],
+      "vulnerabilities": [
+        {
+          "source": "NVD",
+          "name": "CVE-2024-6531",
+          "severity": "LOW",
+          "cvssv2": {
+            "score": 4.3,
+            "accessVector": "NETWORK",
+            "accessComplexity": "MEDIUM",
+            "authenticationr": "NONE",
+            "confidentialityImpact": "NONE",
+            "integrityImpact": "PARTIAL",
+            "availabilityImpact": "NONE",
+            "severity": "MEDIUM",
+            "version": "2.0",
+            "exploitabilityScore": "8.6",
+            "impactScore": "2.9",
+            "userInteractionRequired": "true"
+          },
+          "cvssv3": {
+            "baseScore": 9.1,
+            "attackVector": "NETWORK",
+            "attackComplexity": "LOW",
+            "privilegesRequired": "NONE",
+            "userInteraction": "NONE",
+            "scope": "UNCHANGED",
+            "confidentialityImpact": "HIGH",
+            "integrityImpact": "NONE",
+            "availabilityImpact": "HIGH",
+            "baseSeverity": "CRITICAL",
+            "exploitabilityScore": "3.9",
+            "impactScore": "5.2",
+            "version": "3.1"
+          },
+          "cvssv4": {
+            "vectorString": "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:P/VC:N/VI:L/VA:N/SC:N/SI:N/SA:N",
+            "version": "4.0",
+            "attackVector": "NETWORK",
+            "attackComplexity": "LOW",
+            "attackRequirements": "NONE",
+            "privilegesRequired": "NONE",
+            "userInteraction": "PASSIVE",
+            "vulnerableSystemConfidentiality": "NONE",
+            "vulnerableSystemIntegrity": "LOW",
+            "vulnerableSystemAvailability": "NONE",
+            "baseScore": 2.3,
+            "baseSeverity": "LOW"
+          },
+          "cwes": [
+            "CWE-79"
+          ],
+          "description": "Bootstrap contains a cross-site scripting weakness in the carousel component: the data-slide and data-slide-to attributes are written into the document without neutralizing markup, so a page that renders attacker-influenced attribute values can execute script in the browsing context of the page.",
+          "notes": "",
+          "references": [
+            {
+              "source": "NVD",
+              "url": "https://nvd.nist.gov/vuln/detail/CVE-2024-6531",
+              "name": "CVE-2024-6531"
+            },
+            {
+              "source": "MISC",
+              "url": "https://github.com/twbs/bootstrap",
+              "name": "bootstrap upstream repository"
+            }
+          ],
+          "vulnerableSoftware": [
+            {
+              "software": {
+                "id": "cpe:2.3:a:getbootstrap:bootstrap:4.4.1:*:*:*:*:*:*:*",
+                "vulnerabilityIdMatched": "true"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "isVirtual": false,
+      "fileName": "jquery.cookies.2.2.0.min.js",
+      "filePath": "/opt/spark-src/core/src/main/resources/org/apache/spark/ui/static/jquery.cookies.2.2.0.min.js",
+      "md5": "03b9574487d06f8f8513f95758c7cab3",
+      "sha1": "90a61ac9835905ebec2bb1499dd0b0de894f8045",
+      "sha256": "10fdbfbb18a947e7024457f52fd2dfe94ebddd612156c886731474b02aa45d23",
+      "evidenceCollected": {
+        "vendorEvidence": [],
+        "productEvidence": [],
+        "versionEvidence": []
+      },
+      "packages": [
+        {
+          "id": "pkg:npm/jquery.cookies@2.2.0",
+          "confidence": "LOW",
+          "url": "https://ossindex.sonatype.org/component/pkg:npm/jquery.cookies@2.2.0?utm_source=dependency-check&utm_medium=integration&utm_content=13.0.0"
+        },
+        {
+          "id": "pkg:javascript/jquery.cookies@2.2.0",
+          "confidence": "HIGH",
+          "url": "https://ossindex.sonatype.org/component/pkg:npm/jquery.cookies@2.2.0?utm_source=dependency-check&utm_medium=integration&utm_content=13.0.0"
+        }
+      ],
+      "vulnerabilities": [
+        {
+          "source": "RETIREJS",
+          "name": "jquery.cookies 2.2.0 unsafe cookie value deserialization",
+          "unscored": "true",
+          "severity": "moderate",
+          "description": "The cookie accessor evaluates a stored cookie value as structured data before returning it, so a cookie written by another document on the same registrable domain can influence the object the caller receives.",
+          "notes": "",
+          "references": [
+            {
+              "source": "RETIREJS",
+              "url": "https://retirejs.github.io/retire.js/",
+              "name": "retire.js community advisory"
+            }
+          ],
+          "vulnerableSoftware": []
+        }
+      ]
+    },
+    {
+      "isVirtual": false,
+      "fileName": "d3-flamegraph.min.js",
+      "filePath": "/opt/spark-src/core/src/main/resources/org/apache/spark/ui/static/d3-flamegraph.min.js",
+      "md5": "8bcf28223e120caadc1d06ea490097bf",
+      "sha1": "b8aff8a414bbc4b9df32f0ace4fecd747051f603",
+      "sha256": "10c2ac45bb9ad73e12fdebf434fbb29aa05b85b7bab660c2751e885c51bd5356",
+      "evidenceCollected": {
+        "vendorEvidence": [],
+        "productEvidence": [],
+        "versionEvidence": []
+      },
+      "packages": [
+        {
+          "id": "cpe:2.3:a:d3-flame-graph:d3-flame-graph:4.1.3:*:*:*:*:*:*:*",
+          "confidence": "LOW",
+          "url": "https://ossindex.sonatype.org/component/pkg:npm/d3-flame-graph@4.1.3?utm_source=dependency-check&utm_medium=integration&utm_content=13.0.0",
+          "ecosystem": "JavaScript",
+          "name": "d3-flame-graph",
+          "version": "4.1.3"
+        }
+      ],
+      "vulnerabilities": [
+        {
+          "source": "OSSINDEX",
+          "name": "",
+          "unscored": "true",
+          "severity": 3.200000047683716,
+          "cwes": [
+            "CWE-1321"
+          ],
+          "description": "The flame graph builder copies keys from a supplied node object onto an internal accumulator without excluding prototype-reaching names, so a crafted node label can reach the object prototype.",
+          "notes": "",
+          "references": [
+            {
+              "source": "OSSINDEX",
+              "url": "https://ossindex.sonatype.org/vulnerability/sonatype-2021-0163",
+              "name": "sonatype-2021-0163"
+            }
+          ],
+          "vulnerableSoftware": []
+        }
+      ]
+    },
+    {
+      "isVirtual": true,
+      "fileName": "package-lock.json: glob-parent:5.1.2",
+      "filePath": "/opt/spark-src/dev/package-lock.json",
+      "evidenceCollected": {
+        "vendorEvidence": [
+          {
+            "type": "vendor",
+            "confidence": "HIGHEST",
+            "source": "package-lock.json",
+            "name": "name",
+            "value": "glob-parent"
+          }
+        ],
+        "productEvidence": [
+          {
+            "type": "product",
+            "confidence": "HIGHEST",
+            "source": "package-lock.json",
+            "name": "name",
+            "value": "glob-parent"
+          }
+        ],
+        "versionEvidence": [
+          {
+            "type": "version",
+            "confidence": "HIGHEST",
+            "source": "package-lock.json",
+            "name": "version",
+            "value": "5.1.2"
+          }
+        ]
+      },
+      "packages": [
+        {
+          "id": "pkg:npm/glob-parent@5.1.2",
+          "confidence": "HIGHEST",
+          "url": "https://ossindex.sonatype.org/component/pkg:npm/glob-parent@5.1.2?utm_source=dependency-check&utm_medium=integration&utm_content=13.0.0"
+        }
+      ],
+      "vulnerabilities": [
+        {
+          "source": "OSSINDEX",
+          "name": "sonatype-2022-6438",
+          "unscored": "true",
+          "severity": 5.300000190734863,
+          "cwes": [
+            "CWE-400"
+          ],
+          "description": "The glob prefix parser backtracks on a pattern containing many nested braces, so a long crafted pattern costs time superlinear in its length.",
+          "notes": "",
+          "references": [
+            {
+              "source": "OSSINDEX",
+              "url": "https://ossindex.sonatype.org/vulnerability/sonatype-2022-6438",
+              "name": "sonatype-2022-6438"
+            }
+          ],
+          "vulnerableSoftware": []
+        }
+      ]
+    },
+    {
+      "isVirtual": false,
+      "fileName": "package.json",
+      "filePath": "/opt/spark-src/core/src/main/resources/org/apache/spark/ui/static/package.json",
+      "md5": "fde16b71d23a54f2511a5d0b0cad8299",
+      "sha1": "afda3427f8566169a56150018d606d08157c6bf2",
+      "sha256": "43b4dcbf33dc23b3d62576dce22b371b1d0c852b05dfd73442e9c3e97a0b4717",
+      "evidenceCollected": {
+        "vendorEvidence": [],
+        "productEvidence": [],
+        "versionEvidence": []
+      }
+    }
+  ]
+}

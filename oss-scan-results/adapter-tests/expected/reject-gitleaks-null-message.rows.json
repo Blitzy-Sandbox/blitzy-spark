@@ -1,0 +1,744 @@
+{
+  "description": "The hand-verified expected result for the negative Gitleaks fixture that carries one record whose rule description is unusable because the Description key is present and holds an explicit JSON null. Every value was derived by reading the fixture and the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/gitleaks.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. Key names follow expected/reject-sarif-unresolvable-path.rows.json, the first negative expected file in this folder, and expected/reject-gitleaks-missing-rule-id.rows.json, the sibling that exercises the same adapter one classification step earlier: every key those files use is reused here with the same meaning, so one generic loader reads them all. This is one of four documents that between them measure the four forms in which a Gitleaks record can carry no usable description, one form each: fixture_split records how the four came to be four, and message_variants records which document owns which form. It is also one of the four negative expected files in this folder whose failure mode is a security problem rather than a data-quality one, and the_security_hazard and central_assertion below are the blocks that difference earns.",
+  "tool": "gitleaks",
+  "scanner_class": "secret",
+  "scanner_class_note": "Fixed per tool by AAP 0.5.4's class table and authored as a constant in the adapter (SCANNER_CLASS). Trivy is the single tool whose class varies per record; this one never does, so no row below takes its class from record content -- and no rejected record takes one at all, because none produces a row.",
+  "adapter": "harness/lib/normalize/adapters/gitleaks.py",
+  "rules": "No user-specified rule governs this file. review_rules returns exactly one line, 'No user rules provided.', which is the whole document; AAP 0.7 says the same. No rule is cited or invented here, and none forces this file into scope -- it exists because AAP 0.6.1 pairs every negative fixture with a hand-verified expected file, AAP 0.6.2 requires one negative fixture per rejection condition each exercised adapter can produce, and AAP 0.9.4 makes those assertions part of the definition of done. The absence of rules is emphatically not licence to lower the bar here: every value below is hand-verified from the fixture rather than recorded from a run, and the no-secret invariant is held absolutely.",
+  "fixture": {
+    "path": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-null-message.json",
+    "sha256": "8c6449cc742a1431f37d0713e5d6e24a443c73dce74615c0eff27036ecb8f26c",
+    "bytes": 2273,
+    "shape": "bare top-level JSON array",
+    "elements": 4,
+    "record_keys": 18,
+    "record_keys_on_the_defective_element": 18,
+    "defective_element_key_note": "The tool emits eighteen keys. The absent-key form is the only one of the four whose element carries seventeen, which is why it is also the form a reader spots by counting keys; the other three carry all eighteen and differ in the value the Description key holds. This document owns one of the three.",
+    "record_key_order_matches_raw_artifact": true,
+    "defective_element_pointers": [
+      "/1"
+    ],
+    "defective_elements": 1,
+    "well_formed_element_pointers": [
+      "/0",
+      "/2",
+      "/3"
+    ],
+    "derived_from": "oss-scan-results/adapter-tests/fixtures/gitleaks.json",
+    "derivation": "A negative fixture is derived from the captured one rather than being an excerpt of it, so the provenance is stated as a derivation. Two of the four elements are byte-identical to elements of the positive fixture -- /0 to its /1 and /2 to its /3 -- compared field by field including key order. The other two are in the tool's own key shape and key order: /3 pairs a description the positive fixture carries with a file it also carries, at a line of its own, and /1 defeats the description with an explicit JSON null.",
+    "captured_provenance": "No element here equals the raw artifact's sole record: harness/artifacts/raw/gitleaks.json holds exactly one finding, this provisioning's single leak, and it is not among these four. The recorded sha256 above is what makes a later edit to the fixture visible: these values are re-derived when the fixture changes, never adjusted to keep a test green.",
+    "fixture_is_never_edited_to_suit_these_rows": true,
+    "no_captured_secret_is_carried": "Match and Secret are populated on all four elements, and every value in them is self-evidently synthetic placeholder text rather than anything resembling a live credential. That is deliberate and is the subject of the_security_hazard below: the fields have to be there for the assertion to mean anything, and they have to be harmless for the fixture to be committable."
+  },
+  "fixture_split": {
+    "what_changed": "One fixture carrying four defective records under the name reject-gitleaks-missing-message.json became four fixtures carrying one each. This document expects the explicit_null form; its three siblings expect the other three.",
+    "why": "The name promised one attributable case and the document measured four, so a reader could not tell which record earned which of the two details the adapter composes, and one rejection count of 4 under a single class asserted less than four counts of 1 under four names. AAP 0.9.4 asks for a negative fixture and an assertion for every condition an adapter can produce; four forms reaching one class through two branches are four inputs, and four inputs belong in four documents.",
+    "how": "By a textual whole-element splice of the predecessor document. Each output keeps the predecessor's own element text for its three sound records and for its one defective record, re-ordered as [sound, defective, sound, sound] so the defect sits at index 1 in every one of the four. No field inside any kept element was edited, reformatted or renumbered; the three sound elements are byte-identical across all four documents, and so are the three rows and all fifteen counters.",
+    "predecessor": {
+      "sha256": "22b9b395fc32164b079d4a4f15c23d9d550e0ffa95dddb8cd51d5438fa62ac4f",
+      "bytes": 3831,
+      "elements": 7,
+      "rows": 3,
+      "rejections": 4,
+      "rejections_by_class": {
+        "missing_message": 4
+      }
+    },
+    "the_four_documents": [
+      {
+        "fixture": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-missing-message.json",
+        "form": "the Description key is absent from the record entirely",
+        "defective_rule_id": "jwt",
+        "predecessor_pointer": "/1",
+        "detail_branch": "absent_or_null",
+        "is_this_document": false
+      },
+      {
+        "fixture": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-null-message.json",
+        "form": "the Description key is present and holds an explicit JSON null",
+        "defective_rule_id": "gcp-api-key",
+        "predecessor_pointer": "/4",
+        "detail_branch": "absent_or_null",
+        "is_this_document": true
+      },
+      {
+        "fixture": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-empty-message.json",
+        "form": "the Description key is present and holds the empty string",
+        "defective_rule_id": "generic-api-key",
+        "predecessor_pointer": "/3",
+        "detail_branch": "empty_after_strip",
+        "is_this_document": false
+      },
+      {
+        "fixture": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-whitespace-message.json",
+        "form": "the Description key is present and holds a string of whitespace alone",
+        "defective_rule_id": "github-pat",
+        "predecessor_pointer": "/6",
+        "detail_branch": "empty_after_strip",
+        "is_this_document": false
+      }
+    ],
+    "index_moved_by_the_split": "Yes. The defective element was the predecessor's /4 and is this document's /1, so the record_index in the rejection's identity is 1 here where it was 4 there. The adapter builds that identity from the traversal index, so it moves with the record -- which is why it is derived here rather than inherited from the predecessor.",
+    "coverage_is_not_reduced": "No form was deleted. Each of the four is now a committed document with its own expected file and its own assertion, and the family gains two properties one document could not state: that the two forms of each branch produce byte-identical details, which is the adapter's contract, and that the two branches produce different ones.",
+    "nothing_in_the_adapter_changed_for_this": "harness/lib/normalize/adapters/gitleaks.py was not edited. The split changes the inputs and what each document claims about them; every class, detail and identity recorded below is the adapter's own behaviour, unchanged."
+  },
+  "routing": {
+    "shape": "native",
+    "detected_by": "normalize.shape -- routing is keyed by the writing runner, never sniffed from content. is_sarif(doc) is false for this document: it carries neither a version of '2.1.0' nor a runs array, being a bare array of finding objects.",
+    "adapter_module": "normalize.adapters.gitleaks",
+    "routing_decision": "normalize.shape.route('gitleaks', doc) returns tool 'gitleaks', shape 'native', adapter 'gitleaks', scanner_class 'secret'",
+    "routes_successfully": true,
+    "rejection_is_record_level": true,
+    "not_a_shape_failure": "No normalize.shape.UnknownArtifactShape is expected here, and a test asserting one against this fixture would be asserting the wrong thing. The enclosing document is the bare array this shape requires and routes cleanly; one record inside it is defective, and the adapter rejects that one while still emitting the other three.",
+    "not_the_adapter_error_either": "Nor is a GitleaksAdapterError expected. That exception describes a defective call -- the wrong tool identifier, a relative root, another tool's path base, or a document whose top level is not a JSON array -- and stops the caller. A defective record inside a well-formed array is counted, not raised.",
+    "negative_routing_test": "The mandated negative routing assertion -- that a native artifact must not route to the SARIF adapter -- belongs to test_shape_routing_negative.py. This document is a native artifact and would serve that assertion, but it is not this file's job to make it."
+  },
+  "field_order": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_native",
+    "severity_norm",
+    "path",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate",
+    "in_scope"
+  ],
+  "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+  "absence_permitted_fields": [
+    "severity_native",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate"
+  ],
+  "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS, and message being one of them is the whole reason this fixture's records cannot be rows.",
+  "severity_norm_vocabulary": [
+    "Critical",
+    "High",
+    "Medium",
+    "Low",
+    "Info"
+  ],
+  "allowlist": {
+    "path": "harness/scope/allowlist.txt",
+    "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+    "globs": 12,
+    "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under row_derivations."
+  },
+  "reference_behaviours": [
+    {
+      "behaviour": "the missing_message rejection in the one form this fixture carries -- the Description key is present and holds an explicit JSON null",
+      "what_this_file_fixes": "One counted rejection under missing_message, with the three well-formed elements still emitted as rows, and the sub-reason the adapter composes for this form recorded verbatim.",
+      "why_it_belongs_here": "A test that only counted rejections could not tell this condition from any of the other five this adapter produces, which is why the class name and the sub-reason are stated as expected values. And this form is not redundant with its three siblings': a presence check written four plausible ways gives four different answers, and each of the four documents is the one that catches a different one of them. message_variants sets that out form by form."
+    },
+    {
+      "behaviour": "the no-secret invariant at its hardest point",
+      "what_this_file_fixes": "That no emitted row's message -- and no other field of any row -- carries any part of a Match, a Secret or a Fingerprint value, and that no message is synthesised from RuleID, File or Tags. Both are stated as mechanical comparisons under central_assertion rather than as intentions.",
+      "why_it_belongs_here": "This is the one rejection condition in the folder whose mishandling is a security defect rather than a data defect. When the field an adapter wants is missing, the nearest text on a Gitleaks record is the captured value itself, so the fallback a developer would reach for lands on the secret. the_security_hazard states that in full."
+    },
+    {
+      "behaviour": "partial parse as a first-class outcome",
+      "what_this_file_fixes": "counts.parse_status is 'partial': every parsable record is emitted, each rejected record is counted under its named class with its sub-reason retained, and the artifact is neither abandoned nor suppressed.",
+      "why_it_belongs_here": "AAP 0.5.4 makes partial parse a first-class outcome rather than a failure. An adapter that abandoned the artifact on its first defective record would emit zero rows here -- the first defect is element /1 -- and an empty result set is indistinguishable from a clean scan, so the three surviving rows carry as much of the assertion as the single rejection does."
+    }
+  ],
+  "resolution_context": {
+    "path_base_kind": "scan_root",
+    "path_base_equals_scan_root": true,
+    "path_base_source": "harness/artifacts/logs/runner-metadata.json, tools.gitleaks.path_base -- read as input, never assumed. Its record_path_field is 'File'.",
+    "path_base_value_note": "The recorded base is the pinned scan root. Its absolute form is deliberately not reproduced here: no absolute path appears anywhere in this file, and these rows hold for whatever absolute root the adapter is given.",
+    "record_path_field": "File",
+    "recorded_invocation_shape": "Eighteen invocations, each handed exactly one root-relative directory, with the runner's working directory set to the scan root.",
+    "invocation_source": "runner-metadata.json tools.gitleaks.invocation_form and working_directory, corroborated independently by harness/bin/run-gitleaks.sh: it cds to the scan root at line 47 and loops one directory per invocation at line 53.",
+    "why_the_base_is_invocation_dependent": "gitleaks dir takes exactly one path and reports relative to the process working directory when handed more, so the base is a property of the invocation rather than of the tool (AAP 0.5.4). Both shapes are real: the historical harness AAP 0.2.3 describes passed all eighteen scope directories to a single invocation, and this provisioning passes one per invocation.",
+    "invariance_across_the_two_shapes": "Here the two shapes give the same base, because the runner's working directory is the scan root. Every path below therefore holds under either reading. That is a fact about this provisioning rather than a licence to skip reading the metadata, and no runner may be edited to make one shape true (AAP 0.3.2).",
+    "path_basis": "already-root-relative",
+    "path_basis_authority": "harness/lib/normalize/paths.py, BASIS_ALREADY_ROOT_RELATIVE -- the basis resolve_recorded_path records where the recorded base and the scan root are the same location, so the reported File was already root-relative and the join changed nothing.",
+    "path_kind": "tree_file",
+    "path_kind_authority": "harness/lib/normalize/paths.py, path_kind_for: no '!' separator and no leading '..' segment, so every emitted path names a location inside the scanned tree. Whether the file exists on disk is a separate question, and each of the three does exist at the pin -- recorded per row.",
+    "no_path_is_resolved_for_a_rejected_record": "Path resolution is step 4 and the rejection here is taken at step 3, so the defective element's File is never resolved at all. Its File value is a perfectly good root-relative path, which is what makes the rejection attributable to the message alone -- but no path, no path_kind and no in_scope value is derived from it, and recording one would assert a field the dataset does not contain.",
+    "severity_source": "None. The eighteen keys a pinned-Gitleaks record carries include no severity-like field, and this fixture carries no Severity key on any of its four elements, so every emitted row goes through severity.SeverityResult.absent().",
+    "severity_basis": "no_vocabulary",
+    "severity_basis_authority": "harness/lib/normalize/severity.py, BASIS_NO_VOCABULARY. absent() carries severity_native null, severity_norm Info and that basis, and its __post_init__ refuses a severity_native on it -- so the absence is structural rather than a convention a caller has to remember.",
+    "severity_selected_entry": null,
+    "severity_selected_entry_note": "null on this path: nothing was used to derive the band, so there is neither a label nor a score entry to record. No native literal is synthesised -- inventing one would put a literal into oss-scan-results/severity-map.md that the tool never emitted.",
+    "severity_norm_on_every_row": "Info",
+    "severity_native_on_every_row": null,
+    "severity_map_consequence": "The tally is fed once per emitted row, so three rows reach it and the rejected record reaches it not at all. severity-map.md can therefore name gitleaks as a tool that defines no severity vocabulary with a row count behind the statement, and no literal from a rejected record appears there.",
+    "package_coordinate": "null on every row. A secret finding names a code location rather than a package, and this shape supplies no coordinate to carry. AAP 0.5.4's unformable-coordinate rejection reaches dependency-oriented records only, so the absence here is not a rejection condition and this fixture's rejections have nothing to do with it.",
+    "cwe_and_cve": "null on every row. The shape carries no weakness or advisory identifier; deriving a CWE from a rule id would be inference of exactly the kind AAP 0.5.4 forbids."
+  },
+  "the_security_hazard": {
+    "statement": "This is one of the four negative expected files in this folder whose failure mode is a security problem rather than a data-quality one -- the four that between them carry the four forms of an unusable description. Every other rejection condition, mishandled, produces a wrong value, a missing value or a broken count. This one, mishandled, writes captured secret material into a committed deliverable.",
+    "why_the_nearest_text_is_the_secret": "A Gitleaks record carries Match and Secret -- the matched text and the captured value. When Description is missing, those two are the nearest available text on the record, so an implementation reaching for 'whatever text this record has' lands on the secret itself. The remaining candidates are no better: Message is a git commit message, and RuleID, File and Tags would each assert content the tool never stated as a description.",
+    "where_it_would_land": "The message field of a dataset row, in oss-scan-results/findings.json and oss-scan-results/findings.csv. Both are tracked by git: the repository's .gitignore line 31 is 'artifacts/', which matches the two artifact trees and nothing under oss-scan-results/. So a value that reached a row would be committed to the branch rather than left in an ignored tree, and the same is true of this file.",
+    "forbidden_twice_over": "AAP 0.5.4 states it in the gitleaks row of its per-shape table -- the secret never enters any field -- and again under credential handling, where the runner's redaction flag keeps a matched value out of the artifact and no adapter carries a secret value into any field. Two independent statements of the same prohibition, which is why rejection is the required behaviour rather than one defensible option among several.",
+    "so_rejection_is_the_required_behaviour": "message is in emit.REQUIRED_FIELDS, so there is no valid twelve-field row for a record with no description. That leaves exactly three outcomes: substitute something, drop the record, or count it under a named class. Substitution is the leak. Dropping breaks raw == rows + rejections and hides the record. Counting it keeps the record visible, keeps the arithmetic honest and carries no record text at all.",
+    "the_temptation_is_deliberately_real": "The fixture keeps Match and Secret populated on its defective element. An element stripped of those keys would make the assertion hollow: there would be nothing for a fallback to reach, so the test would pass against an adapter that has the fallback and merely found nothing to substitute. The assertion has to be made where a wrong implementation would actually produce a wrong value.",
+    "what_makes_the_placeholders_safe_to_ship": "Every value in those keys is self-evidently synthetic placeholder text -- one of them the fixed string the runner's redaction flag substitutes for a captured value, the other an obviously non-credential marker -- so the fixture is committable while still exercising the fallback path. Neither is quoted anywhere in this file, for the reason central_assertion gives.",
+    "the_rejection_channel_is_closed_too": "A rejection detail is the second way a value could escape, and the adapter closes it: _safe_value_repr renders only None, a bool, an int and a float, and names the type alone for anything else, a str above all. The expected detail recorded below names the key and its state and carries no value from the record.",
+    "this_is_not_a_judgement_about_spark": "Nothing here says a real secret exists anywhere in the pinned tree. The elements are synthesized, the placeholder values are not credentials, and this file makes no claim about whether any finding is real -- that is the judging AAP 0.3.2 forbids. The hazard being guarded is in the normalizer, not in the code under scan."
+  },
+  "central_assertion": {
+    "statement": "No emitted row's message -- and no other field of any emitted row -- contains any part of any Match, Secret or Fingerprint value present in the fixture; and no message was synthesised from RuleID, File or Tags. Both halves are mechanical comparisons, not readings.",
+    "how_it_is_checked": "By substring comparison, in both directions, over values read out of the fixture at check time rather than transcribed. For every element of the fixture and every one of the three keys, the value is tested as a substring of every field of every emitted row, and of the whole of this file's bytes. Equality alone would not do: a message built by concatenating a captured value with anything else would pass an equality test and fail this one.",
+    "forbidden_value_keys": [
+      "Match",
+      "Secret",
+      "Fingerprint"
+    ],
+    "distinct_forbidden_values_in_the_fixture": 6,
+    "distinct_forbidden_values_note": "Six distinct values across the four elements: two placeholder strings shared between Match and Secret, and one composite Fingerprint per element. Their count is recorded; none of them is reproduced, here or anywhere else in this file. A file that quoted the value it forbids would fail its own check.",
+    "fingerprint_shape_constraint": "Every Fingerprint value in this artifact is a composite of a path, a rule identifier and a line number joined by colons. This file necessarily carries all three of those parts as separate values -- they are row fields -- so the constraint is on the joining rather than on the parts: nowhere in this file are a path, a rule id and a line number written as one colon-separated string. That is why the check can be made against the whole file and still pass.",
+    "why_fingerprint_is_in_the_forbidden_set_at_all": "The adapter declares Fingerprint in NEVER_READ_FIELDS even though this artifact's values are a harmless composite, because in commit mode the field also carries a commit identity. A field whose safety depends on which mode ran is not a field to read, and it is not a field to reproduce either.",
+    "no_synthesis_check": "None of the three emitted messages contains, or is contained by, its own record's RuleID or File, and none contains any Tags entry present in the fixture. Verified rather than asserted: the rule identifiers are lower-case hyphenated tokens while the descriptions are English sentences, no description contains a path, and no element of this fixture carries a Tags entry at all, so the widened check finds nothing to search for here -- which is stated rather than counted as coverage. The sibling document reject-gitleaks-empty-message.json carries the tag, on its rejected element.",
+    "the_synthesised_value_would_be_recognisable": "The defective element has known Match, Secret, RuleID, File and Tags values, so the exact strings a synthesiser would produce for it are known in advance. Their appearance in any row derived from this fixture is a violation rather than a coincidence -- which is what makes the check decisive rather than suggestive.",
+    "a_single_hit_is_a_failure_of_the_deliverable": "Not a cosmetic defect to note and move past. A hit means either that an adapter carried a captured value into a field, or that this file quotes one; the first is the leak the invariant exists to prevent, and the second commits the same value to git through a different path.",
+    "upstream_protection_is_not_the_check": "The runner passes its redaction flag, so a captured value never reached the artifact in the first place. That is upstream protection in a runner this run may not edit, and it is not a substitute for the comparison above, which is made against this file's own bytes and the adapter's own output."
+  },
+  "message_variants": {
+    "authority": "harness/lib/normalize/adapters/gitleaks.py -- _text_field, which every required text field passes through, and _text_reject_class, which maps its two failure modes to a class. The class is the same for every form in which the description is unusable as text; the sub-reason is what distinguishes them, which is why a test asserts the class exactly and the detail by its distinguishing substrings.",
+    "class_for_every_unusable_description": "missing_message",
+    "single_message_route": "Gitleaks offers exactly one route to a finding's message -- the record's own Description, the rule's description. There is no second lookup anywhere in the module, no rule table to resolve an index against, and no template to render. So defeating that one key is both sufficient and complete as an expression of the condition, which makes this the simple form of it; the SARIF adapter's message has a message object with text, id and arguments and is the complicated form.",
+    "why_four_documents_rather_than_one": "A presence check written four different plausible ways gives four different answers. 'Description' in record is true for three of the four forms below; record.get('Description') is not None is true for two; a truthiness test catches three but not the whitespace-only one; only a strip()-then-test catches all four. Each of the four documents is therefore the one that catches a different plausible implementation, and a corpus carrying one form would leave the other three untested against precisely the implementations most likely to be written. That is why the predecessor's four defective records became four fixtures rather than one.",
+    "two_branches_four_forms": "The four forms reach the class by two branches of _text_field, so the four documents produce two distinct details rather than four. An absent key and an explicit null are one branch -- .get cannot tell them apart -- and an empty string and a whitespace-only string are the other, because _text_field strips before testing. A test asserting four distinct details would be asserting something the adapter does not promise; what holds is distinctness across the two branches and byte-equality within each, and MessageRouteTests in test_gitleaks_adapter.py makes the assertion in that shape.",
+    "which_form_this_document_owns": {
+      "form": "the Description key is present and holds an explicit JSON null",
+      "route": "explicit_null",
+      "branch": "absent_or_null",
+      "pointer": "/1",
+      "record_index": 1,
+      "expected_field_reason": "the record carries no Description",
+      "sibling_documents": [
+        "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-missing-message.json",
+        "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-empty-message.json",
+        "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-whitespace-message.json"
+      ]
+    },
+    "variants": [
+      {
+        "variant": "the record carries no Description key at all",
+        "present_in_this_fixture": false,
+        "predecessor_pointer": "/1",
+        "predecessor_record_index": 1,
+        "owned_by": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-missing-message.json",
+        "pointer_in_the_document_that_owns_it": "/1",
+        "expected_reject_class": "missing_message",
+        "detail_branch": "absent_or_null",
+        "expected_field_reason": "the record carries no Description",
+        "why_it_is_worth_carrying": "The only form in which the element's key count differs from the tool's eighteen -- it has seventeen -- so it is also the form a reader spots by counting keys. A membership test is the check that gets this one right and the others wrong."
+      },
+      {
+        "variant": "Description present as an explicit JSON null",
+        "present_in_this_fixture": true,
+        "predecessor_pointer": "/4",
+        "predecessor_record_index": 4,
+        "owned_by": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-null-message.json",
+        "pointer_in_the_document_that_owns_it": "/1",
+        "expected_reject_class": "missing_message",
+        "detail_branch": "absent_or_null",
+        "expected_field_reason": "the record carries no Description",
+        "reason_is_shared_with_the_absent_key_form": "_text_field reads the key with .get and cannot distinguish an absent key from a null value, so both forms produce the same reason. That is recorded rather than papered over: the two variants are distinct in the artifact and identical in the rejection, and a test asserting a different detail for this one would be asserting something the adapter does not promise."
+      },
+      {
+        "variant": "Description present as an empty string",
+        "present_in_this_fixture": false,
+        "predecessor_pointer": "/3",
+        "predecessor_record_index": 3,
+        "owned_by": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-empty-message.json",
+        "pointer_in_the_document_that_owns_it": "/1",
+        "expected_reject_class": "missing_message",
+        "detail_branch": "empty_after_strip",
+        "expected_field_reason": "the record's Description is empty",
+        "why_it_is_worth_carrying": "The form a real producer most plausibly emits, and the one a loose check handles worst: the key is present and the value is not null, so both of the obvious guards pass it through and a row is written with an empty message. emit.py would then refuse it, because message is in emit.REQUIRED_FIELDS and an empty required field makes the CSV round trip lossy -- an empty cell means null. So a loose check turns a record that should have been counted under a named class into a raised write, or worse into a row asserting a finding with no description."
+      },
+      {
+        "variant": "Description present as a whitespace-only string",
+        "present_in_this_fixture": false,
+        "predecessor_pointer": "/6",
+        "predecessor_record_index": 6,
+        "owned_by": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-whitespace-message.json",
+        "pointer_in_the_document_that_owns_it": "/1",
+        "expected_reject_class": "missing_message",
+        "detail_branch": "empty_after_strip",
+        "expected_field_reason": "the record's Description is empty",
+        "why_it_is_worth_carrying": "It passes a truthiness test, which the empty-string form does not, so it is the one form an otherwise careful implementation still lets through. The value mixes spaces and a tab, so a check stripping only spaces fails it too. _text_field strips before testing, and the reason it produces is the same as the empty-string form's because after stripping the two are the same value."
+      },
+      {
+        "variant": "Description present but not a string -- a number, an array, an object",
+        "present_in_this_fixture": false,
+        "expected_reject_class": "malformed_record",
+        "expected_field_reason": "the record's Description is a <type>, not a string",
+        "note": "Named inside this block rather than outside it because it is the nearest neighbour of the four forms above and the only one that leaves this class. _text_reject_class draws that line itself: an absent or empty value is the field's own missing class, while a value that is present and is not a string is a defect in the record's shape. The two are kept apart because a reader of tool-status.md acts differently on 'this producer omits descriptions' than on 'this artifact is not shaped as this tool's output'.",
+        "cover_with": "not covered by any committed fixture for this key. reject-gitleaks-malformed-record.json reaches malformed_record by two other routes -- a non-object array element at its /2 and a non-string RuleID at its /4 -- so the class itself has its negative fixture, as AAP 0.6.2 requires; it is this particular route into the class that is uncovered. A derived fixture carrying a numeric or array Description on an element with a usable RuleID would cover it."
+      }
+    ]
+  },
+  "never_absent_content_field_trio": {
+    "statement": "Three of the seven never-absent fields carry content read out of the record -- rule_id, message and path -- and each has at least one negative fixture of its own for this adapter. The set is complete, and the grouping is stated so a reader can see that it is.",
+    "members": [
+      {
+        "field": "rule_id",
+        "fixture": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-missing-rule-id.json",
+        "reject_class": "missing_rule_id",
+        "classification_step": 2
+      },
+      {
+        "field": "message",
+        "fixtures": [
+          "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-missing-message.json",
+          "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-null-message.json",
+          "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-empty-message.json",
+          "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-whitespace-message.json"
+        ],
+        "this_document_expects": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-null-message.json",
+        "reject_class": "missing_message",
+        "classification_step": 3,
+        "fixtures_note": "Four rather than one, because the class is reached by two branches of _text_field over four forms of an unusable description and each form now has a document of its own, so every rejection is attributable to one form. fixture_split records how the four came to be four and message_variants records which owns which."
+      },
+      {
+        "field": "path",
+        "fixture": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-unresolvable-path.json",
+        "reject_classes": [
+          "absent_path",
+          "unresolvable_path"
+        ],
+        "reject_classes_note": "Two classes rather than one: that fixture's element with an empty File is the absent_path case, and paths.py names unresolvable_path for a File the recorded base cannot resolve. Both are members of paths.REJECT_CLASSES, and the key is plural here so that every reject_class value in this file is a single literal member of that closed set.",
+        "classification_step": 4
+      }
+    ],
+    "the_other_four_required_fields": "tool, scanner_class, severity_norm and in_scope are the remaining members of emit.REQUIRED_FIELDS and none of them is read out of a record: tool and scanner_class are stamped from the routing decision, severity_norm is defined for every input including no vocabulary at all, and in_scope is a predicate over the resolved path. None can be absent, so none needs a negative fixture -- which is what makes the trio above the whole of the required-content surface.",
+    "the_fifth_condition": "non_integer_start_line is the adapter's fifth and last rejecting step, and it concerns an optional field: a start_line that is absent is a null in a row, while a start_line present and unusable is a rejection. It is covered by four fixtures -- reject-gitleaks-non-integer-start-line.json, reject-gitleaks-boolean-start-line.json, reject-gitleaks-zero-start-line.json and reject-gitleaks-negative-start-line.json, one per route of gitleaks._start_line and two for the below-one branch -- and is not part of this trio.",
+    "why_message_is_the_dangerous_member": "Of the three, only message has a plausible wrong answer sitting on the record. A missing rule id has no substitute a developer would reach for, and a missing path has none either; a missing description has two, and both of them are the captured secret. the_security_hazard is about that asymmetry."
+  },
+  "attribution": {
+    "statement": "The rejection is attributable to the description alone. The defective element is otherwise entirely well-formed: it is a JSON object, it carries a non-empty string RuleID, it carries a non-empty root-relative File naming a file that exists at the pin, it carries a StartLine that is an integer of at least 1 and within that file's length, and it carries an empty SymlinkFile.",
+    "start_line_within_file_on_the_defective_element": {
+      "pointer": "/1",
+      "file_line_count_at_the_pin": 391,
+      "start_line": 312,
+      "within_file": true,
+      "measurement": "Measured at the pinned tree, whose HEAD was verified equal to the pinned SHA before measuring. The same count is recorded for this path by every sibling expectation that names it, because a count appearing in two documents must be one measurement cited twice."
+    },
+    "external_control": "None. The positive fixture carries a gcp-api-key element, but it names a different file at a different line, so it is not this record with its description intact. The attribution rests on the classification order and on the internal control below, which is sufficient: nothing but the description can reject at step 3.",
+    "internal_control": "None with the same rule identifier. Element /3 names the same file and becomes row 2, and the classification order settles the attribution on its own: nothing but the description can reject at step 3.",
+    "no_other_condition_is_in_play": "None of the adapter's other five rejection classes could claim this record. It is an object, so not malformed_record; it carries a non-empty string RuleID, so not missing_rule_id; its File is non-empty and resolves, so neither absent_path nor unresolvable_path; and its StartLine is a positive integer, so not non_integer_start_line.",
+    "later_steps_are_never_reached": "The description is step 3 of the adapter's fixed five-step order -- shape, rule identifier, message, path, start_line. Rejecting at step 3 means this record's File is never resolved, its StartLine is never examined, its SymlinkFile is never tested for a second location, and no severity result is ever built for it. Several counter values below follow from that and are not miscounts: see counters_note.",
+    "the_rule_id_is_read_before_the_rejection": "Step 2 completes, which is why the rejection's record_identity carries a rule_id as well as a record_index. That is the adapter's own choice and it is recorded as an expected value: a rejection from step 2 would carry only the index, and a rejection from step 4 carries the path fields instead."
+  },
+  "rejection_boundary": {
+    "statement": "A record with no usable description is a rejection. It is not a row carrying an empty message, not a row carrying a message taken from somewhere else on the record, and not a dropped record. This fixture exists to fix that outcome, because all three alternatives are reachable in one line of code and none is detectable downstream once written.",
+    "why_it_can_only_be_a_rejection": "AAP 0.8.2 fixes the closed set of fields absence is permitted for, and emit.py encodes it: OPTIONAL_FIELDS is exactly severity_native, start_line, cwe, cve and package_coordinate, and message is not among them -- it is in emit.REQUIRED_FIELDS. So no valid twelve-field row for a record without a description exists at all. emit.py refuses a required field that is null or blank rather than writing it, which leaves the two hiding outcomes: dropping the record silently breaks raw == rows + rejections, and substituting a message asserts something the tool never said. Counting it under a named class is the only outcome that keeps the record visible and the arithmetic honest.",
+    "not_the_same_as_an_absent_optional": "A row whose severity_native, start_line, cwe, cve or package_coordinate is null is an ordinary row, and all three surviving rows here are: four of their five optional fields are null. The distinction is the closed set, not the shape of the value -- null in an optional field is the absence convention working, null in message would be a schema violation.",
+    "not_a_malformed_record": "A Description that is not a string at all is malformed_record rather than missing_message; _text_reject_class draws that line and message_variants records it. This fixture's defective element carries an explicit JSON null, which _text_reject_class treats exactly as it treats a string, so it is squarely the missing_message case.",
+    "not_a_rejection": [
+      {
+        "case": "a description that is present, non-empty and uninformative -- a single word, or a sentence that explains nothing",
+        "expected": "a kept row carrying that text verbatim",
+        "evidence": "The adapter validates the description's presence and type, never its usefulness. Judging whether a finding's text is adequate is outside this dataset (AAP 0.3.2), and the three surviving rows carry their descriptions exactly as the tool wrote them, untrimmed beyond the strip _text_field applies.",
+        "present_in_this_fixture": false
+      },
+      {
+        "case": "two records sharing one description",
+        "expected": "two rows, both carrying it",
+        "evidence": "Rows 0 and 2 carry the same description text, from elements /0 and /3. They are distinct records and neither is folded into the other; this dataset deduplicates nothing (AAP 0.3.2).",
+        "present_in_this_fixture": true
+      },
+      {
+        "case": "a record whose path resolves outside the twelve authoritative globs",
+        "expected": "a kept row with in_scope false, counted under rows_out_of_scope",
+        "evidence": "Out of scope means kept and marked, never rejected (AAP 0.9.3). No element here resolves outside the globs, so rows_out_of_scope is 0; the positive sibling covers that case with a lockfile outside the twelve roots.",
+        "present_in_this_fixture": false
+      },
+      {
+        "case": "a record with no StartLine at all",
+        "expected": "a kept row with start_line null, counted under start_line_absent",
+        "evidence": "start_line is one of the five fields absence is permitted for, so an absent line is a null field rather than a rejection. Only a StartLine present and unusable is the non_integer_start_line condition, which reject-gitleaks-non-integer-start-line.json owns -- it carries both an absent key and an explicit null as permitted absences alongside its rejectable element.",
+        "present_in_this_fixture": false
+      }
+    ],
+    "no_guessed_message": "The rejected record is rejected and counted, never given a message. Nothing in this file supplies one for it, not even a plausible one, and nothing derives one from its Match, Secret, Message, RuleID, File or Tags values.",
+    "no_dropped_record": "The rejected record is counted, not discarded. rejections is 1 and rejections_by_class names the class, so it survives in the record even though it produces no row."
+  },
+  "counts": {
+    "raw_finding_records": 4,
+    "raw_count_unit": "one element of the top-level array -- the unit normalize.reconcile.count_records walks independently of row construction; its _count_gitleaks is the array's length and nothing else",
+    "raw_count_authority": "normalize.reconcile.count_records('gitleaks', doc), which builds no row, resolves no path and maps no severity. It is the independent half of the identity: a count taken from the traversal that builds the rows would satisfy the assertion while testing nothing. Here it is len(array), so the left-hand side is 4 whatever the adapter does with the elements -- including the defective one, which the counting traversal counts exactly like the other three because it counts elements rather than findings it can read.",
+    "rows": 3,
+    "rejections": 1,
+    "rejections_by_class": {
+      "missing_message": 1
+    },
+    "reconciliation_identity": "raw_finding_records == rows + rejections",
+    "reconciliation_arithmetic": "4 == 3 + 1",
+    "reconciliation_holds": true,
+    "one_rejection_of_four_is_still_partial": "One of four records is rejected, and the status is 'partial' for that alone: parse_status has no threshold, being 'partial' wherever there is at least one rejection and at least one parsable record, and it would remain 'partial' if every record were rejected. A status keyed to a proportion would be a judgement about the artifact, which is not this pipeline's to make. The predecessor document this one was split out of rejected four of seven -- a majority -- and carried the same status.",
+    "every_element_yields_exactly_one_outcome": "One row or one rejection per element, never both and never neither. _adapt_record returns a single value of one of the two types, so the property is structural rather than asserted. Three elements carry a non-empty RuleID and Description, a non-empty root-relative File and a StartLine that is an integer of at least 1, and become rows; the fourth is rejected at step 3.",
+    "row_order": "fixture order, preserved -- elements /0, /2 and /3 become rows 0, 1 and 2. Both output files use this order and emit.py compares them ordered row by row, so an expected file in any other order would assert something the pipeline does not promise. A rejected element consumes no row index: element /2 is row 1, not row 2.",
+    "rejection_order": "one rejection, from element /1, at index 0. The adapter appends in traversal order, and the rejection's record_index makes the mapping checkable without relying on order at all.",
+    "parse_status": "partial",
+    "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = 'partial', assigned where there are rejections and 'clean' where there are none. Partial is right precisely because the adapter did not abandon the artifact: every parsable record was emitted and each rejected record is counted under its class with its sub-reason retained. This is deliberately not normalize.reconcile's STATUS_PASS / STATUS_FAIL / STATUS_NOT_APPLICABLE vocabulary, which describes an assertion's outcome rather than an artifact's parse -- the reconciliation assertion over this fixture passes, and the artifact's parse is partial, and both statements are true at once."
+  },
+  "counters": {
+    "multi_location_records": 0,
+    "non_filesystem_paths": 0,
+    "rows_in_scope": 3,
+    "rows_out_of_scope": 0,
+    "start_line_absent": 0,
+    "severity_absent": 3,
+    "path_kind_tree_file": 3,
+    "path_kind_outside_root": 0,
+    "path_kind_archive_member": 0,
+    "path_kind_bytecode_source": 0,
+    "severity_basis_sarif_level": 0,
+    "severity_basis_label": 0,
+    "severity_basis_cvss_score": 0,
+    "severity_basis_no_vocabulary": 3,
+    "severity_basis_unmapped_literal": 0
+  },
+  "counters_authority": "harness/lib/normalize/adapters/gitleaks.py, COUNTER_KEYS as returned by new_counters(): six authored keys, then one path_kind_ key per normalize.paths.PATH_KINDS member and one severity_basis_ key per normalize.severity.BASIS_VALUES member. Fifteen keys, every one initialised to zero on every call, so a missing key never has to be read as either a zero or an omission.",
+  "counters_note": "Every counter here is keyed to three rather than four, and that is the classification order made visible rather than a miscount. The rejected element is rejected at step 3, before the multi-location test, before path resolution and before any severity result is built -- so it contributes to no path_kind_, no severity_basis_, neither in_scope counter, and not to multi_location_records either. severity_absent is 3 and severity_basis_no_vocabulary is 3 by policy rather than by observation: every emitted row of this tool takes that path. rows_in_scope plus rows_out_of_scope is 3 + 0 = 3, one measurement split rather than a second count of the same thing, and it equals counts.rows rather than counts.raw_finding_records -- a counter set that summed to 4 would mean the rejected record had produced a row.",
+  "counters_aap_0_5_4_reported": {
+    "multi_location_records": 0,
+    "multi_valued_cwe_records": 0,
+    "multi_valued_cve_records": 0,
+    "non_filesystem_paths": 0,
+    "note": "The four counters AAP 0.5.4 has reported per tool. Two of them -- multi_location_records and non_filesystem_paths -- are keys of this adapter's own counter set and appear above with the same values. The other two are not: a Gitleaks record carries no CWE or CVE field at all, so no record can be multi-valued in either, and the adapter keys no counter it could never increment. They are stated here as 0 by construction so the four required numbers are all present in one place, and so that the difference between 'measured 0' and '0 because the field does not exist in this shape' is legible rather than inferred from a missing key. multi_location_records is 0 by measurement over the three records that reached the test: SymlinkFile is the empty string on all four elements, so no record names a second location.",
+    "non_filesystem_path_proportion": "0 of 3 emitted rows. run-record.md reports the count and the proportion for the dataset; for this fixture both are zero, because all three emitted paths name files inside the scanned tree."
+  },
+  "redaction_invariant": {
+    "requirement": "AAP 0.5.4: Gitleaks runs with its redaction flag so a matched secret's value never enters an artifact, and no adapter carries a secret value into any field. This file is committed to git -- .gitignore line 31 matches artifacts/ and nothing under oss-scan-results/ -- so the invariant has to hold of this file as written, not only of the dataset the adapter produces.",
+    "message_source_on_every_row": "Description, the rule's own description. Never Secret, never Match, and never Message, which is a git commit message rather than a description. There is deliberately no fallback: every candidate would either infer content the tool did not state or carry a captured value into the field. This fixture is where that absence of a fallback is asserted rather than assumed.",
+    "keys_never_read": [
+      "Secret",
+      "Match",
+      "Entropy",
+      "Fingerprint",
+      "Message",
+      "Commit",
+      "Author",
+      "Email",
+      "Date",
+      "Tags",
+      "StartColumn",
+      "EndColumn",
+      "EndLine"
+    ],
+    "keys_never_read_authority": "harness/lib/normalize/adapters/gitleaks.py, NEVER_READ_FIELDS. Thirteen keys, and together with SOURCE_FIELDS and SymlinkFile they account for every one of the eighteen the pinned tool emits. Fingerprint is excluded even though this artifact's values are a file-rule-line composite: in commit mode it also carries a commit identity, and a field whose safety depends on which mode ran is not a field to read.",
+    "keys_read": [
+      "RuleID",
+      "Description",
+      "File",
+      "StartLine"
+    ],
+    "keys_read_authority": "harness/lib/normalize/adapters/gitleaks.py, SOURCE_FIELDS -- the four keys a row is built from, named one at a time. The record is never copied, spread or iterated into a row, which is what makes the invariant structural there; here it is upheld by deriving each of the twelve values from those four keys and fixed constants alone.",
+    "symlink_file_is_the_one_exception": "SymlinkFile is the single key outside SOURCE_FIELDS the adapter looks at, and only through a predicate returning a bool. It is a filesystem path rather than a captured value, it is never emitted, and it is never substituted for an absent or unresolvable File. It is the empty string on all four elements here, so it decides nothing beyond leaving multi_location_records at 0.",
+    "the_rejection_detail_is_also_covered": "A rejection reason is the other channel a value could escape through, and it is closed the same way. _safe_value_repr renders only None, a bool, an int and a float, and names the type alone for anything else -- a str above all. The expected detail recorded under rejections below carries no value from its record: it names the key and its state, which is the whole of what happened.",
+    "check_performed": "Every distinct Match, Secret and Fingerprint value in the fixture -- six values across the four elements -- was tested as a substring against the whole of this file, prose included, and against every field of every expected row. Zero hits, which is the required result. Three drafting consequences follow: no sentence here quotes either placeholder string, nowhere is a path, a rule id and a line number joined into one colon-separated string, since that is the shape of this artifact's fingerprint values, and no element of this fixture carries a Tags entry, so a check widened to Tags has nothing to search for here and is stated as such rather than counted as coverage.",
+    "the_check_is_the_gate": "Under central_assertion this is stated as the gating validation rather than one item on a list. A single hit is a failure of the deliverable: it means either that an adapter carried a captured value into a field or that this file quotes one, and both commit the value to the branch.",
+    "upstream_protection_is_not_the_check": "The runner's redaction flag means a captured value never reached the artifact in the first place. That is upstream protection in a runner this run may not edit, and it is not a substitute for the assertion above, which is made against this file's own bytes."
+  },
+  "prohibitions_observed": {
+    "no_cross_tool_interpretation": "Trivy's adapter also reports secrets, and the SARIF adapter has its own missing-message fixture. Nothing here compares tools, ranks them, explains why one found something another did not, or folds one into the other (AAP 0.3.2). The comparisons this file does make -- against the SARIF adapter's message routes, under message_variants -- are about the shape of an artifact and the code that reads it, not about what either tool found or how well it found it.",
+    "no_judging": "No row is characterised as real, important, a false positive or a duplicate, and no rejected record is called a false positive either: each is a record this pipeline cannot represent, which is a statement about the record's fields rather than about whether anything was really leaked. Nothing here asserts that a secret exists anywhere in the pinned tree.",
+    "no_dedup": "Elements /0 and /3 carry the same rule identifier in different files, and rows 0 and 2 carry the same description text. Every one of them is a distinct record with its own outcome, and none is folded into another. Two byte-identical elements would likewise be two outcomes.",
+    "no_invented_severity": "The tool defines no severity vocabulary, so none is invented: severity_native stays null on every row and severity_norm comes from the fixed no-vocabulary policy rather than from a guess at what a finding deserves. The rejected record gets no severity at all, not even Info.",
+    "no_invented_message": "The rejected record gets no message, not even a plausible one, and the three emitted messages are their records' own Description text. This is the prohibition the whole file exists to fix, and central_assertion states how it is checked rather than merely asserted.",
+    "kept_not_filtered": "No element is dropped. Three are emitted and one is counted, which together account for all four -- the arithmetic under counts is what makes the absence of filtering checkable rather than merely stated.",
+    "never_derived_by_running_the_adapter": "Every value in this file was read out of the fixture and the authored contracts: the field sources and the five-step classification order from adapters/gitleaks.py, the class name from paths.py, the band and basis from severity.py, the field set and its absence rules from emit.py, the count unit from reconcile.py, and the path base from runner-metadata.json. Nothing here was produced by invoking the adapter and recording its output, which would make the test a tautology.",
+    "agreement_check_disclosed": "After these values were derived and written, the adapter was invoked over this fixture once and its rows, rejections and counters compared to what is recorded here; agreement was complete, including the rejection class, the detail string and the record_identity mapping. That is disclosed in the same spirit as the corroboration below: it followed derivation, it could only ever have surfaced a disagreement to diagnose, and it contributed no value to this file."
+  },
+  "corroboration": {
+    "source": "oss-scan-results/adapter-tests/expected/gitleaks.rows.json",
+    "records_compared": 2,
+    "fields_compared_per_record": 12,
+    "agreement": "complete",
+    "note": "Two of the three surviving rows have counterparts in the positive sibling, because their fixture elements are byte-identical to elements of the positive fixture: this file's row 0 is that file's row 1, and row 1 is its row 3. All twenty-four field comparisons agree. Recorded after the fact rather than as the source of these values, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply.",
+    "the_third_row_is_partially_corroborated": "Row 2 comes from a synthesized element, so it has no byte-identical counterpart. Two of its values are still corroborated independently: its message is the same description literal the positive sibling's rows 0 and 1 carry, and its path is the same path that sibling's row 2 carries with the same glob and the same measured line count. Its rule identifier and its line number are its own, and are checkable only by reading the fixture.",
+    "rejected_records_have_no_counterpart": "The defective element appears in no captured artifact and contributes no dataset row, so it is checkable by reading the fixture against adapters/gitleaks.py's classification order and by nothing else, with the external control under attribution stating what corroborates it and what does not. The three sibling documents carry the other three forms, and no defective element of any of the four appears in a captured artifact.",
+    "dataset_counterpart": "None of the three rows appears in oss-scan-results/findings.json. The committed dataset carries exactly one gitleaks row, for a file none of these elements names, so the dataset corroborates nothing here -- which is expected of a derived fixture and is stated rather than left as a gap a reader might read as a discrepancy."
+  },
+  "rows": [
+    {
+      "tool": "gitleaks",
+      "scanner_class": "secret",
+      "rule_id": "generic-api-key",
+      "message": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+      "severity_native": null,
+      "severity_norm": "Info",
+      "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "start_line": 241,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "gitleaks",
+      "scanner_class": "secret",
+      "rule_id": "github-pat",
+      "message": "Uncovered a GitHub Personal Access Token, potentially leading to unauthorized repository access and sensitive content exposure.",
+      "severity_native": null,
+      "severity_norm": "Info",
+      "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+      "start_line": 46,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "gitleaks",
+      "scanner_class": "secret",
+      "rule_id": "generic-api-key",
+      "message": "Detected a Generic API Key, potentially exposing access to various services and sensitive operations.",
+      "severity_native": null,
+      "severity_norm": "Info",
+      "path": "python/pyspark/ml/tests/test_evaluation.py",
+      "start_line": 29,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    }
+  ],
+  "row_derivations": [
+    {
+      "row_index": 0,
+      "record_pointer": "/0",
+      "source": "derived -- byte-identical to element /1 of oss-scan-results/adapter-tests/fixtures/gitleaks.json, compared field by field including key order",
+      "rule_id_source": "/0/RuleID",
+      "rule_id_route": "the record's own RuleID, the only route this shape offers",
+      "message_source": "/0/Description",
+      "message_route": "the record's own Description, the only route this shape offers",
+      "message_is_verbatim": "yes -- the value carries no leading or trailing whitespace, so _text_field's strip changes nothing and the emitted text is byte-identical to the fixture's",
+      "message_synthesised_from_another_key": false,
+      "message_contains_no_forbidden_value": "checked by substring comparison against this record's Match, Secret and Fingerprint values, and against its RuleID, File and Tags: no hit in either direction",
+      "severity_native_source": null,
+      "severity_native_absent_reason": "the record carries no severity-like field, and the tool defines no severity vocabulary",
+      "severity_basis": "no_vocabulary",
+      "severity_counter": "severity_basis_no_vocabulary",
+      "path_source": "/0/File",
+      "path_kind": "tree_file",
+      "path_basis": "already-root-relative",
+      "path_is_absolute": false,
+      "start_line_source": "/0/StartLine",
+      "locations_in_record": 1,
+      "symlink_counterpart": "absent -- SymlinkFile is the empty string, so the record names no second location and multi_location_records does not count it",
+      "cwe_source": null,
+      "cve_source": null,
+      "package_coordinate_source": null,
+      "absent_optional_fields_reason": "the shape supplies no severity vocabulary, no weakness identifier, no advisory identifier and no package coordinate; for a secret record the coordinate's absence is not a rejection condition",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "core/src/main/**",
+      "src_test_literal_present": false,
+      "file_exists_at_the_pin": true,
+      "file_line_count_at_the_pin": 380,
+      "start_line_within_file": true,
+      "anchor_note": "The taint A/B subject file, and the same 380-line count the positive sibling records for it. start_line 241 is well inside the file. No other element of this fixture names this file; the sibling document that rejects a record in it is oss-scan-results/adapter-tests/fixtures/reject-gitleaks-empty-message.json, whose defective element names line 72 -- the line the A/B rule fires on."
+    },
+    {
+      "row_index": 1,
+      "record_pointer": "/2",
+      "source": "derived -- byte-identical to element /3 of oss-scan-results/adapter-tests/fixtures/gitleaks.json, compared field by field including key order",
+      "rule_id_source": "/2/RuleID",
+      "rule_id_route": "the record's own RuleID, the only route this shape offers",
+      "message_source": "/2/Description",
+      "message_route": "the record's own Description, the only route this shape offers",
+      "message_is_verbatim": "yes -- no leading or trailing whitespace to strip",
+      "message_synthesised_from_another_key": false,
+      "message_contains_no_forbidden_value": "checked as for row 0: no hit in either direction",
+      "severity_native_source": null,
+      "severity_native_absent_reason": "as row 0",
+      "severity_basis": "no_vocabulary",
+      "severity_counter": "severity_basis_no_vocabulary",
+      "path_source": "/2/File",
+      "path_kind": "tree_file",
+      "path_basis": "already-root-relative",
+      "path_is_absolute": false,
+      "start_line_source": "/2/StartLine",
+      "locations_in_record": 1,
+      "symlink_counterpart": "absent -- SymlinkFile is the empty string",
+      "cwe_source": null,
+      "cve_source": null,
+      "package_coordinate_source": null,
+      "absent_optional_fields_reason": "as row 0",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+      "src_test_literal_present": false,
+      "file_exists_at_the_pin": true,
+      "file_line_count_at_the_pin": 71,
+      "start_line_within_file": true,
+      "anchor_note": "Its path demonstrates that the Kubernetes glob's mid-path ** reaches docker/src/main, a directory scanned by the file-based tools while being no Maven module. It is also the control for the rejection in the sibling document oss-scan-results/adapter-tests/fixtures/reject-gitleaks-whitespace-message.json, whose defective element is this same rule in this same file with a whitespace-only description."
+    },
+    {
+      "row_index": 2,
+      "record_pointer": "/3",
+      "source": "synthesized -- no byte-identical counterpart in the positive fixture. It pairs the generic-api-key description that fixture's elements /0 and /1 carry with the file its element /2 names, at a line of its own.",
+      "rule_id_source": "/3/RuleID",
+      "rule_id_route": "the record's own RuleID, the only route this shape offers",
+      "message_source": "/3/Description",
+      "message_route": "the record's own Description, the only route this shape offers",
+      "message_is_verbatim": "yes -- no leading or trailing whitespace to strip. The text is byte-identical to row 0's, from a different element; two records sharing a description is two rows and no comment.",
+      "message_synthesised_from_another_key": false,
+      "message_contains_no_forbidden_value": "checked as for row 0: no hit in either direction",
+      "severity_native_source": null,
+      "severity_native_absent_reason": "as row 0",
+      "severity_basis": "no_vocabulary",
+      "severity_counter": "severity_basis_no_vocabulary",
+      "path_source": "/3/File",
+      "path_kind": "tree_file",
+      "path_basis": "already-root-relative",
+      "path_is_absolute": false,
+      "start_line_source": "/3/StartLine",
+      "locations_in_record": 1,
+      "symlink_counterpart": "absent -- SymlinkFile is the empty string",
+      "cwe_source": null,
+      "cve_source": null,
+      "package_coordinate_source": null,
+      "absent_optional_fields_reason": "as row 0",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "python/pyspark/**",
+      "src_test_literal_present": false,
+      "file_exists_at_the_pin": true,
+      "file_line_count_at_the_pin": 391,
+      "start_line_within_file": true,
+      "anchor_note": "A Python test module, and in scope: it is one of the 832 test modules under python/pyspark/** that carry no src/test path segment, so the literal exclusion does not reach it and in_scope is true. Its test-ness is expressed as a tests/ directory and a test_ filename rather than as a Maven src/test tree. No test of any language is executed by this run -- the module is read by a scanner exactly as any other in-scope source is.",
+      "file_line_count_measurement": "Measured at the pinned tree, whose HEAD was verified equal to the pinned SHA before measuring: 391 by wc -l, by counting newline bytes and by len(bytes.splitlines()), the file ending in a newline. The positive sibling and the missing-rule-id sibling both record 391 for the same file.",
+      "file_line_count_divergence_disclosed": "This file's own specification stated 384 lines for this path. 384 is the count in the working checkout, which sits at the branch tip; the pinned tree's copy of the same path is 391, and the two files differ. The pinned count is the one recorded, for two reasons: every path in this dataset is relative to the pinned root, so the pin is the tree these line counts describe; and a count appearing in two documents must be one measurement cited twice, so 384 here would contradict both siblings. No field of row 2 changes either way -- start_line 29 is inside the file under both readings -- so this is a disclosed divergence in a stated line count and not a difference in any expected value."
+    }
+  ],
+  "rejections": [
+    {
+      "rejection_index": 0,
+      "record_pointer": "/1",
+      "record_index": 1,
+      "locator_note": "The pointer and record_index name the same element. The index is carried as well because the adapter passes exactly record_index into the rejection it builds, so a produced Rejection's record_identity and this expectation can be compared directly, without translating one coordinate system into the other. The array index is the locator for this shape: a bare array of findings offers no rule pointer, no run index and no section to name.",
+      "reject_class": "missing_message",
+      "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_MISSING_MESSAGE constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten. Written verbatim rather than paraphrased, and asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+      "reject_class_is_declared_producible": "The class is a member of adapters/gitleaks.py's REJECT_CLASSES_PRODUCED, which declares the six conditions this adapter can produce rather than leaving them to be discovered by reading the code.",
+      "tool": "gitleaks",
+      "classification_step": "step 3 of the adapter's fixed classification order -- shape, rule identifier, message, path, start_line. Steps 1 and 2 pass: the element is a JSON object and its RuleID is a non-empty string. Steps 4 and 5 are never reached.",
+      "observed_description_form": "present as an explicit JSON null",
+      "observed_description_value": null,
+      "why_not_malformed_record": "_text_reject_class treats None exactly as it treats a string: the field's own missing class. A null is an absence expressed rather than a shape defect.",
+      "later_steps_never_examined": "The record's File, StartLine and SymlinkFile are never read, so no interaction with any other rejection condition is in play. Worth stating because the fixture gives this record a perfectly good value for each of them, and a reader could otherwise expect one of them to matter.",
+      "expected_detail": "the record carries no Description, and no other field substitutes for it: Secret and Match are the captured value and Message is a git commit message, not the rule description",
+      "expected_detail_note": "Byte-identical to the detail the absent-key sibling document produces, and that is the adapter's contract rather than an oversight here: _text_field reads the key with .get and cannot distinguish an absent key from a null value. A test asserting a null-specific detail would be asserting something the adapter does not promise, which is why the two documents of this branch assert equality of their details rather than distinctness. The two records stay distinguishable by their rule_id and by the document each sits in.",
+      "expected_detail_carries_no_record_value": "The detail names keys and states that one is absent. It renders no value from the record: _safe_value_repr admits only None, a bool, an int and a float, and this failure path does not render the observed value at all. The words Secret, Match and Message in it are key names, not values.",
+      "expected_record_identity_keys": [
+        "record_index",
+        "rule_id"
+      ],
+      "expected_record_identity": {
+        "record_index": 1,
+        "rule_id": "gcp-api-key"
+      },
+      "record_identity_note": "The adapter supplies record_index and rule_id on this path -- rule_id because step 2 has already established one, unlike a step-2 rejection, which can only carry the index. Enough to find the record in the artifact again, and never the record itself and never a secret value. This rule_id occurs on no other element of this fixture, so here it identifies the record on its own -- which is a property of this fixture rather than something a test should rely on.",
+      "why_not_a_row": "There is no description to put in the row. message is in emit.REQUIRED_FIELDS and is never absent from a row, so a record with no usable description has no valid row representation, and the alternatives -- dropping it, or taking text from Match, Secret, Message, RuleID, File or Tags -- would each either hide it or assert something the tool never stated. The first two of those candidates are the captured value, which is what makes this the security-critical case rather than merely the incorrect one. A not-None guard is the check that gets this form right and the empty-string and whitespace-only forms wrong.",
+      "the_fallback_that_must_not_happen": "This record carries populated Match and Secret fields, so an adapter with a nearest-text fallback would produce a row here rather than failing visibly. That row would look entirely ordinary and would be wrong in the one way nothing downstream can detect. central_assertion is the check that catches it.",
+      "contributes_no_row": true,
+      "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, so no entry from it reaches severity-map.md. That document reports literals against the rows the dataset contains, and this record contributes none.",
+      "contributes_no_counter": "It increments none of the fifteen counters. Every counter this adapter keys is incremented after step 3 has passed, so a step-3 rejection touches none of them.",
+      "external_control": "None. The positive fixture carries a gcp-api-key element, but it names a different file at a different line, so it is not this record with its description intact. The attribution rests on the classification order and on the internal control below, which is sufficient: nothing but the description can reject at step 3.",
+      "not_produced_by_another_fixture": "Of the twelve reject-gitleaks-* fixtures, three sibling documents carry the other three forms of this condition and the remaining eight carry the other five classes: absent-path, unresolvable-path, missing-rule-id, malformed-record, and four start-line fixtures for one class. This fixture re-covers none of them, and each of them still has its own work to do.",
+      "message_route": "explicit_null",
+      "message_branch": "absent_or_null",
+      "distinguishing_substrings": [
+        "the record carries no Description"
+      ],
+      "expected_detail_must_not_contain": [
+        "the record's Description is empty",
+        "not a string"
+      ],
+      "detail_shared_with": {
+        "document": "oss-scan-results/adapter-tests/expected/reject-gitleaks-missing-message.rows.json",
+        "form": "the Description key is absent from the record entirely",
+        "why": "The two forms take the same branch of _text_field, so the adapter composes one detail for both. That equality is the contract; distinctness belongs across the two branches, not within one."
+      },
+      "sole_rejection": "The only rejection this fixture produces. counts.rejections is 1 and rejections_by_class names one class with one member, so the class, the detail and the identity are all attributable to this element alone.",
+      "internal_control": "None with the same rule identifier. Element /3 names the same file and becomes row 2, and the classification order settles the attribution on its own: nothing but the description can reject at step 3."
+    }
+  ],
+  "in_scope_verification": {
+    "method": "Each of the three emitted paths was matched against the twelve globs by hand and then checked twice more, with two implementations that are not the one under test: a glob-to-regex translation written for this check, and CPython 3.13's PurePosixPath.full_match, whose ** spans zero or more directories. All three agree on all three paths, and each path matched exactly one glob.",
+    "why_not_fnmatch": "Three of the twelve globs depend on ** matching zero or more directories, and neither fnmatch nor PurePath.match provides those semantics. A matcher built on either silently drops whole modules, and a silently dropped module looks exactly like a module with nothing to report (AAP 0.5.4).",
+    "src_test_rule": "The exclusion is the literal substring src/test. No path here contains it, including the Python test module, whose test-ness is a directory name and a filename prefix rather than a Maven test tree.",
+    "the_rejected_record_has_no_in_scope_value": "in_scope is a field of a row, and the rejected record produces none. Its File would have matched python/pyspark/** had it been evaluated -- an emitted row of this fixture matches that same glob, so the claim is not hypothetical -- but it was never evaluated, and recording an in_scope value for a record that produced no row would assert a field the dataset does not contain.",
+    "result": "three in scope, none out of scope"
+  },
+  "behaviours_not_exercised_by_this_fixture": [
+    {
+      "behaviour": "a non-string Description reaching malformed_record instead of missing_message",
+      "why_absent": "the defective element carries an explicit null, which is what makes it the missing class rather than the malformed one",
+      "cover_with": "a derived fixture carrying a numeric or array Description on an element with a usable RuleID. reject-gitleaks-malformed-record.json covers the class by two other routes -- a non-object element and a non-string RuleID -- so the class has its negative fixture; this route into it does not. Stated so the absence cannot be read as a claim that a non-string Description would be classified as missing_message"
+    },
+    {
+      "behaviour": "the other five rejection conditions this adapter can produce -- malformed_record, missing_rule_id, non_integer_start_line, absent_path and unresolvable_path",
+      "why_absent": "this fixture isolates one condition so each rejection is attributable to it alone; every element is well-formed in every other respect",
+      "cover_with": "the eight remaining reject-gitleaks-* fixtures -- absent-path, unresolvable-path, missing-rule-id, malformed-record, and the four start-line route fixtures, the absent-path one covering that class through an element whose File is the empty string"
+    },
+    {
+      "behaviour": "the other three forms in which a Description can be unusable",
+      "why_absent": "this document measures one attributable case, which is why the predecessor's four defective records became four fixtures rather than staying one",
+      "now_covered_by": [
+        "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-missing-message.json",
+        "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-empty-message.json",
+        "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-whitespace-message.json"
+      ],
+      "and_the_branch_equality": "The two forms of this document's branch produce byte-identical details, which MessageRouteTests asserts across the two documents rather than inside either -- an assertion no single document could make."
+    },
+    {
+      "behaviour": "a permitted absent start_line, and the start_line_absent counter",
+      "why_absent": "every element here carries a StartLine that is an integer of at least 1",
+      "cover_with": "oss-scan-results/adapter-tests/fixtures/reject-gitleaks-non-integer-start-line.json, which alongside its rejectable element carries elements with no StartLine key and with an explicit null -- both permitted absences that become rows with start_line null rather than rejections"
+    },
+    {
+      "behaviour": "a kept row with in_scope false, and the rows_out_of_scope counter",
+      "why_absent": "all three emitted paths match a glob, so rows_out_of_scope is 0",
+      "cover_with": "the positive sibling expected/gitleaks.rows.json, whose sixth row is a lockfile outside the twelve globs kept with in_scope false"
+    },
+    {
+      "behaviour": "multi_location_records -- a record naming a second filesystem location through a non-empty SymlinkFile",
+      "why_absent": "SymlinkFile is the empty string on all four elements",
+      "cover_with": "a derived fixture whose element carries a non-empty SymlinkFile, asserting the row's path still comes from File, that the counter increments, and that the counterpart is never substituted for an absent or unresolvable File"
+    },
+    {
+      "behaviour": "the non-filesystem coordinate serialization, and a path outside the root keeping its ../ segments",
+      "why_absent": "every File here names a file inside the scanned tree, so non_filesystem_paths is 0 and path_kind_tree_file accounts for all three rows",
+      "cover_with": "a derived fixture carrying an archive reference in File, and one whose File resolves above the scan root"
+    },
+    {
+      "behaviour": "the other invocation shape -- a recorded path base whose kind is not the scan root",
+      "why_absent": "this provisioning's runner sets its working directory to the scan root and hands over one root-relative directory per invocation, so the recorded kind is scan_root and the two readings coincide",
+      "cover_with": "nothing here, and deliberately not by editing a runner: AAP 0.3.2 forbids that, and a base that differs is a condition to record. A fixture pairing these records with a metadata document recording a different base would cover the resolver, and the expected paths would then differ from these -- which is the whole point of taking the base from the metadata"
+    },
+    {
+      "behaviour": "any severity path other than no_vocabulary",
+      "why_absent": "unreachable for this tool by policy rather than by observation: it defines no severity vocabulary, so every emitted row takes the no-vocabulary path and the other four severity_basis_* counters stay 0",
+      "cover_with": "the SARIF, Trivy, Checkov and Dependency-Check expected files, which carry the level, label and score paths"
+    },
+    {
+      "behaviour": "a message that survives with leading or trailing whitespace trimmed off it",
+      "why_absent": "the three surviving descriptions carry no surrounding whitespace, so the strip _text_field applies changes nothing and every emitted message is byte-identical to its record's value",
+      "cover_with": "a derived fixture whose element carries a padded but non-empty description, asserting the emitted message is the stripped text and the record is a row rather than a rejection -- the boundary on the other side of the whitespace-only element that oss-scan-results/adapter-tests/fixtures/reject-gitleaks-whitespace-message.json carries at its /1"
+    },
+    {
+      "behaviour": "the shape fault that raises rather than rejecting -- a gitleaks.json whose top level is not an array",
+      "why_absent": "this fixture's top level is an array of four objects",
+      "cover_with": "a call-level assertion in test_gitleaks_adapter.py rather than an expected-rows file: the counting traversal finds zero records in a non-array document, so emitting a rejection for one would make rows plus rejections exceed the record count and break the identity rejection accounting exists to protect"
+    },
+    {
+      "behaviour": "an artifact whose every record is rejected, and the parse status that would carry",
+      "why_absent": "three of the four elements here are well-formed, which is what makes this a partial parse",
+      "cover_with": "nothing in this folder needs to: parse_status is partial wherever there is at least one rejection, so an all-rejected artifact is the same status and not a separate case. An artifact matching no known shape is the 'failed' status, and a tool that wrote nothing is 'absent' -- neither is a record-level condition and neither belongs to an expected-rows file"
+    }
+  ]
+}

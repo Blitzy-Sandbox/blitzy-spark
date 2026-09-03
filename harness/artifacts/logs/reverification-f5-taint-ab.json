@@ -1,0 +1,550 @@
+{
+  "schema_version": "1.0",
+  "document": "harness/artifacts/logs/reverification-f5-taint-ab.json",
+  "companion_documents": [
+    "harness/artifacts/logs/reverification-f5-taint-ab.log",
+    "harness/artifacts/logs/reverification-f5-taint-engine-options.txt"
+  ],
+  "generated_utc": "2026-09-02T14:42:24.663Z",
+  "subject_of_reverification": {
+    "finding_id": "F5",
+    "finding_title": "Mandated Opengrep taint A/B is non-discriminating",
+    "severity": "CRITICAL",
+    "qa_report": "/tmp/blitzy/qa/reports/f38258d3-f87d-44f5-bedc-af512c69e0ab/oss-scan-results_run-record.md/qa/testing/o000_5b89c1691063ea9e.md",
+    "aap_requirements": [
+      "0.5.1",
+      "0.9.1",
+      "0.9.2",
+      "0.3.2"
+    ]
+  },
+  "what_this_pass_is": "Re-verification of one QA finding, taken under the standing Stage 0 gate halt. It is MEASUREMENT, not stage execution: it writes nothing into harness/artifacts/raw/, produces no dataset row, and advances no stage. Every number in this document was measured first-hand in this clone during this pass; the two values taken from another record are listed under cited_values with their source file.",
+  "clone": {
+    "index": 19,
+    "repo_root": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94",
+    "branch": "blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019",
+    "head": "7fc41251c81e8a10ca9ce542b34af2542d7c1b53"
+  },
+  "pinned_tree": {
+    "spark_src": "/opt/spark-src",
+    "head_observed": "59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d",
+    "head_expected": "59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d",
+    "head_matches_expected": true,
+    "edited_by_this_pass": false
+  },
+  "engine": {
+    "binary": "/opt/blitzy-tools/bin/opengrep",
+    "version_observed": "1.27.1",
+    "version_expected": "1.27.1",
+    "version_matches_expected": true,
+    "option_surface_capture": "harness/artifacts/logs/reverification-f5-taint-engine-options.txt"
+  },
+  "ruleset": {
+    "path": "/opt/blitzy-harness/rules/opengrep-rules",
+    "commit_observed": "f1d2b562b414783763fd02a6ed2736eaed622efa",
+    "commit_expected": "f1d2b562b414783763fd02a6ed2736eaed622efa",
+    "commit_matches_expected": true,
+    "modified_by_this_pass": false
+  },
+  "pinned_rule": {
+    "path": "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+    "bytes": 2824,
+    "sha256": "24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d",
+    "mode": "taint",
+    "source_definition": "$PARAM inside `def $CTRL(..., $PARAM: $TYPE, ...)` (a method parameter)",
+    "sink_definition": "an s\"...\"/f\"...\" interpolation or concatenated/built string matching the SQL-keyword regex (select|delete|insert|create|update|alter|drop)"
+  },
+  "derived_control_rule": {
+    "path": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-control-rule.yaml",
+    "bytes": 2505,
+    "sha256": "e57f4da76045707631e0b1f151828f097d0b2ef573745aa19d979ae4d4ec5ee2",
+    "derived_from": "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+    "only_change": "the 16-line pattern-sources block replaced by a single unmatchable pattern: blitzyF5W019UnmatchableTaintSourceMarker(...)",
+    "unchanged": [
+      "mode: taint",
+      "pattern-sinks",
+      "pattern-sanitizers",
+      "metadata",
+      "message",
+      "severity",
+      "languages"
+    ],
+    "diff_hunks_against_pinned_rule": 1,
+    "written_where": "this worker's private scratch; the pinned ruleset was not modified and harness/artifacts/logs/taint-ab-source-removed-control-rule.txt was neither reused nor overwritten",
+    "independent_corroboration": "This pass's control SARIF was parsed against the pre-existing harness/artifacts/logs/taint-ab-source-removed-control.sarif, which an earlier generation produced from its own independently derived control: both carry 0 results, and the only structural difference is the rule id Opengrep derives from the control rule's own file path (tmp.blitzy.scratch...w-019.g5t.tainted-sql-string here versus ...w-000.taint.tainted-sql-string there), which is why the two files' digests differ while their findings do not."
+  },
+  "subjects": [
+    {
+      "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "resolved": "/opt/spark-src/core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "bytes": 12045,
+      "lines": 380,
+      "sha256": "bc5491ac8a6bd9a8822ef5b4a55ac32c47ecb9ed25e2ca1770a1c9040739d02e"
+    },
+    {
+      "path": "sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala",
+      "resolved": "/opt/spark-src/sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala",
+      "bytes": 51891,
+      "lines": 1547,
+      "sha256": "20d42e9924e6be896f57af9609861a7f0e1bff6e1a71ff5c513cb48dd78ea554"
+    }
+  ],
+  "arms": [
+    {
+      "arm_id": "A-diskstore-on",
+      "subject": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "rule": "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+      "rule_sha256": "24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d",
+      "taint_intrafile": true,
+      "cwd": "/opt/spark-src",
+      "argv": [
+        "/opt/blitzy-tools/bin/opengrep",
+        "scan",
+        "--config",
+        "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+        "--dataflow-traces",
+        "--taint-intrafile",
+        "--sarif-output",
+        "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-on.sarif",
+        "--timeout",
+        "120",
+        "--timeout-threshold",
+        "0",
+        "--max-target-bytes",
+        "20000000",
+        "--x-ignore-semgrepignore-files",
+        "--disable-version-check",
+        "core/src/main/scala/org/apache/spark/storage/DiskStore.scala"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-02T14:31:01.643Z",
+      "ended": "2026-09-02T14:31:03.563Z",
+      "elapsed_seconds": 1.92,
+      "result_count": 1,
+      "result_lines": [
+        72
+      ],
+      "results_with_codeflow": 1,
+      "sarif_path": "harness/artifacts/logs/reverification-f5-taint-ab-on.sarif",
+      "sarif_bytes": 4753,
+      "sarif_sha256": "7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778"
+    },
+    {
+      "arm_id": "A-diskstore-off",
+      "subject": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "rule": "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+      "rule_sha256": "24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d",
+      "taint_intrafile": false,
+      "cwd": "/opt/spark-src",
+      "argv": [
+        "/opt/blitzy-tools/bin/opengrep",
+        "scan",
+        "--config",
+        "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+        "--dataflow-traces",
+        "--sarif-output",
+        "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-off.sarif",
+        "--timeout",
+        "120",
+        "--timeout-threshold",
+        "0",
+        "--max-target-bytes",
+        "20000000",
+        "--x-ignore-semgrepignore-files",
+        "--disable-version-check",
+        "core/src/main/scala/org/apache/spark/storage/DiskStore.scala"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-02T14:31:03.592Z",
+      "ended": "2026-09-02T14:31:05.482Z",
+      "elapsed_seconds": 1.89,
+      "result_count": 1,
+      "result_lines": [
+        72
+      ],
+      "results_with_codeflow": 1,
+      "sarif_path": "harness/artifacts/logs/reverification-f5-taint-ab-off.sarif",
+      "sarif_bytes": 4753,
+      "sarif_sha256": "7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778"
+    },
+    {
+      "arm_id": "B-hiveshim-on",
+      "subject": "sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala",
+      "rule": "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+      "rule_sha256": "24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d",
+      "taint_intrafile": true,
+      "cwd": "/opt/spark-src",
+      "argv": [
+        "/opt/blitzy-tools/bin/opengrep",
+        "scan",
+        "--config",
+        "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+        "--dataflow-traces",
+        "--taint-intrafile",
+        "--sarif-output",
+        "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-on.sarif",
+        "--timeout",
+        "120",
+        "--timeout-threshold",
+        "0",
+        "--max-target-bytes",
+        "20000000",
+        "--x-ignore-semgrepignore-files",
+        "--disable-version-check",
+        "sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-02T14:31:43.258Z",
+      "ended": "2026-09-02T14:31:45.480Z",
+      "elapsed_seconds": 2.222,
+      "result_count": 2,
+      "result_lines": [
+        828,
+        834
+      ],
+      "results_with_codeflow": 2,
+      "sarif_path": "harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-on.sarif",
+      "sarif_bytes": 10021,
+      "sarif_sha256": "1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24"
+    },
+    {
+      "arm_id": "B-hiveshim-off",
+      "subject": "sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala",
+      "rule": "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+      "rule_sha256": "24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d",
+      "taint_intrafile": false,
+      "cwd": "/opt/spark-src",
+      "argv": [
+        "/opt/blitzy-tools/bin/opengrep",
+        "scan",
+        "--config",
+        "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+        "--dataflow-traces",
+        "--sarif-output",
+        "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-off.sarif",
+        "--timeout",
+        "120",
+        "--timeout-threshold",
+        "0",
+        "--max-target-bytes",
+        "20000000",
+        "--x-ignore-semgrepignore-files",
+        "--disable-version-check",
+        "sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-02T14:31:45.510Z",
+      "ended": "2026-09-02T14:31:47.510Z",
+      "elapsed_seconds": 2.0,
+      "result_count": 0,
+      "result_lines": [],
+      "results_with_codeflow": 0,
+      "sarif_path": "harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-off.sarif",
+      "sarif_bytes": 2341,
+      "sarif_sha256": "6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced"
+    },
+    {
+      "arm_id": "C-diskstore-source-removed",
+      "subject": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "rule": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-control-rule.yaml",
+      "rule_sha256": "e57f4da76045707631e0b1f151828f097d0b2ef573745aa19d979ae4d4ec5ee2",
+      "taint_intrafile": true,
+      "cwd": "/opt/spark-src",
+      "argv": [
+        "/opt/blitzy-tools/bin/opengrep",
+        "scan",
+        "--config",
+        "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-control-rule.yaml",
+        "--dataflow-traces",
+        "--taint-intrafile",
+        "--sarif-output",
+        "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-source-removed.sarif",
+        "--timeout",
+        "120",
+        "--timeout-threshold",
+        "0",
+        "--max-target-bytes",
+        "20000000",
+        "--x-ignore-semgrepignore-files",
+        "--disable-version-check",
+        "core/src/main/scala/org/apache/spark/storage/DiskStore.scala"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-02T14:32:53.812Z",
+      "ended": "2026-09-02T14:32:55.625Z",
+      "elapsed_seconds": 1.813,
+      "result_count": 0,
+      "result_lines": [],
+      "results_with_codeflow": 0,
+      "sarif_path": "harness/artifacts/logs/reverification-f5-taint-ab-source-removed.sarif",
+      "sarif_bytes": 2341,
+      "sarif_sha256": "295888055aed2ccb8dc171eebc5e702ea741c0eb86e760d3942d122936b32187"
+    }
+  ],
+  "supplementary_arms_scratch_only": [
+    {
+      "arm_id": "C-diskstore-source-removed-off",
+      "subject": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "rule": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-control-rule.yaml",
+      "rule_sha256": "e57f4da76045707631e0b1f151828f097d0b2ef573745aa19d979ae4d4ec5ee2",
+      "taint_intrafile": false,
+      "cwd": "/opt/spark-src",
+      "argv": [
+        "/opt/blitzy-tools/bin/opengrep",
+        "scan",
+        "--config",
+        "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-control-rule.yaml",
+        "--dataflow-traces",
+        "--sarif-output",
+        "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-off.sarif",
+        "--timeout",
+        "120",
+        "--timeout-threshold",
+        "0",
+        "--max-target-bytes",
+        "20000000",
+        "--x-ignore-semgrepignore-files",
+        "--disable-version-check",
+        "core/src/main/scala/org/apache/spark/storage/DiskStore.scala"
+      ],
+      "exit_code": 0,
+      "started": "2026-09-02T14:32:55.656Z",
+      "ended": "2026-09-02T14:32:57.477Z",
+      "elapsed_seconds": 1.821,
+      "result_count": 0,
+      "result_lines": [],
+      "results_with_codeflow": 0,
+      "sarif_path": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-off.sarif",
+      "sarif_bytes": 2341,
+      "sarif_sha256": "295888055aed2ccb8dc171eebc5e702ea741c0eb86e760d3942d122936b32187",
+      "note": "Same derived control rule with --taint-intrafile ABSENT. SARIF written to this worker's private scratch, not to logs/, because the AAP names no such arm; it exists so the control's zero cannot be attributed to the toggle."
+    },
+    {
+      "arm_id": "D-diskstore-optimizations-none",
+      "subject": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "rule": "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+      "rule_sha256": "24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d",
+      "argv": [
+        "/opt/blitzy-tools/bin/opengrep",
+        "scan",
+        "--config",
+        "/opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml",
+        "--dataflow-traces",
+        "--optimizations=none",
+        "--sarif-output",
+        "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-optimizations-none.sarif",
+        "--timeout",
+        "120",
+        "--timeout-threshold",
+        "0",
+        "--max-target-bytes",
+        "20000000",
+        "--x-ignore-semgrepignore-files",
+        "--disable-version-check",
+        "core/src/main/scala/org/apache/spark/storage/DiskStore.scala"
+      ],
+      "cwd": "/opt/spark-src",
+      "exit_code": 0,
+      "started": "2026-09-02T14:34:17.001Z",
+      "ended": "2026-09-02T14:34:18.869Z",
+      "elapsed_seconds": 1.868,
+      "result_count": 1,
+      "result_lines": [
+        72
+      ],
+      "results_with_codeflow": 1,
+      "sarif_path": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-optimizations-none.sarif",
+      "sarif_bytes": 4753,
+      "sarif_sha256": "7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778",
+      "note": "The one remaining option a reader might mistake for a taint switch. --optimizations=none leaves the taint finding in place, so it is not one."
+    }
+  ],
+  "pair_verdicts": {
+    "mandated_pair_diskstore": {
+      "aap_reference": "0.5.1, 0.9.1",
+      "subject": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "sole_analysis_difference": "--taint-intrafile present vs absent",
+      "measured_argv_delta_on_minus_off": [
+        "--taint-intrafile",
+        "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-on.sarif"
+      ],
+      "expected": {
+        "on_results": 1,
+        "on_line": 72,
+        "off_results": 0
+      },
+      "observed": {
+        "on_results": 1,
+        "on_lines": [
+          72
+        ],
+        "on_codeflows": 1,
+        "off_results": 1,
+        "off_lines": [
+          72
+        ],
+        "off_codeflows": 1
+      },
+      "sarif_byte_identical": true,
+      "discriminates": false,
+      "verdict": "FAIL - NON-DISCRIMINATING. F5 REPRODUCES.",
+      "mechanical_reason": "The rule's source is a method parameter and its sink is the interpolated string; on this file both sit inside ONE method - the parameter blockId is declared at DiskStore.scala:64 (def put(blockId: BlockId)) and the sink is at line 72 - so the flow never crosses a method boundary. --taint-intrafile adds intra-FILE INTER-procedural taint and therefore has nothing to contribute, while the engine's documented fallback ('Other languages will fall back to intraprocedural analysis only') already reaches it in both arms.",
+      "disposition": "AAP 0.9.2 lists 'a failed taint A/B' among the conditions that stop the run. This is therefore a halt-class finding, REPORTED AND NOT REPAIRED: no rule, file, line or flag was changed to obtain the expected zero, and no other subject is offered as a substitute for the mandated one."
+    },
+    "capability_pair_hiveshim": {
+      "role": "the flow that REQUIRES the toggled setting - QA F5's first suggested remedy",
+      "subject": "sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala",
+      "sole_analysis_difference": "--taint-intrafile present vs absent",
+      "measured_argv_delta_on_minus_off": [
+        "--taint-intrafile",
+        "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-on.sarif"
+      ],
+      "expected": {
+        "on_results": 2,
+        "on_lines": [
+          828,
+          834
+        ],
+        "off_results": 0
+      },
+      "observed": {
+        "on_results": 2,
+        "on_lines": [
+          828,
+          834
+        ],
+        "on_codeflows": 2,
+        "off_results": 0,
+        "off_lines": [],
+        "off_codeflows": 0
+      },
+      "sarif_byte_identical": false,
+      "discriminates": true,
+      "verdict": "PASS - DISCRIMINATES. 2 traced findings ON (lines 828, 834) against 0 OFF, exactly as expected.",
+      "traced_route_on_arm": [
+        {
+          "hop": "Source",
+          "expr": "predicates",
+          "line": 351,
+          "note": "the predicates: Seq[Expression] parameter of getPartitionsByFilter, declared at line 347"
+        },
+        {
+          "hop": "Call",
+          "expr": "convertFilters",
+          "line": 351
+        },
+        {
+          "hop": "Propagator",
+          "expr": "filters",
+          "line": 645,
+          "note": "the filters parameter of def convertFilters(table, filters)"
+        },
+        {
+          "hop": "Propagator",
+          "expr": "flatMap",
+          "line": 861,
+          "note": "filters.flatMap(convert)"
+        },
+        {
+          "hop": "Sink",
+          "expr": "s\"$name like \"",
+          "line": "828 and 834"
+        }
+      ],
+      "why_it_discriminates": "The route crosses three method boundaries inside one file, which is exactly what --taint-intrafile adds and what the default intraprocedural fallback cannot see.",
+      "not_a_substitute": "This pair answers the CAPABILITY question the A/B exists for. It does NOT satisfy the AAP's mandated pair, whose subject and line are fixed at DiskStore.scala:72."
+    },
+    "source_removed_control_diskstore": {
+      "role": "the taint-disable-equivalent control on the MANDATED subject and line - QA F5's second suggested remedy",
+      "subject": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+      "rule": "/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g5t/f5-source-removed-control-rule.yaml",
+      "rule_sha256": "e57f4da76045707631e0b1f151828f097d0b2ef573745aa19d979ae4d4ec5ee2",
+      "sole_difference_from_the_real_rule": "pattern-sources replaced by an unmatchable marker; mode: taint and every sink retained",
+      "expected": {
+        "results": 0
+      },
+      "observed": {
+        "results": 0,
+        "lines": [],
+        "codeflows": 0,
+        "results_with_taint_intrafile_absent": 0
+      },
+      "contrast_against_the_real_rule": "real pinned rule 1 finding at line 72 (in BOTH arms) vs source-removed control 0 findings under BOTH flag settings",
+      "discriminates": true,
+      "verdict": "PASS - the line-72 result is produced by SOURCE-TO-SINK TAINT PROPAGATION and not by a syntactic sink match. Removing only the source removes the finding while every sink pattern remains in place.",
+      "not_a_substitute": "This is a control over the mandated subject, not a repair of the mandated pair: it changes the RULE, which is the only way to obtain a taint-free arm at this pin, and the AAP's pair is defined by the engine setting rather than by the rule."
+    }
+  },
+  "engine_option_surface": {
+    "capture": "harness/artifacts/logs/reverification-f5-taint-engine-options.txt",
+    "version_command_exit": 0,
+    "help_command_exit": 0,
+    "help_bytes": 22619,
+    "help_lines": 558,
+    "help_sha256": "1c667bc26e59715be1814ed99caf9674a39c44ab5fec6eac4067527d35c033c4",
+    "distinct_option_blocks": 101,
+    "loose_pattern_line_count": 107,
+    "wrapped_continuation_lines": 6,
+    "blocks_mentioning_taint_dataflow_pro_interfile_optimization": 21,
+    "options_with_taint_in_the_name": [
+      "--taint-intrafile",
+      "--guarded-taint-signatures"
+    ],
+    "no_star_options": 12,
+    "no_star_options_concerning_taint": 0,
+    "option_that_disables_taint_analysis": null,
+    "conclusion": "No option at this pin disables the taint engine. --taint-intrafile ENABLES an extra intra-file inter-procedural layer; --guarded-taint-signatures drops guarded taint effects and is gated behind --experimental; --dataflow-traces affects output only by its own help text; --optimizations=none was RUN and still produced the taint finding; the --pro family requires the proprietary Semgrep Pro Engine, which is not installed and which this run may not install, and would ADD taint rather than remove it. Therefore 'taint off' in the mandated pair means INTRAPROCEDURAL TAINT rather than no taint, and a truly taint-free arm is NOT constructible with this engine - only by changing the rule, which is what the source-removed control does.",
+    "pro_family_deliberately_not_invoked": [
+      "--pro",
+      "--pro-path-sensitive"
+    ],
+    "pro_family_reason": "Both require the proprietary Semgrep Pro Engine; invoking them could attempt to fetch it, and installing/upgrading/substituting a tool is prohibited (AAP 0.3.2, 0.4.3)."
+  },
+  "conclusions": {
+    "i_mandated_pair": "F5 STILL REPRODUCES, unchanged and at full severity. The AAP-mandated pair over core/src/main/scala/org/apache/spark/storage/DiskStore.scala with --taint-intrafile as the sole analysis difference returned 1 traced finding at line 72 in BOTH arms, and the two SARIF files are byte-identical at 4753 bytes, sha256 7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778. The anchored expectation is 1-ON/0-OFF; the observed contrast is zero, so the pair does not discriminate. Per AAP 0.9.2 this is a halt-class condition, reported and not repaired. The cause is mechanical and is a property of the pair the AAP specifies - a source and sink inside one method cannot exercise an inter-procedural toggle - so no flag, heap or configuration change can fix it; it needs a human/AAP change to the mandated subject or to the control the pair uses.",
+    "ii_capability_question": "OPENGREP'S TAINT ENGINE IS ACTIVE ON SPARK'S OWN SCALA, and the --taint-intrafile toggle is functional at this pin. Two independent measurements establish it. (1) sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala: 2 traced findings at lines 828 and 834 with the flag and 0 without it, the traced route crossing three method boundaries inside the file (predicates@351 -> convertFilters@351 -> filters@645 -> flatMap@861 -> sink@828/834). (2) The source-removed control on the MANDATED subject: with pattern-sources replaced by an unmatchable marker and mode: taint plus every sink retained, DiskStore.scala yields 0 findings against the real rule's 1 at line 72 - so that line-72 result is taint propagation, not a syntactic match. Neither measurement is offered as a substitute for the mandated subject's pair, which remains failed."
+  },
+  "containment": {
+    "wrote_into_harness_artifacts_raw": false,
+    "raw_tree_files_observed": 8,
+    "dataset_rows_contributed": 0,
+    "runner_scripts_invoked": [],
+    "preexisting_files_modified": [],
+    "files_written_by_this_pass": [
+      "harness/artifacts/logs/reverification-f5-taint-ab.log",
+      "harness/artifacts/logs/reverification-f5-taint-ab.json",
+      "harness/artifacts/logs/reverification-f5-taint-ab-on.sarif",
+      "harness/artifacts/logs/reverification-f5-taint-ab-off.sarif",
+      "harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-on.sarif",
+      "harness/artifacts/logs/reverification-f5-taint-ab-hiveshim-off.sarif",
+      "harness/artifacts/logs/reverification-f5-taint-ab-source-removed.sarif",
+      "harness/artifacts/logs/reverification-f5-taint-engine-options.txt"
+    ],
+    "large_heap_jvm_started": false,
+    "code_property_graph_loaded": false,
+    "credentials_provisioned": [],
+    "credential_state_observed": {
+      "SEMGREP_APP_TOKEN": "absent",
+      "DD_API_KEY": "absent",
+      "DD_APP_KEY": "absent",
+      "NVD_API_KEY": "absent"
+    }
+  },
+  "cited_values": [
+    {
+      "value": "the canonical mandated-pair arms' SARIF digest 7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778 at 4753 bytes",
+      "source": "harness/artifacts/logs/taint-ab-on.sarif and taint-ab-off.sarif",
+      "why_cited": "context only. This pass re-derived the same digest independently for both of its own mandated arms, so the SARIF is byte-stable across clones."
+    },
+    {
+      "value": "the canonical flag set --dataflow-traces --timeout 120 --timeout-threshold 0 --max-target-bytes 20000000 --x-ignore-semgrepignore-files --disable-version-check",
+      "source": "harness/artifacts/logs/taint-ab-on.log, section 'THE COMMAND, VERBATIM' (lines 111-122)",
+      "why_cited": "reused verbatim so this pass measures the same invocation QA measured."
+    },
+    {
+      "value": "the canonical HiveShim arms' digests 1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24 (on) and 6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced (off)",
+      "source": "harness/artifacts/logs/taint-ab-hiveshim-on.sarif and taint-ab-hiveshim-off.sarif",
+      "why_cited": "context only. This pass independently reproduced both digests, which corroborates the HiveShim contrast across generations."
+    }
+  ]
+}

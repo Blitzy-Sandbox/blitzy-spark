@@ -1,0 +1,720 @@
+{
+  "description": "The hand-verified expected result for the negative Dependency-Check fixture whose one defective vulnerability carries a description that is present and empty. Every value was derived by reading the fixture together with the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/dependency_check.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. Key names follow expected/reject-sarif-unresolvable-path.rows.json through its dependency-check sibling expected/reject-dependency-check-unresolvable-path.rows.json, so one generic loader reads them all; the two blocks specific to this condition -- message_variants and no_synthesised_message -- are additive.",
+  "tool": "dependency-check",
+  "scanner_class": "vuln",
+  "adapter": "harness/lib/normalize/adapters/dependency_check.py",
+  "rules": "No user-specified rule governs this file. review_rules returns exactly one line, 'No user rules provided.', which is the complete document; AAP 0.7 and AAP 0.10.2 say the same. Enterprise best practice applies in their place, held to the AAP's own bar: hand-verify rather than record a run, reject rather than infer, and state an absence rather than omit it. This file exists because of AAP 0.6.1, AAP 0.6.2 and AAP 0.9.4, not because of a rule.",
+  "reference_case_for": [
+    "the missing-message rejection for a shape whose message has a SINGLE source -- dependencies[].vulnerabilities[].description -- so emptying that one member is sufficient to produce the condition and there is no second member for a reader to suspect instead",
+    "the fallback hazard this shape carries and the SARIF shape does not: a Dependency-Check vulnerability surrounds its description with name, notes, cwes[] and references[] entries carrying their own names and URLs, every one of which reads exactly like a description, so an adapter reaching for a fallback would emit a plausible, well-formed message the tool never wrote",
+    "numeric severity banding on two rows at once, one banding Low and the other Medium, inside a fixture that ostensibly tests messages alone -- so a banding regression cannot hide here. The two full-precision values are carried as JSON numbers under severity_policy.float_representation_artifacts and under row_derivations, and appear in no prose field of this document, so a grep for either literal inside a text field finds nothing"
+  ],
+  "fixture": {
+    "path": "oss-scan-results/adapter-tests/fixtures/reject-dependency-check-missing-message.json",
+    "sha256": "924f3373ed918efde1a80e081c0e5738aa023b8b741c949cdb600282df47e59c",
+    "bytes": 10275,
+    "lines": 276,
+    "line_ending": "LF, with a trailing newline and no CR anywhere",
+    "report_schema": "1.1",
+    "engine_version": "13.0.0",
+    "dependencies": 5,
+    "dependencies_carrying_a_vulnerabilities_key": 4,
+    "vulnerability_records": 4,
+    "derived_from": "oss-scan-results/adapter-tests/fixtures/derived-dependency-check-features.json (sha256 53fb2fa91725148f1b33df951f95e8ee01ef98ec62bebb10b73bd541bf10de68, 21766 bytes, 8 vulnerability records), the declared-derived fixture this tree already carries -- the positive fixture oss-scan-results/adapter-tests/fixtures/dependency-check.json is a byte-for-byte capture of harness/artifacts/raw/dependency-check.json, whose 32 dependencies carry zero vulnerabilities and zero packages, so it can source no vulnerability record here",
+    "derivation": [
+      "three dependencies are that file's entries carried over whole and unaltered, compared as parsed JSON: index 0 here is its index 1 (jquery.cookies.2.2.0.min.js), index 1 here is its index 3 (d3-flamegraph.min.js), and index 4 here is its index 7 (package.json). They are what establishes that the adapter rejects one record while still emitting the others.",
+      "index 2 is the defective dependency. Its envelope -- isVirtual, fileName, filePath, md5, sha1, sha256 and evidenceCollected -- is captured verbatim from harness/artifacts/raw/dependency-check.json's jquery-3.5.1.min.js entry and compares identical to it. Its packages[], vulnerabilityIds[] and vulnerabilities[] arrays are authored here, because the raw artifact carries none of those three for that dependency or for any other.",
+      "index 3 is docs/Gemfile.lock. Its envelope and its packages[] array are byte-identical to the declared-derived oss-scan-results/adapter-tests/fixtures/derived-dependency-check-features.json's index 6 -- authored there rather than captured, since the runner passed 18 absolute --scan paths and never reached docs/ -- and its single CVE-2024-49761 record is an OSS Index-sourced variant of the NVD record that derived fixture carries: same name and same description, with source OSSINDEX, an added unscored 'true', severity as a JSON number carrying the measured float32-to-float64 tail -- the value recorded under severity_policy.float_representation_artifacts.row_2.observed_severity -- in place of the label MEDIUM, the cvssv3 block dropped along with that label, cwes ['CWE-400'] in place of ['NVD-CWE-noinfo'], the reference pointing at the OSS Index advisory, and vulnerableSoftware emptied.",
+      "reportSchema, scanInfo (all four NVD dataSource timestamps) and projectInfo are byte-identical to the positive fixture oss-scan-results/adapter-tests/fixtures/dependency-check.json, which is harness/artifacts/raw/dependency-check.json byte for byte, and to the derived fixture as well.",
+      "no dependency present in the declared-derived oss-scan-results/adapter-tests/fixtures/derived-dependency-check-features.json was modified in place: the five entries here are three carried whole, one new envelope with authored arrays, and one envelope-plus-packages pair carrying a varied record."
+    ],
+    "captured_provenance": "A negative fixture is derived from the captured one rather than being an excerpt of it, so the provenance is stated per dependency instead of claimed for the file. Envelopes that compare identical to the raw artifact: indices 0, 1, 2 and 4. Envelope carried from the declared-derived oss-scan-results/adapter-tests/fixtures/derived-dependency-check-features.json, which authored it: index 3. Every packages[], vulnerabilityIds[] and vulnerabilities[] array in this shape is authored, as oss-scan-results/adapter-tests/expected/derived-dependency-check-features.rows.json's own fixture block records -- the raw artifact carries 32 dependencies with ZERO vulnerabilities and ZERO packages, so no excerpt of it can exercise a single field of this adapter's row builder.",
+    "the_defect_appears_in_no_captured_artifact": "harness/artifacts/raw/dependency-check.json carries no vulnerability record at all, so it carries no record with an absent or empty description either. The defective record is demonstrably this fixture's own addition rather than something the tool emitted, and the claim is a counting fact rather than an inspection: zero records means zero records of any shape. What the raw artifact does supply is the jquery-3.5.1.min.js envelope the defect is hung on, which is why that envelope is named as captured and its arrays are named as authored.",
+    "carrier_reuse": "The jquery-3.5.1.min.js envelope also appears in oss-scan-results/adapter-tests/fixtures/reject-dependency-check-malformed-record.json, at its index 5 with an empty vulnerabilities array -- so it contributes no record there and is not defective there. Naming it here keeps a reader from reading the shared envelope as a shared defect.",
+    "authored_shapes_follow": "Dependency-Check 13.0.0's own report members, as verified against the raw artifact and against the field names harness/lib/normalize/adapters/dependency_check.py reads: source, name, severity, unscored, cvssv3.baseScore, cwes[], description, notes, references[], vulnerableSoftware[], vulnerabilityIds[].id and packages[].id together with the ecosystem/name/version triple a package object can carry.",
+    "re_derivation_trigger": "These rows are re-derived when the fixture changes, which is what the recorded sha256 above makes visible. A value here is never adjusted to keep a test green."
+  },
+  "routing": {
+    "shape": "dependency-check native",
+    "detected_by": "normalize.shape.is_sarif returns false -- the document carries neither a version of '2.1.0' nor a runs array, and those two together are the whole SARIF test -- so shape.route reports shape 'native'.",
+    "which_native_adapter_is_keyed_by_the_writer_not_the_content": "Stated exactly, because it is easy to get backwards: shape.route resolves the adapter from the WRITING RUNNER's identity -- the canonical tool identifier, or the artifact filename dependency-check.json, or a path ending in it -- and never fingerprints a native document to guess its tool. The module's own words are 'Routing is keyed by the writer, never sniffed from content'. No reportSchema, scanInfo or dependencies member is consulted to reach this adapter; the only structural statement shape.py makes about a native document is that its top level is a JSON object or array, and everything inside the container belongs to the adapter.",
+    "adapter_module": "normalize.adapters.dependency_check",
+    "routing_decision": "normalize.shape.route('dependency-check', doc) returns tool 'dependency-check', shape 'native', adapter 'dependency_check', scanner_class 'vuln'",
+    "routes_successfully": true,
+    "rejection_is_record_level": true,
+    "not_a_shape_failure": "No normalize.shape.UnknownArtifactShape is expected here. This document is a well-formed Dependency-Check report; its defect is one record, not its shape, and a test asserting a shape failure against this fixture would be asserting the wrong thing. The fixtures that own shape-detection failure are near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json.",
+    "negative_routing_test": "The mandated negative routing assertion -- that a native artifact must not route to the SARIF adapter -- belongs to test_shape_routing_negative.py and is not restated as an expectation of this fixture."
+  },
+  "field_order": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_native",
+    "severity_norm",
+    "path",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate",
+    "in_scope"
+  ],
+  "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+  "absence_permitted_fields": [
+    "severity_native",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate"
+  ],
+  "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS, and message being one of them is the whole reason this fixture's defective record cannot become a row.",
+  "severity_norm_vocabulary": [
+    "Critical",
+    "High",
+    "Medium",
+    "Low",
+    "Info"
+  ],
+  "allowlist": {
+    "path": "harness/scope/allowlist.txt",
+    "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+    "globs": 12,
+    "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each in-scope row matched is recorded per row under row_derivations, the out-of-scope row records why it matched none, and the glob the rejected record's path would have matched is recorded under rejections -- recorded there precisely because it never becomes an in_scope value."
+  },
+  "resolution_context": {
+    "root": "/opt/spark-src",
+    "root_dependence": "Every filePath in this artifact is filesystem-absolute and carries the root as a literal prefix, so these rows are stated for the root the fixture's own paths are under -- /opt/spark-src, the value harness/artifacts/logs/runner-metadata.json records as spark_src. They are not root-independent in the way an already-root-relative uri is. No row's path field is absolute and none retains that prefix. The rejected record is root-independent for a different reason: it is classified at the message step, before any base is consulted, so no choice of root changes its outcome.",
+    "path_base_kind": "filesystem_absolute",
+    "path_base_value": "/opt/spark-src",
+    "path_base_source": "harness/artifacts/logs/runner-metadata.json, the dependency-check entry's path_base -- read as input, never assumed",
+    "path_base_record_path_field": "the enclosing dependencies[].filePath",
+    "path_base_evidence": "The runner builds one absolute --scan argument per allowlist directory (18 in a single invocation, invocations_per_run 1), so dependencies[].filePath is filesystem-absolute under the scan root and the resolution is a straight relativization.",
+    "working_directory": "/opt/spark-src -- equal to the scan root, and deliberately NOT the path base: the tool reports absolute paths because it was handed absolute --scan arguments, not because of where the process ran.",
+    "path_basis": "absolute-relativized-to-root on all three rows",
+    "path_kinds_present": "tree_file on 3 rows; outside_root and archive_member on none, since no filePath here names a location above the root or a member inside a container",
+    "archive_separator_never_inserted": "dependency_check.prepare_file_path splits nothing in this fixture. No filePath carries a segment whose extension is in normalize.paths.ARCHIVE_EXTENSIONS -- the four reported paths end .js, .js, .js and .lock -- so archive_references_split is 0 and every path reaches the resolver exactly as the artifact wrote it.",
+    "start_line": "null on every row, and deliberately so rather than by omission. Dependency-Check reports at dependency granularity -- a vulnerable component, not a line of code -- and this artifact carries no line information in any member, at any depth. Synthesising one would be inference. It is also why no reject-dependency-check-non-integer-start-line fixture exists: there is no start_line in this shape for a non-integer to occupy, so that rejection condition is unreachable for this adapter and its absence is a fact rather than a gap.",
+    "package_coordinate": "Present on all three rows. For this shape an unformable coordinate is a rejection rather than a null field, so a row reaching the dataset always carries one; that rejection belongs to reject-dependency-check-no-package-coordinate.json.",
+    "count_unit": "dependencies[].vulnerabilities[] -- one vulnerability is one record, whatever the dependency around it does"
+  },
+  "rejection_class": {
+    "expected_class": "missing_message",
+    "expected_class_authority": "harness/lib/normalize/paths.py, the REJECT_MISSING_MESSAGE constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten, spelled 'missing_message' there and described as 'the record carries no message'. Quoted verbatim rather than paraphrased, and asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+    "derivation": [
+      "the defective vulnerability's description is the empty string '' (fixture pointer /dependencies/2/vulnerabilities/0/description), so the member is present and carries nothing",
+      "dependency_check._non_empty_string returns None for a string that strips to nothing, which is the reading that makes an empty description an absence rather than a value",
+      "step 3 of the adapter's fixed classification order tests exactly that and returns paths.make_rejection(paths.REJECT_MISSING_MESSAGE, ...) with the sub-reason naming which of the three routes it was",
+      "no other step can claim this record: step 1 passes because the vulnerability is a JSON object, step 2 passes because its name is a usable string, and steps 4 and 5 are never reached"
+    ],
+    "the_filename_and_the_class_agree_here": "Unlike the sibling expected/reject-dependency-check-unresolvable-path.rows.json, whose fixture slug names a class its records cannot produce, this fixture's slug and its class are the same word: the condition AAP 0.5.4 enumerates as 'a missing message' is spelled missing_message in paths.py, and that is what this fixture produces. Stated because a reader who met the sibling first would reasonably check.",
+    "the_error_this_prevents": "Two errors, and both are single-line changes to the adapter. Emitting a row whose message is the empty string satisfies the twelve-field shape while asserting that Dependency-Check reported a finding with no text; emit.py would refuse it, since message is in REQUIRED_FIELDS, but an adapter that dropped the record instead would break raw == rows + rejections silently. The second is the fallback: filling the field from name, notes, cwes[], a references[] entry or the enclosing fileName produces a row that reads perfectly and is wrong in the one way nothing downstream can detect. no_synthesised_message below fixes that outcome mechanically."
+  },
+  "rejection_boundary": {
+    "statement": "A record with no usable message is a rejection. It is not a row carrying an empty message, and it is not a row carrying a message assembled from somewhere else. This fixture exists to fix that outcome, because both alternatives are reachable in one line of code and neither is detectable downstream once written.",
+    "why_it_can_only_be_a_rejection": "AAP 0.8.2 fixes the closed set of fields permitted to be absent, and emit.py encodes it: OPTIONAL_FIELDS is exactly severity_native, start_line, cwe, cve and package_coordinate, and message is not among them -- it is in emit.REQUIRED_FIELDS, and emit.validate_rows refuses a required field that is null or blank rather than writing it. So no valid row representation of a record without a message exists at all, which leaves exactly two other outcomes and both hide the record: dropping it silently breaks raw == rows + rejections, and manufacturing a message asserts something the tool never said. Counting it under a named class is the only outcome that keeps the record visible and the arithmetic honest.",
+    "not_the_same_as_an_absent_optional": "A row whose severity_native, start_line, cwe, cve or package_coordinate is null is an ordinary row, and every row in this fixture is one -- row 0 carries three nulls, rows 1 and 2 carry two each. The distinction is the closed set, not the shape of the value: null in an optional field is the absence convention working, null in message would be a schema violation.",
+    "not_a_malformed_record": "For this shape a description that is present but is not a string is still missing_message, not malformed_record. That differs from the SARIF shape, where message is an object and a non-object message is a wrong shape, and the difference is a property of the artifact rather than a policy choice: description is a scalar member, so there is no object shape for it to violate. malformed_record for this adapter is reserved for a vulnerabilities element that is not an object at all, which reject-dependency-check-malformed-record.json owns.",
+    "not_a_rejection": [
+      {
+        "case": "a numeric severity carrying a float32-to-float64 representation tail",
+        "expected": "an ordinary row, banded numerically, with severity_native rendered to one decimal place",
+        "evidence": "Rows 1 and 2, whose severity members are JSON numbers carrying the measured float32-to-float64 tails recorded under severity_policy.float_representation_artifacts.measured_values. Reading either as an unmapped literal, or rejecting it for not being a label, would drop a row this tool legitimately produces.",
+        "present_in_this_fixture": true,
+        "rows": [
+          1,
+          2
+        ]
+      },
+      {
+        "case": "a path outside the twelve authoritative globs",
+        "expected": "a kept row with in_scope false, counted under rows_out_of_scope",
+        "evidence": "Row 2, docs/Gemfile.lock. It exists in the pinned tree, it is legitimately reachable by a dependency-oriented scanner, and it matches no glob. AAP 0.9.3 keeps it and AAP 0.8.3 is explicit that an individual out-of-glob coordinate never establishes a wrong scan root.",
+        "present_in_this_fixture": true,
+        "rows": [
+          2
+        ]
+      },
+      {
+        "case": "an absent cwe, an absent cve, or both",
+        "expected": "an ordinary row with the field null, since both are in the permitted-absence set",
+        "evidence": "Row 0 carries neither -- its record has no cwes member and its name is a prose advisory title -- and row 1 carries a cwe but no cve. Neither absence is a defect: cwe_absent and cve_absent count them and the rows are emitted.",
+        "present_in_this_fixture": true,
+        "rows": [
+          0,
+          1
+        ]
+      }
+    ],
+    "no_synthesised_content": "Nothing in this file supplies a message for the rejected record, not even a plausible one. The candidate strings a synthesiser would reach for are enumerated under no_synthesised_message so a test can assert their absence, never so that one can be adopted.",
+    "no_dropped_record": "The rejected record is counted, not discarded. rejections is 1 and rejections_by_class names the class, so the record survives in the record even though it produces no row."
+  },
+  "message_variants": {
+    "authority": "harness/lib/normalize/adapters/dependency_check.py, step 3 of _adapt_vulnerability, which reads dependencies[].vulnerabilities[].description through _non_empty_string and nothing else. The class is the same for every route that ends in a message the artifact does not carry; the detail is what distinguishes them, which is why a test asserts the class exactly and the detail by its distinguishing substrings.",
+    "class_for_every_absent_message": "missing_message",
+    "single_source": "This shape has exactly one message member. AAP 0.5.4's field table gives dependency-check 'message <- description', and the adapter reads no other member for it -- not title, not summary, not the rule's own text, because a Dependency-Check vulnerability has none of those. So removing the member or emptying it are the whole of the condition, and this fixture exercises the emptying.",
+    "variants": [
+      {
+        "variant": "description present as an empty or whitespace-only string",
+        "present_in_this_fixture": true,
+        "pointer": "/dependencies/2/vulnerabilities/0/description",
+        "observed_value": "",
+        "expected_reject_class": "missing_message",
+        "expected_detail": "the vulnerability's description is empty or whitespace only",
+        "why_this_is_the_variant_worth_carrying": "It is the form a real producer most likely emits, and the one a loose check handles inconsistently: 'description' in record is true, record.get('description') is not None is true, and only a non-empty-string test rejects it. A fixture carrying only the absent-key variant would pass an adapter that wrote an empty message into a row. The blank test is on strip() while a surviving message is returned stripped of surrounding whitespace and otherwise verbatim, so a whitespace-only description is this same variant and reaches the same class.",
+        "cover_with": "this fixture"
+      },
+      {
+        "variant": "the vulnerability carries no description member at all",
+        "present_in_this_fixture": false,
+        "expected_reject_class": "missing_message",
+        "expected_detail": "the vulnerability carries no description",
+        "cover_with": "a derived fixture whose defective record omits the description key entirely"
+      },
+      {
+        "variant": "description present but not a string",
+        "present_in_this_fixture": false,
+        "expected_reject_class": "missing_message",
+        "expected_detail": "the vulnerability's description is a <python type name>, not a string",
+        "note": "The detail names the observed type through dependency_check._type_name, so a JSON array reads 'a list' and a JSON number 'a float' or 'an int' -- the module's own words, which is why the placeholder above is described rather than guessed at. This route stays missing_message rather than crossing into malformed_record, for the reason rejection_boundary.not_a_malformed_record gives.",
+        "cover_with": "a derived fixture whose defective record carries a numeric or array description"
+      }
+    ],
+    "the_neighbouring_class_and_where_it_lives": "A vulnerabilities element that is not an object at all never reaches step 3: step 1 rejects it under malformed_record with the detail naming the type that arrived. reject-dependency-check-malformed-record.json owns that case and carries two of them, so the two classes are drawn apart by separate fixtures rather than by one fixture's prose."
+  },
+  "no_synthesised_message": {
+    "prohibition": "No emitted row's message may be assembled from any part of the artifact that is not the record's own description. A synthesised message asserts something the tool never said, which AAP 0.1.3's reject-rather-than-infer rule forbids outright: where a record cannot be attributed with certainty it is rejected and counted, never guessed into a field.",
+    "why_it_needs_asserting_for_this_shape_in_particular": "A Dependency-Check vulnerability is unusually rich in description-shaped material. The defective record here carries a name, a non-empty notes sentence, a cwes entry, and two references entries each with a name and a URL -- and its enclosing dependency carries a fileName. Every one of those reads as a plausible finding message, and the notes member is the worst of them: it is a full sentence of English prose sitting immediately beside the emptied description, so an adapter falling back to it would produce a row that looks entirely ordinary. The SARIF shape's equivalent hazard is one rule descriptor; this shape's is six candidates on the record itself.",
+    "checked_by": "substring comparison against every emitted row's message, in both directions of the phrase 'equals or contains', and not by inspection. Equality alone would miss a message built by concatenating one of these strings with anything else.",
+    "forbidden_strings_from_the_defective_record": {
+      "name": "CVE-2020-11022",
+      "notes": "Matched from the file name because the bundled copy is minified and no manifest accompanies it.",
+      "cwes": [
+        "CWE-79"
+      ],
+      "references_names": [
+        "CVE-2020-11022",
+        "Script execution from markup handed to a DOM insertion helper"
+      ],
+      "references_urls": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2020-11022",
+        "https://github.com/jquery/jquery"
+      ],
+      "enclosing_dependency_fileName": "jquery-3.5.1.min.js",
+      "enclosing_dependency_filePath_note": "The enclosing filePath is the same value with the root prefixed; it is not listed separately because containing the fileName is sufficient for the substring test to catch it.",
+      "cvss_baseSeverity": "MEDIUM",
+      "vulnerableSoftware_id": "cpe:2.3:a:jquery:jquery:3.5.1:*:*:*:*:*:*:*"
+    },
+    "verified_absent": "None of those strings equals, and none is a substring of, any of the three emitted messages. Verified against the fixture rather than asserted: the three emitted messages are the cookie-deserialization, flame-graph-prototype and XML-numeric-reference sentences below, and none of them contains an advisory identifier, a CWE token, a URL, a filename or the word MEDIUM.",
+    "scoping_the_check_correctly": "The comparison is scoped to the defective record and its enclosing dependency. Scoped instead to every record in the artifact it would false-positive, because each surviving record's own description IS its message -- that is the adapter working, not synthesis. A test that widened the scope would fail against a correct adapter, which is the more expensive of the two mistakes.",
+    "the_synthesised_value_would_be_recognisable": "Because the notes sentence appears nowhere else in this tree and nowhere in harness/artifacts/raw/dependency-check.json, its appearance in any row derived from this fixture is the violation rather than a coincidence. The same holds for the second reference's name, which was written to read like a finding description for exactly this reason.",
+    "and_nothing_of_the_record_reaches_any_field": "Not only message. The rejected record contributes no rule_id, no severity literal, no cwe, no cve, no package coordinate and no path to the dataset, because step 3 ends the record before any of those are built. Its CWE-79, its formable coordinate pkg:javascript/jquery@3.5.1 and its MEDIUM label are all in the artifact and in none of the three rows."
+  },
+  "counts": {
+    "raw_finding_records": 4,
+    "raw_count_unit": "one element of dependencies[].vulnerabilities[] -- the unit normalize.reconcile.count_records walks independently of row construction, summing len(vulnerabilities) over dependencies[]",
+    "raw_count_derivation": "sum(len(d.vulnerabilities)) over the five dependencies = 1 + 1 + 1 + 1 + 0. The last term is the fifth dependency, core/src/main/resources/org/apache/spark/ui/static/package.json, which carries no vulnerabilities key at all: it contributes no record, is not a rejection, and is counted under dependencies_without_vulnerabilities_array.",
+    "raw_count_authority": "harness/lib/normalize/reconcile.py, _count_dependency_check, reached through count_records('dependency-check', doc). It builds no row, resolves no path, reads no description and maps no severity, which is the whole point of it: a count taken from the traversal that builds the rows satisfies the identity while testing nothing. Four is also the figure a reader arrives at by hand from the fixture, and the two agreeing is the point.",
+    "rows": 3,
+    "rejections": 1,
+    "rejections_by_class": {
+      "missing_message": 1
+    },
+    "rejection_count_unit_note": "ONE, decided from the fixture rather than assumed. The defective dependency carries exactly one vulnerability, so the record count and the dependency count coincide here -- unlike the sibling reject-dependency-check-unresolvable-path fixture, whose defective dependency carries two vulnerabilities and therefore produces two rejections. The unit is the vulnerability in both cases.",
+    "reconciliation_identity": "raw_finding_records == rows + rejections",
+    "reconciliation_arithmetic": "4 == 3 + 1",
+    "independent_count_authority": "The left side comes from reconcile.count_records and the right from the adapter's own return value, which is what makes the identity a test rather than a restatement.",
+    "four_reported_counters": {
+      "authority": "AAP 0.5.4 -- the four counts reported per tool",
+      "names": [
+        "multi_location_records",
+        "multi_valued_cwe_records",
+        "multi_valued_cve_records",
+        "non_filesystem_paths"
+      ],
+      "values_live_in": "counters",
+      "all_four_are_zero_for_this_fixture": true,
+      "note": "Named here rather than restated with their values. The counters block below is the single measurement, and a number carried twice inside one document is a number that can drift; counters_note gives the reason each of the four is zero."
+    },
+    "parse_status": "partial",
+    "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = 'partial', assigned wherever an artifact yielded at least one rejection. Partial is right precisely because the adapter did not abandon the artifact: three of the four records parsed and were emitted, one was rejected and counted under its class with its parser reason retained, and nothing was dropped or coerced. This is deliberately not normalize.reconcile's STATUS_PASS / STATUS_FAIL / STATUS_NOT_APPLICABLE vocabulary, which describes an assertion's outcome rather than an artifact's parse."
+  },
+  "counters": {
+    "dependencies": 5,
+    "dependencies_skipped_non_mapping": 0,
+    "dependencies_without_vulnerabilities_array": 1,
+    "multi_location_records": 0,
+    "multi_valued_cwe_records": 0,
+    "multi_valued_cve_records": 0,
+    "non_filesystem_paths": 0,
+    "archive_references_split": 0,
+    "rows_in_scope": 2,
+    "rows_out_of_scope": 1,
+    "start_line_absent": 3,
+    "severity_label_present": 3,
+    "severity_label_absent": 0,
+    "severity_score_candidates_present": 0,
+    "severity_selected_score_with_source_and_version": 0,
+    "cwe_absent": 1,
+    "cwe_entries_without_identifier": 0,
+    "cve_absent": 2,
+    "package_coordinate_from_record_package_url": 0,
+    "package_coordinate_from_package_object_package_url": 2,
+    "package_coordinate_from_record_fields": 0,
+    "package_coordinate_from_package_object_fields": 1,
+    "package_coordinate_multiple_candidates_at_level": 1,
+    "package_coordinate_unformable": 0,
+    "path_kind_tree_file": 3,
+    "path_kind_outside_root": 0,
+    "path_kind_archive_member": 0,
+    "path_kind_bytecode_source": 0,
+    "severity_basis_sarif_level": 0,
+    "severity_basis_label": 1,
+    "severity_basis_cvss_score": 2,
+    "severity_basis_no_vocabulary": 0,
+    "severity_basis_unmapped_literal": 0
+  },
+  "counters_authority": "harness/lib/normalize/adapters/dependency_check.py, COUNTER_KEYS as returned by new_counters(): thirty-three keys in that order -- twenty-four authored, plus one path_kind_* per normalize.paths.PATH_KINDS member and one severity_basis_* per normalize.severity.BASIS_VALUES member.",
+  "counters_note": "The four counters AAP 0.5.4 has reported per tool are all zero here, each for its own reason. multi_location_records 0 -- no dependency carries a relatedDependencies array, which is the only multi-location shape this report has. multi_valued_cwe_records 0 -- the two records carrying a cwes array carry exactly one entry each, so no record yields two distinct identifiers. multi_valued_cve_records 0 -- a Dependency-Check name carries at most one identifier. non_filesystem_paths 0 -- all three emitted paths name a plain file inside the scanned tree, so path_kind_archive_member and path_kind_outside_root are both 0 too. Two further asymmetries are the classification order made visible rather than miscounts: severity_score_candidates_present is 0 even though the artifact contains a cvssv3 block, because the only record carrying one is the rejected record and step 3 ends it before step 5 and severity are reached; and severity_label_present is 3 rather than 1, because that counter asks whether a severity member is present at all, so the two JSON numbers count as present even though their basis is a score.",
+  "counters_arithmetic": [
+    "dependencies 5 == the five elements of dependencies[]",
+    "dependencies_skipped_non_mapping 0 + dependencies_without_vulnerabilities_array 1 == the one dependency contributing no record",
+    "rows_in_scope 2 + rows_out_of_scope 1 == rows 3 -- one measurement split, not a second count of the same thing",
+    "start_line_absent 3 == rows 3, by the policy stated in resolution_context.start_line",
+    "severity_label_present 3 + severity_label_absent 0 == rows 3",
+    "severity_basis_label 1 + severity_basis_cvss_score 2 == rows 3, and the other three bases are 0",
+    "package_coordinate_from_package_object_package_url 2 + package_coordinate_from_package_object_fields 1 == rows 3, levels 1 and 3 are 0, and package_coordinate_unformable 0 because every emitted row formed one",
+    "path_kind_tree_file 3 == rows 3, and non_filesystem_paths 0 == path_kind_archive_member 0 + path_kind_outside_root 0",
+    "archive_references_split 0 == path_kind_archive_member 0 here; the two are distinct measurements that happen to agree, since a filePath already carrying a '!' would be an archive member that was never split",
+    "cwe_absent 1 == row 0; cve_absent 2 == rows 0 and 1",
+    "the four counted records are 3 rows + 1 rejection, and no counter above counts the rejected record: a rejection at step 3 never reaches the multi-location, path, coordinate, severity, cwe, cve, path-kind or in_scope tallies"
+  ],
+  "package_coordinate_precedence": {
+    "authority": "AAP 0.5.4's one candidate precedence for every dependency-oriented shape, implemented by harness/lib/normalize/adapters/dependency_check.py's package_coordinate(). oss-scan-results/adapter-tests/expected/derived-dependency-check-features.rows.json is the reference case for the precedence as a whole -- the positive expected file expected/dependency-check.rows.json carries no row, its captured artifact resolving no package at all.",
+    "levels_reached_here": {
+      "package_object_package_url": {
+        "level": 2,
+        "rule": "a package URL on the enclosing package object -- for this shape the enclosing dependency's packages[] entries, pooled across every entry before the tiebreak is applied",
+        "rows": [
+          0,
+          2
+        ],
+        "note": "Both dependencies carry a packages[] entry whose id is a pkg: URL, so level 2 stops first and level 1 is unreached -- no record here carries its own purl, packageUrl, packageURL or package_url member."
+      },
+      "package_object_ecosystem_name_version": {
+        "level": 4,
+        "rule": "<ecosystem>:<name>@<version> from the enclosing package object's own fields, with the ecosystem lower-cased",
+        "rows": [
+          1
+        ],
+        "note": "Row 1 is the fixture's demonstration that a CPE is not coerced into a package URL. Its only packages[] entry carries id 'cpe:2.3:a:d3-flame-graph:d3-flame-graph:4.1.3:*:*:*:*:*:*:*', which does not match the pkg: scheme, so level 2 offers nothing; level 3 is refused because the record's only name-bearing field is name and it equals this record's own rule_id; and level 4 forms 'javascript:d3-flame-graph@4.1.3' from ecosystem 'JavaScript' lower-cased, name and version.",
+        "ecosystem_lower_cased_from": "JavaScript"
+      }
+    },
+    "tiebreak": "Where several candidates sit at one level the lexicographically smallest wins, over the pooled candidates of the whole level rather than within one package object -- taking the first entry's value instead would make the coordinate depend on producer order.",
+    "tiebreak_exercised_by": {
+      "row": 0,
+      "candidates": [
+        "pkg:javascript/jquery.cookies@2.2.0",
+        "pkg:npm/jquery.cookies@2.2.0"
+      ],
+      "winner": "pkg:javascript/jquery.cookies@2.2.0",
+      "why": "'pkg:javascript/...' sorts before 'pkg:npm/...' because 'j' precedes 'n'. Producer order puts the npm entry first and marks it confidence LOW while the javascript entry is HIGH, so neither the array order nor the confidence field decides this: the stated lexicographic rule does, and it is the only one of the three that is reproducible.",
+      "counter": "package_coordinate_multiple_candidates_at_level, 1"
+    },
+    "the_rejected_record_also_had_one": "The defective record sits under a dependency carrying pkg:javascript/jquery@3.5.1, so a coordinate was formable for it at level 2. It never reaches level 2, because step 5 runs after step 3 and the message rejected first. That ordering is why the coordinate counters sum to 3 rather than 4, and it is asserted rather than incidental: a coordinate counter that moved for a rejected record would mean the classification order had been reordered.",
+    "vulnerability_ids_never_consulted": "The defective dependency is the only one here carrying a vulnerabilityIds[] array, and its single entry is a CPE. package_coordinate() does not read that member at all, for the reason its docstring gives: a CPE is not the coordinate form the schema defines, and reading one as a coordinate would be inference. Named here because the array's presence could otherwise be read as a third candidate source.",
+    "unformable_belongs_elsewhere": "Where no candidate can be formed at any level the field is not emitted null: for this dependency-oriented shape the record is rejected under unformable_package_coordinate. That case belongs to oss-scan-results/adapter-tests/fixtures/reject-dependency-check-no-package-coordinate.json, which is why package_coordinate_unformable is 0 above."
+  },
+  "severity_policy": {
+    "authority": "harness/lib/normalize/severity.py -- the case-insensitive label map, the CVSS v3.1 section 5 band table, and resolve()'s ordered precedence. Nothing is mapped or banded in the adapter.",
+    "label_over_score": "A native label in the mapped vocabulary governs whatever the scores say; a score is consulted only where no mapped label exists. Either way the entry used is recorded -- the label, or the score with its source and version.",
+    "bands": "9.0-10.0 Critical, 7.0-8.9 High, 4.0-6.9 Medium, 0.1-3.9 Low, 0.0 Info. The boundaries and the first four labels are the CVSS v3.1 section 5 standard's; the standard's None band is emitted under this dataset's own label Info, which is a mapping this dataset defines and not a CVSS label. Banding is by ordered numeric comparison, never lexical.",
+    "severity_native_rendering": "A label reaches severity_native as the literal the tool wrote, stripped of surrounding whitespace and neither case-folded nor coerced -- which is why row 0 carries lower-case 'moderate'. A numeric severity reaches it as a one-decimal rendering of the full-precision value.",
+    "float_representation_artifacts": {
+      "measured_values": [
+        3.200000047683716,
+        5.300000190734863
+      ],
+      "origin": "An OSS Index-sourced record carries no label and Dependency-Check renders the provider's float CVSS score into the severity field, so the float32-to-float64 representation tail reaches the artifact verbatim. Both values are in the fixture exactly as written here, as JSON numbers rather than strings.",
+      "why_both_are_in_a_message_fixture": "Deliberate rather than incidental. A negative fixture that exercised only its named condition would let a banding regression hide in every file that is not the banding fixture, so the two records that carry the artifact tail are kept here and their bands asserted. The two also straddle a band boundary -- Low below 4.0 and Medium at or above it -- so a rounding error large enough to cross it would be visible on one of the two rather than on neither.",
+      "row_1": {
+        "observed_severity": 3.200000047683716,
+        "expected_severity_native": "3.2",
+        "expected_severity_norm": "Low",
+        "basis": "cvss_score",
+        "selected_entry": {
+          "score": 3.200000047683716,
+          "source": "label",
+          "version": null
+        }
+      },
+      "row_2": {
+        "observed_severity": 5.300000190734863,
+        "expected_severity_native": "5.3",
+        "expected_severity_norm": "Medium",
+        "basis": "cvss_score",
+        "selected_entry": {
+          "score": 5.300000190734863,
+          "source": "label",
+          "version": null
+        }
+      },
+      "banding": "Numeric, on the full-precision value rather than on the rendered text: each value bands exactly as its one-decimal rendering does -- 3.2 Low and 5.3 Medium. Rounding to one decimal place cannot cross a band boundary at either value, and the band is never taken from the rendered text.",
+      "no_spurious_precision": "severity_native carries the one-decimal rendering on both rows, so no artifact tail reaches a dataset field. Neither full-precision literal appears in any prose or text field of this document either. Both appear only as JSON numbers, at exactly ten locations: measured_values[0] and [1], row_1.observed_severity and row_1.selected_entry.score, row_2.observed_severity and row_2.selected_entry.score, and the severity_observed_value and selected_entry.score of row_derivations entries 1 and 2 -- which is where severity.py keeps the full-precision value. A test may walk this document and assert that no string node contains either literal.",
+      "path_taken": "In both cases the severity member is a JSON number rather than a mapped label and the record carries no CVSS block at all, so resolve() falls through the label step and the score-candidate step to the numeric-literal step, banding the number in its own right. The recorded entry names source 'label' with a null version -- the value came from the severity member, not from a versioned CVSS block -- which is why neither row increments severity_selected_score_with_source_and_version."
+    },
+    "case_insensitivity": {
+      "row": 0,
+      "observed_literal": "moderate",
+      "expected_severity_native": "moderate",
+      "expected_severity_norm": "Medium",
+      "note": "Absorbed by the case-insensitive map, whose keys are upper-case and whose lookup upper-cases the observed literal. The literal is preserved as written rather than folded, because severity-map.md reports observed literals with per-literal row counts and upper-casing it here would misreport a literal the tool never wrote. The record also carries unscored 'true' and no CVSS block, and neither changes the outcome: a mapped label needs no score."
+    },
+    "label_and_score_coexisting": "The fixture does carry the case AAP 0.5.4 fixes -- a mapped label beside a CVSS score -- and it carries it on the DEFECTIVE record: /dependencies/2/vulnerabilities/0 states severity 'MEDIUM' and a cvssv3 block whose baseScore is 6.1 and whose baseSeverity is MEDIUM. Step 3 rejects that record before severity is resolved, so the precedence is never applied to it and no entry is recorded for it. Stated rather than left out, because the coexistence is visible in the fixture and a reader could otherwise expect a selected_entry for it. The precedence itself is exercised on emitted rows by oss-scan-results/adapter-tests/expected/derived-dependency-check-features.rows.json and by expected/reject-dependency-check-unresolvable-path.rows.json, whose row 0 carries a LOW label against three disagreeing CVSS blocks.",
+    "the_rejected_record_contributes_no_literal": "Its 'MEDIUM' never reaches severity.resolve and is never fed to the LiteralTally, so it cannot appear in severity-map.md against a row the dataset does not contain. That is also why severity_score_candidates_present is 0 here even though a cvssv3 block exists in the artifact.",
+    "never_absent": "severity_norm is absent on no row. severity_native is absent on no row either -- every emitted record carries a severity member -- so severity_basis_no_vocabulary, the only path setting severity_native null, is 0.",
+    "unmapped_literals": "None. Every literal on an emitted row is either a mapped label or a bandable number in 0.0-10.0, so severity_basis_unmapped_literal is 0."
+  },
+  "in_scope_surface": {
+    "statement": "This tool's only in-scope surface at the pin is the vendored web bundles under core/src/main/resources: 30 .js and 10 .css, 40 files, counted on the pinned tree at 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d. Rows 0 and 1 are two of them, and they are the only two in_scope true rows here.",
+    "examples": [
+      "core/src/main/resources/org/apache/spark/ui/static/jquery.cookies.2.2.0.min.js -- row 0, in_scope true, matched glob core/src/main/**",
+      "core/src/main/resources/org/apache/spark/ui/static/d3-flamegraph.min.js -- row 1, in_scope true, matched the same glob"
+    ],
+    "the_manifest_in_scope": "core/src/main/resources/org/apache/spark/ui/static/package.json is in scope by the same glob and appears in this fixture as dependency 4. It contributes no row, because it carries no vulnerabilities key -- not because of its scope. It is 5 lines and 80 bytes at the pin, holding a name, a license and \"type\": \"module\", with no dependencies block and no lockfile beside it, which is the whole reason the twelve authoritative roots resolve zero dependency manifests and this tool reported zero findings over them.",
+    "the_defective_record_was_in_scope_too": "The rejected record's enclosing dependency is core/src/main/resources/org/apache/spark/ui/static/jquery-3.5.1.min.js, a real file in the pinned tree and one of the same 30 .js bundles, whose path matches core/src/main/**. Had its description been usable it would have produced a kept row with in_scope true. That is the strongest available statement that the path step is not what rejected it, and it is why rows_in_scope is 2 rather than 3.",
+    "the_out_of_scope_row": "docs/Gemfile.lock -- row 2, in_scope false, kept and counted. One of the pin's three real lockfiles, legitimately reachable by a dependency-oriented scanner and matching none of the twelve globs.",
+    "no_scope_judgement": "Recorded as a property of the scope, exactly as AAP 0.3.2 requires: the allowlist is not widened to give this tool something to resolve, and zero manifests in scope is a fact to report rather than a condition to fix."
+  },
+  "corroboration": {
+    "source": "none available",
+    "records_compared": 0,
+    "note": "oss-scan-results/findings.json holds 9,430 rows and none of them is a dependency-check row: the tool reported zero findings over the twelve authoritative roots, so there is nothing in the committed dataset to compare these three rows against. The absence is stated rather than papered over -- these rows rest on the fixture and the authored contracts alone, which is what AAP 0.6.2 asks of a hand-verified expected file in any case. The scope fact behind the zero is reported in oss-scan-results/tool-status.md, not here.",
+    "sibling_agreement": "Two of these three rows come from dependency entries this fixture carries over whole from the declared-derived oss-scan-results/adapter-tests/fixtures/derived-dependency-check-features.json, and this file's values for them agree with oss-scan-results/adapter-tests/expected/derived-dependency-check-features.rows.json field for field: row 0 is that file's row 1 and row 1 is its row 3. Row 2 is its row 7 with exactly two of the twelve fields differing and ten identical -- severity_native '5.3' rather than 'MEDIUM' and cwe 'CWE-400' rather than null, severity_norm being Medium either way -- which follows from the record variation fixture.derivation records and from nothing else. That is a consistency check between two hand-derived files rather than corroboration from a run, and it is worth stating for exactly that reason: the two carried rows are unchanged by the defect introduced into a third record."
+  },
+  "rows": [
+    {
+      "tool": "dependency-check",
+      "scanner_class": "vuln",
+      "rule_id": "jquery.cookies 2.2.0 unsafe cookie value deserialization",
+      "message": "The cookie accessor evaluates a stored cookie value as structured data before returning it, so a cookie written by another document on the same registrable domain can influence the object the caller receives.",
+      "severity_native": "moderate",
+      "severity_norm": "Medium",
+      "path": "core/src/main/resources/org/apache/spark/ui/static/jquery.cookies.2.2.0.min.js",
+      "start_line": null,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": "pkg:javascript/jquery.cookies@2.2.0",
+      "in_scope": true
+    },
+    {
+      "tool": "dependency-check",
+      "scanner_class": "vuln",
+      "rule_id": "sonatype-2021-0163",
+      "message": "The flame graph builder copies keys from a supplied node object onto an internal accumulator without excluding prototype-reaching names, so a crafted node label can reach the object prototype.",
+      "severity_native": "3.2",
+      "severity_norm": "Low",
+      "path": "core/src/main/resources/org/apache/spark/ui/static/d3-flamegraph.min.js",
+      "start_line": null,
+      "cwe": "CWE-1321",
+      "cve": null,
+      "package_coordinate": "javascript:d3-flame-graph@4.1.3",
+      "in_scope": true
+    },
+    {
+      "tool": "dependency-check",
+      "scanner_class": "vuln",
+      "rule_id": "CVE-2024-49761",
+      "message": "Parsing an XML document containing many digits in a numeric character reference takes time superlinear in the length of the reference, so a small document can occupy the parser for a long time.",
+      "severity_native": "5.3",
+      "severity_norm": "Medium",
+      "path": "docs/Gemfile.lock",
+      "start_line": null,
+      "cwe": "CWE-400",
+      "cve": "CVE-2024-49761",
+      "package_coordinate": "pkg:gem/rexml@3.4.4",
+      "in_scope": false
+    }
+  ],
+  "row_derivations": [
+    {
+      "row_index": 0,
+      "record_pointer": "/dependencies/0/vulnerabilities/0",
+      "dependency_pointer": "/dependencies/0",
+      "dependency_file_name": "jquery.cookies.2.2.0.min.js",
+      "dependency_is_virtual": false,
+      "record_source": "RETIREJS",
+      "rule_id_source": "/dependencies/0/vulnerabilities/0/name -- a prose advisory title rather than an identifier, which is what a RetireJS record carries and is taken exactly as written",
+      "message_source": "/dependencies/0/vulnerabilities/0/description",
+      "message_note": "Carried verbatim. Never assembled from notes (an empty string on this record), from a references[] entry, or from the enclosing dependency's fileName.",
+      "severity_native_source": "/dependencies/0/vulnerabilities/0/severity",
+      "severity_basis": "label",
+      "severity_counter": "severity_basis_label",
+      "selected_entry": {
+        "label": "moderate"
+      },
+      "cvss_blocks_present": [],
+      "cvss_blocks_consulted": false,
+      "unscored_flag": "/dependencies/0/vulnerabilities/0/unscored is the string 'true'; it is not read as a severity and changes nothing, because a mapped label needs no score",
+      "path_source": "/dependencies/0/filePath",
+      "reported_path_form": "filesystem-absolute: the root followed by the path field of row 0",
+      "path_kind": "tree_file",
+      "path_basis": "absolute-relativized-to-root",
+      "locations_in_record": 1,
+      "start_line_source": null,
+      "start_line_absent_reason": "the artifact carries no line information at any depth; Dependency-Check reports at dependency granularity",
+      "cwe_source": null,
+      "cwe_absent_reason": "the record carries no cwes member at all, so no identifier exists to collect and cwe_absent counts it",
+      "distinct_cwe_identifiers": 0,
+      "cwe_entries_without_identifier": 0,
+      "cve_source": null,
+      "cve_absent_reason": "the name is a prose title and is not CVE-shaped, so select_cve yields nothing; a rule_id that is not an identifier is still a rule_id",
+      "distinct_cve_identifiers": 0,
+      "package_coordinate_source": {
+        "pointers": [
+          "/dependencies/0/packages/0/id",
+          "/dependencies/0/packages/1/id"
+        ],
+        "level": "package_object_package_url",
+        "level_number": 2,
+        "candidates_at_level": 2,
+        "candidates": [
+          "pkg:javascript/jquery.cookies@2.2.0",
+          "pkg:npm/jquery.cookies@2.2.0"
+        ],
+        "tiebreak": "lexicographically smallest",
+        "note": "The npm entry is first in the array and the javascript entry carries confidence HIGH against the npm entry's LOW; neither array order nor confidence decides this. The stated lexicographic rule does, so the winner is the entry at index 1."
+      },
+      "matched_allowlist_glob": "core/src/main/**",
+      "out_of_scope_reason": null
+    },
+    {
+      "row_index": 1,
+      "record_pointer": "/dependencies/1/vulnerabilities/0",
+      "dependency_pointer": "/dependencies/1",
+      "dependency_file_name": "d3-flamegraph.min.js",
+      "dependency_is_virtual": false,
+      "record_source": "OSSINDEX",
+      "rule_id_source": "/dependencies/1/vulnerabilities/0/name",
+      "message_source": "/dependencies/1/vulnerabilities/0/description",
+      "message_note": "Carried verbatim; notes is an empty string and is not appended.",
+      "severity_native_source": "/dependencies/1/vulnerabilities/0/severity -- a JSON number, not a label",
+      "severity_observed_value": 3.200000047683716,
+      "severity_basis": "cvss_score",
+      "severity_counter": "severity_basis_cvss_score",
+      "selected_entry": {
+        "score": 3.200000047683716,
+        "source": "label",
+        "version": null
+      },
+      "severity_derivation": "No mapped label exists and the record carries no CVSS block, so the number is banded on its own: the value recorded under severity_observed_value falls in the 0.1-3.9 band and bands Low, and severity_native is its one-decimal rendering '3.2'. The entry names source 'label' and no version because the value came from the severity member rather than from a versioned CVSS block, which is why this row does not increment severity_selected_score_with_source_and_version.",
+      "cvss_blocks_present": [],
+      "cvss_blocks_consulted": false,
+      "unscored_flag": "/dependencies/1/vulnerabilities/0/unscored is the string 'true'; it is not read as a severity, and the number in the severity member is what bands the row",
+      "path_source": "/dependencies/1/filePath",
+      "reported_path_form": "filesystem-absolute: the root followed by the path field of row 1",
+      "path_kind": "tree_file",
+      "path_basis": "absolute-relativized-to-root",
+      "locations_in_record": 1,
+      "start_line_source": null,
+      "start_line_absent_reason": "as row 0",
+      "cwe_source": {
+        "pointer": "/dependencies/1/vulnerabilities/0/cwes/0",
+        "text": "CWE-1321"
+      },
+      "cwe_absent_reason": null,
+      "distinct_cwe_identifiers": 1,
+      "cwe_entries_without_identifier": 0,
+      "cve_source": null,
+      "cve_absent_reason": "the name 'sonatype-2021-0163' is an OSS Index advisory identifier and is not CVE-shaped, so cve is null and the identifier stays in rule_id alone",
+      "distinct_cve_identifiers": 0,
+      "package_coordinate_source": {
+        "pointers": [
+          "/dependencies/1/packages/0/ecosystem",
+          "/dependencies/1/packages/0/name",
+          "/dependencies/1/packages/0/version"
+        ],
+        "level": "package_object_ecosystem_name_version",
+        "level_number": 4,
+        "candidates_at_level": 1,
+        "levels_skipped": [
+          "level 1: the record carries no package URL under purl, packageUrl, packageURL or package_url",
+          "level 2: the package object's id is a CPE, 'cpe:2.3:a:d3-flame-graph:d3-flame-graph:4.1.3:*:*:*:*:*:*:*', which is not a package URL and is never coerced into one; its url member is not a candidate key at all, even though a pkg: string appears inside that URL's query",
+          "level 3: the record's only name-bearing field is name, which equals this record's own rule_id, and a Dependency-Check vulnerability's name is the advisory identifier rather than a package name"
+        ],
+        "ecosystem_lower_cased_from": "JavaScript"
+      },
+      "matched_allowlist_glob": "core/src/main/**",
+      "out_of_scope_reason": null
+    },
+    {
+      "row_index": 2,
+      "record_pointer": "/dependencies/3/vulnerabilities/0",
+      "dependency_pointer": "/dependencies/3",
+      "dependency_file_name": "Gemfile.lock",
+      "dependency_is_virtual": false,
+      "record_source": "OSSINDEX",
+      "rule_id_source": "/dependencies/3/vulnerabilities/0/name",
+      "message_source": "/dependencies/3/vulnerabilities/0/description",
+      "message_note": "Carried verbatim.",
+      "severity_native_source": "/dependencies/3/vulnerabilities/0/severity -- a JSON number, not a label",
+      "severity_observed_value": 5.300000190734863,
+      "severity_basis": "cvss_score",
+      "severity_counter": "severity_basis_cvss_score",
+      "selected_entry": {
+        "score": 5.300000190734863,
+        "source": "label",
+        "version": null
+      },
+      "severity_derivation": "As row 1, one band higher: the value recorded under severity_observed_value falls in the 4.0-6.9 band and bands Medium, and severity_native is '5.3'. The two rows together are what make the numeric path testable at a band boundary rather than at a single point.",
+      "cvss_blocks_present": [],
+      "cvss_blocks_consulted": false,
+      "path_source": "/dependencies/3/filePath",
+      "reported_path_form": "filesystem-absolute: the root followed by docs/Gemfile.lock",
+      "path_kind": "tree_file",
+      "path_basis": "absolute-relativized-to-root",
+      "locations_in_record": 1,
+      "start_line_source": null,
+      "start_line_absent_reason": "as row 0",
+      "cwe_source": {
+        "pointer": "/dependencies/3/vulnerabilities/0/cwes/0",
+        "text": "CWE-400"
+      },
+      "cwe_absent_reason": null,
+      "distinct_cwe_identifiers": 1,
+      "cwe_entries_without_identifier": 0,
+      "cve_source": "/dependencies/3/vulnerabilities/0/name -- CVE-shaped, so it fills cve as well as rule_id",
+      "distinct_cve_identifiers": 1,
+      "package_coordinate_source": {
+        "pointer": "/dependencies/3/packages/0/id",
+        "level": "package_object_package_url",
+        "level_number": 2,
+        "candidates_at_level": 1
+      },
+      "matched_allowlist_glob": null,
+      "out_of_scope_reason": "docs/Gemfile.lock matches none of the twelve globs -- docs/ is not one of the authoritative roots. One of the pin's three real lockfiles, legitimately reachable by a dependency-oriented scanner, kept with in_scope false and counted under rows_out_of_scope."
+    }
+  ],
+  "rejections": [
+    {
+      "rejection_index": 0,
+      "record_pointer": "/dependencies/2/vulnerabilities/0",
+      "dependency_pointer": "/dependencies/2",
+      "dependency_index": 2,
+      "vulnerability_index": 0,
+      "locator_note": "The pointer and the dependency_index / vulnerability_index pair name the same record. The pair is carried as well because it is what the adapter puts in record_identity, so a test can match on either without deriving one from the other.",
+      "reject_class": "missing_message",
+      "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_MISSING_MESSAGE constant -- a literal member of paths.REJECT_CLASSES, described there as 'the record carries no message'. Asserted against the module rather than by eye.",
+      "tool": "dependency-check",
+      "dependency_file_name": "jquery-3.5.1.min.js",
+      "classification_step": "step 3 of the adapter's fixed classification order -- shape, rule identifier, message, path, package coordinate. Steps 1 and 2 pass on this record: it is a JSON object, and its name is a usable non-blank string.",
+      "defect_is_the_message_alone": {
+        "statement": "Asserted from the fixture, not assumed. Every other property of this record is well-formed, so nothing but the message can account for the rejection.",
+        "shape": "a JSON object carrying source, name, severity, cvssv3, cwes, description, notes, references and vulnerableSoftware -- so step 1 passes and malformed_record is not in play",
+        "rule_id": "CVE-2020-11022, a non-empty string, so step 2 passes and missing_rule_id is not in play. It is also CVE-shaped, so the record would have carried a cve as well as a rule_id",
+        "path": "the enclosing dependency's filePath names core/src/main/resources/org/apache/spark/ui/static/jquery-3.5.1.min.js under the root -- a real file in the pinned tree, one of the same 30 vendored .js bundles rows 0 and 1 come from, filesystem-absolute exactly as this tool's recorded base says, carrying no container segment, and matching the allowlist glob core/src/main/**. Had its description been usable it would have produced a kept row with in_scope true, which is the strongest available statement that step 4 is not what rejected it",
+        "package_coordinate": "formable at level 2 from packages[0].id, pkg:javascript/jquery@3.5.1, so step 5 would have passed too",
+        "severity": "the record carries the mapped label 'MEDIUM' and a cvssv3 block with baseScore 6.1 and baseSeverity MEDIUM, so severity would have resolved from the label with the score not consulted",
+        "start_line": "absent, as it is for every record in this shape, and absence is permitted for that field -- so it could not have rejected the record either",
+        "conclusion": "The message is the only defect, and the rejection is therefore attributable to it alone."
+      },
+      "message_pointer": "/dependencies/2/vulnerabilities/0/description",
+      "message_member_present": true,
+      "message_value": "",
+      "message_variant": "description present as an empty string",
+      "expected_detail": "the vulnerability's description is empty or whitespace only",
+      "expected_detail_note": "The detail is the sub-reason AAP 0.5.4 requires a rejection to carry, and it is quoted verbatim because this class covers three routes: naming the class alone would not distinguish an empty description from an absent one or from a non-string one. A test may assert the class exactly and the detail by its distinguishing substrings rather than by full-string equality. message_variants lists all three routes with the detail each produces.",
+      "steps_never_reached": "Steps 4 and 5 never run, so this record's path is never resolved and its formable coordinate is never taken. Severity, cwe, cve, path-kind and in_scope are likewise never evaluated, which is why the coordinate counters sum to 3 rather than 4, severity_score_candidates_present is 0 despite the cvssv3 block, and rows_in_scope is 2 despite three of the four records naming an in-scope path. Worth stating because the fixture deliberately gives the defective record a real path, a real coordinate and a resolvable severity, and a reader could otherwise expect an interaction between the conditions.",
+      "expected_record_identity_keys": [
+        "dependency_index",
+        "vulnerability_index",
+        "fileName",
+        "filePath",
+        "name"
+      ],
+      "expected_record_identity": {
+        "dependency_index": 2,
+        "vulnerability_index": 0,
+        "fileName": "jquery-3.5.1.min.js",
+        "filePath": "/opt/spark-src/core/src/main/resources/org/apache/spark/ui/static/jquery-3.5.1.min.js",
+        "name": "CVE-2020-11022"
+      },
+      "record_identity_note": "Exactly five keys, and exactly the five the adapter has assembled by step 3: dependency_index, vulnerability_index, fileName and filePath are set before step 1, and name is added once step 2 has established it. No reported_path key appears, because that one is added by the path resolver at step 4 and this record never reaches it -- so a test comparing record identities must expect five keys here and six on a path rejection from the same adapter. Enough to find the record in the artifact again, and nothing from the record's body.",
+      "the_absolute_filePath_here_is_not_a_dataset_field": "filePath above is the artifact's own reported value, carried into the rejection identity exactly as the tool wrote it, which is what makes a produced Rejection comparable to this expectation without translation. It is not an emitted path: no row in this file carries an absolute path, and emit.py's assertion would refuse one.",
+      "why_not_a_row": "There is no message to put in the row, and message is one of emit.REQUIRED_FIELDS rather than one of the five fields AAP 0.8.2 permits to be absent. So the record has no valid row representation, and the alternatives -- dropping it, or synthesising a message from its notes, name, cwes, references or fileName -- would each hide it. Counting it under a named class keeps it visible and keeps the arithmetic honest.",
+      "contributes_no_row": true,
+      "contributes_no_severity_literal": true,
+      "contributes_no_message_text": "Nothing from this record reaches any output. The empty string is not written into a row, and no substitute is written in its place; no_synthesised_message enumerates the substitutes that must not appear and states how their absence is checked."
+    }
+  ],
+  "dependencies_contributing_no_record": [
+    {
+      "dependency_pointer": "/dependencies/4",
+      "dependency_index": 4,
+      "dependency_file_name": "package.json",
+      "reported_file_path": "filesystem-absolute: the root followed by core/src/main/resources/org/apache/spark/ui/static/package.json",
+      "reason": "The dependency carries no vulnerabilities key at all, so it contributes zero records to the count unit. Not a rejection and not an error: a dependency is not a record, and most of the scanned surface has no vulnerability. Counted under dependencies_without_vulnerabilities_array, which is 1.",
+      "also_carries_no_packages_array": true,
+      "in_scope_had_it_produced_a_record": "true -- the path matches core/src/main/**. The scope of a dependency that produces no record is stated here rather than left implied, so a reader does not read its absence from rows as an out-of-scope decision.",
+      "the_file_itself": "5 lines and 80 bytes at the pin, holding a name, a license and \"type\": \"module\", with no dependencies block and no lockfile beside it. It is the only manifest-shaped file inside the twelve authoritative roots, and its emptiness is the reason the dependency-oriented tools resolved nothing in scope.",
+      "path_resolution_never_attempted": "Step 4 is never reached for this dependency because no record under it is ever built, so its filePath is not resolved and no path counter moves for it."
+    }
+  ],
+  "behaviours_not_exercised_by_this_fixture": [
+    {
+      "behaviour": "shape-detection failure -- an artifact matching neither SARIF nor a known native shape halting the run",
+      "why_absent": "this document is a well-formed Dependency-Check report and routes cleanly; its defect is one record, not its shape",
+      "cover_with": "unknown-shape.json, near-sarif-version-only.json, near-sarif-runs-only.json, and the routing negative test in test_shape_routing_negative.py"
+    },
+    {
+      "behaviour": "the other rejection conditions this adapter can reach -- malformed_record, missing_rule_id, absent_path and unformable_package_coordinate",
+      "why_absent": "this fixture isolates one condition, so exactly one record is defective and it is defective in exactly one way",
+      "cover_with": "the sibling negative fixtures in this tree -- reject-dependency-check-malformed-record.json, reject-dependency-check-missing-rule-id.json, reject-dependency-check-unresolvable-path.json (which produces absent_path, as its expected file derives) and reject-dependency-check-no-package-coordinate.json. Which condition each asserts is stated in its own expected file, not here."
+    },
+    {
+      "behaviour": "the two other routes into missing_message -- an absent description member, and a description that is not a string",
+      "why_absent": "the defective record carries a description member holding an empty string, which is one route of the three and the one a loose check most often lets through",
+      "cover_with": "the derived fixtures named per variant under message_variants"
+    },
+    {
+      "behaviour": "the non_integer_start_line and unresolvable_path rejection classes",
+      "why_absent": "neither is reachable for this adapter, and both absences are facts rather than gaps. This shape carries no line information anywhere, so there is no start_line for a non-integer to occupy; and the recorded path_base.kind 'filesystem_absolute' always supplies a base, so no filePath value can produce unresolvable_path. expected/reject-dependency-check-unresolvable-path.rows.json derives both in full.",
+      "cover_with": "nothing, deliberately. A fixture manufacturing either condition would have to contradict the artifact shape or the runner metadata."
+    },
+    {
+      "behaviour": "package-coordinate levels 1 and 3, and the unformable case",
+      "why_absent": "no record here carries its own package URL member, and the only record whose fields could form a triple has a name equal to its own rule_id, which the level-3 guard refuses",
+      "cover_with": "oss-scan-results/adapter-tests/expected/derived-dependency-check-features.rows.json, whose fixture reaches levels 1, 2 and 4 and names why level 3 is refused; and reject-dependency-check-no-package-coordinate.json for the unformable rejection"
+    },
+    {
+      "behaviour": "the label-over-score precedence applied to an emitted row, and a record carrying several CVSS blocks at once",
+      "why_absent": "the only record in this fixture where a mapped label and a CVSS score coexist is the defective one, and step 3 rejects it before severity is resolved; every emitted row resolves from a label with no score present or from a bare numeric severity",
+      "cover_with": "expected/derived-dependency-check-features.rows.json and expected/reject-dependency-check-unresolvable-path.rows.json, whose row 0 carries a LOW label against cvssv2, cvssv3 and cvssv4 blocks spanning three bands"
+    },
+    {
+      "behaviour": "the archive-member serialization, the concatenated-member split prepare_file_path performs, and the outside_root path kind with its ../ segments preserved",
+      "why_absent": "no filePath here carries a container segment or names a location above the root, so archive_references_split, path_kind_archive_member and path_kind_outside_root are all 0",
+      "cover_with": "expected/reject-dependency-check-unresolvable-path.rows.json, whose rows 4 and 5 are an archive member inside the root and one outside it"
+    },
+    {
+      "behaviour": "the multi-location rule -- the row takes the primary filePath, the record still counts once, multi_location_records counts it",
+      "why_absent": "no dependency here carries a relatedDependencies array, which is the only multi-location shape this report has; the counter is also bumped after the message step, so a multi-location defective record would not have registered either",
+      "cover_with": "a derived fixture carrying a relatedDependencies array on a dependency"
+    },
+    {
+      "behaviour": "ascending-numeric CWE selection where producer order disagrees with numeric order, the NVD-CWE-noinfo entry that yields no identifier, and ascending-numeric CVE selection ordered by year then sequence",
+      "why_absent": "the two records carrying a cwes array carry exactly one readable entry each, and a Dependency-Check name carries at most one CVE identifier",
+      "cover_with": "expected/reject-dependency-check-unresolvable-path.rows.json for the two-entry cwes array and the NVD placeholder, and semgrep.sarif for a record carrying more than one CVE identifier"
+    },
+    {
+      "behaviour": "a dependency element that is not an object, and a vulnerabilities value that is not an array",
+      "why_absent": "all five dependencies are objects, four carry a vulnerabilities array and the fifth carries no such key, so dependencies_skipped_non_mapping is 0",
+      "cover_with": "reject-dependency-check-malformed-record.json, which carries a non-object dependency element"
+    },
+    {
+      "behaviour": "a non-zero exit code changing the outcome",
+      "why_absent": "artifact status and exit status are independent (AAP 0.5.4), and this adapter never consults an exit code. There is nothing here for a fixture to exercise.",
+      "cover_with": "nothing -- the independence is a property of the adapter, recorded in tool-status.md per tool"
+    }
+  ]
+}

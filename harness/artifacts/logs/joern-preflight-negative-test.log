@@ -1,0 +1,178 @@
+====================================================================================
+NEGATIVE TEST OF THE GATED STAGE 3 EXECUTION PATH
+====================================================================================
+
+  Subject   : harness/lib/run-joern-gated.sh, the only committed execution path for
+              Stage 3, which runs harness/lib/preflight_graph_identity.py and reaches
+              harness/bin/run-joern.sh only on a gate exit of 0.
+  Question  : does a graph the write-time record does not describe actually stop the
+              runner from being invoked -- not merely produce a warning beside it?
+  Method    : alter ONE hex digit of the recorded digest, run the WRAPPER (not the
+              gate alone), and measure whether the runner ran. The graph itself is
+              never touched: what is perturbed is the record the graph is compared
+              against, which is the only way to exercise the comparison without
+              destroying 791,927,027 bytes and rebuilding them.
+  Run at    : 2026-09-01T04:39:41Z
+  Clone     : 0
+
+  HOW 'THE RUNNER NEVER RAN' IS ESTABLISHED, rather than assumed:
+    - harness/bin/run-joern.sh:64 runs 'rm -f $ART' BEFORE invoking Joern, and
+      scope_finish rewrites joern.status at the end, so an invocation cannot leave
+      the artifact, the console stream and the status file all byte-identical.
+    - the wrapper prints a '== step 2/2' banner on the line immediately before it
+      invokes the runner, so the count of that banner in its captured output is
+      the count of invocations. Step 3 asserts that count is zero.
+    - the real Stage 3 invocation of record took 1351 s (harness/artifacts/logs/
+      joern.status elapsed_seconds); the refusal returns in seconds.
+
+------------------------------------------------------------------------------------
+STEP 1 -- baseline: the record, and the three files an invocation would disturb
+------------------------------------------------------------------------------------
+  record        : harness/artifacts/logs/cpg-frontend.log
+    sha256=8a8b2a920220fab695e6a52b9361802a0144c58401d59d1eda8222143b30b1fe size=8127
+    recorded identity:  bytes: 791927027  sha256: a7cb249207436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45 
+
+  before:        2026-09-01T04:39:41Z
+    harness/artifacts/raw/joern.json           mtime=1788235815 size=279929 sha256=dc8e626b9a8a846b661885570c23be7591b3fee0b75710fd510cb63e2497d726
+    harness/artifacts/logs/joern.stdout.log    mtime=1788235815 size=33666 sha256=cb45e716e5bb5d25ddb9ed6f7f5b5256dc58e3aefaf7dfb1384cf0315e5123d7
+    harness/artifacts/logs/joern.status        mtime=1788236049 size=37635 sha256=8e91fb816c403a91b68eed3a64a5590c04148240ed51ac3cff6c3f4cee065a25
+
+------------------------------------------------------------------------------------
+STEP 2 -- perturb the record: one hex digit of the recorded digest
+------------------------------------------------------------------------------------
+  $ sed -i 's/a7cb249207436e6b/a7cb249307436e6b/' harness/artifacts/logs/cpg-frontend.log
+  recorded digest is now: sha256: a7cb249307436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45
+  the graph on disk is UNCHANGED: 791927027 bytes
+
+------------------------------------------------------------------------------------
+STEP 3 -- run the GATED WRAPPER against the perturbed record
+------------------------------------------------------------------------------------
+  $ BLITZY_CLONE_INDEX=0 harness/lib/run-joern-gated.sh
+
+  | == step 1/2: pre-load graph identity gate ==
+  | gate            : harness/lib/preflight_graph_identity.py
+  | subject         : HARNESS_CPG=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/cpg/spark.cpg
+  | gate started    : 2026-09-01T04:39:41Z
+  | ====================================================================================
+  | STAGE 3 PRE-LOAD GRAPH IDENTITY CHECK
+  | ====================================================================================
+  | 
+  |   Refuses to invoke the Stage 3 Joern runner unless the graph on disk is
+  |   byte-for-byte the graph this run wrote. The runner resolves and PRINTS its
+  |   input without comparing it, and harness/lib/joern-scan.sc calls importCpg and
+  |   then counts, so a mismatch would otherwise reach the engine. A mismatch here
+  |   exits 77, and harness/lib/run-joern-gated.sh -- the only committed
+  |   execution path for Stage 3 -- has no branch that reaches the runner after a
+  |   non-zero gate, so the runner is never invoked.
+  | 
+  |   Gate source             : harness/lib/preflight_graph_identity.py
+  |   Binding caller          : harness/lib/run-joern-gated.sh
+  |   Checked at (UTC)        : 2026-09-01T04:39:41Z
+  |   Clone index             : 0
+  |   Write-time record       : harness/artifacts/logs/cpg-frontend.log
+  |   HARNESS_CPG in env      : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/cpg/spark.cpg
+  | 
+  |   Recorded size           : 791,927,027 bytes
+  |   Recorded sha256         : a7cb249307436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45
+  | 
+  |   Every subject, each resolved and re-measured in its own right:
+  | 
+  |     harness/cpg/spark.cpg
+  |       role      : the runner's actual input ($HARNESS_CPG as env.sh resolves it); also AAP 0.6.1 named path (harness/cpg/spark.cpg)
+  |       symlink to: ../artifacts/cpg/spark.cpg
+  |       realpath  : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/cpg/spark.cpg
+  |       size      : 791,927,027 bytes   MATCH
+  |       sha256    : a7cb249207436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45   MISMATCH
+  |       link size : 26 bytes (the link itself, not its target -- recorded only to discard it)
+  | 
+  |     harness/artifacts/cpg/spark.cpg
+  |       role      : the graph this run wrote (harness/artifacts/cpg/spark.cpg)
+  |       realpath  : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/cpg/spark.cpg
+  |       size      : 791,927,027 bytes   MATCH
+  |       sha256    : a7cb249207436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45   MISMATCH
+  | 
+  |   All 2 subject(s) resolve to one file: yes
+  | 
+  | ====================================================================================
+  | VERDICT: HALT
+  | ====================================================================================
+  | 
+  |   - harness/cpg/spark.cpg is sha256 a7cb249207436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45, recorded a7cb249307436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45
+  |   - harness/artifacts/cpg/spark.cpg is sha256 a7cb249207436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45, recorded a7cb249307436e6b5ab106a67cbb6c6aae96c7176e12d52c63292db996f09f45
+  | 
+  |   The Stage 3 runner MUST NOT be invoked. Nothing was loaded.
+  | 
+  | wrote /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/logs/joern-preflight.log (2933 B)
+  | gate finished   : 2026-09-01T04:39:43Z (exit 77)
+  | 
+  | HALT: the pre-load graph identity gate exited 77.
+  | The Stage 3 Joern runner was NOT invoked. Nothing was loaded, and no artifact
+  | was written or removed. See harness/artifacts/logs/joern-preflight.log.
+
+  wrapper exit status : 77
+  wall time           : 2 s
+
+  ASSERTIONS
+    exit status is 77 (HALT_EXIT), not 0 and not an ordinary error -> PASS
+    the wrapper output contains 0 occurrence(s) of the runner banner "== step 2/2"
+      -> the wrapper returned without ever reaching the runner invocation -> PASS
+
+  after:         2026-09-01T04:39:43Z
+    harness/artifacts/raw/joern.json           mtime=1788235815 size=279929 sha256=dc8e626b9a8a846b661885570c23be7591b3fee0b75710fd510cb63e2497d726
+    harness/artifacts/logs/joern.stdout.log    mtime=1788235815 size=33666 sha256=cb45e716e5bb5d25ddb9ed6f7f5b5256dc58e3aefaf7dfb1384cf0315e5123d7
+    harness/artifacts/logs/joern.status        mtime=1788236049 size=37635 sha256=8e91fb816c403a91b68eed3a64a5590c04148240ed51ac3cff6c3f4cee065a25
+
+    raw/joern.json unchanged in content AND mtime -> the runner never reached its
+      'rm -f $ART' line, so Joern was never invoked -> PASS
+    logs/joern.stdout.log unchanged in content AND mtime -> no console stream was
+      opened, so no JVM was started -> PASS
+    logs/joern.status unchanged in content AND mtime -> scope_finish never ran, so
+      the runner did not complete a scan -> PASS
+
+------------------------------------------------------------------------------------
+STEP 4 -- restore the record and prove it byte-identical to the baseline
+------------------------------------------------------------------------------------
+  $ sed -i 's/a7cb249307436e6b/a7cb249207436e6b/' harness/artifacts/logs/cpg-frontend.log
+  baseline sha256 : 8a8b2a920220fab695e6a52b9361802a0144c58401d59d1eda8222143b30b1fe
+  restored sha256 : 8a8b2a920220fab695e6a52b9361802a0144c58401d59d1eda8222143b30b1fe
+    the record is byte-for-byte what it was before this test -> PASS
+
+------------------------------------------------------------------------------------
+STEP 5 -- re-run the gate against the restored record
+------------------------------------------------------------------------------------
+  Only the GATE is re-run here, deliberately: a second full gated invocation would
+  re-run the 21-minute scan, and what step 5 has to establish is that step 3's
+  refusal was caused by the perturbation and nothing else. The positive direction of
+  the full gated path is evidenced by the Stage 3 run itself, whose transcript is
+  harness/artifacts/logs/joern-preflight.log followed by joern.status.
+
+  $ python3 harness/lib/preflight_graph_identity.py
+  | 
+  |   All 2 subject(s) resolve to one file: yes
+  | 
+  | ====================================================================================
+  | VERDICT: PASS
+  | ====================================================================================
+  | 
+  | wrote /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/logs/joern-preflight.log (2501 B)
+
+  gate exit status : 0
+    exit status is 0 -> the gate passes on the restored record, so step 3's refusal
+      was caused by the altered digit -> PASS
+
+------------------------------------------------------------------------------------
+STEP 6 -- restore the real run's pre-load evidence, which this test overwrote twice
+------------------------------------------------------------------------------------
+  The gate rewrites harness/artifacts/logs/joern-preflight.log on every run, and that
+  file is the record showing the gate ran BEFORE the Stage 3 invocation. Steps 3 and 5
+  each replaced it, so the version from the real gated run is restored here and proven
+  byte-for-byte equal to what it was before this test touched it.
+  baseline sha256 : 238d693fbf8b12f243c2344c1dfcafe67c222c7d03eb49e9c93c60bbc5811dce
+  restored sha256 : 238d693fbf8b12f243c2344c1dfcafe67c222c7d03eb49e9c93c60bbc5811dce
+  restored content records the gate at: 2026-09-01T03:48:29Z
+    the real run's pre-load record is intact -> PASS
+
+====================================================================================
+VERDICT: the gated path refuses a graph the record does not describe, and the runner
+         is not invoked when it does. Both directions PASS.
+====================================================================================

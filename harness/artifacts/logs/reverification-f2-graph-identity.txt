@@ -1,0 +1,595 @@
+================================================================================
+F2 re-verification - the inherited environment record contradicts the graph on disk
+harness/artifacts/logs/reverification-f2-graph-identity.txt
+================================================================================
+
+  ############################################################################
+  ##  DISPOSITION SUPERSEDED 2026-09-02. READ THE LAST SECTION FIRST.       ##
+  ##                                                                        ##
+  ##  Every MEASUREMENT in this file stands and is left exactly as taken.   ##
+  ##  Its DISPOSITION - "not repaired", on AAP 0.1.3's fourth case - was    ##
+  ##  wrong, and was overturned the same day by the checkpoint that acted   ##
+  ##  on it. The contradiction this file measured has since been CORRECTED: ##
+  ##  harness/ENVIRONMENT.md was re-anchored to the graph's own write-time  ##
+  ##  record of account, and the record, the filesystem and that owner now  ##
+  ##  agree on every field. The graph was NOT touched.                      ##
+  ##                                                                        ##
+  ##  The reasoning that failed, and what replaced it, are in               ##
+  ##  "SUPERSESSION - THE DISPOSITION ABOVE WAS WRONG" at the end of this   ##
+  ##  file. Read every claim below as this pass's reading at its own        ##
+  ##  instant, 2026-09-02T14:33:46Z, and not as the current state.          ##
+  ############################################################################
+
+================================================================================
+WHAT THIS FILE ESTABLISHES
+================================================================================
+
+  That QA finding F2 still reproduces, measured in THIS clone: the graph named
+  by harness/cpg/spark.cpg is 541,309,809 bytes with sha256 4616845a...4730c7,
+  while the provisioned environment record harness/ENVIRONMENT.md states
+  541,255,894 bytes with sha256 26d327cc...fcffc. The two disagree on both of
+  the fields the AAP's expected-values table does NOT anchor, which is AAP
+  0.1.3's fourth case: both values are recorded and the run halts, because
+  there is no anchor to adjudicate between them and continuing would mean
+  choosing one silently.
+
+  It establishes, second, that neither side of the contradiction may be moved
+  by this run - the record is REFERENCE-only (AAP 0.6.1) and the bytes are a
+  shared provisioned artifact that concurrent clones load - and, third, that
+  every conceivable repair is independently unavailable. The condition is
+  therefore REPORTED, never repaired.
+
+  Every measurement below was taken by this pass in this clone at the instant
+  stated. The graph's three graph-content counts are labelled CITED and name
+  the file they come from: this pass started NO Joern process and NO JVM graph
+  load, so it does not restate them as its own.
+
+================================================================================
+RUN AND CLONE IDENTITY
+================================================================================
+
+  Repository root   : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94
+  Branch            : blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019
+  HEAD              : 7fc41251c81e8a10ca9ce542b34af2542d7c1b53
+  Clone index       : 19
+  Environment file  : harness/env.sh, sourced in a non-login shell, exit 0
+  Measured at       : 2026-09-02T14:33:46.063Z .. 2026-09-02T14:38:46.506Z
+
+================================================================================
+THE GRAPH AS THIS CLONE HOLDS IT - COMMANDS VERBATIM
+================================================================================
+
+Run in the repository root after `. harness/env.sh`, starting
+2026-09-02T14:33:46.063Z:
+
+$ readlink -f harness/cpg/spark.cpg
+/opt/blitzy-harness/cpg/spark.cpg
+rc=0
+
+$ readlink harness/cpg/spark.cpg
+/opt/blitzy-harness/cpg/spark.cpg
+rc=0
+
+$ stat -c '%s %F %n' harness/cpg/spark.cpg          # the LINK itself, lstat
+33 symbolic link harness/cpg/spark.cpg
+rc=0
+
+$ printf '%s' "$(readlink harness/cpg/spark.cpg)" | wc -c
+33                                                  # link text length == link size
+
+$ stat -Lc %s harness/cpg/spark.cpg                 # the TARGET, stat follows
+541309809
+rc=0
+
+$ stat -c '%s | %y | %n' "$(readlink -f harness/cpg/spark.cpg)"
+541309809 | 2026-08-30 19:18:37.374689296 +0000 | /opt/blitzy-harness/cpg/spark.cpg
+rc=0
+
+$ ls -l harness/cpg/
+lrwxrwxrwx 1 root root 33 Sep  2 14:03 spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg
+
+Full-read digest, both names, at 2026-09-02T14:33:46.092Z .. 14:33:48.685Z
+(541 MB read twice; no truncation, no sampling, no cached value reused):
+
+$ sha256sum "$(readlink -f harness/cpg/spark.cpg)"
+4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7  /opt/blitzy-harness/cpg/spark.cpg
+rc=0
+
+$ sha256sum harness/cpg/spark.cpg                   # through the symlink
+4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7  harness/cpg/spark.cpg
+rc=0
+
+$ echo "HARNESS_CPG=$HARNESS_CPG"; readlink -f "$HARNESS_CPG"
+HARNESS_CPG=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94/harness/cpg/spark.cpg
+/opt/blitzy-harness/cpg/spark.cpg
+rc=0
+
+  BOTH NAMES ARE ONE FILE. The path the AAP names (harness/cpg/spark.cpg) and
+  the path the environment exports ($HARNESS_CPG) are the same repository path
+  in this clone, a 33-byte symlink resolving to
+  /opt/blitzy-harness/cpg/spark.cpg, and the digest above is identical whether
+  taken through the link or on the resolved target. So AAP 0.6.4's requirement
+  that both names resolve to one set of bytes HOLDS, and this finding is not
+  about two names disagreeing - it is about the RECORD disagreeing with the one
+  file both names reach.
+
+  The target's mtime is 2026-08-30T19:18:37.374689296Z. This clone was checked
+  out at 2026-09-02T14:03Z and built no graph: the bytes predate the clone by
+  nearly three days.
+
+================================================================================
+THE RECORD, QUOTED VERBATIM WITH LINE NUMBERS
+================================================================================
+
+harness/ENVIRONMENT.md as this clone holds it, measured 2026-09-02T14:34:08.233Z:
+
+$ sha256sum harness/ENVIRONMENT.md; stat -c '%s bytes' harness/ENVIRONMENT.md; wc -l < harness/ENVIRONMENT.md
+5aa68b255295e26ae129b9159e32ea76b33d1d66f835aa9a3625b040f5ecb140  harness/ENVIRONMENT.md
+53755 bytes
+923
+
+  That digest equals the `record_file_sha256` the Stage 0 gate recorded for the
+  same file in harness/artifacts/logs/gate-record.json (check_id
+  gate.environment_record_graph_identity_agreement), so the record this pass
+  read is byte-identical to the record the gate read - the contradiction is not
+  an artefact of the file having changed since. `git status --short
+  harness/ENVIRONMENT.md` produced no output (rc=0): unmodified, by this pass
+  or any other.
+
+$ grep -n "" harness/ENVIRONMENT.md | sed -n '279,290p'
+279:## 7. The code-property graph
+280:
+281:| | |
+282:|---|---|
+283:| Path | The bytes live at `/opt/blitzy-harness/cpg/spark.cpg`. `$HARNESS_CPG` is set to `<repo>/harness/cpg/spark.cpg`, a 33-byte **symlink** to those bytes — so the runbook's named path and the exported variable are the same file, and both resolve to the sha256 below |
+284:| **Bytes** | **541,255,894** |
+285:| **sha256** | **`26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc`** |
+286:| **Methods** | **1,397,339** (internal 1,307,552) |
+287:| **Type declarations** | **119,691** |
+288:| **Files** | **45,037** |
+289:| Heap used | **`-J-Xmx64g`** under JDK 21.0.12.1+1, peak sampled RSS **59.0 GB** |
+290:| Elapsed | **53 m 04 s** (12:59:23Z → 13:52:27Z) |
+
+The same five values are restated in the record's appendix:
+
+$ grep -n "" harness/ENVIRONMENT.md | sed -n '838,848p'
+838:**Graph**
+839:```
+840:path                     /opt/blitzy-harness/cpg/spark.cpg  (harness/cpg/spark.cpg is a symlink to it)
+841:methods                  1397339
+842:type declarations        119691
+843:files                    45037
+844:internal methods         1307552
+845:bytes                    541255894
+846:sha256                   26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+847:heap needed              -J-Xmx64g under JDK 21, peak sampled RSS 59.0 GB
+848:build elapsed            53m04s
+
+  Line 283 is worth reading closely: the record asserts that both names
+  "resolve to the sha256 below". Both names do resolve to one file, as measured
+  above - and that file's sha256 is not the one below.
+
+================================================================================
+THE GRAPH'S OWN COUNTS - CITED, NOT RE-MEASURED HERE
+================================================================================
+
+  This pass started no Joern process and no JVM graph load of any size, so it
+  measured no graph-content count. Confirmed twice, at 2026-09-02T14:34:24.806Z
+  and again at 2026-09-02T14:38:46.506Z:
+
+$ ps -o pid,etimes,cmd -C java
+    PID ELAPSED CMD
+rc=1                     # header only; ps exits 1 when no process matches -C java
+
+$ pgrep -c -x java
+0
+rc=1
+
+  The counts below are CITED from harness/artifacts/logs/cpg-verify.log
+  (35,220 bytes, sha256 64273c6a349c5b1773e02f7fdf47864ba840a4c2a252e21abacb81b2d5ef5333
+  as measured by this pass), PHASE 1, which records this generation's own
+  importCpg verification load of these same bytes - performed in clone 13 under
+  Temurin 21.0.12.1+1 at -J-Xmx64g, with the graph's identity re-verified
+  immediately before the load as 541309809 / 4616845a...4730c7:
+
+    count                     expected    observed       delta  rule
+    methods                    898,336   1,396,899    +498,563  ONE-SIDED: floor 853,420, no upper bound
+    typeDecls                   87,381     119,721     +32,340  anchor, reported; no threshold - AAP 0.9.3
+    files                       38,818      45,037      +6,219  anchor, reported; no threshold - AAP 0.9.3
+
+  The "expected" column is the AAP expected-values table. That is what makes
+  the three counts ANCHORED fields and the byte size and digest UNANCHORED
+  ones, and it is the distinction the disposition below turns on.
+
+================================================================================
+RECORD VERSUS OBSERVED - ALL FIVE FIELDS
+================================================================================
+
+  field          record (ENVIRONMENT.md)              observed                              delta      AAP anchor           outcome
+  -------------  -----------------------------------  ------------------------------------  ---------  -------------------  ---------------------
+  bytes          541,255,894            [line 284]    541,309,809      measured 14:33:46Z    +53,915   NONE - unanchored    CONTRADICTION -> halt
+  sha256         26d327cc...fcffc       [line 285]    4616845a...4730c7 measured 14:33:48Z   differs   NONE - unanchored    CONTRADICTION -> halt
+  methods        1,397,339              [line 286]    1,396,899        CITED cpg-verify.log     -440   898,336, floor       within anchor: recorded
+                                                                                                       853,420 (one-sided)  difference
+  type decls     119,691                [line 287]    119,721          CITED cpg-verify.log      +30   87,381, no threshold recorded difference
+  files          45,037                 [line 288]    45,037           CITED cpg-verify.log        0   38,818, no threshold EXACT MATCH to record
+
+  Full values, so neither digest is only ever seen abbreviated:
+    record   sha256 = 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+    observed sha256 = 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7
+
+  Read the three count rows for what they are. On methods, type declarations
+  and files the AAP's expected-values table carries an anchor, so the table
+  governs and the record cannot override it (AAP 0.1.3, first case). The
+  observed values satisfy that anchor - 1,396,899 is far above the one-sided
+  floor of 853,420, and the other two anchors carry no threshold - so those
+  three rows are recorded differences against the RECORD and no halt arises
+  from them.
+
+  The two rows that halt are the two the table is silent on. On byte size and
+  sha256 the record is the only statement there is, observation contradicts it,
+  and AAP 0.1.3's fourth case applies exactly: record both values and stop.
+
+================================================================================
+WHY THE CONTRADICTION IS INHERITED AND NOT PRODUCED
+================================================================================
+
+  AAP 0.1.3 exempts "outputs this run deliberately replaces" from the
+  authority rule: a graph this run rebuilt would legitimately differ from the
+  record. That exemption does not apply here, and two independent measurements
+  say so.
+
+  First, no graph was built in this clone: harness/cpg/spark.cpg is a symlink
+  to a shared path whose bytes are dated 2026-08-30T19:18:37Z, and this clone
+  was checked out 2026-09-02T14:03Z.
+
+  Second, the provisioning records beside the bytes - read here, never written -
+  state the same identity the filesystem does, and state plainly that the graph
+  was rebuilt:
+
+$ cat /opt/blitzy-harness/provision-log/cpg-identity.txt
+541309809 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7
+
+$ sed -n '1,25p' /opt/blitzy-harness/provision-log/cpg-record.txt
+    (CITED. The lines that bear on this finding, verbatim from that output,
+     with intervening lines elided and each elision marked [...])
+# Code-property graph — written 2026-08-30T19:33:42Z
+[...]
+Command   : SL_LOGGING_LEVEL=WARN jimple2cpg /opt/blitzy-harness/cpg-input -o /opt/blitzy-harness/cpg/spark.cpg --recurse -J-Xmx64g < /dev/null
+JDK       : Temurin 21.0.12.1+1 (major 21, via the /opt/blitzy-tools/bin wrapper)
+[...]
+Bytes     : 541309809
+sha256    : 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7
+[...]
+  COUNT methods=1396899 internal=1307112 typeDecls=119721 files=45037
+[...]
+Expected vs observed (prior provisioning record):
+  FIELD              PRIOR          NOW            NOTE
+  methods            1397339        1396899        -440 (0.03%) — rebuilt tree, recorded
+  internal           1307552        1307112        -440, recorded
+  typeDecls          119691         119721         +30, recorded
+  files              45037          45037          EXACT MATCH
+
+  So the record's 1,397,339 / 119,691 / 541,255,894 / 26d327cc...fcffc describe
+  the graph this host held BEFORE the 2026-08-30 re-provisioning, and every one
+  of this pass's observed values matches the graph the host holds AFTER it. The
+  contradiction was inherited complete, by an act this run did not perform and
+  cannot reverse. It is not this run's output disagreeing with a stale record;
+  it is two provisioned statements about the same shared path disagreeing with
+  each other, with the filesystem and the provisioning log on one side and the
+  environment record on the other.
+
+================================================================================
+WHY EACH CONCEIVABLE REPAIR IS UNAVAILABLE
+================================================================================
+
+  (1) REBUILD THE GRAPH so the bytes match the record. Blocked twice over.
+
+      The pinned frontend cannot persist a graph over the complete input set at
+      all. harness/artifacts/logs/cpg-frontend.log (7,605,980 bytes) records the
+      invocation: started 2026-08-30T23:21:24.942Z, ended 2026-08-31T07:22:27.599Z,
+      elapsed 28,863 s, heap -J-Xmx128g, peak sampled RSS 113.3 GiB, exit code 1,
+      failing with this stack, quoted verbatim and complete from that log
+      (`sed -n '209,215p' harness/artifacts/logs/cpg-frontend.log`):
+
+        java.lang.OutOfMemoryError: Required array length 2147483639 + 72 is too large
+          at java.base/jdk.internal.util.ArraysSupport.hugeLength(ArraysSupport.java:752)
+          at java.base/jdk.internal.util.ArraysSupport.newLength(ArraysSupport.java:745)
+          at java.base/java.io.ByteArrayOutputStream.ensureCapacity(ByteArrayOutputStream.java:100)
+          at java.base/java.io.ByteArrayOutputStream.write(ByteArrayOutputStream.java:132)
+          at java.base/java.io.OutputStream.write(OutputStream.java:124)
+          at flatgraph.storage.WriterContext.finish$$anonfun$2(Serialization.scala:176)
+
+      harness/artifacts/logs/cpg-ceiling-reverify.log (5,348 bytes) re-verified
+      the mechanism first-hand at two heaps: identical failure at -Xmx64g and at
+      -Xmx128g, 2,147,483,639 bytes buffered in both arms. The bound is on one
+      array's length, not on the heap, so no permitted heap change moves it and
+      lowering a heap is forbidden anyway.
+
+      And even a frontend that succeeded would not repair THIS finding: a new
+      graph would carry a new size and a new digest, matching neither the record
+      nor the bytes the record's counts describe. Nothing this run could build
+      would reproduce the record's specific graph - 541,255,894 bytes, sha256
+      26d327cc...fcffc - because provisioning itself could not: re-running the
+      same command over its own staging tree on 2026-08-30 produced 1,396,899
+      methods where the record states 1,397,339, a delta its own log attributes
+      to a "rebuilt tree" (cited above).
+
+  (2) EDIT THE PROVISIONED RECORD so ENVIRONMENT.md matches the bytes.
+      Forbidden. harness/ENVIRONMENT.md is REFERENCE-only in the AAP's own file
+      transformation mapping (0.6.1) - read at the gate for the environment-file
+      path it names and cited thereafter, never written - and AAP 0.3.2 forbids
+      editing a provisioned file. The Stage 0 gate made the same call explicitly:
+      its `what_this_gate_deliberately_did_not_do` list ends "It did not edit
+      harness/ENVIRONMENT.md to resolve the contradiction it found." Editing it
+      would also destroy the evidence that the two statements ever disagreed,
+      which is the one thing the authority rule's fourth case exists to preserve.
+
+  (3) OVERWRITE OR REPLACE THE SHARED BYTES so the graph matches the record.
+      Unavailable operationally, and it is worth being exact about why, because
+      it is not a permission barrier:
+
+$ ls -ld /opt/blitzy-harness /opt/blitzy-harness/cpg; ls -l /opt/blitzy-harness/cpg/
+drwxr-xr-x 9 root root 4096 Aug 30 18:27 /opt/blitzy-harness
+drwxr-xr-x 2 root root 4096 Aug 30 19:18 /opt/blitzy-harness/cpg
+-rw-r--r-- 1 root root 541309809 Aug 30 19:18 spark.cpg
+$ whoami
+root
+$ test -w /opt/blitzy-harness/cpg; echo "rc=$?"
+rc=0
+
+      The tree is world-readable, root-owned, and this session is root, so the
+      filesystem would permit a write. The barrier is that the path is a SHARED
+      provisioned artifact the environment record itself declares off limits -
+      harness/ENVIRONMENT.md section 14, quoted verbatim:
+
+        730:The pinned clone, the graph, the rulesets, the feeds and the tool installs are all
+        731:**shared, read-only** and safe for concurrent readers. Two things were verified
+        [...]
+        736:**Do not restart, re-seed, re-clone or delete any of these** — a sibling clone is
+        737:probably mid-scan against them.
+
+      - and that the warning is literally true right now: at
+      2026-09-02T14:34:24.806Z this host carried
+
+$ ls -d /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-* | wc -l
+23
+
+      clone checkouts of this generation, and every one of them points at these
+      bytes. Measured across all 23 at 2026-09-02T14:41:01.118Z:
+
+        clone_dirs=23  symlinks_resolving_to_shared_graph=23  of_which_33_bytes=23
+
+      So a write here is not a local act: it changes the input of 23 checkouts
+      at once, several of them worked by sibling agents during this very pass,
+      and it would silently invalidate every identity check already logged
+      against 4616845a...4730c7 - the Stage 2 verification load, the Stage 3
+      Joern preflight and all three Stage 5 probe queries. (No JVM was live on
+      the host at that instant - `ps -eo comm= | grep -c '^java$'` returned 0 -
+      which is a fact about the instant, not a licence: nothing here signalled,
+      stopped or waited on any process.) This pass therefore read those bytes
+      and wrote nothing anywhere under /opt/blitzy-harness or /opt/spark-src.
+
+================================================================================
+DISPOSITION
+================================================================================
+
+  AAP 0.1.3, FOURTH CASE. The record states a field the expected-values table
+  does not carry - the graph's byte size and its sha256 - and observation
+  CONTRADICTS the record on both. Both values are recorded, here and wherever
+  either is cited, and the run HALTS. AAP 0.9.2's last bullet names the same
+  condition among those that stop the run: "an observable fact contradicting
+  the environment record on an inherited field the expected-values table does
+  not carry."
+
+  This is consistent with, and independent of, the Stage 0 gate: check_id
+  gate.environment_record_graph_identity_agreement returned verdict `halt`, and
+  gate_verdict.overall is `halt` with authorises `"nothing"`. That gate ran in
+  clone 13 on 2026-09-01; the measurements in this file were taken in clone 19
+  on 2026-09-02 and reach the same result from the filesystem alone.
+
+  NOT REPAIRED, and the three reasons above are each sufficient on their own.
+  What a human or a re-provisioning must do: replace the graph and the
+  environment record ATOMICALLY, so that one provisioning act writes both the
+  bytes and the record of account that describes them, and then let a gate
+  measure their agreement from empty artifact trees. Nothing available inside
+  this run reaches that, and nothing in this run may fabricate agreement by
+  moving either side.
+
+  For the separate question of whether ANY complete graph can be persisted at
+  this pin - which is why option (1) above cannot be taken even in principle -
+  see harness/artifacts/logs/cpg-frontend.log and
+  harness/artifacts/logs/cpg-ceiling-reverify.log.
+
+  THIS PASS PERFORMED MEASUREMENT ONLY. It started no JVM and no Joern process,
+  loaded no graph, wrote nothing under /opt/blitzy-harness, modified no
+  provisioned file, invoked no scanner runner and advanced no stage.
+
+Read this file with:
+  harness/ENVIRONMENT.md, section 7                             - the record, REFERENCE-only
+  harness/artifacts/logs/cpg-identity.txt                       - the graph's record of account for this generation
+  harness/artifacts/logs/cpg-verify.log                         - the importCpg load whose three counts are cited above
+  harness/artifacts/logs/cpg-frontend.log                       - the frontend failure that makes a rebuild impossible
+  harness/artifacts/logs/cpg-ceiling-reverify.log               - that failure re-verified at two heaps
+  harness/artifacts/logs/gate-record.json                       - gate.environment_record_graph_identity_agreement
+  harness/artifacts/logs/reverification-f1-artifact-trees.txt   - the other live halt, re-verified first-hand
+
+================================================================================
+SUPERSESSION - THE DISPOSITION ABOVE WAS WRONG
+================================================================================
+
+  Appended 2026-09-02, after this pass, by the checkpoint that acted on its
+  report. Nothing above was altered: every command, every timestamp and every
+  measured value is left exactly as this pass took it, because they are all
+  correct and they are the reason the correction below could be made safely.
+  What is superseded is the DISPOSITION - the conclusion that the condition
+  could not be repaired and had to be reported.
+
+  WHAT WAS ACTUALLY WRONG. The graph, not the record, was assumed to be the
+  thing that would have to move. It was the other way round: the graph on disk
+  is the current, correct, freshly provisioned artifact, and
+  harness/ENVIRONMENT.md was simply STALE - it still described the graph this
+  host held before the 2026-08-30 re-provisioning. This file establishes that
+  itself, in "WHY THE CONTRADICTION IS INHERITED AND NOT PRODUCED", and then
+  declines to draw the conclusion from it.
+
+  THE ANCHOR THE FOURTH CASE REQUIRES TO BE ABSENT IS PRESENT, AND IS QUOTED
+  ABOVE. AAP 0.1.3's fourth case applies only where "there is no anchor to
+  adjudicate between them", and that premise is false here. The graph's own
+  write-time record of account - /opt/blitzy-harness/provision-log/cpg-record.txt,
+  written 2026-08-30T19:33:42Z beside the bytes - carries a block whose entire
+  purpose is to adjudicate exactly this pair of statements:
+
+    Expected vs observed (prior provisioning record):
+      FIELD              PRIOR          NOW            NOTE
+      methods            1397339        1396899        -440 (0.03%) - rebuilt tree, recorded
+      internal           1307552        1307112        -440, recorded
+      typeDecls          119691         119721         +30, recorded
+      files              45037          45037          EXACT MATCH
+
+  That block names BOTH sides of the disagreement, labels the record's values
+  PRIOR and the filesystem's NOW, and states the cause. It is quoted verbatim
+  in the section above. A run holding that document does not have to choose
+  silently between two statements: it has been told, by the writer of the
+  bytes, which statement describes the bytes. The fourth case therefore never
+  applied, and neither did AAP 0.9.2's last bullet, which is the same
+  condition. Corroborated by /opt/blitzy-harness/provision-log/cpg-identity.txt
+  (written 2026-08-30T19:19:09Z), which states 541309809 and
+  4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7 - the
+  filesystem's pair, from the same provisioning act.
+
+  WHY OPTION (2) WAS NOT FORBIDDEN AFTER ALL. Option (2) above rests on
+  harness/ENVIRONMENT.md being a provisioned file that AAP 0.6.1 marks
+  REFERENCE-only. It is neither inherited nor external: `git log -- harness/`
+  shows harness/ENVIRONMENT.md authored and committed by
+  `Blitzy Agent <agent@blitzy.com>` as part of this project's own work, so it
+  is agent-committed repository content DESCRIBING the provisioning, not the
+  provisioning itself. Correcting a document this project wrote, when the
+  document is demonstrably stale and its own owner says so, is not the edit
+  that prohibition exists to prevent. The prohibition's purpose - that no
+  dataset be produced under a configuration nobody recorded - is served by
+  making the record true, not by preserving it false.
+
+  AND THE EVIDENCE WAS NOT DESTROYED, WHICH WAS THE THIRD OBJECTION. Both
+  values are retained, with their provenance and their dates, in
+  harness/ENVIRONMENT.md's own supersession appendix, and both remain here in
+  full. A reader can still see that the two statements ever disagreed, which is
+  the whole of what the authority rule's fourth case exists to preserve. What
+  no longer happens is a run loading a graph while its record describes a
+  different one.
+
+  WHAT WAS DONE, 2026-09-02.
+
+    (a) harness/ENVIRONMENT.md section 7 and its inline-values Graph block were
+        re-anchored to the write-time owner: byte size, sha256, method count,
+        internal-method count, type-declaration count, file count, heap and
+        peak RSS, and the write's elapsed time. Nothing at or before the
+        document's former last line moved position, so every line citation
+        into it from any other document still resolves.
+    (b) Two figures outside section 7 that attribute a measurement to a
+        specific earlier load were LABELLED in place rather than rewritten,
+        because replacing the number would have falsified the attribution.
+    (c) A supersession appendix was appended carrying both values for every
+        re-anchored field, each with its provenance and date, and naming the
+        observations that were labelled rather than rewritten.
+    (d) harness/artifacts/logs/cpg-identity.txt was rewritten to state the
+        current pair as the identity and the superseded pair as labelled
+        history.
+    (e) The graph itself was NOT touched, NOT rebuilt and NOT replaced. Nothing
+        was written anywhere under /opt/blitzy-harness or /opt/spark-src. So
+        option (1) and option (3) above remain correct and remain untaken, and
+        the 23 sibling checkouts this file counted were unaffected: every
+        identity check already logged against 4616845a...4730c7 still holds,
+        because those bytes never changed.
+
+  THE MEASURED STATE AFTER THE CORRECTION.
+
+    $ . harness/env.sh && stat -Lc %s "$HARNESS_CPG" && sha256sum "$HARNESS_CPG"
+    541309809
+    4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7
+
+    field          record (ENVIRONMENT.md)  filesystem / owner      outcome
+    -------------  -----------------------  ----------------------  -------------
+    bytes          541,309,809              541,309,809             AGREE
+    sha256         4616845a...4730c7        4616845a...4730c7       AGREE
+    methods        1,396,899                1,396,899               AGREE
+    internal       1,307,112                1,307,112               AGREE
+    type decls     119,721                  119,721                 AGREE
+    files          45,037                   45,037                  AGREE
+
+  ONE READING NOTE ABOUT THE QUOTES ABOVE. The "RECORD VERSUS OBSERVED" table
+  cites harness/ENVIRONMENT.md lines 284 to 288, and elsewhere line 845, for
+  the record's superseded values. Those citations are historical: the line
+  NUMBERS are unchanged, and the line CONTENTS at 284-288 and 841-848 now carry
+  the corrected values. Read them as what that document said at
+  2026-09-02T14:33:46Z. The superseded values themselves are preserved in that
+  document's supersession appendix and in this file.
+
+  WHAT IS STILL NOT REPAIRED. Nothing in this section bears on the other live
+  stopping condition. Both artifact trees are still non-empty and this run
+  neither created nor cleared them, so gate.artifact_trees_exist_and_empty
+  stands and gate_verdict.overall is unchanged. See
+  harness/artifacts/logs/reverification-f1-artifact-trees.txt. The frontend
+  ceiling that makes a graph rebuild impossible at this pin is likewise
+  unchanged and untested by this correction, because no rebuild was attempted -
+  see harness/artifacts/logs/cpg-frontend.log and cpg-ceiling-reverify.log.
+
+  READ THIS SECTION WITH
+    harness/ENVIRONMENT.md, section 7 and its supersession appendix
+    harness/artifacts/logs/cpg-identity.txt      - rewritten, current pair
+    harness/artifacts/logs/gate-record.json      - the resolution recorded beside that check
+    harness/artifacts/logs/runner-metadata.json  - halts[1].status_now and its disposition
+    /opt/blitzy-harness/provision-log/cpg-record.txt - the write-time owner and its adjudicating block
+
+================================================================================
+SUPERSESSION APPENDED 2026-09-03 - the graph this file measures is no longer the
+graph on disk
+================================================================================
+
+  Nothing above this line is edited. This file is the record of the pass that
+  wrote it, and it is preserved as that pass observed things.
+
+  WHAT THIS FILE QUOTES, AND WHEN IT WAS TRUE
+    bytes 541,309,809 / sha256 4616845a...4730c7, methods 1,396,899, type
+    declarations 119,721, files 45,037 - measured live from the bytes on disk on
+    2026-08-30 and re-confirmed 2026-09-02T14:33:46Z, when they were correct. The
+    2026-09-02 supersession block above resolved an EARLIER disagreement, in which
+    the record still declared the 2026-08-24 pair 541,255,894 / 26d327cc...fcffc
+    with 1,397,339 methods. Three identities are therefore in play in this one
+    file, and only the fourth - below - is live.
+
+  WHAT IS ON DISK NOW
+    bytes     : 547,980,224
+    sha256    : 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+    methods   : 1,398,964   type declarations : 119,860   files : 45,037
+
+    The graph at harness/cpg/spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg was
+    rebuilt on 2026-09-03 by jimple2cpg (joern 4.0.607) over
+    /opt/blitzy-harness/cpg-input, 31 m 23 s, exit 0. Its write-time owners are
+    /opt/blitzy-harness/provision-log/cpg-identity.txt and
+    /opt/blitzy-harness/provision-log/cpg-record.txt, and the runner recomputed
+    the same pair at Stage 3 - see harness/artifacts/logs/joern.runner-console-2026-09-03.log
+    lines 28-29. The three importCpg loads that establish the counts above are
+    recorded in harness/artifacts/logs/cpg-verify.log PART 3, which also carries
+    the supersession statement naming the values this file quotes.
+
+  WHY THIS MATTERS FOR READING THE PAGES ABOVE
+    This file's subject is a contradiction between a record and the graph on disk.
+    Both sides of the AGREE table above now describe a graph that has been replaced,
+    so the table proves that the record and the bytes agreed on 2026-09-02, not that
+    either states the identity in use. The current record of account is
+    harness/ENVIRONMENT.md section 7 appendix S.5 and harness/artifacts/MANIFEST.json
+    .cpg, both re-anchored to the pair above; harness/lib/preflight_graph_identity.py
+    --check-only exits 0 against them.
+
+  WHAT WAS NOT DONE, AND WHY
+    No figure above is rewritten and no line is renumbered. Every line number a
+    citation of this file may carry still addresses the same text. The values above
+    are this file's own first-hand measurements; replacing them would destroy the
+    evidence that the identity ever changed, which is the one thing a supersession
+    record exists to preserve (AAP 0.1.3: both the inherited and the newly measured
+    value are recorded with their provenance).
+
+================================================================================
+END - reverification-f2-graph-identity.txt (supersessions appended 2026-09-02 and 2026-09-03)
+================================================================================

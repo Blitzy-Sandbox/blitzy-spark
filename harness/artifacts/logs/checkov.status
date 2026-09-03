@@ -1,0 +1,7 @@
+tool=checkov
+exit_code=1
+elapsed_seconds=93
+artifact=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/checkov.json
+artifact_bytes=8380
+scan_root=/opt/spark-src
+scan_root_source=SPARK_SRC

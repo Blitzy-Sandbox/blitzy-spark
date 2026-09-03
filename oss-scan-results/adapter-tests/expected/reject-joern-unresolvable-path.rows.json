@@ -1,0 +1,591 @@
+{
+ "description": "The hand-verified expected result for the negative Joern fixture that carries one finding whose bytecode class resolves to no source file at all. Every value was derived by reading the fixture and the authored contracts in harness/lib/normalize/, and every path was resolved from the documented indexing scheme before the adapter was run; the run came afterwards, to corroborate. Where this file and harness/lib/normalize/adapters/joern.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. The key names are the ones expected/reject-sarif-unresolvable-path.rows.json established and expected/joern.rows.json extends -- the shared metadata keys, the three parts rows / row_derivations / rejections, and the negative-only additions routing, rejection_boundary, rejections and counts.parse_status -- so one generic loader reads every expected file in this folder.",
+ "tool": "joern",
+ "scanner_class": "sast",
+ "scanner_class_authority": "AAP 0.5.4's class table fixes sast for opengrep, semgrep, datadog-static-analyzer and joern. The value is fixed in advance rather than derived from what the artifact turns out to contain, and it is identical on every row. Trivy is the single tool whose scanner_class varies by record, and joern is not it.",
+ "adapter": "harness/lib/normalize/adapters/joern.py",
+ "artifact_shape_note": "This is the only artifact whose shape is the harness's own collector output rather than a tool-native format. There is no Joern output format to look up: harness/bin/run-joern.sh loads the code-property graph with importCpg, runs the bounded query set baked into harness/lib/joern-scan.sc, and that script writes the artifact itself.",
+ "fixture": {
+  "path": "oss-scan-results/adapter-tests/fixtures/reject-joern-unresolvable-path.json",
+  "sha256": "bf6737f334869bfcaa7bb4eb79644924773e31c1bb93e791a350dab8cfcb6f00",
+  "bytes": 2505,
+  "shape": "the collector shape the specification documents",
+  "findings": 4,
+  "queries_declared": 5,
+  "derived_from": "harness/artifacts/raw/joern.json",
+  "finding_members": [
+   "rule_id",
+   "message",
+   "path",
+   "start_line",
+   "method_full_name",
+   "class_file",
+   "path_resolution"
+  ],
+  "derivation": "A negative fixture is derived from captured output rather than being an excerpt of it, so the provenance is stated as a derivation. Two things are derived and nothing else is invented. First, the shape: the raw artifact is written in this provisioning's collector shape, and every record here is re-spelled into the documented shape -- query_id becomes rule_id, class becomes class_file, the severity label is dropped, and the collector's own path and path_resolution members are supplied. Second, the defective record's coordinate is left unresolvable, which is what the fixture exists to assert. Two of the four class coordinates are re-spellings of records harness/artifacts/raw/joern.json carries and two are not, so the provenance is stated per record rather than for the fixture as a whole. That artifact carries org.sparkproject.guava.hash.MessageDigestHashFunction.getMessageDigest at line 85 and org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start at line 276, with the same method signatures and the same lines these records carry. An exhaustive search of all 692 of its findings for 'deploy.master.Master' and for 'OneForOneBlockPusher' returns zero hits, so findings[0] and findings[1] are derived records whose coordinates, enclosing methods and lines were verified against the pinned tree instead -- core/src/main/scala/org/apache/spark/deploy/master/Master.scala line 417 is the createDriver call site in a 1436-line file, and common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java line 86 falls inside the onSuccess callback body in a 171-line file. row_derivations states which of the two provenances each row has.",
+  "captured_provenance": "The defective record is not synthesized. harness/artifacts/raw/joern.json names the class org.sparkproject.guava.hash.MessageDigestHashFunction with the method org.sparkproject.guava.hash.MessageDigestHashFunction.getMessageDigest:java.security.MessageDigest(java.lang.String) at line 85 -- the same class, the same method signature and the same line this fixture's findings[2] carries -- twice among its 692 findings, at indices 655 and 666, and twice more under the sibling relocation prefix org.sparkproject.connect.guava.hash, four records sharing that simple class name in all. The recorded sha256 above is what makes a later edit to the fixture visible: these values are re-derived when the fixture changes, never adjusted to keep a test green.",
+  "why_the_documented_shape_is_the_right_carrier": "The positive fixture joern.json is in this provisioning's shape, so the documented shape's rule_id, path, class_file, start_line and path_resolution members and its flat cpg_* envelope are unexercised there -- joern.rows.json names this fixture as their cover. Carrying the documented shape here therefore covers a second gap at no extra cost, and it is the only shape that can carry path_resolution at all, which is the member this fixture's rejection turns on.",
+  "excerpt_note": "The fixture is never edited to suit these rows; these rows are re-derived when the fixture changes."
+ },
+ "routing": {
+  "shape": "native",
+  "detected_by": "normalize.shape -- SARIF is a version of \"2.1.0\" together with a runs array, and this document carries neither, so it is a native artifact routed by the runner that wrote it",
+  "adapter_module": "normalize.adapters.joern",
+  "routing_decision": "normalize.shape.route(\"joern\", doc) returns tool \"joern\", shape \"native\", adapter \"joern\", scanner_class \"sast\"",
+  "routes_successfully": true,
+  "rejection_is_record_level": true,
+  "not_a_shape_failure": "No shape-detection failure is expected here, and a test asserting one against this fixture would be asserting the wrong thing. The enclosing document is a well-formed native Joern artifact and routes cleanly; exactly one finding inside it is defective, and the adapter rejects that finding while still emitting the others. The fixtures that own shape-detection failure are near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json.",
+  "negative_routing_test": "The mandated negative routing assertion -- that a native artifact must not route to the SARIF adapter -- belongs to test_shape_routing_negative.py. A Joern artifact is a native artifact, so it is eligible material for that assertion, but the assertion itself is not this file's and is not made here.",
+  "caller_fault_is_not_a_rejection": "normalize.adapters.joern.JoernAdapterError describes a defective call -- the wrong tool identifier, a relative root, another tool's path base, a path base whose kind is not bytecode_class, or a document that is not an object -- and stops the caller. None of those is in play here, and none is ever counted as a rejection: a caller fault absorbed into a rejection count would let a wrong root produce a plausible dataset for a whole tool."
+ },
+ "field_order": [
+  "tool",
+  "scanner_class",
+  "rule_id",
+  "message",
+  "severity_native",
+  "severity_norm",
+  "path",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate",
+  "in_scope"
+ ],
+ "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant, which harness/lib/normalize/adapters/joern.py restates as its own FIELDS because AAP 0.6.4 permits an adapter to import paths and severity and nothing else. The two were compared and are identical. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+ "absence_permitted_fields": [
+  "severity_native",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate"
+ ],
+ "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS. path in particular is not an optional field (AAP 0.5.4), which is the whole reason this fixture's defective record is a counted rejection rather than a row with a null path.",
+ "severity_norm_vocabulary": [
+  "Critical",
+  "High",
+  "Medium",
+  "Low",
+  "Info"
+ ],
+ "allowlist": {
+  "path": "harness/scope/allowlist.txt",
+  "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+  "globs": 12,
+  "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under row_derivations."
+ },
+ "shape_divergence": {
+  "summary": "This fixture is written in the collector shape the specification documents, which is the opposite half of the divergence expected/joern.rows.json records: that fixture captures this provisioning's shape. The divergence itself is recorded, not repaired -- AAP 0.1.3's authority rule -- and the adapter reads both shapes in a fixed field precedence so the choice is reproducible. Three members differ from the provisioned shape, and each changes a value below.",
+  "documented_shape": "{tool, cpg_path, generated_at, cpg_methods, cpg_typedecls, source_index_size, declaration_index_size, queries: [{id, count}], findings: [{rule_id, message, path, start_line, method_full_name, class_file, path_resolution}]}",
+  "provisioned_shape": "{tool, tool_version, cpg, graph: {methods, type_declarations, files}, query_set, queries: [{id, bound, returned, bound_reached, elapsed_ms, callee_prefixes[]}], findings: [{query_id, severity, message, callee, class, method, file, line}]}",
+  "this_fixture_carries": "documented",
+  "differences": [
+   {
+    "member": "rule_id",
+    "documented": "findings[].rule_id, one of five joern. prefixed literals",
+    "observed_here": "findings[].rule_id on every record",
+    "consequence": "Every rule_id below is a joern. prefixed identifier read from the first candidate of RULE_ID_FIELDS = ('rule_id', 'query_id'), so rule_id_from_rule_id counts 4 -- one per finding walked, including the rejected one, whose identifier resolves at step 2 before its path is examined -- and rule_id_from_query_id counts 0."
+   },
+   {
+    "member": "the class coordinate",
+    "documented": "findings[].class_file, a class-file path such as org/apache/spark/deploy/master/Master.class",
+    "observed_here": "findings[].class_file on every record; no class member is present",
+    "consequence": "coordinate_from_class_file counts 4 and coordinate_from_class counts 0. The runner metadata names class as record_path_field, so the adapter tries it first and falls through to class_file, which is why a document in either shape resolves. normalize.paths.class_key accepts either form, so the precedence decides which member is read, never how it is interpreted."
+   },
+   {
+    "member": "severity",
+    "documented": "no severity member at all",
+    "observed_here": "no severity member at all -- the literal string severity does not occur anywhere in the fixture",
+    "consequence": "Every surviving row carries severity_native null and severity_norm Info on the no_vocabulary basis, so severity_absent counts 3 and severity_from_record_label counts 0. This is the half of AAP 0.5.4's joern severity clause the positive fixture cannot show, since all six of this provisioning's baked queries declare HIGH or MEDIUM.",
+    "why_this_is_the_contract": "AAP 0.5.4 places joern under 'No vocabulary at all (gitleaks; joern unless a query defines one) -- severity_native absent, severity_norm Info, the absence stated rather than a level assumed'. Here no query defines one, so the absence is stated. Info is never written by the adapter directly: severity.py owns the vocabulary, the precedence and the bands, so this file cannot disagree with severity-map.md."
+   },
+   {
+    "member": "path and path_resolution",
+    "documented": "findings[].path, the collector's own already-root-relative answer, and findings[].path_resolution, its explanation of how it got there",
+    "observed_here": "both present on every record; path is null on exactly the defective one",
+    "consequence": "The three surviving records each carry a collector path identical to this run's own unique resolution, so collector_path_corroborated counts 3 while collector_path_refused and collector_path_disagreed both count 0. collector_explanation_present counts 4, because every record carries a path_resolution and the counter is taken before the path step decides the record's outcome."
+   },
+   {
+    "member": "the envelope's graph metadata",
+    "documented": "flat cpg_methods, cpg_typedecls, source_index_size and declaration_index_size",
+    "observed_here": "all four present; no nested graph object",
+    "consequence": "envelope_graph_methods, envelope_graph_type_declarations, envelope_collector_source_index_size and envelope_collector_declaration_index_size all carry figures, while envelope_graph_files stays 0 because the nested object that would supply it is absent. The per-query tally is spelled count here rather than returned, and neither is summed into any published figure."
+   }
+  ]
+ },
+ "count_unit": {
+  "unit": "one element of findings[]",
+  "len_findings": 4,
+  "sum_of_per_query_tallies": 669,
+  "per_query_tally_member": "queries[].count in this shape; queries[].returned in the provisioned shape",
+  "which_one_is_the_raw_count": "len(findings) = 4. The sum of the per-query tallies is 669 -- 55 + 178 + 412 + 23 + 1 -- and is not the raw count and is not published as one.",
+  "why_they_differ": "The fixture carries four findings beside a queries[] array whose counts describe a whole scan. The two numbers therefore differ by construction, which is what makes the reconciliation assertion non-vacuous: an implementation that counted the per-query tallies instead of the findings would produce 669 against 3 rows and 1 rejection and fail loudly rather than agree silently.",
+  "no_query_to_finding_link": "No rule_id is ever taken from a queries[].id. The documented queries[] carries only {id, count} and records no link between a query and a finding, so a match there would be inference; each finding names its own query through its own rule_id member.",
+  "authority": "AAP 0.5.4 makes findings[] the reconciliation unit, and normalize.reconcile.count_records walks that same unit without building rows. The adapter deliberately publishes no count of the findings it walked, so the left-hand side of the identity cannot be taken from the traversal that builds the right-hand side."
+ },
+ "resolution_context": {
+  "path_base_kind": "bytecode_class",
+  "path_base_value": null,
+  "path_base_source": "harness/artifacts/logs/runner-metadata.json, the joern entry's path_base -- read as input, never assumed",
+  "record_path_field": "class",
+  "record_path_field_to_ignore": "file",
+  "has_explicit_base": false,
+  "why_no_filesystem_base_exists": "The runner queries a graph the frontend built over staged JARs rather than over the source tree, so a reported file member is by construction the frontend's extraction path for a .class member and can never be a path in the Spark tree. The metadata therefore records a null base value rather than inventing a plausible one, and the class coordinate is the only resolvable one. Because has_explicit_base is false, no metadata-backed fallback is available to this tool at all: a coordinate that resolves to nothing is rejected rather than anchored on a guessed base.",
+  "resolution_procedure": "The class coordinate is reduced by normalize.paths.class_key to <package path>/<outer type name>, truncating the basename at its first $ so a companion object, an anonymous class and a nested class all collapse to the outer type. That key is then looked up in a source index over src/main and src/test under the pinned root, across two key schemes: by_filename on <package dir>/<file base name>, and by_decl on <package dir>/<declared type name>. The union of candidates must be exactly one distinct path.",
+  "gap_1_closed": "The index spans src/main and src/test rather than src/main alone. Every -tests artifact the build emitted is in the graph input, so a finding can legitimately name bytecode compiled from a test tree, and such a resolution is retained with in_scope false rather than dropped. No record in this fixture resolves into a test tree, so rows_from_src_test is 0 here.",
+  "gap_2_closed": "A resolution is taken only where the union of candidates is exactly one distinct path. Two or more is ambiguous_source_resolution with every competing candidate named, never a first-wins pick. Closing gap 1 increases ambiguity, which is why closing gap 2 is mandatory rather than optional.",
+  "declaration_scheme_is_not_optional": "One of the three surviving rows resolves on the declaration scheme alone: no file is named ProcessBuilderLike.scala, and DriverRunner.scala is the file that declares the type. A filename-only index would lose that row silently, and a silently lost row is indistinguishable from a class with nothing to report.",
+  "path_kind": "bytecode_source on all three rows",
+  "path_basis_values_observed": [
+   "source-index-filename+declaration",
+   "source-index-declaration"
+  ],
+  "collector_path_precedence": "Fixed by the adapter and exercised on every record here. This run's own unique class-to-source resolution governs; an ambiguous key is never overridden by the collector's answer; where this run resolves nothing and the collector did supply a root-relative path, that path is emitted as-is and marked uncorroborated; and where both resolve and differ, this run's answer is kept and the disagreement recorded. All three surviving records take the first branch with the collector agreeing, and the defective record reaches the third branch with the collector supplying null -- so the rejection stands.",
+  "root_dependence": "These rows depend on a live tree: the class-to-source resolution reads the pinned checkout at $SPARK_SRC. Every emitted path is expressed relative to that root and none is absolute, and no absolute path appears anywhere in this file. The index figures under counters are the measurement over the pinned tree, and they reproduce the figures the adapter's own docstring records.",
+  "severity_source": "No record states a severity, and this shape has no rule object to fall back on, so every row takes severity.py's no-vocabulary path: severity_native null, severity_norm Info, basis no_vocabulary. The absence is stated rather than a level assumed.",
+  "package_coordinate": "null on every row. A Joern finding names a bytecode call site rather than a package, and this shape supplies no coordinate to carry. The absence is explicitly not a rejection: the unformable_package_coordinate class covers a dependency-oriented record, and this shape is not one."
+ },
+ "rejection_boundary": {
+  "statement": "An unresolvable coordinate is a rejection. A coordinate that merely resolves somewhere unwanted is a kept row with in_scope false. This fixture's defective record resolves to nothing at all, which is what makes it the unresolvable_path case rather than one of the three kept cases below.",
+  "why_it_can_only_be_a_rejection": "path is one of only two never-absent fields in the twelve-field schema, the other being severity_norm: emit.REQUIRED_FIELDS carries path, and emit.OPTIONAL_FIELDS is exactly severity_native, start_line, cwe, cve and package_coordinate. A record with no resolvable path therefore has no valid row representation at all, so counting it under a named class is the only outcome that neither drops the record nor invents a coordinate for it.",
+  "not_a_rejection": [
+   {
+    "case": "a resolution into a src/test tree, from a -tests artifact in the graph input",
+    "expected": "a kept row with in_scope false, counted under rows_out_of_scope and rows_from_src_test",
+    "evidence": "AAP 0.5.4 requires a test-JAR finding kept out of scope rather than dropped, and AAP 0.9.3 repeats it among the recorded-not-halting conditions. The literal src/test exclusion lives in paths.in_scope and removes the path from scope, never from the dataset.",
+    "present_in_this_fixture": false
+   },
+   {
+    "case": "a resolution outside the twelve authoritative globs",
+    "expected": "a kept row with in_scope false, counted under rows_out_of_scope",
+    "evidence": "A class in a module the allowlist does not name resolves to a real file and is kept. Out of scope means kept and marked.",
+    "present_in_this_fixture": false
+   },
+   {
+    "case": "a collector-supplied path naming an archive member or a location above the root",
+    "expected": "a kept row with in_scope false, counted in non_filesystem_paths",
+    "evidence": "Serialized as <container-relative-to-root>!<member> with ! the single separator, and with ../ segments preserved rather than normalized. The kind is read off the serialized form by paths.path_kind_for, so the discrimination is made on the string that actually reaches the dataset.",
+    "present_in_this_fixture": false
+   }
+  ],
+  "defective_record_resolves_to_nothing": "Verified from the fixture and the pinned tree rather than assumed. The coordinate is org/sparkproject/guava/hash/MessageDigestHashFunction.class, which class_key reduces to org/sparkproject/guava/hash/MessageDigestHashFunction. Measured over the pinned tree: the filename scheme holds no entry for that key and the declaration scheme holds none either, so the union of candidates is empty -- zero, not two. No file named MessageDigestHashFunction.scala or .java exists in the package org/sparkproject/guava/hash under src/main or src/test, and no source file in that package declares the type, because the package itself is a shade relocation of a third-party library rather than Spark source.",
+  "and_the_collector_had_no_answer_either": "findings[2].path is null, so the third branch of the collector-path precedence has nothing to fall back to and the rejection paths.py built stands unchanged. Had the collector supplied a root-relative path, the record would have become a row on that path, marked uncorroborated -- which is why the null is load-bearing rather than incidental.",
+  "no_guessed_path": "The rejected record is rejected and counted, never given a path. Nothing in this file supplies a coordinate for it, not even a plausible one, and the class it names has no source coordinate to supply."
+ },
+ "why_this_rejection_path_is_native": {
+  "statement": "This is the ordinary outcome for this tool on this graph, not an anomaly staged for a test. A bytecode class with no source under the pinned root is one of three ordinary things, and none of them is a defect in the artifact.",
+  "categories": [
+   {
+    "category": "shaded or relocated vendored",
+    "explanation": "A third-party class rewritten into Spark's own namespace by the shade plugin. The pinned root pom sets <spark.shade.packageName>org.sparkproject</spark.shade.packageName> [pom.xml:262], so every org.sparkproject.* class is by construction a vendored copy of another project's code whose source lives in that project's repository and never in Spark's tree.",
+    "this_fixture": "This is the category the defective record falls in: org/sparkproject/guava/hash/MessageDigestHashFunction is Guava's MessageDigestHashFunction relocated under that prefix."
+   },
+   {
+    "category": "synthesised or lambda-generated",
+    "explanation": "A class the compiler emits with no declaration of its own to find -- $$Lambda, $$anonfun, $$anon and their siblings. class_key truncates at the first $, so such a name reduces to its outer type and resolves whenever that outer type has source in the tree, and does not when the outer type is itself vendored.",
+    "this_fixture": "Not the defective record's category, but demonstrably reachable: row 2 below resolves ProcessBuilderLike$$anon$3 through its outer type, which is the same reduction succeeding rather than failing."
+   },
+   {
+    "category": "other third-party on the classpath, unrelocated",
+    "explanation": "Classes under org.apache.hive, org.apache.hadoop, com.google, org.rocksdb and org.fusesource reach the graph through the staged JARs and have no source under the pinned root either.",
+    "this_fixture": "Absent from this fixture; named so the taxonomy is complete rather than to be demonstrated here."
+   }
+  ],
+  "will_be_exercised_by_the_real_artifact": "Measured, not asserted. Over harness/artifacts/raw/joern.json's 692 findings the adapter produces 107 rows and 585 rejections, and every one of the 585 is under unresolvable_path -- no other class occurs. Of those, 527 name relocated org.sparkproject.* classes, 228 of them under a guava package, and 4 are MessageDigestHashFunction itself. The committed dataset agrees independently: oss-scan-results/findings.json holds exactly 107 joern rows -- 692 minus 585 -- and not one row whose path names guava.",
+  "why_it_must_be_counted_with_its_explanation_preserved": "Five of every six real findings take this path, so the handling of it decides what the tool's numbers mean. Three consequences, each sufficient on its own: dropping these records would remove 585 of 692 while every per-row assertion still passed, and only the identity raw = rows + rejections would catch it; giving them a guessed path would plant 585 wrong coordinates that nothing downstream could tell were wrong; and the collector's own path_resolution explanation is the evidence that separates 'the collector could not place this class either' from 'this run's index missed it', and it survives only in the rejection record. A dropped rejection and a resolved row are indistinguishable in a row count, which is why the class name and the retained explanation carry the assertion rather than the count alone.",
+  "no_judgement": "None of this characterises the finding. Whether a weak-hash call site in a vendored library matters is not this pipeline's question, and nothing here rules on it."
+ },
+ "rejection_pair": {
+  "this_half": "unresolvable -- nothing found. The class key has zero candidates, so no coordinate exists at all, and the class is paths.REJECT_UNRESOLVABLE_PATH.",
+  "sibling_half": "ambiguous -- too much found. Two or more distinct source files claim one class key, so no unique coordinate exists to take, and the class is paths.REJECT_AMBIGUOUS_SOURCE_RESOLUTION.",
+  "sibling_fixture": "oss-scan-results/adapter-tests/fixtures/reject-joern-ambiguous-path.json",
+  "sibling_expected": "oss-scan-results/adapter-tests/expected/reject-joern-ambiguous-path.rows.json",
+  "why_each_needs_its_own_diagnosis": "Both are rejections and both leave the record out of the dataset, so a test that only counted rejections could not tell them apart -- which is why the class name is what carries the assertion. They differ in three ways that matter. The class differs, so tool-status.md attributes them to different conditions. The detail differs: this one names the simple name and the package searched and both source trees, while the ambiguous one names every competing candidate. And the collector fallback differs, which is the sharpest of the three: for an unresolvable coordinate the collector's own root-relative path is used where it supplied one, while for an ambiguous key it is never used to break the tie, because doing so would reinstate exactly the first-wins guess the resolution exists to remove.",
+  "opposite_reasons_note": "Nothing found and too much found are opposite failures of the same requirement -- that a resolution be taken only where it is unique -- so covering one does not cover the other, and neither fixture makes the other redundant."
+ },
+ "ambiguous_case_reserved_for_the_sibling": {
+  "statement": "rows.scala is deliberately not used in this fixture. It is the ambiguous case, and using it here would assert the opposite of what this fixture exists to assert.",
+  "verified_at_the_pin": "Exactly two files named rows.scala exist in the pinned tree, and both are src/main: sql/api/src/main/scala/org/apache/spark/sql/catalyst/expressions/rows.scala, 51 lines, declaring class GenericRow at line 28 and class GenericRowWithSchema at line 44; and sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/expressions/rows.scala, 182 lines, declaring trait BaseGenericInternalRow at line 30 and class GenericInternalRow at line 167.",
+  "why_it_collides": "Both sit in the same package path, org/apache/spark/sql/catalyst/expressions, so both key on the identical filename key org/apache/spark/sql/catalyst/expressions/rows. The collision is by filename rather than by declaration -- neither file declares a type named rows -- so a bytecode class named rows$ reduces to that key and finds two claimants. Measured: the key has exactly two candidates, and it is one of the four ambiguous by_filename keys the index reports.",
+  "fixture_does_not_use_it": "Verified by exhaustive substring search rather than by eye: the literal rows does not occur anywhere in oss-scan-results/adapter-tests/fixtures/reject-joern-unresolvable-path.json -- not in class_file, not in path, not in method_full_name, not in message. Each of the fixture's four coordinates has exactly one candidate or exactly zero, never two.",
+  "sibling_does_use_it": "Verified: fixtures/reject-joern-ambiguous-path.json carries rows.scala, rows$ and rows$.class, and its first finding is the two-candidate case. The reservation therefore holds in fact and not merely by intention, which is worth stating so a reader does not wonder why the obvious two-candidate example is missing from here."
+ },
+ "counts": {
+  "raw_finding_records": 4,
+  "raw_count_unit": "one element of findings[] -- the unit normalize.reconcile.count_records walks independently of row construction",
+  "raw_count_authority": "normalize.reconcile.count_records(\"joern\", doc), whose traversal takes the length of the findings array and builds no row, resolves no path and maps no severity. It is the independent half of the identity: a count taken from the traversal that builds the rows would satisfy the assertion while testing nothing. Measured on this fixture, it returns 4.",
+  "rows": 3,
+  "rejections": 1,
+  "rejections_by_class": {
+   "unresolvable_path": 1
+  },
+  "reconciliation_identity": "raw_finding_records == rows + rejections",
+  "reconciliation_arithmetic": "4 == 3 + 1",
+  "one_finding_one_outcome": "Structural rather than asserted: the adapter's per-finding function returns a single value that is either a row or a rejection, so there is no path that emits both and none that emits neither. len(rows) + len(rejections) therefore equals the number of findings[] elements walked by construction.",
+  "four_reported_counters": {
+   "authority": "AAP 0.5.4 -- the four counts reported per tool",
+   "names": [
+    "multi_location_records",
+    "multi_valued_cwe_records",
+    "multi_valued_cve_records",
+    "non_filesystem_paths"
+   ],
+   "values_live_in": "counters, for the two this adapter publishes, and aap_reported_counters for all four with the reason each is what it is",
+   "all_four_are_zero_for_this_fixture": true
+  },
+  "parse_status": "partial",
+  "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = \"partial\", assigned as partial where there are rejections and clean where there are none. Partial is right precisely because the adapter did not abandon the artifact: every parsable record was emitted and the one rejected record is counted under its class, with its reason retained. This is deliberately not normalize.reconcile's STATUS_PASS / STATUS_FAIL / STATUS_NOT_APPLICABLE vocabulary, which describes an assertion's outcome rather than an artifact's parse.",
+  "not_applicable_is_a_different_case": "An artifact that was never written reconciles as not applicable -- artifact absent, not as zero equals zero. That case belongs to osv-scanner, which wrote nothing, and it is not this fixture's."
+ },
+ "counters": {
+  "multi_location_records": 0,
+  "non_filesystem_paths": 0,
+  "rows_in_scope": 3,
+  "rows_out_of_scope": 0,
+  "rows_from_src_test": 0,
+  "start_line_absent": 0,
+  "severity_from_record_label": 0,
+  "severity_absent": 3,
+  "resolution_from_class": 3,
+  "collector_path_refused": 0,
+  "collector_path_disagreed": 0,
+  "collector_path_corroborated": 3,
+  "collector_explanation_present": 4,
+  "unknown_class_sentinel_records": 0,
+  "source_index_supplied": 0,
+  "source_index_files_indexed": 6759,
+  "source_index_by_filename_keys": 6755,
+  "source_index_by_decl_keys": 15230,
+  "source_index_ambiguous_by_filename": 4,
+  "source_index_ambiguous_by_decl": 107,
+  "source_index_declarations_read": 1,
+  "envelope_queries_declared": 5,
+  "envelope_queries_bound_reached": 0,
+  "envelope_graph_methods": 1397339,
+  "envelope_graph_type_declarations": 119691,
+  "envelope_collector_source_index_size": 6759,
+  "envelope_collector_declaration_index_size": 15230,
+  "envelope_graph_files": 0,
+  "path_kind_tree_file": 0,
+  "path_kind_outside_root": 0,
+  "path_kind_archive_member": 0,
+  "path_kind_bytecode_source": 3,
+  "severity_basis_sarif_level": 0,
+  "severity_basis_label": 0,
+  "severity_basis_cvss_score": 0,
+  "severity_basis_no_vocabulary": 3,
+  "severity_basis_unmapped_literal": 0,
+  "rule_id_from_rule_id": 4,
+  "rule_id_from_query_id": 0,
+  "coordinate_from_class": 0,
+  "coordinate_from_class_file": 4,
+  "start_line_from_start_line": 3,
+  "start_line_from_line": 0
+ },
+ "counters_authority": "harness/lib/normalize/adapters/joern.py, COUNTER_KEYS as returned by new_counters(): 43 keys -- 23 authored, 5 envelope integers, one path_kind_* per normalize.paths.PATH_KINDS member, one severity_basis_* per normalize.severity.BASIS_VALUES member, and one provenance key per member of each field-candidate tuple. The keys above are in COUNTER_KEYS order and the set is complete: every key the adapter initialises appears, so a zero here means measured-zero rather than not-measured.",
+ "counters_note": "Four things a reader must not 'correct'. First, the per-finding counters split 4 / 3: rule_id_from_rule_id, coordinate_from_class_file and collector_explanation_present all count 4 because the rejected record reaches the rule step, the coordinate step and the explanation tally before it is rejected, while the severity, start_line, path_kind and in_scope counters all count 3 because it never becomes a row. That asymmetry is the classification order made visible, not a miscount. Second, start_line_from_start_line is 3 rather than 4: start_line is step 5 and the path is step 4, so the rejected record's start_line of 85 is never examined -- worth stating because the fixture does give it one. Third, envelope_graph_files is 0 while the three other envelope figures carry values: this shape has no nested graph object, so the member that would supply a file count is absent, and 0 here means absent rather than a graph with no files. Fourth, source_index_supplied is 0, recording that the adapter built the index over the pinned root rather than being handed one; a test injecting a synthetic index changes exactly the seven source_index_* keys and nothing else.",
+ "aap_reported_counters": {
+  "note": "AAP 0.5.4 has four counters reported per tool. Two are members of this adapter's COUNTER_KEYS and two are not, and the reason the two are absent is structural rather than an omission.",
+  "multi_location_records": {
+   "value": 0,
+   "published_by_the_adapter": true,
+   "basis": "No finding in this shape carries a locations array; each names exactly one call site through its class coordinate, its method and its line. The counter is published anyway, so that a future collector emitting several locations is visible rather than silently reduced to its first."
+  },
+  "non_filesystem_paths": {
+   "value": 0,
+   "published_by_the_adapter": true,
+   "basis": "All three emitted paths have kind bytecode_source, which normalize.paths.is_non_filesystem_kind excludes -- only outside_root and archive_member are non-filesystem coordinates. Each names a real file in the pinned tree. The rejected record contributes to no path_kind_* counter at all, because it produced no row."
+  },
+  "multi_valued_cwe_records": {
+   "value": 0,
+   "published_by_the_adapter": false,
+   "basis": "Not a member of this adapter's COUNTER_KEYS; the SARIF adapter publishes it because a SARIF rule can carry several CWE tokens. A Joern finding names a bytecode call site rather than a weakness catalogue entry, so cwe is null on every row by contract and the count is structurally 0. Manufacturing a CWE from a class name or a query identifier would be inference."
+  },
+  "multi_valued_cve_records": {
+   "value": 0,
+   "published_by_the_adapter": false,
+   "basis": "Not a member of this adapter's COUNTER_KEYS, for the same reason: this shape carries no advisory identifier, so cve is null on every row by contract and the count is structurally 0."
+  }
+ },
+ "envelope_fields": {
+  "note": "The envelope members outside findings[] are not findings and produce no rows. They must not appear in any row, and a twelve-key row makes that structural. They are recorded here because they are the figures a reader checks the artifact's provenance against, and a number that reaches no channel reaches no document.",
+  "observed": {
+   "cpg_methods": 1397339,
+   "cpg_typedecls": 119691,
+   "source_index_size": 6759,
+   "declaration_index_size": 15230,
+   "queries": 5,
+   "queries_bound_reached": 0
+  },
+  "graph_figures_agree_with_the_run_record": "The method and type-declaration figures are the ones recorded for the graph this run queried, so a fixture whose envelope disagreed with them would be a fixture built against a different graph. They are carried as evidence of provenance and are compared, never summed into a record count.",
+  "collector_index_sizes": "source_index_size 6759 and declaration_index_size 15230 are the collector's own reported index sizes, and they coincide with this run's independently measured source index -- 6759 files indexed and 15230 declaration keys. The coincidence is recorded as agreement between two measurements, not used as one.",
+  "cpg_path_member": "The envelope carries a cpg_path member naming the graph file. It is an absolute path in the artifact and is deliberately not copied into this file, which stays free of absolute paths; the graph's identity is recorded elsewhere by byte size and sha256.",
+  "generated_at_member": "Carried by the fixture and deliberately not asserted here: it is a timestamp, it reaches no dataset field, and pinning it would make this file fail for a reason that has nothing to do with the adapter.",
+  "bound_reached": "This shape's queries[] carries only {id, count} and no bound_reached flag, so no query can report reaching a traversal bound and the counter is 0. That is the flag being absent rather than a query being known untruncated, and the two are not the same claim."
+ },
+ "corroboration": {
+  "independent_derivation": {
+   "method": "Every field of every row, the rejection's class and its detail, and all 43 counter values were derived by reading the fixture against the authored contracts in harness/lib/normalize/ -- emit.FIELDS for the field set and order, paths.REJECT_CLASSES for the class name, the adapter's documented five-step classification order for which step each record is decided at, and severity.py's no-vocabulary path for the severity triple. The class keys were reduced by hand under class_key's documented first-$ truncation and looked up against a source index measured over the pinned tree.",
+   "index_measurement": "6759 files indexed, 6755 by_filename keys of which 4 are ambiguous, and 15230 by_decl keys of which 107 are ambiguous -- reproducing the figures the adapter's own docstring records.",
+   "agreement": "complete"
+  },
+  "adapter_run": {
+   "when": "after the hand derivation, never before it",
+   "agreement": "complete",
+   "note": "Running the adapter over this fixture with the recorded runner metadata and the pinned root reproduces all twelve fields of all three rows, the rejection's class, its full detail string, its record identity and all 43 counter values. That is corroboration recorded after the fact, not the source of these values."
+  },
+  "positive_sibling": {
+   "source": "oss-scan-results/adapter-tests/expected/joern.rows.json",
+   "records_compared": 1,
+   "fields_compared_per_record": 12,
+   "agreement": "complete",
+   "note": "Row 2 below resolves the same class key as that file's row 3 -- org/apache/spark/deploy/worker/ProcessBuilderLike, reached from a $$anon$3 coordinate -- to the same path at the same line, on the same declaration-scheme basis, with the same matched glob and the same recorded file length of 279 lines. The two files were derived independently and agree, which is what makes the shared resolution checkable rather than merely repeated. The severity fields differ by design and not by disagreement: that fixture's records each state a label, and this one's state none."
+  },
+  "real_artifact": {
+   "source": "harness/artifacts/raw/joern.json",
+   "agreement": "consistent",
+   "note": "The defective record's class, method signature and line are values that artifact carries, and the rejection class this fixture expects is the only class the whole artifact produces -- 585 rejections, all unresolvable_path, against 107 rows. So this fixture asserts the behaviour the production artifact exercises rather than a hypothetical one. Consistency, not equality: the fixture is in the documented shape and the artifact is in the provisioned one."
+  }
+ },
+ "rows": [
+  {
+   "tool": "joern",
+   "scanner_class": "sast",
+   "rule_id": "joern.rpc-handler-reaches-process-launch",
+   "message": "rpc handler reaches a driver launch: the RequestSubmitDriver branch of receiveAndReply calls createDriver at this call site",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "core/src/main/scala/org/apache/spark/deploy/master/Master.scala",
+   "start_line": 417,
+   "cwe": null,
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  },
+  {
+   "tool": "joern",
+   "scanner_class": "sast",
+   "rule_id": "joern.java-deserialization-site",
+   "message": "deserialization entry point: an encoded message is decoded from a network-supplied ByteBuffer at this call site",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
+   "start_line": 86,
+   "cwe": null,
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  },
+  {
+   "tool": "joern",
+   "scanner_class": "sast",
+   "rule_id": "joern.process-launch-site",
+   "message": "external process launch reachable in bytecode",
+   "severity_native": null,
+   "severity_norm": "Info",
+   "path": "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala",
+   "start_line": 276,
+   "cwe": null,
+   "cve": null,
+   "package_coordinate": null,
+   "in_scope": true
+  }
+ ],
+ "row_derivations_note": "One entry per row, in row order, and the row order is the fixture's document order with the rejected record removed -- findings 0, 1 and 3. Each entry names the fixture member every field was read from, the class key the coordinate reduced to, which index scheme resolved it, and the allowlist glob the path matched. file_line_count_at_the_pin is the resolved file's real length in the pinned checkout, which is what makes each start_line checkable rather than merely plausible.",
+ "row_derivations": [
+  {
+   "row_index": 0,
+   "finding_pointer": "/findings/0",
+   "finding_index": 0,
+   "record_provenance": "a derived record in the documented shape; harness/artifacts/raw/joern.json carries no record for org.apache.spark.deploy.master.Master -- zero hits for 'deploy.master.Master' across all 692 findings -- so the coordinate, the enclosing method and the line were verified against the pinned tree instead, and fixture.derivation states that rather than glossing it",
+   "rule_id_source": "/findings/0/rule_id",
+   "message_source": "/findings/0/message",
+   "severity_native_source": null,
+   "severity_absent_reason": "the finding carries no severity member, and this shape has no rule object to fall back on, so severity.py's no-vocabulary path applies: severity_native null with severity_norm Info and the absence stated rather than a level assumed",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_absent",
+   "class_coordinate": "org/apache/spark/deploy/master/Master.class",
+   "coordinate_source": "/findings/0/class_file",
+   "coordinate_field_read": "class_file",
+   "class_key": "org/apache/spark/deploy/master/Master",
+   "class_key_note": "The .class suffix is stripped and the basename carries no $, so the key is the package path and the type name unchanged.",
+   "resolution_scheme": "filename and declaration",
+   "path_basis": "source-index-filename+declaration",
+   "path_kind": "bytecode_source",
+   "candidates": 1,
+   "collector_path": "core/src/main/scala/org/apache/spark/deploy/master/Master.scala",
+   "collector_path_agreement": "identical to this run's unique resolution, so the record is counted under collector_path_corroborated and the collector's answer changes nothing about the row",
+   "collector_explanation": "source-index-filename",
+   "collector_explanation_destination": "no dataset field -- the record produced a row, and a row has nowhere to put it",
+   "start_line_source": "/findings/0/start_line",
+   "locations_in_record": 1,
+   "matched_allowlist_glob": "core/src/main/**",
+   "scope_reason": "in scope: matched the allowlist glob core/src/main/**",
+   "file_line_count_at_the_pin": 1436,
+   "anchor_note": "Line 417 of the pinned Master.scala is `val driver = createDriver(description)` in the RequestSubmitDriver branch of receiveAndReply, which is the call site the message names; the same call appears at 1130 and its definition at 1356. The file is 1436 lines, so start_line is within it."
+  },
+  {
+   "row_index": 1,
+   "finding_pointer": "/findings/1",
+   "finding_index": 1,
+   "record_provenance": "a derived record in the documented shape; harness/artifacts/raw/joern.json carries no record for org.apache.spark.network.shuffle.OneForOneBlockPusher$BlockPushCallback -- zero hits for 'OneForOneBlockPusher' across all 692 findings -- so the coordinate, the enclosing method and the line were verified against the pinned tree instead, and fixture.derivation states that rather than glossing it",
+   "rule_id_source": "/findings/1/rule_id",
+   "message_source": "/findings/1/message",
+   "severity_native_source": null,
+   "severity_absent_reason": "no severity member, as above",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_absent",
+   "class_coordinate": "org/apache/spark/network/shuffle/OneForOneBlockPusher$BlockPushCallback.class",
+   "coordinate_source": "/findings/1/class_file",
+   "coordinate_field_read": "class_file",
+   "class_key": "org/apache/spark/network/shuffle/OneForOneBlockPusher",
+   "class_key_note": "The basename is truncated at its first $, so the nested class BlockPushCallback collapses to its outer type OneForOneBlockPusher -- the same reduction the collector performs, which is what lets a key built here match one built there.",
+   "resolution_scheme": "filename and declaration",
+   "path_basis": "source-index-filename+declaration",
+   "path_kind": "bytecode_source",
+   "candidates": 1,
+   "collector_path": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
+   "collector_path_agreement": "identical to this run's unique resolution, counted under collector_path_corroborated",
+   "collector_explanation": "source-index-filename",
+   "collector_explanation_destination": "no dataset field",
+   "start_line_source": "/findings/1/start_line",
+   "locations_in_record": 1,
+   "matched_allowlist_glob": "common/network-shuffle/src/main/**",
+   "scope_reason": "in scope: matched the allowlist glob common/network-shuffle/src/main/**",
+   "file_line_count_at_the_pin": 171,
+   "anchor_note": "Line 86 of the pinned OneForOneBlockPusher.java is the `BlockTransferMessage.Decoder.fromByteBuffer(response)` call whose statement opens on line 85, inside the `onSuccess(ByteBuffer response)` override declared at line 84 -- the decode of a network-supplied buffer the message names. The file is 171 lines, so start_line is within it. This row is from a different module and a different rule than row 0, so the fixture shows the adapter carrying on past the rejection rather than merely emitting the record that preceded it."
+  },
+  {
+   "row_index": 2,
+   "finding_pointer": "/findings/3",
+   "finding_index": 3,
+   "record_provenance": "the shape re-spelled from harness/artifacts/raw/joern.json; the coordinate and the line are values that artifact carries",
+   "rule_id_source": "/findings/3/rule_id",
+   "message_source": "/findings/3/message",
+   "severity_native_source": null,
+   "severity_absent_reason": "no severity member, as above",
+   "severity_basis": "no_vocabulary",
+   "severity_counter": "severity_absent",
+   "class_coordinate": "org/apache/spark/deploy/worker/ProcessBuilderLike$$anon$3.class",
+   "coordinate_source": "/findings/3/class_file",
+   "coordinate_field_read": "class_file",
+   "class_key": "org/apache/spark/deploy/worker/ProcessBuilderLike",
+   "class_key_note": "The basename is truncated at its first $, so the anonymous class ProcessBuilderLike$$anon$3 collapses to the outer type ProcessBuilderLike.",
+   "resolution_scheme": "declaration",
+   "path_basis": "source-index-declaration",
+   "path_kind": "bytecode_source",
+   "candidates": 1,
+   "declaration_evidence": "No file is named ProcessBuilderLike.scala, so the filename scheme finds nothing and only the declaration scheme resolves this key. In the pinned tree core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala declares `trait ProcessBuilderLike` at line 269 and `object ProcessBuilderLike` at line 274, with the anonymous instance at lines 275-277.",
+   "collector_path": "core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala",
+   "collector_path_agreement": "identical to this run's unique resolution, counted under collector_path_corroborated -- and notable because the collector reached the same answer through its own declaration index",
+   "collector_explanation": "source-index-declaration",
+   "collector_explanation_destination": "no dataset field",
+   "start_line_source": "/findings/3/start_line",
+   "locations_in_record": 1,
+   "matched_allowlist_glob": "core/src/main/**",
+   "scope_reason": "in scope: matched the allowlist glob core/src/main/**",
+   "file_line_count_at_the_pin": 279,
+   "anchor_note": "Line 276 of the pinned DriverRunner.scala is `override def start(): Process = processBuilder.start()`, the launch the rule names. The file is 279 lines, so start_line is within it. This row is also the one that shows the declaration scheme is not optional: a filename-only index would lose it silently."
+  }
+ ],
+ "fields_absent_on_every_row": {
+  "severity_native": "No record carries a severity member and this shape has no rule object to fall back on, so the no-vocabulary path applies to all three rows. severity_norm is Info and is never absent.",
+  "cwe": "A Joern finding names a bytecode call site, not a weakness catalogue entry, and this shape carries no CWE member. Deriving one from a query identifier would be inference.",
+  "cve": "The same: this shape carries no advisory identifier.",
+  "package_coordinate": "The same, and the absence is explicitly not a rejection condition here -- unformable_package_coordinate covers a dependency-oriented record, which this is not."
+ },
+ "members_that_reach_no_dataset_field": {
+  "note": "Each of these is present in the fixture and must not appear in any row. Checked by substring comparison against every field of every row above, not merely by inspection.",
+  "path_resolution": "The collector's own explanation of how it resolved -- or failed to resolve -- a class, one of source-index-filename, source-index-declaration or unresolved-bytecode-only. AAP 0.5.4 confines it to the rejection record: 'any collector explanation for an unmappable bytecode path is retained in the rejection record, not in a dataset field.' It is diagnostic metadata, not data. All three literals occur in this fixture, and none of the three occurs anywhere in the rows array; unresolved-bytecode-only in particular reaches only the rejected record's detail.",
+  "method_full_name": "The enclosing method's full signature. Carried into a rejection's identity as diagnosable context, never into a row -- and never into message, however readable it looks.",
+  "envelope_members": "tool, cpg_path, generated_at, cpg_methods, cpg_typedecls, source_index_size, declaration_index_size and queries are envelope metadata: not findings, and they produce no rows.",
+  "collector_path_is_the_exception_that_is_not_one": "findings[].path does reach the path field, but only as a value the adapter may emit as-is when this run's own resolution produces nothing unique -- and on this fixture it never does that, because the three records that resolve use their own resolution and the fourth has a null collector path. So no row's path came from the collector here, which the counters record as collector_path_refused 0."
+ },
+ "rejections": [
+  {
+   "rejection_index": 0,
+   "finding_pointer": "/findings/2",
+   "finding_index": 2,
+   "locator_note": "The pointer and finding_index name the same record. finding_index is carried as well because normalize.adapters.joern puts exactly that key into the rejection's record_identity, so a produced Rejection and this expectation can be compared directly without translating one coordinate system into the other. It is the native-shape equivalent of the run_index / result_index pair the SARIF expectations carry.",
+   "reject_class": "unresolvable_path",
+   "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_UNRESOLVABLE_PATH constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten. Written verbatim rather than paraphrased, and asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+   "tool": "joern",
+   "classification_step": "step 4 of the adapter's fixed classification order -- shape, rule identifier, message, path, start_line. Steps 1 to 3 all pass on this record: it is a JSON object, it carries the non-empty rule identifier joern.weak-hash-algorithm, and it carries a non-empty message. That is deliberate, so the only thing left to reject it for is its path.",
+   "start_line_never_examined": "Step 5 is never reached, so this record's start_line of 85 is never examined and non_integer_start_line is not in play. Worth stating because the fixture does give the defective record a start_line, and a reader could otherwise expect an interaction between the two conditions.",
+   "class_coordinate": "org/sparkproject/guava/hash/MessageDigestHashFunction.class",
+   "coordinate_source": "/findings/2/class_file",
+   "coordinate_field_read": "class_file",
+   "class_key": "org/sparkproject/guava/hash/MessageDigestHashFunction",
+   "candidates": 0,
+   "collector_path": null,
+   "collector_path_consequence": "The collector supplied no path, so the fallback branch has nothing to emit and the rejection stands. Had a root-relative path been present, this record would have become a row on that path with the basis already-root-relative and a note that this run's index could not corroborate it -- so the null is load-bearing.",
+   "collector_explanation": "unresolved-bytecode-only",
+   "collector_explanation_destination": "the rejection's detail, appended as the suffix '; collector path_resolution: unresolved-bytecode-only'. It is not a record_identity key and it is not a dataset field.",
+   "expected_detail": "no source file under src/main or src/test in the pinned tree is named 'MessageDigestHashFunction' in the package 'org/sparkproject/guava/hash' or declares that type, so the bytecode class 'org/sparkproject/guava/hash/MessageDigestHashFunction.class' has no source coordinate in the tree; collector path_resolution: unresolved-bytecode-only",
+   "expected_detail_note": "The detail is the sub-reason AAP 0.5.4 requires a rejection to carry, and it is quoted here because unresolvable_path covers several routes: naming the class alone would not distinguish a bytecode class no source declares from a uriBaseId chain that cycled. A test may assert the class exactly and the detail by its distinguishing substrings -- the simple name, the package, both source trees, and the retained collector explanation -- rather than by full-string equality.",
+   "expected_record_identity_keys": [
+    "finding_index",
+    "method_full_name",
+    "rule_id",
+    "coordinate_field",
+    "class",
+    "class_key"
+   ],
+   "expected_record_identity": {
+    "finding_index": 2,
+    "method_full_name": "org.sparkproject.guava.hash.MessageDigestHashFunction.getMessageDigest:java.security.MessageDigest(java.lang.String)",
+    "rule_id": "joern.weak-hash-algorithm",
+    "coordinate_field": "class_file",
+    "class": "org/sparkproject/guava/hash/MessageDigestHashFunction.class",
+    "class_key": "org/sparkproject/guava/hash/MessageDigestHashFunction"
+   },
+   "record_identity_note": "The adapter supplies finding_index, the context members it found -- here method_full_name alone, since this shape carries no method, callee or file member -- and the rule identifier once step 2 has passed; the resolver adds coordinate_field, the raw coordinate under the key class, and the reduced class_key. Enough to find the record in the artifact again, and never the record itself and never a secret value. Note that class holds the raw class_file value: the resolver names the key for what it is resolving, not for the member it was read from, which is why coordinate_field is carried beside it.",
+   "why_not_a_row": "There is no path to put in the row. path is never absent from a row, so a record whose coordinate resolves to nothing has no valid row representation, and the alternatives -- dropping it, or giving it a guessed path -- would each hide it. Counting it under a named class keeps it visible and keeps the arithmetic honest.",
+   "contributes_no_row": true,
+   "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, so nothing from it reaches severity-map.md. That document reports literals against the rows the dataset contains, and this record contributes none. It carries no severity literal in any case.",
+   "contributes_no_path_kind": "The record produced no path, so it contributes to no path_kind_* counter and to non_filesystem_paths not at all. It does contribute to rule_id_from_rule_id, coordinate_from_class_file and collector_explanation_present, because it reached those steps before being rejected."
+  }
+ ],
+ "behaviours_not_exercised_by_this_fixture": [
+  {
+   "behaviour": "the ambiguous coordinate -- a class key two or more distinct source files claim, rejected rather than resolved first-wins",
+   "why_absent": "this fixture isolates one condition, so exactly one record is defective and it is defective in exactly one way: its key has zero candidates rather than several. The two are opposite failures of the same uniqueness requirement, so neither covers the other",
+   "cover_with": "oss-scan-results/adapter-tests/fixtures/reject-joern-ambiguous-path.json"
+  },
+  {
+   "behaviour": "the other three rejection conditions this adapter can reach from a well-formed document -- missing_rule_id, missing_message and non_integer_start_line, and malformed_record for a finding that is not an object or whose message or coordinate is of the wrong type",
+   "why_absent": "the defective record passes steps 1 to 3 deliberately, so that its path is the only thing wrong with it",
+   "cover_with": "the sibling negative fixtures in this tree -- reject-joern-missing-rule-id.json, reject-joern-missing-message.json, reject-joern-non-integer-start-line.json and reject-joern-malformed-record.json. Which condition each asserts is stated in its own expected file, not here"
+  },
+  {
+   "behaviour": "the absent coordinate -- a finding with no class member at all, or one carrying the collector's <unknown> sentinel, which names the absence of a type declaration rather than a class to look up and is classified absent_path rather than unresolvable_path",
+   "why_absent": "every record here carries a real class-file coordinate, so unknown_class_sentinel_records is 0. The distinction matters and is not covered by this fixture: an absent coordinate and an unresolvable one are different classes, and keying an index on the literal <unknown> would turn a stated absence into an ordinary lookup miss",
+   "cover_with": "no fixture in this tree carries it; the Joern negative set covers the six conditions named above. An assertion for it would exercise the adapter directly on a record whose class member is absent or is the sentinel literal"
+  },
+  {
+   "behaviour": "a resolution into a src/test tree from a -tests artifact, retained with in_scope false rather than dropped",
+   "why_absent": "all three surviving classes resolve into src/main trees, so rows_from_src_test and rows_out_of_scope are both 0",
+   "cover_with": "oss-scan-results/adapter-tests/fixtures/derived-joern-features.json, whose authored MasterSuite record is that case -- the captured oss-scan-results/adapter-tests/fixtures/joern.json holds no src/test resolution at all -- with the row it produces at oss-scan-results/adapter-tests/expected/derived-joern-features.rows.json row 7, in_scope false"
+  },
+  {
+   "behaviour": "the collector-path fallback actually being taken -- a coordinate this run cannot resolve where the collector did supply a root-relative path, emitted as-is and marked uncorroborated -- and the disagreement case, where both resolve and differ and this run's answer is kept with the disagreement recorded",
+   "why_absent": "the one unresolvable record here has a null collector path, and the three that resolve agree with the collector exactly, so collector_path_refused and collector_path_disagreed are both 0 while collector_path_corroborated is 3",
+   "cover_with": "a derived fixture pairing an unresolvable coordinate with a non-null collector path, and one whose collector path names a different file than the class resolves to"
+  },
+  {
+   "behaviour": "this provisioning's collector shape -- query_id, class, line, severity, callee, method and file, with the nested graph envelope and the per-query returned tally",
+   "why_absent": "this fixture carries the documented shape, which is the point: the adapter reads both, and the two fixtures cover one each. rule_id_from_query_id, coordinate_from_class, start_line_from_line and severity_from_record_label are all 0 here for that reason, and envelope_graph_files is 0 because the nested object is absent",
+   "cover_with": "oss-scan-results/adapter-tests/fixtures/joern.json"
+  },
+  {
+   "behaviour": "shape-detection failure -- an artifact matching neither SARIF nor a known native shape halting the run",
+   "why_absent": "this document is a well-formed native Joern artifact and routes cleanly; its defect is one record, not its shape",
+   "cover_with": "near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json"
+  },
+  {
+   "behaviour": "a record carrying more than one location, where the row takes the first and multi_location_records counts it",
+   "why_absent": "this shape names one call site per finding and carries no locations array at all, so the counter is 0",
+   "cover_with": "a derived fixture carrying a locations array of length greater than one"
+  }
+ ]
+}

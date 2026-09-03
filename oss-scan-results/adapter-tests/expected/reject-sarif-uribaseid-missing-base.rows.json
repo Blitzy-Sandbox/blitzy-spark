@@ -1,0 +1,717 @@
+{
+ "description": "The hand-verified expected result for the negative Opengrep SARIF fixture whose defective record references a uriBaseId that has no entry in a run.originalUriBaseIds map that is otherwise present and non-empty -- a dangling base reference. Every value was derived by reading the fixture and the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/sarif.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match. This is the only expected file in this folder that records TWO outcomes for one fixture, because the outcome is decided by the runner metadata the test supplies rather than by anything in the artifact -- see branch_selection.",
+ "tool": "opengrep",
+ "scanner_class": "sast",
+ "adapter": "harness/lib/normalize/adapters/sarif.py",
+ "fixture": {
+  "path": "oss-scan-results/adapter-tests/fixtures/reject-sarif-uribaseid-missing-base.sarif",
+  "sha256": "3534582e4425bd8b841211784551f42fd3df32d66e186fddc5d238059192a7cb",
+  "bytes": 10252,
+  "sarif_version": "2.1.0",
+  "runs": 1,
+  "results": 3,
+  "driver_rules": 3,
+  "derived_from": "oss-scan-results/adapter-tests/fixtures/opengrep.sarif",
+  "derivation": "Two of the three results are unmodified captured output: /runs/0/results/0 is byte-identical to harness/artifacts/raw/opengrep.sarif results[432] and to the positive fixture's results[1], and /runs/0/results/2 is byte-identical to that artifact's results[521] and the positive fixture's results[2]. Two things were added. First, a two-entry run.originalUriBaseIds map, which the captured artifact does not emit at all -- without it every record's %SRCROOT% would take the base-absent route and the fixture would re-cover what reject-sarif-unresolvable-path.sarif's degenerate map already covers, testing nothing new. Second, /runs/0/results/1, the synthesized defective record, whose only defect is that its uriBaseId %REPOSITORYROOT% has no entry in that map.",
+  "captured_provenance": "The synthesized record appears in neither harness/artifacts/raw/opengrep.sarif nor oss-scan-results/adapter-tests/fixtures/opengrep.sarif. Checked twice: by structural comparison against every result in both, and again with the uriBaseId removed from the comparison, so it is demonstrably this fixture's own addition rather than a captured record with an edited base identifier. The recorded sha256 above is what makes a later edit to the fixture visible: these values are re-derived when the fixture changes, never adjusted to keep a test green.",
+  "recorded_rule_pointers": {
+   "opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional": "/runs/0/tool/driver/rules/0",
+   "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle": "/runs/0/tool/driver/rules/1",
+   "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string": "/runs/0/tool/driver/rules/2"
+  },
+  "original_uri_base_ids": {
+   "pointer": "/runs/0/originalUriBaseIds",
+   "entries": 2,
+   "map": {
+    "%SRCROOT%": {
+     "uri": "spark-src/",
+     "uriBaseId": "PROJECTROOT"
+    },
+    "PROJECTROOT": {
+     "uri": "file:///opt/"
+    }
+   },
+   "chained_on_purpose": "%SRCROOT% is expressed relative to PROJECTROOT rather than absolutely, which is the shape of SARIF 2.1.0's own section 3.14.14 example. It is here so the walk this fixture exercises is the real two-level one: a resolver reading a single level of uriBaseId would fail on %SRCROOT% as well, and the fixture would then no longer isolate the dangling identifier.",
+   "resolves_to": "/opt/spark-src",
+   "resolves_to_derivation": "PROJECTROOT's uri file:///opt/ parses as a file URI with path /opt/ (paths.parse_uri_reference, URI_FORM_FILE_URI), which is not the filesystem root and so is not degenerate. %SRCROOT%'s relative uri spark-src/ is accumulated as a suffix and joined beneath it, giving /opt/spark-src -- the trailing separator dropped because a base names a directory. That value is the scan root this provisioning records, which is why the two chain-resolved rows carry the same paths the captured artifact carries.",
+   "dangling_identifier": "%REPOSITORYROOT%",
+   "dangling_identifier_absent_from_map": true
+  },
+  "not_records": "There is nothing in this fixture but findings and tool metadata. /runs/0/invocations/0 carries only executionSuccessful true and no toolExecutionNotifications, so -- unlike reject-sarif-unresolvable-path.sarif -- there is no notification a reading could mistake for a finding. The record count is exactly the three results."
+ },
+ "routing": {
+  "shape": "sarif",
+  "detected_by": "normalize.shape.is_sarif -- a version of \"2.1.0\" together with a runs array; those two together are the whole test",
+  "sarif_version_pointer": "/version",
+  "runs_pointer": "/runs",
+  "adapter_module": "normalize.adapters.sarif",
+  "routing_decision": "normalize.shape.route(\"opengrep\", doc) returns tool \"opengrep\", shape \"sarif\", adapter \"sarif\", scanner_class \"sast\"",
+  "routes_successfully": true,
+  "rejection_is_record_level": true,
+  "not_a_shape_failure": "No normalize.shape.UnknownArtifactShape is expected here, and a test asserting one against this fixture would be asserting the wrong thing. The enclosing document is valid SARIF 2.1.0 and routes cleanly; at most one record inside it is defective, and even then the adapter emits the others. The fixtures that own shape-detection failure are near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json.",
+  "negative_routing_test": "The mandated negative routing assertion -- that a native artifact must not route to the SARIF adapter -- belongs to test_shape_routing_negative.py and does not use this fixture."
+ },
+ "field_order": [
+  "tool",
+  "scanner_class",
+  "rule_id",
+  "message",
+  "severity_native",
+  "severity_norm",
+  "path",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate",
+  "in_scope"
+ ],
+ "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Every row in both branches below carries all twelve keys in that order, present-with-null rather than omitted.",
+ "absence_permitted_fields": [
+  "severity_native",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate"
+ ],
+ "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- exactly emit.REQUIRED_FIELDS.",
+ "severity_norm_vocabulary": [
+  "Critical",
+  "High",
+  "Medium",
+  "Low",
+  "Info"
+ ],
+ "allowlist": {
+  "path": "harness/scope/allowlist.txt",
+  "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+  "globs": 12,
+  "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under that branch's row_derivations."
+ },
+ "expectation_form": "conditional-two-branch",
+ "branch_selection": {
+  "why_two_branches": "This fixture's defective record has no single expected outcome, and pinning one would be wrong rather than incomplete. AAP 0.5.4 routes a uriBaseId that is absent from the base map to the documented degenerate-base fallback, and then states that the fallback is not a catch-all: it applies where the runner metadata supplies an explicit base for that tool, and everywhere else the record is rejected and counted rather than guessed. The metadata is the test's input, so the same fixture yields a row under one metadata and a counted rejection under another. Both are recorded here, each with its own rows, rejections, counters and arithmetic.",
+  "decided_by": "harness/artifacts/logs/runner-metadata.json, through paths.ToolPathBase.has_explicit_base -- true when path_base.kind is not \"none\" and path_base.value is a non-empty string. Nothing in the artifact and nothing in this document decides it.",
+  "authority_pointer": "harness/lib/normalize/paths.py, resolve_sarif_location: the branch guarded by `if not tool_base.has_explicit_base:` after the walk has reported an outcome in BASE_OUTCOMES_ELIGIBLE_FOR_METADATA_FALLBACK.",
+  "single_outcome_would_be_wrong": "A one-outcome expected file would silently pin whichever metadata the test happened to configure, and the other behaviour -- the one AAP 0.5.4 spends its emphasis on -- would then have no assertion at all. Both branches must be exercised against this file.",
+  "default_branch": {
+   "branch_id": "A",
+   "pointer": "/branches/0",
+   "reason": "Branch A is what the metadata this provisioning actually shipped selects: tools.opengrep.path_base is kind scan_root with value /opt/spark-src, so has_explicit_base is true. A consumer that needs one outcome for this fixture takes it through this pointer rather than through a copy, so there is no second place for the numbers to drift.",
+   "not_a_preference": "Naming a default states which metadata is in effect in this provisioning. It does not rank the branches: Branch B is equally required, and it is the branch that asserts the fallback is refused rather than applied."
+  },
+  "loader_note": "This file deliberately carries no top-level rows, row_derivations, rejections, counts or counters. Those five live once per branch under /branches, and a loader written for the single-outcome expected files must read /branches rather than the top level for this one. expectation_form names the shape so the distinction is detectable rather than inferred from a missing key. Everything a branch does not change -- the fixture, the routing, the field order, the allowlist, the shared resolution facts, the rejection boundary, the shared raw count and the corroboration -- stays at the top level and is stated once."
+ },
+ "root_precondition": {
+  "required_scan_root": "/opt/spark-src",
+  "root_dependent": true,
+  "why": "Unlike its sibling reject-sarif-unresolvable-path.rows.json, whose rows hold for any absolute root, these rows require this root. The base chain names it absolutely -- PROJECTROOT is file:///opt/ and %SRCROOT% is spark-src/ beneath it -- so the two chain-resolved records resolve to /opt/spark-src/<uri> whatever root the adapter is given. Relativized against this root each returns its uri unchanged; relativized against any other root each would acquire a ../ prefix, become path_kind outside_root and take in_scope false, and the expected rows below would legitimately not match.",
+  "source": "harness/artifacts/logs/runner-metadata.json, spark_src -- read as input through paths.metadata_scan_root, never assumed",
+  "consequence_for_the_test": "A test exercising this fixture passes the recorded scan root, in both branches. Substituting a temporary directory would change the expected rows rather than reveal a defect, and no absolute path appears anywhere in this file regardless."
+ },
+ "resolution_context": {
+  "path_base_kind": "scan_root",
+  "path_base_value": "/opt/spark-src",
+  "path_base_equals_scan_root": true,
+  "path_base_source": "harness/artifacts/logs/runner-metadata.json, the opengrep entry's path_base -- read as input, never assumed",
+  "sarif_uri_base_id_observed": [
+   "%SRCROOT%",
+   "%REPOSITORYROOT%"
+  ],
+  "sarif_original_uri_base_ids_present": true,
+  "sarif_original_uri_base_ids_non_empty": true,
+  "uri_base_id_walk_outcomes": {
+   "%SRCROOT%": "resolved",
+   "%REPOSITORYROOT%": "absent"
+  },
+  "walk_outcome_authority": "harness/lib/normalize/paths.py, resolve_uri_base and the BASE_OUTCOME_* constants. The outcome for %SRCROOT% is BASE_OUTCOME_RESOLVED with detail \"resolved through %SRCROOT% -> PROJECTROOT to '/opt/spark-src'\"; the outcome for %REPOSITORYROOT% is BASE_OUTCOME_ABSENT with detail \"'%REPOSITORYROOT%' has no entry in originalUriBaseIds (chain %REPOSITORYROOT%)\".",
+  "two_records_are_metadata_independent": "The %SRCROOT% records never consult the runner metadata at all: resolve_sarif_location returns their path from the resolved chain before any fallback is considered. That is what makes the two branches differ in exactly one record, and it is why the contrast rows below are byte-identical in both.",
+  "the_fault_is_the_base_machinery_not_the_uri": "The defective record's uri, common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java, is a plain root-relative reference that names a real file in the pinned tree -- 171 lines, whose lines 131 to 137 are the record's own snippet verbatim. It would resolve perfectly if %REPOSITORYROOT% had an entry. Nothing about the path is wrong, and a reader who attributes the failure to the URI will look for the defect in the wrong place: the record fails, where it fails, solely because the identifier it names is absent from the map.",
+  "severity_source": "No result in this fixture states a level of its own, and no rule carries properties.severity or properties.problem.severity, so each severity_native is the level its own rule states under defaultConfiguration.level and each severity_norm comes from the SARIF level table: error High, warning Medium, note Low, none Info.",
+  "package_coordinate": "null on every row in both branches. A SARIF result names a code location rather than a package, and this shape supplies no coordinate to carry."
+ },
+ "uri_base_id_terminal_cases": {
+  "this_fixture_covers": "dangling reference -- the identifier is syntactically fine and the map is present and non-empty, but the map has no entry for it. AAP 0.2.2 records this as a documented real producer defect (semgrep issue 10591) rather than an invented edge case, and it is the shape that makes SARIF 2.1.0 section 3.4.4's normative consumer procedure fail: the procedure resolves the identifier from run.originalUriBaseIds, and here there is nothing to resolve it to.",
+  "kept_separate_because": "AAP 0.5.4 names the terminal cases rather than collapsing them. All five reach the same rejection class where they reach one at all, so the class alone cannot say which happened -- the sub-reason in the rejection detail is what distinguishes them, and a single merged fixture would lose the ability to diagnose why a path failed to resolve.",
+  "siblings": [
+   {
+    "condition": "cycle -- the chain revisits an identifier it has already visited",
+    "fixture": "oss-scan-results/adapter-tests/fixtures/reject-sarif-uribaseid-cycle.sarif",
+    "walk_outcome": "cycle",
+    "eligible_for_metadata_fallback": true
+   },
+   {
+    "condition": "over-depth -- the chain is acyclic but longer than paths.SARIF_BASE_CHAIN_MAX_DEPTH",
+    "fixture": "oss-scan-results/adapter-tests/fixtures/reject-sarif-uribaseid-overdepth.sarif",
+    "walk_outcome": "over-depth",
+    "eligible_for_metadata_fallback": true
+   },
+   {
+    "condition": "invalid URI -- an entry whose uri is not a syntactically valid URI reference, or is not a string, or whose entry is not an object",
+    "fixture": "oss-scan-results/adapter-tests/fixtures/reject-sarif-uribaseid-invalid-uri.sarif",
+    "walk_outcome": "invalid-uri",
+    "eligible_for_metadata_fallback": false,
+    "note": "rejected under invalid_uri rather than unresolvable_path, and never eligible for the fallback"
+   },
+   {
+    "condition": "relative with no absolute ancestor -- the chain ends on a relative reference carrying no uriBaseId to resolve it against",
+    "fixture": "oss-scan-results/adapter-tests/fixtures/reject-sarif-uribaseid-relative-no-absolute-ancestor.sarif",
+    "walk_outcome": "no-absolute-ancestor",
+    "eligible_for_metadata_fallback": false,
+    "note": "AAP 0.5.4's case 3, rejected outright under unresolvable_path rather than routed through the fallback, so it has one outcome where this fixture has two"
+   }
+  ],
+  "and_the_degenerate_case": "A fifth eligible outcome, degenerate, is not one of the five fixtures: it is a base that resolves to the filesystem root -- file:/// for a git repository target, trivy issue 10364's shape -- and reject-sarif-unresolvable-path.sarif's absent map already exercises the same fallback decision this fixture's Branch A and Branch B exercise.",
+  "no_re_coverage": "This fixture asserts nothing the four siblings assert. Its map is present and non-empty, its chain is two levels and acyclic, every entry's uri is valid, and the chain terminates on an absolute ancestor. The only thing wrong with it is a missing key."
+ },
+ "rejection_boundary": {
+  "statement": "In Branch B the defective record is a rejection because there is no path to put in a row and no base with which to make one. In Branch A the same record is a row, because the metadata supplies the base the walk could not. Neither outcome is a judgement about the finding: nothing here rules on whether the record is real, important or duplicated, and no other tool's output is consulted.",
+  "why_branch_b_can_only_be_a_rejection": "path is one of only two never-absent fields in the twelve-field schema, the other being severity_norm: emit.REQUIRED_FIELDS carries path, and emit.OPTIONAL_FIELDS is exactly severity_native, start_line, cwe, cve and package_coordinate. A record with no resolvable path therefore has no valid row representation at all -- emit.py raises on a null path rather than writing one -- so counting it under a named class is the only outcome that neither drops the record nor invents a coordinate for it.",
+  "why_branch_a_is_not_a_guess": "The base Branch A resolves through is a recorded fact about how the runner was invoked, not an assumption: runner-metadata.json states it, with its own evidence, and paths.py consumes it as input. The fallback is visibly a fallback -- the row's basis is sarif-degenerate-base-metadata-fallback and its corroboration names the walk outcome that made it necessary -- so a reader can tell a chain-resolved path from a metadata-resolved one row by row.",
+  "not_a_rejection": [
+   {
+    "case": "a path resolving outside the twelve authoritative globs",
+    "expected": "a kept row with in_scope false, counted under rows_out_of_scope",
+    "present_in_this_fixture": false
+   },
+   {
+    "case": "an archive member",
+    "expected": "a kept row with in_scope false, counted in non_filesystem_paths and serialized <container-relative-to-root>!<member> with ../ preserved rather than normalized",
+    "present_in_this_fixture": false
+   },
+   {
+    "case": "a path in a src/test tree",
+    "expected": "a kept row with in_scope false; the exclusion removes the path from scope, never from the dataset",
+    "present_in_this_fixture": false
+   }
+  ],
+  "python_tests_are_in_scope": "One surviving row names python/pyspark/ml/tests/connect/test_legacy_mode_feature.py and carries in_scope true. That is not an oversight and not the src/test case: the exclusion is literal, a path containing src/test is out of scope, and this path contains no such segment while sitting inside the authoritative glob python/pyspark/**. The file is read by the scanner and never executed.",
+  "no_guessed_path": "In Branch B the rejected record is rejected and counted, never given a path. Nothing in that branch supplies a coordinate for it, not even the one Branch A resolves -- which is the whole point of recording the branches separately."
+ },
+ "counts_shared": {
+  "raw_finding_records": 3,
+  "raw_count_unit": "one element of runs[].results[] -- the unit normalize.reconcile.count_records walks independently of row construction",
+  "raw_count_authority": "normalize.reconcile.count_records(\"opengrep\", doc), whose SARIF traversal sums the length of each run's results array and builds no row, resolves no path and maps no severity. It is the independent half of the identity: a count taken from the traversal that builds the rows would satisfy the assertion while testing nothing.",
+  "identical_in_both_branches": "The raw side is a property of the fixture, and the fixture does not change between branches, so it is measured once and stated once here. Each branch's counts block points at this value rather than repeating it: a number carried twice inside one document is a number that can drift, and the branches are meant to differ in rows and rejections alone.",
+  "reconciliation_identity": "raw_finding_records == rows + rejections, asserted per branch"
+ },
+ "counters_authority": "harness/lib/normalize/adapters/sarif.py, COUNTER_KEYS as returned by new_counters(): twenty authored keys, one path_kind_* per paths.PATH_KINDS and one severity_basis_* per severity.BASIS_VALUES, twenty-nine in total. Each branch below states all twenty-nine, so a zero is visibly measured rather than missing.",
+ "counters_shared_note": "Three counter facts hold in both branches and are stated once. The document carries one run whose results member is an array, so runs is 1 and both runs_skipped_non_mapping and runs_without_results_array are 0. Every result carries exactly one location, so multi_location_records is 0 -- and it is counted before the path step, so it would have been 0 even had the defective record carried several. And rule_id_from_rule_id is 3 in both branches, including the branch where one record is rejected: the rule identifier is step 2 of the adapter's classification order and the path is step 4, so the rejected record resolves its identifier before it is rejected. That asymmetry against the severity counters is the classification order made visible, not a miscount.",
+ "corroboration": {
+  "source": "oss-scan-results/adapter-tests/expected/opengrep.rows.json",
+  "records_compared": 2,
+  "fields_compared_per_record": 12,
+  "agreement": "complete",
+  "note": "The two surviving results are captured records the positive sibling also covers -- this fixture's /runs/0/results/0 is that file's row 1 and its /runs/0/results/2 is that file's row 2 -- and all twenty-four field comparisons agree, in both branches, since the contrast rows are identical across them. Recorded after the fact rather than as the source of these values: each value here was derived from the fixture and the authored contracts, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply. The defective record has no counterpart to corroborate against: it is this fixture's own synthesized addition and it appears in no captured artifact.",
+  "basis_differs_from_the_sibling": "One derivation detail deliberately differs from opengrep.rows.json. There, with no originalUriBaseIds emitted at all, both records resolved on the sarif-degenerate-base-metadata-fallback basis. Here the same two records resolve on the sarif-uri-base-id-chain basis, because this fixture supplies the map. The rows are identical; the route to them is not, and the row_derivations state the route."
+ },
+ "branches": [
+  {
+   "branch_id": "A",
+   "name": "metadata supplies an explicit path_base for opengrep",
+   "precondition": {
+    "statement": "paths.ToolPathBase for opengrep has has_explicit_base true, so the base-absent walk outcome routes through AAP 0.5.4's documented degenerate-base fallback and the defective record resolves to a row.",
+    "tool_path_base": {
+     "tool": "opengrep",
+     "kind": "scan_root",
+     "base_value": "/opt/spark-src",
+     "scan_root": "/opt/spark-src",
+     "has_explicit_base": true,
+     "base_for_relative": "/opt/spark-src"
+    },
+    "constructed_from": "harness/artifacts/logs/runner-metadata.json as shipped, through paths.tool_path_base(document, \"opengrep\"). No substitution and no edit: this is the provisioned metadata, which is why Branch A is the default branch.",
+    "is_the_shipped_metadata": true
+   },
+   "outcome_summary": "Three rows, no rejections, parse status clean. Two rows resolve through the uriBaseId chain and one through the runner-recorded base.",
+   "rows": [
+    {
+     "tool": "opengrep",
+     "scanner_class": "sast",
+     "rule_id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+     "message": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library.",
+     "severity_native": null,
+     "severity_norm": "Info",
+     "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+     "start_line": 72,
+     "cwe": "CWE-89",
+     "cve": null,
+     "package_coordinate": null,
+     "in_scope": true
+    },
+    {
+     "tool": "opengrep",
+     "scanner_class": "sast",
+     "rule_id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional",
+     "message": "This if statement will always have the same behavior and is therefore unnecessary.",
+     "severity_native": null,
+     "severity_norm": "Info",
+     "path": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
+     "start_line": 131,
+     "cwe": null,
+     "cve": null,
+     "package_coordinate": null,
+     "in_scope": true
+    },
+    {
+     "tool": "opengrep",
+     "scanner_class": "sast",
+     "rule_id": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle",
+     "message": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.",
+     "severity_native": null,
+     "severity_norm": "Info",
+     "path": "python/pyspark/ml/tests/connect/test_legacy_mode_feature.py",
+     "start_line": 90,
+     "cwe": "CWE-502",
+     "cve": null,
+     "package_coordinate": null,
+     "in_scope": true
+    }
+   ],
+   "row_derivations": [
+    {
+     "row_index": 0,
+     "result_pointer": "/runs/0/results/0",
+     "rule_pointer": "/runs/0/tool/driver/rules/2",
+     "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+     "message_source": "/runs/0/results/0/message/text",
+     "severity_native_source": null,
+     "severity_native_note": "the result states no level, and its rule carries neither properties.severity nor properties.problem.severity, so all three field sources AAP 0.5.4 authorises for a SARIF record are silent; the absence is stated rather than filled from rule.defaultConfiguration.level, which AAP 0.5.4 does not carry as a field source",
+     "severity_basis": "no_vocabulary",
+     "severity_counter": "severity_absent",
+     "path_source": "/runs/0/results/0/locations/0/physicalLocation/artifactLocation/uri",
+     "uri_base_id": "%SRCROOT%",
+     "uri_base_id_walk_outcome": "resolved",
+     "resolved_base": "/opt/spark-src",
+     "path_kind": "tree_file",
+     "path_basis": "sarif-uri-base-id-chain",
+     "path_corroboration": null,
+     "start_line_source": "/runs/0/results/0/locations/0/physicalLocation/region/startLine",
+     "locations_in_record": 1,
+     "cwe_source": {
+      "pointer": "/runs/0/tool/driver/rules/2/properties/tags/0",
+      "text": "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+     },
+     "cwe_absent_reason": null,
+     "distinct_cwe_identifiers": 1,
+     "distinct_cve_identifiers": 0,
+     "matched_allowlist_glob": "core/src/main/**",
+     "file_line_count_at_the_pin": 380,
+     "anchor_note": "The contrast row, present in both branches and identical in each. Line 72 of the pinned DiskStore.scala is the interpolated string argument of the SparkException.internalError(...) call that opens on line 71, and the file is 380 lines, so start_line is within the file. It is here to prove that whichever way the defective record goes, the adapter still emits the records around it.",
+     "metadata_independent": true
+    },
+    {
+     "row_index": 1,
+     "result_pointer": "/runs/0/results/1",
+     "rule_pointer": "/runs/0/tool/driver/rules/0",
+     "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+     "message_source": "/runs/0/results/1/message/text",
+     "severity_native_source": null,
+     "severity_native_note": "the result states no level, and its rule carries neither properties.severity nor properties.problem.severity, so all three field sources AAP 0.5.4 authorises for a SARIF record are silent; the absence is stated rather than filled from rule.defaultConfiguration.level, which AAP 0.5.4 does not carry as a field source",
+     "severity_basis": "no_vocabulary",
+     "severity_counter": "severity_absent",
+     "path_source": "/runs/0/results/1/locations/0/physicalLocation/artifactLocation/uri",
+     "uri_base_id": "%REPOSITORYROOT%",
+     "uri_base_id_walk_outcome": "absent",
+     "resolved_base": "/opt/spark-src",
+     "resolved_base_source": "the runner-recorded base, not the chain -- runner-metadata.json tools.opengrep.path_base.value",
+     "path_kind": "tree_file",
+     "path_basis": "sarif-degenerate-base-metadata-fallback",
+     "path_corroboration": "absent: '%REPOSITORYROOT%' has no entry in originalUriBaseIds (chain %REPOSITORYROOT%); resolved through the runner-recorded base '/opt/spark-src'",
+     "path_corroboration_note": "The corroboration is what keeps the fallback visible. It names the walk outcome that made the fallback necessary and the base that stood in, so this row can be told apart from the two that resolved through the chain. A test may assert it by its distinguishing substrings rather than by full-string equality.",
+     "start_line_source": "/runs/0/results/1/locations/0/physicalLocation/region/startLine",
+     "locations_in_record": 1,
+     "cwe_source": null,
+     "cwe_absent_reason": "the rule carries no properties.cwe and its properties.tags array is empty, so no CWE token exists to collect",
+     "distinct_cwe_identifiers": 0,
+     "distinct_cve_identifiers": 0,
+     "matched_allowlist_glob": "common/network-shuffle/src/main/**",
+     "file_line_count_at_the_pin": 171,
+     "anchor_note": "The defective record, resolved rather than rejected because this branch's metadata supplies a base. Its uri names a real file whose lines 131 to 137 are the record's own snippet, so line 131 is within the file and the resolved path names something that exists -- which is exactly why the fault this fixture isolates is the base machinery and not the URI.",
+     "metadata_independent": false,
+     "this_row_is_the_branch": "This is the only row that differs between the branches. In Branch B it does not exist; the record is counted as a rejection instead."
+    },
+    {
+     "row_index": 2,
+     "result_pointer": "/runs/0/results/2",
+     "rule_pointer": "/runs/0/tool/driver/rules/1",
+     "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+     "message_source": "/runs/0/results/2/message/text",
+     "severity_native_source": null,
+     "severity_native_note": "the result states no level, and its rule carries neither properties.severity nor properties.problem.severity, so all three field sources AAP 0.5.4 authorises for a SARIF record are silent; the absence is stated rather than filled from rule.defaultConfiguration.level, which AAP 0.5.4 does not carry as a field source",
+     "severity_basis": "no_vocabulary",
+     "severity_counter": "severity_absent",
+     "path_source": "/runs/0/results/2/locations/0/physicalLocation/artifactLocation/uri",
+     "uri_base_id": "%SRCROOT%",
+     "uri_base_id_walk_outcome": "resolved",
+     "resolved_base": "/opt/spark-src",
+     "path_kind": "tree_file",
+     "path_basis": "sarif-uri-base-id-chain",
+     "path_corroboration": null,
+     "start_line_source": "/runs/0/results/2/locations/0/physicalLocation/region/startLine",
+     "locations_in_record": 1,
+     "cwe_source": {
+      "pointer": "/runs/0/tool/driver/rules/1/properties/tags/0",
+      "text": "CWE-502: Deserialization of Untrusted Data"
+     },
+     "cwe_absent_reason": null,
+     "distinct_cwe_identifiers": 1,
+     "distinct_cve_identifiers": 0,
+     "matched_allowlist_glob": "python/pyspark/**",
+     "file_line_count_at_the_pin": 219,
+     "anchor_note": "The second contrast row, from a different module, a different language and a different severity literal, so the fixture proves the adapter carried on past the defective record rather than merely emitting the one that preceded it. Also present in both branches and identical in each.",
+     "metadata_independent": true
+    }
+   ],
+   "rejections": [],
+   "rejections_note": "Empty by expectation, not by omission. With an explicit base recorded, every one of the three records resolves, so there is nothing to reject and rejections_by_class is an empty object. A test asserting Branch A must assert the emptiness rather than skip the check: a rejection appearing here would mean the fallback did not apply where the metadata says it should.",
+   "counts": {
+    "raw_finding_records_pointer": "/counts_shared/raw_finding_records",
+    "rows": 3,
+    "rejections": 0,
+    "rejections_by_class": {},
+    "reconciliation_identity": "raw_finding_records == rows + rejections",
+    "reconciliation_arithmetic": "3 == 3 + 0",
+    "parse_status": "clean",
+    "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_CLEAN = \"clean\", assigned where there are no rejections. This is deliberately not normalize.reconcile's STATUS_PASS / STATUS_FAIL / STATUS_NOT_APPLICABLE vocabulary, which describes an assertion's outcome rather than an artifact's parse."
+   },
+   "counters": {
+    "runs": 1,
+    "runs_skipped_non_mapping": 0,
+    "runs_without_results_array": 0,
+    "multi_location_records": 0,
+    "multi_valued_cwe_records": 0,
+    "multi_valued_cve_records": 0,
+    "non_filesystem_paths": 0,
+    "rows_in_scope": 3,
+    "rows_out_of_scope": 0,
+    "rule_id_from_rule_id": 3,
+    "rule_id_from_rule_index": 0,
+    "rule_index_unusable": 0,
+    "tool_component_reference_unresolved": 0,
+    "rule_metadata_from_extension": 0,
+    "rule_metadata_unresolved": 0,
+    "severity_from_level": 0,
+    "severity_from_rule_property": 0,
+    "severity_absent": 3,
+    "start_line_absent": 0,
+    "path_kind_tree_file": 3,
+    "path_kind_outside_root": 0,
+    "path_kind_archive_member": 0,
+    "path_kind_bytecode_source": 0,
+    "severity_basis_sarif_level": 0,
+    "severity_basis_label": 0,
+    "severity_basis_cvss_score": 0,
+    "severity_basis_no_vocabulary": 3,
+    "severity_basis_unmapped_literal": 0
+   },
+   "counters_note": "All three records become rows, so the row-side counters read 3 across the board: rule_id_from_rule_id, severity_from_rule_default_configuration, severity_basis_sarif_level, path_kind_tree_file and rows_in_scope. The four counters AAP 0.5.4 has reported per tool are all 0 -- every result carries exactly one location, the two rules that name a weakness name exactly one each, no rule string carries a CVE identifier, and all three paths name files inside the scanned tree. Note that path_kind_tree_file is 3 while two of the three paths came from the chain and one from the metadata base: the kind is read off the serialized path, so the basis that produced it does not change it.",
+   "four_reported_counters": {
+    "authority": "AAP 0.5.4 -- the four counts reported per tool",
+    "names": [
+     "multi_location_records",
+     "multi_valued_cwe_records",
+     "multi_valued_cve_records",
+     "non_filesystem_paths"
+    ],
+    "values_live_in": "counters",
+    "all_four_are_zero_for_this_branch": true
+   }
+  },
+  {
+   "branch_id": "B",
+   "name": "metadata supplies no explicit base for opengrep",
+   "precondition": {
+    "statement": "paths.ToolPathBase for opengrep has has_explicit_base false, so the base-absent walk outcome has nothing to fall back to and the defective record is a counted rejection. This is the branch that asserts AAP 0.5.4's \"the documented degenerate-base fallback is not a catch-all\".",
+    "tool_path_base": {
+     "tool": "opengrep",
+     "kind": "none",
+     "base_value": null,
+     "scan_root": "/opt/spark-src",
+     "has_explicit_base": false,
+     "base_for_relative": null
+    },
+    "constructed_from": "A ToolPathBase the test supplies -- paths.ToolPathBase(tool=\"opengrep\", kind=paths.PATH_BASE_KIND_NONE, base_value=None, scan_root=\"/opt/spark-src\"), or the same view built from a metadata document whose opengrep path_base.kind is \"none\". Not an edit to the shipped runner-metadata.json, which stays byte-exact: the branch is a property of the input the test constructs.",
+    "is_the_shipped_metadata": false,
+    "kind_is_the_document_s_own_annotation": "runner-metadata.json's path_base_kind_vocabulary defines \"none\" as \"No explicit base could be established from the runner. paths.py must reject such a record under unresolvable_path rather than fall back.\" -- so this branch asserts the behaviour the document itself specifies for that kind rather than a hypothetical.",
+    "equivalent_constructions": "Any ToolPathBase with has_explicit_base false selects this branch, since the flag is the whole condition: kind \"none\" with a null value, or a kind whose value is null -- the shipped joern entry, kind bytecode_class with value null, is the document's own real instance. The rows, the rejection class and every count below are identical across those constructions; only the kind literal quoted inside the rejection detail differs, which is why the detail is given for the canonical kind \"none\" and its invariant substrings are listed separately.",
+    "has_explicit_base_authority": "harness/lib/normalize/paths.py, ToolPathBase.has_explicit_base -- kind != PATH_BASE_KIND_NONE and a truthy base_value."
+   },
+   "outcome_summary": "Two rows, one rejection under unresolvable_path, parse status partial. Both rows resolve through the uriBaseId chain and are byte-identical to Branch A's rows 0 and 2.",
+   "rows": [
+    {
+     "tool": "opengrep",
+     "scanner_class": "sast",
+     "rule_id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+     "message": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library.",
+     "severity_native": null,
+     "severity_norm": "Info",
+     "path": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+     "start_line": 72,
+     "cwe": "CWE-89",
+     "cve": null,
+     "package_coordinate": null,
+     "in_scope": true
+    },
+    {
+     "tool": "opengrep",
+     "scanner_class": "sast",
+     "rule_id": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle",
+     "message": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.",
+     "severity_native": null,
+     "severity_norm": "Info",
+     "path": "python/pyspark/ml/tests/connect/test_legacy_mode_feature.py",
+     "start_line": 90,
+     "cwe": "CWE-502",
+     "cve": null,
+     "package_coordinate": null,
+     "in_scope": true
+    }
+   ],
+   "row_derivations": [
+    {
+     "row_index": 0,
+     "result_pointer": "/runs/0/results/0",
+     "rule_pointer": "/runs/0/tool/driver/rules/2",
+     "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+     "message_source": "/runs/0/results/0/message/text",
+     "severity_native_source": null,
+     "severity_basis": "no_vocabulary",
+     "severity_counter": "severity_absent",
+     "path_source": "/runs/0/results/0/locations/0/physicalLocation/artifactLocation/uri",
+     "uri_base_id": "%SRCROOT%",
+     "uri_base_id_walk_outcome": "resolved",
+     "resolved_base": "/opt/spark-src",
+     "path_kind": "tree_file",
+     "path_basis": "sarif-uri-base-id-chain",
+     "path_corroboration": null,
+     "start_line_source": "/runs/0/results/0/locations/0/physicalLocation/region/startLine",
+     "locations_in_record": 1,
+     "cwe_source": {
+      "pointer": "/runs/0/tool/driver/rules/2/properties/tags/0",
+      "text": "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+     },
+     "cwe_absent_reason": null,
+     "distinct_cwe_identifiers": 1,
+     "distinct_cve_identifiers": 0,
+     "matched_allowlist_glob": "core/src/main/**",
+     "file_line_count_at_the_pin": 380,
+     "anchor_note": "The same DiskStore.scala line-72 contrast row Branch A carries, field for field. It resolves through the chain, which never consults the metadata, so the branch condition cannot reach it -- which is what makes it a contrast rather than a coincidence: the fixture shows one record rejected while the records around it are emitted unchanged.",
+     "metadata_independent": true,
+     "identical_to_branch_a_row": 0,
+     "severity_native_note": "the result states no level, and its rule carries neither properties.severity nor properties.problem.severity, so all three field sources AAP 0.5.4 authorises for a SARIF record are silent; the absence is stated rather than filled from rule.defaultConfiguration.level, which AAP 0.5.4 does not carry as a field source"
+    },
+    {
+     "row_index": 1,
+     "result_pointer": "/runs/0/results/2",
+     "rule_pointer": "/runs/0/tool/driver/rules/1",
+     "rule_id_source": "the result's own ruleId; no ruleIndex and no rule reference is present",
+     "message_source": "/runs/0/results/2/message/text",
+     "severity_native_source": null,
+     "severity_basis": "no_vocabulary",
+     "severity_counter": "severity_absent",
+     "path_source": "/runs/0/results/2/locations/0/physicalLocation/artifactLocation/uri",
+     "uri_base_id": "%SRCROOT%",
+     "uri_base_id_walk_outcome": "resolved",
+     "resolved_base": "/opt/spark-src",
+     "path_kind": "tree_file",
+     "path_basis": "sarif-uri-base-id-chain",
+     "path_corroboration": null,
+     "start_line_source": "/runs/0/results/2/locations/0/physicalLocation/region/startLine",
+     "locations_in_record": 1,
+     "cwe_source": {
+      "pointer": "/runs/0/tool/driver/rules/1/properties/tags/0",
+      "text": "CWE-502: Deserialization of Untrusted Data"
+     },
+     "cwe_absent_reason": null,
+     "distinct_cwe_identifiers": 1,
+     "distinct_cve_identifiers": 0,
+     "matched_allowlist_glob": "python/pyspark/**",
+     "file_line_count_at_the_pin": 219,
+     "anchor_note": "The second contrast row, and the one that proves the adapter resumed after the rejection instead of stopping at it: this record is the third in the artifact and the rejected record is the second.",
+     "metadata_independent": true,
+     "identical_to_branch_a_row": 2,
+     "severity_native_note": "the result states no level, and its rule carries neither properties.severity nor properties.problem.severity, so all three field sources AAP 0.5.4 authorises for a SARIF record are silent; the absence is stated rather than filled from rule.defaultConfiguration.level, which AAP 0.5.4 does not carry as a field source"
+    }
+   ],
+   "rejections": [
+    {
+     "rejection_index": 0,
+     "result_pointer": "/runs/0/results/1",
+     "run_index": 0,
+     "result_index": 1,
+     "locator_note": "The pointer and the run_index / result_index pair name the same record. The pair is carried as well because normalize.adapters.sarif passes exactly run_index, result_index and rule_id into the record_identity the resolver then completes, so a produced Rejection and this expectation can be compared directly, without translating one coordinate system into the other.",
+     "reject_class": "unresolvable_path",
+     "reject_class_authority": "harness/lib/normalize/paths.py, the REJECT_UNRESOLVABLE_PATH constant -- a literal member of paths.REJECT_CLASSES, the closed set of ten. Written verbatim rather than paraphrased, and asserted against the module rather than by eye: a test that only counts rejections cannot tell one condition from another, so the class name is what carries the assertion.",
+     "reject_class_covers_the_sub_reason_in_detail": "AAP 0.5.4 names one class for the whole family of base failures and puts which case it was in the detail. So this class alone does not distinguish this fixture from the cycle and over-depth siblings, and a test that asserts only the class is asserting less than the fixture establishes.",
+     "tool": "opengrep",
+     "classification_step": "step 4 of the adapter's fixed classification order -- shape, rule identifier, message, path, start_line. Steps 1 to 3 all pass on this record: it is a JSON object, it carries a valid ruleId that resolves to /runs/0/tool/driver/rules/0, and it carries a non-empty message.text. That is deliberate, so the only thing left to reject it for is its path.",
+     "start_line_never_examined": "Step 5 is never reached, so this record's region.startLine of 131 is never examined and non_integer_start_line is not in play. Worth stating because the fixture does give the defective record a valid startLine -- and Branch A emits it -- so a reader could otherwise expect an interaction between the two conditions.",
+     "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
+     "uri_source": "/runs/0/results/1/locations/0/physicalLocation/artifactLocation/uri",
+     "uri_base_id": "%REPOSITORYROOT%",
+     "uri_form": "relative",
+     "uri_scheme": null,
+     "uri_would_resolve_if_the_base_existed": true,
+     "uri_note": "The uri is a plain root-relative reference naming a real 171-line file in the pinned tree, and Branch A resolves it to exactly that path. Nothing about it is malformed, out of scope or foreign-schemed. The rejection is caused entirely by the base identifier being absent from the map, which is what this fixture exists to isolate -- and it is why the sibling reject-sarif-unresolvable-path.sarif, whose defective record carries a urn: coordinate that no base could rescue, tests something genuinely different.",
+     "reached_before_base_resolution": false,
+     "uri_base_id_walk_outcome": "absent",
+     "uri_base_id_walk_chain": [
+      "%REPOSITORYROOT%"
+     ],
+     "uri_base_id_walk_detail": "'%REPOSITORYROOT%' has no entry in originalUriBaseIds (chain %REPOSITORYROOT%)",
+     "eligible_for_metadata_fallback": true,
+     "fallback_refused_because": "paths.ToolPathBase.has_explicit_base is false in this branch, so resolve_sarif_location takes the rejection branch rather than joining the reference onto a base. Eligibility and application are two different things, and this record is the case that separates them: the same walk outcome resolves in Branch A and rejects here.",
+     "expected_detail": "'%REPOSITORYROOT%' has no entry in originalUriBaseIds (chain %REPOSITORYROOT%); and the runner metadata records path_base.kind 'none' with no explicit base for 'opengrep', so the documented degenerate-base fallback does not apply and this record is rejected rather than resolved through a guess",
+     "expected_detail_note": "Quoted for the canonical precondition above, where path_base.kind is \"none\". Under an equivalent has_explicit_base-false construction the kind literal inside the detail changes and nothing else does, so a test asserts the class exactly and the detail by the invariant substrings below rather than by full-string equality.",
+     "expected_detail_invariants": [
+      "%REPOSITORYROOT%",
+      "has no entry in originalUriBaseIds",
+      "no explicit base",
+      "does not apply"
+     ],
+     "expected_record_identity_keys": [
+      "run_index",
+      "result_index",
+      "rule_id",
+      "uri",
+      "uriBaseId"
+     ],
+     "expected_record_identity": {
+      "run_index": 0,
+      "result_index": 1,
+      "rule_id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.correctness.hardcoded-conditional",
+      "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
+      "uriBaseId": "%REPOSITORYROOT%"
+     },
+     "record_identity_note": "The adapter supplies run_index, result_index and rule_id; the resolver adds the raw uri and, where one is present as a non-empty string, the raw uriBaseId. Enough to find the record in the artifact again, and never the record itself and never a secret value.",
+     "why_not_a_row": "There is no path to put in the row. path is never absent from a row, so a record whose coordinate cannot be expressed against the scan root has no valid row representation, and the alternatives -- dropping it, or joining it onto a root nothing recorded -- would each hide it. Counting it under a named class keeps it visible and keeps the arithmetic honest.",
+     "contributes_no_row": true,
+     "contributes_no_severity_literal": "The rejected record is never fed to the severity tally, so its rule's error literal reaches severity-map.md only through Branch A's row. That document reports literals against the rows the dataset contains.",
+     "no_guess_available": "The scan root is known in this branch -- it is recorded as scan_root on the ToolPathBase and every relativization uses it -- and the record still rejects. That is the point: a root that happens to be at hand is not a base the metadata authorised for this tool's relative references, and treating it as one would make the fallback the catch-all AAP 0.5.4 forbids."
+    }
+   ],
+   "counts": {
+    "raw_finding_records_pointer": "/counts_shared/raw_finding_records",
+    "rows": 2,
+    "rejections": 1,
+    "rejections_by_class": {
+     "unresolvable_path": 1
+    },
+    "reconciliation_identity": "raw_finding_records == rows + rejections",
+    "reconciliation_arithmetic": "3 == 2 + 1",
+    "parse_status": "partial",
+    "parse_status_authority": "harness/lib/normalize/cli.py, PARSE_STATUS_PARTIAL = \"partial\", assigned where there are rejections. Partial is right precisely because the adapter did not abandon the artifact: every parsable record was emitted and the one rejected record is counted under its class, with its reason retained. This is deliberately not normalize.reconcile's STATUS_PASS / STATUS_FAIL / STATUS_NOT_APPLICABLE vocabulary, which describes an assertion's outcome rather than an artifact's parse.",
+    "same_raw_side_as_branch_a": "The raw count is the fixture's record count and does not change between branches, so both arithmetics take the same 3 from counts_shared. The branches differ on the right-hand side alone -- 3 + 0 against 2 + 1 -- which is what makes the pair of identities a real test of the rejection accounting rather than two unrelated sums."
+   },
+   "counters": {
+    "runs": 1,
+    "runs_skipped_non_mapping": 0,
+    "runs_without_results_array": 0,
+    "multi_location_records": 0,
+    "multi_valued_cwe_records": 0,
+    "multi_valued_cve_records": 0,
+    "non_filesystem_paths": 0,
+    "rows_in_scope": 2,
+    "rows_out_of_scope": 0,
+    "rule_id_from_rule_id": 3,
+    "rule_id_from_rule_index": 0,
+    "rule_index_unusable": 0,
+    "tool_component_reference_unresolved": 0,
+    "rule_metadata_from_extension": 0,
+    "rule_metadata_unresolved": 0,
+    "severity_from_level": 0,
+    "severity_from_rule_property": 0,
+    "severity_absent": 2,
+    "start_line_absent": 0,
+    "path_kind_tree_file": 2,
+    "path_kind_outside_root": 0,
+    "path_kind_archive_member": 0,
+    "path_kind_bytecode_source": 0,
+    "severity_basis_sarif_level": 0,
+    "severity_basis_label": 0,
+    "severity_basis_cvss_score": 0,
+    "severity_basis_no_vocabulary": 2,
+    "severity_basis_unmapped_literal": 0
+   },
+   "counters_note": "One counter must not be \"corrected\" to 2. rule_id_from_rule_id is 3 while the severity, path-kind and scope counters are 2, because the rejected record resolves its rule identifier at step 2 and is rejected at step 4 -- it never reaches severity, never yields a path kind and never has its scope evaluated. Every difference from Branch A's counters is exactly one record's worth, on precisely the counters that record's row would have incremented, and rule_id_from_rule_id is unchanged for the same reason. The rejected record also contributes to none of the four counters AAP 0.5.4 has reported per tool, all of which are 0 here.",
+   "four_reported_counters": {
+    "authority": "AAP 0.5.4 -- the four counts reported per tool",
+    "names": [
+     "multi_location_records",
+     "multi_valued_cwe_records",
+     "multi_valued_cve_records",
+     "non_filesystem_paths"
+    ],
+    "values_live_in": "counters",
+    "all_four_are_zero_for_this_branch": true
+   }
+  }
+ ],
+ "cross_branch_invariants": [
+  "The raw side is 3 in both branches, taken once from reconcile.count_records: the fixture's record count is a property of the fixture, not of the metadata.",
+  "raw == rows + rejections holds in each branch: 3 == 3 + 0 and 3 == 2 + 1.",
+  "The DiskStore.scala line-72 contrast row is present in both branches, field for field identical, with start_line 72 well inside the file's 380 lines.",
+  "Every row in both branches carries exactly the twelve emit.FIELDS keys in emit.FIELDS order, with scanner_class sast and package_coordinate null throughout.",
+  "No path in either branch is absolute, and every path is relative to the recorded scan root.",
+  "severity_norm is absent from no row in either branch, and severity_native is present on every row because every rule states a level.",
+  "The branches differ in exactly one record -- /runs/0/results/1 -- and in nothing else: same fixture, same routing, same rule table, same allowlist, same scan root.",
+  "No secret value appears in any field, in either branch. The fixture carries none, and no adapter field is populated from one."
+ ],
+ "prohibitions_observed": {
+  "no_cross_tool_interpretation": "Only opengrep's own output is read. No other tool's artifact is consulted, no coverage is contrasted and nothing is said about what this output demonstrates about opengrep against any other scanner.",
+  "no_deduplication": "Nothing is deduplicated. Two records naming the same location would produce two rows here as anywhere else, and the two contrast rows are retained in both branches rather than being folded into one.",
+  "no_judgement": "No row is characterised as real, important, a false positive or a duplicate. The tainted-sql-string finding on a Scala string interpolation is recorded exactly as the tool reported it, with no comment on whether the rule is right.",
+  "no_secrets": "No field carries a credential, token or secret value, and none is reachable from this fixture: opengrep emits code locations, and this file is committed to git."
+ },
+ "behaviours_not_exercised_by_this_fixture": [
+  {
+   "behaviour": "shape-detection failure -- an artifact matching neither SARIF nor a known native shape halting the run",
+   "why_absent": "this document is valid SARIF 2.1.0 and routes cleanly; its defect is one record's base reference, not its shape",
+   "cover_with": "near-sarif-version-only.json, near-sarif-runs-only.json and unknown-shape.json"
+  },
+  {
+   "behaviour": "the other six rejection conditions this adapter can reach -- absent_path, invalid_uri, missing_rule_id, missing_message, non_integer_start_line and malformed_record",
+   "why_absent": "this fixture isolates one condition, so at most one record is defective and it is defective in exactly one way",
+   "cover_with": "reject-sarif-malformed-record.sarif, reject-sarif-missing-rule-id.sarif, reject-sarif-missing-message.sarif, reject-sarif-non-integer-start-line.sarif, reject-sarif-unresolvable-path.sarif and reject-sarif-uribaseid-invalid-uri.sarif. Which condition each asserts is stated in its own expected file, not here."
+  },
+  {
+   "behaviour": "the other uriBaseId terminal cases -- cycle, over-depth, invalid URI and a chain ending on a relative reference with no absolute ancestor",
+   "why_absent": "this fixture's map is present and non-empty, its chain is two levels and acyclic, every entry's uri is valid, and the chain terminates on an absolute ancestor; the only defect is a missing key",
+   "cover_with": "the four sibling fixtures named under uri_base_id_terminal_cases.siblings"
+  },
+  {
+   "behaviour": "a SARIF artifact with no run.originalUriBaseIds at all, where every record takes the base-absent route",
+   "why_absent": "the map is deliberately supplied here so that %SRCROOT% resolves and the dangling identifier is the only thing that fails; without it the fixture would re-cover the sibling",
+   "cover_with": "reject-sarif-unresolvable-path.sarif and the captured opengrep.sarif and semgrep.sarif, which is the shape those producers actually emit"
+  },
+  {
+   "behaviour": "the first-location rule -- the row takes locations[0], the record counts once, multi_location_records counts it",
+   "why_absent": "all three results here carry exactly one location",
+   "cover_with": "a derived fixture carrying a second location on a result"
+  },
+  {
+   "behaviour": "ascending-numeric CWE selection where producer order disagrees with numeric order, and ascending-numeric CVE selection ordered by year then sequence",
+   "why_absent": "two rules here name exactly one CWE each and the third names none, and no rule string carries a CVE identifier",
+   "cover_with": "oss-scan-results/adapter-tests/fixtures/derived-semgrep-features.sarif, whose rule fixture.adapter-tests.semgrep.multi-cve-tag-ordering carries CVE-2024-31000, CVE-2023-40167 and CVE-2023-40168 in that producer order -- the captured semgrep.sarif carries no CVE identifier at all, so the multi-CVE case lives on that declared-derived document -- and a derived fixture whose rule tags list a higher CWE number first"
+  },
+  {
+   "behaviour": "a kept row with in_scope false -- an out-of-glob path, a src/test path, or a non-filesystem coordinate serialized <container-relative-to-root>!<member> with ../ preserved",
+   "why_absent": "every emitted path in both branches falls inside the twelve globs and names a file in the tree, so rows_out_of_scope and non_filesystem_paths are 0 throughout; the boundary those cases mark is stated under rejection_boundary rather than demonstrated here",
+   "cover_with": "a derived fixture naming a path outside the globs, one naming an archive member, and one naming a location above the root -- each kept and marked, never rejected"
+  },
+  {
+   "behaviour": "severity from a result's own level, from a rule property, or absent altogether with severity_norm Info on the no_vocabulary basis",
+   "why_absent": "every emitted row takes its level from its rule's defaultConfiguration, so severity_from_level, severity_from_rule_property and severity_absent are 0 in both branches",
+   "cover_with": "datadog-static-analyzer.sarif and a derived fixture whose rule states no level anywhere"
+  },
+  {
+   "behaviour": "a rule identifier resolved through ruleIndex, an unusable index, or rule metadata reached through an extension component",
+   "why_absent": "every result here carries its own ruleId and every rule resolves inside tool.driver",
+   "cover_with": "a derived fixture carrying ruleIndex without ruleId, and one carrying a rule reference to an extension toolComponent"
+  },
+  {
+   "behaviour": "the errata-480 single-leading-slash reading, where a reference beginning with one slash is read as filesystem-absolute or as the archive-distinguishing relative form",
+   "why_absent": "no uri in this fixture begins with a slash; the defective record's uri is an ordinary relative reference",
+   "cover_with": "the checkov fixtures, whose file_path field carries a leading slash by convention, and a derived SARIF fixture naming a location under the recorded root with one leading slash"
+  }
+ ]
+}

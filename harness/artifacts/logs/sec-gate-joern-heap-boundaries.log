@@ -1,0 +1,80 @@
+SEC-10 RUNTIME RE-VERIFICATION -- Joern heap override: syntax, floor, ceiling, proof
+run at   : 2026-09-02T20:43:43Z
+subject  : harness/lib/run-joern-gated.sh lines 208-329, extracted verbatim between the
+           block markers by awk at test time
+real jdk : /opt/blitzy-tools/jdk/jdk-21.0.12.1+1
+shim jdk : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/g2/jdk21-shim (logs each invocation, then execs the real java)
+proof log: /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/logs/sec-gate-joern-heap.log (written by the block itself)
+host     : 3842 GiB total, 3660 GiB available
+extracted: 6513 bytes, sha256 0e3aed3de3251a320b9e2805670c3027b970ab1cc8edf87ea500ce1caa7c3a4d
+
+VALUE     EXIT  JAVA-PROCS ELAPSED  OUTCOME
+--------------------------------------------------------------------------------------------------------
+abc       78    0          0s       run-joern-gated.sh: HARNESS_JOERN_JVM_HEAP_G must be whole gigab
+0         78    0          0s       run-joern-gated.sh: refusing a 0g heap. AAP 0.8.2 permits raisin
+00        78    0          0s       run-joern-gated.sh: refusing HARNESS_JOERN_JVM_HEAP_G=00 -- a le
+063       78    0          0s       run-joern-gated.sh: refusing HARNESS_JOERN_JVM_HEAP_G=063 -- a l
+63        78    0          0s       run-joern-gated.sh: refusing a 63g heap. AAP 0.8.2 permits raisi
+64        0     0          0s       ACCEPTED: JAVA_TOOL_OPTIONS=-Xmx64g
+128       0     1          30s      proof exit      : 0 (elapsed 30s, logged to /tmp/blitzy/blitzy-s
+129       78    0          0s       run-joern-gated.sh: refusing a 129g heap. The largest heap this 
+1000000   78    0          0s       provisioned maximum by orders of magnitude. Refused on its digit
+
+the two values the ceiling refuses, in full:
+--- 129 ---
+run-joern-gated.sh: refusing a 129g heap. The largest heap this provisioning has
+proven committable is 128g (harness/artifacts/logs/cpg-frontend.log STEP 2), and
+this host is shared with dozens of clones, so an unproven reservation is somebody
+else's failure as well as this run's. Refused by arithmetic: no JVM was started,
+and nothing was reserved. Raising the ceiling is a provisioning act -- produce a
+pre-touch proof at the new value and change the constant in the same change.
+--- 1000000 ---
+run-joern-gated.sh: refusing HARNESS_JOERN_JVM_HEAP_G=1000000 -- it exceeds the 128g
+provisioned maximum by orders of magnitude. Refused on its digit count, before any
+arithmetic and before any reservation: no JVM was started.
+
+the accepted raise at 128g, in full (its proof was taken through the shim, which
+execs the real Temurin 21 java):
+heap proof      : -Xms128g -Xmx128g -XX:+AlwaysPreTouch under /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/g2/jdk21-shim
+proof exit      : 0 (elapsed 30s, logged to /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/logs/sec-gate-joern-heap.log)
+ACCEPTED: JAVA_TOOL_OPTIONS=-Xmx128g
+
+final case: one real above-default raise with the REAL JAVA_HOME_21, so the durable
+proof log names the real JDK rather than the shim.
+heap proof      : -Xms65g -Xmx65g -XX:+AlwaysPreTouch under /opt/blitzy-tools/jdk/jdk-21.0.12.1+1
+proof exit      : 0 (elapsed 15s, logged to /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90/harness/artifacts/logs/sec-gate-joern-heap.log)
+ACCEPTED: JAVA_TOOL_OPTIONS=-Xmx65g
+value 65 -> exit 0, elapsed 15s
+
+every java invocation the block took during this run (from the shim log; the 65g
+case above bypassed the shim and is recorded in the proof log instead):
+2026-09-02T20:43:43Z | -Xms128g -Xmx128g -XX:+AlwaysPreTouch -version
+
+the durable proof log the block wrote, last 30 lines:
+
+==== 2026-09-02T20:43:43Z  clone 0  requested heap 64g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=64 (default 64g, ceiling 128g)
+proof           : not required (default heap, not a raise)
+heap accepted   : 64g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T20:43:43Z  clone 0  requested heap 128g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=128 (default 64g, ceiling 128g)
+proof command   : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/g2/jdk21-shim/bin/java -Xms128g -Xmx128g -XX:+AlwaysPreTouch -version
+proof exit      : 0 (elapsed 30s)
+proof output    :
+openjdk version "21.0.12.1" 2026-08-18 LTS
+OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)
+heap accepted   : 128g (syntax, floor 64g, ceiling 128g, proof)
+
+==== 2026-09-02T20:44:13Z  clone 0  requested heap 65g ====
+source          : HARNESS_JOERN_JVM_HEAP_G=65 (default 64g, ceiling 128g)
+proof command   : /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -Xms65g -Xmx65g -XX:+AlwaysPreTouch -version
+proof exit      : 0 (elapsed 15s)
+proof output    :
+openjdk version "21.0.12.1" 2026-08-18 LTS
+OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)
+heap accepted   : 65g (syntax, floor 64g, ceiling 128g, proof)
+
+end: 2026-09-02T20:44:28Z

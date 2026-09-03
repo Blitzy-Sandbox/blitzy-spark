@@ -1,0 +1,948 @@
+================================================================================
+Per-module injective witness over the full project-output set - first-hand
+re-measurement of QA finding F4 by this generation
+harness/artifacts/logs/reverification-f4-module-witness-full-input-set.log
+================================================================================
+
+================================================================================
+WHAT THIS FILE ESTABLISHES
+================================================================================
+
+  What the AAP 0.5.1 per-module witness rule yields when it is measured over
+  the input set AAP 0.1.1 actually requires - every JAR the full reactor
+  produced - measured here archive by archive in this clone rather than cited
+  from any earlier record. QA finding F4 reports that eight of the 38
+  JAR-producing modules have neither admissible witness under that input set.
+  This file reproduces that measurement first-hand and publishes it, and it
+  publishes alongside it, as a SEPARATE measurement never merged with it, the
+  same rule over the 62-archive staging tree the graph the Joern stages load
+  was actually built from.
+
+  Nothing here repairs F4. The shortfall is a property of the witness rule
+  against Spark's shaded artifacts, and the required outcome for a value that
+  cannot be established is to name it as such (AAP 0.9.4).
+
+================================================================================
+THE ADMISSIBLE WITNESS TEST, QUOTED FROM AAP 0.5.1
+================================================================================
+
+  > A class present in that module's primary artifact - its main unclassified,
+  > non-'original-', non-'-tests' JAR - and absent from every other module's
+  > artifacts.
+  >
+  > Where no such class exists, the module-exclusive
+  > META-INF/maven/**/pom.properties file node is accepted and named as the
+  > weaker witness.
+
+  There is no third kind, and three qualifications are load-bearing in what
+  follows. A class shared with a SAME-module sibling still qualifies, which is
+  what makes the test satisfiable for a shaded artifact and its pre-shade
+  sibling; a class shared with ANOTHER module does not. A shared package prefix
+  is never evidence - every Spark module ships under org.apache.spark. And
+  presence of a class another module's archive also ships is not a coverage
+  verdict: it would let a shaded archive vouch for a module whose own artifact
+  might be absent from the input entirely, which is the single failure mode the
+  injectivity requirement exists to prevent.
+
+  Witness kinds admitted beyond the two: 0.
+  Verdicts resting on presence rather than exclusivity: 0 (A), 0 (B).
+  Verdicts resting on a shared package prefix: 0 (A), 0 (B).
+  Archives dropped to manufacture uniqueness: 0.
+
+================================================================================
+SUBJECT
+================================================================================
+
+  Finding re-measured           : F4 - Accepted injective-witness rule yields no evidence for 8 of 38 modules
+  Clone index                   : 19
+  Working checkout              : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94
+  Branch                        : blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019
+  Working checkout HEAD         : 7fc41251c81e8a10ca9ce542b34af2542d7c1b53
+  Pinned clone (SPARK_SRC)      : /opt/spark-src   (read only; never built,
+                                  never written, no Maven goal invoked)
+  Pinned clone HEAD             : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+  Pinned HEAD agrees with pin   : True
+  Measurement started (UTC)     : 2026-09-02T14:48:53.459Z
+  Measurement finished (UTC)    : 2026-09-02T14:48:55.111Z
+  Machine-readable companion    : harness/artifacts/logs/reverification-f4-module-witness-full-input-set.json
+
+  No JVM was started and the code-property graph was NOT loaded: this is
+  archive analysis only. Every graph-side figure this file quotes is labelled
+  as cited, with the record it comes from.
+
+================================================================================
+THE COMMANDS, AND THE SCRIPT THAT RAN THEM
+================================================================================
+
+$ cd <working checkout> && . harness/env.sh
+$ find /opt/spark-src -path '*/target/*' -name '*.jar' | wc -l
+627
+
+$ python3 /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g4w/f4-module-witness.py --emit
+$ python3 /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g4w/f4-module-witness.py --selftest
+
+  Script path   : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g4w/f4-module-witness.py
+  Script sha256 : b63121929126c77fa3d06fd1e3485928aba73f968f1fbceae7ff5561e55fb895
+
+  The script derives the reactor from the pinned tree's own pom files under the
+  five authoritative profile flags (-Phive, -Phive-thriftserver, -Pkubernetes, -Pvolcano, -Pyarn),
+  enumerates every *.jar under those projects' build directories, classifies each
+  by the provenance rules oss-scan-results/build-record.md section 4 states,
+  reads every own archive's central directory with python zipfile, and applies
+  the two admissible witness kinds twice - once over the full own-artifact set
+  and once over the 62-archive subset - never merging the two results. It is a
+  pure function of the pinned tree's contents, so --selftest recomputes
+  everything and diffs it against the JSON companion on disk.
+
+================================================================================
+THE REACTOR, AS THE FIVE FLAGS RESOLVE IT
+================================================================================
+
+  Maven projects                     : 40
+  Of those, packaging=jar            : 38
+  Of those, no primary artifact by construction:
+      <root parent>                  packaging=pom
+      assembly                       packaging=pom
+
+  Derived from the poms, not from any record: the root pom's 35 unconditional
+  modules plus the four the activated profiles add, plus the root parent project
+  itself. No Maven goal was invoked, because even an offline goal can write into
+  the shared local repository.
+
+================================================================================
+INVENTORY RECONCILIATION - THE FULL PROJECT-OUTPUT SET
+================================================================================
+
+  JAR files enumerated under the projects' build directories : 627
+  Classified as a project's own output                       : 191  (434,306,178 bytes)
+  Excluded: copied runtime dependencies                      : 422
+  Excluded: test-resource fixtures in a compiled-output tree : 14
+  Undecided provenance                                      : 0
+  Arithmetic own + copied + fixtures + undecided == enumerated: True
+
+  Of the own artifacts, carrying bytecode                    : 110
+  Class entries across the own artifacts                     : 101,752
+
+  Classified as the project's own by a DECLARED OUTPUT PATH rather than by the
+  filename rule (its filename carries no artifactId, so a filename rule alone
+  would have excluded it):
+      common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar
+
+  The test-resource fixtures, named rather than counted silently - each is a JAR
+  checked into a module's resources and copied into its compiled-output tree, not
+  something the module's packaging emitted:
+      core/target/scala-2.13/test-classes/TestHelloV2_2.13.jar
+      core/target/scala-2.13/test-classes/TestHelloV3_2.13.jar
+      core/target/scala-2.13/test-classes/TestUDTF.jar
+      sql/connect/client/jvm/target/scala-2.13/test-classes/TestHelloV2_2.13.jar
+      sql/connect/client/jvm/target/scala-2.13/test-classes/udf2.13.jar
+      sql/connect/common/target/scala-2.13/test-classes/artifact-tests/junitLargeJar.jar
+      sql/connect/common/target/scala-2.13/test-classes/artifact-tests/smallJar.jar
+      sql/core/target/scala-2.13/test-classes/SPARK-33084.jar
+      sql/core/target/scala-2.13/test-classes/artifact-tests/udf_noA.jar
+      sql/hive/target/scala-2.13/test-classes/SPARK-21101-1.0.jar
+      sql/hive/target/scala-2.13/test-classes/TestUDTF.jar
+      sql/hive/target/scala-2.13/test-classes/data/files/TestSerDe.jar
+      sql/hive/target/scala-2.13/test-classes/regression-test-SPARK-8489/test-2.13.jar
+      sql/hive-thriftserver/target/scala-2.13/test-classes/TestUDTF.jar
+
+================================================================================
+OBSERVED VERSUS CITED - THIS MEASUREMENT AGAINST THE EXISTING RECORD
+================================================================================
+
+  Every 'observed' figure below was measured by this script in this clone during
+  this pass. Every 'cited' figure is another record's measurement, named with it.
+  Where they differ, both are stated and neither is silently preferred.
+
+  measurement                                               observed         cited  agrees
+  ---------------------------------------------------- ------------- -------------  ------
+  JARs enumerated under the build directories                    627           627  yes
+  classified as a project's own output                           191           191  yes
+  copied runtime dependencies excluded                           422           422  yes
+  test-resource fixtures excluded                                 14            14  yes
+  undecided provenance                                             0             0  yes
+  own artifacts carrying bytecode                                110           110  yes
+  total bytes across the own artifacts                   434,306,178   431,184,822  NO
+  class entries across the own artifacts                     101,752        99,723  NO
+
+  Sources for the cited column:
+      oss-scan-results/build-record.md section 4, from build-reactor.log STEP 13
+      oss-scan-results/build-record.md section 4, from build-reactor.log STEP 13 and cpg-frontend.log STEP 1
+      oss-scan-results/build-record.md section 4, from cpg-frontend.log STEP 1
+
+  Figures that differ from the cited record: 2.
+  Every provenance count - enumerated, own, copied, fixtures, undecided - and
+  the count of own artifacts carrying bytecode reproduce the cited record
+  exactly. What differs is byte- and class-level:
+      total bytes across the own artifacts: observed 434,306,178 against cited 431,184,822 (delta +3,121,356)
+      class entries across the own artifacts: observed 101,752 against cited 99,723 (delta +2,029)
+
+  The pinned tree's build directories are the product of more than one
+  'package' run - the artifact modification times measured below span
+  2026-08-30T18:01:27Z to 2026-09-02T06:27:34Z - and the cited
+  byte and class figures were measured when the graph's staging tree was
+  captured. So the two are measurements of the same 191 artifacts in two
+  different tree states, which is why the counts agree and the sizes do not.
+  The next section measures the mechanism rather than asserting it.
+
+================================================================================
+PROPERTIES OF THE ARCHIVE SET, MEASURED RATHER THAN ASSUMED
+================================================================================
+
+  Own archives carrying bytecode                       : 110
+  Distinct class full names across them                : 67,135
+  Classes present in EVERY archive carrying bytecode   : 0
+
+  The classes the most archives ship - the ones that can never be a witness,
+  because the rule turns on exclusivity rather than on presence:
+      org.apache.spark.unused.UnusedStubClass                      44 archives
+      META-INF.versions.9.module-info                               4 archives
+      artifact-tests.Hello                                          4 archives
+      artifact-tests.smallClassFile                                 4 archives
+      org.apache.spark.SparkConf                                    4 archives
+
+  Those are why the vendoring detail below carries a tail of archives holding
+  exactly one of a module's classes. Each such class is named with its module in
+  that detail, and none is ever used as a witness by either measurement.
+
+  'original-' pre-shade sibling pairs in the set        : 37
+    - class-identical to their shaded main artifact     : 11
+    - still holding genuinely pre-shade content         : 26
+
+  maven-jar-plugin skips a main JAR it considers up to date, so a later shade
+  execution in an unclean build directory backs up an ALREADY shaded artifact
+  under the 'original-' name. Where that happened the pre-shade sibling holds the
+  shaded class set, measured above rather than assumed. It changes nothing about a
+  module's own exclusivity - a class shared with a same-module sibling still
+  qualifies - but such a sibling does enter every OTHER module's subtraction, so
+  the fact is published with the tables it bears on. No archive was dropped on
+  account of it: AAP 0.3.2 forbids trimming the input set, and dropping a shaded
+  archive to manufacture uniqueness is exactly what the witness rule forbids.
+
+  The pairs whose pre-shade sibling is class-identical to the shaded artifact:
+      common/kvstore                         39 classes in both
+      common/network-common                  2,170 classes in both
+      common/network-shuffle                 92 classes in both
+      common/sketch                          16 classes in both
+      common/tags                            12 classes in both
+      common/utils-java                      40 classes in both
+      launcher                               33 classes in both
+      mllib-local                            23 classes in both
+      sql/connect/client/jdbc                2 classes in both
+      sql/connect/shims                      12 classes in both
+      streaming                              164 classes in both
+
+================================================================================
+MEASUREMENT A - EVERY JAR THE FULL REACTOR PRODUCED
+================================================================================
+
+  Input set            : 191 archives, every one of them a project's own output, nothing excluded
+  Measured at (UTC)    : 2026-09-02T14:48:54.914Z
+  Modules with >=1 archive in the set: 39
+  JAR-producing modules under the test: 38
+
+  module                                 arch  primary    excl witness kind             verdict
+  -------------------------------------- ---- -------- ------- ------------------------ ---------------------
+  common/kvstore                            5       39      38 exclusive_class          WITNESS OBTAINABLE
+  common/network-common                     5    2,170       0 none                     NO VERDICT OBTAINABLE
+  common/network-shuffle                    5       92       0 none                     NO VERDICT OBTAINABLE
+  common/network-yarn                       5   11,070   6,168 exclusive_class          WITNESS OBTAINABLE
+  common/sketch                             5       16      15 exclusive_class          WITNESS OBTAINABLE
+  common/tags                               5       12       0 none                     NO VERDICT OBTAINABLE
+  common/unsafe                             5       65      64 exclusive_class          WITNESS OBTAINABLE
+  common/utils                              5      164     163 exclusive_class          WITNESS OBTAINABLE
+  common/utils-java                         5       40       0 none                     NO VERDICT OBTAINABLE
+  common/variant                            5       34      33 exclusive_class          WITNESS OBTAINABLE
+  connector/avro                            5       24      23 exclusive_class          WITNESS OBTAINABLE
+  connector/kafka-0-10                      5       47       0 none                     NO VERDICT OBTAINABLE
+  connector/kafka-0-10-assembly             5    5,937   5,855 exclusive_class          WITNESS OBTAINABLE
+  connector/kafka-0-10-sql                  5      124     123 exclusive_class          WITNESS OBTAINABLE
+  connector/kafka-0-10-token-provider       5       17       0 none                     NO VERDICT OBTAINABLE
+  connector/protobuf                        5      825     825 exclusive_class          WITNESS OBTAINABLE
+  core                                      5    5,097   5,092 exclusive_class          WITNESS OBTAINABLE
+  examples                                  4      791     791 exclusive_class          WITNESS OBTAINABLE
+  graphx                                    5      132     131 exclusive_class          WITNESS OBTAINABLE
+  launcher                                  5       33      32 exclusive_class          WITNESS OBTAINABLE
+  mllib                                     5    2,646   2,645 exclusive_class          WITNESS OBTAINABLE
+  mllib-local                               5       23      22 exclusive_class          WITNESS OBTAINABLE
+  repl                                      5        9       8 exclusive_class          WITNESS OBTAINABLE
+  resource-managers/kubernetes/core         5      145     144 exclusive_class          WITNESS OBTAINABLE
+  resource-managers/yarn                    5       79      78 exclusive_class          WITNESS OBTAINABLE
+  sql/api                                   5    1,203       0 none                     NO VERDICT OBTAINABLE
+  sql/catalyst                              5    5,333   5,332 exclusive_class          WITNESS OBTAINABLE
+  sql/connect/client/jdbc                   5        2       2 exclusive_class          WITNESS OBTAINABLE
+  sql/connect/client/jvm                    5   12,652   4,970 exclusive_class          WITNESS OBTAINABLE
+  sql/connect/common                        5    1,879       0 none                     NO VERDICT OBTAINABLE
+  sql/connect/server                        5    8,050   4,153 exclusive_class          WITNESS OBTAINABLE
+  sql/connect/shims                         5       12       0 exclusive_pom_properties WITNESS OBTAINABLE
+  sql/core                                  5    3,879   3,871 exclusive_class          WITNESS OBTAINABLE
+  sql/hive                                  5      149     148 exclusive_class          WITNESS OBTAINABLE
+  sql/hive-thriftserver                     5      211     210 exclusive_class          WITNESS OBTAINABLE
+  sql/pipelines                             5      285     284 exclusive_class          WITNESS OBTAINABLE
+  streaming                                 6      359     358 exclusive_class          WITNESS OBTAINABLE
+  tools                                     5        3       2 exclusive_class          WITNESS OBTAINABLE
+
+  Witness names, per module with one:
+    common/kvstore                         [class] org.apache.spark.util.kvstore.ArrayWrappers
+    common/network-yarn                    [class] org.apache.spark.network.yarn.YarnShuffleService
+    common/sketch                          [class] org.apache.spark.util.sketch.BitArray
+    common/unsafe                          [class] org.apache.spark.sql.catalyst.expressions.HiveHasher
+    common/utils                           [class] org.apache.spark.BreakingChangeInfo
+    common/variant                         [class] org.apache.spark.types.variant.ShreddingUtils
+    connector/avro                         [class] org.apache.spark.sql.avro.AvroDataToCatalyst
+    connector/kafka-0-10-assembly          [class] com.fasterxml.jackson.annotation.JacksonAnnotation
+    connector/kafka-0-10-sql               [class] org.apache.spark.sql.kafka010.AssignStrategy
+    connector/protobuf                     [class] org.apache.spark.sql.protobuf.CatalystDataToProtobuf
+    core                                   [class] org.apache.spark.Aggregator
+    examples                               [class] org.apache.spark.examples.AccumulatorMetricsTest
+    graphx                                 [class] org.apache.spark.graphx.Edge
+    launcher                               [class] org.apache.spark.launcher.AbstractAppHandle
+    mllib                                  [class] org.apache.spark.ml.Estimator
+    mllib-local                            [class] org.apache.spark.ml.impl.Utils
+    repl                                   [class] org.apache.spark.repl.Main
+    resource-managers/kubernetes/core      [class] org.apache.spark.deploy.k8s.Config
+    resource-managers/yarn                 [class] org.apache.spark.deploy.yarn.AmIpFilter
+    sql/catalyst                           [class] org.apache.spark.sql.catalyst.AliasIdentifier
+    sql/connect/client/jdbc                [class] org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver
+    sql/connect/client/jvm                 [class] org.apache.spark.sql.application.ConnectRepl
+    sql/connect/server                     [class] org.apache.spark.sql.connect.SimpleSparkConnectService
+    sql/connect/shims                      [descriptor] META-INF/maven/org.apache.spark/spark-connect-shims_2.13/pom.properties
+    sql/core                               [class] org.apache.spark.sql.DataSourceRegistration
+    sql/hive                               [class] org.apache.spark.sql.hive.DeferredObjectAdapter
+    sql/hive-thriftserver                  [class] org.apache.spark.sql.hive.thriftserver.ArrayFetchIterator
+    sql/pipelines                          [class] org.apache.spark.sql.pipelines.AnalysisWarning
+    streaming                              [class] org.apache.spark.status.api.v1.streaming.ApiStreamingApp
+    tools                                  [class] org.apache.spark.tools.GenerateMIMAIgnore
+
+  Accepted witness, exclusive class          : 29
+  Accepted witness, exclusive descriptor node: 1
+  Accepted witness of either kind            : 30 of 38
+  NO VERDICT OBTAINABLE                      : 8
+    - archives present, no witness of either kind: 8
+    - no archive of the module in the input set  : 0
+
+  The modules with no accepted witness under measurement A, in full:
+
+  common/network-common   (artifactId spark-network-common_2.13)
+      archives in this input set: 5; primary artifact: common/network-common/target/spark-network-common_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 2,170; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-network-common_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar
+            module common/network-yarn; carries 2,170 of this module's 2,170 primary classes; carries its descriptor: yes
+        plus 41 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  common/network-shuffle   (artifactId spark-network-shuffle_2.13)
+      archives in this input set: 5; primary artifact: common/network-shuffle/target/spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 92; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-network-shuffle_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar
+            module common/network-yarn; carries 92 of this module's 92 primary classes; carries its descriptor: yes
+        plus 41 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  common/tags   (artifactId spark-tags_2.13)
+      archives in this input set: 5; primary artifact: common/tags/target/spark-tags_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 12; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-tags_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        connector/kafka-0-10-assembly/target/spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT.jar
+            module connector/kafka-0-10-assembly; carries 12 of this module's 12 primary classes; carries its descriptor: yes
+        plus 41 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  common/utils-java   (artifactId spark-common-utils-java_2.13)
+      archives in this input set: 5; primary artifact: common/utils-java/target/spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 40; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-common-utils-java_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar
+            module common/network-yarn; carries 40 of this module's 40 primary classes; carries its descriptor: yes
+        plus 41 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  connector/kafka-0-10   (artifactId spark-streaming-kafka-0-10_2.13)
+      archives in this input set: 5; primary artifact: connector/kafka-0-10/target/spark-streaming-kafka-0-10_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 47; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-streaming-kafka-0-10_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        connector/kafka-0-10-assembly/target/spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT.jar
+            module connector/kafka-0-10-assembly; carries 47 of this module's 47 primary classes; carries its descriptor: yes
+        plus 42 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  connector/kafka-0-10-token-provider   (artifactId spark-token-provider-kafka-0-10_2.13)
+      archives in this input set: 5; primary artifact: connector/kafka-0-10-token-provider/target/spark-token-provider-kafka-0-10_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 17; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-token-provider-kafka-0-10_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        connector/kafka-0-10-assembly/target/spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT.jar
+            module connector/kafka-0-10-assembly; carries 17 of this module's 17 primary classes; carries its descriptor: yes
+        plus 42 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  sql/api   (artifactId spark-sql-api_2.13)
+      archives in this input set: 5; primary artifact: sql/api/target/spark-sql-api_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 1,203; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-sql-api_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        sql/connect/client/jvm/target/spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar
+            module sql/connect/client/jvm; carries 1,203 of this module's 1,203 primary classes; carries its descriptor: yes
+        plus 42 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  sql/connect/common   (artifactId spark-connect-common_2.13)
+      archives in this input set: 5; primary artifact: sql/connect/common/target/spark-connect-common_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 1,879; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-connect-common_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        sql/connect/server/target/spark-connect_2.13-4.1.0-SNAPSHOT.jar
+            module sql/connect/server; carries 1,879 of this module's 1,879 primary classes; carries its descriptor: yes
+        sql/connect/client/jvm/target/spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar
+            module sql/connect/client/jvm; carries 1,868 of this module's 1,879 primary classes; carries its descriptor: yes
+        plus 41 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+================================================================================
+MEASUREMENT B - THE 62 ARCHIVES THE GRAPH IN USE WAS BUILT FROM
+================================================================================
+
+  A SECOND measurement, never merged with the first. Its member set is the
+  (module, filename) pairs of harness/artifacts/logs/cpg-input-inventory.json
+  (sha256 5baa90168add6f45a1157e8092e3e62a36778837bdbfb89881ca2c9c17e83637),
+  and every count below is recomputed here from the pinned tree's own archives
+  rather than read out of that file.
+
+  Archives listed in the inventory            : 62
+  Of those, resolved in this pinned tree      : 62
+  Not resolved                                : 0
+  Members whose bytes/entries/class counts agree with the inventory's recorded
+  values                                      : 44 of 62
+  Members that disagree                       : 18
+    - differing in byte size only, entry and class counts identical: 10
+    - differing in content, this tree's copy holding more entries   : 8
+  Measured at (UTC)                           : 2026-09-02T14:48:55.088Z
+
+  Every one of the 62 pairs resolved in this tree, so measurement B is over the
+  same member set the inventory names. The members that disagree with the
+  inventory's recorded per-archive figures are the same two-state effect the
+  previous section measures: a byte-size drift with identical entry and class
+  counts, and 'original-' pre-shade siblings whose current copy holds the shaded
+  class set. Each disagreeing member is named with both figures:
+
+      common_kvstore__original-spark-kvstore_2.13-4.1.0-SNAPSHOT.jar   [content_differs]
+          bytes observed 87,275 / recorded 84,345; entries 59 / 53; classes 39 / 38
+      common_network-common__original-spark-network-common_2.13-4.1.0-SNAPSHOT.jar   [content_differs]
+          bytes observed 3,344,544 / recorded 243,473; entries 2,238 / 172; classes 2,170 / 149
+      common_network-shuffle__original-spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar   [content_differs]
+          bytes observed 186,017 / recorded 182,555; entries 115 / 109; classes 92 / 91
+      common_sketch__original-spark-sketch_2.13-4.1.0-SNAPSHOT.jar   [content_differs]
+          bytes observed 38,324 / recorded 35,681; entries 36 / 30; classes 16 / 15
+      common_tags__original-spark-tags_2.13-4.1.0-SNAPSHOT.jar   [content_differs]
+          bytes observed 15,621 / recorded 13,060; entries 31 / 25; classes 12 / 11
+      common_utils-java__original-spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar   [content_differs]
+          bytes observed 81,874 / recorded 78,655; entries 71 / 65; classes 40 / 39
+      core__original-spark-core_2.13-4.1.0-SNAPSHOT.jar   [bytes_only]
+          bytes observed 10,212,752 / recorded 10,212,785; entries 3,059 / 3,059; classes 2,923 / 2,923
+      core__spark-core_2.13-4.1.0-SNAPSHOT.jar   [bytes_only]
+          bytes observed 14,929,569 / recorded 14,929,602; entries 5,342 / 5,342; classes 5,097 / 5,097
+      launcher__original-spark-launcher_2.13-4.1.0-SNAPSHOT.jar   [content_differs]
+          bytes observed 82,177 / recorded 79,280; entries 52 / 46; classes 33 / 32
+      mllib-local__original-spark-mllib-local_2.13-4.1.0-SNAPSHOT.jar   [content_differs]
+          bytes observed 121,798 / recorded 118,935; entries 49 / 43; classes 23 / 22
+      sql_api__original-spark-sql-api_2.13-4.1.0-SNAPSHOT.jar   [bytes_only]
+          bytes observed 2,940,740 / recorded 2,941,320; entries 1,249 / 1,249; classes 1,202 / 1,202
+      sql_api__spark-sql-api_2.13-4.1.0-SNAPSHOT.jar   [bytes_only]
+          bytes observed 2,962,947 / recorded 2,963,527; entries 1,255 / 1,255; classes 1,203 / 1,203
+      sql_connect_client_jvm__spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar   [bytes_only]
+          bytes observed 26,049,780 / recorded 26,050,367; entries 13,294 / 13,294; classes 12,652 / 12,652
+      sql_connect_common__original-spark-connect-common_2.13-4.1.0-SNAPSHOT.jar   [bytes_only]
+          bytes observed 5,220,294 / recorded 5,220,299; entries 1,891 / 1,891; classes 1,857 / 1,857
+      sql_connect_common__spark-connect-common_2.13-4.1.0-SNAPSHOT.jar   [bytes_only]
+          bytes observed 5,263,673 / recorded 5,263,678; entries 1,925 / 1,925; classes 1,879 / 1,879
+      sql_connect_server__spark-connect_2.13-4.1.0-SNAPSHOT.jar   [bytes_only]
+          bytes observed 17,182,146 / recorded 17,182,152; entries 8,416 / 8,416; classes 8,050 / 8,050
+      sql_hive-thriftserver__original-spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar   [bytes_only]
+          bytes observed 604,634 / recorded 605,244; entries 238 / 238; classes 210 / 210
+      sql_hive-thriftserver__spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar   [bytes_only]
+          bytes observed 610,581 / recorded 611,191; entries 244 / 244; classes 211 / 211
+
+  Despite those per-archive differences, measurement B reproduces the verdict the
+  existing record states for the same input set - the cross-check that matters,
+  because a witness is a question about class exclusivity rather than about bytes.
+
+  module                                 arch  primary    excl witness kind             verdict
+  -------------------------------------- ---- -------- ------- ------------------------ ---------------------
+  common/kvstore                            2       39      38 exclusive_class          WITNESS OBTAINABLE
+  common/network-common                     2    2,170       0 none                     NO VERDICT OBTAINABLE
+  common/network-shuffle                    2       92       0 none                     NO VERDICT OBTAINABLE
+  common/network-yarn                       2   11,070   6,175 exclusive_class          WITNESS OBTAINABLE
+  common/sketch                             2       16      15 exclusive_class          WITNESS OBTAINABLE
+  common/tags                               2       12      11 exclusive_class          WITNESS OBTAINABLE
+  common/unsafe                             2       65      64 exclusive_class          WITNESS OBTAINABLE
+  common/utils                              2      164     163 exclusive_class          WITNESS OBTAINABLE
+  common/utils-java                         2       40       0 none                     NO VERDICT OBTAINABLE
+  common/variant                            2       34      33 exclusive_class          WITNESS OBTAINABLE
+  connector/avro                            2       24      23 exclusive_class          WITNESS OBTAINABLE
+  connector/kafka-0-10                      0        0       0 none                     NO VERDICT OBTAINABLE
+  connector/kafka-0-10-assembly             0        0       0 none                     NO VERDICT OBTAINABLE
+  connector/kafka-0-10-sql                  0        0       0 none                     NO VERDICT OBTAINABLE
+  connector/kafka-0-10-token-provider       0        0       0 none                     NO VERDICT OBTAINABLE
+  connector/protobuf                        2      825     825 exclusive_class          WITNESS OBTAINABLE
+  core                                      2    5,097   5,096 exclusive_class          WITNESS OBTAINABLE
+  examples                                  0        0       0 none                     NO VERDICT OBTAINABLE
+  graphx                                    2      132     131 exclusive_class          WITNESS OBTAINABLE
+  launcher                                  2       33      32 exclusive_class          WITNESS OBTAINABLE
+  mllib                                     2    2,646   2,645 exclusive_class          WITNESS OBTAINABLE
+  mllib-local                               2       23      22 exclusive_class          WITNESS OBTAINABLE
+  repl                                      2        9       8 exclusive_class          WITNESS OBTAINABLE
+  resource-managers/kubernetes/core         2      145     144 exclusive_class          WITNESS OBTAINABLE
+  resource-managers/yarn                    2       79      78 exclusive_class          WITNESS OBTAINABLE
+  sql/api                                   2    1,203       0 none                     NO VERDICT OBTAINABLE
+  sql/catalyst                              2    5,333   5,332 exclusive_class          WITNESS OBTAINABLE
+  sql/connect/client/jdbc                   2        2       2 exclusive_class          WITNESS OBTAINABLE
+  sql/connect/client/jvm                    2   12,652   4,970 exclusive_class          WITNESS OBTAINABLE
+  sql/connect/common                        2    1,879       0 none                     NO VERDICT OBTAINABLE
+  sql/connect/server                        2    8,050   4,153 exclusive_class          WITNESS OBTAINABLE
+  sql/connect/shims                         0        0       0 none                     NO VERDICT OBTAINABLE
+  sql/core                                  2    3,879   3,878 exclusive_class          WITNESS OBTAINABLE
+  sql/hive                                  2      149     148 exclusive_class          WITNESS OBTAINABLE
+  sql/hive-thriftserver                     2      211     210 exclusive_class          WITNESS OBTAINABLE
+  sql/pipelines                             2      285     284 exclusive_class          WITNESS OBTAINABLE
+  streaming                                 2      359     358 exclusive_class          WITNESS OBTAINABLE
+  tools                                     0        0       0 none                     NO VERDICT OBTAINABLE
+
+  Witness names, per module with one:
+    common/kvstore                         [class] org.apache.spark.util.kvstore.ArrayWrappers
+    common/network-yarn                    [class] org.apache.spark.network.yarn.YarnShuffleService
+    common/sketch                          [class] org.apache.spark.util.sketch.BitArray
+    common/tags                            [class] org.apache.spark.annotation.AlphaComponent
+    common/unsafe                          [class] org.apache.spark.sql.catalyst.expressions.HiveHasher
+    common/utils                           [class] org.apache.spark.BreakingChangeInfo
+    common/variant                         [class] org.apache.spark.types.variant.ShreddingUtils
+    connector/avro                         [class] org.apache.spark.sql.avro.AvroDataToCatalyst
+    connector/protobuf                     [class] org.apache.spark.sql.protobuf.CatalystDataToProtobuf
+    core                                   [class] org.apache.spark.Aggregator
+    graphx                                 [class] org.apache.spark.graphx.Edge
+    launcher                               [class] org.apache.spark.launcher.AbstractAppHandle
+    mllib                                  [class] org.apache.spark.ml.Estimator
+    mllib-local                            [class] org.apache.spark.ml.impl.Utils
+    repl                                   [class] org.apache.spark.repl.Main
+    resource-managers/kubernetes/core      [class] org.apache.spark.deploy.k8s.Config
+    resource-managers/yarn                 [class] org.apache.spark.deploy.yarn.AmIpFilter
+    sql/catalyst                           [class] org.apache.spark.sql.catalyst.AliasIdentifier
+    sql/connect/client/jdbc                [class] org.apache.spark.sql.connect.client.jdbc.NonRegisteringSparkConnectDriver
+    sql/connect/client/jvm                 [class] org.apache.spark.sql.application.ConnectRepl
+    sql/connect/server                     [class] org.apache.spark.sql.connect.SimpleSparkConnectService
+    sql/core                               [class] org.apache.spark.sql.DataSourceRegistration
+    sql/hive                               [class] org.apache.spark.sql.hive.DeferredObjectAdapter
+    sql/hive-thriftserver                  [class] org.apache.spark.sql.hive.thriftserver.ArrayFetchIterator
+    sql/pipelines                          [class] org.apache.spark.sql.pipelines.AnalysisWarning
+    streaming                              [class] org.apache.spark.status.api.v1.streaming.ApiStreamingApp
+
+  Accepted witness, exclusive class          : 26
+  Accepted witness, exclusive descriptor node: 0
+  Accepted witness of either kind            : 26 of 38
+  NO VERDICT OBTAINABLE                      : 12
+    - archives present, no witness of either kind: 5
+    - no archive of the module in the input set  : 7
+
+  The modules with no accepted witness under measurement B, in full:
+
+  common/network-common   (artifactId spark-network-common_2.13)
+      archives in this input set: 2; primary artifact: common/network-common/target/spark-network-common_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 2,170; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-network-common_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar
+            module common/network-yarn; carries 2,170 of this module's 2,170 primary classes; carries its descriptor: yes
+        plus 34 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  common/network-shuffle   (artifactId spark-network-shuffle_2.13)
+      archives in this input set: 2; primary artifact: common/network-shuffle/target/spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 92; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-network-shuffle_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar
+            module common/network-yarn; carries 92 of this module's 92 primary classes; carries its descriptor: yes
+        plus 34 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  common/utils-java   (artifactId spark-common-utils-java_2.13)
+      archives in this input set: 2; primary artifact: common/utils-java/target/spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 40; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-common-utils-java_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar
+            module common/network-yarn; carries 40 of this module's 40 primary classes; carries its descriptor: yes
+        plus 34 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  connector/kafka-0-10   (artifactId spark-streaming-kafka-0-10_2.13)
+      no archive of this project is in the 62-archive staging tree.
+      No archive of it is in the set, so no witness of either kind can be
+      in a graph built from the set. NO VERDICT OBTAINABLE.
+
+  connector/kafka-0-10-assembly   (artifactId spark-streaming-kafka-0-10-assembly_2.13)
+      no archive of this project is in the 62-archive staging tree.
+      No archive of it is in the set, so no witness of either kind can be
+      in a graph built from the set. NO VERDICT OBTAINABLE.
+
+  connector/kafka-0-10-sql   (artifactId spark-sql-kafka-0-10_2.13)
+      no archive of this project is in the 62-archive staging tree.
+      No archive of it is in the set, so no witness of either kind can be
+      in a graph built from the set. NO VERDICT OBTAINABLE.
+
+  connector/kafka-0-10-token-provider   (artifactId spark-token-provider-kafka-0-10_2.13)
+      no archive of this project is in the 62-archive staging tree.
+      No archive of it is in the set, so no witness of either kind can be
+      in a graph built from the set. NO VERDICT OBTAINABLE.
+
+  examples   (artifactId spark-examples_2.13)
+      no archive of this project is in the 62-archive staging tree.
+      No archive of it is in the set, so no witness of either kind can be
+      in a graph built from the set. NO VERDICT OBTAINABLE.
+
+  sql/api   (artifactId spark-sql-api_2.13)
+      archives in this input set: 2; primary artifact: sql/api/target/spark-sql-api_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 1,203; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-sql-api_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        sql/connect/client/jvm/target/spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar
+            module sql/connect/client/jvm; carries 1,203 of this module's 1,203 primary classes; carries its descriptor: yes
+        plus 35 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  sql/connect/common   (artifactId spark-connect-common_2.13)
+      archives in this input set: 2; primary artifact: sql/connect/common/target/spark-connect-common_2.13-4.1.0-SNAPSHOT.jar
+      classes in its primary artifact: 1,879; exclusive to it: 0
+      exclusive META-INF/maven/**/pom.properties nodes: 0
+      its own descriptor node META-INF/maven/org.apache.spark/spark-connect-common_2.13/pom.properties
+          present in its primary artifact: yes; exclusive to the module: no
+      the other modules' archives that vendor its classes or descriptor:
+        sql/connect/server/target/spark-connect_2.13-4.1.0-SNAPSHOT.jar
+            module sql/connect/server; carries 1,879 of this module's 1,879 primary classes; carries its descriptor: yes
+        sql/connect/client/jvm/target/spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar
+            module sql/connect/client/jvm; carries 1,868 of this module's 1,879 primary classes; carries its descriptor: yes
+        plus 34 further archive(s) carrying exactly one of its classes, namely:
+            org.apache.spark.unused.UnusedStubClass   (shipped by 44 of the 110 archives carrying bytecode)
+        A class that widely shipped is exclusive to no module, so that tail
+        is not meaningful overlap and is never a witness.
+      NO VERDICT OBTAINABLE - neither admissible witness kind exists.
+
+  sql/connect/shims   (artifactId spark-connect-shims_2.13)
+      no archive of this project is in the 62-archive staging tree.
+      No archive of it is in the set, so no witness of either kind can be
+      in a graph built from the set. NO VERDICT OBTAINABLE.
+
+  tools   (artifactId spark-tools_2.13)
+      no archive of this project is in the 62-archive staging tree.
+      No archive of it is in the set, so no witness of either kind can be
+      in a graph built from the set. NO VERDICT OBTAINABLE.
+
+================================================================================
+WHERE THE TWO MEASUREMENTS DIVERGE, AND WHY
+================================================================================
+
+  A wider input set is not monotonically better for this rule, and these rows
+  are the proof: adding archives can DESTROY a witness, because a fat shaded
+  artifact vendors what a smaller module ships, and it can also SUPPLY one,
+  because a module absent from the narrow set is present in the full one. The
+  two results are therefore two measurements and are never totalled together.
+
+  Modules whose witness kind differs between A and B: 6
+
+  common/tags
+      A (full, 191 archives): 5 archive(s) in set, 12 primary classes, 0 exclusive, witness_kind=none
+      B (narrow, 62 archives): 2 archive(s) in set, 12 primary classes, 11 exclusive, witness_kind=exclusive_class
+      Direction: the wider set REMOVED its witness - another module's
+      archive in the full set vendors what was exclusive in the narrow set.
+
+  connector/kafka-0-10-assembly
+      A (full, 191 archives): 5 archive(s) in set, 5,937 primary classes, 5,855 exclusive, witness_kind=exclusive_class
+      B (narrow, 62 archives): 0 archive(s) in set, 0 primary classes, 0 exclusive, witness_kind=none
+      Direction: the wider set SUPPLIED a witness the narrow set could not
+      offer.
+
+  connector/kafka-0-10-sql
+      A (full, 191 archives): 5 archive(s) in set, 124 primary classes, 123 exclusive, witness_kind=exclusive_class
+      B (narrow, 62 archives): 0 archive(s) in set, 0 primary classes, 0 exclusive, witness_kind=none
+      Direction: the wider set SUPPLIED a witness the narrow set could not
+      offer.
+
+  examples
+      A (full, 191 archives): 4 archive(s) in set, 791 primary classes, 791 exclusive, witness_kind=exclusive_class
+      B (narrow, 62 archives): 0 archive(s) in set, 0 primary classes, 0 exclusive, witness_kind=none
+      Direction: the wider set SUPPLIED a witness the narrow set could not
+      offer.
+
+  sql/connect/shims
+      A (full, 191 archives): 5 archive(s) in set, 12 primary classes, 0 exclusive, witness_kind=exclusive_pom_properties
+      B (narrow, 62 archives): 0 archive(s) in set, 0 primary classes, 0 exclusive, witness_kind=none
+      Direction: the wider set SUPPLIED a witness the narrow set could not
+      offer.
+
+  tools
+      A (full, 191 archives): 5 archive(s) in set, 3 primary classes, 2 exclusive, witness_kind=exclusive_class
+      B (narrow, 62 archives): 0 archive(s) in set, 0 primary classes, 0 exclusive, witness_kind=none
+      Direction: the wider set SUPPLIED a witness the narrow set could not
+      offer.
+
+================================================================================
+CITED, NOT MEASURED HERE
+================================================================================
+
+  This file performs archive analysis only and never loads the graph. Every
+  graph-side figure below is cited from the record named beside it, and no
+  conclusion in this file rests on a number this pass did not measure except
+  where that citation is shown.
+
+  methods in the graph in use          : 1,396,899   [harness/artifacts/logs/cpg-verify.log PHASE 1]
+  type declarations                    : 119,721   [harness/artifacts/logs/cpg-verify.log PHASE 1]
+  files                                : 45,037   [harness/artifacts/logs/cpg-verify.log PHASE 1]
+  META-INF/maven/**/pom.properties file nodes: 102   [harness/artifacts/logs/cpg-verify.log PHASE 1]
+  graph bytes / sha256                 : 541,309,809 / 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7   [harness/artifacts/logs/cpg-verify.log SUBJECT]
+  narrow-set graph coverage verdict    : 26 of 31 modules in the input covered on injective evidence, 5 no verdict   [oss-scan-results/build-record.md section 6, from cpg-verify.log PHASE 2]
+  full-input-set graph state           : no graph over the 191-archive set exists: the pinned frontend's writer hit a fixed JVM array-length bound at serialization   [harness/artifacts/logs/cpg-ceiling-reverify.log]
+
+================================================================================
+INDEPENDENT CONFIRMATION OF THE NO-WITNESS MODULES
+================================================================================
+
+  A measurement that rests on one script is a measurement that rests on that
+  script being right. The modules measurement A finds have no witness were
+  therefore re-checked by a SECOND script that shares no code with the first:
+
+  Script        : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g4w/independent-spotcheck.py
+  Script sha256 : 75d489e942727d4ef4e8173733ebeaeca91d2a334d402c886ccc751d65d994ff
+  Result file   : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g4w/independent-spotcheck.json
+  Ran at (UTC)  : 2026-09-02T14:47:40Z
+  Shares code with the main measurement: False
+
+  Method:
+    for each module, read its primary artifact and the single other-module
+    archive named as its vendor and assert directly that every class of the
+    primary artifact is present in that archive and that the module's own
+    META-INF/maven/**/pom.properties descriptor node is present in both - two
+    facts that establish NO VERDICT OBTAINABLE without the rest of the input
+    set
+
+  module                                  primary  absent  descriptor in both  confirmed
+  -------------------------------------- -------- -------  ------------------  ---------
+  common/network-common                     2,170       0  yes                 yes
+  common/network-shuffle                       92       0  yes                 yes
+  common/utils-java                            40       0  yes                 yes
+  common/tags                                  12       0  yes                 yes
+  connector/kafka-0-10                         47       0  yes                 yes
+  connector/kafka-0-10-token-provider          17       0  yes                 yes
+  sql/api                                   1,203       0  yes                 yes
+  sql/connect/common                        1,879       0  yes                 yes
+
+  'absent' is the number of the module's primary-artifact classes that are NOT in
+  the vendoring archive - zero of them, for every module, so no class of that
+  primary artifact can be exclusive to the module. The descriptor column shows
+  the module's own META-INF/maven/**/pom.properties node present in BOTH its own
+  primary artifact and the vendoring archive, so the weaker witness is not
+  exclusive either.
+
+  Modules confirmed by the second code path: 8 of 8.
+
+================================================================================
+VERDICT
+================================================================================
+
+  MEASUREMENT A - every JAR the full reactor produced, 191 archives.
+
+  30 of 38 JAR-producing modules have an accepted witness -
+  29 on an exclusive class and 1 on the exclusive
+  META-INF/maven/**/pom.properties fallback AAP 0.5.1 names as the weaker
+  witness. 8 have neither, each named here with the archive that
+  vendors it:
+
+      common/network-common
+          vendored by common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar (2,170 of its 2,170 primary classes; descriptor: yes)
+      common/network-shuffle
+          vendored by common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar (92 of its 92 primary classes; descriptor: yes)
+      common/tags
+          vendored by connector/kafka-0-10-assembly/target/spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT.jar (12 of its 12 primary classes; descriptor: yes)
+      common/utils-java
+          vendored by common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar (40 of its 40 primary classes; descriptor: yes)
+      connector/kafka-0-10
+          vendored by connector/kafka-0-10-assembly/target/spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT.jar (47 of its 47 primary classes; descriptor: yes)
+      connector/kafka-0-10-token-provider
+          vendored by connector/kafka-0-10-assembly/target/spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT.jar (17 of its 17 primary classes; descriptor: yes)
+      sql/api
+          vendored by sql/connect/client/jvm/target/spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar (1,203 of its 1,203 primary classes; descriptor: yes)
+      sql/connect/common
+          vendored by sql/connect/server/target/spark-connect_2.13-4.1.0-SNAPSHOT.jar (1,879 of its 1,879 primary classes; descriptor: yes)
+
+  MEASUREMENT B - the 62 archives the graph in use was actually built from.
+
+  26 of 38 JAR-producing modules have an accepted witness and 12 have none -
+  5 because their archives are in the set and carry no exclusive class or
+  descriptor, and 7 because no archive of them is in the set at all:
+
+      common/network-common
+          vendored by common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar (2,170 of its 2,170 primary classes; descriptor: yes)
+      common/network-shuffle
+          vendored by common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar (92 of its 92 primary classes; descriptor: yes)
+      common/utils-java
+          vendored by common/network-yarn/target/scala-2.13/spark-4.1.0-SNAPSHOT-yarn-shuffle.jar (40 of its 40 primary classes; descriptor: yes)
+      connector/kafka-0-10
+          no archive of this project is in the 62-archive staging tree
+      connector/kafka-0-10-assembly
+          no archive of this project is in the 62-archive staging tree
+      connector/kafka-0-10-sql
+          no archive of this project is in the 62-archive staging tree
+      connector/kafka-0-10-token-provider
+          no archive of this project is in the 62-archive staging tree
+      examples
+          no archive of this project is in the 62-archive staging tree
+      sql/api
+          vendored by sql/connect/client/jvm/target/spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar (1,203 of its 1,203 primary classes; descriptor: yes)
+      sql/connect/common
+          vendored by sql/connect/server/target/spark-connect_2.13-4.1.0-SNAPSHOT.jar (1,879 of its 1,879 primary classes; descriptor: yes)
+      sql/connect/shims
+          no archive of this project is in the 62-archive staging tree
+      tools
+          no archive of this project is in the 62-archive staging tree
+
+  WHAT THAT MEANS, STATED PLAINLY.
+
+  Even a fully compliant graph over the complete 191-archive input set could
+  only be verdicted for the 30 modules that HAVE a witness. The remaining
+  8 would still be NO VERDICT OBTAINABLE, because their shortfall is a property
+  of the witness rule against Spark's shaded artifacts - a fat artifact vendors
+  every class and the Maven descriptor of the smaller modules it repackages, so
+  nothing in the smaller module's primary artifact is exclusive to it - and NOT a
+  property of any graph, of any heap, or of the frontend. It is not caused by the
+  graph in use being the provisioned 62-archive one, and it would not be removed
+  by building a graph over all of them.
+
+  This is reported, not repaired. AAP 0.5.1 admits exactly two witness kinds and
+  no third, and AAP 0.9.4 requires a value that could not be established to be
+  named as such rather than omitted or softened. So no third witness kind is
+  invented here, presence is never substituted for exclusivity, no shared package
+  prefix is used as evidence, and no shaded archive is dropped from either input
+  set to manufacture uniqueness. Removing the shortfall needs a change to the
+  witness rule itself - an injective archive-provenance witness such as the staged
+  coordinate and digest retained in graph metadata - which is a human/AAP decision
+  outside this pass.
+
+  F4's condition REPRODUCES first-hand in this clone: 8 of 38 JAR-producing modules have
+  neither admissible witness over the full project-output set.
+
+================================================================================
+SUPERSESSION APPENDED 2026-09-03 - the graph this file measures is no longer the
+graph on disk
+================================================================================
+
+  Nothing above this line is edited. This file is the record of the pass that
+  wrote it, and it is preserved as that pass observed things.
+
+  WHAT THIS FILE QUOTES, AND WHEN IT WAS TRUE
+    bytes 541,309,809 / sha256 4616845a...4730c7, methods 1,396,899, type
+    declarations 119,721, files 45,037, and 102 META-INF/maven/**/pom.properties file
+    nodes - the graph in use when this pass measured, 2026-09-01.
+
+  WHAT IS ON DISK NOW
+    bytes     : 547,980,224
+    sha256    : 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+    methods   : 1,398,964   type declarations : 119,860   files : 45,037
+
+    The graph at harness/cpg/spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg was
+    rebuilt on 2026-09-03 by jimple2cpg (joern 4.0.607) over
+    /opt/blitzy-harness/cpg-input, 31 m 23 s, exit 0. Its write-time owners are
+    /opt/blitzy-harness/provision-log/cpg-identity.txt and
+    /opt/blitzy-harness/provision-log/cpg-record.txt, and the runner recomputed
+    the same pair at Stage 3 - see harness/artifacts/logs/joern.runner-console-2026-09-03.log
+    lines 28-29. The three importCpg loads that establish the counts above are
+    recorded in harness/artifacts/logs/cpg-verify.log PART 3, which also carries
+    the supersession statement naming the values this file quotes.
+
+  WHY THIS MATTERS FOR READING THE PAGES ABOVE
+    The block at lines 763-767 is headed "methods in the graph in use" and cites
+    harness/artifacts/logs/cpg-verify.log PHASE 1 for each figure. PHASE 1 of that
+    file was re-anchored on 2026-09-03 to the load of the graph now on disk, so it
+    now reads 1,398,964 / 119,860 / 45,037. The figures quoted here survive in that
+    same file's PART 3 supersession statement rather than in PHASE 1, and "in use"
+    must be read as of 2026-09-01. The witness verdict this file reports - 26 of 31
+    modules covered on injective evidence, 5 with no verdict - was re-measured on
+    2026-09-03 against the live graph and is unchanged, including the mechanical
+    confirmation that the five no-witness modules have exclusive_class_count exactly
+    0; harness/artifacts/logs/cpg-module-coverage.json is the live owner.
+
+  WHAT WAS NOT DONE, AND WHY
+    No figure above is rewritten and no line is renumbered. Every line number a
+    citation of this file may carry still addresses the same text. The values above
+    are this file's own first-hand measurements; replacing them would destroy the
+    evidence that the identity ever changed, which is the one thing a supersession
+    record exists to preserve (AAP 0.1.3: both the inherited and the newly measured
+    value are recorded with their provenance).
+
+================================================================================
+END - reverification-f4-module-witness-full-input-set.log
+================================================================================

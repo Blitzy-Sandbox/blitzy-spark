@@ -1,0 +1,915 @@
+================================================================================
+Opengrep engine option surface - first-hand capture for F5 re-verification
+harness/artifacts/logs/reverification-f5-taint-engine-options.txt
+================================================================================
+
+================================================================================
+WHAT THIS FILE ESTABLISHES
+================================================================================
+  What the pinned Opengrep engine can and cannot be told to do about taint,
+  captured from the engine itself in THIS clone rather than cited from any
+  record. It exists because QA finding F5 reports the AAP-mandated taint A/B
+  (AAP 0.5.1, 0.9.1) as non-discriminating on its mandated subject, and the
+  first question any reader asks is whether a genuinely taint-free arm could
+  have been constructed instead. This file answers that from the engine's own
+  option list: it carries `opengrep --version`, the COMPLETE verbatim text of
+  `opengrep scan --help`, an enumeration of every option whose name or help
+  text mentions taint, dataflow, pro, interfile or optimization with a verdict
+  for each, two controls that were RUN rather than read, and an explicit
+  conclusion.
+
+  Companion files, same measurement pass:
+    harness/artifacts/logs/reverification-f5-taint-ab.log   (human-readable record)
+    harness/artifacts/logs/reverification-f5-taint-ab.json  (machine-readable record)
+
+================================================================================
+WHY THIS FILE IS UNDER logs/ AND NEVER UNDER raw/
+================================================================================
+  raw/ is RUNNER-ONLY: it receives exactly one artifact per tool that writes
+  one and nothing else, ever (AAP 0.5.1, 0.6.1). Opengrep appears twice in
+  this run by design - once as one of the nine scanned runners, whose
+  artifact is harness/artifacts/raw/opengrep.sarif, and once as the taint
+  A/B subject. This capture and every SARIF of this measurement pass belong
+  to the second appearance, which writes outside raw/ and contributes NO
+  dataset row (AAP 0.3.2). A file of this pass landing in raw/ would
+  overwrite the Stage 3 runner's artifact and the dataset would then be
+  built from an option capture instead of a scan.
+
+================================================================================
+IDENTITY OF THE ENGINE CAPTURED
+================================================================================
+  Engine binary              : /opt/blitzy-tools/bin/opengrep
+  Version, observed          : 1.27.1
+  Version, expected (AAP 0.4.1): 1.27.1
+  Ruleset                    : /opt/blitzy-harness/rules/opengrep-rules
+  Ruleset commit, observed   : f1d2b562b414783763fd02a6ed2736eaed622efa
+  Clone index                : 19
+  Working checkout branch    : blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019
+  Working checkout HEAD      : 7fc41251c81e8a10ca9ce542b34af2542d7c1b53
+  Pinned clone (SPARK_SRC)   : /opt/spark-src @ 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d   (never edited)
+  Capture instant (UTC)      : 2026-09-02T14:36:45.803Z
+  `opengrep scan --help` size: 558 lines, 22619 bytes, sha256 1c667bc26e59715be1814ed99caf9674a39c44ab5fec6eac4067527d35c033c4
+
+================================================================================
+SECTION 1 - `opengrep --version`, VERBATIM
+================================================================================
+$ /opt/blitzy-tools/bin/opengrep --version
+1.27.1
+
+  [exit] 0
+
+================================================================================
+SECTION 2 - `opengrep scan --help`, VERBATIM AND IN FULL
+================================================================================
+$ /opt/blitzy-tools/bin/opengrep scan --help
+  [exit] 0, stderr empty (0 bytes)
+
+NAME
+       opengrep scan - run opengrep rules on files
+
+SYNOPSIS
+       opengrep scan [OPTION]… [TARGETS]…
+
+DESCRIPTION
+       Searches TARGET paths for matches to rules or patterns. Defaults to
+       searching entire current working directory.
+
+       To get started quickly, run
+
+       opengrep --config auto .
+
+       This will automatically fetch rules for your project from the Semgrep
+       Registry.
+
+       For more information about Opengrep, go to https://opengrep.dev.
+
+ARGUMENTS
+       TARGETS
+           Files or folders to be scanned by opengrep.
+
+OPTIONS
+       -a, --autofix
+           Apply autofix patches. WARNING: data loss can occur with this
+           flag. Make sure your files are stored in a version control system.
+           Note that this mode is experimental and not guaranteed to function
+           properly. 
+
+       --allow-local-builds
+           Experimental: allow building projects contained in the repository.
+           This allows Opengrep to identify dependencies and dependency
+           relationships when lockfiles are not present or are insufficient.
+           However, building code may inherently require the execution of
+           code contained in the scanned project or in its dependencies,
+           which is a security risk.
+
+       --allow-rule-timeout-control
+           Allow rule options that control timeout behaviour to be used in
+           the engine. An example is: options: dynamic_timeout: true which
+           will have no effect unless if this flag is passed.
+
+       --allow-untrusted-validators
+           Allows running rules with validators from origins other than
+           semgrep.dev. Avoid running rules from origins you don't trust.
+
+       --baseline-commit=VAL (absent SEMGREP_BASELINE_COMMIT env)
+           Only show results that are not found in this commit hash. Aborts
+           run if not currently in a git directory, there are unstaged
+           changes, or given baseline hash doesn't exist. 
+
+       -d, --dump-command-for-core
+           <internal, do not use>
+
+       --dataflow-traces
+           Explain how non-local values reach the location of a finding (only
+           affects text and SARIF output).
+
+       --debug
+           All of --verbose, but with additional debugging information.
+
+       --develop
+           Living on the edge.
+
+       --diff-depth=INT (absent=2)
+           The depth of the Pro (interfile) differential scan, the number of
+           steps (both in the caller and callee sides) from the targets in
+           the call graph tracked by the deep preprocessor. Only applied in
+           differential scan mode. Default to 2. 
+
+       --disable-nosem
+           negates --enable-nosem
+
+       --disable-version-check
+           negates --enable-version-check
+
+       --dryrun
+           If --dryrun, does not write autofixes to a file. This will print
+           the changes to the console. This lets you see the changes before
+           you commit to them. Only works with the --autofix flag. Otherwise
+           does nothing. 
+
+       --dump-ast
+           If --dump-ast, shows AST of the input file or passed expression
+           and then exit (can use --json). 
+
+       --dump-engine-path
+           <internal, do not use>
+
+       --dynamic-timeout
+           Enable dynamic timeouts, based on the size of target files in kb.
+           Defaults to false.
+
+       --dynamic-timeout-max-multiplier=INT (absent=20)
+           Set the maximum multiplier for dynamic timeouts. For example, if
+           set to 10, the dynamic timeout will never exceed 10 times the
+           given timeout passed in the cli. Defaults to 20. 
+
+       --dynamic-timeout-unit-kb=INT (absent=30)
+           Set the size in kb to consider for the calculation of dynamic
+           timeouts. For example, if set to 50, a file of size 200kb will
+           have a timeout of 4 times the given timeout passed in the cli.
+           Defaults to 30. 
+
+       -e VAL, --pattern=VAL
+           Code search pattern. See
+           https://semgrep.dev/docs/writing-rules/pattern-syntax for
+           information on pattern features. 
+
+       --emacs
+           Output results in Emacs single-line format.
+
+       --emacs-output=VAL
+           Write a copy of the emacs output to a file or post to URL.
+
+       --enable-nosem
+           Enables 'nosem'. Findings will not be reported on lines containing
+           a 'nosem' comment at the end. Enabled by default.
+
+       --enable-version-check (absent OPENGREP_ENABLE_VERSION_CHECK env)
+           Checks Opengrep servers to see if the latest version is run;
+           disabling this may reduce exit time after returning results. 
+
+       --error
+           Exit 1 if there are findings. Useful for CI and scripts.
+
+       --exclude=PATTERN
+           Skip any file or directory whose path that matches PATTERN.
+           '--exclude=*.py' will ignore the following: 'foo.py',
+           'src/foo.py', 'foo.py/bar.sh'. '--exclude=tests' will ignore
+           'tests/foo.py' as well as 'a/b/tests/c/foo.py'. Multiple
+           '--exclude' options may be specified. PATTERN is a glob-style
+           pattern that uses the same syntax as gitignore and semgrepignore,
+           which is documented at
+           https://git-scm.com/docs/gitignore#_pattern_format 
+
+       --exclude-minified-files
+           Skip minified files. These are files that are > 7% whitespace, or
+           who have a large number of bytes per line. By default minified
+           files are scanned 
+
+       --exclude-rule=VAL
+           Skip any rule with the given id. Can add multiple times.
+
+       --experimental
+           Enable experimental features.
+
+       -f VAL, -c VAL, --config=VAL (absent SEMGREP_RULES env)
+           YAML configuration file, directory of YAML files ending in
+           .yml|.yaml, URL of a configuration file, remote git repository of
+           rules, or Semgrep registry entry name. A remote git repository of
+           rules is given as `git+<url>`; it is cloned and scanned as a
+           directory of rules. Append `#<branch-or-tag>` to pin a ref, e.g.
+           `--config git+https://github.com/org/rules#v1.2.0`. Cloning uses
+           git's own credentials (ssh-agent, credential helpers, ...) and
+           runs non-interactively. REQUIRES --experimental Use --config auto
+           to automatically obtain rules tailored to this project; your
+           project URL will be used to log in to the Semgrep registry. To run
+           multiple rule files simultaneously, use --config before every
+           YAML, URL, or Semgrep registry entry name. For example `opengrep
+           --config p/python --config myrules/myrule.yaml` See
+           https://semgrep.dev/docs/writing-rules/rule-syntax for information
+           on configuration file format. 
+
+       --files-with-matches
+           Output only the names of files containing matches. REQUIRES
+           --experimental
+
+       --force-color (absent SEMGREP_FORCE_COLOR env)
+           Always include ANSI color in the output, even if not writing to a
+           TTY; defaults to using the TTY status 
+
+       --force-exclude
+           Apply the --include and --exclude options to files specified on
+           the command line. By default, these options are only applied to
+           files found in the directory trees scanned
+
+       --gitlab-sast
+           Output results in GitLab SAST format.
+
+       --gitlab-sast-output=VAL
+           Write a copy of the GitLab SAST output to a file or post to URL.
+
+       --gitlab-secrets
+           Output results in GitLab Secrets format.
+
+       --gitlab-secrets-output=VAL
+           Write a copy of the GitLab Secrets output to a file or post to
+           URL.
+
+       --guarded-taint-signatures
+           Attach branch-condition guards to taint effects and evaluate them
+           at call sites, dropping effects whose guard is false. Without this
+           flag only Clojure keeps the arity guards that implement
+           multi-arity dispatch. REQUIRES --experimental
+
+       --historical-secrets
+           Scans git history using Secrets rules.
+
+       --include=PATTERN
+           Specify files or directories that should be scanned by opengrep,
+           excluding other files. This filter is applied after these other
+           filters: '--exclude' options, any filtering done by git (or other
+           SCM), and filtering by '.semgrepignore' files. Multiple
+           '--include' options can be specified. A file path is selected if
+           it matches at least one of the include patterns. PATTERN is a
+           glob-style pattern such as 'foo.*' that must match the path. For
+           example, specifying the language with '-l javascript' might
+           preselect files 'src/foo.jsx' and 'lib/bar.js'. Specifying one of
+           '--include=src', '--include=*.jsx', or '--include=src/foo.*' will
+           restrict the selection to the single file 'src/foo.jsx'. A choice
+           of multiple '--include' patterns can be specified. For example,
+           '--include=foo.* --include=bar.*' will select both 'src/foo.jsx'
+           and 'lib/bar.js'. Glob-style patterns follow the syntax supported
+           by gitignore and semgrepignore, which is documented at
+           https://git-scm.com/docs/gitignore#_pattern_format 
+
+       --incremental-output
+           Output results incrementally. REQUIRES --experimental
+
+       --incremental-output-postprocess
+           Apply post-processing in incremental outputs. REQUIRES
+           --incremental-output
+
+       --inline-metavariables
+           Inlines metavariable references in metadata strings the same way
+           it is done in the message. This can be costly so use with care
+           especially if the metadata is very deep.
+
+       --interfile-timeout=INT (absent=0)
+           Maximum time to spend on interfile analysis. If set to 0 will not
+           have time limit. Defaults to 0 s for all CLI scans. For CI scans,
+           it defaults to 3 hours.
+
+       -j INT, --jobs=INT (absent=16)
+           Number of cores to use to run checks in parallel. Defaults to the
+           number of cores detected on the system (1 if using --pro). 
+
+       --json
+           Output results in Opengrep's JSON format.
+
+       --json-output=VAL
+           Write a copy of the json output to a file or post to URL.
+
+       --junit-xml
+           Output results in JUnit XML format.
+
+       --junit-xml-output=VAL
+           Write a copy of the JUnit XML output to a file or post to URL.
+
+       -l VAL, --lang=VAL
+           Parse pattern and all files in specified language. Must be used
+           with -e/--pattern. 
+
+       --legacy
+           Prefer old (legacy) behavior.
+
+       --matching-explanations
+           Add debugging information in the JSON output to trace how
+           different parts of a rule are matched.
+
+       --max-chars-per-line=INT (absent=160)
+           Maximum number of characters to show per line.
+
+       --max-lines-per-finding=INT (absent=10)
+           Maximum number of lines of code that will be shown for each match
+           before trimming (set to 0 for unlimited).
+
+       --max-log-list-entries=INT (absent=100)
+           Maximum number of entries that will be shown in the log (e.g.,
+           list of rule ids, list of skipped files). A zero or negative value
+           disables this filter. Defaults to 100
+
+       --max-match-per-file=INT (absent=10000)
+           Maximum number of matches to allow per file. Defaults to 10000. If
+           the number of matches before deduplication exceeds this limit, an
+           error is reported for the target and no matches are returned for
+           it. This should not be used to restrict the number of matches, but
+           as a hard limit that can be used to identify problematic rules. In
+           such cases, the option can be added to the rule's options section,
+           and it will result in a restriction of the number of matches for
+           that rule only. 
+
+       --max-memory=INT (absent=0)
+           Maximum system memory in MiB to use during the interfile
+           pre-processing phase, or when running a rule on a single file. If
+           set to 0, will not have memory limit. Defaults to 0. For CI scans
+           that use the Pro Engine, defaults to 5000 MiB. 
+
+       --max-target-bytes=VALUE (absent=1000000)
+           Maximum size for a file to be scanned by Opengrep, e.g '1.5MB'.
+           Any input program larger than this will be ignored. A zero or
+           negative value disables this filter. Defaults to 1000000 bytes
+
+       --no-autofix
+           negates -a/--autofix
+
+       --no-dryrun
+           negates --dryrun
+
+       --no-error
+           negates --error
+
+       --no-exclude-minified-files
+           negates --exclude-minified-files
+
+       --no-force-color
+           negates --force-color
+
+       --no-git-ignore
+           negates --use-git-ignore
+
+       --no-output-enclosing-context
+           negates --output-enclosing-context
+
+       --no-rewrite-rule-ids
+           negates --rewrite-rule-ids
+
+       --no-secrets-validation
+           Disables secret validation.
+
+       --no-strict
+           negates --strict
+
+       --no-test-ignore-todo
+           negates --test-ignore-todo
+
+       --no-time
+           negates --time
+
+       -o VAL, --output=VAL
+           Save search results to a file or post to URL. Default is to print
+           to stdout.
+
+       --opengrep-ignore-pattern=VAL
+           Add a custom prefix for comments to be ignored by opengrep,
+           alongside the default 'nosem', 'nosemgrep' and 'noopengrep'. For
+           example, '--opengrep-ignore-pattern=noscan' makes opengrep
+           recognize lines with 'noscan' comments as well as the default
+           ones.
+
+       --optimizations=VALUE (absent=all)
+           Turn on/off optimizations. Default = 'all'. Use 'none' to turn all
+           optimizations off. 
+
+       --oss-only
+           Run using only the OSS engine, even if the Semgrep Pro toggle is
+           on. This may still run Pro rules, but only using the OSS features. 
+
+       --output-enclosing-context
+           Include information about the syntactic context of the matched
+           fragments of code, such as the function or the class in which the
+           match is defined.
+
+       --pro
+           Inter-file analysis and Pro languages (currently Apex, C#, and
+           Elixir. Requires Semgrep Pro Engine. See
+           https://semgrep.dev/products/pro-engine/ for more.
+
+       --pro-path-sensitive
+           Path sensitivity. Implies --pro-intrafile. Requires Semgrep Pro
+           Engine. See https://semgrep.dev/products/pro-engine/ for more.
+
+       --profile
+           <undocumented>
+
+       --project-root=VAL
+           Opengrep normally determines the type of project (git or novcs)
+           and the project root automatically. The project root is then used
+           to locate and use '.gitignore' and '.semgrepignore' files which
+           determine target files that should be ignored by opengrep. This
+           option forces the project root to be a specific folder and assumes
+           a local project without version control (novcs). This option is
+           useful to ensure the '.semgrepignore' file that may exist at the
+           project root is consulted when the scanning root is not the
+           current folder '.'. REQUIRES --experimental
+
+       -q, --quiet
+           Only output findings.
+
+       --remote=VAL
+           Remote will quickly check out and scan a remote git repository of
+           the format "http[s]://<WEBSITE>/.../<REPO>.git". Must be run with
+           --pro. Incompatible with --project-root. Note this requires an
+           empty CWD as this command will clone the repository into the CWD.
+           REQUIRES --experimental
+
+       --replacement=VAL
+           An autofix expression that will be applied to any matches found
+           with --pattern. Only valid with a command-line specified pattern. 
+
+       --rewrite-rule-ids
+           Rewrite rule ids when they appear in nested sub-directories (Rule
+           'foo' in test/rules.yaml will be renamed 'test.foo'). 
+
+       --sarif
+           Output results in SARIF format.
+
+       --sarif-output=VAL
+           Write a copy of the SARIF output to a file or post to URL.
+
+       --scan-unknown-extensions
+           If true, target files specified directly on the command line will
+           bypass normal language detection. They will be analyzed according
+           to the value of --lang if applicable, or otherwise with the
+           analyzers/languages specified in the Opengrep rule(s) regardless
+           of file extension or file type. This setting doesn't apply to
+           target files discovered by scanning folders. Defaults to false. 
+
+       --secrets
+           Run Semgrep Secrets product, including support for secret
+           validation. Requires access to Secrets, contact
+           support@semgrep.com for more information.
+
+       --semgrepignore-filename=FILENAME
+           Use the file FILENAME instead of the default .semgrepignore to
+           specify targets skipped during the scan. REQUIRES --experimental
+
+       --severity=ENUM
+           Report findings only from rules matching the supplied severity
+           level. By default all applicable rules are run. Can add multiple
+           times. Each should be one of INFO, WARNING, or ERROR. 
+
+       --show-supported-languages
+           Print a list of languages that are currently supported by
+           Opengrep.
+
+       --skip-invalid-configs
+           When loading rules from a directory or a remote git repository
+           (git+<url>), skip files that fail to parse as a rule config, such
+           as unrelated YAML files (e.g. GitHub workflows), emitting a
+           warning for each instead of aborting the scan. Explicitly named
+           config files still cause an error if invalid. REQUIRES
+           --experimental
+
+       --skip-unknown-extensions
+           negates --scan-unknown-extensions
+
+       --strict
+           Return a nonzero exit code when WARN level errors are encountered.
+           Fails early if invalid configuration files are present. Defaults
+           to --no-strict. 
+
+       --taint-intrafile
+           Enable intra-file inter-procedural taint analysis. Supported
+           languages: Apex, C, Clojure, C#, C++, Dart, Elixir, Go, Java,
+           JavaScript, Julia, Kotlin, Lua, Python, Ruby, Rust, Scala, Swift,
+           TypeScript, Visual Basic. Other languages will fall back to
+           intraprocedural analysis only.
+
+       --test
+           Run test suite.
+
+       --test-ignore-todo
+           If --test-ignore-todo, ignores rules marked as '#todoruleid:' in
+           test files. 
+
+       --text
+           Output results in text format.
+
+       --text-output=VAL
+           Write a copy of the text output to a file or post to URL.
+
+       --time
+           Include a timing summary with the results. If output format is
+           json, provides times for each pair (rule, target). This feature is
+           meant for internal use and may be changed or removed without
+           warning. At the current moment, --trace is better supported. 
+
+       --timeout=DOUBLE (absent=5.)
+           Maximum time to spend running a rule on a single file in seconds.
+           If set to 0 will not have time limit. Defaults to 5.0 s. 
+
+       --timeout-threshold=INT (absent=3)
+           Maximum number of rules that can time out on a file before the
+           file is skipped. If set to 0 will not have limit. Defaults to 3. 
+
+       --use-git-ignore
+           '--no-git-ignore' causes opengrep to not call 'git' and not
+           consult '.gitignore' files to determine which files opengrep
+           should scan. As a result of '--no-git-ignore', gitignored files
+           and git submodules will be scanned. This flag has no effect if the
+           scanning root is not in a git repository. '--use-git-ignore' is
+           opengrep's default behavior.
+
+       -v, --verbose
+           Show more details about what rules are running, which files failed
+           to parse, etc. 
+
+       --validate
+           Validate configuration file(s). This will check YAML files for
+           errors and run 'p/semgrep-rule-lints' on the YAML files. No search
+           is performed. 
+
+       --version
+           Show the version and exit.
+
+       --vim
+           Output results in vim single-line format.
+
+       --vim-output=VAL
+           Write a copy of the vim output to a file or post to URL.
+
+       --x-ignore-semgrepignore-files
+           [INTERNAL] Ignore all '.semgrepignore' files found in the project
+           tree for the purpose of selecting target files to be scanned by
+           opengrep. Other filters may still apply. THIS OPTION IS NOT PART
+           OF THE SEMGREP API AND MAY CHANGE OR DISAPPEAR WITHOUT NOTICE. 
+
+       --x-ls
+           [INTERNAL] List the selected target files before any rule-specific
+           or language-specific filtering. Then exit. The default output
+           format is one path per line. THIS OPTION IS NOT PART OF THE
+           SEMGREP API AND MAY CHANGE OR DISAPPEAR WITHOUT NOTICE. 
+
+       --x-ls-long
+           [INTERNAL] Show selected targets and skipped targets with reasons
+           why they were skipped, using an unspecified output format. Implies
+           --x-ls. THIS OPTION IS NOT PART OF THE SEMGREP API AND MAY CHANGE
+           OR DISAPPEAR WITHOUT NOTICE. 
+
+COMMON OPTIONS
+       --help[=FMT] (default=auto)
+           Show this help in format FMT. The value FMT must be one of auto,
+           pager, groff or plain. With auto, the format is pager or plain
+           whenever the TERM env var is dumb or undefined.
+
+EXIT STATUS
+       opengrep scan exits with:
+
+       0   on success.
+
+       123 on indiscriminate errors reported on standard error.
+
+       124 on command line parsing errors.
+
+       125 on unexpected internal errors (bugs).
+
+ENVIRONMENT
+       These environment variables affect the execution of opengrep scan:
+
+       OPENGREP_ENABLE_VERSION_CHECK
+           See option --enable-version-check.
+
+       SEMGREP_BASELINE_COMMIT
+           See option --baseline-commit.
+
+       SEMGREP_FORCE_COLOR
+           See option --force-color.
+
+       SEMGREP_RULES
+           See option --config.
+
+BUGS
+       If you encounter an issue, please report it at
+       https://github.com/opengrep/opengrep/issues
+
+================================================================================
+SECTION 3 - THE OPTION SURFACE, MECHANICALLY COUNTED
+================================================================================
+  Counted from the capture in SECTION 2, at the indentation the help uses for
+  an option name (exactly 7 spaces):
+
+    distinct option blocks                                     : 101
+    lines matching the looser pattern `^ +--`                  : 107
+      of which are WRAPPED CONTINUATION lines, not options     : 6
+      101 + 6 = 107, which reconciles the two counts
+
+  The looser pattern over-counts because a help paragraph can wrap onto a
+  line that begins with an option name. The continuation lines in this
+  capture are:
+
+    line 162   --config p/python --config myrules/myrule.yaml` See
+    line 168   --experimental
+    line 224   --incremental-output
+    line 385   --pro. Incompatible with --project-root. Note this requires an
+    line 435   --experimental
+    line 520   --x-ls. THIS OPTION IS NOT PART OF THE SEMGREP API AND MAY CHANGE
+
+  `--no-*` options present (12), none of which concerns taint:
+
+    line 296   --no-autofix
+    line 299   --no-dryrun
+    line 302   --no-error
+    line 305   --no-exclude-minified-files
+    line 308   --no-force-color
+    line 311   --no-git-ignore
+    line 314   --no-output-enclosing-context
+    line 317   --no-rewrite-rule-ids
+    line 320   --no-secrets-validation
+    line 323   --no-strict
+    line 326   --no-test-ignore-todo
+    line 329   --no-time
+
+================================================================================
+SECTION 4 - EVERY OPTION MENTIONING taint / dataflow / pro / interfile /
+            optimization, AND WHETHER IT CAN DISABLE TAINT
+================================================================================
+  Selection is mechanical: an option block qualifies if its NAME or its HELP
+  TEXT contains taint, dataflow, pro, interfile or optimi(zation). That
+  substring test is deliberately loose - it catches 'postprocess', 'profile',
+  'project' and 'provides' as well - and every such match is listed rather
+  than quietly dropped, with the substring named. 21 of the 101 option blocks
+  qualify.
+
+  --taint-intrafile   (help line 445)
+    matched on      : name+help: taint
+    what it does    : THE SETTING THIS A/B TOGGLES. 'Enable intra-file inter-
+                      procedural taint analysis. Supported languages: ...
+                      Scala ... Other languages will fall back to
+                      intraprocedural analysis only.'
+    disables taint? : NO - it ENABLES an additional inter-procedural layer.
+                      Its own help text says the fallback is 'intraprocedural
+                      analysis only', i.e. taint still runs without it.
+
+  --guarded-taint-signatures   (help line 192)
+    matched on      : name+help: taint
+    what it does    : 'Attach branch-condition guards to taint effects and
+                      evaluate them at call sites, dropping effects whose
+                      guard is false.' REQUIRES --experimental.
+    disables taint? : NO - it refines which taint effects survive; it neither
+                      switches the engine off nor is usable without
+                      --experimental.
+
+  --dataflow-traces   (help line 56)
+    matched on      : name: dataflow
+    what it does    : 'Explain how non-local values reach the location of a
+                      finding (only affects text and SARIF output).'
+    disables taint? : NO - presentation only, and its own help says it only
+                      affects output. Dropping it would remove the codeFlow
+                      from the SARIF, not the taint analysis that produced the
+                      finding.
+
+  --optimizations   (help line 343)
+    matched on      : name+help: optimization
+    what it does    : 'Turn on/off optimizations. Default = all. Use none to
+                      turn all optimizations off.'
+    disables taint? : NO - MEASURED, not assumed: with --optimizations=none
+                      the pinned rule still returns 1 finding at
+                      DiskStore.scala:72 carrying a codeFlow (SECTION 4,
+                      control 2).
+
+  --pro   (help line 356)
+    matched on      : name+help: pro
+    what it does    : 'Inter-file analysis and Pro languages ... Requires
+                      Semgrep Pro Engine.'
+    disables taint? : NO - and unavailable: it requires the proprietary Pro
+                      engine, which is not installed and which AAP 0.3.2/0.4.3
+                      forbid installing. It would ADD interfile taint.
+                      Deliberately NOT invoked so that no engine download can
+                      be triggered.
+
+  --pro-path-sensitive   (help line 361)
+    matched on      : name+help: pro
+    what it does    : 'Path sensitivity. Implies --pro-intrafile. Requires
+                      Semgrep Pro Engine.'
+    disables taint? : NO - same proprietary-engine requirement; it increases
+                      taint precision rather than removing taint. Deliberately
+                      NOT invoked.
+
+  --oss-only   (help line 347)
+    matched on      : help: pro
+    what it does    : 'Run using only the OSS engine, even if the Semgrep Pro
+                      toggle is on. This may still run Pro rules, but only
+                      using the OSS features.'
+    disables taint? : NO - it pins the engine to OSS, and the OSS engine is
+                      exactly the one measured here: it carries
+                      intraprocedural taint plus --taint-intrafile.
+
+  --interfile-timeout   (help line 231)
+    matched on      : name+help: interfile
+    what it does    : 'Maximum time to spend on interfile analysis. If set to
+                      0 will not have time limit.'
+    disables taint? : NO - a time limit on the Pro interfile phase, which is
+                      not active here. It cannot reach intra-file taint.
+
+  --diff-depth   (help line 66)
+    matched on      : help: pro, interfile
+    what it does    : 'The depth of the Pro (interfile) differential scan ...
+                      Only applied in differential scan mode.'
+    disables taint? : NO - differential-scan-only call-graph depth; not a
+                      taint switch and not active in this A/B.
+
+  --max-memory   (help line 285)
+    matched on      : help: pro, interfile
+    what it does    : 'Maximum system memory in MiB to use during the
+                      interfile pre-processing phase, or when running a rule
+                      on a single file.'
+    disables taint? : NO - a resource cap. Starving it would produce a target
+                      error, not a taint-free analysis.
+
+  --max-match-per-file   (help line 275)
+    matched on      : help: pro (as 'problematic')
+    what it does    : 'Maximum number of matches to allow per file ... a hard
+                      limit that can be used to identify problematic rules.'
+    disables taint? : NO - a per-target hard limit; exceeding it reports an
+                      error for the target and returns no matches, which is a
+                      target failure rather than taint being off.
+
+  --max-target-bytes   (help line 291)
+    matched on      : help: pro (as 'program')
+    what it does    : 'Maximum size for a file to be scanned ... Any input
+                      program larger than this will be ignored.'
+    disables taint? : NO - it removes the TARGET, not the analysis. Both
+                      mandated arms pass the same 20000000 value.
+
+  --secrets   (help line 411)
+    matched on      : help: pro
+    what it does    : 'Run Semgrep Secrets product, including support for
+                      secret validation. Requires access to Secrets.'
+    disables taint? : NO - a separate product requiring credentialed access;
+                      adds a scanner, removes nothing.
+
+  --remote   (help line 382)
+    matched on      : help: pro
+    what it does    : 'Remote will quickly check out and scan a remote git
+                      repository ... Must be run with --pro.' REQUIRES
+                      --experimental.
+    disables taint? : NO - target acquisition, and it requires the proprietary
+                      engine.
+
+  --allow-local-builds   (help line 31)
+    matched on      : help: pro (as 'projects')
+    what it does    : 'Experimental: allow building projects contained in the
+                      repository' for dependency resolution.
+    disables taint? : NO - dependency resolution for SCA; unrelated to taint.
+                      Also executes project code, which this run must not do.
+
+  --experimental   (help line 146)
+    matched on      : help: pro
+    what it does    : 'Enable experimental features.' It is the gate
+                      --guarded-taint-signatures and --project-root sit
+                      behind.
+    disables taint? : NO - a gate for other flags; no experimental flag at
+                      this pin disables taint (the only taint-related one
+                      behind it, --guarded-taint-signatures, filters effects).
+
+  --x-ignore-semgrepignore-files   (help line 505)
+    matched on      : help: pro (as 'project tree')
+    what it does    : '[INTERNAL] Ignore all .semgrepignore files found in the
+                      project tree for the purpose of selecting target files.'
+    disables taint? : NO - target selection. Both mandated arms pass it
+                      identically.
+
+  --time   (help line 465)
+    matched on      : help: pro (as 'provides')
+    what it does    : 'Include a timing summary with the results.'
+    disables taint? : NO - reporting only.
+
+  --incremental-output-postprocess   (help line 222)
+    matched on      : name: pro (substring of 'postprocess')
+    what it does    : 'Apply post-processing in incremental outputs. REQUIRES
+                      --incremental-output.'
+    disables taint? : NO - output plumbing. The keyword match is the substring
+                      'pro' inside 'postprocess', not a reference to the Pro
+                      engine.
+
+  --profile   (help line 365)
+    matched on      : name: pro (substring of 'profile')
+    what it does    : '<undocumented>' - the help text carries no description.
+    disables taint? : NO - undocumented and, by name, a profiler switch. The
+                      keyword match is the substring 'pro' inside 'profile'.
+
+  --project-root   (help line 368)
+    matched on      : name/help: pro (substring of 'project')
+    what it does    : 'This option forces the project root to be a specific
+                      folder ...' so that .semgrepignore at that root is
+                      consulted. REQUIRES --experimental.
+    disables taint? : NO - target selection. The keyword match is the
+                      substring 'pro' inside 'project'.
+
+
+  TWO CONTROLS THAT WERE RUN RATHER THAN READ, in this clone, this pass:
+
+  control 1 - the mandated pair itself. The pinned rule over
+  core/src/main/scala/org/apache/spark/storage/DiskStore.scala with
+  --taint-intrafile present and then absent, everything else identical:
+  1 finding at line 72 with a codeFlow BOTH times, and the two SARIF files
+  byte-identical (4753 bytes, sha256
+  7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778). The
+  absence of --taint-intrafile therefore leaves taint running - exactly what
+  the flag's own help text predicts with 'fall back to intraprocedural
+  analysis only'. Full record: reverification-f5-taint-ab{.log,.json}.
+
+  control 2 - --optimizations=none, the one remaining option a reader might
+  mistake for a taint switch:
+
+$ cd /opt/spark-src
+$ /opt/blitzy-tools/bin/opengrep scan \
+    --config /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml \
+    --dataflow-traces \
+    --optimizations=none \
+    --sarif-output <scratch>/f5-optimizations-none.sarif \
+    --timeout 120 --timeout-threshold 0 --max-target-bytes 20000000 \
+    --x-ignore-semgrepignore-files --disable-version-check \
+    core/src/main/scala/org/apache/spark/storage/DiskStore.scala
+
+  [exit] 0, started 2026-09-02T14:34:17.001Z, ended 2026-09-02T14:34:18.869Z
+  1 result, line 72, 1 of 1 carrying a codeFlow.
+
+  --optimizations=none therefore turns optimizations off and leaves the taint
+  engine on. Its SARIF is a supplementary measurement and was written to this
+  worker's private scratch rather than to logs/, because the AAP names no
+  such arm; the numbers above are its parsed output.
+
+  NOT INVOKED, DELIBERATELY: --pro and --pro-path-sensitive. Both require the
+  proprietary Semgrep Pro Engine, which is not installed; invoking them could
+  attempt to fetch it, and installing, upgrading or substituting a tool is
+  prohibited (AAP 0.3.2, 0.4.3). Their help text is quoted above and both
+  would ADD interfile taint rather than remove any.
+
+================================================================================
+SECTION 5 - CONCLUSION
+================================================================================
+  NO OPTION AT THIS PIN DISABLES THE TAINT ENGINE. Of the 101 option blocks
+  `opengrep scan --help` documents at version 1.27.1, exactly two carry 'taint'
+  in their name: --taint-intrafile, which ENABLES an intra-file
+  inter-procedural layer on top of taint, and --guarded-taint-signatures,
+  which drops guarded taint effects and is gated behind --experimental.
+  --dataflow-traces changes output only, by its own words. --optimizations
+  =none was RUN and still produced the taint finding. The --pro family
+  requires an engine this run may not install and would add taint rather
+  than remove it. None of the 12 `--no-*` options concerns taint.
+
+  TWO CONSEQUENCES, STATED PLAINLY.
+
+  First: 'taint off' in the AAP's mandated pair does not mean 'no taint'. It
+  means INTRAPROCEDURAL TAINT - the engine's documented fallback when
+  --taint-intrafile is absent. The A/B as specified therefore contrasts
+  intraprocedural taint against intra-file inter-procedural taint, and on a
+  subject whose source and sink share one method there is nothing for the
+  second to add. That is a property of the specified pair, not a defect in
+  the engine and not something a flag can repair.
+
+  Second: a truly taint-free arm is NOT CONSTRUCTIBLE with this engine. The
+  only way to obtain one is to change the RULE rather than the engine - which
+  is what the source-removed control in reverification-f5-taint-ab.log does,
+  by replacing the rule's pattern-sources with an unmatchable marker while
+  leaving `mode: taint` and every sink intact. That control returns 0 findings
+  against the real rule's 1 at line 72, so it establishes what the mandated
+  pair cannot: the line-72 result is produced by source-to-sink taint
+  propagation and not by a syntactic sink match. It is a control, not a
+  substitute for the mandated pair, and the mandated pair's failure stands
+  unrepaired (AAP 0.9.2).
+
+================================================================================
+END - reverification-f5-taint-engine-options.txt
+================================================================================

@@ -1,0 +1,72 @@
+====================================================================================================
+dependency-check-positive-capture.log — a SECOND, deliberately separate Dependency-Check
+invocation, captured so that the adapter's positive field mapping is exercised against
+GENUINE TOOL OUTPUT rather than against authored data
+====================================================================================================
+
+WHY THIS INVOCATION EXISTS
+
+The scanning run's own Dependency-Check artifact, harness/artifacts/raw/dependency-check.json,
+carries 32 dependencies, ZERO vulnerability records and ZERO package objects, because exactly
+one manifest-shaped file is in scanned scope and none of the vendored .js bundles resolves to a
+package (AAP 0.2.1). One vulnerability record is this shape's count unit, so no excerpt of that
+artifact can exercise a single positive field. Widening the twelve globs to change that is
+prohibited (AAP 0.3.2), and relabelling authored data as a capture is prohibited outright.
+
+So the tool was invoked a second time, unchanged, over input chosen only because it resolves to
+packages that the seeded feed knows vulnerabilities for. This invocation is NOT part of the
+scanning run: it writes outside harness/artifacts/raw/, it is not normalized, and it contributes
+no row to findings.json or findings.csv. Its sole consumer is the adapter test corpus.
+
+----------------------------------------------------------------------------------------------------
+THE INVOCATION, EXACTLY AS RUN
+----------------------------------------------------------------------------------------------------
+
+  JAVA_HOME=/opt/blitzy-tools/jdk/jdk-17.0.20+8 \
+  /opt/blitzy-tools/dependency-check/bin/dependency-check.sh \
+    --project dc-positive-fixture-capture \
+    --noupdate --disableOssIndex \
+    --data /opt/blitzy-harness/dc-data \
+    --scan <the two JARs listed below> \
+    --format JSON --prettyPrint --out <a directory outside this repository>
+
+  exit status            : 0
+  tool build             : Dependency-Check 13.0.0 (the same build the runner uses)
+  JDK                    : 17.0.20+8, the major version the runner assigns this tool
+  feed                   : the same seeded NVD datafeed the runner reads, --noupdate, no network
+  NVD API Last Checked   : 2026-08-30T17:47:21Z
+  NVD API Last Modified  : 2026-08-30T12:00:19-04
+  Sonatype OSS Index     : disabled explicitly by --disableOssIndex, so the disabling is ours
+
+  scanned input          : two JARs from the warm Maven local repository, chosen for being
+                           resolvable to a package coordinate the feed carries advisories for:
+                             commons-collections-3.2.jar
+                             jackson-databind-2.17.2.jar
+                           Nothing from the pinned Spark tree was read, and nothing was written
+                           into it.
+
+----------------------------------------------------------------------------------------------------
+WHAT IT PRODUCED, MEASURED FROM THE BYTES ON DISK
+----------------------------------------------------------------------------------------------------
+
+  bytes: 46684
+  sha256: ee48683145332f02d5dd101fa0d5fb1b812667b53eec81a97c962b7939911af1
+  dependencies                    : 2
+  dependencies with vulnerabilities: 2
+  vulnerability records           : 5  (the count unit)
+  package objects                 : 2
+  reportDate                      : 2026-09-01T14:47:13.726030288Z
+
+  severity labels present         : CRITICAL x1, HIGH x2, MEDIUM x2
+  identifiers present             : CVE-2015-6420, CVE-2026-54512, CVE-2026-54513,
+                                    CVE-2026-54514, CVE-2026-54515
+
+This file is the record of account for the fixture. The committed fixture
+oss-scan-results/adapter-tests/fixtures/captured-dependency-check-vulnerabilities.json is this
+file byte for byte, and the test corpus asserts that equality rather than trusting this note.
+
+Read this file with:
+  oss-scan-results/adapter-tests/expected/captured-dependency-check-vulnerabilities.rows.json
+  oss-scan-results/adapter-tests/test_dependency_check_adapter.py — CapturedVulnerabilityFixtureTest
+  oss-scan-results/tool-status.md — the dependency-check entry, whose zero-row outcome is a
+                                    property of the scanned scope and is unaffected by this file

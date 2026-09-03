@@ -1,0 +1,20 @@
+{
+ "tool": "joern",
+ "cpg_path": "/opt/blitzy-harness/cpg/spark.cpg",
+ "generated_at": "2026-08-24T23:18:48Z",
+ "cpg_methods": 1397339,
+ "cpg_typedecls": 119691,
+ "source_index_size": 4127,
+ "declaration_index_size": 9947,
+ "queries": [
+  {"id": "joern.reflective-class-load", "count": 412},
+  {"id": "joern.java-deserialization-site", "count": 178},
+  {"id": "joern.rpc-handler-reaches-process-launch", "count": 3}
+ ],
+ "findings": [
+  {"rule_id": "joern.reflective-class-load", "message": "reflective class loading (Class.forName)", "start_line": 42, "method_full_name": "org.apache.spark.SparkContextSuite.$anonfun$new$1:void(java.lang.String)", "class_file": "org/apache/spark/SparkContextSuite.class", "path_resolution": "unresolved-bytecode-only"},
+  {"rule_id": "joern.rpc-handler-reaches-process-launch", "message": "rpc handler reaches driver launch site in bytecode", "path": "core/src/main/scala/org/apache/spark/deploy/master/Master.scala", "start_line": 417, "method_full_name": "org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)", "class_file": "org/apache/spark/deploy/master/Master.class", "path_resolution": "source-index-filename"},
+  {"rule_id": "joern.reflective-class-load", "message": "reflective class loading (Class.forName)", "start_line": 218, "method_full_name": "org.apache.spark.deploy.master.MasterSuite.$anonfun$new$29:void()", "class_file": "org/apache/spark/deploy/master/MasterSuite.class", "path_resolution": "unresolved-bytecode-only"},
+  {"rule_id": "joern.java-deserialization-site", "message": "java deserialization entry point (ObjectInputStream.readObject)", "path": "sql/connect/common/src/main/scala/org/apache/spark/sql/connect/common/UdfPacket.scala", "start_line": 61, "method_full_name": "org.apache.spark.sql.connect.common.UdfPacket$.apply:org.apache.spark.sql.connect.common.UdfPacket(java.io.InputStream)", "class_file": "org/apache/spark/sql/connect/common/UdfPacket$.class", "path_resolution": "source-index-filename"}
+ ]
+}

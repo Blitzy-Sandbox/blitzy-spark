@@ -1,0 +1,148 @@
+SEC-01 / SEC-03 RUNTIME RE-VERIFICATION -- pre-scan target, smoke and path-value gate
+run at   : 2026-09-02T20:51:06Z
+repo     : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90
+gate     : harness/lib/preflight_scan_target.py
+scratch  : /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/g2
+note     : no scanner runner is invoked by any case below
+this checkout HEAD (the wrong-tree value): b015b495cd6bba21877e8fdcf862e2fc7f75ec54
+
+====================================================================================
+== CASE 1: SEC-01 wrong target: SPARK_SRC points at this checkout, whose HEAD is not the pin
+====================================================================================
+    [REFUSE] scan-target-head                   /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90 HEAD
+               expected : byte-equal to 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d (the pin authored in this module)
+               observed : HEAD is b015b495cd6bba21877e8fdcf862e2fc7f75ec54 -- this is not the pinned tree, and every
+                          finding a scan of it produced would be about the wrong code (AAP 0.8.1: a runner shown to
+                          resolve a tree other than the pinned SPARK_SRC halts the run)
+--
+    [PASS  ] declared-commit-agrees             $SPARK_SRC_COMMIT
+               expected : equal to 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, checked separately from the measured HEAD
+               observed : the environment declares 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d, which is the pin
+
+  git invocations taken (argument vectors, never a shell):
+--
+VERDICT: REFUSE  (1 refusal(s), 0 fault(s))
+====================================================================================
+
+  REFUSED (exit 77). No runner may be invoked; nothing was scanned.
+    - scan-target-head: HEAD is b015b495cd6bba21877e8fdcf862e2fc7f75ec54 -- this is not the pinned tree, and every finding a scan of it produced would be about the wrong code (AAP 0.8.1: a runner shown to resolve a tree other than the pinned SPARK_SRC halts the run)
+
+  RESIDUAL, stated because it cannot be closed from a clone: each
+  harness/bin/run-<tool>.sh remains executable in its own right, and an
+  invocation that does not read this exit status is not bound by it. In
+command  : SPARK_SRC=<this checkout> preflight_scan_target.py --check-only
+exit     : 77 (expected 77)
+
+====================================================================================
+== CASE 2: SEC-01 wrong target AND a matching claim: SPARK_SRC_COMMIT overridden to that same wrong HEAD
+====================================================================================
+    [PASS  ] smoke-override-absent              $HARNESS_SMOKE_TARGET
+    [PASS  ] path-policy:SPARK_SRC              $SPARK_SRC
+    [PASS  ] path-policy:HARNESS_DIR            $HARNESS_DIR
+    [PASS  ] path-policy:HARNESS_REPO_ROOT      $HARNESS_REPO_ROOT
+    [PASS  ] path-policy:HARNESS_RAW_DIR        $HARNESS_RAW_DIR
+    [PASS  ] path-policy:HARNESS_LOG_DIR        $HARNESS_LOG_DIR
+    [PASS  ] path-policy:HARNESS_SCOPE_FILE     $HARNESS_SCOPE_FILE
+    [PASS  ] path-policy:HARNESS_CPG            $HARNESS_CPG
+    [PASS  ] path-policy:HARNESS_LIB_DIR        $HARNESS_LIB_DIR
+    [PASS  ] path-policy:HARNESS_SHARED_DIR     $HARNESS_SHARED_DIR
+    [PASS  ] path-policy:HARNESS_TOOLS_DIR      $HARNESS_TOOLS_DIR
+    [PASS  ] path-policy:HARNESS_SCRATCH_DIR    $HARNESS_SCRATCH_DIR
+    [PASS  ] path-policy:JAVA_HOME              $JAVA_HOME
+    [PASS  ] path-policy:JAVA_HOME_21           $JAVA_HOME_21
+    [PASS  ] path-policy:JOERN_HOME             $JOERN_HOME
+    [PASS  ] path-policy:DEPENDENCY_CHECK_HOME  $DEPENDENCY_CHECK_HOME
+    [PASS  ] path-policy:MAVEN_HOME             $MAVEN_HOME
+    [PASS  ] path-policy:SCALA_HOME             $SCALA_HOME
+    [PASS  ] path-policy:OPENGREP_RULES_DIR     $OPENGREP_RULES_DIR
+    [PASS  ] path-policy:SEMGREP_RULES_DIR      $SEMGREP_RULES_DIR
+    [PASS  ] path-policy:DD_SAST_RULES_FILE     $DD_SAST_RULES_FILE
+    [PASS  ] path-policy:TRIVY_CACHE_DIR        $TRIVY_CACHE_DIR
+    [PASS  ] path-policy:HARNESS_DC_DATA_DIR    $HARNESS_DC_DATA_DIR
+    [PASS  ] scan-target-exists                 $SPARK_SRC
+    [PASS  ] scan-target-work-tree              /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90 (via /usr/bin/git)
+    [PASS  ] scan-target-root                   $SPARK_SRC
+    [REFUSE] scan-target-head                   /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-026_42ec90 HEAD
+               observed : HEAD is b015b495cd6bba21877e8fdcf862e2fc7f75ec54 -- this is not the pinned tree, and every
+    [REFUSE] declared-commit-agrees             $SPARK_SRC_COMMIT
+               observed : the environment declares b015b495cd6bba21877e8fdcf862e2fc7f75ec54, which is not the pin.
+command  : SPARK_SRC=<this checkout> SPARK_SRC_COMMIT=<its HEAD> preflight_scan_target.py --check-only
+exit     : 77 (expected 77)
+
+====================================================================================
+== CASE 3: SEC-01 GIT_DIR bypass: wrong SPARK_SRC while GIT_DIR names the pinned tree
+====================================================================================
+unhardened control measurement (what a naive gate would have seen):
+  $ GIT_DIR=/opt/spark-src/.git git -C <this checkout> rev-parse HEAD -> 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+               observed : HEAD is b015b495cd6bba21877e8fdcf862e2fc7f75ec54 -- this is not the pinned tree, and every
+VERDICT: REFUSE  (1 refusal(s), 0 fault(s))
+    - scan-target-head: HEAD is b015b495cd6bba21877e8fdcf862e2fc7f75ec54 -- this is not the pinned tree, and every finding a scan of it produced would be about the wrong code (AAP 0.8.1: a runner shown to resolve a tree other than the pinned SPARK_SRC halts the run)
+command  : SPARK_SRC=<this checkout> GIT_DIR=<pinned tree>/.git preflight_scan_target.py --check-only
+exit     : 77 (expected 77)
+
+====================================================================================
+== CASE 4: SEC-01 smoke override set to a directory
+====================================================================================
+    [REFUSE] smoke-override-absent              $HARNESS_SMOKE_TARGET
+               observed : present, 75 characters, sha256
+VERDICT: REFUSE  (1 refusal(s), 0 fault(s))
+    - smoke-override-absent: present, 75 characters, sha256 4f645736400befbdbfdaea95ee203cf19c38a9bff25a7f6854450d2544bdb3df; scope.sh lines 43-48 would make this directory the entire scope and print '.' as the only scope directory
+command  : HARNESS_SMOKE_TARGET=<scratch dir> preflight_scan_target.py --check-only
+exit     : 77 (expected 77)
+
+====================================================================================
+== CASE 5: SEC-01 smoke override set to the EMPTY string (scope.sh's -n test reads this as unset)
+====================================================================================
+    [REFUSE] smoke-override-absent              $HARNESS_SMOKE_TARGET
+               observed : present and empty, sha256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855;
+VERDICT: REFUSE  (1 refusal(s), 0 fault(s))
+    - smoke-override-absent: present and empty, sha256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855; scope.sh lines 43-48 would make this directory the entire scope and print '.' as the only scope directory
+command  : HARNESS_SMOKE_TARGET= preflight_scan_target.py --check-only
+exit     : 77 (expected 77)
+for contrast, the resolver this gate guards, on the same value:
+  scope.sh -n test: FALSE -- an exported empty value reads there as unset
+
+====================================================================================
+== CASE 6: SEC-03 hostile TRIVY_CACHE_DIR whose literal name closes run-trivy.sh's embedded Python string
+====================================================================================
+the directory exists and is shaped like a real cache (db/ and java-db/ with metadata.json)
+its name is NOT reproduced here; sha256 of the value: abd414b6b1e529da1a56abac9f88d6bba1ee67b4c8efecc0384531ae50759b60
+  Clone index             : 0
+    [REFUSE] path-policy:TRIVY_CACHE_DIR        $TRIVY_CACHE_DIR
+               observed : REFUSED, 156 characters, sha256
+                          single-quoted sh word and a Python string literal (U+0027) at index 75; close parenthesis --
+                          sh subshell, and a call expression in Python (U+0029) at index 76; semicolon -- sh command
+                          separator, and a statement separator in Python (U+003B) at index 78; open parenthesis -- sh
+                          subshell, and a call expression in Python (U+0028) at index 89; hash -- sh and Python
+                          comment introducer (U+0023) at index 155; run-trivy.sh lines 52-53 interpolate this value
+VERDICT: REFUSE  (1 refusal(s), 0 fault(s))
+    - path-policy:TRIVY_CACHE_DIR: REFUSED, 156 characters, sha256 abd414b6b1e529da1a56abac9f88d6bba1ee67b4c8efecc0384531ae50759b60; single quote -- closes a single-quoted sh word and a Python string literal (U+0027) at index 75; close parenthesis -- sh subshell, and a call expression in Python (U+0029) at index 76; semicolon -- sh command separator, and a statement separator in Python (U+003B) at index 78; open parenthesis -- sh subshell, and a call expression in Python (U+0028) at index 89; hash -- sh and Python comment introducer (U+0023) at index 155; run-trivy.sh lines 52-53 interpolate this value into python3 -c source
+command  : TRIVY_CACHE_DIR=<hostile> preflight_scan_target.py --check-only
+exit     : 77 (expected 77)
+does the refusal text contain the hostile substring? 0  (0 == the value was not echoed)
+
+====================================================================================
+== CASE 7: SEC-03 residual: the exact run-trivy.sh line-52 expression, executed in scratch only
+====================================================================================
+the expression under test is harness/bin/run-trivy.sh line 52, copied verbatim by sed into
+/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/g2/trivy-line52-only.sh (no scanner is involved, and Trivy is never run)
+the truncation point /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/g2/out/cache is a file holding {} so json.load succeeds, which is what
+lets the appended statement run -- the same shape the QA case used
+alarm before : absent
+vuln db         : 
+line-52 exit : 0
+alarm after  : PRESENT (content: triggered)
+             => the injection is LIVE in the unguarded runner line; the gate above is what
+                stops the runner from ever being reached with this value
+runner precheck shape: [ -d "$TRIVY_CACHE_DIR/db" ] -> true, [ -d "$TRIVY_CACHE_DIR/java-db" ] -> true
+  (both true, so run-trivy.sh lines 41-42 would pass and line 52 would be reached)
+alarm anywhere inside the repository checkout? 0  (0 == none)
+
+====================================================================================
+== CASE 8: clean environment -- the gate must PASS and permit an invocation
+====================================================================================
+command  : preflight_scan_target.py --check-only (environment as harness/env.sh leaves it)
+exit     : 0 (expected 0)
+
+outside sentinel after every case: 14fee516a1abf8c28df1b6df27b47a4d2c8dd4c292865f2f1b14e67ed5af9146  /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-026/g2/sentinel-outside/SENTINEL.txt
+end: 2026-09-02T20:51:07Z

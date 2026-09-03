@@ -1,0 +1,256 @@
+---BLITZY-START---
+[stage] A-paths-and-runtime: repository root, console log target, JDK major and the heap ACTUALLY used
+repository root           : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0 (from HARNESS_REPO_ROOT)
+completion manifest       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.publication.json
+console log target        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/probe-03-parameterized-handler-sink-pairs.log
+publication root (real)   : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0
+jdk.specification.version : 21 (required major 21)
+java.vm.version           : 21.0.12.1+1-LTS
+heap actually used (bytes): 68719476736
+heap actually used (GiB)  : 64.000
+heap floor (bytes)        : 68719476736
+JVM memory/stack args     : -Xmx64g
+JVM other args (reduced)  : <none>
+JVM args kept / reduced   : 1 logged as written, 0 reduced to their keys, 1 observed
+Joern exposes no --version flag and its REPL blocks on an open stdin, so its
+version is read from the startup banner on the console stream, not from a flag.
+heap floor                : PASS (measured, not requested)
+query source              : queries/joern/03-parameterized-handler-sink-pairs.sc
+query source bytes        : 428057
+query source sha256       : 8f67126c56185bde3221ad760130295cf9f7f64411be528e9fd578a4fbad631e
+alternative loader        : absent (measured: 0 occurrences in the source text)
+declared bound            : MAX_CALL_DEPTH=12 (agrees with the traversal)
+step scopes               : per entry point 200000 expansions, per pair 400000 call sites, 16 entry points per pair
+revision window HEAD      : d933940aa3bb6e3a81fb464114dad922cae76346 on blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab
+query revisions committed : 4 (commits touching this path in HEAD's own history, newest first, every one verified an ancestor of the HEAD published beside this count)
+query revision commits    : 0e3e742a5ad2cb057fd2ebafb6f6a0137c82d21b, 232d0d9cca3f15d33cedb96fa18dac3c6602668b, 1072fd2334fc1a1b54b62119e086920e951ac209, 20a56482274ab6c5f53b45f0488d2fa37012e03f
+revision convention       : commits touching queries/joern/03-parameterized-handler-sink-pairs.sc in the history of the HEAD this run measured at, newest first, counted at run time from the repository's own history. ONE convention, with three parts that make the number reproducible: the range is HEAD's own ancestry, named explicitly rather than defaulted, and the HEAD and the branch it was on are published beside the count; every commit returned is verified to be an ancestor of that HEAD, so a commit reachable only from another ref cannot enter the count - which is what happened to earlier figures once per-clone branches were reconciled and the commits a previous run had listed stopped being ancestors of the branch carrying its files; and the commit that PUBLISHES these result files is necessarily not among them, because it cannot exist while the run that writes them is still in progress. A later reader whose git log shows one more commit than the count reconciles against that window rather than against a bare number
+[stage] B-graph-path: the two names for the graph
+graph path source         : HARNESS_CPG
+graph path (as used)      : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/cpg/spark.cpg
+graph path (AAP name)     : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/cpg/spark.cpg
+[stage] C-identity: the graph's byte size and sha256, symlink-FOLLOWING
+named path is a symlink   : true -> /opt/blitzy-harness/cpg/spark.cpg
+resolved target           : /opt/blitzy-harness/cpg/spark.cpg
+size WITHOUT following    : 33  (recorded to be discarded)
+size WITH following       : 547980224  (the measurement of record)
+private input dir source  : $HARNESS_SCRATCH_DIR
+private input (created)   : /tmp/blitzy-harness-scratch/424/probe-graph-input-7e4dabb2ef5ef2e81bd0af3c/spark.cpg
+private input mode        : 0400 in a 0500 directory this run created
+bytes copied              : 547980224 in 3890 ms
+private input size        : 547980224
+private input inode       : (dev=10301,ino=112807645)
+sha256 of the copied bytes: 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6  (taken in the copy pass)
+frontend record           : harness/artifacts/logs/cpg-frontend.log present, carries no write-time bytes:/sha256: pair (this checkout's frontend wrote no accepted graph), so it does not own this load's identity
+recorded at write time    : bytes=547980224 sha256=325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+record of account         : provision-log/cpg-identity.txt
+its provenance            : provisioning record of account for the graph this run did not write
+corroborated by           : provision-log/cpg-record.txt, which agree
+byte size matches         : YES
+sha256 matches            : YES
+graph path label          : $HARNESS_CPG
+resolved target label     : a host-shared read-only file outside the repository root, reached by following the symlink
+AAP-named path            : same file (equal resolved target)
+identity check elapsed_ms : 3995
+graph identity            : PASS - re-verified immediately before the load
+[stage] D-parameters: the pair structure, both pair literals, and validation
+pairs declared            : 2
+  pair 1 id            : pair-one
+    label                 : the standalone Master's driver-submission handler to the privileged process launch on the DriverRunner surface
+    handler (plan name)   : org.apache.spark.deploy.master.Master.receiveAndReply
+    handler type.method   : org.apache.spark.deploy.master.Master.receiveAndReply
+    handler source anchor : core/src/main/scala/org/apache/spark/deploy/master/Master.scala:409
+    sink source anchor    : core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240
+    message hops          : LaunchDriver
+    route surface         : org.apache.spark.deploy.master.Master, org.apache.spark.deploy.worker.Worker, org.apache.spark.deploy.worker.DriverRunner, org.apache.spark.deploy.worker.ProcessBuilderLike
+  pair 2 id            : pair-two
+    label                 : the REST submit servlet's handleSubmit to the SAME privileged process launch on the DriverRunner surface
+    handler (plan name)   : StandaloneRestServer handleSubmit
+    handler type.method   : org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit
+    handler source anchor : core/src/main/scala/org/apache/spark/deploy/rest/StandaloneRestServer.scala:268
+    sink source anchor    : core/src/main/scala/org/apache/spark/deploy/worker/DriverRunner.scala:240
+    message hops          : RequestSubmitDriver, LaunchDriver
+    route surface         : org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet, org.apache.spark.deploy.master.Master, org.apache.spark.deploy.worker.Worker, org.apache.spark.deploy.worker.DriverRunner, org.apache.spark.deploy.worker.ProcessBuilderLike
+pair validation           : PASS (every selector present and compilable)
+[stage] E-load: switchWorkspace then importCpg
+workspace root (AAP name) : queries/joern/.workspace
+workspace root descent    : no-follow, contained in the repository root, by descriptor
+workspace (this run)      : queries/joern/.workspace/run-03-parameterized-handler-sink-pairs-d8104c46da558dbea15bb414
+workspace freshness       : created by this run with createDirectory (an existing name would have failed), mode 0700
+workspace lock            : exclusive, held on queries/joern/.workspace/run-03-parameterized-handler-sink-pairs-d8104c46da558dbea15bb414/.lock for the rest of the run
+workspace (resolved real) : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/queries/joern/.workspace/run-03-parameterized-handler-sink-pairs-d8104c46da558dbea15bb414
+loading the graph with importCpg: /tmp/blitzy-harness-scratch/424/probe-graph-input-7e4dabb2ef5ef2e81bd0af3c/spark.cpg
+loaded bytes are           : the private copy verified above, not the host-shared path
+load elapsed_ms           : 560129
+graph methods             : 1398964
+graph typeDecls           : 119860
+graph files               : 45037
+private input after load  : 547980224 bytes, inode (dev=10301,ino=112807645), sha256 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+import binding             : PASS - the imported copy is byte-for-byte and inode-for-inode the input the identity check measured
+private input retained    : true (created by this run and left in place under AAP 0.8.1, so the digest above can be re-measured from the bytes the engine read)
+workspace removal         : registered for JVM exit, confined to the directory this run created; the engine holds project state in it until then
+[stage] F-selection: each pair's entry points and the shared sink
+pair pair-one: synthetic typeDecls matching ^org\.apache\.spark\.deploy\.master\.Master\$\$anonfun\$receiveAndReply\$\d+$: 1
+    synthetic type        : org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1
+pair pair-one: entry points discovered=2 traversed=2 (cap 16) truncated=0
+    entry                 : org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)  nodes=2 graph_line=409
+    entry                 : org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)  nodes=2 graph_line=408
+pair pair-one: body witness 'createDriver' among the synthetic arm's own call sites: true (131 callees); among the source-level arm's: false (1 callees)
+pair pair-one: calls named start scanned=1233 (cap 200000, truncated=false); matching the callee regex on any host=52; on the sink host=2
+    sink                  : org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean) -> org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process() graph_line=240 dispatch=DYNAMIC_DISPATCH
+    sink                  : org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process() -> java.lang.ProcessBuilder.start:java.lang.Process() graph_line=276 dispatch=DYNAMIC_DISPATCH
+pair pair-two: synthetic typeDecls matching ^org\.apache\.spark\.deploy\.rest\.StandaloneSubmitRequestServlet\$\$anonfun\$handleSubmit\$\d+$: 0
+pair pair-two: entry points discovered=1 traversed=1 (cap 16) truncated=0
+    entry                 : org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)  nodes=2 graph_line=272
+pair pair-two: base declaration(s) on org.apache.spark.deploy.rest.SubmitRequestServlet present in the graph and EXCLUDED by the pair's exact type selector: org.apache.spark.deploy.rest.SubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)
+pair pair-two: body witness 'DeployMessages$RequestSubmitDriver.<init>' among the synthetic arm's own call sites: false (0 callees); among the source-level arm's: true (27 callees)
+pair pair-two: calls named start scanned=1233 (cap 200000, truncated=false); matching the callee regex on any host=52; on the sink host=2
+    sink                  : org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean) -> org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process() graph_line=240 dispatch=DYNAMIC_DISPATCH
+    sink                  : org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process() -> java.lang.ProcessBuilder.start:java.lang.Process() graph_line=276 dispatch=DYNAMIC_DISPATCH
+pair selection            : PASS (both pairs resolved an entry point and the sink)
+[stage] G-predicates: the selector, its bytecode collision, and the constraint
+predicate type nodes      : 2
+methods on that type      : 252 nodes, 107 distinct names
+step 1 broad selector     : aclsEnabled, aclsOn, aclsOn_$eq, checkAdminPermissions, checkModifyPermissions, checkUIViewPermissions, isAuthenticationEnabled
+step 2 setters excluded   : aclsOn_$eq
+step 2 remaining          : aclsEnabled, aclsOn, checkAdminPermissions, checkModifyPermissions, checkUIViewPermissions, isAuthenticationEnabled
+step 3 non-predicate residue dropped: aclsOn
+final predicate set       : aclsEnabled, checkAdminPermissions, checkModifyPermissions, checkUIViewPermissions, isAuthenticationEnabled
+predicate selector        : PASS (asserted against the graph, not the source)
+predicate call sites (graph-wide): 18 in 18 distinct callers
+predicate call sites on the SHARED surface (org.apache.spark.deploy.master.Master, org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet, org.apache.spark.deploy.rest.StandaloneRestServer, org.apache.spark.deploy.worker.Worker, org.apache.spark.deploy.worker.DriverRunner, org.apache.spark.deploy.worker.ProcessBuilderLike): 0
+pair pair-one: predicate call sites on ITS OWN surface (org.apache.spark.deploy.master.Master, org.apache.spark.deploy.worker.Worker, org.apache.spark.deploy.worker.DriverRunner, org.apache.spark.deploy.worker.ProcessBuilderLike): 0
+pair pair-two: predicate call sites on ITS OWN surface (org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet, org.apache.spark.deploy.master.Master, org.apache.spark.deploy.worker.Worker, org.apache.spark.deploy.worker.DriverRunner, org.apache.spark.deploy.worker.ProcessBuilderLike): 0
+  surface prefix org.apache.spark.deploy.master.Master                      type_decls=  217 methods=   607 predicate_call_sites=   0 pairs=pair-one+pair-two
+  surface prefix org.apache.spark.deploy.rest.StandaloneRestServer          type_decls=    2 methods=    13 predicate_call_sites=   0 pairs=shared-list-only
+  surface prefix org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet type_decls=   25 methods=    32 predicate_call_sites=   0 pairs=pair-two
+  surface prefix org.apache.spark.deploy.worker.DriverRunner                type_decls=   21 methods=    93 predicate_call_sites=   0 pairs=pair-one+pair-two
+  surface prefix org.apache.spark.deploy.worker.ProcessBuilderLike          type_decls=    6 methods=     9 predicate_call_sites=   0 pairs=pair-one+pair-two
+  surface prefix org.apache.spark.deploy.worker.Worker                      type_decls=  156 methods=   475 predicate_call_sites=   0 pairs=pair-one+pair-two
+surface type-declaration sweep truncated at 200000: false
+route surface prefixes measured: 6, every one present in the graph, present-but-method-less none, total predicate call sites on them 0
+handler types NOT covered by the shared prefix list: none
+[stage] H-traversal: two bounded call-graph walks PER PAIR, entry points to sink
+  walk pair-one  A-follows-fan-out  entry=org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1) visited=   20122 depth=12 entry_expansions=   19548 pair_steps=   21474
+  walk pair-one  A-follows-fan-out  entry=org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) visited=       3 depth= 3 entry_expansions=       3 pair_steps=   21476
+pair pair-one: walk A-follows-fan-out elapsed_ms=361
+  walk pair-one  B-fan-out-recorded entry=org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1) visited=    2508 depth=12 entry_expansions=    2347 pair_steps=   25857
+  walk pair-one  B-fan-out-recorded entry=org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) visited=       3 depth= 3 entry_expansions=       3 pair_steps=   25859
+pair pair-one: walk B-fan-out-recorded elapsed_ms=28
+pair pair-one: pair step budget used 25859 of 400000 across both walks, exhausted=false
+pair pair-one: walk A-follows-fan-out: routes=0 expansions=19551 call_sites=21476 fanout_seen=48 fanout_not_followed=0 max_depth=12 depth_bound_reached=true max_expansions_at_one_entry=19548 entry_expansion_cap_reached=false pair_step_budget_exhausted=false route_cap_reached=false alternate_sink_arrivals_not_retained=0
+pair pair-one: walk B-fan-out-recorded: routes=0 expansions=2350 call_sites=4383 fanout_seen=31 fanout_not_followed=31 max_depth=12 depth_bound_reached=true max_expansions_at_one_entry=2347 entry_expansion_cap_reached=false pair_step_budget_exhausted=false route_cap_reached=false alternate_sink_arrivals_not_retained=0
+pair pair-one: distinct routes (its own two walks, deduplicated): 0
+pair pair-one: route cap reachable max 8 (2 walk(s) x 2 entry point(s) x 2 sink host(s)) against a per-pair cap of 64, so the cap can bind: false
+pair pair-one: alternate sink arrivals counted and not retained: 0
+pair pair-one: any bound reached: true
+  walk pair-two  A-follows-fan-out  entry=org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse) visited=   10106 depth=12 entry_expansions=   10029 pair_steps=    8949
+pair pair-two: walk A-follows-fan-out elapsed_ms=100
+  walk pair-two  B-fan-out-recorded entry=org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse) visited=     766 depth=12 entry_expansions=     732 pair_steps=   10179
+pair pair-two: walk B-fan-out-recorded elapsed_ms=9
+pair pair-two: pair step budget used 10179 of 400000 across both walks, exhausted=false
+pair pair-two: walk A-follows-fan-out: routes=0 expansions=10029 call_sites=8949 fanout_seen=25 fanout_not_followed=0 max_depth=12 depth_bound_reached=true max_expansions_at_one_entry=10029 entry_expansion_cap_reached=false pair_step_budget_exhausted=false route_cap_reached=false alternate_sink_arrivals_not_retained=0
+pair pair-two: walk B-fan-out-recorded: routes=0 expansions=732 call_sites=1230 fanout_seen=12 fanout_not_followed=12 max_depth=12 depth_bound_reached=true max_expansions_at_one_entry=732 entry_expansion_cap_reached=false pair_step_budget_exhausted=false route_cap_reached=false alternate_sink_arrivals_not_retained=0
+pair pair-two: distinct routes (its own two walks, deduplicated): 0
+pair pair-two: route cap reachable max 4 (2 walk(s) x 1 entry point(s) x 2 sink host(s)) against a per-pair cap of 64, so the cap can bind: false
+pair pair-two: alternate sink arrivals counted and not retained: 0
+pair pair-two: any bound reached: true
+pairs invoked             : 2 of 2 (pair-one, pair-two)
+distinct routes are reported PER PAIR and are never summed across pairs, and never added to query 01's or 02's returns.
+[stage] I-boundaries: every hop on every pair's route, measured once and cited
+sink selectors distinct across pairs: 1; resolved sink call sets distinct across pairs: 1; sink shared: true
+boundary B-rpc-LaunchDriver: producers=org.apache.spark.deploy.master.Master.launchDriver:void(org.apache.spark.deploy.master.WorkerInfo,org.apache.spark.deploy.master.DriverInfo)
+boundary B-rpc-LaunchDriver: consumers=org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)
+boundary B-rpc-LaunchDriver: producer->consumer call edge=false
+boundary B-rpc-LaunchDriver: producer end is the declared entry point of no pair
+boundary B-rpc-LaunchDriver: consumer end is the declared entry point of no pair
+boundary B-thread: Thread.start call sites=1 callees=org.apache.spark.deploy.worker.DriverRunner$$anon$2.start:void()
+boundary B-thread: thread body methods=org.apache.spark.deploy.worker.DriverRunner$$anon$2.run:void()
+boundary B-thread: start->run call edge=false
+boundary B-interface: sink call callees=java.lang.ProcessBuilder.start:java.lang.Process(), org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process(), org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()
+boundary B-interface: concrete implementations reached=java.lang.ProcessBuilder.start:java.lang.Process(), org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()
+boundary B-interface: abstract declarations reached=org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()
+boundary B-interface: jdk launch method nodes=1
+boundary B-interface: interface->implementation call edge=true
+boundary B-partial-function-pair-one: synthetic=1 source_level=1 resolution=the SYNTHETIC arm carries the route: the handler returns a partial function, its body compiles into org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1), and the source-level method of the same name only constructs the partial function
+boundary B-rpc-RequestSubmitDriver: producers=org.apache.spark.deploy.ClientEndpoint.onStart:void(), org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)
+boundary B-rpc-RequestSubmitDriver: consumers=org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)
+boundary B-rpc-RequestSubmitDriver: producer->consumer call edge=false
+boundary B-rpc-RequestSubmitDriver: producer end is the declared entry point of pair-two
+boundary B-rpc-RequestSubmitDriver: consumer end is the declared entry point of pair-one
+boundary B-partial-function-pair-two: synthetic=0 source_level=1 resolution=the SOURCE-LEVEL arm carries the route: no type matching ^org\.apache\.spark\.deploy\.rest\.StandaloneSubmitRequestServlet\$\$anonfun\$handleSubmit\$\d+$ exists, because this handler is an ordinary method rather than a partial function, so its body is its own and the synthetic arm is legitimately empty
+pair pair-one: boundaries=4 (B-rpc-LaunchDriver, B-thread, B-interface, B-partial-function-pair-one)
+pair pair-one: boundaries NOT crossed by a call edge=B-rpc-LaunchDriver, B-thread, B-partial-function-pair-one
+pair pair-two: boundaries=5 (B-rpc-RequestSubmitDriver, B-rpc-LaunchDriver, B-thread, B-interface, B-partial-function-pair-two)
+pair pair-two: boundaries NOT crossed by a call edge=B-rpc-RequestSubmitDriver, B-rpc-LaunchDriver, B-thread
+boundary measurements taken: 6 for 9 pair-boundary citations - the shared hops are one measurement cited by both pairs, never measured twice
+  route end (pair-one, entry point): org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)
+  route end (pair-one, entry point): org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)
+  route end (pair-one, B-rpc-LaunchDriver consumer end (the relay)): org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)
+  route end (pair-one, sink host): org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)
+  route end (pair-one, sink host): org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()
+  route end (pair-two, entry point): org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet.handleSubmit:org.apache.spark.deploy.rest.SubmitRestProtocolResponse(java.lang.String,org.apache.spark.deploy.rest.SubmitRestProtocolMessage,jakarta.servlet.http.HttpServletResponse)
+  route end (pair-two, B-rpc-RequestSubmitDriver consumer end (the relay)): org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)
+  route end (pair-two, B-rpc-LaunchDriver consumer end (the relay)): org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)
+  route end (pair-two, sink host): org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)
+  route end (pair-two, sink host): org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()
+route surface coverage    : PASS - 10 measured route end(s) across 2 pair(s), every one owned by a type on the 6-prefix derived surface
+route surface prefixes owning no measured end: org.apache.spark.deploy.rest.StandaloneRestServer
+  surface org.apache.spark.deploy.master.Master: role=entry-point owner: the type pair one's walks start from, and also the consumer end of pair two's RequestSubmitDriver RPC hop typeDecls=217 measured_ends=3 predicate_call_sites=0
+  surface org.apache.spark.deploy.rest.StandaloneSubmitRequestServlet: role=entry-point owner: the type pair two's handler method is declared in typeDecls=25 measured_ends=1 predicate_call_sites=0
+  surface org.apache.spark.deploy.rest.StandaloneRestServer: role=entry host: the REST server that constructs and mounts pair two's handler servlet, reached by a remote submit request before the handler is typeDecls=2 measured_ends=0 predicate_call_sites=0
+  surface org.apache.spark.deploy.worker.Worker: role=relay: the consumer end of the LaunchDriver RPC hop, measured once as boundary B-rpc-LaunchDriver and cited by both pairs typeDecls=156 measured_ends=2 predicate_call_sites=0
+  surface org.apache.spark.deploy.worker.DriverRunner: role=sink host: the runner that holds the launch call site typeDecls=21 measured_ends=2 predicate_call_sites=0
+  surface org.apache.spark.deploy.worker.ProcessBuilderLike: role=sink host: the launcher surface the privileged start is declared on typeDecls=6 measured_ends=2 predicate_call_sites=0
+[stage] J-spurious: the mechanical definition, applied per pair to its own set
+pair pair-one: spurious routes=0 of 0; expected-spurious absent=true; basis=structural (predicate call sites on its own surface=0)
+pair pair-two: spurious routes=0 of 0; expected-spurious absent=true; basis=structural (predicate call sites on its own surface=0)
+The permitted statement, per pair: no route in the emitted set passed an auth/ACL predicate as defined by these five named selectors. That is a statement about this query's own output under this query's own definition of the term, and about nothing else.
+[stage] K-duplicate-formulation: the verdict against 01 AND 02, on evidence
+API constructs here       : 28
+pair-one entry points     : 2
+pair-one distinct routes  : 0
+pair-one boundaries not crossed (in 01's numbering): B1-rpc, B2-thread, B4-partial-function
+duplicate formulation     : partial_duplicate (01-callgraph-unguarded-driver-launch: duplicate_formulation_on_pair-one) (02-dataflow-unguarded-driver-launch: not_duplicate)
+  vs 01-callgraph-unguarded-driver-launch: source sha256 79583377ffdc05762226f1437be94d953bf44be1ea94bbc3d9e48f072a27f4ac, api only here 0, only there 0, shared 28
+  vs 02-dataflow-unguarded-driver-launch: source sha256 902b7ffe8d708d6cb4ddfc057f65b1a2a023fc90c5b55c8d3ba012885dcb3fd1, api only here 4, only there 19, shared 24
+[stage] L-records: the returned set, capped, per pair and deterministic
+records returned          : 6 (6 boundary measurement(s); route records per pair pair-one=0, pair-two=0; cap 256, reached=false). This is a count of RECORDS emitted, not a route total: no field adds one pair's routes to another's.
+parameterizability        : passed
+  first pair  (pair-one) : invoked; entry points traversed 2 of 2; distinct routes 0; spurious 0; boundaries measured or cited 4
+  second pair (pair-two) : invoked; entry points traversed 1 of 1; walks run A-follows-fan-out and B-fan-out-recorded; call sites considered A-follows-fan-out=8949, B-fan-out-recorded=1230; distinct routes 0; spurious 0; boundaries measured or cited 5 (B-rpc-RequestSubmitDriver, B-rpc-LaunchDriver, B-thread, B-interface, B-partial-function-pair-two)
+[stage] M-write: the envelope, the prose report and the console log
+publication id            : 58d6c2734d126da37eb974ffda7ae3084e30705d3c7d57167d536205f1548c0f
+absolute host paths       : 0 of 8 searched-for paths occur in the envelope
+envelope staged           : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/queries/joern/results/03-parameterized-handler-sink-pairs.json (142173 chars)
+prose report staged       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/queries/joern/results/03-parameterized-handler-sink-pairs.md (737 lines written, 1 trailing blank entr(y/ies) dropped, 65870 bytes, sha256 1232ca7704e6f7881b32c81dee0e4384bd1d75fa2cf1e8d20fa61472964fd747)
+publication members staged: 2 of 3 (the console log is staged last, because it names the other two)
+[stage] N-result: the result region, emitted only now that every stage passed
+total elapsed_ms          : 567063
+---BLITZY-RESULT-BEGIN---
+query_id                  : 03-parameterized-handler-sink-pairs
+compile_status            : compiled
+run_status                : completed
+pairs_declared            : 2
+pairs_invoked             : 2
+pair_iteration_order      : pair-one, pair-two
+returned_record_count     : 6
+pair pair-one: distinct_routes=0 spurious_count=0 expected_spurious_absent=true (structural) bound_reached=true entry_points_traversed=2 entry_points_truncated=0 boundaries=4
+pair pair-two: distinct_routes=0 spurious_count=0 expected_spurious_absent=true (structural) bound_reached=true entry_points_traversed=1 entry_points_truncated=0 boundaries=5
+distinct_routes           : reported per pair above; never summed across pairs and never added to 01-callgraph-unguarded-driver-launch's or 02-dataflow-unguarded-driver-launch's returns
+bound_value               : 12
+bound_reached_any         : true
+duplicate_formulation     : partial_duplicate
+  vs 01-callgraph-unguarded-driver-launch: duplicate_formulation_on_pair-one (scope: pair-one only; this query additionally addresses pair-two, which 01-callgraph-unguarded-driver-launch does not)
+  vs 02-dataflow-unguarded-driver-launch: not_duplicate (scope: none)
+joern_api_constructs      : 28
+query_revisions_committed : 4 (commits touching this path in HEAD's own history, newest first, every one verified an ancestor of the HEAD published beside this count)
+parameterizability        : passed (second pair pair-two invoked: true)
+graph                     : 547980224 bytes sha256=325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+graph_identity_record     : provision-log/cpg-identity.txt (resolved by provenance; no override exists)
+query_source_sha256       : 8f67126c56185bde3221ad760130295cf9f7f64411be528e9fd578a4fbad631e
+publication_id            : 58d6c2734d126da37eb974ffda7ae3084e30705d3c7d57167d536205f1548c0f
+envelope                  : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/queries/joern/results/03-parameterized-handler-sink-pairs.json
+prose report              : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/queries/joern/results/03-parameterized-handler-sink-pairs.md
+---BLITZY-RESULT-END---
+---BLITZY-OK---

@@ -1,0 +1,547 @@
+{
+  "description": "The hand-verified expected result for the DERIVED Checkov feature fixture. This file describes oss-scan-results/adapter-tests/fixtures/derived-checkov-features.json, which is a derived document rather than a capture: the primary positive fixture oss-scan-results/adapter-tests/fixtures/checkov.json is now the raw artifact byte for byte, and the feature cases the artifact's own buckets cannot reach -- passed checks, a skipped check and a parsing error, each of which must produce no row -- live here instead. Every value below was derived by reading the fixture and the authored contracts in harness/lib/normalize/, never by running the adapter and recording what it printed. Where this file and harness/lib/normalize/adapters/checkov.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match.",
+  "tool": "checkov",
+  "scanner_class": "misconfig",
+  "scanner_class_note": "Fixed for this tool by AAP 0.5.4's class table and carried unchanged on every row. It does not vary with check_type, with the reporting framework or with record content; trivy is the single tool whose class is decided per record, from the section the record was read from.",
+  "adapter": "harness/lib/normalize/adapters/checkov.py",
+  "fixture": {
+    "path": "oss-scan-results/adapter-tests/fixtures/derived-checkov-features.json",
+    "sha256": "65f3dc788376c6c66d54789491dce9db593ec339bdec26ab6e906a74aa246e85",
+    "bytes": 15366,
+    "top_level_form": "object",
+    "top_level_form_note": "A single report object, which is the form a Checkov artifact takes when one framework reports. The shape varies with the artifact's content rather than with the invocation. Shape coverage is not this fixture's job: the object/array pair is oss-scan-results/adapter-tests/fixtures/checkov.json and oss-scan-results/adapter-tests/fixtures/checkov-alt-shape.json, which carry the same six captured records in the two forms.",
+    "check_type": "dockerfile",
+    "failed_checks": 5,
+    "passed_checks": 3,
+    "skipped_checks": 1,
+    "parsing_errors": 1,
+    "summary_as_reported": {
+      "passed": 3,
+      "failed": 5,
+      "skipped": 1,
+      "parsing_errors": 1,
+      "resource_count": 3,
+      "checkov_version": "3.3.12"
+    },
+    "summary_note": "This document's summary object. It is derived like the buckets it summarises -- it states this fixture's own 3/5/1/1 rather than the artifact's -- and it is never used as the record count: the count unit below is the one normalize.reconcile.count_records walks independently of row construction.",
+    "provenance": "derived",
+    "provenance_statement": "This fixture is DERIVED and is not a capture. It is not byte-identical to harness/artifacts/raw/checkov.json, it is not that artifact's envelope, and no claim of unmodified captured output is made of it anywhere in this file. AAP 0.6.2 reserves that claim for a positive fixture that is an unmodified captured excerpt with its enclosing structure preserved byte for byte, and only oss-scan-results/adapter-tests/fixtures/checkov.json satisfies it -- it is the whole raw artifact, so its sha256 equals the raw artifact's.",
+    "derived_from": [
+      "harness/artifacts/raw/checkov.json -- five of its six failed checks, raw indices 0, 1, 3, 4 and 5, carried across as whole unedited objects in the artifact's own order",
+      "the artifact's sixth failed check, raw index 2 -- CKV_DOCKER_9 on bindings/R/Dockerfile, file_line_range [34, 37] -- relocated into skipped_checks with its check_result changed to SKIPPED carrying a suppress_comment, which is what makes the skipped-check case a real record at a real location rather than an invention",
+      "Checkov 3.3.12's own documented report shape, followed key for key for the three passed checks and the one parsing error"
+    ],
+    "derivation": "The artifact was written under --skip-download --quiet --compact and its results object carries results.failed_checks alone. This fixture adds the two buckets and the parsing-errors list that the failures-only contract is stated about, moves one captured failure into skipped_checks, and restates the summary to match what it now contains. No field of a retained failed check was edited.",
+    "feature_cases_this_fixture_exists_to_exercise": [
+      "passed_checks producing no row: three real passes on dockerfiles/spark/Dockerfile, so the failures-only contract is asserted against a document that has something to exclude rather than against one whose buckets are empty",
+      "skipped_checks producing no row: one skipped CKV_DOCKER_9 whose identifier also appears on two emitted failures, so the assertion proves the bucket decides the outcome and never the check_id",
+      "parsing_errors as status evidence: one entry, neither a row nor a rejection, surfaced verbatim for oss-scan-results/tool-status.md, so a non-zero parsing-error count is proved not to reach reconciliation",
+      "the passed_checks_observed, skipped_checks_observed and parsing_errors counters at non-zero values, which is what makes produced-no-row an observation rather than a claim"
+    ],
+    "retained_failed_checks_are_unedited": "All five failed checks are byte-identical members of the raw artifact's six, compared as whole objects under canonical JSON. That equality is a property of those five records and not a claim about the file as a whole; the file-level provenance assertion belongs to the primary fixture and is made in test_checkov_adapter.py's RawArtifactProvenanceTests against harness/artifacts/raw/checkov.json.",
+    "not_identical_to_the_raw_artifact": {
+      "raw_artifact": "harness/artifacts/raw/checkov.json",
+      "raw_artifact_sha256": "91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643",
+      "raw_artifact_bytes": 8380,
+      "raw_artifact_failed_checks": 6,
+      "raw_artifact_results_buckets": [
+        "failed_checks"
+      ],
+      "note": "Recorded so the difference is asserted rather than described: this fixture's digest and byte size must differ from these, and its results object carries buckets the artifact's does not. A derived fixture that had silently become identical to the artifact would leave the feature cases above with no home while every other assertion in this file still passed."
+    },
+    "recorded_sha256_is_the_edit_detector": "The sha256 above is what makes a later edit to this fixture visible: these rows are re-derived when it changes rather than patched to agree."
+  },
+  "field_order": [
+    "tool",
+    "scanner_class",
+    "rule_id",
+    "message",
+    "severity_native",
+    "severity_norm",
+    "path",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate",
+    "in_scope"
+  ],
+  "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant, of which harness/lib/normalize/adapters/checkov.py carries the authored copy AAP 0.6.4's import restriction requires. Every row below carries all twelve keys in that order, present-with-null rather than omitted.",
+  "absence_permitted_fields": [
+    "severity_native",
+    "start_line",
+    "cwe",
+    "cve",
+    "package_coordinate"
+  ],
+  "absence_convention": "Absence is JSON null here and in findings.json, and an empty field in findings.csv. tool, scanner_class, rule_id, message, severity_norm, path and in_scope are never absent -- a record whose path cannot be resolved is rejected and counted rather than emitted with a null path.",
+  "severity_norm_vocabulary": [
+    "Critical",
+    "High",
+    "Medium",
+    "Low",
+    "Info"
+  ],
+  "allowlist": {
+    "path": "harness/scope/allowlist.txt",
+    "sha256": "0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1",
+    "globs": 12,
+    "note": "in_scope is decided by that file alone. The globs are not copied here: the allowlist is the single authority and stays byte-exact. The glob each row matched is recorded per row under row_derivations. That the runner also reads the allowlist to build its 18 -d target roots is a fact about its reach, not about this field."
+  },
+  "resolution_context": {
+    "worked_example": "AAP 0.5.3's first user example, carried in unchanged. Checkov's file_path is relative to the scan target and carries a leading slash, alongside file_abs_path holding the filesystem-absolute path and repo_file_path a root-relative path that also carries a leading slash. The expected path is the leading slash stripped and the remainder treated as root-relative, reconciled against the absolute file_abs_path the same record carries.",
+    "path_base_kind": "per_target_directory",
+    "path_base_source": "harness/artifacts/logs/runner-metadata.json, the checkov entry's path_base -- read as input, never assumed",
+    "runner_invocation": "one checkov invocation carrying 18 root-relative -d target roots, recorded at runner-metadata.json tools.checkov.invocation_form. This is the fact that makes file_path ambiguous on its own.",
+    "anchor_fields": [
+      "repo_file_path",
+      "file_abs_path"
+    ],
+    "anchor_used": "repo_file_path",
+    "anchor_rule": "repo_file_path is root-relative and carries a leading slash, so exactly one slash is stripped and the remainder is the row's path. file_abs_path is filesystem-absolute and is relativized to the scan root. Both anchors are present on every record here and resolve to the same string, so no disagreement is recorded and the anchor order never has to break a tie.",
+    "file_path_role": "corroboration only. Under per_target_directory the slash-stripped file_path is relative to whichever -d root matched, so it corroborates by being a suffix of the anchored path -- and it is, on all five records. A disagreement would be recorded rather than resolved, and would never suppress the row.",
+    "why_file_path_alone_is_wrong": "Stripping the slash off file_path and joining the remainder to the tree root names dockerfiles/spark/Dockerfile, a directory that does not exist at the root, and no row would then match the allowlist. Reading the same value as filesystem-absolute is the failure the worked example warns about: it relativizes to a long ../ chain and the row silently takes in_scope false, with nothing crashing. No expected path in this file begins with / or contains a ../ segment, and every row is in scope.",
+    "scan_root": "/opt/spark-src",
+    "scan_root_source": "harness/artifacts/logs/runner-metadata.json, spark_src and the checkov entry's resolved_scan_root",
+    "root_independence": "Every row below holds for whatever absolute scan root the adapter is given: the path comes from repo_file_path, which is already root-relative and needs no root to resolve. No row carries an absolute path in any field. The absolute values that do appear in this file are quoted evidence rather than emitted data -- the recorded scan root, each record's own file_abs_path under row_derivations.path_cross_check, and the parsing-error entry Checkov reported verbatim -- and none of them reaches a row. One counter is root-dependent and is called out under counters_root_note.",
+    "path_basis": "checkov-repo-file-path",
+    "path_kind": "tree_file",
+    "severity_source": "the record's own severity field, which is null on every failed check because severities require a licence and BC_API_KEY is deliberately absent. severity.resolve then states the absence rather than assuming a level: severity_native null, severity_norm Info, basis no_vocabulary. No CVSS score is consulted -- a misconfiguration carries none, and AAP 0.5.4's checkov row names severity and nothing else.",
+    "start_line_source": "file_line_range[0], as an integer. An absent range or an explicitly null first element would yield null with no rejection, since absence is permitted for that field; a range that is present but not an array, and one that is an array carrying no first element, would each be malformed_record, and an unusable first element non_integer_start_line.",
+    "cwe_and_cve_source": "the closed field set guideline, description, short_description, bc_category, benchmarks, details, vulnerability_details. Every one of them is null or an empty array on every record here, so no CWE or CVE token exists to collect and both fields are null on every row. check_name is deliberately outside that set: it is the row's message, and harvesting an identifier out of a message would put a weakness reference in the dataset that the record never made as a reference.",
+    "package_coordinate": "null on every row. A misconfiguration names a location in a configuration file rather than a package, so no coordinate can be formed -- and that absence is not a rejection: AAP 0.5.4 attaches unformable_package_coordinate to a dependency-oriented record, which this is not."
+  },
+  "failures_only": {
+    "emitted_section": "results.failed_checks[]",
+    "count_unit": "one element of results.failed_checks[], the union across every report object in either top-level shape",
+    "passed_checks_present": 3,
+    "passed_checks_expected_rows": 0,
+    "passed_checks_expected_rejections": 0,
+    "passed_checks_ids": [
+      "CKV_DOCKER_3",
+      "CKV_DOCKER_8",
+      "CKV_DOCKER_7"
+    ],
+    "passed_checks_note": "Neither counted nor emitted. All three pass on resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile, and none of their check_ids may appear anywhere in the rows array. CKV_DOCKER_3 and CKV_DOCKER_8 pass because line 71 of that file is USER ${spark_uid} -- the last instruction, and not root -- and CKV_DOCKER_7 passes because line 20 is FROM ${java_image_name}:${java_image_tag}, a tag that is not latest. They are observable only through the passed_checks_observed counter, which is what makes produced-no-row an observation rather than a claim.",
+    "skipped_checks_present": 1,
+    "skipped_checks_expected_rows": 0,
+    "skipped_checks_expected_rejections": 0,
+    "skipped_checks_note": "Neither counted nor emitted, exactly as passed checks are not. The one entry is CKV_DOCKER_9 on bindings/R/Dockerfile with a suppress_comment, and it must produce no row even though the identical check on two other Dockerfiles does -- the bucket decides that, never the check_id.",
+    "parsing_errors_present": 1,
+    "parsing_errors_expected_rows": 0,
+    "parsing_errors_expected_rejections": 0,
+    "parsing_errors_entries": [
+      "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/entrypoint.sh"
+    ],
+    "parsing_errors_note": "Status evidence for oss-scan-results/tool-status.md, carried verbatim, and neither a finding nor a rejection. A rejection describes a record this adapter could not attribute; a parsing error is Checkov's own report about a file it could not read, and it is not one of the counted failed checks. Converting one into a rejection would put it on the right-hand side of raw finding records = dataset rows + rejected records while the independent traversal never put it on the left, breaking the identity for something that was never a finding. The named file exists at the pin: it is a shell script the dockerfile framework does not parse.",
+    "vacuity_note": "The three zero expectations above are the point of this fixture carrying non-empty passed_checks, skipped_checks and parsing_errors at all. Against an artifact whose buckets were empty -- which is what the raw artifact's --compact output is -- the failures-only contract would be satisfied by an adapter that read every bucket, and the assertion would prove nothing."
+  },
+  "counts": {
+    "raw_finding_records": 5,
+    "raw_count_unit": "one element of results.failed_checks[] -- the unit normalize.reconcile.count_records walks independently of row construction",
+    "rows": 5,
+    "rejections": 0,
+    "rejections_by_class": {},
+    "reconciliation_identity": "raw_finding_records == rows + rejections",
+    "row_count_note": "5 equals len(results.failed_checks) exactly. That exactness is the assertion: three passed checks, one skipped check and one parsing error are present in the same document, and any one of them leaking in would make this 6, 7, 8 or 9."
+  },
+  "counters": {
+    "top_level_form_array": 0,
+    "top_level_form_object": 1,
+    "reports": 1,
+    "reports_skipped_non_mapping": 0,
+    "reports_without_results_object": 0,
+    "reports_without_failed_checks_array": 0,
+    "passed_checks_observed": 3,
+    "skipped_checks_observed": 1,
+    "parsing_errors": 1,
+    "multi_location_records": 0,
+    "multi_valued_cwe_records": 0,
+    "multi_valued_cve_records": 0,
+    "non_filesystem_paths": 0,
+    "rows_in_scope": 5,
+    "rows_out_of_scope": 0,
+    "path_corroboration_recorded": 0,
+    "severity_present": 0,
+    "severity_absent": 5,
+    "start_line_absent": 0,
+    "path_kind_tree_file": 5,
+    "path_kind_outside_root": 0,
+    "path_kind_archive_member": 0,
+    "path_kind_bytecode_source": 0,
+    "severity_basis_sarif_level": 0,
+    "severity_basis_label": 0,
+    "severity_basis_cvss_score": 0,
+    "severity_basis_no_vocabulary": 5,
+    "severity_basis_unmapped_literal": 0
+  },
+  "counters_authority": "harness/lib/normalize/adapters/checkov.py, COUNTER_KEYS as returned by new_counters(): nineteen authored keys, one path_kind_* per member of normalize.paths.PATH_KINDS and one severity_basis_* per member of normalize.severity.BASIS_VALUES -- twenty-eight in all, every one an int.",
+  "counters_note": "The four counters AAP 0.5.4 has reported per tool -- multi_location_records, multi_valued_cwe_records, multi_valued_cve_records and non_filesystem_paths -- are all 0 for this fixture: caller_file_path is null on every record so none names a second location, no record carries any CWE or CVE identifier in the closed source field set, and every path names a file inside the scanned tree. severity_absent equals the row count exactly, which is the checkable form of the unlicensed-configuration expectation, and there is deliberately no adapter-side count of records walked, rows or rejections: those are returned to the caller directly, and the independent left-hand side of the reconciliation identity is normalize.reconcile.count_records.",
+  "counters_root_note": "path_corroboration_recorded is the one value here that depends on which root the adapter is given. Under the recorded scan root /opt/spark-src the two anchors resolve to the same string and file_path is a suffix of it, so nothing is recorded and the counter is 0. Given some other absolute root, file_abs_path would relativize to a ../ chain, disagree with repo_file_path, and be recorded on all five rows -- the counter would be 5 while every row below stayed byte-identical, because the path comes from the anchor the disagreement does not move.",
+  "alt_shape_invariant": {
+    "applies_to_this_fixture": false,
+    "shape_equivalence_pair": [
+      "oss-scan-results/adapter-tests/fixtures/checkov.json",
+      "oss-scan-results/adapter-tests/fixtures/checkov-alt-shape.json"
+    ],
+    "why_not_this_fixture": "The shape-only invariant is asserted between the captured object form and the array form derived from it by shape transformation alone, so that identical records in either form are proved to produce identical rows. This fixture is a feature fixture: its buckets differ from the capture's by design, so pairing it with an array form would prove nothing about shape and would blur what 'shape-only' means. Its own top-level form is still recorded and asserted above."
+  },
+  "scope_of_this_file": {
+    "records_only_this_tool": "These are checkov's rows and nothing else. Another tool reporting a finding at the same location produces its own rows in its own expected file; no comparison, no deduplication and no ranking is made here, and nothing in these rows characterises a finding as real, important or a false positive.",
+    "no_secret_value": "No field carries a secret or any content from check_result.results_configuration. message is check_name and nothing else -- never assembled from check_id, bc_check_id, guideline, resource or code_block -- so the command text and shell content those records quote reach no row. This tree is committed to git.",
+    "no_inference": "A record whose path could not be established with certainty would be a counted rejection, never a path picked from two candidates. That case is covered by oss-scan-results/adapter-tests/fixtures/reject-checkov-unresolvable-path.json, not by any row here."
+  },
+  "corroboration": {
+    "source": "oss-scan-results/findings.json",
+    "records_compared": 5,
+    "fields_compared_per_record": 12,
+    "agreement": "complete",
+    "note": "The committed dataset carries six checkov rows, and the five records this fixture retains as failures appear among them with all twelve fields agreeing with the rows below. The sixth dataset row -- CKV_DOCKER_9 on bindings/R/Dockerfile at start_line 34 -- is the record this fixture relocated into skipped_checks, so its absence from these rows is the failures-only contract holding rather than a discrepancy. This is corroboration recorded after the fact, not the source of these values: each was derived from the fixture and the authored contracts, so a future disagreement between this file and the adapter is a finding to diagnose rather than a diff to apply.",
+    "pin_evidence": "The three files these rows name were read at the pinned commit 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d: dockerfiles/spark/Dockerfile is 71 lines, bindings/python/Dockerfile 46 and bindings/R/Dockerfile 47, so no start_line or range bound below exceeds its own file."
+  },
+  "rows": [
+    {
+      "tool": "checkov",
+      "scanner_class": "misconfig",
+      "rule_id": "CKV_DOCKER_9",
+      "message": "Ensure that APT isn't used",
+      "severity_native": null,
+      "severity_norm": "Info",
+      "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+      "start_line": 32,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "checkov",
+      "scanner_class": "misconfig",
+      "rule_id": "CKV_DOCKER_2",
+      "message": "Ensure that HEALTHCHECK instructions have been added to container images",
+      "severity_native": null,
+      "severity_norm": "Info",
+      "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+      "start_line": 1,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "checkov",
+      "scanner_class": "misconfig",
+      "rule_id": "CKV_DOCKER_2",
+      "message": "Ensure that HEALTHCHECK instructions have been added to container images",
+      "severity_native": null,
+      "severity_norm": "Info",
+      "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+      "start_line": 1,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "checkov",
+      "scanner_class": "misconfig",
+      "rule_id": "CKV_DOCKER_9",
+      "message": "Ensure that APT isn't used",
+      "severity_native": null,
+      "severity_norm": "Info",
+      "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+      "start_line": 36,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    },
+    {
+      "tool": "checkov",
+      "scanner_class": "misconfig",
+      "rule_id": "CKV_DOCKER_2",
+      "message": "Ensure that HEALTHCHECK instructions have been added to container images",
+      "severity_native": null,
+      "severity_norm": "Info",
+      "path": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+      "start_line": 1,
+      "cwe": null,
+      "cve": null,
+      "package_coordinate": null,
+      "in_scope": true
+    }
+  ],
+  "row_derivations": [
+    {
+      "row_index": 0,
+      "check_pointer": "/results/failed_checks/0",
+      "report_index": 0,
+      "check_index": 0,
+      "check_type": "dockerfile",
+      "rule_id_source": "/results/failed_checks/0/check_id",
+      "bc_check_id_in_record": null,
+      "bc_check_id_note": "null here, and never a fallback for check_id in any case: AAP 0.5.4 names check_id as the source of rule_id.",
+      "message_source": "/results/failed_checks/0/check_name",
+      "message_verbatim": true,
+      "severity_native_source": "/results/failed_checks/0/severity",
+      "severity_native_note": "null in the record, because severities require a licence and BC_API_KEY is absent; the absence is stated rather than a level assumed",
+      "severity_basis": "no_vocabulary",
+      "severity_counter": "severity_absent",
+      "path_anchor_field": "repo_file_path",
+      "path_anchor_value": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+      "path_transform": "exactly one leading slash stripped; the remainder is already root-relative",
+      "path_cross_check": {
+        "field": "file_abs_path",
+        "value": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+        "relativized_to_root": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+        "agrees_with_anchor": true
+      },
+      "file_path_corroborator": "dockerfiles/spark/bindings/python/Dockerfile",
+      "file_path_is_suffix_of_anchored_path": true,
+      "corroboration_recorded": null,
+      "path_basis": "checkov-repo-file-path",
+      "path_kind": "tree_file",
+      "start_line_source": "/results/failed_checks/0/file_line_range/0",
+      "file_line_range_in_record": [
+        32,
+        36
+      ],
+      "locations_in_record": 1,
+      "caller_file_path_in_record": null,
+      "cwe_source": null,
+      "cwe_absent_reason": "every field in the closed identifier source set is null or an empty array on this record, so no CWE token exists to collect",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+      "glob_match_note": "the mid-path ** absorbs the single segment docker, and the trailing ** absorbs dockerfiles/spark/bindings/python/Dockerfile -- zero-or-more-directories semantics, which fnmatch and PurePath.match do not provide",
+      "file_line_count_at_the_pin": 46,
+      "pin_evidence": "the RUN instruction the record quotes begins at line 32 of a 46-line file, so the start_line is within its own file"
+    },
+    {
+      "row_index": 1,
+      "check_pointer": "/results/failed_checks/1",
+      "report_index": 0,
+      "check_index": 1,
+      "check_type": "dockerfile",
+      "rule_id_source": "/results/failed_checks/1/check_id",
+      "bc_check_id_in_record": null,
+      "bc_check_id_note": "null here, and never a fallback for check_id in any case: AAP 0.5.4 names check_id as the source of rule_id.",
+      "message_source": "/results/failed_checks/1/check_name",
+      "message_verbatim": true,
+      "severity_native_source": "/results/failed_checks/1/severity",
+      "severity_native_note": "null in the record, because severities require a licence and BC_API_KEY is absent; the absence is stated rather than a level assumed",
+      "severity_basis": "no_vocabulary",
+      "severity_counter": "severity_absent",
+      "path_anchor_field": "repo_file_path",
+      "path_anchor_value": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+      "path_transform": "exactly one leading slash stripped; the remainder is already root-relative",
+      "path_cross_check": {
+        "field": "file_abs_path",
+        "value": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+        "relativized_to_root": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/python/Dockerfile",
+        "agrees_with_anchor": true
+      },
+      "file_path_corroborator": "dockerfiles/spark/bindings/python/Dockerfile",
+      "file_path_is_suffix_of_anchored_path": true,
+      "corroboration_recorded": null,
+      "path_basis": "checkov-repo-file-path",
+      "path_kind": "tree_file",
+      "start_line_source": "/results/failed_checks/1/file_line_range/0",
+      "file_line_range_in_record": [
+        1,
+        46
+      ],
+      "locations_in_record": 1,
+      "caller_file_path_in_record": null,
+      "cwe_source": null,
+      "cwe_absent_reason": "every field in the closed identifier source set is null or an empty array on this record, so no CWE token exists to collect",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+      "glob_match_note": "the mid-path ** absorbs the single segment docker, and the trailing ** absorbs dockerfiles/spark/bindings/python/Dockerfile -- zero-or-more-directories semantics, which fnmatch and PurePath.match do not provide",
+      "file_line_count_at_the_pin": 46,
+      "pin_evidence": "a whole-file check: the range [1, 46] spans the file exactly, and the file contains zero HEALTHCHECK instructions, so the check genuinely fails and check_result.results_configuration is null"
+    },
+    {
+      "row_index": 2,
+      "check_pointer": "/results/failed_checks/2",
+      "report_index": 0,
+      "check_index": 2,
+      "check_type": "dockerfile",
+      "rule_id_source": "/results/failed_checks/2/check_id",
+      "bc_check_id_in_record": null,
+      "bc_check_id_note": "null here, and never a fallback for check_id in any case: AAP 0.5.4 names check_id as the source of rule_id.",
+      "message_source": "/results/failed_checks/2/check_name",
+      "message_verbatim": true,
+      "severity_native_source": "/results/failed_checks/2/severity",
+      "severity_native_note": "null in the record, because severities require a licence and BC_API_KEY is absent; the absence is stated rather than a level assumed",
+      "severity_basis": "no_vocabulary",
+      "severity_counter": "severity_absent",
+      "path_anchor_field": "repo_file_path",
+      "path_anchor_value": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+      "path_transform": "exactly one leading slash stripped; the remainder is already root-relative",
+      "path_cross_check": {
+        "field": "file_abs_path",
+        "value": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+        "relativized_to_root": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/bindings/R/Dockerfile",
+        "agrees_with_anchor": true
+      },
+      "file_path_corroborator": "dockerfiles/spark/bindings/R/Dockerfile",
+      "file_path_is_suffix_of_anchored_path": true,
+      "corroboration_recorded": null,
+      "path_basis": "checkov-repo-file-path",
+      "path_kind": "tree_file",
+      "start_line_source": "/results/failed_checks/2/file_line_range/0",
+      "file_line_range_in_record": [
+        1,
+        47
+      ],
+      "locations_in_record": 1,
+      "caller_file_path_in_record": null,
+      "cwe_source": null,
+      "cwe_absent_reason": "every field in the closed identifier source set is null or an empty array on this record, so no CWE token exists to collect",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+      "glob_match_note": "the mid-path ** absorbs the single segment docker, and the trailing ** absorbs dockerfiles/spark/bindings/R/Dockerfile -- zero-or-more-directories semantics, which fnmatch and PurePath.match do not provide",
+      "file_line_count_at_the_pin": 47,
+      "pin_evidence": "a whole-file check: the range [1, 47] spans the file exactly, and the file contains zero HEALTHCHECK instructions. The same file's CKV_DOCKER_9 sits in skipped_checks in this fixture and produces no row, which is the bucket deciding the outcome rather than the check_id or the path"
+    },
+    {
+      "row_index": 3,
+      "check_pointer": "/results/failed_checks/3",
+      "report_index": 0,
+      "check_index": 3,
+      "check_type": "dockerfile",
+      "rule_id_source": "/results/failed_checks/3/check_id",
+      "bc_check_id_in_record": null,
+      "bc_check_id_note": "null here, and never a fallback for check_id in any case: AAP 0.5.4 names check_id as the source of rule_id.",
+      "message_source": "/results/failed_checks/3/check_name",
+      "message_verbatim": true,
+      "severity_native_source": "/results/failed_checks/3/severity",
+      "severity_native_note": "null in the record, because severities require a licence and BC_API_KEY is absent; the absence is stated rather than a level assumed",
+      "severity_basis": "no_vocabulary",
+      "severity_counter": "severity_absent",
+      "path_anchor_field": "repo_file_path",
+      "path_anchor_value": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+      "path_transform": "exactly one leading slash stripped; the remainder is already root-relative",
+      "path_cross_check": {
+        "field": "file_abs_path",
+        "value": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+        "relativized_to_root": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+        "agrees_with_anchor": true
+      },
+      "file_path_corroborator": "dockerfiles/spark/Dockerfile",
+      "file_path_is_suffix_of_anchored_path": true,
+      "corroboration_recorded": null,
+      "path_basis": "checkov-repo-file-path",
+      "path_kind": "tree_file",
+      "start_line_source": "/results/failed_checks/3/file_line_range/0",
+      "file_line_range_in_record": [
+        36,
+        48
+      ],
+      "locations_in_record": 1,
+      "caller_file_path_in_record": null,
+      "cwe_source": null,
+      "cwe_absent_reason": "every field in the closed identifier source set is null or an empty array on this record, so no CWE token exists to collect",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+      "glob_match_note": "the mid-path ** absorbs the single segment docker, and the trailing ** absorbs dockerfiles/spark/Dockerfile -- zero-or-more-directories semantics, which fnmatch and PurePath.match do not provide",
+      "file_line_count_at_the_pin": 71,
+      "pin_evidence": "the anchor file, verified at the pinned commit: exactly 71 lines, so neither the start_line 36 nor the range bound 48 exceeds the file"
+    },
+    {
+      "row_index": 4,
+      "check_pointer": "/results/failed_checks/4",
+      "report_index": 0,
+      "check_index": 4,
+      "check_type": "dockerfile",
+      "rule_id_source": "/results/failed_checks/4/check_id",
+      "bc_check_id_in_record": null,
+      "bc_check_id_note": "null here, and never a fallback for check_id in any case: AAP 0.5.4 names check_id as the source of rule_id.",
+      "message_source": "/results/failed_checks/4/check_name",
+      "message_verbatim": true,
+      "severity_native_source": "/results/failed_checks/4/severity",
+      "severity_native_note": "null in the record, because severities require a licence and BC_API_KEY is absent; the absence is stated rather than a level assumed",
+      "severity_basis": "no_vocabulary",
+      "severity_counter": "severity_absent",
+      "path_anchor_field": "repo_file_path",
+      "path_anchor_value": "/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+      "path_transform": "exactly one leading slash stripped; the remainder is already root-relative",
+      "path_cross_check": {
+        "field": "file_abs_path",
+        "value": "/opt/spark-src/resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+        "relativized_to_root": "resource-managers/kubernetes/docker/src/main/dockerfiles/spark/Dockerfile",
+        "agrees_with_anchor": true
+      },
+      "file_path_corroborator": "dockerfiles/spark/Dockerfile",
+      "file_path_is_suffix_of_anchored_path": true,
+      "corroboration_recorded": null,
+      "path_basis": "checkov-repo-file-path",
+      "path_kind": "tree_file",
+      "start_line_source": "/results/failed_checks/4/file_line_range/0",
+      "file_line_range_in_record": [
+        1,
+        71
+      ],
+      "locations_in_record": 1,
+      "caller_file_path_in_record": null,
+      "cwe_source": null,
+      "cwe_absent_reason": "every field in the closed identifier source set is null or an empty array on this record, so no CWE token exists to collect",
+      "distinct_cwe_identifiers": 0,
+      "distinct_cve_identifiers": 0,
+      "matched_allowlist_glob": "resource-managers/kubernetes/**/src/main/**",
+      "glob_match_note": "the mid-path ** absorbs the single segment docker, and the trailing ** absorbs dockerfiles/spark/Dockerfile -- zero-or-more-directories semantics, which fnmatch and PurePath.match do not provide",
+      "file_line_count_at_the_pin": 71,
+      "pin_evidence": "the anchor row. Verified at the pinned commit: the file is exactly 71 lines, so the whole-file range [1, 71] spans it exactly and no bound exceeds it; it contains zero HEALTHCHECK instructions, so CKV_DOCKER_2 genuinely fails and must be a row; line 71 is USER ${spark_uid}, which is why CKV_DOCKER_3 and CKV_DOCKER_8 pass on this same file and produce none; and line 20 is FROM ${java_image_name}:${java_image_tag}, which is why CKV_DOCKER_7 passes on it too"
+    }
+  ],
+  "behaviours_not_exercised_by_this_fixture": [
+    {
+      "behaviour": "the multi-framework array top-level form, and the union of results.failed_checks[] across several report objects",
+      "why_absent": "this fixture is the object form -- one report object, because a single framework reported -- so top_level_form_object is 1 and reports is 1",
+      "cover_with": "oss-scan-results/adapter-tests/fixtures/checkov-alt-shape.json, whose rows must equal these exactly"
+    },
+    {
+      "behaviour": "every rejection condition this adapter can produce -- malformed_record, missing_rule_id, missing_message, non_integer_start_line, absent_path and unresolvable_path",
+      "why_absent": "this is the positive fixture; all five records become rows and rejections is 0",
+      "cover_with": "the reject-checkov-<condition> fixtures already committed under fixtures/ -- malformed-record, missing-message, missing-rule-id, non-integer-start-line and unresolvable-path -- each asserted to be counted under its class rather than dropped or coerced"
+    },
+    {
+      "behaviour": "the first-location rule: the row takes the primary location, the record still counts once, and multi_location_records counts it",
+      "why_absent": "caller_file_path is null on every record here, and it is the only second-location shape Checkov emits",
+      "cover_with": "a derived fixture carrying a non-empty caller_file_path with its caller_file_line_range"
+    },
+    {
+      "behaviour": "a severity literal mapped through the label vocabulary, or disclosed as an unmapped literal",
+      "why_absent": "severities require a licence and BC_API_KEY is deliberately absent, so severity is null on every record and every row takes basis no_vocabulary",
+      "cover_with": "a derived fixture carrying a severity literal, asserted against severity.py's label table rather than against anything observed"
+    },
+    {
+      "behaviour": "ascending-numeric CWE and CVE selection, and the multi_valued_* counters",
+      "why_absent": "every field in the closed identifier source set is null or empty on every record, so no token exists to collect and both fields are null on all five rows",
+      "cover_with": "a derived fixture whose guideline or description carries more than one identifier, listed out of numeric order"
+    },
+    {
+      "behaviour": "an absent start_line -- an absent range or an explicitly null first element, each permitted and neither a rejection",
+      "why_absent": "every record here carries a usable two-element file_line_range, so start_line_absent is 0",
+      "cover_with": "oss-scan-results/adapter-tests/fixtures/reject-checkov-non-integer-start-line.json, whose /results/failed_checks/5 omits file_line_range entirely and is expected as a row with start_line null, beside that fixture's four records whose line information is present but unusable"
+    },
+    {
+      "behaviour": "a kept row with in_scope false, and the non-filesystem coordinate serialization",
+      "why_absent": "all five paths fall inside resource-managers/kubernetes/**/src/main/** and none contains the literal src/test, so rows_out_of_scope and non_filesystem_paths are both 0 -- and this runner legitimately reaches such coordinates, since its reach is shaped by its 18 -d roots while in_scope is the allowlist's answer",
+      "cover_with": "a derived fixture whose anchor names a path outside the twelve globs -- kept with in_scope false, never rejected -- and one whose anchor resolves above the root, keeping its ../ segments"
+    },
+    {
+      "behaviour": "a recorded path corroboration: the two anchors disagreeing, or file_path failing to corroborate the anchored path",
+      "why_absent": "both anchors resolve to the same string on every record under the recorded scan root, and the stripped file_path is a suffix of each, so path_corroboration_recorded is 0",
+      "cover_with": "a derived fixture whose file_abs_path names a different file from its repo_file_path -- recorded on the row, never resolved in favour of one field and never suppressing the row"
+    },
+    {
+      "behaviour": "the container shapes that contribute no record: a report element that is not an object, a report with no results object, and a report whose failed_checks is absent or not an array",
+      "why_absent": "the single report object here carries a results object and a five-element failed_checks array, so all three of those counters are 0",
+      "cover_with": "the kubernetes report in checkov-alt-shape.json for the empty-bucket case, plus derived fixtures for a non-object report element and a non-array failed_checks -- each counted rather than rejected, because the independent traversal contributes zero for them too"
+    }
+  ]
+}

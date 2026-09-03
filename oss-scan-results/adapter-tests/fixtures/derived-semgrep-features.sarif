@@ -1,0 +1,330 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "invocations": [
+        {
+          "executionSuccessful": true
+        }
+      ],
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "uri": "file:///opt/spark-src/"
+        }
+      },
+      "results": [
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 49,
+                  "endLine": 76,
+                  "snippet": {
+                    "text": "s\"Attempting to put block $blockId\""
+                  },
+                  "startColumn": 14,
+                  "startLine": 76
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.tainted-sql-string"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 85,
+                  "endLine": 86,
+                  "snippet": {
+                    "text": "      BlockPushReturnCode pushResponse =\n        (BlockPushReturnCode) BlockTransferMessage.Decoder.fromByteBuffer(response);"
+                  },
+                  "startColumn": 7,
+                  "startLine": 85
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Found object deserialization using ObjectInputStream. Deserializing entire Java objects is dangerous because malicious actors can create Java object streams with unintended consequences. Ensure that the objects being deserialized are not user-controlled. If this must be done, consider using HMACs to sign the data stream to make sure it is not tampered with, or consider only transmitting object fields and populating a new object."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.object-deserialization"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python/pyspark/ml/tests/test_evaluation.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 69,
+                  "endLine": 59,
+                  "snippet": {
+                    "text": "tempfile.TemporaryDirectory(prefix=\"ranking_evaluator\")"
+                  },
+                  "startColumn": 14,
+                  "startLine": 59
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Use tempfile.NamedTemporaryFile instead. From the official Python documentation: THIS FUNCTION IS UNSAFE AND SHOULD NOT BE USED. The file name may refer to a file that did not exist at some point, but by the time you get around to creating it, someone else may have beaten you to the punch."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-insecure"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python/pyspark/ml/tests/test_evaluation.py",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 88,
+                  "endLine": 157,
+                  "snippet": {
+                    "text": "tempfile.TemporaryDirectory(prefix=\"multi_class_classification_evaluator\")"
+                  },
+                  "startColumn": 14,
+                  "startLine": 157
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Use tempfile.NamedTemporaryFile instead. From the official Python documentation: THIS FUNCTION IS UNSAFE AND SHOULD NOT BE USED. The file name may refer to a file that did not exist at some point, but by the time you get around to creating it, someone else may have beaten you to the punch."
+          },
+          "properties": {},
+          "ruleIndex": 4
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 6,
+                  "endLine": 85,
+                  "snippet": {
+                    "text": "    if (shuffleServiceFetchRddEnabled) {\n      diskManager.createWorldReadableFile(file)\n    }"
+                  },
+                  "startColumn": 5,
+                  "startLine": 83
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Fixture finding for multi-valued CVE selection: the rule metadata lists three CVE identifiers out of ascending order."
+          },
+          "properties": {},
+          "ruleId": "fixture.adapter-tests.semgrep.multi-cve-tag-ordering"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "requires login"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python/pyspark/ml/tests/test_evaluation.py"
+                },
+                "region": {
+                  "endColumn": 56,
+                  "endLine": 337,
+                  "snippet": {
+                    "text": "tempfile.TemporaryDirectory(prefix=\"save\")"
+                  },
+                  "startColumn": 14,
+                  "startLine": 337
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Using 'tmp_dir.name' without '.flush()' or '.close()' may cause an error because the file may not exist when 'tmp_dir.name' is used. Use '.flush()' or close the file before using 'tmp_dir.name'."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-without-flush"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "informationUri": "https://semgrep.dev",
+          "name": "Semgrep OSS",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "Using '$F.name' without '.flush()' or '.close()' may cause an error because the file may not exist when '$F.name' is used. Use '.flush()' or close the file before using '$F.name'."
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-without-flush",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-without-flush",
+              "properties": {
+                "precision": "very-high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-without-flush"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "Found object deserialization using ObjectInputStream. Deserializing entire Java objects is dangerous because malicious actors can create Java object streams with unintended consequences. Ensure that the objects being deserialized are not user-controlled. If this must be done, consider using HMACs to sign the data stream to make sure it is not tampered with, or consider only transmitting object fields and populating a new object."
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.object-deserialization",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.object-deserialization",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-502: Deserialization of Untrusted Data",
+                  "LOW CONFIDENCE",
+                  "OWASP-A08:2017 - Insecure Deserialization",
+                  "OWASP-A08:2021 - Software and Data Integrity Failures",
+                  "OWASP-A08:2025 - Software or Data Integrity Failures",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.java.lang.security.audit.object-deserialization"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.tainted-sql-string",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.tainted-sql-string",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+                  "MEDIUM CONFIDENCE",
+                  "OWASP-A01:2017 - Injection",
+                  "OWASP-A03:2021 - Injection",
+                  "OWASP-A05:2025 - Injection",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.scala.lang.security.audit.tainted-sql-string"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "fullDescription": {
+                "text": "This expression is always True: `$X == $X` or `$X != $X`. If testing for floating point NaN, use `math.isnan($X)`, or `cmath.isnan($X)` if the number is complex."
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.useless-eqeq",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.useless-eqeq",
+              "properties": {
+                "precision": "very-high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.useless-eqeq"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "Use tempfile.NamedTemporaryFile instead. From the official Python documentation: THIS FUNCTION IS UNSAFE AND SHOULD NOT BE USED. The file name may refer to a file that did not exist at some point, but by the time you get around to creating it, someone else may have beaten you to the punch."
+              },
+              "id": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-insecure",
+              "name": "opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-insecure",
+              "properties": {
+                "precision": "very-high",
+                "tags": []
+              },
+              "shortDescription": {
+                "text": "Semgrep Finding: opt.blitzy-harness.rules.semgrep-rules.python.lang.correctness.tempfile.tempfile-insecure"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "Fixture rule authored for oss-scan-results/adapter-tests, not part of the pinned Semgrep ruleset. Its metadata tags carry three CVE identifiers listed out of ascending order so that the shared SARIF adapter's ascending numeric selection - year first, then sequence - is asserted rather than assumed."
+              },
+              "id": "fixture.adapter-tests.semgrep.multi-cve-tag-ordering",
+              "name": "fixture.adapter-tests.semgrep.multi-cve-tag-ordering",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-1104: Use of Unmaintained Third Party Components",
+                  "CVE-2024-31000",
+                  "CVE-2023-40167",
+                  "CVE-2023-40168",
+                  "LOW CONFIDENCE",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Fixture Finding: fixture.adapter-tests.semgrep.multi-cve-tag-ordering"
+              }
+            }
+          ],
+          "semanticVersion": "1.173.0",
+          "version": "1.173.0"
+        }
+      }
+    }
+  ]
+}

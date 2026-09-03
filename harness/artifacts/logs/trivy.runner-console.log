@@ -1,0 +1,25 @@
+# trivy runner console, captured by the Stage 3 sequence ledger
+# run_id=w013-20260901T132807Z clone_index=13
+# argv=["./harness/bin/run-trivy.sh"]
+# started=2026-09-01T14:24:46Z ended=2026-09-01T14:25:03Z elapsed_seconds=16.624 exit_status=0
+--- stdout ---
+tool            : trivy
+scan root       : /opt/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scope dirs      : 18
+start           : 2026-09-01T14:24:46+00:00
+cache dir       : /opt/blitzy-harness/trivy-cache
+vuln db         : v2 UpdatedAt=2026-08-30T13:05:01.49156526Z
+java db         : v1 UpdatedAt=2026-08-30T01:07:49.364681226Z
+scanners        : vuln,secret,misconfig
+flags           : --skip-db-update --skip-java-db-update --skip-check-update --offline-scan
+invocation      : one `trivy fs <one-path>` per scope directory (18 invocations)
+merged 3 Results sections from 18 per-directory reports
+root-anchored 3 of 3 Result Targets by prefixing each part's ArtifactName
+exit code       : 0
+elapsed seconds : 17
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/trivy.json (3496 bytes)
+end             : 2026-09-01T14:25:03+00:00
+--- stderr ---

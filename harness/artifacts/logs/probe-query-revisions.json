@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "document": "harness/artifacts/logs/probe-query-revisions.json",
+  "purpose": "A rendering of the revision measurement each probe query takes for itself, published here so the number is readable without opening an envelope. It is NOT a second measurement and nothing reads it: each query measures its own file's history at run time and publishes the count, the HEAD, the branch and an ancestry verdict in its envelope, and those envelopes are the owners. Where this file and an envelope disagree, the envelope is right.",
+  "written_at_utc": "2026-09-02T00:58:07Z",
+  "measured_at_head": "d3bc40ae290877827cbd422ba9025a4f54328ec0",
+  "measured_on_branch": "blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab",
+  "convention": "commits touching queries/joern/<query id>.sc in the history of the HEAD named in measured_at_head, newest first, counted with an explicit HEAD in the range. EVERY commit returned is asserted to be an ancestor of that HEAD and the measurement is rejected if any is not, so a count can never include a commit that is not in this branch's history.",
+  "supersedes": {
+    "previous_measured_at_head": "a9c32a3a773bc5d957e471d09c95f9d585ef7420",
+    "previous_counts": {
+      "01-callgraph-unguarded-driver-launch": 14,
+      "02-dataflow-unguarded-driver-launch": 15,
+      "03-parameterized-handler-sink-pairs": 15
+    },
+    "why_it_was_replaced": "that HEAD is not an ancestor of the HEAD above: the integration of this checkpoint collapsed the branch's internal per-unit commits into one commit, so the commits that generation counted stopped being in the history of the branch carrying these files. Its counts were correct at the HEAD it named and are unrepresentable at this one, which is exactly why the HEAD is published beside every count. The counts below were re-measured at the HEAD above and are the ones the three envelopes published there.",
+    "superseded_before_that": {
+      "previous_measured_at_head": "ccbe46ae601a52ae0a6b5a1bd33a8a9a48394ed5",
+      "previous_counts": {
+        "01-callgraph-unguarded-driver-launch": 4,
+        "02-dataflow-unguarded-driver-launch": 4,
+        "03-parameterized-handler-sink-pairs": 5
+      },
+      "why_it_was_replaced": "that HEAD is an ancestor of the HEAD above and its counts were correct for it. They are superseded because the commit publishing that generation has since landed and appears in the history of the sources it touched, raising those counts: the convention's third part states that the publishing commit cannot be among the commits its own generation counts. The counts below are the ones the three envelopes published at the HEAD named above, and those envelopes remain the owners.",
+      "superseded_before_that": {
+        "previous_measured_at_head": "7332998b574fecb68f7dfbfd2787ba273912ca69",
+        "previous_counts": {
+          "01-callgraph-unguarded-driver-launch": 3,
+          "02-dataflow-unguarded-driver-launch": 3,
+          "03-parameterized-handler-sink-pairs": 4
+        },
+        "why_it_was_replaced": "that HEAD is an ancestor of the HEAD above and its counts were correct for it. They are superseded because the commit publishing that generation has since landed and now appears in each file's history, raising every count by one: the convention's third part states that the publishing commit cannot be among the commits its own generation counts. The counts below are the ones the three envelopes published at the HEAD named above, and those envelopes remain the owners.",
+        "superseded_before_that": {
+          "previous_measured_at_head": "232d0d9cca3f15d33cedb96fa18dac3c6602668b",
+          "previous_counts": {
+            "01-callgraph-unguarded-driver-launch": 2,
+            "02-dataflow-unguarded-driver-launch": 2,
+            "03-parameterized-handler-sink-pairs": 3
+          },
+          "why_it_was_replaced": "that HEAD is an ancestor of the HEAD above, and the counts it carried were correct for it. They are superseded because the commit publishing that generation of the result files has since landed and now appears in each file's history, raising every count by exactly one: the convention's third part states that the publishing commit cannot be among the commits its own generation counts. The counts below are the ones the three envelopes published at the HEAD named above, and those envelopes remain the owners.",
+          "superseded_before_that": {
+            "previous_measured_at_head": "3fe19d01459295970475d2b8b04a896c55131840",
+            "previous_counts": {
+              "01-callgraph-unguarded-driver-launch": 3,
+              "02-dataflow-unguarded-driver-launch": 3,
+              "03-parameterized-handler-sink-pairs": 4
+            },
+            "why_it_was_replaced": "that HEAD is not an ancestor of the HEAD above, and neither it nor cdd8646f342505c6134f28fb29cd84a9d085e748 is in this branch's history, so each of those counts included two commits this branch does not contain. The convention above makes that unrepresentable."
+          }
+        }
+      }
+    }
+  },
+  "queries": {
+    "01-callgraph-unguarded-driver-launch": 3,
+    "02-dataflow-unguarded-driver-launch": 3,
+    "03-parameterized-handler-sink-pairs": 4
+  },
+  "measurement_detail": {
+    "01-callgraph-unguarded-driver-launch": {
+      "path": "queries/joern/01-callgraph-unguarded-driver-launch.sc",
+      "commits": [
+        "d3bc40ae290877827cbd422ba9025a4f54328ec0 2026-09-01T23:56:27Z",
+        "232d0d9cca3f15d33cedb96fa18dac3c6602668b 2026-09-01T07:25:29Z",
+        "1ac5915ed1535ff1ffece11b6b40b0286be74d45 2026-08-25T09:25:13Z"
+      ],
+      "command": "git log --follow --format=%H %cI d3bc40ae290877827cbd422ba9025a4f54328ec0 -- queries/joern/01-callgraph-unguarded-driver-launch.sc",
+      "every_commit_is_an_ancestor_of_measured_at_head": true,
+      "owner_envelope": "queries/joern/results/01-callgraph-unguarded-driver-launch.json",
+      "owner_envelope_agrees": true
+    },
+    "02-dataflow-unguarded-driver-launch": {
+      "path": "queries/joern/02-dataflow-unguarded-driver-launch.sc",
+      "commits": [
+        "d3bc40ae290877827cbd422ba9025a4f54328ec0 2026-09-01T23:56:27Z",
+        "232d0d9cca3f15d33cedb96fa18dac3c6602668b 2026-09-01T07:25:29Z",
+        "675f691eca921b2b7114029d97103ee8838a91b8 2026-08-25T11:07:26Z"
+      ],
+      "command": "git log --follow --format=%H %cI d3bc40ae290877827cbd422ba9025a4f54328ec0 -- queries/joern/02-dataflow-unguarded-driver-launch.sc",
+      "every_commit_is_an_ancestor_of_measured_at_head": true,
+      "owner_envelope": "queries/joern/results/02-dataflow-unguarded-driver-launch.json",
+      "owner_envelope_agrees": true
+    },
+    "03-parameterized-handler-sink-pairs": {
+      "path": "queries/joern/03-parameterized-handler-sink-pairs.sc",
+      "commits": [
+        "d3bc40ae290877827cbd422ba9025a4f54328ec0 2026-09-01T23:56:27Z",
+        "232d0d9cca3f15d33cedb96fa18dac3c6602668b 2026-09-01T07:25:29Z",
+        "1072fd2334fc1a1b54b62119e086920e951ac209 2026-08-26T02:15:26Z",
+        "20a56482274ab6c5f53b45f0488d2fa37012e03f 2026-08-26T00:04:27Z"
+      ],
+      "command": "git log --follow --format=%H %cI d3bc40ae290877827cbd422ba9025a4f54328ec0 -- queries/joern/03-parameterized-handler-sink-pairs.sc",
+      "every_commit_is_an_ancestor_of_measured_at_head": true,
+      "owner_envelope": "queries/joern/results/03-parameterized-handler-sink-pairs.json",
+      "owner_envelope_agrees": true
+    }
+  }
+}

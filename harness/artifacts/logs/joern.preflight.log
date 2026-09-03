@@ -1,0 +1,321 @@
+================================================================================
+PRE-LOAD GATE - harness/bin/run-joern.sh (Stage 3, the third of four heap-bound JVMs)
+harness/artifacts/logs/joern.preflight.log
+================================================================================
+
+WHY THIS FILE EXISTS
+
+  AAP 0.6.4 and 0.8.2 require the graph identity recorded at write time to be
+  RECOMPUTED AND COMPARED immediately before EVERY load, with each check logged,
+  and a mismatch halts. This is that check for the Stage 3 Joern runner load. It
+  also records, before the load rather than after it, the three other conditions
+  that decide whether the load is even permitted: the JDK major must be 21, the
+  host must be shown to COMMIT the heap rather than merely reserve it, and the
+  smoke override must be unset. Verification is independent of the thing verified:
+  every value below is measured here, not copied from a record that states it.
+
+  The runner prints its own graph identity lines (cpg / cpg bytes / cpg sha256)
+  into its console stream, which is the in-stream half of this same evidence and
+  is preserved verbatim in harness/artifacts/logs/joern.stdout.log.
+
+ENVIRONMENT
+  Sourced in a fresh non-login shell: env -i BLITZY_CLONE_INDEX=31 bash --noprofile --norc, then . harness/env.sh
+  Clone index    : 31 (this clone). HARNESS_SCRATCH_DIR is derived from it, and two
+                   Joern processes sharing one workspace corrupt each other.
+  Generated at   : 2026-08-24T22:38:19+00:00
+
+================================================================================
+PART 1 - THE ENVIRONMENT FILE AND THE TWO VARIABLES THAT MUST NOT BE WRONG
+================================================================================
+
+--------------------------------------------------------------------------------
+CHECK : harness/env.sh sources cleanly in a fresh non-login shell (exit 0 required)
+$ env -i BLITZY_CLONE_INDEX=31 bash --noprofile --norc -c . harness/env.sh; echo sourced_ok
+[stdout]
+sourced_ok
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:19+00:00
+
+--------------------------------------------------------------------------------
+CHECK : HARNESS_SMOKE_TARGET is unset - a set override silently redirects every runner at one small directory
+$ env -i BLITZY_CLONE_INDEX=31 bash --noprofile --norc -c . harness/env.sh; printf "HARNESS_SMOKE_TARGET=%s\n" "${HARNESS_SMOKE_TARGET:+SET}${HARNESS_SMOKE_TARGET:-unset}"
+[stdout]
+HARNESS_SMOKE_TARGET=unset
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:19+00:00
+
+--------------------------------------------------------------------------------
+CHECK : JAVA_OPTS is unset - the launcher would otherwise apply it, and the harness precedent defaulted it to -Xmx48g, BELOW the mandated 64 GB minimum
+$ env -i BLITZY_CLONE_INDEX=31 bash --noprofile --norc -c . harness/env.sh; printf "JAVA_OPTS=%s\n" "${JAVA_OPTS:+SET}${JAVA_OPTS:-unset}"
+[stdout]
+JAVA_OPTS=unset
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:20+00:00
+
+--------------------------------------------------------------------------------
+CHECK : HARNESS_JOERN_HEAP as this run will export it, and the scan-target and graph variables the runner reads
+$ env -i BLITZY_CLONE_INDEX=31 bash --noprofile --norc -c . harness/env.sh; printf "HARNESS_JOERN_HEAP=%s\nSPARK_SRC=%s\nHARNESS_CPG=%s\nHARNESS_RAW_DIR=%s\nHARNESS_LOG_DIR=%s\nHARNESS_SCRATCH_DIR=%s\nJAVA_HOME_21=%s\nSL_LOGGING_LEVEL=%s\n" "$HARNESS_JOERN_HEAP" "$SPARK_SRC" "$HARNESS_CPG" "$HARNESS_RAW_DIR" "$HARNESS_LOG_DIR" "$HARNESS_SCRATCH_DIR" "$JAVA_HOME_21" "$SL_LOGGING_LEVEL"
+[stdout]
+HARNESS_JOERN_HEAP=64g
+SPARK_SRC=/opt/spark-src
+HARNESS_CPG=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/cpg/spark.cpg
+HARNESS_RAW_DIR=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/artifacts/raw
+HARNESS_LOG_DIR=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/artifacts/logs
+HARNESS_SCRATCH_DIR=/tmp/blitzy-harness-scratch/31
+JAVA_HOME_21=/opt/blitzy-tools/jdk/jdk-21.0.12.1+1
+SL_LOGGING_LEVEL=WARN
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:20+00:00
+
+--------------------------------------------------------------------------------
+CHECK : the pinned tree is the pinned tree
+$ git -C /opt/spark-src rev-parse HEAD
+[stdout]
+59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:20+00:00
+
+================================================================================
+PART 2 - THE GRAPH IDENTITY, RECOMPUTED WITH SYMLINK-FOLLOWING SEMANTICS
+================================================================================
+
+  Recorded at write time in harness/artifacts/logs/cpg-frontend.log (PHASE 3,
+  STEP 23 and STEP 26; the same pair is quoted at STEP 13 from cpg-record.txt):
+      bytes  : 541255894
+      sha256 : 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+  Both values below are measured here, live, from the bytes on disk.
+
+--------------------------------------------------------------------------------
+CHECK : what stands at the named path (a symlink, not a regular file)
+$ ls -l harness/cpg/spark.cpg
+[stdout]
+lrwxrwxrwx 1 root root 33 Aug 24 16:13 harness/cpg/spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:20+00:00
+
+--------------------------------------------------------------------------------
+CHECK : where the name points, one hop and fully resolved
+$ bash -c readlink harness/cpg/spark.cpg; readlink -f harness/cpg/spark.cpg
+[stdout]
+/opt/blitzy-harness/cpg/spark.cpg
+/opt/blitzy-harness/cpg/spark.cpg
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:20+00:00
+
+--------------------------------------------------------------------------------
+CHECK : size WITHOUT following the link - the WRONG measurement, recorded to be discarded
+$ stat -c %s harness/cpg/spark.cpg
+[stdout]
+33
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:20+00:00
+
+--------------------------------------------------------------------------------
+CHECK : size WITH symlink-following semantics - the measurement of record
+$ stat -Lc %s harness/cpg/spark.cpg
+[stdout]
+541255894
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:20+00:00
+
+--------------------------------------------------------------------------------
+CHECK : both names are the same file, proved by device and inode
+$ bash -c printf "link  (followed): %s\ntarget          : %s\n" "$(stat -Lc %d:%i harness/cpg/spark.cpg)" "$(stat -c %d:%i /opt/blitzy-harness/cpg/spark.cpg)"
+[stdout]
+link  (followed): 1048752:37891488
+target          : 1048752:37891488
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:20+00:00
+
+--------------------------------------------------------------------------------
+CHECK : sha256 of the resolved target - the digest of record
+$ sha256sum /opt/blitzy-harness/cpg/spark.cpg
+[stdout]
+26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc  /opt/blitzy-harness/cpg/spark.cpg
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:24+00:00
+
+--------------------------------------------------------------------------------
+CHECK : sha256 through the name the environment exports, i.e. through the symlink
+$ bash -c env -i BLITZY_CLONE_INDEX=31 bash --noprofile --norc -c ". harness/env.sh; sha256sum \"\$HARNESS_CPG\""
+[stdout]
+26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc  /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-031_2e6517/harness/cpg/spark.cpg
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:28+00:00
+
+--------------------------------------------------------------------------------
+CHECK : COMPARISON against the pair recorded at write time - equality of BOTH values is the pass condition
+$ bash -c 
+  exp_bytes=541255894
+  exp_sha=26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+  obs_bytes=$(stat -Lc %s harness/cpg/spark.cpg)
+  obs_sha=$(sha256sum -- "$(readlink -f harness/cpg/spark.cpg)" | cut -d" " -f1)
+  printf "expected bytes  : %s\nobserved bytes  : %s\nbytes match     : %s\n" "$exp_bytes" "$obs_bytes" "$([ "$exp_bytes" = "$obs_bytes" ] && echo YES || echo NO)"
+  printf "expected sha256 : %s\nobserved sha256 : %s\nsha256 match    : %s\n" "$exp_sha" "$obs_sha" "$([ "$exp_sha" = "$obs_sha" ] && echo YES || echo NO)"
+  if [ "$exp_bytes" = "$obs_bytes" ] && [ "$exp_sha" = "$obs_sha" ]; then
+    printf "VERDICT         : PASS - the bytes this runner will load are the bytes the record describes\n"; exit 0
+  else
+    printf "VERDICT         : HALT - identity mismatch; a load against different bytes than the record describes produces conclusions about a graph nobody has\n"; exit 1
+  fi
+[stdout]
+expected bytes  : 541255894
+observed bytes  : 541255894
+bytes match     : YES
+expected sha256 : 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+observed sha256 : 26d327ccee096aa4c8d67018b32669f2a318331cf873922286774734177fcffc
+sha256 match    : YES
+VERDICT         : PASS - the bytes this runner will load are the bytes the record describes
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:33+00:00
+
+================================================================================
+PART 3 - JDK MAJOR 21 AND THE HEAP, PROVEN COMMITTABLE BEFORE THE LOAD
+================================================================================
+
+--------------------------------------------------------------------------------
+CHECK : JAVA_HOME_21 reports major 21 - any other major is a wrong assignment that halts
+$ bash -c /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -version 2>&1
+[stdout]
+openjdk version "21.0.12.1" 2026-08-18 LTS
+OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:33+00:00
+
+--------------------------------------------------------------------------------
+CHECK : the major, parsed rather than eyeballed
+$ bash -c /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -XshowSettings:properties -version 2>&1 | grep -E "java.specification.version|java.vm.version" | sed "s/^ *//"
+[stdout]
+java.specification.version = 21
+java.vm.version = 21.0.12.1+1-LTS
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:33+00:00
+
+--------------------------------------------------------------------------------
+CHECK : the joern launcher on PATH is the provisioning wrapper that pins JDK 21 (not joern-cli, which would use the default java 17)
+$ bash -c env -i BLITZY_CLONE_INDEX=31 bash --noprofile --norc -c ". harness/env.sh; command -v joern"
+[stdout]
+/opt/blitzy-tools/bin/joern
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:33+00:00
+
+--------------------------------------------------------------------------------
+CHECK : joern version, read from the banner with stdin closed (it exposes no --version flag)
+$ bash -c env -i BLITZY_CLONE_INDEX=31 bash --noprofile --norc -c ". harness/env.sh; printf \"\" | joern 2>/dev/null | grep -m1 -i version"
+[stdout]
+Version: 4.0.607
+[stderr]
+[exit] 0   [at] 2026-08-24T22:38:57+00:00
+
+--------------------------------------------------------------------------------
+CHECK : the host COMMITS 64 GB under JDK 21 - -XX:+AlwaysPreTouch touches every page, which is strictly stronger than reservation
+$ bash -c /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version >/dev/null 2>&1; rc=$?; printf "java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version exit=%s\n" "$rc"; exit $rc
+[stdout]
+java -Xms64g -Xmx64g -XX:+AlwaysPreTouch -version exit=0
+[stderr]
+[exit] 0   [at] 2026-08-24T22:39:29+00:00
+
+--------------------------------------------------------------------------------
+CHECK : host memory at the moment of this check, and any competing JVM (context, NOT the commit test)
+$ bash -c free -g | head -2; printf "competing -Xmx JVMs: %s\n" "$(ps -eo args | grep -c "[X]mx")"
+[stdout]
+               total        used        free      shared  buff/cache   available
+Mem:            3842          58        3528           0         275        3784
+competing -Xmx JVMs: 2
+[stderr]
+[exit] 0   [at] 2026-08-24T22:39:29+00:00
+
+================================================================================
+PART 4 - THE RUNNER, READ RATHER THAN ASSUMED
+================================================================================
+
+--------------------------------------------------------------------------------
+CHECK : the argument guard is the first executable statement, so a runner handed an argument exits 64 before sourcing, resolving a target or invoking a tool
+$ sed -n 19,22p harness/bin/run-joern.sh
+[stdout]
+if [ "$#" -ne 0 ]; then
+  printf 'run-joern.sh: takes no arguments (configuration is baked in); refusing to scan\n' >&2
+  exit 64
+fi
+[stderr]
+[exit] 0   [at] 2026-08-24T22:39:29+00:00
+
+--------------------------------------------------------------------------------
+CHECK : the heap is applied through the runner's own documented environment override
+$ bash -c grep -n "HARNESS_JOERN_HEAP" harness/bin/run-joern.sh harness/env.sh
+[stdout]
+harness/bin/run-joern.sh:8:# HARNESS_JOERN_HEAP, with stdin closed (the REPL blocks on an open stdin) and
+harness/bin/run-joern.sh:60:printf 'heap            : %s\n' "$HARNESS_JOERN_HEAP"
+harness/bin/run-joern.sh:70:    -J-Xmx"$HARNESS_JOERN_HEAP" \
+harness/env.sh:85:export HARNESS_JOERN_HEAP="${HARNESS_JOERN_HEAP:-64g}"
+[stderr]
+[exit] 0   [at] 2026-08-24T22:39:29+00:00
+
+--------------------------------------------------------------------------------
+CHECK : the baked query set, counted from the runner rather than from an expectation
+$ bash -c printf "Q( declarations : %s\n" "$(grep -c "^  Q(" harness/lib/joern-scan.sc)"; grep -o "Q(\"[a-z-]*\"" harness/lib/joern-scan.sc | sed "s/Q(\"/  /;s/\"//"
+[stdout]
+Q( declarations : 6
+  joern-process-exec
+  joern-unsafe-deserialization
+  joern-reflection-forname
+  joern-message-digest
+  joern-cipher-getinstance
+  joern-xml-factory
+[stderr]
+[exit] 0   [at] 2026-08-24T22:39:29+00:00
+
+--------------------------------------------------------------------------------
+CHECK : the load mechanism is importCpg and importCode appears nowhere in the baked script
+$ bash -c printf "importCpg occurrences : %s\n" "$(grep -c importCpg harness/lib/joern-scan.sc)"; printf "importCode occurrences: %s\n" "$(grep -c importCode harness/lib/joern-scan.sc)"
+[stdout]
+importCpg occurrences : 3
+importCode occurrences: 0
+[stderr]
+[exit] 0   [at] 2026-08-24T22:39:29+00:00
+
+--------------------------------------------------------------------------------
+CHECK : no joern artifact or log from an earlier run stands in the way
+$ bash -c ls -la harness/artifacts/logs/ | grep -c joern; ls harness/artifacts/raw/ 2>&1 || echo "raw/ does not exist yet; harness/env.sh line 91 mkdir -p creates it"
+[stdout]
+0
+[stderr]
+[exit] 0   [at] 2026-08-24T22:39:29+00:00
+
+================================================================================
+GATE VERDICT
+================================================================================
+  graph identity re-verified against the write-time pair ... PASS
+  64 GB heap proven committable under JDK 21 ............... PASS
+  finished at ............................................. 2026-08-24T22:39:29+00:00
+
+================================================================================
+POST-CHECK - A SIDE EFFECT OF THE VERSION READ ABOVE, OBSERVED AND CLEARED
+================================================================================
+
+  Joern has no --workspace flag and writes a ./workspace directory into whatever
+  directory it is started from. The banner read in PART 3 ran with this
+  repository as its working directory, so it created ./workspace in the
+  repository root at 2026-08-24T22:38:54Z. It was EMPTY - it held no project,
+  because reading the banner with stdin closed loads nothing - and it was removed
+  with rmdir, which can only succeed on an empty directory:
+
+$ find workspace -mindepth 1 | wc -l
+[stdout]
+0
+[exit] 0
+
+$ rmdir workspace
+[stdout]
+[exit] 0
+
+$ ls -d workspace
+[stderr]
+ls: cannot access 'workspace': No such file or directory
+[exit] 2
+
+  This is recorded rather than quietly cleaned because the same mechanism is why
+  harness/bin/run-joern.sh cds to $HARNESS_SCRATCH_DIR/joern-run before invoking
+  joern: the scan itself writes its ~2.9 GB workspace there, per clone, and never
+  into the repository. That behaviour is unaffected by the line above, and the
+  repository holds no workspace directory after this gate.

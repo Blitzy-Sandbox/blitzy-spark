@@ -1,0 +1,7 @@
+tool=dependency-check
+exit_code=0
+elapsed_seconds=7
+artifact=/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/dependency-check.json
+artifact_bytes=17097
+scan_root=/opt/spark-src
+scan_root_source=SPARK_SRC

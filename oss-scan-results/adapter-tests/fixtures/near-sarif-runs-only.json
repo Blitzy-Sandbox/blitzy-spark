@@ -1,0 +1,79 @@
+{
+  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.5.json",
+  "version": "2.1.0-rtm.5",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "example-sarif-family-analyzer",
+          "semanticVersion": "0.0.0-example",
+          "informationUri": "https://example.invalid/example-sarif-family-analyzer",
+          "rules": [
+            {
+              "id": "example.sarif-family.interpolated-exception-message",
+              "name": "example.sarif-family.interpolated-exception-message",
+              "shortDescription": {
+                "text": "Example diagnostic: exception message assembled by string interpolation."
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            },
+            {
+              "id": "example.sarif-family.listener-callback-buffer",
+              "name": "example.sarif-family.listener-callback-buffer",
+              "shortDescription": {
+                "text": "Example diagnostic: zero-length buffer handed to a listener callback."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "example.sarif-family.interpolated-exception-message",
+          "level": "warning",
+          "message": {
+            "text": "Example diagnostic: exception message assembled by string interpolation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala"
+                },
+                "region": {
+                  "startLine": 72,
+                  "startColumn": 13
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "example.sarif-family.listener-callback-buffer",
+          "level": "note",
+          "message": {
+            "text": "Example diagnostic: zero-length buffer handed to a listener callback."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java"
+                },
+                "region": {
+                  "startLine": 97,
+                  "startColumn": 9
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

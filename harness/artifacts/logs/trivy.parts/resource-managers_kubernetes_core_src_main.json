@@ -1,0 +1,10 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.74.0"
+  },
+  "ReportID": "01a05d5b-cd79-7564-ba86-6e915477f442",
+  "CreatedAt": "2026-09-01T14:24:52.601355669Z",
+  "ArtifactName": "resource-managers/kubernetes/core/src/main",
+  "ArtifactType": "filesystem"
+}

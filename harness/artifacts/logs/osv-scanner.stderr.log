@@ -1,0 +1,21 @@
+Scanning dir common/network-common/src/main
+Scanning dir common/network-shuffle/src/main
+Scanning dir common/network-yarn/src/main
+Scanning dir core/src/main
+Scanning dir python/pyspark
+Scanning dir resource-managers/kubernetes/core/src/main
+Scanning dir resource-managers/kubernetes/core/volcano/src/main
+Scanning dir resource-managers/kubernetes/docker/src/main
+Scanning dir resource-managers/yarn/src/main
+Scanning dir sql/catalyst/src/main
+Scanning dir sql/connect/client/jdbc/src/main
+Scanning dir sql/connect/client/jvm/src/main
+Scanning dir sql/connect/common/src/main
+Scanning dir sql/connect/server/src/main
+Scanning dir sql/connect/shims/src/main
+Scanning dir sql/core/src/main
+Scanning dir sql/hive-thriftserver/src/main
+Scanning dir sql/hive/src/main
+Starting filesystem walk for root: /
+End status: 640 dirs visited, 4735 inodes visited, 0 Extract calls, 296.87925ms elapsed, 296.87957ms wall time
+No package sources found, --help for usage information.

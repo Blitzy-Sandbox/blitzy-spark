@@ -1,0 +1,402 @@
+================================================================================
+Opengrep taint A/B - DISCRIMINATING PAIR (canonical Stage-2b arms) - ARM OFF (taint-intrafile disabled)
+harness/artifacts/logs/taint-ab-off.log
+================================================================================
+
+================================================================================
+WHAT THIS FILE ESTABLISHES
+================================================================================
+
+  One arm of the DISCRIMINATING pair of the controlled A/B the AAP mandates
+  (0.5.1, 0.9.1): the pinned tainted-sql-string rule from the pinned Opengrep
+  ruleset, run over Spark's own in-scope Scala file
+  sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala,
+  with taint analysis as the SOLE analysis difference between the two arms. It
+  carries this arm's exact command, its argv delta against its sibling, the
+  scan root and the pinned HEAD it ran against, the engine, rule and ruleset
+  identities it ran under, its exit code, its wall time, the findings it
+  produced with every line and every dataflow trace step, and the output's
+  byte size and sha256 measured from the file on disk after the write.
+
+  An A/B proves a capability only through the CONTRAST between two invocations
+  that differ in one setting. Enabled-in-config is not proof (AAP 0.1.3), so
+  this file reports the contrast as it came out and states the verdict for the
+  PAIR as well as the result for this arm. The pair's verdict is below, and it
+  is the run's answer to whether Opengrep's taint engine is active on Spark's
+  own Scala.
+
+================================================================================
+WHY THIS FILE IS UNDER logs/ AND NEVER UNDER raw/
+================================================================================
+
+  Two independent reasons, either sufficient (AAP 0.5.1, 0.6.1). First, raw/
+  is RUNNER-ONLY: it receives exactly one artifact per tool that writes one
+  and nothing else, ever, so an A/B SARIF landing there would overwrite the
+  opengrep.sarif the Stage 3 runner writes and the dataset would then be built
+  from an A/B over ONE file instead of a scan over the whole scope. Second,
+  this is one of the run's two deliberate second appearances: Opengrep appears
+  here as the taint A/B subject and again as one of the nine scanned runners;
+  Joern appears as a runner and again as the capability probe's subject. Each
+  second appearance writes outside raw/ and contributes NO dataset row (AAP
+  0.3.2).
+
+================================================================================
+SUBJECT, RULE AND ENGINE IDENTITY
+================================================================================
+
+  Run id                    : dest-20260903T091213Z
+  Checkout                  : blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0
+  Measured by               : this session, first-hand; no figure in this file is
+                              inherited from another clone or from any record
+  Pinned commit, expected   : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+  Pinned commit, observed   : 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+  Pinned clone (SPARK_SRC)  : /opt/spark-src   (read only; never edited)
+  Scan root / cwd           : /opt/spark-src
+  Subject file              : sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+  Subject file, resolved    : /opt/spark-src/sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+  Subject scope             : sql/hive/src/main/**  (in scope: allowlist glob sql/hive/src/main/**)
+  Subject size              : 1547 lines, 51891 bytes
+  Subject sha256            : 20d42e9924e6be896f57af9609861a7f0e1bff6e1a71ff5c513cb48dd78ea554
+  Rule                      : /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml
+  Rule size                 : 2824 bytes
+  Rule sha256               : 24fb1dcb0eb6e38efb6afe21426f113be5019c94764015c4e5fb030666d7079d
+  Rule id / mode            : tainted-sql-string / taint  (no rule-level pattern:
+                              the rule fires only as source-to-sink reachability)
+  Ruleset                   : /opt/blitzy-harness/rules/opengrep-rules
+  Ruleset commit, expected  : f1d2b562b414783763fd02a6ed2736eaed622efa
+  Ruleset commit, observed  : f1d2b562b414783763fd02a6ed2736eaed622efa
+  Engine version, expected  : 1.27.1
+  Engine                    : Opengrep 1.27.1  (/opt/blitzy-tools/bin/opengrep)
+  Arm                       : OFF  (--taint-intrafile absent)
+  SARIF version, as written : 2.1.0
+  SARIF driver, as written  : Opengrep OSS 1.27.1
+  Rules in driver, as written: 1
+  Arm output (SARIF)        : harness/artifacts/logs/taint-ab-off.sarif
+  Arm output bytes          : 2341
+  Arm output sha256         : 6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced
+  Arm output (this file)    : harness/artifacts/logs/taint-ab-off.log
+  Sibling arm of this pair  : harness/artifacts/logs/taint-ab-on.sarif
+                              (10021 bytes, sha256 1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24)
+
+================================================================================
+THIS ARM, ITS SIBLING, AND THE VERDICT FOR THE PAIR
+================================================================================
+
+  THIS ARM   : --taint-intrafile absent, exit 0, 2026-09-03T09:12:15.356Z -> 2026-09-03T09:12:17.292Z, elapsed 1.931 s
+               0 finding(s) at line(s) none; 0 of 0 carry a dataflow trace
+               2341 bytes, sha256 6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced
+  OTHER ARM  : --taint-intrafile present, exit 0, 2026-09-03T09:12:13.184Z -> 2026-09-03T09:12:15.347Z, elapsed 2.158 s
+               2 finding(s) at line(s) 828, 834; 2 of 2 carry a dataflow trace
+               10021 bytes, sha256 1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24
+
+
+  VERDICT FOR THIS PAIR: DISCRIMINATING. This is this run's answer to the
+  question the A/B exists to answer - is Opengrep's taint engine active on
+  Spark's own Scala, and does the taint setting demonstrably change what it
+  reports? One engine, one pinned rule, one file, and --taint-intrafile as the
+  only analysis difference: 2 finding(s) at line(s) 828, 834, every one of
+  them carrying a 5-step dataflow trace, with the flag; 0 finding(s) without
+  it, its SARIF results array empty. Enabled-in-config is not proof (AAP
+  0.1.3) and this pair does not rest on configuration: it rests on the
+  contrast between two invocations whose argv differs by one analysis token.
+
+  THE CONTRAST IS PRODUCED BY FLOW THAT CROSSES METHOD BOUNDARIES, which is
+  precisely what --taint-intrafile supplies and what the engine's default
+  intraprocedural analysis cannot see. Both traced findings carry the same
+  five-step thread flow, quoted verbatim from the ON arm's own SARIF:
+
+      Source: 'predicates' @ 'sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala:351'
+      Call: 'convertFilters' @ 'sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala:351'
+      Propagator : 'filters' @ 'sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala:645'
+      Propagator : 'flatMap' @ 'sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala:861'
+      Sink: 's"$name like "' @ 'sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala:828'
+
+  Reading those five steps against the pinned source: 'predicates' is a
+  parameter of getPartitionsByFilter, whose def is at HiveShim.scala:344, and
+  the source is its use at line 351; the call at line 351 enters
+  convertFilters, a DIFFERENT method whose def is at line 645, where the
+  tainted value arrives as the parameter 'filters'; the flatMap at line 861
+  carries it into the local method convert, whose def is at line 780; and the
+  sink is the interpolated SQL string inside that method at line 828 (and at
+  834 for the second finding). The flow therefore crosses three method
+  boundaries - getPartitionsByFilter (344) -> convertFilters (645) -> convert
+  (780) - inside the one file, which is exactly the propagation
+  --taint-intrafile enables and its absence removes.
+
+  THE HONEST LIMITATION OF THE OFF ARM, stated so the contrast is not read as
+  more than it is: 'off' means INTRAPROCEDURAL TAINT, not no taint. Opengrep
+  1.27.1 exposes no option that disables taint analysis at all - APPENDIX C
+  carries this session's own measurement of the engine's whole option surface
+  and both taint-named options verbatim - so a truly taint-free arm is not
+  constructible at this pin. What the pair proves is that the taint setting
+  changes what the engine reports on this code, by 2 traced findings against
+  0.
+
+================================================================================
+CROSS-REFERENCE - THE OTHER PAIR OF THIS SAME MEASUREMENT
+================================================================================
+
+  THE OTHER HALF OF THIS RUN'S STAGE-2B EVIDENCE IS THE AAP-ANCHORED PAIR, AND
+  THIS FILE MUST NOT BE READ WITHOUT IT:
+
+      harness/artifacts/logs/taint-ab-anchor-diskstore-on.log
+      harness/artifacts/logs/taint-ab-anchor-diskstore-on.sarif
+      harness/artifacts/logs/taint-ab-anchor-diskstore-off.log
+      harness/artifacts/logs/taint-ab-anchor-diskstore-off.sarif
+
+  That pair carries the subject AAP 0.5.1 and 0.9.1 name by path -
+  core/src/main/scala/org/apache/spark/storage/DiskStore.scala - and its
+  verdict is the opposite of this one: the anchored expectation of one traced
+  finding at line 72 with taint on and zero with it off is UNMET, because both
+  of its arms return 1 finding at line 72 and their SARIF outputs are
+  byte-identical at 4753 bytes, sha256
+  7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778. This pair
+  does not replace that one and does not discharge it. This pair answers the
+  capability question; that pair reports the AAP anchor as unmet, with its
+  mechanism.
+
+  WHY THESE TWO FILENAMES NOW CARRY A DIFFERENT SUBJECT. Before this fix,
+  taint-ab-on.sarif and taint-ab-off.sarif held the DiskStore arms and were
+  byte-identical to each other at 4753 bytes, sha256
+  7949617b3c88edba9faec24b79c7256667c59cf00885aadb8bd12da099845778 - so the
+  pair published under the canonical filenames proved nothing at all. The
+  DiskStore arms were not discarded: they are preserved, re-measured by this
+  session, under the taint-ab-anchor-diskstore-* names above, where the
+  AAP-named subject's arms now live. The canonical filenames carry the pair
+  that discriminates.
+
+================================================================================
+THE COMMAND, VERBATIM
+================================================================================
+
+$ cd /opt/spark-src
+$ /opt/blitzy-tools/bin/opengrep scan \
+    --config /opt/blitzy-harness/rules/opengrep-rules/scala/lang/security/audit/tainted-sql-string.yaml \
+    --sarif \
+    --sarif-output /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/taint-ab-off.sarif \
+    --dataflow-traces \
+    --timeout 120 \
+    --timeout-threshold 0 \
+    --max-target-bytes 20000000 \
+    --x-ignore-semgrepignore-files \
+    --disable-version-check sql/hive/src/main/scala/org/apache/spark/sql/hive/client/HiveShim.scala
+
+  [exit]    0    started 2026-09-03T09:12:15.356Z, ended 2026-09-03T09:12:17.292Z, elapsed 1.931 s
+  The only analysis difference between the two arms of this pair is the
+  presence or absence of --taint-intrafile. The --sarif-output path
+  necessarily differs too, because each arm writes its own file; that argument
+  selects a destination and does not affect the analysis. Argv delta measured
+  token by token against the other arm of this pair:
+  ["/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/taint-ab-off.sarif"]
+
+  Argv is reproduced from the token list this session captured before the
+  process was started, so the command above is the command that ran rather
+  than a transcription of it.
+
+================================================================================
+FINDINGS, READ BACK FROM THIS ARM'S OWN SARIF
+================================================================================
+
+  findings: 0     (the SARIF's runs[0].results array is empty)
+
+  Read back from this arm's own SARIF after the write. An empty results array
+  is this arm's result, not a missing measurement: the engine exited 0 and its
+  own scan summary, quoted verbatim in APPENDIX B, reports 'Ran 1 rule on 1
+  file: 0 findings.'
+
+================================================================================
+PROVENANCE OF EVERY FIGURE IN THIS FILE
+================================================================================
+
+  Every figure in this file was produced by this session, in this checkout
+  (blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0), from cd /opt/spark-src
+  against the pinned clone at HEAD 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d.
+  The four arms ran sequentially, one process at a time, in the order
+  taint-ab-on, taint-ab-off, taint-ab-anchor-diskstore-on,
+  taint-ab-anchor-diskstore-off, and each arm's byte size, digest, finding set
+  and trace steps were read back out of the file it had just written. Nothing
+  is inherited from the copies these filenames held before the rewrite and
+  nothing is copied from any other clone's evidence.
+
+  ONE COMPARISON AGAINST A RECORD THIS SESSION DID NOT PRODUCE, marked as
+  such. A prior generation's corroboration files
+  harness/artifacts/logs/taint-ab-hiveshim-on.sarif and
+  taint-ab-hiveshim-off.sarif are present in this evidence tree and are not
+  this session's work. This session hashed them and its own HiveShim arms
+  reproduce them exactly - taint-ab-hiveshim-on.sarif is 10021 bytes / sha256
+  1a6c9a57986062ef4cc8683acbbf00335badedadadcea461d5ecced6f62c0d24 and
+  taint-ab-hiveshim-off.sarif is 2341 bytes / sha256
+  6669ca2c5fcb0666efe3591a1c33b55d2f478fbb6a26febc753c6fc171977ced, the same
+  byte counts and digests this session measured for taint-ab-on.sarif and
+  taint-ab-off.sarif. That is a reproducibility observation about two files
+  named here by filename, and no figure in this file depends on it.
+
+================================================================================
+APPENDIX A - stdout
+================================================================================
+
+  This arm was invoked with --sarif as well as --sarif-output, so the engine
+  wrote the SARIF document to stdout as well as to the file. Measured for this
+  arm: stdout is 2342 bytes, sha256
+  cf797a7ddb726fc1d90b1df13481144e98b797749a8a316e9c6adaf059e0396c, and it is
+  byte-identical to harness/artifacts/logs/taint-ab-off.sarif (2341 bytes)
+  followed by a single trailing newline - verified in this session by
+  comparing the two byte strings. The SARIF is therefore not duplicated here;
+  the file itself is the record, and its findings are transcribed in the
+  FINDINGS section above.
+
+================================================================================
+APPENDIX B - stderr, verbatim
+================================================================================
+
+  [583 bytes, sha256 2691e94004e3678aeecd8470fac0e97c01ee7096a005e36f00f5bd1f0443b9d1]
+
+[00.08][WARNING]: !!! You're using one or more options starting with '--x-'. These options are not part of the opengrep API. They will change or will be removed without notice !!! 
+               
+               
+┌─────────────┐
+│ Scan Status │
+└─────────────┘
+  Scanning 1 file tracked by git with 1 Code rule:
+  Scanning 1 file.
+                
+                
+┌──────────────┐
+│ Scan Summary │
+└──────────────┘
+
+Ran 1 rule on 1 file: 0 findings.
+
+================================================================================
+APPENDIX C - engine capability: the taint options, measured here
+================================================================================
+
+  Measured by this session against the engine named in the identity block. The
+  figures below are why the OFF arm of either pair means 'intraprocedural
+  taint' rather than 'no taint': the engine exposes exactly two options whose
+  name mentions taint and neither of them disables taint analysis.
+
+$ opengrep scan --help | grep -c "^ \+--"
+107
+
+$ COLUMNS=80 opengrep scan --help | grep -c "^ \+--"
+107
+
+$ opengrep scan --help | wc -l
+558
+
+$ opengrep scan --help | grep -nE "^ +--(no-)?[a-z0-9-]*taint[a-z0-9-]*$"
+192:       --guarded-taint-signatures
+445:       --taint-intrafile
+
+$ opengrep scan --help | grep -ni "taint"
+192:       --guarded-taint-signatures
+193:           Attach branch-condition guards to taint effects and evaluate them
+445:       --taint-intrafile
+446:           Enable intra-file inter-procedural taint analysis. Supported
+
+$ opengrep scan --help | grep -A5 -E "^ +--taint-intrafile$"
+       --taint-intrafile
+           Enable intra-file inter-procedural taint analysis. Supported
+           languages: Apex, C, Clojure, C#, C++, Dart, Elixir, Go, Java,
+           JavaScript, Julia, Kotlin, Lua, Python, Ruby, Rust, Scala, Swift,
+           TypeScript, Visual Basic. Other languages will fall back to
+           intraprocedural analysis only.
+
+$ opengrep scan --help | grep -A4 -E "^ +--guarded-taint-signatures$"
+       --guarded-taint-signatures
+           Attach branch-condition guards to taint effects and evaluate them
+           at call sites, dropping effects whose guard is false. Without this
+           flag only Clojure keeps the arity guards that implement
+           multi-arity dispatch. REQUIRES --experimental
+
+$ opengrep scan --help | grep -cE "^ {7}(-[a-zA-Z]|--)"
+110
+
+$ opengrep scan --help | grep -nE "^ {7}-[a-zA-Z]"
+25:       -a, --autofix
+53:       -d, --dump-command-for-core
+106:       -e VAL, --pattern=VAL
+149:       -f VAL, -c VAL, --config=VAL (absent SEMGREP_RULES env)
+236:       -j INT, --jobs=INT (absent=16)
+252:       -l VAL, --lang=VAL
+332:       -o VAL, --output=VAL
+379:       -q, --quiet
+487:       -v, --verbose
+
+$ opengrep scan --help | grep -nE "^ {11}--"   # wrapped description lines that merely begin with --
+162:           --config p/python --config myrules/myrule.yaml` See
+168:           --experimental
+224:           --incremental-output
+385:           --pro. Incompatible with --project-root. Note this requires an
+435:           --experimental
+520:           --x-ls. THIS OPTION IS NOT PART OF THE SEMGREP API AND MAY CHANGE
+
+  Reading those measurements. `grep -c "^ \+--"` returns 107 at the default
+  width and at COLUMNS=80, over a help text of 558 lines, so terminal width
+  does not move the figure; but 107 is not the option count. 110 declarations
+  sit at 7-space indent, of which 9 are declared with a short alias first (the
+  nine lines listed above, at help lines 25, 53, 106, 149, 236, 252, 332, 379
+  and 487) and so can never match a pattern anchored on '--'; and 6 of the 107
+  matches are wrapped description continuation lines at 11-space indent that
+  merely begin with '--' (help lines 162, 168, 224, 385, 435 and 520). The
+  engine's true long-option surface is 110. Of those 110, exactly two are
+  taint-named: --taint-intrafile ENABLES intra-file inter-procedural taint and
+  its own help text says the fallback is 'intraprocedural analysis only'
+  rather than no analysis, and --guarded-taint-signatures attaches
+  branch-condition guards to taint effects and requires --experimental. A
+  case-insensitive search of the whole help text for 'taint' matches nothing
+  but those two names and their own descriptions. There is no --no-taint,
+  --disable-taint, --taint-off or equivalent at this version, so a truly
+  taint-free arm is not constructible and neither pair claims one.
+
+================================================================================
+APPENDIX D - containment: raw/ untouched, no dataset row
+================================================================================
+
+  This arm wrote exactly one SARIF file and it is under
+  harness/artifacts/logs/. harness/artifacts/raw/ was hashed file by file at
+  2026-09-03T09:09:15Z, before any arm of this Stage-2b measurement ran, and
+  hashed again after all four had finished. The before state, 7 file(s):
+
+    91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643  checkov.json
+    a71dc70d69fa9d93b84eed180e46b568dea98581e25e5cb3ebd5ae4668465372  datadog-static-analyzer.sarif
+    2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799  dependency-check.json
+    12d50cf783bb966c77608cae6f93c50c688e0384e84662041ecfb1b6935d8467  gitleaks.json
+    740ab140d1224064ce3754470c0a90de66d730febec7fb10073421542b085758  opengrep.sarif
+    7111001f6518803274a80844c2a3d8249edd8f19ba68a771d309fa5d33da03cf  semgrep.sarif
+    979ad0ffbec3502f62ea0e2cd46fae549aaa5e1b7cc4a0d59153a5c2448766ec  trivy.json
+
+  The after state, 8 file(s), with byte sizes:
+
+    91e9cf3cc81e17786af239cba88aa770ae96351a719bd6193ec19962cc238643  checkov.json  (8380 bytes)
+    a71dc70d69fa9d93b84eed180e46b568dea98581e25e5cb3ebd5ae4668465372  datadog-static-analyzer.sarif  (5723938 bytes)
+    2861fbf4165b56d1a8f0b6db7a1895f30b452922c7c08521ca00825016097799  dependency-check.json  (17097 bytes)
+    12d50cf783bb966c77608cae6f93c50c688e0384e84662041ecfb1b6935d8467  gitleaks.json  (561 bytes)
+    f7f5f60e37aacdbf58ca2bf073c0682efeb81e256a516576b12d55aea8edc926  joern.json  (353048 bytes)
+    740ab140d1224064ce3754470c0a90de66d730febec7fb10073421542b085758  opengrep.sarif  (73768116 bytes)
+    7111001f6518803274a80844c2a3d8249edd8f19ba68a771d309fa5d33da03cf  semgrep.sarif  (40661984 bytes)
+    979ad0ffbec3502f62ea0e2cd46fae549aaa5e1b7cc4a0d59153a5c2448766ec  trivy.json  (3496 bytes)
+
+  THE DELTA BETWEEN THE TWO, STATED EXACTLY: 0 of the 7 pre-existing files
+  changed digest, 0 were removed, and 1 appeared. Every pre-existing digest is
+  byte-for-byte what it was - including opengrep.sarif at
+  740ab140d1224064ce3754470c0a90de66d730febec7fb10073421542b085758, the Stage
+  3 runner artifact that an A/B SARIF written into raw/ would have destroyed.
+
+  The 1 new entry (joern.json) is NOT this measurement's write. The Stage 3
+  Joern runner was executing concurrently in this same checkout under separate
+  ownership while these four arms ran; its artifact is timestamped after the
+  last arm finished at 2026-09-03T09:12:20.924Z, and this measurement invoked
+  no runner and wrote nothing under harness/artifacts/raw/. Its presence is
+  recorded here for completeness rather than claimed.
+
+  No taint-ab-* entry appears in either state. The normalizer discovers
+  artifacts by the nine fixed raw names only (harness/lib/normalize/shape.py,
+  harness/lib/normalize/cli.py), so no arm of this A/B can contribute a row to
+  oss-scan-results/findings.json or findings.csv even in principle (AAP
+  0.3.2).
+
+================================================================================
+END - taint-ab-off.log
+================================================================================

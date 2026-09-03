@@ -1,0 +1,20 @@
+# semgrep runner console, captured by the Stage 3 sequence ledger
+# run_id=w013-20260901T132807Z clone_index=13
+# argv=["./harness/bin/run-semgrep.sh"]
+# started=2026-09-01T14:13:07Z ended=2026-09-01T14:22:02Z elapsed_seconds=535.569 exit_status=0
+--- stdout ---
+tool            : semgrep
+scan root       : /opt/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scope dirs      : 18
+start           : 2026-09-01T14:13:07+00:00
+ruleset         : /opt/blitzy-harness/rules/semgrep-rules (commit 40b8c63f75dc7c22c8a77482d73bfb864b146f7e)
+configs         : 60
+credential      : SEMGREP_APP_TOKEN=absent
+exit code       : 0
+elapsed seconds : 535
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/semgrep.sarif (40661984 bytes)
+end             : 2026-09-01T14:22:02+00:00
+--- stderr ---

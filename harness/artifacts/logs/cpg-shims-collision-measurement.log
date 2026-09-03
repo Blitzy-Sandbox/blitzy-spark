@@ -1,0 +1,124 @@
+================================================================================
+Shims stub-displacement measurement - verbatim evidence
+harness/artifacts/logs/cpg-shims-collision-measurement.log
+================================================================================
+
+WHAT THIS FILE ESTABLISHES
+
+  Whether the eleven classes that sql/connect/shims ships as client-only stubs are
+  represented in THE GRAPH THIS RUN LOADED by their real implementations or by those
+  stubs. AAP 0.5.1 prescribes exactly this route for a duplicate-class collision that
+  bears on a conclusion: query the graph for the class and report what is there,
+  rather than infer a winner from the frontend's output, which is not possible.
+
+  It replaces a citation that had gone stale. An earlier lane measured this against a
+  narrowed graph built over one primary artifact per module, which INCLUDED the shims
+  archive. CORRECTED 2026-09-02: that narrowed graph does survive on disk, at
+  /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/cpg/witness.cpg,
+  418,777,229 bytes / sha256 8d3462b78d3c4b009c994d1ae838b6266aa2af3e68b3c0fbdcbd3b3f630ad41d,
+  and this generation did load it - the load is harness/artifacts/logs/cpg-verify.log
+  PART 2, whose STEP P5 carries the stub-side counts. An earlier edition of this file
+  stated that the graph did not exist in this generation, which was wrong, and the
+  sentence is corrected here rather than left standing. What has NOT changed is the
+  reason its counts are not restated below: it is a narrowed graph over one primary
+  artifact per module, it is no substitute for the mandated all-JAR graph, and no
+  conclusion about the graph every stage of this run loaded may be drawn from it. So
+  its stub-side counts stay with their own owner in cpg-verify.log PART 2 STEP P5,
+  and what follows is measured first-hand against the graph this run loaded.
+
+--------------------------------------------------------------------------------
+THE GRAPH MEASURED, AND ITS IDENTITY RE-VERIFIED BEFORE THE LOAD
+--------------------------------------------------------------------------------
+
+  Resolved target      : /opt/blitzy-harness/cpg/spark.cpg
+  Byte size (before)   : 541,309,809
+  sha256    (before)   : 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7
+  Byte size (after)    : 541,309,809   MATCH
+  sha256    (after)    : 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7   MATCH
+  Record of account    : harness/artifacts/logs/cpg-identity.txt
+  JDK major            : 21 (JAVA_HOME=/opt/blitzy-tools/jdk/jdk-21.0.12.1+1)
+  Heap                 : -J-Xmx64g
+  Load route           : importCpg only. No importCode anywhere in the source below.
+  Working copy         : joern created its own working copy under this clone's private
+                         scratch directory, so the persisted graph was not written through.
+
+  Methods reported by this load : 1,396,899
+  This is a THIRD independent measurement of that count. cpg-verify.log PHASE 1
+  reports 1,396,899 from its own load in its own JVM, and the Stage 3 runner's own
+  artifact envelope reports 1,396,899 as well. Three loads, three JVMs, one figure.
+
+--------------------------------------------------------------------------------
+THE ELEVEN CLASSES, AS THE GRAPH HOLDS THEM
+--------------------------------------------------------------------------------
+
+  A stub-sized method count would be single digits: the shims archive ships these as
+  signature-only stubs for client-only builds. A real implementation is orders larger.
+
+  class full name                                      typeDecls  methods
+  org.apache.spark.SparkConf                                   2      298
+  org.apache.spark.SparkContext                                2     1100
+  org.apache.spark.rdd.RDD                                     2     1022
+  org.apache.spark.api.java.JavaRDD                            2       74
+  org.apache.spark.sql.ExperimentalMethods                     1        7
+  org.apache.spark.sql.SparkSessionExtensions                  2      112
+  org.apache.spark.sql.execution.QueryExecution                2      280
+  org.apache.spark.sql.internal.SessionState                   2       76
+  org.apache.spark.sql.internal.SharedState                    2      128
+  org.apache.spark.sql.sources.BaseRelation                    2       12
+  org.apache.spark.sql.util.ExecutionListenerManager           2      116
+
+  VERDICT: every one of the eleven carries its REAL implementation. The graph this run
+  loaded was built over an input set that EXCLUDES both shims archives - sql/connect/shims
+  is one of the seven reactor JAR projects absent from it - so no stub displaced anything,
+  and no conclusion drawn from this graph is answered by a stub.
+
+  The typeDecls column is 2 for ten of the eleven and 1 for the eleventh. Two declarations
+  under one full name is the ordinary shape here rather than a collision: the frontend emits
+  a type declaration alongside its companion/parent representation. The method counts are
+  taken across the declarations that full name resolves to, which is what the question asks.
+
+--------------------------------------------------------------------------------
+WHAT THIS DOES AND DOES NOT ESTABLISH
+--------------------------------------------------------------------------------
+
+  ESTABLISHES : the graph in use is free of the stub-displacement hazard, measured per class.
+  DOES NOT    : a winner map. This states what the graph contains, not which archive the
+                frontend read last, and it is measured for these eleven classes only.
+  DOES NOT    : anything about a graph containing the shims archive. The mandated graph over
+                every JAR the build produced WOULD contain it, so the hazard is a named
+                forward cost of that unmet requirement (D1) rather than a fact about this graph.
+
+--------------------------------------------------------------------------------
+THE QUERY, VERBATIM
+--------------------------------------------------------------------------------
+
+  // Measures, in the graph every stage of this run loaded, the method count of each class
+  // that sql/connect/shims ships as a client-only stub. The graph's input set EXCLUDES both
+  // shims archives, so these counts establish whether the real implementations are present.
+  val names = List(
+    "org.apache.spark.SparkConf",
+    "org.apache.spark.SparkContext",
+    "org.apache.spark.rdd.RDD",
+    "org.apache.spark.api.java.JavaRDD",
+    "org.apache.spark.sql.ExperimentalMethods",
+    "org.apache.spark.sql.SparkSessionExtensions",
+    "org.apache.spark.sql.execution.QueryExecution",
+    "org.apache.spark.sql.internal.SessionState",
+    "org.apache.spark.sql.internal.SharedState",
+    "org.apache.spark.sql.sources.BaseRelation",
+    "org.apache.spark.sql.util.ExecutionListenerManager")
+  importCpg("/opt/blitzy-harness/cpg/spark.cpg")
+  println("MEASURED-GRAPH-METHODS " + cpg.method.size)
+  names.foreach { n =>
+    val tds = cpg.typeDecl.fullNameExact(n).l
+    val decls = tds.size
+    val methods = tds.flatMap(_.method).size
+    println(f"SHIMSCLASS\t$n\tdecls=$decls\tmethods=$methods")
+  }
+  println("SHIMS-PROBE-COMPLETE")
+
+  Source sha256 : 43bb7328112d1b4527f00bf704e17e1040c816472c8ff3cfc7701b15da206901
+  Console log   : retained in this run's private scratch directory; every measured value
+                  it carried is transcribed above rather than summarised.
+
+================================================================================

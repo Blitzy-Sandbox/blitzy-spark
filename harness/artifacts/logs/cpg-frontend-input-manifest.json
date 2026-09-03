@@ -1,0 +1,2008 @@
+{
+ "which_invocation_this_manifest_describes": {
+  "invocation_label": "C",
+  "label_defined_in": "harness/artifacts/logs/cpg-frontend.log, section INVOCATION INDEX",
+  "one_line": "This file is the ordered staging manifest of ONE frontend invocation - the 189-archive invocation C run in clone lane w-000 - and of no other. Its 189 / 308,385,184 figures are that invocation's input. They neither restate nor correct the 191 / 431,184,822 input of the mandated complete-set invocation A, whose persistence failure is recorded in cpg-frontend.log STEP 8.",
+  "invocation_c": {
+   "clone_lane": "w-000",
+   "input_directory": "harness/artifacts/cpg-frontend-input-189 in the w-000 checkout (frontend_input_directory_absolute below)",
+   "archives_supplied": 189,
+   "bytes_supplied": 308385184,
+   "withheld_from_the_full_inventory": 2,
+   "full_inventory_it_was_drawn_from": 191,
+   "heap": "-J-Xmx160g",
+   "frontend_exit_code": 0,
+   "elapsed_seconds": 19482,
+   "graph_written_bytes": 791927027,
+   "graph_written_to": "harness/artifacts/cpg/spark.cpg in the w-000 checkout - NOT the sanctioned path harness/cpg/spark.cpg, and loaded by no runner and by no probe in this run",
+   "overwrite_warnings": 28714,
+   "distinct_overwritten_paths": 23168,
+   "ast_creation_failures": 487,
+   "error_level_lines": 0,
+   "extraction_temp_dir_marker": "jimple2cpg-1224669325458780856",
+   "sibling_evidence_from_this_same_invocation": [
+    {
+     "file": "harness/artifacts/logs/cpg-frontend-verbatim.log",
+     "what_it_is": "this invocation's verbatim console, 39,428 lines",
+     "provenance_check": "byte-identical to w-000 scratch g1/frontend189.console, both sha256 6396eda9fdd55f7b6c84a3233eca708adf5bc8b01f6d90b9d276124357a9dd38"
+    },
+    {
+     "file": "harness/artifacts/logs/cpg-ast-failed-classes.txt",
+     "what_it_is": "this invocation's 487 AST-creation failures, one per line, every line carrying the temp-dir marker above",
+     "provenance_check": "byte-identical to w-000 scratch g1/ast-failed-classes-189.txt, both sha256 2592123f2c85d099defc5d5fc90587f80643d9bad0c1702925d7d2105f9e66d0"
+    }
+   ]
+  },
+  "invocation_a_for_contrast_not_described_here": {
+   "clone_lane": "w-005",
+   "archives_supplied": 191,
+   "bytes_supplied": 431184822,
+   "withheld": 0,
+   "heap": "-J-Xmx128g",
+   "frontend_exit_code": 1,
+   "outcome": "ran to completion and died in persistence at flatgraph's single-array string-pool bound; wrote no accepted graph",
+   "owner_of_its_figures": "harness/artifacts/logs/cpg-frontend.log STEPS 1 to 12"
+  },
+  "why_invocation_c_does_not_satisfy_the_aap_requirement_either": "AAP 0.5.1 requires the graph built over EVERY JAR the reactor produced, and AAP 0.3.2 forbids excluding any archive from the input. Invocation C withheld two archives, so its graph is not an all-JAR graph. The two withholding reasons recorded under 'withheld' below are witness-preservation reasons measured at the time; they are recorded as what was done, not as a licence to trim the mandated input. Nothing in this file may be read as this run's AAP-compliant all-JAR output.",
+  "relation_to_the_graph_the_runners_loaded": "None. The graph at the sanctioned path harness/cpg/spark.cpg is 541,309,809 bytes, sha256 4616845ab2b0de2b8e7d43598de0e18c2302be233149b933af3098b0aa4730c7, written by PROVISIONING over a 62-archive tree, as recorded in harness/artifacts/logs/cpg-identity.txt and cpg-verify.log PROVENANCE. No invocation described in this file wrote it, and no archive listed in this file entered it.",
+  "re_measured_first_hand": {
+   "measured_at_utc": "2026-09-02T15:03:00Z",
+   "measured_by": "the citation-reconciliation pass in clone lane w-022",
+   "staging_directory_re_read": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/cpg-frontend-input-189",
+   "files_on_disk": 189,
+   "manifest_entries": 189,
+   "name_sets_equal": true,
+   "members_byte_and_digest_identical": 189,
+   "members_drifted": 0,
+   "total_bytes_on_disk": 308385184,
+   "total_bytes_in_manifest": 308385184,
+   "distinct_sha256": 187,
+   "note": "distinct_sha256 is 187 over 189 entries because two pairs of staged members are the same bytes under two names, both pairs in connector/kafka-0-10-assembly: its 'original-' pre-shade artifact equals its '-tests' artifact byte for byte, and its '-sources' equals its '-test-sources'. Both members of each pair are present and were supplied, so no entry was dropped; the digest count is 187 because the bytes repeat."
+  }
+ },
+ "frontend_input_directory_absolute": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/cpg-frontend-input-189",
+ "full_inventory_directory_absolute": "/tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-000_2f473f/harness/artifacts/cpg-input",
+ "full_inventory_archive_count": 191,
+ "frontend_input_archive_count": 189,
+ "frontend_input_bytes": 308385184,
+ "withheld_archive_count": 2,
+ "withheld": [
+  {
+   "staged_name": "common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar",
+   "size_bytes": 109208027,
+   "sha256": "66017e4e2086ba154144d244f123e4473a353f746baa8e36985f23323869afc8",
+   "reason": "shaded shuffle uber-jar with shadedArtifactAttached=false, i.e. NOT the module primary artifact; common/network-yarn own code is retained via spark-network-yarn_2.13-4.1.0-SNAPSHOT.jar. Including it vendors common/network-common, common/network-shuffle and common/utils-java classes and removes their injective coverage witnesses (measured: 35 valid witnesses -> 32)."
+  },
+  {
+   "staged_name": "connector_kafka-0-10-assembly__spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 13591752,
+   "sha256": "96bcfab6d42abc7ba1f6dff63c60f45227808488870ad83ddad9bf2271913ef6",
+   "reason": "shaded assembly of a packaging module that has no src/ directory at all, so it carries no compiled source of its own; its content is vendored and republished sibling code. Including it vendors connector/kafka-0-10, connector/kafka-0-10-token-provider and common/tags classes and removes their injective coverage witnesses (measured: 35 valid witnesses -> 33)."
+  }
+ ],
+ "assertion": "frontend input directory == its manifest, one-to-one, no duplicates, and staged + withheld == the full inventory",
+ "assertion_errors": [],
+ "ordered_manifest": [
+  {
+   "order": 1,
+   "staged_name": "common_kvstore__original-spark-kvstore_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 84345,
+   "sha256": "c61a53b9fd8fa46a70358b910a312188e99ce60afb0db9ea9a783f8dd9355ea8"
+  },
+  {
+   "order": 2,
+   "staged_name": "common_kvstore__spark-kvstore_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 50821,
+   "sha256": "fadb8dcd855c530e4f5ff5ae25a55c04d97e125a6ae2727eedad578c3e405a01"
+  },
+  {
+   "order": 3,
+   "staged_name": "common_kvstore__spark-kvstore_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 35846,
+   "sha256": "0ac8beb712b9ccb0e12492e6ee386bf9564c4c918a6b36181198481f0d386470"
+  },
+  {
+   "order": 4,
+   "staged_name": "common_kvstore__spark-kvstore_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 61345,
+   "sha256": "d50ea5f6395ba9005f71b183448a208186d98c0583a82acb8f0b1965e6216db1"
+  },
+  {
+   "order": 5,
+   "staged_name": "common_kvstore__spark-kvstore_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 87275,
+   "sha256": "d7d178c6fefa0c0831628924fc4350ee7894fe64d2d67b394b42a6cc169e899c"
+  },
+  {
+   "order": 6,
+   "staged_name": "common_network-common__original-spark-network-common_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 243473,
+   "sha256": "d4a8915a0b3979e1b79f577827f1729970dae7d8ab43075972a013b748f1b41d"
+  },
+  {
+   "order": 7,
+   "staged_name": "common_network-common__spark-network-common_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 188956,
+   "sha256": "b38cfba63bb7d32e4020e1c312e06bdbbd80fe695f5296ed334d1d3c870ae626"
+  },
+  {
+   "order": 8,
+   "staged_name": "common_network-common__spark-network-common_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 93749,
+   "sha256": "f1fc9229536fd2951248b169629dd4d8ed8deb1ccb42d5983d9449b4bb56cc91"
+  },
+  {
+   "order": 9,
+   "staged_name": "common_network-common__spark-network-common_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 169978,
+   "sha256": "bb892238d8529e3a10b5378dc531c5e76f0949612f4d4c20c43135c8d8b46c16"
+  },
+  {
+   "order": 10,
+   "staged_name": "common_network-common__spark-network-common_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 3344544,
+   "sha256": "0f099048964324c7641fbdeed142653ec349cb890384de7924347328a583ade3"
+  },
+  {
+   "order": 11,
+   "staged_name": "common_network-shuffle__original-spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 182555,
+   "sha256": "9b761f5589e1b69b2a8d95ed19aad482c1e414996969233cf6fab4e8de135bf9"
+  },
+  {
+   "order": 12,
+   "staged_name": "common_network-shuffle__spark-network-shuffle_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 121364,
+   "sha256": "10365d30d9fe865b11753934c2739a38364a210eff54d72d628e8ea44ba2a80f"
+  },
+  {
+   "order": 13,
+   "staged_name": "common_network-shuffle__spark-network-shuffle_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 75563,
+   "sha256": "42cde4446277db9295a50258d7d6b205e8afe6f0f161769aac34d0ad8ab7e3b5"
+  },
+  {
+   "order": 14,
+   "staged_name": "common_network-shuffle__spark-network-shuffle_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 124922,
+   "sha256": "9a94e73059a2c936a49d326018df194abe47ee411f7ed73ff4b1a97cea2a4b77"
+  },
+  {
+   "order": 15,
+   "staged_name": "common_network-shuffle__spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 186017,
+   "sha256": "4a2da4b2fb379fb344ab908322e40845451825aeebcd57f7d500ab863bae342d"
+  },
+  {
+   "order": 16,
+   "staged_name": "common_network-yarn__spark-network-yarn_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 20605,
+   "sha256": "0847b3d2f1d62a90524103b4b2975ad3ffcd69b617f53411b1cf756e32a069b8"
+  },
+  {
+   "order": 17,
+   "staged_name": "common_network-yarn__spark-network-yarn_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 9259,
+   "sha256": "d25736fa834326b8fb54bf5fac8197890747efa798b89d2e47f6585b5bd24b9a"
+  },
+  {
+   "order": 18,
+   "staged_name": "common_network-yarn__spark-network-yarn_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 9999,
+   "sha256": "a8263c6a35315e66edb860eedb47a67c9a372720a2c09ed19b30861c71873cae"
+  },
+  {
+   "order": 19,
+   "staged_name": "common_network-yarn__spark-network-yarn_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 27639,
+   "sha256": "63b63dc5006e3464ced5a1a37f4b1ed96735a81b2f0e0ec0f4e87bc1a4db17c8"
+  },
+  {
+   "order": 20,
+   "staged_name": "common_sketch__original-spark-sketch_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 35681,
+   "sha256": "e1f12ec6d6fc0365479f6d0ba627c7d39dbf6b5e57f1e613d9df1ee26e6163c6"
+  },
+  {
+   "order": 21,
+   "staged_name": "common_sketch__spark-sketch_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 28422,
+   "sha256": "d264a4b22cc3d60f51b93f4316215f47e58d5fc98a7dd4793aa6acb4b63f6345"
+  },
+  {
+   "order": 22,
+   "staged_name": "common_sketch__spark-sketch_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 16578,
+   "sha256": "386022f9d604ccd398fb4fb74eabfc98a41afe024b46fbcc05a5e7aa6055eca5"
+  },
+  {
+   "order": 23,
+   "staged_name": "common_sketch__spark-sketch_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 34245,
+   "sha256": "f9d075cea65aef98bcfc1043bd444669d843cf42991db7f16042ba3e78c2ab0b"
+  },
+  {
+   "order": 24,
+   "staged_name": "common_sketch__spark-sketch_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 38324,
+   "sha256": "e76ac44dd2370b0705648b5e7790248efe50b5e370b7cf936f4f9a00044922bf"
+  },
+  {
+   "order": 25,
+   "staged_name": "common_tags__original-spark-tags_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 13060,
+   "sha256": "0b757f388aaf11e5b0ca4afee83a4f160a42f898a87d892b6b3aac5f56359d24"
+  },
+  {
+   "order": 26,
+   "staged_name": "common_tags__spark-tags_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 17101,
+   "sha256": "b14049e3ace1d0ee373ddf16ce74c1a4ddd6757fb5578344e6852c420a3b6d57"
+  },
+  {
+   "order": 27,
+   "staged_name": "common_tags__spark-tags_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 14768,
+   "sha256": "a1c8484977c51a5ba634245b00f6be470a5c6181f25b50eb05ee6c43e2ee8f28"
+  },
+  {
+   "order": 28,
+   "staged_name": "common_tags__spark-tags_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 11660,
+   "sha256": "41c212fa8253c5d4eb3b89d5375bf9d60c544e49f0ad31d84133bcd7315301f8"
+  },
+  {
+   "order": 29,
+   "staged_name": "common_tags__spark-tags_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 15621,
+   "sha256": "c0882808368c31e6099f8220f4c7cbe05c46e24370bbacac458cacf6576c7d96"
+  },
+  {
+   "order": 30,
+   "staged_name": "common_unsafe__original-spark-unsafe_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 138061,
+   "sha256": "c15a8dc9d9f92067e44aaff95d165fd097d22f2698598f250d68c429b358a918"
+  },
+  {
+   "order": 31,
+   "staged_name": "common_unsafe__spark-unsafe_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 88720,
+   "sha256": "54b4e00da56446239a66fcad370e02537ccdbfac14dea167c8d94ee6f54b29d6"
+  },
+  {
+   "order": 32,
+   "staged_name": "common_unsafe__spark-unsafe_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 57402,
+   "sha256": "9de37da8c72763cc70e94a013a72e786c0d2095f398cd37f673057e9b6ae8e01"
+  },
+  {
+   "order": 33,
+   "staged_name": "common_unsafe__spark-unsafe_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 128448,
+   "sha256": "2437ae1377fc936b24a16b123144d6417d0959d61b62873bbfbb3c9d195a8cbc"
+  },
+  {
+   "order": 34,
+   "staged_name": "common_unsafe__spark-unsafe_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 141632,
+   "sha256": "e9a00464a75dd8e72968bbbeaff773e633cf3bc716615a0994baa23eae13eef9"
+  },
+  {
+   "order": 35,
+   "staged_name": "common_utils-java__original-spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 78655,
+   "sha256": "cdd16396f0be8a985c458480a3bfe91f539af17fc7d618826a1dc533af139194"
+  },
+  {
+   "order": 36,
+   "staged_name": "common_utils-java__spark-common-utils-java_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 54029,
+   "sha256": "94738f7960f834c602cfd5375fc77ede316840c37a2e4fb235b6c5054e3e6453"
+  },
+  {
+   "order": 37,
+   "staged_name": "common_utils-java__spark-common-utils-java_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 14379,
+   "sha256": "50d63a1afc787d669fdefdd43456291f80220884ed5cdb239833aeec0ef653a8"
+  },
+  {
+   "order": 38,
+   "staged_name": "common_utils-java__spark-common-utils-java_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 17667,
+   "sha256": "5824e20a7339cd35cd25715bd70a8ac97616228bf4f72bae86956eb07af29add"
+  },
+  {
+   "order": 39,
+   "staged_name": "common_utils-java__spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 81874,
+   "sha256": "43f9fe6322b08b9918d1dfea4fdc9739e0719a846530a7ec14a8c613a09b51b4"
+  },
+  {
+   "order": 40,
+   "staged_name": "common_utils__original-spark-common-utils_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 512002,
+   "sha256": "bf452436c81f2e579dd6880cccf4d9e6f1f4587e4cc64d30ccf8b4a418b5b941"
+  },
+  {
+   "order": 41,
+   "staged_name": "common_utils__spark-common-utils_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 200385,
+   "sha256": "4dded16e6ccc03ac735741c18744885b4161bb26962bd487e5d82bd1db63034d"
+  },
+  {
+   "order": 42,
+   "staged_name": "common_utils__spark-common-utils_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 30169,
+   "sha256": "dd7db0a57bf2ed880be3700c2e670e10540e8b4ba1daf7b428a3a220ef69ae76"
+  },
+  {
+   "order": 43,
+   "staged_name": "common_utils__spark-common-utils_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 109589,
+   "sha256": "da543ffba52922be361cd9fc858fbb223363f83b708a09b1d3c98940576e8582"
+  },
+  {
+   "order": 44,
+   "staged_name": "common_utils__spark-common-utils_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 517255,
+   "sha256": "10e7969ac23c47a5be2e201f1c2367112d84e861a891f3e428d7bdd07bc7ea9f"
+  },
+  {
+   "order": 45,
+   "staged_name": "common_variant__original-spark-variant_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 56258,
+   "sha256": "47dee541fa182dbfe2913edd0fc36a740632e10e2a740161fe33b9959c3e02ce"
+  },
+  {
+   "order": 46,
+   "staged_name": "common_variant__spark-variant_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 34019,
+   "sha256": "5415e9cdee9893bc3cac1f293adf6a02bea6521c2906d04c28e106402c65f707"
+  },
+  {
+   "order": 47,
+   "staged_name": "common_variant__spark-variant_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 7733,
+   "sha256": "525ee3b9fb7542c0e24d5a67cca9779150428b218ac06e94db56e074371df59b"
+  },
+  {
+   "order": 48,
+   "staged_name": "common_variant__spark-variant_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 8052,
+   "sha256": "9554298fa1409abd41b8663f000f0f67bfae3267d994cea72c4cbdd51ada3506"
+  },
+  {
+   "order": 49,
+   "staged_name": "common_variant__spark-variant_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 59189,
+   "sha256": "0fa17041c0b2948f1156c8f5c5015652f157063eca32c7d702ba9c8e929a63dc"
+  },
+  {
+   "order": 50,
+   "staged_name": "connector_avro__original-spark-avro_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 89543,
+   "sha256": "2a16f124f83c7b47ee8e32533ac872eb8683d92f9b0f3a8db7026c0eba1d0465"
+  },
+  {
+   "order": 51,
+   "staged_name": "connector_avro__spark-avro_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 24227,
+   "sha256": "2d595fb848831049a0e489934b9c7fca380c7702b6cdf10e78d1bd2cb9c54fb6"
+  },
+  {
+   "order": 52,
+   "staged_name": "connector_avro__spark-avro_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 98245,
+   "sha256": "31e7d7d49bce532eff3040eac070d0ffb7777ef84ac5944a1e838bf8c16e9028"
+  },
+  {
+   "order": 53,
+   "staged_name": "connector_avro__spark-avro_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 425723,
+   "sha256": "6706a5faccb7253d3117723236c5f8dfd7b04bd114ebde949668046825106e3a"
+  },
+  {
+   "order": 54,
+   "staged_name": "connector_avro__spark-avro_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 92384,
+   "sha256": "38c45220c4a7c11c0087f37bf6f39b6a9350ddbbe87612a342036aeae6120fcf"
+  },
+  {
+   "order": 55,
+   "staged_name": "connector_kafka-0-10-assembly__original-spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 8200,
+   "sha256": "f8b614e4bd0ba6415af6484bd5e8c624c5bedb9fa58e4ba6a568f7b5831e3d2a"
+  },
+  {
+   "order": 56,
+   "staged_name": "connector_kafka-0-10-assembly__spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 8268,
+   "sha256": "0cfe960d89437d70a7eb69607a3f9fc5646657ef372c7621ee7e71b8a66420b2"
+  },
+  {
+   "order": 57,
+   "staged_name": "connector_kafka-0-10-assembly__spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 8268,
+   "sha256": "0cfe960d89437d70a7eb69607a3f9fc5646657ef372c7621ee7e71b8a66420b2"
+  },
+  {
+   "order": 58,
+   "staged_name": "connector_kafka-0-10-assembly__spark-streaming-kafka-0-10-assembly_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 8200,
+   "sha256": "f8b614e4bd0ba6415af6484bd5e8c624c5bedb9fa58e4ba6a568f7b5831e3d2a"
+  },
+  {
+   "order": 59,
+   "staged_name": "connector_kafka-0-10-sql__original-spark-sql-kafka-0-10_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 476781,
+   "sha256": "33050a279639fac9648cdcdcbd20848b1b3e58f0ec98628c477680c92712b90a"
+  },
+  {
+   "order": 60,
+   "staged_name": "connector_kafka-0-10-sql__spark-sql-kafka-0-10_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 104883,
+   "sha256": "1c936be5676d5224498aae85a03eea608b8d6e596e839d9ffa2706ddb847a652"
+  },
+  {
+   "order": 61,
+   "staged_name": "connector_kafka-0-10-sql__spark-sql-kafka-0-10_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 90875,
+   "sha256": "c92f6953ed9f1f00e5f99cfa43c05f1f3e179436b01929fda6fb5edce8f6e966"
+  },
+  {
+   "order": 62,
+   "staged_name": "connector_kafka-0-10-sql__spark-sql-kafka-0-10_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 572837,
+   "sha256": "c39fd1be5670e4959e86de8f6606af9d420350650fdc0c2a9c818bf17a231f5b"
+  },
+  {
+   "order": 63,
+   "staged_name": "connector_kafka-0-10-sql__spark-sql-kafka-0-10_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 481256,
+   "sha256": "490e995eb0190e79fdd8b73fa2d37725b7eeaa7492aaa5745f69c6a07545b8b2"
+  },
+  {
+   "order": 64,
+   "staged_name": "connector_kafka-0-10-token-provider__original-spark-token-provider-kafka-0-10_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 63904,
+   "sha256": "fb1bc50c543d7dbf4c4d7448c865c49430973056db22994b878515d4eaff45ec"
+  },
+  {
+   "order": 65,
+   "staged_name": "connector_kafka-0-10-token-provider__spark-token-provider-kafka-0-10_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 20715,
+   "sha256": "be833cb82fc72aa4140089a2deb1a9ced48b0dcda0ebaea68358b5627b82fbd3"
+  },
+  {
+   "order": 66,
+   "staged_name": "connector_kafka-0-10-token-provider__spark-token-provider-kafka-0-10_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 19985,
+   "sha256": "eda0ec9a34d910a8c57e572274fcba81ed9119bba4e98ffb1df904d03918d450"
+  },
+  {
+   "order": 67,
+   "staged_name": "connector_kafka-0-10-token-provider__spark-token-provider-kafka-0-10_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 53802,
+   "sha256": "08d6e0704830f5c444feb3de045cab9e11e0b03ee18953ec06a3b152d4f381e4"
+  },
+  {
+   "order": 68,
+   "staged_name": "connector_kafka-0-10-token-provider__spark-token-provider-kafka-0-10_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 66613,
+   "sha256": "cab9ff01c0313844acf2da99b7cd1eefe81fabfd2f20d9a33b3c64a2321a30d9"
+  },
+  {
+   "order": 69,
+   "staged_name": "connector_kafka-0-10__original-spark-streaming-kafka-0-10_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 148366,
+   "sha256": "c2054228f95dd2c0756b572f617d14728200d0839a059d7cd68e3d96a5fca334"
+  },
+  {
+   "order": 70,
+   "staged_name": "connector_kafka-0-10__spark-streaming-kafka-0-10_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 34915,
+   "sha256": "e54079a089942178292e3fe1838a8b288525e7c31beb2e755a73bcdf42babc7b"
+  },
+  {
+   "order": 71,
+   "staged_name": "connector_kafka-0-10__spark-streaming-kafka-0-10_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 35358,
+   "sha256": "0124cd79f6b07c67e1f2a5ed575ffec3beda57ef3ff8e2aabcb9cbe0eda69731"
+  },
+  {
+   "order": 72,
+   "staged_name": "connector_kafka-0-10__spark-streaming-kafka-0-10_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 107598,
+   "sha256": "79971f9b43f5c84b011c8adce8dfdfc5bb72c6e5fc4ba7adedaad71848c0b852"
+  },
+  {
+   "order": 73,
+   "staged_name": "connector_kafka-0-10__spark-streaming-kafka-0-10_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 151505,
+   "sha256": "90fa0c57cfdc9da00cc284947271e28f79924f4a637ab78c8af79e61231749b5"
+  },
+  {
+   "order": 74,
+   "staged_name": "connector_protobuf__original-spark-protobuf_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 112774,
+   "sha256": "948eb46dca3cd7d6bd8ba6942c465f2ebb80b4b83ee3898009fce1a6adccc6fc"
+  },
+  {
+   "order": 75,
+   "staged_name": "connector_protobuf__spark-protobuf_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 35205,
+   "sha256": "65003199a504485d1494e99f0dbfc9128482427da7dae72606d20cf74e500cd0"
+  },
+  {
+   "order": 76,
+   "staged_name": "connector_protobuf__spark-protobuf_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 242936,
+   "sha256": "2d82e01182c3ce8fb0699ba834302f89ebd72dfa9c115bc0a9d6fcec43c644a5"
+  },
+  {
+   "order": 77,
+   "staged_name": "connector_protobuf__spark-protobuf_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 1020234,
+   "sha256": "a1d0e25a50553c4925c4501d49c92bca31708332bfd706ab69492f6a48e94409"
+  },
+  {
+   "order": 78,
+   "staged_name": "connector_protobuf__spark-protobuf_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 2080833,
+   "sha256": "cab4fa0b0f2161e7899a4dbb0a5437e2707b3caa704ce15a74c11539755b8f3e"
+  },
+  {
+   "order": 79,
+   "staged_name": "core__original-spark-core_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 10212785,
+   "sha256": "c30640e4de6ee69052d205effe0559be79c9723dc2ef4f6146606d3c8265c04b"
+  },
+  {
+   "order": 80,
+   "staged_name": "core__spark-core_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 2989632,
+   "sha256": "d5f87003f1fa98b5d8446824abab6330d98431dc4710c906329a6c3389836d0e"
+  },
+  {
+   "order": 81,
+   "staged_name": "core__spark-core_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 1536666,
+   "sha256": "e17c9a0f37b5045e33ad30a4358209a83bdecc34af75ab46595a2da7e479eecc"
+  },
+  {
+   "order": 82,
+   "staged_name": "core__spark-core_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 6144855,
+   "sha256": "2212c3e0371f79a967f54f32ca6be688cadabcb479b2ba543cc8f67f8a5b27a4"
+  },
+  {
+   "order": 83,
+   "staged_name": "core__spark-core_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 14929602,
+   "sha256": "ee1a0c9c04a70460ff437fc0c8dd80089ecf1fda53fc2b40d0251df3b63585dc"
+  },
+  {
+   "order": 84,
+   "staged_name": "examples__original-spark-examples_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 1589227,
+   "sha256": "8bd72f4bc1abc53262351dd044ece21c214c1018d4901fe2f43af5e29720a48d"
+  },
+  {
+   "order": 85,
+   "staged_name": "examples__spark-examples_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 532656,
+   "sha256": "b757b9289d3c7cfe574a0f43c4bdccee9f72a3b692cba1d7a5c59a2db324f564"
+  },
+  {
+   "order": 86,
+   "staged_name": "examples__spark-examples_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 8209,
+   "sha256": "0a32ff455882b93a57db04f02ad0dd5418436e37e1b6f9e6f89105fc843c1019"
+  },
+  {
+   "order": 87,
+   "staged_name": "examples__spark-examples_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 1602656,
+   "sha256": "4ff99c712a2ef4e77d0db4f41c46ab4ef115a73af3a13d40932591df4dfaa450"
+  },
+  {
+   "order": 88,
+   "staged_name": "graphx__original-spark-graphx_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 427634,
+   "sha256": "8338dfabbe96f43ecddd5130773f8a21481bd35ceac92105e686968b602405c5"
+  },
+  {
+   "order": 89,
+   "staged_name": "graphx__spark-graphx_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 100869,
+   "sha256": "8c88de650eed4519f5d8e7b311ffa9d954f29b3cdfbee845af8542a9104e1f65"
+  },
+  {
+   "order": 90,
+   "staged_name": "graphx__spark-graphx_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 45667,
+   "sha256": "fa8189e02a8a8ef0059957720d7b9481111bdad9264a7af15473c8106ddaa018"
+  },
+  {
+   "order": 91,
+   "staged_name": "graphx__spark-graphx_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 171730,
+   "sha256": "5dbe20ec00306caaf50fa71851ab46ecb1e5761f9263a4ee8a9761f6c9eb9c75"
+  },
+  {
+   "order": 92,
+   "staged_name": "graphx__spark-graphx_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 432187,
+   "sha256": "b4ee3950398ea053453d0ad2869d7ee5164c34a63c601c3b57ce29ba7dff9aaa"
+  },
+  {
+   "order": 93,
+   "staged_name": "launcher__original-spark-launcher_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 79280,
+   "sha256": "a78cdad034cb1d22e7896f4b1fa06c828d921aa4a1542562261ff1410f5abbd5"
+  },
+  {
+   "order": 94,
+   "staged_name": "launcher__spark-launcher_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 60183,
+   "sha256": "50834d8d6f114aff99d4a1fb479e7785094e57b7bb8e423861ee7ead914a7e93"
+  },
+  {
+   "order": 95,
+   "staged_name": "launcher__spark-launcher_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 26223,
+   "sha256": "adbeb8e0812a5893a3b04d0cbff9d3cc8fec175f9afaa230665162cf50f9fc3d"
+  },
+  {
+   "order": 96,
+   "staged_name": "launcher__spark-launcher_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 45917,
+   "sha256": "1c5eee3529f518177cf5b197e50af01c2e6258b49be8519b4f889f0870c8b9fa"
+  },
+  {
+   "order": 97,
+   "staged_name": "launcher__spark-launcher_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 82177,
+   "sha256": "0f5397a0a565a9359665469414d713d0c39515f9e0adf6e3e77f8e802e30f586"
+  },
+  {
+   "order": 98,
+   "staged_name": "mllib-local__original-spark-mllib-local_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 118935,
+   "sha256": "aa672650619d60603b6847d700066cd11ec43f55b0399ff4ba9f62c1a4916142"
+  },
+  {
+   "order": 99,
+   "staged_name": "mllib-local__spark-mllib-local_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 35229,
+   "sha256": "1fe1537e46d8a9c55ecce81ae0ffafb677ade6ef24f4f086f7ffdbc73f2f2648"
+  },
+  {
+   "order": 100,
+   "staged_name": "mllib-local__spark-mllib-local_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 33538,
+   "sha256": "bed051d77e65122c8d7d5f3b9679576b0619d4f79039f9df4dc2f3a898554937"
+  },
+  {
+   "order": 101,
+   "staged_name": "mllib-local__spark-mllib-local_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 134592,
+   "sha256": "74f22b6438f1f8cc0586eac90fb736a2e4a82bacbd35f6ba8851e0fa6d6da37a"
+  },
+  {
+   "order": 102,
+   "staged_name": "mllib-local__spark-mllib-local_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 121798,
+   "sha256": "2fa7a25257218b154f21098c5216a08071b37c729abaff1364abcb2a44c21e72"
+  },
+  {
+   "order": 103,
+   "staged_name": "mllib__original-spark-mllib_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 5619838,
+   "sha256": "287c640483d6021c95f71e99a015d7acf5aae27be5abf18caae61e8c53a66d4f"
+  },
+  {
+   "order": 104,
+   "staged_name": "mllib__spark-mllib_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 1038109,
+   "sha256": "02aa739edb5715446aadf63c146f69bb5038901802e7a18fd20827e0ad0f1cc5"
+  },
+  {
+   "order": 105,
+   "staged_name": "mllib__spark-mllib_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 880307,
+   "sha256": "5ba0b2c7614dd4a5d32fcf11d3ae151a1d2e41b0c1049f786548d7f6e361ef24"
+  },
+  {
+   "order": 106,
+   "staged_name": "mllib__spark-mllib_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 5063887,
+   "sha256": "bba43708da4d9d402a8c14fa35fb49213ef7b317b8601390afd79cc2ddf67703"
+  },
+  {
+   "order": 107,
+   "staged_name": "mllib__spark-mllib_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 6896119,
+   "sha256": "f9cb54a1893c41a851d01694768db1eefdcb75ce6d59f1b5de4711ff4d7f5551"
+  },
+  {
+   "order": 108,
+   "staged_name": "repl__original-spark-repl_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 34813,
+   "sha256": "f0b96948fe52e1ee343376ca92a818277e7a5533608bd7bc6fffa0279ca8235e"
+  },
+  {
+   "order": 109,
+   "staged_name": "repl__spark-repl_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 19010,
+   "sha256": "5f62f7fd66a58b1147718d1bb1eefd77c70a377c1f69ae116f5e62a8cd917e2f"
+  },
+  {
+   "order": 110,
+   "staged_name": "repl__spark-repl_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 27706,
+   "sha256": "96f72772f26f8d617dc83b03dbe7b01f8d54cb7c9ef0b8cfbd108f2def3db106"
+  },
+  {
+   "order": 111,
+   "staged_name": "repl__spark-repl_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 44230,
+   "sha256": "45374438c6373b3ce13a49560f5edacc19eeeec99c5c66cc1019e893fb2d21d7"
+  },
+  {
+   "order": 112,
+   "staged_name": "repl__spark-repl_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 37326,
+   "sha256": "d596ddfd96d18be40df86bb7e2c2e2194dcda1838b9746c825ec22682b7a1b28"
+  },
+  {
+   "order": 113,
+   "staged_name": "resource-managers_kubernetes_core__original-spark-kubernetes_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 586436,
+   "sha256": "2c6a95b5d5a59dff2ae79d06a258c3094b960f30bc44ed82c2ca8c77eab7c20c"
+  },
+  {
+   "order": 114,
+   "staged_name": "resource-managers_kubernetes_core__spark-kubernetes_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 138570,
+   "sha256": "f7a097c831c150b8d56c44effbedaaa3fcfa7c795e01eb4a1ab2148236f69bb5"
+  },
+  {
+   "order": 115,
+   "staged_name": "resource-managers_kubernetes_core__spark-kubernetes_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 110773,
+   "sha256": "d4f717b3b68fde2bc3f53d122a8af19351a46ae95fd6335f97e1e66873851890"
+  },
+  {
+   "order": 116,
+   "staged_name": "resource-managers_kubernetes_core__spark-kubernetes_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 424101,
+   "sha256": "3a0d437c3502abdd342fe0e870dd9402d21fe0bab7a21dad4493dc40382ea39d"
+  },
+  {
+   "order": 117,
+   "staged_name": "resource-managers_kubernetes_core__spark-kubernetes_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 591300,
+   "sha256": "e0f2dccadc0f6288a37636b1de0090af9c1bc923c4f25a875cea96688d1e5964"
+  },
+  {
+   "order": 118,
+   "staged_name": "resource-managers_yarn__original-spark-yarn_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 382005,
+   "sha256": "c464b6aa17503b07f2ac0edbf24f13062677ca9c1d190c214abc49391f79dd93"
+  },
+  {
+   "order": 119,
+   "staged_name": "resource-managers_yarn__spark-yarn_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 119108,
+   "sha256": "dee499a07e009a4823ffba0d97255678810e25e5f3ec2c71428bf73ef54737d9"
+  },
+  {
+   "order": 120,
+   "staged_name": "resource-managers_yarn__spark-yarn_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 96218,
+   "sha256": "7121146d368389d57b296552fe48a94a2815f23f9c3ccff62d6ec7315d352312"
+  },
+  {
+   "order": 121,
+   "staged_name": "resource-managers_yarn__spark-yarn_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 468362,
+   "sha256": "3299b04f7329c34437ac6dbf437fcc8938260f11911c0fe0bb406a1c431d62d9"
+  },
+  {
+   "order": 122,
+   "staged_name": "resource-managers_yarn__spark-yarn_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 385814,
+   "sha256": "4f74cf39608dd2c5a54bbb325b56b0fc637039f2755c04d84a954368697dd2d1"
+  },
+  {
+   "order": 123,
+   "staged_name": "root__spark-parent_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 20371,
+   "sha256": "9234d8e5f3b3684d913c8d9c2cf1d6d4843834c5936cbcea4b615864a4dabe30"
+  },
+  {
+   "order": 124,
+   "staged_name": "sql_api__original-spark-sql-api_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 2941320,
+   "sha256": "56ff27400a23547ba076c303412b02162cfb989329acd8302cb046fbac7927ce"
+  },
+  {
+   "order": 125,
+   "staged_name": "sql_api__spark-sql-api_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 896033,
+   "sha256": "da9d7f05ebef899e226197fdae45a7f4e984b3832322165467af004b893f9833"
+  },
+  {
+   "order": 126,
+   "staged_name": "sql_api__spark-sql-api_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 11343,
+   "sha256": "d21c6fa529d727bc6e1ee02412819562cd673681f706a1e4390d5a9e9179fe9b"
+  },
+  {
+   "order": 127,
+   "staged_name": "sql_api__spark-sql-api_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 15960,
+   "sha256": "78c683e23c68ba757cd0aaa1c700f8f9d9b371bb72c3188d006e714ad6d440ad"
+  },
+  {
+   "order": 128,
+   "staged_name": "sql_api__spark-sql-api_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 2963527,
+   "sha256": "b56996e59af9396d15a4cfcbdd6a22f35545fa825eb542e8cb05306ec32118b7"
+  },
+  {
+   "order": 129,
+   "staged_name": "sql_catalyst__original-spark-catalyst_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 16464517,
+   "sha256": "fe30f9e4477a07e040fa1fa3ba0035fa608d1f40d5fb2637941d6311aa8362e7"
+  },
+  {
+   "order": 130,
+   "staged_name": "sql_catalyst__spark-catalyst_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 2479642,
+   "sha256": "78a11834fddd34694e29dbada14acd59c012e2bbfe86239789f0512f97361471"
+  },
+  {
+   "order": 131,
+   "staged_name": "sql_catalyst__spark-catalyst_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 1081347,
+   "sha256": "59b3889f1aa93896baf0b132efd5352eab0d8fe236465d135e6985a1048569a6"
+  },
+  {
+   "order": 132,
+   "staged_name": "sql_catalyst__spark-catalyst_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 7147904,
+   "sha256": "25cf769e84ee2bdf53f2a804ea35b05934d78b267e04cc1917681bd703428095"
+  },
+  {
+   "order": 133,
+   "staged_name": "sql_catalyst__spark-catalyst_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 16553330,
+   "sha256": "c2b108f8fab22d06eee07c1d9380eebdfd4159efb8dd6aaf84a366961bcbe241"
+  },
+  {
+   "order": 134,
+   "staged_name": "sql_connect_client_jdbc__original-spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 15145,
+   "sha256": "f162f83f651fbd4656c70ce06e7832e23814f94a6a200987c3d9830ba3ff65ed"
+  },
+  {
+   "order": 135,
+   "staged_name": "sql_connect_client_jdbc__spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 14319,
+   "sha256": "e15813841cfa8d00e91b80d59d2006104623b0bbe8448dfc45b14dbb7a9072b4"
+  },
+  {
+   "order": 136,
+   "staged_name": "sql_connect_client_jdbc__spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 13597,
+   "sha256": "26aacc051848fc8ae0764790ecd83611e43ee44c49eaa040ac4e1825b1acb754"
+  },
+  {
+   "order": 137,
+   "staged_name": "sql_connect_client_jdbc__spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 13886,
+   "sha256": "f1961e779c26fafc496977a1f064b38682b9c8dd41f724a1d1ef3fd8b93939fa"
+  },
+  {
+   "order": 138,
+   "staged_name": "sql_connect_client_jdbc__spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 15509,
+   "sha256": "08bf6e91f1474ff99dfc97e889386a57e34234e501ce1ef823e1aee73fc9bd07"
+  },
+  {
+   "order": 139,
+   "staged_name": "sql_connect_client_jvm__original-spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 30303,
+   "sha256": "99a32c088f5a909deaad0a5ea5d0dfe7bcde92bcc5a7785979d16a02538fa99a"
+  },
+  {
+   "order": 140,
+   "staged_name": "sql_connect_client_jvm__spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 15378,
+   "sha256": "0b03883400b2e8c7e17b5ed508ba763255efb73f92132a0b3ab2959b5868a9ec"
+  },
+  {
+   "order": 141,
+   "staged_name": "sql_connect_client_jvm__spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 181184,
+   "sha256": "bc64a0b5cbf3a28aa308ca99bdf184eca0e110eda78363465baf65f03398ca4a"
+  },
+  {
+   "order": 142,
+   "staged_name": "sql_connect_client_jvm__spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 1403675,
+   "sha256": "4e09c5bb4945a6c170cbb4fc7402ecca173760a9de406c3c2ed68d7a4a0a1b34"
+  },
+  {
+   "order": 143,
+   "staged_name": "sql_connect_client_jvm__spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 26050367,
+   "sha256": "cfe3ec3eb6048816ef0a973161caa327c994d443fdcd8fea721691d442ad76d2"
+  },
+  {
+   "order": 144,
+   "staged_name": "sql_connect_common__original-spark-connect-common_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 5220299,
+   "sha256": "194c10a5086facc8714f560e5796817c5445275822f4bdf829e7506af48b0471"
+  },
+  {
+   "order": 145,
+   "staged_name": "sql_connect_common__spark-connect-common_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 1815748,
+   "sha256": "d3be6f084781f37fe31b605e1829a32719861b6183047dc14a38d24b703f5dbd"
+  },
+  {
+   "order": 146,
+   "staged_name": "sql_connect_common__spark-connect-common_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 1343806,
+   "sha256": "58d7d16538717e66a846725138fb949e592179f3a596c59d0f743e49bccaac9b"
+  },
+  {
+   "order": 147,
+   "staged_name": "sql_connect_common__spark-connect-common_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 1352883,
+   "sha256": "14189f77672d92f5642801917ba138be9885437a116c3ed40e23a296f93b6b42"
+  },
+  {
+   "order": 148,
+   "staged_name": "sql_connect_common__spark-connect-common_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 5263678,
+   "sha256": "61a7ad3a8c22ad906c1c2c63173f4b288be6513f82ef4d17244bcda61cf2f937"
+  },
+  {
+   "order": 149,
+   "staged_name": "sql_connect_server__original-spark-connect_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 930474,
+   "sha256": "b674caf4bae7d88d1eb32eae904bcc414190eede50eac895c0eecd25eae35774"
+  },
+  {
+   "order": 150,
+   "staged_name": "sql_connect_server__spark-connect_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 211466,
+   "sha256": "6cfdbd8ca5c796c28e5f2cd12ebf9f7a44fb86d87e759b59de639a04cc242320"
+  },
+  {
+   "order": 151,
+   "staged_name": "sql_connect_server__spark-connect_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 153722,
+   "sha256": "c7169beb273885ccf01330088abbd2c5120665ac3c6a7c4e067fcad0f0deb1bb"
+  },
+  {
+   "order": 152,
+   "staged_name": "sql_connect_server__spark-connect_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 929771,
+   "sha256": "055e47394f70d0badf83bbdf69995a3e46935e2f5c7f7212174c09764a5ab047"
+  },
+  {
+   "order": 153,
+   "staged_name": "sql_connect_server__spark-connect_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 17182152,
+   "sha256": "5339fb867b723db71dc49c5393d9200b39c91da6a6ed22c9fa42c452fee7ca5a"
+  },
+  {
+   "order": 154,
+   "staged_name": "sql_connect_shims__original-spark-connect-shims_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 15586,
+   "sha256": "5babce54f9746eb76166224312442e58c3d683ebd6235e10ffad6324118ec076"
+  },
+  {
+   "order": 155,
+   "staged_name": "sql_connect_shims__spark-connect-shims_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 7971,
+   "sha256": "c119537a46640ff7bc2cb711080f4d8f532150dd4999074803139db98a3ad5b8"
+  },
+  {
+   "order": 156,
+   "staged_name": "sql_connect_shims__spark-connect-shims_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 6882,
+   "sha256": "095f9df769d2ba61da8ac61e6e612023a3bc3677613bb6b77a79cadbbff5ff0a"
+  },
+  {
+   "order": 157,
+   "staged_name": "sql_connect_shims__spark-connect-shims_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 7016,
+   "sha256": "0169ad7d5c65df36f5b6ed9dba673e012b4918da120254999b6e452c1b4c0de4"
+  },
+  {
+   "order": 158,
+   "staged_name": "sql_connect_shims__spark-connect-shims_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 18273,
+   "sha256": "020cc3a5e93a67883cd93d2412ef20c8472e500e7dfe4fb7a3cecda5ea4cf1f0"
+  },
+  {
+   "order": 159,
+   "staged_name": "sql_core__original-spark-sql_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 13300498,
+   "sha256": "022c8d0853c01963b2272ce503228a4c1989dd63c5e4cbd765d5f57f7c5f16b5"
+  },
+  {
+   "order": 160,
+   "staged_name": "sql_core__spark-sql_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 2399729,
+   "sha256": "a3198c6fe9f772027b29d7d9d9a387765af97ab3619cf6ac4c7cf0b454c93a99"
+  },
+  {
+   "order": 161,
+   "staged_name": "sql_core__spark-sql_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 21382570,
+   "sha256": "722b058f0348998e886e150d0c97515e1ed2246d1ee9dd3d13cb0363d30dec33"
+  },
+  {
+   "order": 162,
+   "staged_name": "sql_core__spark-sql_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 45807958,
+   "sha256": "056a997fb4e4ecbb0e0d70e97d165b3d19ff39e1bc78c6ff9c7d7f9a36029a4c"
+  },
+  {
+   "order": 163,
+   "staged_name": "sql_core__spark-sql_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 13367301,
+   "sha256": "b22523e938c1edb29b9bd4f75e206165551c0407ef5c87ffe465c4d8926b3a19"
+  },
+  {
+   "order": 164,
+   "staged_name": "sql_hive-thriftserver__original-spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 605244,
+   "sha256": "e254c94e4580b24cc880858cd9e1ca81e0453dcb67beecdc5f316941706835e8"
+  },
+  {
+   "order": 165,
+   "staged_name": "sql_hive-thriftserver__spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 234052,
+   "sha256": "15d5acc789a795f202d641abb9f7e5f8ec503174f0a4879527d7ba8061f4f9e3"
+  },
+  {
+   "order": 166,
+   "staged_name": "sql_hive-thriftserver__spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 80286,
+   "sha256": "68c6d0c3b6ead107a2379f66cc1082a79c5aa76440b272c873d634b45d758605"
+  },
+  {
+   "order": 167,
+   "staged_name": "sql_hive-thriftserver__spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 311262,
+   "sha256": "501260c337e518a0a82e98ffd173d3996aaef3821162c0b9f41d5aad5a2a59c0"
+  },
+  {
+   "order": 168,
+   "staged_name": "sql_hive-thriftserver__spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 611191,
+   "sha256": "9f6315aa0778a5e50c740321d14e2a3e07b081d0e663655e48af444be89e2d3e"
+  },
+  {
+   "order": 169,
+   "staged_name": "sql_hive__original-spark-hive_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 743523,
+   "sha256": "315aec235717f283aa38eb1ad57705646ac317984e1df390352556d2728fbe25"
+  },
+  {
+   "order": 170,
+   "staged_name": "sql_hive__spark-hive_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 176618,
+   "sha256": "14286249269b11c9f38d7bd8395f1ff40cd99d9c0fe49fad55cb6e590625fdd1"
+  },
+  {
+   "order": 171,
+   "staged_name": "sql_hive__spark-hive_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 4056889,
+   "sha256": "3230d731c45507a237c42654ba0d4ce8e55e797ad7d73c0911bd84e19ccc7f85"
+  },
+  {
+   "order": 172,
+   "staged_name": "sql_hive__spark-hive_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 6387886,
+   "sha256": "7b0f6dea420ae34f081259653ed5557adcc40c4e0c0fe46627d195aa40cfc0e5"
+  },
+  {
+   "order": 173,
+   "staged_name": "sql_hive__spark-hive_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 748576,
+   "sha256": "bbb847f2be83c988c7112d90d4eb8352e398deb3df4b5bdb41eb4703c6918d84"
+  },
+  {
+   "order": 174,
+   "staged_name": "sql_pipelines__original-spark-pipelines_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 687749,
+   "sha256": "7cb737457074e5e7c900dc3a203ca7e1489b998ef9f6f37344e32f956fa2aad4"
+  },
+  {
+   "order": 175,
+   "staged_name": "sql_pipelines__spark-pipelines_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 115213,
+   "sha256": "5b1beba2b7b5eb5e955ba492c1b3fc475b956d94111d9799c376d8b0e2872736"
+  },
+  {
+   "order": 176,
+   "staged_name": "sql_pipelines__spark-pipelines_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 70671,
+   "sha256": "539fa896ddc864d4a7af2e2da6fa12ef48504aa87fef65a2464357ea08f7c66f"
+  },
+  {
+   "order": 177,
+   "staged_name": "sql_pipelines__spark-pipelines_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 453778,
+   "sha256": "91ea90c172c2eacfad4ef2561d315956400ad312b488f09a4fa0b99f4165cdcf"
+  },
+  {
+   "order": 178,
+   "staged_name": "sql_pipelines__spark-pipelines_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 694768,
+   "sha256": "bba9774d5d5dfd6193e37357c052d4525252fdd8a957c17b7774f0900169a490"
+  },
+  {
+   "order": 179,
+   "staged_name": "streaming__original-spark-streaming_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 856385,
+   "sha256": "59b9a30e67bf25030f22e0b2e63b9eeef7c66049489f3d05557eadc2f2e3d7fa"
+  },
+  {
+   "order": 180,
+   "staged_name": "streaming__original-spark-streaming_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 1179755,
+   "sha256": "99d6fcd497b1bd671d488a82e1ba7c6f54be40cb3034eb6e664949e109efbf05"
+  },
+  {
+   "order": 181,
+   "staged_name": "streaming__spark-streaming_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 256061,
+   "sha256": "7f1952c40fa63328174b9ecd1f0972944467a98103811ff81c2b2eb0f3ace665"
+  },
+  {
+   "order": 182,
+   "staged_name": "streaming__spark-streaming_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 170308,
+   "sha256": "76219a9c873331d776fc8e244ce55e47d46cfb7ba160562bcdd5a987b0bf4a50"
+  },
+  {
+   "order": 183,
+   "staged_name": "streaming__spark-streaming_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 859493,
+   "sha256": "bc4a20340cc536c371590f4508b1c9241cd7da329a6c075a9021ff3650fa319a"
+  },
+  {
+   "order": 184,
+   "staged_name": "streaming__spark-streaming_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 1188121,
+   "sha256": "5f7a18f67141a4ee1a710135d7d4c4e10f79e46932d2c64e6dd2ee61d4c3aafe"
+  },
+  {
+   "order": 185,
+   "staged_name": "tools__original-spark-tools_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 16636,
+   "sha256": "f4231cdf7ad8184cd8425c983db12d23084e6f62f0426df513c5575466f08b9d"
+  },
+  {
+   "order": 186,
+   "staged_name": "tools__spark-tools_2.13-4.1.0-SNAPSHOT-sources.jar",
+   "size_bytes": 10450,
+   "sha256": "c6cd30393c32857423f9be358da0230a648edb5f618ff05be627aada5ac1ad39"
+  },
+  {
+   "order": 187,
+   "staged_name": "tools__spark-tools_2.13-4.1.0-SNAPSHOT-test-sources.jar",
+   "size_bytes": 7325,
+   "sha256": "158c31e69f62926928cbb9b13106f59dc30bfab37e970e1cf4828223b4f03b69"
+  },
+  {
+   "order": 188,
+   "staged_name": "tools__spark-tools_2.13-4.1.0-SNAPSHOT-tests.jar",
+   "size_bytes": 7506,
+   "sha256": "3d8130d5efec508580037741efc7f61cf04f7179b714d608ea2b476fa3fd26ab"
+  },
+  {
+   "order": 189,
+   "staged_name": "tools__spark-tools_2.13-4.1.0-SNAPSHOT.jar",
+   "size_bytes": 19053,
+   "sha256": "c90752b4b99f597896f1a335462d344a84a8817110931ed8e28635e0751a0815"
+  }
+ ],
+ "delivery_evidence_for_the_graph_the_runners_load_2026_09_03": {
+  "why_this_node_was_added": "QA Issue 7 (HIGH): the ordered manifest above is the delivery evidence of invocation C, whose staging directory sat in the w-000 checkout and is not on this host any more. Of its 189 entries only 61 resolve to a file in this checkout's reach, so as delivery evidence for anything a reader can check it had lapsed. AAP 0.5.1 makes the logged one-to-one manifest -- 'not a per-module class search' -- the proof that every archive was supplied to the frontend, so that proof has to exist for the graph the runners and the probe ACTUALLY load. This node is that proof, re-derived first-hand against the staging tree that graph was built from. Nothing above was deleted: invocation C's manifest remains exactly as published, because it is still an accurate record OF INVOCATION C.",
+  "what_this_node_establishes": "The frontend input set of the graph at the sanctioned path harness/cpg/spark.cpg (547,980,224 bytes, sha256 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6), stated as an ordered one-to-one manifest that is total and injective in both directions between the manifest and the files on disk.",
+  "measured_at_utc": "2026-09-03T09:33Z",
+  "measured_by": "the QA-fix run of 2026-09-03 in clone lane a424a0, run_id w424-20260903, first-hand: os.listdir of the staging directory, os.stat for size/st_nlink/st_ino/mtime, and a streaming sha256 over every archive. No figure here is copied from another record.",
+  "the_invocation_this_node_describes": {
+   "label": "P -- the PROVISIONING frontend build, the only invocation whose graph any runner or probe in this run loaded",
+   "who_ran_it": "provisioning, not this run. AAP 0.4.3 and 0.8.1 forbid this run from installing or rebuilding, and the clone instantiation instructions list /opt/blitzy-harness/** and /opt/spark-src as shared read-only across up to 64 clones, so re-staging or rebuilding here would corrupt every sibling clone's reads.",
+   "record_of_account": "/opt/blitzy-harness/provision-log/cpg-record.txt line 5 (the frontend command) and line 8 (the input set)",
+   "frontend_command": "jimple2cpg (joern 4.0.607 bundled) over /opt/blitzy-harness/cpg-input --recurse -J-Xmx64g, stdin closed, SL_LOGGING_LEVEL=WARN",
+   "jdk": "Temurin 21.0.12.1+1 (major 21)",
+   "heap_max_bytes": 68719476736,
+   "frontend_exit_code": 0,
+   "elapsed": "31 m 23 s (2026-09-03T01:40:31Z to 02:11:54Z)",
+   "graph_written_bytes": 547980224,
+   "graph_written_sha256": "325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6",
+   "graph_written_to": "/opt/blitzy-harness/cpg/spark.cpg, reached from this checkout through the committed symlink harness/cpg/spark.cpg -- the sanctioned path, so unlike invocations A and C this one IS the graph of record"
+  },
+  "staging_directory_absolute": "/opt/blitzy-harness/cpg-input",
+  "archive_count": 62,
+  "total_bytes": 285122375,
+  "module_count": 31,
+  "distinct_sha256": 62,
+  "archives_per_module": {
+   "common_kvstore": 2,
+   "common_network-common": 2,
+   "common_network-shuffle": 2,
+   "common_network-yarn": 2,
+   "common_sketch": 2,
+   "common_tags": 2,
+   "common_unsafe": 2,
+   "common_utils": 2,
+   "common_utils-java": 2,
+   "common_variant": 2,
+   "connector_avro": 2,
+   "connector_protobuf": 2,
+   "core": 2,
+   "graphx": 2,
+   "launcher": 2,
+   "mllib": 2,
+   "mllib-local": 2,
+   "repl": 2,
+   "resource-managers_kubernetes_core": 2,
+   "resource-managers_yarn": 2,
+   "sql_api": 2,
+   "sql_catalyst": 2,
+   "sql_connect_client_jdbc": 2,
+   "sql_connect_client_jvm": 2,
+   "sql_connect_common": 2,
+   "sql_connect_server": 2,
+   "sql_core": 2,
+   "sql_hive": 2,
+   "sql_hive-thriftserver": 2,
+   "sql_pipelines": 2,
+   "streaming": 2
+  },
+  "assertions": {
+   "assertion": "the staging directory equals its manifest one-to-one, in both directions, with no duplicate name and no duplicate content, and the byte total agrees with the filesystem",
+   "manifest_entries": 62,
+   "files_on_disk": 62,
+   "names_on_disk_not_in_manifest": [],
+   "names_in_manifest_not_on_disk": [],
+   "mapping_total": true,
+   "mapping_injective_manifest_to_disk": true,
+   "mapping_injective_disk_to_manifest": true,
+   "duplicate_staged_names": 0,
+   "duplicate_sha256": 0,
+   "sum_of_entry_size_bytes": 285122375,
+   "du_sb_of_the_directory": 285122375,
+   "byte_total_agrees": true,
+   "assertion_errors": []
+  },
+  "cross_check_against_cpg_input_inventory": {
+   "file": "harness/artifacts/logs/cpg-input-inventory.json",
+   "what_was_compared": "every staged_name's size_bytes and sha256 in that file against this node's independent measurement of the same 62 files",
+   "entries_compared": 62,
+   "members_disagreeing": 0,
+   "conclusion": "the byte_total_correction_2026-09-03 node in that file, which corrected total_bytes to 285,122,375 and re-digested three archives that had drifted in place, is confirmed by this independent measurement. The two files now state one figure measured twice, which is what AAP 0.6.4 requires of a count appearing in two documents."
+  },
+  "the_mutability_hazard_this_node_exists_because_of": {
+   "measured": "all 62 archives report st_nlink=2",
+   "what_that_means": "the staging tree is hard-linked into /opt/spark-src rather than copied, exactly as cpg-record.txt line 8 says ('staged as hard links'). A staged archive and the reactor artifact it came from are ONE inode, so a rebuild of the pinned tree rewrites the frontend's recorded inputs in place, under a manifest that still states the old bytes.",
+   "observed_consequence": "three archives had drifted between the 2026-09-02 measurement and 2026-09-03: common_utils__original-spark-common-utils_2.13-4.1.0-SNAPSHOT.jar (511,979 -> 511,981 bytes, digest 38627c49... -> 3e915222...), common_utils__spark-common-utils_2.13-4.1.0-SNAPSHOT.jar (517,232 -> 517,234 bytes, digest ebeca6c4... -> f16f1273...) and common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar (109,208,027 bytes unchanged, digest ab5f23f6... -> 5fb2b39a...). QA reproduced the same signature against invocation C's manifest.",
+   "why_it_was_not_fixed_by_re_staging": "staging by copy is the correct fix and it belongs to provisioning: /opt/blitzy-harness/cpg-input is shared read-only across clones, and re-staging it from a scan run would change what every sibling clone measures mid-flight. This run does the half that is its own -- re-derive and republish the manifest against the tree as it stands, in the same act as the graph re-anchor -- and names the other half as a provisioning change.",
+   "what_a_reader_should_do": "treat this node's digests as of 2026-09-03T09:33Z and re-measure before relying on them, because the inodes remain shared."
+  },
+  "what_this_node_does_NOT_establish": {
+   "aap_0_5_1_all_jar_coverage": "This input set is 62 archives from 31 modules. The reactor has 38 JAR-packaging projects, and 7 of them contributed no archive to it (connector/kafka-0-10, connector/kafka-0-10-assembly, connector/kafka-0-10-sql, connector/kafka-0-10-token-provider, examples, sql/connect/shims, tools -- enumerated in cpg-input-inventory.json and in cpg-module-coverage.json). So this graph is NOT the all-JAR graph AAP 0.5.1 mandates, and this node must not be read as claiming it is.",
+   "why_the_shortfall_stands": "closing it requires a new frontend build over all 38 projects' artifacts, which is a rebuild of a host-shared graph this run may not perform. It is published as a named limitation rather than silently satisfied.",
+   "per_class_provenance": "which input archive supplied a surviving definition for an overwritten class is not measurable from this frontend's output -- FILE nodes name the /tmp/jimple2cpg-<n>/ extraction path, never the source JAR -- as cpg-record.txt line 12 states."
+  },
+  "invocation_c_inputs_as_they_stand_now": {
+   "why_recorded": "so that the lapse QA found is on the record rather than quietly overwritten",
+   "ordered_manifest_entries": 189,
+   "entries_resolving_to_a_file_in_this_checkout_s_reach": 61,
+   "entries_with_no_file_on_this_host": 128,
+   "the_directory_they_named": "harness/artifacts/cpg-frontend-input-189 in the w-000 checkout, which is not on this host",
+   "live_archives_invocation_c_did_not_list": [
+    "common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar"
+   ],
+   "verdict": "invocation C's manifest remains a true record of invocation C and a false guide to anything on this host. It is retained above, unedited, and superseded as delivery evidence by this node."
+  },
+  "ordered_manifest_of_the_loaded_graph": [
+   {
+    "order": 1,
+    "staged_name": "common_kvstore__original-spark-kvstore_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_kvstore",
+    "original_filename": "original-spark-kvstore_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 84345,
+    "sha256": "c61a53b9fd8fa46a70358b910a312188e99ce60afb0db9ea9a783f8dd9355ea8",
+    "st_nlink": 2,
+    "st_ino": 104849728,
+    "mtime_utc": "2026-09-03T01:20:48Z"
+   },
+   {
+    "order": 2,
+    "staged_name": "common_kvstore__spark-kvstore_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_kvstore",
+    "original_filename": "spark-kvstore_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 87275,
+    "sha256": "d7d178c6fefa0c0831628924fc4350ee7894fe64d2d67b394b42a6cc169e899c",
+    "st_nlink": 2,
+    "st_ino": 104849729,
+    "mtime_utc": "2026-09-03T01:20:48Z"
+   },
+   {
+    "order": 3,
+    "staged_name": "common_network-common__original-spark-network-common_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_network-common",
+    "original_filename": "original-spark-network-common_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 243473,
+    "sha256": "d4a8915a0b3979e1b79f577827f1729970dae7d8ab43075972a013b748f1b41d",
+    "st_nlink": 2,
+    "st_ino": 104857587,
+    "mtime_utc": "2026-09-03T01:21:00Z"
+   },
+   {
+    "order": 4,
+    "staged_name": "common_network-common__spark-network-common_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_network-common",
+    "original_filename": "spark-network-common_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 3344544,
+    "sha256": "0f099048964324c7641fbdeed142653ec349cb890384de7924347328a583ade3",
+    "st_nlink": 2,
+    "st_ino": 104857588,
+    "mtime_utc": "2026-09-03T01:21:01Z"
+   },
+   {
+    "order": 5,
+    "staged_name": "common_network-shuffle__original-spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_network-shuffle",
+    "original_filename": "original-spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 182555,
+    "sha256": "9b761f5589e1b69b2a8d95ed19aad482c1e414996969233cf6fab4e8de135bf9",
+    "st_nlink": 2,
+    "st_ino": 104857865,
+    "mtime_utc": "2026-09-03T01:21:10Z"
+   },
+   {
+    "order": 6,
+    "staged_name": "common_network-shuffle__spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_network-shuffle",
+    "original_filename": "spark-network-shuffle_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 186017,
+    "sha256": "4a2da4b2fb379fb344ab908322e40845451825aeebcd57f7d500ab863bae342d",
+    "st_nlink": 2,
+    "st_ino": 104857870,
+    "mtime_utc": "2026-09-03T01:21:10Z"
+   },
+   {
+    "order": 7,
+    "staged_name": "common_network-yarn__spark-4.1.0-SNAPSHOT-yarn-shuffle.jar",
+    "module": "common_network-yarn",
+    "original_filename": "spark-4.1.0-SNAPSHOT-yarn-shuffle.jar",
+    "size_bytes": 109208027,
+    "sha256": "5fb2b39a901643a9c0c98f2f0e829cc9cf20c05ac492ccc06cba0fcdd6d2c3b1",
+    "st_nlink": 2,
+    "st_ino": 105251527,
+    "mtime_utc": "2026-09-03T01:36:42Z"
+   },
+   {
+    "order": 8,
+    "staged_name": "common_network-yarn__spark-network-yarn_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_network-yarn",
+    "original_filename": "spark-network-yarn_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 27639,
+    "sha256": "63b63dc5006e3464ced5a1a37f4b1ed96735a81b2f0e0ec0f4e87bc1a4db17c8",
+    "st_nlink": 2,
+    "st_ino": 105251526,
+    "mtime_utc": "2026-09-03T01:36:05Z"
+   },
+   {
+    "order": 9,
+    "staged_name": "common_sketch__original-spark-sketch_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_sketch",
+    "original_filename": "original-spark-sketch_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 35681,
+    "sha256": "e1f12ec6d6fc0365479f6d0ba627c7d39dbf6b5e57f1e613d9df1ee26e6163c6",
+    "st_nlink": 2,
+    "st_ino": 104848894,
+    "mtime_utc": "2026-09-03T01:20:19Z"
+   },
+   {
+    "order": 10,
+    "staged_name": "common_sketch__spark-sketch_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_sketch",
+    "original_filename": "spark-sketch_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 38324,
+    "sha256": "e76ac44dd2370b0705648b5e7790248efe50b5e370b7cf936f4f9a00044922bf",
+    "st_nlink": 2,
+    "st_ino": 104848895,
+    "mtime_utc": "2026-09-03T01:20:19Z"
+   },
+   {
+    "order": 11,
+    "staged_name": "common_tags__original-spark-tags_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_tags",
+    "original_filename": "original-spark-tags_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 13060,
+    "sha256": "0b757f388aaf11e5b0ca4afee83a4f160a42f898a87d892b6b3aac5f56359d24",
+    "st_nlink": 2,
+    "st_ino": 104848831,
+    "mtime_utc": "2026-09-03T01:20:12Z"
+   },
+   {
+    "order": 12,
+    "staged_name": "common_tags__spark-tags_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_tags",
+    "original_filename": "spark-tags_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 15621,
+    "sha256": "c0882808368c31e6099f8220f4c7cbe05c46e24370bbacac458cacf6576c7d96",
+    "st_nlink": 2,
+    "st_ino": 104848832,
+    "mtime_utc": "2026-09-03T01:20:12Z"
+   },
+   {
+    "order": 13,
+    "staged_name": "common_unsafe__original-spark-unsafe_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_unsafe",
+    "original_filename": "original-spark-unsafe_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 138061,
+    "sha256": "c15a8dc9d9f92067e44aaff95d165fd097d22f2698598f250d68c429b358a918",
+    "st_nlink": 2,
+    "st_ino": 104852253,
+    "mtime_utc": "2026-09-03T01:21:25Z"
+   },
+   {
+    "order": 14,
+    "staged_name": "common_unsafe__spark-unsafe_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_unsafe",
+    "original_filename": "spark-unsafe_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 141632,
+    "sha256": "e9a00464a75dd8e72968bbbeaff773e633cf3bc716615a0994baa23eae13eef9",
+    "st_nlink": 2,
+    "st_ino": 104852254,
+    "mtime_utc": "2026-09-03T01:21:25Z"
+   },
+   {
+    "order": 15,
+    "staged_name": "common_utils-java__original-spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_utils-java",
+    "original_filename": "original-spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 78655,
+    "sha256": "cdd16396f0be8a985c458480a3bfe91f539af17fc7d618826a1dc533af139194",
+    "st_nlink": 2,
+    "st_ino": 104849146,
+    "mtime_utc": "2026-09-03T01:20:25Z"
+   },
+   {
+    "order": 16,
+    "staged_name": "common_utils-java__spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_utils-java",
+    "original_filename": "spark-common-utils-java_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 81874,
+    "sha256": "43f9fe6322b08b9918d1dfea4fdc9739e0719a846530a7ec14a8c613a09b51b4",
+    "st_nlink": 2,
+    "st_ino": 104849147,
+    "mtime_utc": "2026-09-03T01:20:25Z"
+   },
+   {
+    "order": 17,
+    "staged_name": "common_utils__original-spark-common-utils_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_utils",
+    "original_filename": "original-spark-common-utils_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 511981,
+    "sha256": "3e915222a5e2dd6ed7539a70b1884de91b479b7cf23912d5e6590039da56393a",
+    "st_nlink": 2,
+    "st_ino": 104849518,
+    "mtime_utc": "2026-09-03T01:20:40Z"
+   },
+   {
+    "order": 18,
+    "staged_name": "common_utils__spark-common-utils_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_utils",
+    "original_filename": "spark-common-utils_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 517234,
+    "sha256": "f16f127369eff1b011dc07cbde07c358962156aa10300fdfe6521e71672a27ff",
+    "st_nlink": 2,
+    "st_ino": 104849519,
+    "mtime_utc": "2026-09-03T01:20:40Z"
+   },
+   {
+    "order": 19,
+    "staged_name": "common_variant__original-spark-variant_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_variant",
+    "original_filename": "original-spark-variant_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 56258,
+    "sha256": "47dee541fa182dbfe2913edd0fc36a740632e10e2a740161fe33b9959c3e02ce",
+    "st_nlink": 2,
+    "st_ino": 104866867,
+    "mtime_utc": "2026-09-03T01:21:14Z"
+   },
+   {
+    "order": 20,
+    "staged_name": "common_variant__spark-variant_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "common_variant",
+    "original_filename": "spark-variant_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 59189,
+    "sha256": "0fa17041c0b2948f1156c8f5c5015652f157063eca32c7d702ba9c8e929a63dc",
+    "st_nlink": 2,
+    "st_ino": 104850218,
+    "mtime_utc": "2026-09-03T01:21:14Z"
+   },
+   {
+    "order": 21,
+    "staged_name": "connector_avro__original-spark-avro_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "connector_avro",
+    "original_filename": "original-spark-avro_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 89543,
+    "sha256": "2a16f124f83c7b47ee8e32533ac872eb8683d92f9b0f3a8db7026c0eba1d0465",
+    "st_nlink": 2,
+    "st_ino": 105249337,
+    "mtime_utc": "2026-09-03T01:33:49Z"
+   },
+   {
+    "order": 22,
+    "staged_name": "connector_avro__spark-avro_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "connector_avro",
+    "original_filename": "spark-avro_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 92384,
+    "sha256": "38c45220c4a7c11c0087f37bf6f39b6a9350ddbbe87612a342036aeae6120fcf",
+    "st_nlink": 2,
+    "st_ino": 105249338,
+    "mtime_utc": "2026-09-03T01:33:49Z"
+   },
+   {
+    "order": 23,
+    "staged_name": "connector_protobuf__original-spark-protobuf_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "connector_protobuf",
+    "original_filename": "original-spark-protobuf_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 112774,
+    "sha256": "948eb46dca3cd7d6bd8ba6942c465f2ebb80b4b83ee3898009fce1a6adccc6fc",
+    "st_nlink": 2,
+    "st_ino": 105249095,
+    "mtime_utc": "2026-09-03T01:34:13Z"
+   },
+   {
+    "order": 24,
+    "staged_name": "connector_protobuf__spark-protobuf_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "connector_protobuf",
+    "original_filename": "spark-protobuf_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 2080833,
+    "sha256": "cab4fa0b0f2161e7899a4dbb0a5437e2707b3caa704ce15a74c11539755b8f3e",
+    "st_nlink": 2,
+    "st_ino": 105249096,
+    "mtime_utc": "2026-09-03T01:34:14Z"
+   },
+   {
+    "order": 25,
+    "staged_name": "core__original-spark-core_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "core",
+    "original_filename": "original-spark-core_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 10212785,
+    "sha256": "c30640e4de6ee69052d205effe0559be79c9723dc2ef4f6146606d3c8265c04b",
+    "st_nlink": 2,
+    "st_ino": 104869905,
+    "mtime_utc": "2026-09-03T01:23:25Z"
+   },
+   {
+    "order": 26,
+    "staged_name": "core__spark-core_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "core",
+    "original_filename": "spark-core_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 14929602,
+    "sha256": "ee1a0c9c04a70460ff437fc0c8dd80089ecf1fda53fc2b40d0251df3b63585dc",
+    "st_nlink": 2,
+    "st_ino": 104869919,
+    "mtime_utc": "2026-09-03T01:23:31Z"
+   },
+   {
+    "order": 27,
+    "staged_name": "graphx__original-spark-graphx_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "graphx",
+    "original_filename": "original-spark-graphx_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 427634,
+    "sha256": "8338dfabbe96f43ecddd5130773f8a21481bd35ceac92105e686968b602405c5",
+    "st_nlink": 2,
+    "st_ino": 104870474,
+    "mtime_utc": "2026-09-03T01:24:21Z"
+   },
+   {
+    "order": 28,
+    "staged_name": "graphx__spark-graphx_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "graphx",
+    "original_filename": "spark-graphx_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 432187,
+    "sha256": "b4ee3950398ea053453d0ad2869d7ee5164c34a63c601c3b57ce29ba7dff9aaa",
+    "st_nlink": 2,
+    "st_ino": 104870475,
+    "mtime_utc": "2026-09-03T01:24:21Z"
+   },
+   {
+    "order": 29,
+    "staged_name": "launcher__original-spark-launcher_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "launcher",
+    "original_filename": "original-spark-launcher_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 79280,
+    "sha256": "a78cdad034cb1d22e7896f4b1fa06c828d921aa4a1542562261ff1410f5abbd5",
+    "st_nlink": 2,
+    "st_ino": 104852445,
+    "mtime_utc": "2026-09-03T01:21:35Z"
+   },
+   {
+    "order": 30,
+    "staged_name": "launcher__spark-launcher_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "launcher",
+    "original_filename": "spark-launcher_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 82177,
+    "sha256": "0f5397a0a565a9359665469414d713d0c39515f9e0adf6e3e77f8e802e30f586",
+    "st_nlink": 2,
+    "st_ino": 104852446,
+    "mtime_utc": "2026-09-03T01:21:35Z"
+   },
+   {
+    "order": 31,
+    "staged_name": "mllib-local__original-spark-mllib-local_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "mllib-local",
+    "original_filename": "original-spark-mllib-local_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 118935,
+    "sha256": "aa672650619d60603b6847d700066cd11ec43f55b0399ff4ba9f62c1a4916142",
+    "st_nlink": 2,
+    "st_ino": 104870165,
+    "mtime_utc": "2026-09-03T01:23:59Z"
+   },
+   {
+    "order": 32,
+    "staged_name": "mllib-local__spark-mllib-local_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "mllib-local",
+    "original_filename": "spark-mllib-local_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 121798,
+    "sha256": "2fa7a25257218b154f21098c5216a08071b37c729abaff1364abcb2a44c21e72",
+    "st_nlink": 2,
+    "st_ino": 104870166,
+    "mtime_utc": "2026-09-03T01:23:59Z"
+   },
+   {
+    "order": 33,
+    "staged_name": "mllib__original-spark-mllib_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "mllib",
+    "original_filename": "original-spark-mllib_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 5619838,
+    "sha256": "287c640483d6021c95f71e99a015d7acf5aae27be5abf18caae61e8c53a66d4f",
+    "st_nlink": 2,
+    "st_ino": 105133898,
+    "mtime_utc": "2026-09-03T01:31:38Z"
+   },
+   {
+    "order": 34,
+    "staged_name": "mllib__spark-mllib_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "mllib",
+    "original_filename": "spark-mllib_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 6896119,
+    "sha256": "f9cb54a1893c41a851d01694768db1eefdcb75ce6d59f1b5de4711ff4d7f5551",
+    "st_nlink": 2,
+    "st_ino": 105133899,
+    "mtime_utc": "2026-09-03T01:31:39Z"
+   },
+   {
+    "order": 35,
+    "staged_name": "repl__original-spark-repl_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "repl",
+    "original_filename": "original-spark-repl_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 34813,
+    "sha256": "f0b96948fe52e1ee343376ca92a818277e7a5533608bd7bc6fffa0279ca8235e",
+    "st_nlink": 2,
+    "st_ino": 105249865,
+    "mtime_utc": "2026-09-03T01:34:27Z"
+   },
+   {
+    "order": 36,
+    "staged_name": "repl__spark-repl_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "repl",
+    "original_filename": "spark-repl_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 37326,
+    "sha256": "d596ddfd96d18be40df86bb7e2c2e2194dcda1838b9746c825ec22682b7a1b28",
+    "st_nlink": 2,
+    "st_ino": 105249866,
+    "mtime_utc": "2026-09-03T01:34:27Z"
+   },
+   {
+    "order": 37,
+    "staged_name": "resource-managers_kubernetes_core__original-spark-kubernetes_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "resource-managers_kubernetes_core",
+    "original_filename": "original-spark-kubernetes_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 586436,
+    "sha256": "2c6a95b5d5a59dff2ae79d06a258c3094b960f30bc44ed82c2ca8c77eab7c20c",
+    "st_nlink": 2,
+    "st_ino": 105264421,
+    "mtime_utc": "2026-09-03T01:37:33Z"
+   },
+   {
+    "order": 38,
+    "staged_name": "resource-managers_kubernetes_core__spark-kubernetes_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "resource-managers_kubernetes_core",
+    "original_filename": "spark-kubernetes_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 591300,
+    "sha256": "e0f2dccadc0f6288a37636b1de0090af9c1bc923c4f25a875cea96688d1e5964",
+    "st_nlink": 2,
+    "st_ino": 105264422,
+    "mtime_utc": "2026-09-03T01:37:33Z"
+   },
+   {
+    "order": 39,
+    "staged_name": "resource-managers_yarn__original-spark-yarn_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "resource-managers_yarn",
+    "original_filename": "original-spark-yarn_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 382005,
+    "sha256": "c464b6aa17503b07f2ac0edbf24f13062677ca9c1d190c214abc49391f79dd93",
+    "st_nlink": 2,
+    "st_ino": 105263700,
+    "mtime_utc": "2026-09-03T01:37:04Z"
+   },
+   {
+    "order": 40,
+    "staged_name": "resource-managers_yarn__spark-yarn_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "resource-managers_yarn",
+    "original_filename": "spark-yarn_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 385814,
+    "sha256": "4f74cf39608dd2c5a54bbb325b56b0fc637039f2755c04d84a954368697dd2d1",
+    "st_nlink": 2,
+    "st_ino": 105263701,
+    "mtime_utc": "2026-09-03T01:37:04Z"
+   },
+   {
+    "order": 41,
+    "staged_name": "sql_api__original-spark-sql-api_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_api",
+    "original_filename": "original-spark-sql-api_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 2941320,
+    "sha256": "56ff27400a23547ba076c303412b02162cfb989329acd8302cb046fbac7927ce",
+    "st_nlink": 2,
+    "st_ino": 104971903,
+    "mtime_utc": "2026-09-03T01:25:21Z"
+   },
+   {
+    "order": 42,
+    "staged_name": "sql_api__spark-sql-api_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_api",
+    "original_filename": "spark-sql-api_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 2963527,
+    "sha256": "b56996e59af9396d15a4cfcbdd6a22f35545fa825eb542e8cb05306ec32118b7",
+    "st_nlink": 2,
+    "st_ino": 104971904,
+    "mtime_utc": "2026-09-03T01:25:22Z"
+   },
+   {
+    "order": 43,
+    "staged_name": "sql_catalyst__original-spark-catalyst_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_catalyst",
+    "original_filename": "original-spark-catalyst_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 16464517,
+    "sha256": "fe30f9e4477a07e040fa1fa3ba0035fa608d1f40d5fb2637941d6311aa8362e7",
+    "st_nlink": 2,
+    "st_ino": 104985851,
+    "mtime_utc": "2026-09-03T01:26:55Z"
+   },
+   {
+    "order": 44,
+    "staged_name": "sql_catalyst__spark-catalyst_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_catalyst",
+    "original_filename": "spark-catalyst_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 16553330,
+    "sha256": "c2b108f8fab22d06eee07c1d9380eebdfd4159efb8dd6aaf84a366961bcbe241",
+    "st_nlink": 2,
+    "st_ino": 104985852,
+    "mtime_utc": "2026-09-03T01:26:59Z"
+   },
+   {
+    "order": 45,
+    "staged_name": "sql_connect_client_jdbc__original-spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_connect_client_jdbc",
+    "original_filename": "original-spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 15145,
+    "sha256": "f162f83f651fbd4656c70ce06e7832e23814f94a6a200987c3d9830ba3ff65ed",
+    "st_nlink": 2,
+    "st_ino": 105250473,
+    "mtime_utc": "2026-09-03T01:35:18Z"
+   },
+   {
+    "order": 46,
+    "staged_name": "sql_connect_client_jdbc__spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_connect_client_jdbc",
+    "original_filename": "spark-connect-client-jdbc_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 15509,
+    "sha256": "08bf6e91f1474ff99dfc97e889386a57e34234e501ce1ef823e1aee73fc9bd07",
+    "st_nlink": 2,
+    "st_ino": 105250474,
+    "mtime_utc": "2026-09-03T01:35:18Z"
+   },
+   {
+    "order": 47,
+    "staged_name": "sql_connect_client_jvm__original-spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_connect_client_jvm",
+    "original_filename": "original-spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 30303,
+    "sha256": "99a32c088f5a909deaad0a5ea5d0dfe7bcde92bcc5a7785979d16a02538fa99a",
+    "st_nlink": 2,
+    "st_ino": 105251418,
+    "mtime_utc": "2026-09-03T01:35:46Z"
+   },
+   {
+    "order": 48,
+    "staged_name": "sql_connect_client_jvm__spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_connect_client_jvm",
+    "original_filename": "spark-connect-client-jvm_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 26050367,
+    "sha256": "cfe3ec3eb6048816ef0a973161caa327c994d443fdcd8fea721691d442ad76d2",
+    "st_nlink": 2,
+    "st_ino": 105251466,
+    "mtime_utc": "2026-09-03T01:36:00Z"
+   },
+   {
+    "order": 49,
+    "staged_name": "sql_connect_common__original-spark-connect-common_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_connect_common",
+    "original_filename": "original-spark-connect-common_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 5220299,
+    "sha256": "194c10a5086facc8714f560e5796817c5445275822f4bdf829e7506af48b0471",
+    "st_nlink": 2,
+    "st_ino": 105249115,
+    "mtime_utc": "2026-09-03T01:33:31Z"
+   },
+   {
+    "order": 50,
+    "staged_name": "sql_connect_common__spark-connect-common_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_connect_common",
+    "original_filename": "spark-connect-common_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 5263678,
+    "sha256": "61a7ad3a8c22ad906c1c2c63173f4b288be6513f82ef4d17244bcda61cf2f937",
+    "st_nlink": 2,
+    "st_ino": 105249116,
+    "mtime_utc": "2026-09-03T01:33:32Z"
+   },
+   {
+    "order": 51,
+    "staged_name": "sql_connect_server__original-spark-connect_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_connect_server",
+    "original_filename": "original-spark-connect_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 930474,
+    "sha256": "b674caf4bae7d88d1eb32eae904bcc414190eede50eac895c0eecd25eae35774",
+    "st_nlink": 2,
+    "st_ino": 105250400,
+    "mtime_utc": "2026-09-03T01:34:57Z"
+   },
+   {
+    "order": 52,
+    "staged_name": "sql_connect_server__spark-connect_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_connect_server",
+    "original_filename": "spark-connect_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 17182152,
+    "sha256": "5339fb867b723db71dc49c5393d9200b39c91da6a6ed22c9fa42c452fee7ca5a",
+    "st_nlink": 2,
+    "st_ino": 105250401,
+    "mtime_utc": "2026-09-03T01:35:06Z"
+   },
+   {
+    "order": 53,
+    "staged_name": "sql_core__original-spark-sql_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_core",
+    "original_filename": "original-spark-sql_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 13300498,
+    "sha256": "022c8d0853c01963b2272ce503228a4c1989dd63c5e4cbd765d5f57f7c5f16b5",
+    "st_nlink": 2,
+    "st_ino": 104986471,
+    "mtime_utc": "2026-09-03T01:29:57Z"
+   },
+   {
+    "order": 54,
+    "staged_name": "sql_core__spark-sql_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_core",
+    "original_filename": "spark-sql_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 13367301,
+    "sha256": "b22523e938c1edb29b9bd4f75e206165551c0407ef5c87ffe465c4d8926b3a19",
+    "st_nlink": 2,
+    "st_ino": 104986472,
+    "mtime_utc": "2026-09-03T01:29:59Z"
+   },
+   {
+    "order": 55,
+    "staged_name": "sql_hive-thriftserver__original-spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_hive-thriftserver",
+    "original_filename": "original-spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 605244,
+    "sha256": "e254c94e4580b24cc880858cd9e1ca81e0453dcb67beecdc5f316941706835e8",
+    "st_nlink": 2,
+    "st_ino": 105362289,
+    "mtime_utc": "2026-09-03T01:37:57Z"
+   },
+   {
+    "order": 56,
+    "staged_name": "sql_hive-thriftserver__spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_hive-thriftserver",
+    "original_filename": "spark-hive-thriftserver_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 611191,
+    "sha256": "9f6315aa0778a5e50c740321d14e2a3e07b081d0e663655e48af444be89e2d3e",
+    "st_nlink": 2,
+    "st_ino": 105362290,
+    "mtime_utc": "2026-09-03T01:37:58Z"
+   },
+   {
+    "order": 57,
+    "staged_name": "sql_hive__original-spark-hive_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_hive",
+    "original_filename": "original-spark-hive_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 743523,
+    "sha256": "315aec235717f283aa38eb1ad57705646ac317984e1df390352556d2728fbe25",
+    "st_nlink": 2,
+    "st_ino": 105244102,
+    "mtime_utc": "2026-09-03T01:32:49Z"
+   },
+   {
+    "order": 58,
+    "staged_name": "sql_hive__spark-hive_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_hive",
+    "original_filename": "spark-hive_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 748576,
+    "sha256": "bbb847f2be83c988c7112d90d4eb8352e398deb3df4b5bdb41eb4703c6918d84",
+    "st_nlink": 2,
+    "st_ino": 105244103,
+    "mtime_utc": "2026-09-03T01:32:50Z"
+   },
+   {
+    "order": 59,
+    "staged_name": "sql_pipelines__original-spark-pipelines_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_pipelines",
+    "original_filename": "original-spark-pipelines_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 687749,
+    "sha256": "7cb737457074e5e7c900dc3a203ca7e1489b998ef9f6f37344e32f956fa2aad4",
+    "st_nlink": 2,
+    "st_ino": 105233627,
+    "mtime_utc": "2026-09-03T01:32:03Z"
+   },
+   {
+    "order": 60,
+    "staged_name": "sql_pipelines__spark-pipelines_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "sql_pipelines",
+    "original_filename": "spark-pipelines_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 694768,
+    "sha256": "bba9774d5d5dfd6193e37357c052d4525252fdd8a957c17b7774f0900169a490",
+    "st_nlink": 2,
+    "st_ino": 105233628,
+    "mtime_utc": "2026-09-03T01:32:03Z"
+   },
+   {
+    "order": 61,
+    "staged_name": "streaming__original-spark-streaming_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "streaming",
+    "original_filename": "original-spark-streaming_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 1179755,
+    "sha256": "99d6fcd497b1bd671d488a82e1ba7c6f54be40cb3034eb6e664949e109efbf05",
+    "st_nlink": 2,
+    "st_ino": 104872666,
+    "mtime_utc": "2026-09-03T01:24:52Z"
+   },
+   {
+    "order": 62,
+    "staged_name": "streaming__spark-streaming_2.13-4.1.0-SNAPSHOT.jar",
+    "module": "streaming",
+    "original_filename": "spark-streaming_2.13-4.1.0-SNAPSHOT.jar",
+    "size_bytes": 1188121,
+    "sha256": "5f7a18f67141a4ee1a710135d7d4c4e10f79e46932d2c64e6dd2ee61d4c3aafe",
+    "st_nlink": 2,
+    "st_ino": 104872669,
+    "mtime_utc": "2026-09-03T01:24:52Z"
+   }
+  ]
+ }
+}

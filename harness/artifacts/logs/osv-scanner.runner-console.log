@@ -1,0 +1,19 @@
+# osv-scanner runner console, captured by the Stage 3 sequence ledger
+# run_id=w013-20260901T132807Z clone_index=13
+# argv=["./harness/bin/run-osv-scanner.sh"]
+# started=2026-09-01T14:25:03Z ended=2026-09-01T14:25:03Z elapsed_seconds=0.507 exit_status=128
+--- stdout ---
+tool            : osv-scanner
+scan root       : /opt/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scope dirs      : 18
+start           : 2026-09-01T14:25:03+00:00
+database        : none local - queries the OSV API (https://api.osv.dev) at scan time
+invocation      : one invocation over all 18 scope directories, --recursive
+exit code       : 128
+elapsed seconds : 0
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-013_59d11b/harness/artifacts/raw/osv-scanner.json (MISSING bytes)
+end             : 2026-09-01T14:25:03+00:00
+--- stderr ---

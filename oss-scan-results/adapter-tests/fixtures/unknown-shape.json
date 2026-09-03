@@ -1,0 +1,29 @@
+{
+  "report_format": "example-generic-report",
+  "format_revision": 3,
+  "generated_at": "2026-08-24T00:00:00Z",
+  "producer": {
+    "name": "example-generic-analyzer",
+    "release": "0.0.0-example"
+  },
+  "Result": "completed",
+  "findings_summary": {
+    "total": 1,
+    "by_band": {
+      "high": 0,
+      "medium": 1,
+      "low": 0
+    }
+  },
+  "observations": [
+    {
+      "identifier": "EXAMPLE-0001",
+      "label": "example diagnostic",
+      "band": "medium",
+      "location": {
+        "file": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+        "line": 72
+      }
+    }
+  ]
+}

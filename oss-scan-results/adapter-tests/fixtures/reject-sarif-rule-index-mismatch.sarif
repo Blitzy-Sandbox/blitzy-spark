@@ -1,0 +1,185 @@
+{
+  "runs": [
+    {
+      "artifacts": [
+        {
+          "location": {
+            "uri": "core/src/main/resources/org/apache/spark/ui/static/log-view.js"
+          }
+        },
+        {
+          "location": {
+            "uri": "core/src/main/resources/org/apache/spark/ui/static/sorttable.js"
+          }
+        },
+        {
+          "location": {
+            "uri": "common/network-common/src/main/java/org/apache/spark/network/ssl/SSLFactory.java"
+          }
+        }
+      ],
+      "results": [
+        {
+          "fixes": [],
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/resources/org/apache/spark/ui/static/sorttable.js"
+                },
+                "region": {
+                  "endColumn": 28,
+                  "endLine": 74,
+                  "startColumn": 7,
+                  "startLine": 74
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Disallow deleting variables"
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "ba43935bb8c4fb52bdac839fda8e72c54272ab4ad758ccd055e505e2d5cd8fd7"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:BEST_PRACTICES",
+              "CWE:480"
+            ]
+          },
+          "ruleId": "javascript-best-practices/no-delete-var",
+          "ruleIndex": 1
+        },
+        {
+          "fixes": [],
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "common/network-common/src/main/java/org/apache/spark/network/ssl/SSLFactory.java"
+                },
+                "region": {
+                  "endColumn": 47,
+                  "endLine": 188,
+                  "startColumn": 31,
+                  "startLine": 188
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Considering cloning this array versus storing it directly"
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "1450fd0350c32f0c090650e1a26ba6b3925e420ee84066878247270158dcc2fb"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:BEST_PRACTICES"
+            ]
+          },
+          "ruleId": "java-best-practices/array-is-stored-directly",
+          "ruleIndex": 0
+        },
+        {
+          "fixes": [],
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/resources/org/apache/spark/ui/static/log-view.js"
+                },
+                "region": {
+                  "endColumn": 64,
+                  "endLine": 53,
+                  "startColumn": 21,
+                  "startLine": 53
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Unexpected unnamed function."
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "da58657a46acc7f65992d19fb766c5a1dbead37aaf0e88dc15bf4e01f60f6189"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:BEST_PRACTICES"
+            ]
+          },
+          "ruleId": "javascript-code-style/func-names",
+          "ruleIndex": 0
+        }
+      ],
+      "tool": {
+        "driver": {
+          "informationUri": "https://www.datadoghq.com",
+          "name": "datadog-static-analyzer",
+          "properties": {
+            "tags": [
+              "DATADOG_DIFF_AWARE_CONFIG_DIGEST:1f4320b13af8375f605414540ec0b0bc9834b591d91e2d4708f21107043167c9",
+              "DATADOG_EXECUTION_TIME_SECS:220",
+              "DATADOG_DIFF_AWARE_ENABLED:false"
+            ]
+          },
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "It is easier to debug your application code when you avoid anonymous functions so that the stack trace can show you meaningful error messages. This rule enforces all your function to be consistently declared with a name."
+              },
+              "helpUri": "https://docs.datadoghq.com/static_analysis/rules/javascript-code-style/func-names",
+              "id": "javascript-code-style/func-names",
+              "properties": {
+                "tags": [
+                  "DATADOG_RULE_TYPE:STATIC_ANALYSIS"
+                ]
+              },
+              "shortDescription": {
+                "text": "Enforce named function expressions"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "The `delete` operator is designed to remove properties from objects in JavaScript. When used correctly, it can help manage object properties. However, using the `delete` operator on anything other than object properties can lead to unpredictable behavior."
+              },
+              "helpUri": "https://docs.datadoghq.com/static_analysis/rules/javascript-best-practices/no-delete-var",
+              "id": "javascript-best-practices/no-delete-var",
+              "properties": {
+                "tags": [
+                  "DATADOG_RULE_TYPE:STATIC_ANALYSIS",
+                  "CWE:480"
+                ]
+              },
+              "shortDescription": {
+                "text": "Avoid using delete on variables directly"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "In Java, it is recommended that constructors and methods clone any arrays received through parameters. This practice prevents the original array from being affected by any future changes made by the caller.\n\nIt is advisable to clone the array before storing it to ensure that you retain a copy of the array that will remain unaffected by any external changes made to the original array. By following this approach, you can promote code safety and maintain the integrity of the original array."
+              },
+              "helpUri": "https://docs.datadoghq.com/static_analysis/rules/java-best-practices/array-is-stored-directly",
+              "id": "java-best-practices/array-is-stored-directly",
+              "properties": {
+                "tags": [
+                  "DATADOG_RULE_TYPE:STATIC_ANALYSIS"
+                ]
+              },
+              "shortDescription": {
+                "text": "Should clone array"
+              }
+            }
+          ],
+          "version": "0.9.1"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

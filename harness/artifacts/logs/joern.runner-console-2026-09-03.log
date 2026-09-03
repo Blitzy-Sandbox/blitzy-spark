@@ -1,0 +1,50 @@
+# joern runner console, captured by this run for the Stage 3 invocation of record
+# run_id=w424-20260903T090747Z clone_index=424
+# argv=["./harness/bin/run-joern.sh"]
+# started=2026-09-03T09:07:47Z ended=2026-09-03T09:17:43Z elapsed_seconds=596.83 exit_status=0
+#
+# WHY THIS FILE EXISTS. run-joern.sh redirects only the ENGINE streams, to
+# joern.stdout.log and joern.stderr.log; its own header printfs (provisioned lines
+# 56-62) go to the runner process stdout and are captured by whoever invoked it.
+# The 2026-09-01 generation captured them to joern.runner-console.log, which this
+# run did NOT overwrite - that file remains that generation, and its line citations
+# still resolve. This file is the same capture for the 2026-09-03 invocation, so the
+# identity pair the runner ITSELF printed is in the published record rather than
+# only in a scratch directory. Verbatim below, unedited.
+#
+# The pair on lines 28-29 is the graph identity the runner recomputed with stat and
+# sha256sum at provisioned lines 57-58, independently of the preflight gate that had
+# already adjudicated it (harness/artifacts/logs/joern-preflight.log, VERDICT: PASS).
+
+--- runner stdout, verbatim ---
+tool            : joern
+scan root       : /opt/spark-src (from SPARK_SRC)
+raw dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw
+log dir         : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs
+allowlist       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/scope/allowlist.txt (sha256 0013edf6cdc3a48d69aed5d7db41cc6647cfd461d348f5e1d563ba85664143d1)
+scope dirs      : 18
+start           : 2026-09-03T09:07:47+00:00
+cpg             : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/cpg/spark.cpg -> /opt/blitzy-harness/cpg/spark.cpg
+cpg bytes       : 547980224
+cpg sha256      : 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+jdk             : /opt/blitzy-tools/jdk/jdk-21.0.12.1+1
+heap            : 64g
+query set       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/lib/joern-scan.sc (bound 2000 per query)
+workspace       : /tmp/blitzy-harness-scratch/424/joern-run (outside the repository; joern writes ./workspace)
+exit code       : 0
+elapsed seconds : 596
+artifact        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/raw/joern.json (353048 bytes)
+end             : 2026-09-03T09:17:43+00:00
+--- end runner stdout ---
+
+# Artifact as measured by this run immediately after the invocation:
+#   harness/artifacts/raw/joern.json  353048 bytes
+#   sha256 f7f5f60e37aacdbf58ca2bf073c0682efeb81e256a516576b12d55aea8edc926
+# Child JVM heap, measured EXTERNALLY by jcmd against the child pid rather than
+# requested of it: -XX:MaxHeapSize=68719476736, -XX:SoftMaxHeapSize=68719476736,
+# -XX:InitialHeapSize=2147483648, peak G1 total 67076096K used 53751346K, with
+# JAVA_TOOL_OPTIONS=-Xmx64g present in the child environ. The runner passes only
+# -J-Xmx (provisioned line 70), which sizes the launcher; JAVA_TOOL_OPTIONS was
+# supplied from outside the runner, the override AAP 0.6.5 sanctions.
+# Full record: harness/artifacts/logs/runner-metadata.json
+#   -> tools.joern.stage3_invocation_2026_09_03

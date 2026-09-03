@@ -1,0 +1,293 @@
+{
+ "description": "The hand-verified expected outcome for oss-scan-results/adapter-tests/fixtures/near-sarif-runs-only.json. It states a HALT, not rows, despite the .rows.json suffix this folder's naming convention requires -- the suffix names the folder's contract (one expected file per fixture), not the shape of every outcome. Every value was derived by reading the fixture and the authored contracts in harness/lib/normalize/shape.py and harness/lib/normalize/paths.py, never by running the detector and recording what it printed. Where this file and shape.py disagree, the disagreement is the finding: diagnose it rather than overwriting this file to match.",
+ "outcome": "halt",
+ "outcome_kind": "shape-detection halt before adapter selection",
+ "tool": null,
+ "scanner_class": null,
+ "adapter": null,
+ "adapter_invoked": null,
+ "null_field_note": "tool, scanner_class, adapter and adapter_invoked are null rather than omitted, so a generic loader reads this file with the same keys as the positive expected files in this folder. They are null because the halt precedes tool resolution: a document whose name resolves to no canonical tool has no tool, therefore no scanner_class from the class table and no adapter to route to.",
+ "fixture": {
+  "path": "oss-scan-results/adapter-tests/fixtures/near-sarif-runs-only.json",
+  "sha256": "867942773c66493c8825bb5eb503826faae351b701a36716cff4e9c52082881b",
+  "bytes": 2569,
+  "json_well_formed": true,
+  "top_level_type": "object",
+  "top_level_length": 3,
+  "top_level_keys": [
+   "$schema",
+   "version",
+   "runs"
+  ],
+  "sarif_version": "2.1.0-rtm.5",
+  "runs_json_type": "array",
+  "runs_length": 1,
+  "runs_results_length": 2,
+  "runs_results_length_note": "The length of runs[0].results. Recorded because it is the number a detector that wrongly accepted this document would have had rows to build from -- two plausible results, so the silent-empty-set failure would not even look empty here; it would look like a successful two-row parse of a version this normalizer has never been validated against.",
+  "authored_note": "An authored near-SARIF document, not captured tool output: it exists to fail exactly one half of the SARIF conjunction. Its driver name is an example, its two rule identifiers are example identifiers, and its two locations are ordinary in-scope source coordinates -- core/src/main/scala/org/apache/spark/storage/DiskStore.scala line 72 and common/network-shuffle/src/main/java/org/apache/spark/network/shuffle/OneForOneBlockPusher.java line 97 -- both of which exist at the pinned commit under $SPARK_SRC and are covered by harness/scope/allowlist.txt. Nothing here is a secret, and neither location is characterised as a finding: the halt means no result object in this document is ever read, so this file states no verdict about either line."
+ },
+ "field_order": [
+  "tool",
+  "scanner_class",
+  "rule_id",
+  "message",
+  "severity_native",
+  "severity_norm",
+  "path",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate",
+  "in_scope"
+ ],
+ "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Recorded for parity with the positive expected files in this folder; no row below carries it, because rows is empty by expectation.",
+ "shape_detection": {
+  "function": "normalize.shape.is_sarif",
+  "authority": "harness/lib/normalize/shape.py",
+  "conjunction": "isinstance(doc, Mapping) and doc.get(\"version\") == \"2.1.0\" and isinstance(doc.get(\"runs\"), list)",
+  "conjunction_authority": "AAP 0.5.4: an artifact is SARIF when it carries version \"2.1.0\" together with a runs array -- those two together are the test.",
+  "mapping_condition_met": true,
+  "version_condition_met": false,
+  "version_key": "version",
+  "version_expected": "2.1.0",
+  "version_observed": "2.1.0-rtm.5",
+  "runs_condition_met": true,
+  "runs_key_present": true,
+  "runs_observed_json_type": "array",
+  "runs_length": 1,
+  "is_sarif": false,
+  "is_sarif_derivation": "The document is a mapping, so the first condition holds. Its runs value is a JSON array of one run object, and isinstance([...], list) is True, so the runs condition holds as well. Its version is the string \"2.1.0-rtm.5\", and \"2.1.0-rtm.5\" == \"2.1.0\" is False, so the version condition fails and the conjunction is False. The failing half is the version half, and it is the only failing half.",
+  "exact_equality_expectation": "This is an exact-string-equality expectation and nothing looser: shape.py compares doc.get(\"version\") == shape.SARIF_VERSION, where SARIF_VERSION is the literal \"2.1.0\". A version is not parsed, not normalised, not truncated at a hyphen and not compared by prefix. \"2.1\" is not \"2.1.0\", and neither is \"2.1.0-rtm.5\".",
+  "looser_comparisons_that_would_wrongly_pass": [
+   "version.startswith(\"2.1.0\") -- True for \"2.1.0-rtm.5\", so a prefix test accepts this document.",
+   "\"2.1.0\" in version -- True for the same reason, so a substring test accepts it.",
+   "version.split(\"-\")[0] == \"2.1.0\" -- True, so a comparison that discards a pre-release suffix accepts it.",
+   "any semantic-version comparison that treats the pre-release suffix as ignorable, which resolves \"2.1.0-rtm.5\" to 2.1.0.",
+   "\"version\" in doc, or bool(doc.get(\"version\")) -- a presence test rather than a value test, which this fixture defeats by carrying the key with a near-miss value rather than omitting it.",
+   "sniffing $schema, whose value here contains the substring sarif-2.1.0 -- shape.py consults neither $schema nor the filename nor tool.driver."
+  ],
+  "membership_test_note": "The version key is PRESENT and merely near-miss in value. That is deliberate: a near-miss value turns a presence check into a value check, and a value check into an exact-equality check. Its twin does the same to the other half by carrying a runs key of the wrong type. Neither fixture can be satisfied by omitting a key, because an omitted key is the easy case every implementation already handles.",
+  "sarif_adapter": "harness/lib/normalize/adapters/sarif.py",
+  "sarif_adapter_invoked": false,
+  "sarif_adapter_invoked_basis": "Two independent reasons, either sufficient. First, is_sarif is False, so normalize.shape.route never selects SHARED_SARIF_ADAPTER on the SARIF branch. Second, and decisive for this fixture, route raises before any adapter is selected at all, because the fixture's filename resolves to no canonical tool -- so no adapter module is named and none is imported or called.",
+  "shape_never_sarif": true,
+  "counterfactual_note": "Recorded so the guarantee is not overclaimed. Routing is keyed by the writing runner's artifact filename, never sniffed from content, and shape.ADAPTER_MODULE_BY_TOOL maps the three SARIF producers to the same shared \"sarif\" module. So had this document been presented under a recognised producer name it would not halt: it would route with shape \"native\" -- never \"sarif\", since is_sarif is False -- and for those three tools the native adapter key happens to be that same shared module. The invariant this fixture pins is therefore the shape decision (never SHAPE_SARIF, RoutingDecision.is_sarif_shape False), and under its own name this fixture reaches no adapter whatsoever."
+ },
+ "native_shape_detection": {
+  "conclusion": "matches no known native shape",
+  "checks": {
+   "top_level_array": false,
+   "trivy_Results_key": false,
+   "checkov_results_failed_checks": false,
+   "dependency_check_dependencies_key": false,
+   "joern_findings_and_queries_pair": false
+  },
+  "checks_note": "The document's three top-level keys are $schema, version and runs. There is no Results key, no results key, no dependencies key and no findings/queries pair; the top level is an object, so the gitleaks array form and Checkov's multi-framework array form are both excluded. A runs array is not a native shape any of the six adapters owns.",
+  "name_resolves_to_tool": false,
+  "name_resolution_authority": "normalize.shape.resolve_tool over the authored tables CANONICAL_TOOLS and ARTIFACT_FILENAME_BY_TOOL in harness/lib/normalize/shape.py. The nine canonical identifiers and nine artifact filenames are not copied here -- shape.py is the single authority, exactly as harness/scope/allowlist.txt is the single authority for the scope globs.",
+  "name_resolution_note": "\"near-sarif-runs-only.json\" is not one of the nine artifact filenames and not one of the nine canonical tool identifiers, so resolve_tool returns None. The .json extension is not evidence either: the extension split is part of the contract, not a shape test."
+ },
+ "halt": {
+  "expected": true,
+  "expected_exception": "shape.UnknownArtifactShape",
+  "exception_symbol": "UnknownArtifactShape",
+  "exception_defined_in": "harness/lib/normalize/shape.py",
+  "exception_base": "Exception",
+  "raised_by": [
+   "normalize.shape.route",
+   "normalize.shape.route_artifact"
+  ],
+  "reason": "unrecognized-artifact-name",
+  "reason_constant": "shape.REASON_UNRECOGNIZED_ARTIFACT_NAME",
+  "reason_note": "shape.py names two reasons. This document's top level is a JSON object, which is a supported container, so REASON_UNSUPPORTED_DOCUMENT_TYPE does not apply; the halt is attributed to the name that resolves to no tool.",
+  "observed_attributes": {
+   "reason": "unrecognized-artifact-name",
+   "artifact_path": "oss-scan-results/adapter-tests/fixtures/near-sarif-runs-only.json",
+   "artifact_path_note": "Whatever subject the caller passed, echoed unchanged -- route never rewrites it. The value above is the repository-relative fixture path the negative test passes; no absolute path appears anywhere in this file.",
+   "stem": "near-sarif-runs-only.json",
+   "stem_note": "shape._artifact_name returns PurePath(text).name, so this attribute carries the filename component including its extension rather than a suffix-stripped stem.",
+   "top_level_type": "object",
+   "python_type": "dict",
+   "version": "2.1.0-rtm.5",
+   "top_level_keys": [
+    "$schema",
+    "version",
+    "runs"
+   ],
+   "top_level_length": 3,
+   "sarif_detected": false
+  },
+  "sarif_detected_note": "False, which is what distinguishes this halt from the other failure UnknownArtifactShape reports: a document that IS valid SARIF appearing under a name harness/artifacts/raw/ must never contain. This one is not valid SARIF -- it is a SARIF-family document of a version this normalizer does not accept -- so no such message applies, and the halt message quotes the observed version instead.",
+  "authority": "AAP 0.5.4 -- an artifact matching neither the SARIF shape nor a known native shape is a halt rather than a best-effort parse -- and AAP 0.9.2, which lists it among the conditions that stop the run.",
+  "not_a_rejection": {
+   "is_reject_class": false,
+   "reject_class": null,
+   "reject_classes_authority": "harness/lib/normalize/paths.py, the REJECT_CLASSES tuple -- a closed set of ten class names, not copied here so the one authority cannot drift into two. paths.is_reject_class is the predicate the test calls.",
+   "reject_classes_observed_count": 10,
+   "statement": "The stated outcome is a halt, not a counted rejection: \"halt\", \"UnknownArtifactShape\" and \"unrecognized-artifact-name\" are each provably absent from paths.REJECT_CLASSES, and the test asserts that non-membership programmatically rather than by inspection. A rejection is a per-record outcome inside an adapter that already owns the artifact; this document never reaches an adapter, so there is no record to reject and nothing to count under any class -- not even for its two plausible results."
+  }
+ },
+ "parse": {
+  "json_load_expected_to_succeed": true,
+  "json_load_error": null,
+  "note": "The fixture is well-formed JSON and json.load succeeds on it. No parser failure is expected here and none is stated: malformed input is a different condition, owned by the reject-*-malformed-record fixtures, and conflating the two would let a JSON syntax error pass as a shape halt."
+ },
+ "counts": {
+  "raw_finding_records": null,
+  "raw_count_unit": null,
+  "rows": 0,
+  "rejections": 0,
+  "rejections_by_class": {},
+  "reconciliation_identity": "not applicable -- the halt precedes any record traversal, so no count unit exists to reconcile against"
+ },
+ "counts_note": "raw_finding_records and raw_count_unit are null rather than 0, and deliberately so even though this document's runs[0].results holds two objects. A count unit is a property of an artifact's KNOWN shape -- runs[].results[] for SARIF 2.1.0, Results[].Vulnerabilities[] and its siblings for Trivy -- and this document has no known shape, so there is no unit for normalize.reconcile.count_records to walk. Writing 2 there would assert that the SARIF count unit applied to a document that is not SARIF; writing 0 would assert that a traversal ran and found nothing. Both are claims this fixture exists to refuse. rows and rejections are 0 because nothing was emitted and nothing was rejected.",
+ "rows": [],
+ "rows_note": "Explicitly empty, and empty for a different reason than a clean scan is empty: the pipeline stopped, it did not look and find nothing. Note that this fixture could not have produced an empty result set by accident -- it carries two well-formed results -- so an implementation reporting zero rows for it without raising has reported a wrong number rather than a coincidentally right one.",
+ "row_derivations": [],
+ "why_this_half_is_the_easiest_to_get_wrong": {
+  "statement": "Of the two halves of the conjunction, the version half is the one an implementer is most likely to relax, which is why this fixture is the more valuable of the pair.",
+  "reasoning": "This document's runs[0] is populated plausibly -- a tool.driver with a name, a semanticVersion, an informationUri and two rules, and a results array of two results each carrying a ruleId, a level, a message and one physicalLocation with a uri and a startLine. It therefore reads as a real SARIF-family artifact of the wrong version rather than as a broken file, and testing for the runs array feels like the substantive check while the version string looks like metadata.",
+  "why_that_reading_is_wrong": "SARIF semantics are version-specific, and the shared adapter implements SARIF 2.1.0's resolution procedure alone -- the uriBaseId walk through run.originalUriBaseIds, with the chaining, cycle and depth rules that version's specification and errata define. A detector that accepted this document would run 2.1.0 logic over a different version's document and emit rows whose path field means whatever that other version happens to mean by it. The failure is not an exception; it is two confidently wrong rows.",
+  "consequence_if_relaxed": "A prefix, substring, split-on-hyphen or semantic-version comparison all accept \"2.1.0-rtm.5\". Each is a plausible implementation and each is defeated only by a fixture that carries a near-miss version rather than a missing or obviously wrong one."
+ },
+ "twin": {
+  "fixture": "oss-scan-results/adapter-tests/fixtures/near-sarif-version-only.json",
+  "expected": "oss-scan-results/adapter-tests/expected/near-sarif-version-only.rows.json",
+  "this_fixture_fails": "the version half -- runs is a proper array of one run object carrying a tool.driver and two results, but the version string observed in this fixture is \"2.1.0-rtm.5\", which is not the exact string \"2.1.0\"",
+  "twin_fixture_fails": "the runs half -- version is the exact string \"2.1.0\", but runs is a JSON object rather than an array",
+  "why_the_pair_is_required": "Each fixture alone is passed by a defective detector. An implementation testing only version accepts the twin; an implementation testing only runs accepts this one. Only the two together pin the conjunction, so neither expected file is meaningful without the other and each names its twin.",
+  "shared_expectation": "Both fixtures expect is_sarif False, no adapter invoked, zero rows, zero rejections and a shape.UnknownArtifactShape halt. They differ only in which half of the conjunction fails and in the observed version value the halt report quotes."
+ },
+ "guarded_failure": "A permissive detector that accepts a non-SARIF document as SARIF does not raise -- it produces an EMPTY RESULT SET, and an empty result set is indistinguishable from a clean scan (AAP 0.5.4). This fixture sharpens that into something worse than empty: a detector that reached the shared SARIF adapter with this document would find a real runs array and two real results, and would emit two rows built by 2.1.0 rules from a document that is not 2.1.0 -- a wrong number that looks like a working parse. The required outcome is therefore the halt, never a silent zero and never a plausible two.",
+ "behaviours_not_exercised_by_this_fixture": [
+  "Row construction of any kind -- no adapter runs, so no field mapping, no severity mapping and no in_scope evaluation is exercised, and the two results in runs[0] contribute nothing.",
+  "Path resolution -- normalize.paths is never called, so no path base, no uriBaseId walk and no non-filesystem coordinate serialisation is exercised, despite both locations here being resolvable in-scope paths.",
+  "Per-record rejection -- none of the ten classes in paths.REJECT_CLASSES is reachable from a shape halt.",
+  "The other halt reason in shape.py, REASON_UNSUPPORTED_DOCUMENT_TYPE, which needs a top level that is neither a JSON object nor a JSON array.",
+  "The valid-SARIF-under-an-unexpected-name halt, whose sarif_detected attribute is True; this document's is False.",
+  "Malformed JSON, owned by the reject-*-malformed-record fixtures.",
+  "The reconciliation identity, which has no raw finding record count to assert over here."
+ ],
+ "asserted_by": {
+  "test": "oss-scan-results/adapter-tests/test_shape_routing_negative.py",
+  "assertions": [
+   "shape.is_sarif(doc) is False for this fixture, with the version half named as the failing half and the runs half asserted to have passed, so a future regression cannot satisfy the test by failing the wrong half.",
+   "the exact version literal recorded here equals the fixture's version value, so this file cannot drift from the fixture it describes.",
+   "the shared SARIF adapter is never invoked -- no module under normalize.adapters is imported or called for this fixture.",
+   "shape.route and shape.route_artifact both raise shape.UnknownArtifactShape, carrying reason \"unrecognized-artifact-name\", sarif_detected False and the observed version.",
+   "rows is empty, the rejection total is 0, and the outcome is not a member of paths.REJECT_CLASSES -- asserted programmatically via paths.is_reject_class rather than by inspection."
+  ]
+ },
+ "prohibitions_observed": "No secret value appears in any field of this file (the tree is committed to git). No finding is judged, no finding is deduplicated, and no tool's output is characterised against another's -- this file describes one document's shape detection and nothing else. No user-specified rules govern it: review_rules reports \"No user rules provided.\", corroborated by AAP 0.7, so enterprise-standard best practice applies in their place and no rule is cited or invented.",
+ "under_each_recognised_name": [
+  {
+   "artifact_filename": "opengrep.sarif",
+   "tool": "opengrep",
+   "sarif_producer": true,
+   "envelope": "a SARIF 2.1.0 document -- version == \"2.1.0\" together with a runs array; this runner writes SARIF and nothing else, so there is no native shape to fall back to",
+   "envelope_satisfied": false,
+   "outcome": "halt",
+   "shape": null,
+   "adapter": null,
+   "halt_reason": "sarif-producer-artifact-not-sarif",
+   "halt_reason_constant": "shape.REASON_SARIF_PRODUCER_NOT_SARIF"
+  },
+  {
+   "artifact_filename": "semgrep.sarif",
+   "tool": "semgrep",
+   "sarif_producer": true,
+   "envelope": "a SARIF 2.1.0 document -- version == \"2.1.0\" together with a runs array; this runner writes SARIF and nothing else, so there is no native shape to fall back to",
+   "envelope_satisfied": false,
+   "outcome": "halt",
+   "shape": null,
+   "adapter": null,
+   "halt_reason": "sarif-producer-artifact-not-sarif",
+   "halt_reason_constant": "shape.REASON_SARIF_PRODUCER_NOT_SARIF"
+  },
+  {
+   "artifact_filename": "datadog-static-analyzer.sarif",
+   "tool": "datadog-static-analyzer",
+   "sarif_producer": true,
+   "envelope": "a SARIF 2.1.0 document -- version == \"2.1.0\" together with a runs array; this runner writes SARIF and nothing else, so there is no native shape to fall back to",
+   "envelope_satisfied": false,
+   "outcome": "halt",
+   "shape": null,
+   "adapter": null,
+   "halt_reason": "sarif-producer-artifact-not-sarif",
+   "halt_reason_constant": "shape.REASON_SARIF_PRODUCER_NOT_SARIF"
+  },
+  {
+   "artifact_filename": "gitleaks.json",
+   "tool": "gitleaks",
+   "sarif_producer": false,
+   "envelope": "a JSON array of finding objects at the top level (an empty array is a legitimate clean report)",
+   "envelope_satisfied": false,
+   "outcome": "halt",
+   "shape": null,
+   "adapter": null,
+   "halt_reason": "native-shape-unrecognized",
+   "halt_reason_constant": "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+  },
+  {
+   "artifact_filename": "checkov.json",
+   "tool": "checkov",
+   "sarif_producer": false,
+   "envelope": "either one report object carrying a 'results' object, or a non-empty top-level array of such report objects (the multi-framework form)",
+   "envelope_satisfied": false,
+   "outcome": "halt",
+   "shape": null,
+   "adapter": null,
+   "halt_reason": "native-shape-unrecognized",
+   "halt_reason_constant": "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+  },
+  {
+   "artifact_filename": "trivy.json",
+   "tool": "trivy",
+   "sarif_producer": false,
+   "envelope": "a report object carrying 'Results' as a JSON array (an empty array is a legitimate clean report, while an absent or null 'Results' means the document is not a Trivy report)",
+   "envelope_satisfied": false,
+   "outcome": "halt",
+   "shape": null,
+   "adapter": null,
+   "halt_reason": "native-shape-unrecognized",
+   "halt_reason_constant": "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+  },
+  {
+   "artifact_filename": "osv-scanner.json",
+   "tool": "osv-scanner",
+   "sarif_producer": false,
+   "envelope": "a report object carrying an 'results' array",
+   "envelope_satisfied": false,
+   "outcome": "halt",
+   "shape": null,
+   "adapter": null,
+   "halt_reason": "native-shape-unrecognized",
+   "halt_reason_constant": "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+  },
+  {
+   "artifact_filename": "dependency-check.json",
+   "tool": "dependency-check",
+   "sarif_producer": false,
+   "envelope": "a report object carrying a 'dependencies' array (an empty array is a legitimate clean report)",
+   "envelope_satisfied": false,
+   "outcome": "halt",
+   "shape": null,
+   "adapter": null,
+   "halt_reason": "native-shape-unrecognized",
+   "halt_reason_constant": "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+  },
+  {
+   "artifact_filename": "joern.json",
+   "tool": "joern",
+   "sarif_producer": false,
+   "envelope": "a collector object carrying a 'findings' array, as written by harness/lib/joern-scan.sc",
+   "envelope_satisfied": false,
+   "outcome": "halt",
+   "shape": null,
+   "adapter": null,
+   "halt_reason": "native-shape-unrecognized",
+   "halt_reason_constant": "shape.REASON_NATIVE_SHAPE_UNRECOGNIZED"
+  }
+ ],
+ "under_each_recognised_name_note": "Nine entries, one per artifact filename, in canonical tool order, recording what routing does with THIS document under a name that does resolve. Every outcome is a halt, and the reason splits by whether the name belongs to a SARIF producer: those three runners write SARIF and nothing else, so their artifact failing the conjunction is a producer-or-version condition, while any other recognised name over an unrecognised envelope is a mis-written or mis-placed artifact. The table is derived from shape._NATIVE_ENVELOPE and asserted against shape.route, so the record and the router cannot drift apart."
+}

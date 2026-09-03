@@ -1,0 +1,500 @@
+====================================================================================================
+flatgraph string-pool writer bound — first-hand re-verification of QA finding F3
+harness/artifacts/logs/reverification-f3-writer-bound.txt
+====================================================================================================
+
+IDENTITY OF THIS MEASUREMENT PASS
+  clone index                19
+  working checkout           /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019_b09f94
+  branch                     blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-019
+  git rev-parse HEAD         7fc41251c81e8a10ca9ce542b34af2542d7c1b53
+  environment                harness/ENVIRONMENT.md names the environment file at its line 12 —
+                             "`harness/env.sh` is the environment file. Nothing else needs sourcing" —
+                             so `. harness/env.sh` was sourced in the checkout root, exit 0;
+                             HARNESS_SMOKE_TARGET unset (verified as [<unset>])
+  measurement root           /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g3f
+                             (outside every repository checkout; nothing was compiled or run in the
+                             checkout, and the Joern banner check wrote its ./workspace there)
+  baseline taken             2026-09-02T14:28:55Z
+  measurements taken         2026-09-02T14:31:09Z .. 2026-09-02T14:34:39Z
+  machine-readable twin      harness/artifacts/logs/reverification-f3-writer-bound.json
+
+  Every figure below is one measured in THIS clone during THIS pass, except the two sections
+  explicitly headed CITED, which name their source file and, where the source is a log, the line
+  numbers the quotation was taken from.
+
+====================================================================================================
+WHAT THIS FILE ESTABLISHES
+====================================================================================================
+
+  That QA finding F3 — "Pinned jimple2cpg cannot persist the required complete all-JAR graph" —
+  still stands, that its cause is a fixed JVM array-length bound rather than a heap shortage, and
+  that no action available to an executing agent under this plan can move it. Three things are
+  established by measurement rather than by argument:
+
+    1. The bound does not move with the heap. The probe that drives java.io.ByteArrayOutputStream's
+       own growth path to the soft maximum array length was compiled and run in this clone at
+       -Xmx8g, -Xmx64g and -Xmx128g. All three arms fail at the same byte, with the JVM's reported
+       maxMemory spanning a factor of sixteen between the smallest and the largest arm.
+
+    2. The frontend has no option that would help. Its complete option surface was enumerated
+       first-hand — 12 named options and one positional argument — and is stated option by option
+       below. None chunks or streams the writer, none selects an alternative output format, and the
+       two options that change what the writer must represent (--full-resolver, --enable-file-content)
+       both ENLARGE it.
+
+    3. The only remedies that would work are the ones this plan prohibits. The permitted-action
+       matrix below states, for each conceivable remedy, the outcome and the AAP section that
+       permits or forbids it, and names the single decision a human must take.
+
+  What this file does NOT do: it does not rebuild the graph. No jimple2cpg invocation over any real
+  input set was made by this pass, no code-property graph was loaded, and no 64 GiB Joern JVM was
+  started. F3 is a halt-and-report condition, and this file is the report's evidence, not an attempt
+  at a workaround.
+
+====================================================================================================
+WHY IT MATTERS HERE
+====================================================================================================
+
+  AAP 0.1.1 requires the graph to be created by this run over every JAR the build produced, and
+  persisted. AAP 0.3.2 forbids trimming that input set — "No trimming of the graph input set, and no
+  exclusion of any JAR the build produced" — and AAP 0.4.3 forbids installing, upgrading or
+  substituting any tool. flatgraph 0.1.32, the writer the pinned Joern 4.0.607 ships, serialises the
+  graph's ENTIRE deduplicated string pool by UTF-8 encoding each string and appending it to ONE
+  java.io.ByteArrayOutputStream (flatgraph.storage.WriterContext.finish, Serialization.scala:174-176).
+  A ByteArrayOutputStream is backed by a single contiguous byte[], and the JVM caps an array at
+  Integer.MAX_VALUE - 8 = 2,147,483,639 elements.
+
+  Over the complete input set the full reactor produces, that pool exceeds the cap, so the frontend
+  throws AFTER the graph is already built in memory and writes no usable graph. Two independent
+  invocations have hit it: the lane recorded in harness/artifacts/logs/cpg-frontend.log, and QA's own
+  attempt reported as F3. Raising the heap cannot move a bound on one array's length. The three arms
+  below are the measurement that says so, taken in this clone rather than cited from either lane.
+
+====================================================================================================
+THE PROBE, AND ITS PROVENANCE
+====================================================================================================
+
+  Source: harness/artifacts/logs/cpg-frontend-ceiling-probe.txt, the verbatim probe source retained
+  by the invocation that first hit the bound. It was read, never modified: its sha256 is
+  e7d82064047c1cfee06dfe22ba2398f5fe805160408289e354596ae2df97ab79 at 2,632 bytes both before and
+  after this pass. The Java source was extracted out of it into the measurement root:
+
+    extracted file    /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g3f/CeilingProbe.java
+    lines             39
+    sha256            acdfcbd458df396250eea9990324411eccd03f2157c388d8b72b360b054e7a88
+
+  What it does: it fills one ByteArrayOutputStream through that class's own write() growth path until
+  exactly SOFT_MAX = Integer.MAX_VALUE - 8 = 2,147,483,639 bytes are buffered, then writes 77 further
+  bytes — the length of the next string the frontend would have appended — and prints what is thrown.
+  It catches Throwable and reports it, so the JVM's own exit code is 0 in every arm; the OutOfMemoryError
+  printed on stdout is the observed outcome, not a non-zero exit. That is stated here so no reader
+  mistakes "exit=0" for a successful write.
+
+====================================================================================================
+THE COMMANDS AND THEIR OUTPUT, VERBATIM
+====================================================================================================
+
+  Compiler and runtime: the JDK every Joern JVM on this host uses, Temurin 21.0.12.1+1. No
+  -XX:+AlwaysPreTouch was used anywhere in this pass: the probe needs no committed heap, and other
+  work was running concurrently on this host.
+
+$ cd /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g3f
+$ /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/javac -version                      # 2026-09-02T14:31:09Z
+javac 21.0.12.1
+$ /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/javac CeilingProbe.java             # exit 0
+$ /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -version
+openjdk version "21.0.12.1" 2026-08-18 LTS
+OpenJDK Runtime Environment Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS)
+OpenJDK 64-Bit Server VM Temurin-21.0.12.1+1 (build 21.0.12.1+1-LTS, mixed mode, sharing)
+  CeilingProbe.class written, 2,345 bytes
+
+ARM A — 64 GiB, the plan's minimum heap
+$ /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -Xmx64g CeilingProbe
+  started 2026-09-02T14:31:19Z   ended 2026-09-02T14:31:22Z   elapsed 3 s   process exit 0   stderr empty
+java.version      = 21.0.12.1
+java.vm.name      = OpenJDK 64-Bit Server VM
+maxMemory bytes   = 68719476736
+SOFT_MAX          = 2147483639
+buffered bytes    = 2147483639 (== SOFT_MAX: true)
+now writing 77 more bytes, exactly as the frontend's next string would
+THREW            = java.lang.OutOfMemoryError
+MESSAGE          = Required array length 2147483639 + 77 is too large
+buffered bytes   = 2147483639
+
+ARM B — 128 GiB, the heap the recorded frontend lane actually used
+$ /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -Xmx128g CeilingProbe
+  started 2026-09-02T14:31:27Z   ended 2026-09-02T14:31:30Z   elapsed 3 s   process exit 0   stderr empty
+java.version      = 21.0.12.1
+java.vm.name      = OpenJDK 64-Bit Server VM
+maxMemory bytes   = 137438953472
+SOFT_MAX          = 2147483639
+buffered bytes    = 2147483639 (== SOFT_MAX: true)
+now writing 77 more bytes, exactly as the frontend's next string would
+THREW            = java.lang.OutOfMemoryError
+MESSAGE          = Required array length 2147483639 + 77 is too large
+buffered bytes   = 2147483639
+
+ARM C — 8 GiB, a deliberately small heap, run to test whether a small heap fails EARLIER for a
+different reason. It does not: it reaches the same ceiling and fails at the same byte.
+$ /opt/blitzy-tools/jdk/jdk-21.0.12.1+1/bin/java -Xmx8g CeilingProbe
+  started 2026-09-02T14:31:36Z   ended 2026-09-02T14:31:39Z   elapsed 3 s   process exit 0   stderr empty
+java.version      = 21.0.12.1
+java.vm.name      = OpenJDK 64-Bit Server VM
+maxMemory bytes   = 8589934592
+SOFT_MAX          = 2147483639
+buffered bytes    = 2147483639 (== SOFT_MAX: true)
+now writing 77 more bytes, exactly as the frontend's next string would
+THREW            = java.lang.OutOfMemoryError
+MESSAGE          = Required array length 2147483639 + 77 is too large
+buffered bytes   = 2147483639
+
+CONFIRMING RE-RUN of all three arms, 2026-09-02T14:34:32Z .. 2026-09-02T14:34:39Z: every measured
+field identical to the arm above it — maxMemory, SOFT_MAX, buffered bytes, exception class and
+message — with wall clock 3 s (8g), 2 s (64g), 2 s (128g). Wall clock is the only figure that moves
+between runs, and it moves by one second.
+
+====================================================================================================
+WHAT THE THREE ARMS SHOW
+====================================================================================================
+
+  Heap             maxMemory reported     buffered bytes     failure
+  -Xmx8g             8,589,934,592        2,147,483,639      OutOfMemoryError, "…2147483639 + 77 is too large"
+  -Xmx64g           68,719,476,736        2,147,483,639      OutOfMemoryError, "…2147483639 + 77 is too large"
+  -Xmx128g         137,438,953,472        2,147,483,639      OutOfMemoryError, "…2147483639 + 77 is too large"
+
+  The JVM's reported maxMemory spans a factor of sixteen across the three arms, and the failure point
+  does not move by one byte: the same 2,147,483,639 bytes are already buffered in every arm, and the
+  same next write is refused. The bound is therefore on the length of ONE array — Integer.MAX_VALUE - 8
+  — and not on the heap. The 8 GiB arm is the strongest single line of this table: a heap eight times
+  SMALLER than the plan's minimum still reaches the ceiling, so nothing between 8 GiB and 128 GiB is
+  the constraint.
+
+  What the bound scales with follows from what the writer does: the total UTF-8 size of the graph's
+  distinct strings — method full names, type full names, file names, literals — that is, the BREADTH
+  of the input set. It does not scale with the memory or the time spent building the graph, which is
+  why the recorded lane failed with 113.3 GiB resident inside a 128 GiB heap after eight hours of
+  successful work.
+
+  Note on the addend: the "+ 77" here is the length the retained probe source fixes. The frontend's
+  own runs reported "+ 72" (the lane in cpg-frontend.log) and "+ 76" (QA's lane in F3). The addend is
+  simply the next string's UTF-8 length; the bound, 2,147,483,639, is identical in all cases, and it
+  is the bound that decides the outcome.
+
+====================================================================================================
+THE FRONTEND'S OWN OPTION SURFACE, ENUMERATED FIRST-HAND
+====================================================================================================
+
+$ cd /tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-019/g3f
+$ jimple2cpg --help < /dev/null                                                 # 2026-09-02T14:32:16Z, exit 0
+Usage: jimple2cpg [options] input-dir
+
+  input-dir                source directory
+  -o, --output <value>     output filename
+  --exclude <file1>        files or folders to exclude during CPG generation (paths relative to <input-dir> or absolute paths)
+  --exclude-regex <value>  a regex specifying files to exclude during CPG generation (paths relative to <input-dir> are matched)
+  --enable-early-schema-checking
+                           enables early schema validation during AST creation (disabled by default)
+  --enable-file-content    add the raw source code to the content field of FILE nodes to allow for method source retrieval via offset fields (disabled by default)
+  --help                   display this help message
+  --android <value>        Optional path to android.jar while processing apk file.
+  --full-resolver          enables full transitive resolution of all references found in all classes that are resolved
+  --recurse                recursively unpack jars
+  --depth <value>          maximum depth to recursively unpack jars, default value 1
+  --dynamic-dirs <dir1>,<dir2>,...
+                           Mark all class files in dirs as classes that may be loaded dynamically. Comma separated values for multiple directories.
+  --dynamic-pkgs <pkg1>,<pkg2>,...
+                           Marks all class files belonging to the package pkg or any of its subpackages as classes which the application may load dynamically. Comma separated values for multiple packages.
+
+  That is the complete surface: 12 named options and one positional argument, input-dir. It is
+  byte-identical to the option list quoted in cpg-frontend.log STEP 10, so the surface has not
+  changed between that lane and this pass. Option by option, against the bound:
+
+    input-dir (positional)         Names ONE input path. It is why 191 archives must be staged into a
+                                   single directory in the first place. No bearing on the writer.
+    -o, --output                   Names ONE output filename. It selects neither a format nor a
+                                   partitioning; there is no "write in parts" here.
+    --exclude                      Would work, and is PROHIBITED — it removes inputs. See matrix row 2.
+    --exclude-regex                Same as --exclude, by pattern. PROHIBITED for the same reason.
+    --depth                        Bounds recursive unpacking, i.e. reads LESS of the input set.
+                                   Same class as --exclude. PROHIBITED, and --recurse is mandated.
+    --recurse                      Mandated by the plan; it enlarges what is read, never reduces it.
+    --full-resolver                Resolves MORE references transitively, so it adds distinct type and
+                                   method names to the string pool. It would reach the bound sooner,
+                                   never later.
+    --enable-file-content          Adds raw source text to FILE nodes, i.e. adds bytes to the very pool
+                                   that overflows. Strictly worse.
+    --enable-early-schema-checking Validates the schema during AST creation. Affects the build phase,
+                                   not persistence; the failure is in persistence, after the build.
+    --android                      Supplies android.jar when processing an apk. Irrelevant to this input.
+    --dynamic-dirs                 Marks classes as dynamically loadable. Changes analysis marking, not
+    --dynamic-pkgs                 the writer; neither reduces the string pool.
+    --help                         Prints this text.
+
+  Conclusion, stated as the enumeration supports it: no option chunks the string pool, no option
+  streams the writer, no option selects an alternative output format, and no option writes the graph
+  in parts. The only options that would avert the failure are the exclusion options, which the plan
+  forbids, and the two options that touch the pool's size both make it larger.
+
+====================================================================================================
+THE TOOL IDENTITY ACTUALLY EXERCISED
+====================================================================================================
+
+$ command -v jimple2cpg                                                         # 2026-09-02T14:32:16Z
+/opt/blitzy-tools/bin/jimple2cpg
+$ readlink -f $(command -v jimple2cpg)
+/opt/blitzy-tools/bin/jimple2cpg
+  It is not a symlink; it is itself the JDK-21-pinning wrapper, verbatim:
+    #!/usr/bin/env bash
+    # Wrapper: Joern 4.x documents JDK 21 as its tested requirement, but Joern's own
+    # launchers use whatever `java` is on PATH (17 here). Pin 21 before delegating.
+    export JAVA_HOME="${JAVA_HOME_21:-/opt/blitzy-tools/jdk/jdk-21.0.12.1+1}"
+    export PATH="$JAVA_HOME/bin:$PATH"
+    exec /opt/blitzy-tools/joern-cli/joern-cli/jimple2cpg "$@"
+
+  JOERN_HOME                 /opt/blitzy-tools/joern-cli
+  real frontend launcher     /opt/blitzy-tools/joern-cli/joern-cli/jimple2cpg
+
+$ printf '' | joern > joern-banner.out 2> joern-banner.err                       # 2026-09-02T14:32:40Z, exit 0, 6 s
+$ grep -m1 -i version joern-banner.out
+Version: 4.0.607
+  joern-banner.out is 738 bytes (the ASCII banner plus that version line); joern-banner.err is empty.
+  Run from the measurement root, never from the checkout: Joern eagerly creates ./workspace in its
+  cwd. It did so in the measurement root, and the checkout root has no workspace directory
+  (`ls -d <checkout>/workspace` → no such file or directory).
+
+  The writer on the frontend's own classpath, identified by file rather than by reputation:
+    /opt/blitzy-tools/joern-cli/joern-cli/frontends/jimple2cpg/lib/io.joern.flatgraph-core_3-0.1.32.jar
+      612,269 bytes   sha256 13c99870907a35115be3af6e9f415e712f42e4f970ad3489624dc30f024c1ab0
+    /opt/blitzy-tools/joern-cli/joern-cli/frontends/jimple2cpg/lib/io.joern.jimple2cpg-4.0.607.jar
+      236,844 bytes   sha256 5377cb993d8d8e589e358c426f780595ab61531cf1fc4277df84c19dde6e28e9
+  The same flatgraph-core 0.1.32 jar, with the same digest, is also in /opt/blitzy-tools/joern-cli/joern-cli/lib.
+  So the version that carries the single-ByteArrayOutputStream writer is the version installed, and
+  it is the version the frontend on PATH would run.
+
+====================================================================================================
+CITED — the failure as harness/artifacts/logs/cpg-frontend.log records it
+====================================================================================================
+
+  Source file    harness/artifacts/logs/cpg-frontend.log
+  size           7,605,980 bytes, 42,081 lines
+  sha256         dd98cd028fd7aef0862c85c5950c786a5070646621837719fe14a24fb1733290
+                 measured at 2026-09-02T14:28:55Z, before this pass wrote anything, and unchanged
+                 after it. This pass only read that file.
+
+  The failure appears twice. Once quoted in the analysis, at STEP 8 (heading line 205, "Verbatim, as
+  the frontend printed it:" line 207, failure line 209, frames lines 210-240), and once in the raw
+  stream, at line 34771, inside the section "VERBATIM FRONTEND OUTPUT, PART 1 — the complete
+  191-artifact input set" which opens at line 476 and is described there as 34,322 lines /
+  6,254,213 bytes.
+
+  Lines 209-222 of that file, verbatim — the failure and the frames that place it in the writer:
+
+    java.lang.OutOfMemoryError: Required array length 2147483639 + 72 is too large
+    	at java.base/jdk.internal.util.ArraysSupport.hugeLength(ArraysSupport.java:752)
+    	at java.base/jdk.internal.util.ArraysSupport.newLength(ArraysSupport.java:745)
+    	at java.base/java.io.ByteArrayOutputStream.ensureCapacity(ByteArrayOutputStream.java:100)
+    	at java.base/java.io.ByteArrayOutputStream.write(ByteArrayOutputStream.java:132)
+    	at java.base/java.io.OutputStream.write(OutputStream.java:124)
+    	at flatgraph.storage.WriterContext.finish$$anonfun$2(Serialization.scala:176)
+    	at scala.collection.IterableOnceOps.foreach(IterableOnce.scala:632)
+    	at scala.collection.IterableOnceOps.foreach$(IterableOnce.scala:336)
+    	at scala.collection.AbstractIterator.foreach(Iterator.scala:1325)
+    	at flatgraph.storage.WriterContext.finish(Serialization.scala:174)
+    	at flatgraph.storage.Serialization$.innerWriteGraph(Serialization.scala:288)
+    	at flatgraph.storage.Serialization$.writeGraph(Serialization.scala:232)
+    	at flatgraph.Graph.close$$anonfun$2(Graph.scala:163)
+
+  and the frames that place it after a complete build, at close(), lines 227-240:
+
+    	at flatgraph.Graph.close(Graph.scala:159)
+    	at io.shiftleft.codepropertygraph.generated.Cpg.close(Cpg.scala:55)
+    	at io.joern.x2cpg.X2CpgFrontend.run$$anonfun$1(X2Cpg.scala:237)
+    	at scala.runtime.function.JProcedure1.apply(JProcedure1.java:15)
+    	at scala.runtime.function.JProcedure1.apply(JProcedure1.java:10)
+    	at scala.util.Success.map$$anonfun$1(Try.scala:248)
+    	at scala.util.Try$.apply(Try.scala:195)
+    	at scala.util.Success.map(Try.scala:248)
+    	at io.joern.x2cpg.X2CpgFrontend.run(X2Cpg.scala:236)
+    	at io.joern.x2cpg.X2CpgFrontend.run$(X2Cpg.scala:222)
+    	at io.joern.jimple2cpg.Jimple2Cpg.run(Jimple2Cpg.scala:27)
+    	at io.joern.x2cpg.X2CpgMain.run(X2Cpg.scala:191)
+    	at io.joern.x2cpg.X2CpgMain.main(X2Cpg.scala:204)
+    	at io.joern.jimple2cpg.Main.main(Main.scala)
+
+  The invocation's own facts, as that log states them:
+
+    command (line 83)          SL_LOGGING_LEVEL=WARN jimple2cpg "$STAGING" -o "$GRAPH" --recurse -J-Xmx128g < /dev/null
+                               stdin closed; --recurse; no --exclude, no --exclude-regex, no --depth
+    started                    2026-08-30T23:21:24.942Z
+    ended                      2026-08-31T07:22:27.599Z
+    elapsed (line 95)          28,863 s (8 h 1 m)
+    exit code (line 97)        1
+    heap flag                  -J-Xmx128g
+    peak RSS                   118,775,976 kB (113.3 GiB), sampled every 10 s
+    input set supplied         191 own artifacts, 431,184,822 bytes, 110 carrying bytecode,
+                               99,723 class entries, 422 copied dependencies excluded and never supplied
+    partial output (STEP 9)    691,541,019 bytes, sha256
+                               b1559c930a7b9ced717a0babf9a7e172d2b93d2cdef45a959304f063aedfe408,
+                               accepted = False, renamed spark.cpg.PARTIAL-TRUNCATED-DO-NOT-LOAD in
+                               that run's private scratch, never linked at harness/cpg/spark.cpg,
+                               and loaded by no stage
+
+  One difference is recorded rather than smoothed over: this file's brief characterised the recorded
+  lane as having run at -J-Xmx64g. The log itself states -J-Xmx128g at line 83 and 28,863 s at line
+  95, and the log's own words are what is published here. The distinction does not affect the
+  conclusion — arms A, B and C above show the failure point is the same at 8g, 64g and 128g — but a
+  cited figure has to be the cited source's figure.
+
+====================================================================================================
+CITED — QA finding F3's own independently measured lane
+====================================================================================================
+
+  Source    /tmp/blitzy/qa/reports/f38258d3-f87d-44f5-bedc-af512c69e0ab/oss-scan-results_run-record.md/qa/testing/o000_5b89c1691063ea9e.md
+  Finding   F3 "Pinned jimple2cpg cannot persist the required complete all-JAR graph",
+            severity CRITICAL, blocking, category Functional
+
+    invocation           SL_LOGGING_LEVEL=WARN jimple2cpg <fresh-191-file-stage> -o <fresh-qa-graph> --recurse -J-Xmx128g < /dev/null
+    128 GiB committable   proven by QA before the run
+    exit                 1 after 21,956 s
+    failure              at flatgraph.storage.WriterContext.finish, "OutOfMemoryError: Required array
+                         length 2147483639 + 76 is too large"
+    input set            191 staged files; QA's independent inventory measured 434,306,178 bytes of
+                         project output (the log's lane records 431,184,822 bytes — two independent
+                         inventories of two independently built staging trees, both labelled)
+    partial output       695,829,405 bytes, sha256
+                         14b1e649e02d27ef89f857507e37a4562d46d921dd03a695e0118ac4c7aac2cf, marked
+                         DO-NOT-IMPORT and never loaded
+    QA's suggested fix   "Human/AAP change required: pin a Joern/flatgraph writer that
+                         chunks/streams the string pool, or revise the single-complete-graph
+                         requirement. Do not lower heap, trim inputs, or load the partial file."
+
+  Two lanes, two hosts' worth of work, two different next-string lengths, one bound. That is the
+  whole of the agreement between them, and it is the part that matters.
+
+====================================================================================================
+THE PERMITTED-ACTION MATRIX
+====================================================================================================
+
+  Each row states the remedy, what it would actually do to the bound, and the AAP section that
+  permits or forbids it. "Would work" and "is permitted" are different columns on purpose: the two
+  remedies that would work are the two the plan forbids, which is exactly why F3 is a human decision.
+
+  1. RAISE THE HEAP further (256 GiB, 512 GiB, any value)
+     Outcome            Does not move the bound. Measured: arms A, B and C fail at the same byte
+                        across a sixteen-fold heap range. The recorded lane was already resident at
+                        113.3 GiB inside a 128 GiB heap when it failed.
+     Plan               PERMITTED but useless. AAP 0.5.4 / 0.8.2: "raising a heap is permitted and
+                        reported, lowering one produces a truncated graph whose silence cannot be
+                        distinguished from a clean result." Raising is therefore allowed and has
+                        already been done (64 GiB minimum -> 128 GiB); it changes nothing here.
+     Verdict            AVAILABLE, INEFFECTIVE.
+
+  2. TRIM THE INPUT SET — --exclude, --exclude-regex, --depth, or dropping pre-shade, -tests or
+     shims archives
+     Outcome            WOULD WORK. The bound scales with the total UTF-8 size of the graph's
+                        distinct strings, so a narrower input set serialises. The narrower witness
+                        graph recorded in cpg-frontend.log PART 2 is the corroboration: 38 primary
+                        artifacts, 52,584 class entries, written successfully at 418,777,229 bytes.
+     Plan               FORBIDDEN. AAP 0.3.2: "No trimming of the graph input set, and no exclusion
+                        of any JAR the build produced." AAP 0.5.1: stage the inventory and "exclude
+                        nothing" — "not the connect-shims artifact, not a -tests artifact, not a
+                        pre-shade sibling." AAP 0.2.1: "The input set is never trimmed in either
+                        direction to make a number fit." AAP 0.8.2 repeats it as a process
+                        constraint, and AAP 0.9.2's own preamble makes the disposition explicit:
+                        "These are reported, not repaired."
+     Verdict            EFFECTIVE, PROHIBITED. Not taken.
+
+  3. UPGRADE OR SUBSTITUTE JOERN / FLATGRAPH for a version whose writer chunks or streams the pool
+     Outcome            WOULD WORK, and is the only remedy that both fixes the root cause and keeps
+                        the mandated input set intact.
+     Plan               FORBIDDEN to this run. AAP 0.4.3: "None, in any direction. No dependency is
+                        added, updated or removed by this run" — installing, upgrading and
+                        substituting any tool are prohibited. AAP 0.8.1: "Nothing is installed,
+                        upgraded, substituted or provisioned." A missing or inadequate tool is a
+                        halt-and-report, never a repair task.
+     Verdict            EFFECTIVE, PROHIBITED to an executing agent. This is one of the two forms
+                        the human decision can take.
+
+  4. USE A FRONTEND OPTION that chunks, streams, or changes the output format
+     Outcome            NO SUCH OPTION EXISTS. Measured first-hand above: 12 named options and one
+                        positional argument, none of which touches the writer's buffering, and two
+                        of which (--full-resolver, --enable-file-content) enlarge the pool.
+     Plan               Moot — there is nothing to permit or forbid.
+     Verdict            UNAVAILABLE.
+
+  5. WRITE THE GRAPH IN PARTS — split the input, persist per part, merge; or build in memory and
+     query in-process without persisting
+     Outcome            No merge exists in the pinned distribution, and a merged graph would carry
+                        the same deduplicated string pool and hit the same bound at write time. An
+                        in-process graph is never persisted, so it has no identity to record.
+     Plan               NOT COMPLIANT. AAP 0.1.1 requires the graph persisted; AAP 0.5.1 and 0.6.4
+                        require ONE graph whose byte size and sha256 are recorded at write time and
+                        "recomputed and compared immediately before every one of those loads", and
+                        the runners read it from disk by path. Splitting the input is also row 2 by
+                        another name.
+     Verdict            UNAVAILABLE and NON-COMPLIANT.
+
+  6. ACCEPT THE PARTIAL FILE — link it at the sanctioned path, or import it
+     Outcome            It is a truncated write from a terminated serialization, not a graph. Every
+                        count taken from it would be a finding about a broken write wearing the
+                        shape of a finding about Spark.
+     Plan               FORBIDDEN. AAP 0.2.1 and 0.9.2: a truncated graph's silence is
+                        indistinguishable from a clean result, which is why a graph whose size or
+                        digest differs from the value recorded at write time halts the run at any
+                        later load. Both lanes handled this correctly and neither loaded its partial:
+                        QA's 695,829,405-byte file was marked DO-NOT-IMPORT and never loaded, and the
+                        recorded lane's 691,541,019-byte file was renamed
+                        spark.cpg.PARTIAL-TRUNCATED-DO-NOT-LOAD, never linked at harness/cpg/spark.cpg
+                        and loaded by no stage. Importing a partial graph is not an option, and
+                        nothing in this pass loaded either file.
+     Verdict            PROHIBITED and UNSAFE. Not taken.
+
+  7. PRESENT THE INHERITED, PROVISIONED GRAPH AS THIS RUN'S GRAPH
+     Outcome            It is a real, loadable graph, but it was written by provisioning over a
+                        different input set. It does not satisfy the requirement that this run create
+                        the graph.
+     Plan               PERMITTED ONLY AS A LABELLED DIVERGENCE, never as satisfaction. AAP 0.1.3's
+                        authority rule and AAP 0.9.4: "every divergence is in the record ... each with
+                        both the expected and the observed value." That is how the run already handled
+                        it, and F3 stands regardless.
+     Verdict            NOT SATISFACTION. Already reported as a divergence.
+
+  THE SINGLE DECISION A HUMAN MUST TAKE
+    One decision, with exactly two admissible forms, and no third:
+
+      (a) Amend AAP 0.4.3 / 0.8.1 to authorise re-provisioning a Joern/flatgraph whose graph writer
+          chunks or streams the string pool, and rebuild the graph over the unchanged complete input
+          set; or
+      (b) Amend AAP 0.1.1 / 0.3.2 / 0.5.1's single-complete-graph-over-every-JAR requirement — for
+          example to accept a partitioned set of per-part graphs, each with its own recorded
+          identity, as compliant input.
+
+    Both are amendments to the plan's own prohibitions, so both are outside an executing agent's
+    authority. Nothing an executing agent may do moves a bound on one array's length, which is why
+    this is reported rather than repaired.
+
+====================================================================================================
+CONSEQUENCE, STATED PLAINLY
+====================================================================================================
+
+  F3's condition still stands, unchanged and unrepairable within this plan. A graph over every JAR the
+  full reactor produced cannot be persisted by the pinned frontend at this pin, at any heap: the write
+  fails inside flatgraph's string-pool writer at a fixed 2,147,483,639-byte array bound, and this pass
+  measured that same bound at 8 GiB, 64 GiB and 128 GiB with the failure point not moving by one byte.
+  The frontend's own 12-option surface offers no chunking, no streaming and no alternative output
+  format, and the two remedies that would work — trimming the input set, or substituting the writer —
+  are the two the plan forbids.
+
+  So the disposition is halt-and-report, and this file is the report's first-hand evidence. No graph
+  was rebuilt by this pass, no partial graph was imported, no input set was trimmed, no tool was
+  installed, upgraded or substituted, no heap was lowered, and no pre-existing file was modified. The
+  requirement stays published as an unmet divergence, the graph the Joern stages load stays named,
+  digested and re-verified before every load with its provisioned provenance stated wherever it is
+  cited, and no coverage conclusion is drawn from bytecode the graph does not contain.
+
+  It waits on one human decision, in one of the two forms named above.
+
+====================================================================================================
+END — reverification-f3-writer-bound.txt
+====================================================================================================

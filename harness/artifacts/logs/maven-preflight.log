@@ -1,0 +1,200 @@
+================================================================================
+Maven pre-check - verbatim evidence
+harness/artifacts/logs/maven-preflight.log
+================================================================================
+
+WHAT THIS FILE ESTABLISHES
+
+  That the Maven the mandated build wrapper would use was ALREADY the version the
+  pinned pom requires, so ./build/mvn triggered no download and this run installed
+  nothing (AAP 0.4.3, 0.8.1). The check is a PRE-check by design: the wrapper reads
+  <maven.version> from the root pom and downloads an apache-maven distribution into
+  build/ whenever the Maven it detects differs, and that download would be an
+  installation this run is forbidden to perform. Discovering it afterwards would be
+  too late, and .gitignore:39 already ignores build/apache-maven*, so it would also
+  be invisible to git.
+
+  RESULT: PASS. The resolvable Maven is 3.9.11, the pom requires 3.9.11, the two
+  are equal, the wrapper's download branch was therefore unreachable, and no
+  apache-maven distribution exists under the build tree's build/ directory.
+
+  WHY THIS FILE WAS WRITTEN A SECOND TIME WITHIN THE RUN
+
+  The pre-check is a property of the tree about to be built, and this run built the
+  full reactor a second time: the tree the earlier build produced was deleted with
+  the scratch directory of the clone that ran it, so the artifacts the graph must be
+  built over no longer existed. The graph the AAP requires this run to create can
+  only be created over artifacts that exist, so the build was re-run into a private
+  clone of the same pin and this file records THAT build's pre-check. Every figure
+  here was measured against the tree named in STEP 1.
+================================================================================
+STEP 1 - The tree the pre-check protects, and its identity
+================================================================================
+$ cd '/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/build/spark-src' && pwd && git rev-parse HEAD && git status --porcelain | wc -l
+[stdout]
+/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/build/spark-src
+59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d
+0
+[stderr]
+
+[exit] 0   [at] 2026-08-30T23:30:39.041Z
+VERDICT: the build tree is at the pin 59b8a4489c878fa3a9aa6b7fbae760f2fc80eb9d and its working tree is clean.
+================================================================================
+STEP 2 - What the pom requires
+================================================================================
+$ grep -n '<maven.version>' '/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/build/spark-src/pom.xml' | head -1
+[stdout]
+123:    <maven.version>3.9.11</maven.version>
+[stderr]
+
+[exit] 0   [at] 2026-08-30T23:30:39.047Z
+================================================================================
+STEP 3 - What the wrapper's download branch tests, quoted from the wrapper itself
+================================================================================
+$ sed -n '116,128p' '/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/build/spark-src/build/mvn'
+[stdout]
+install_mvn() {
+  local MVN_VERSION=`grep "<maven.version>" "${_DIR}/../pom.xml" | head -n1 | awk -F '[<>]' '{print $3}'`
+  MVN_BIN="${_DIR}/apache-maven-${MVN_VERSION}/bin/mvn"
+  if [ -f "$MVN_BIN" ]; then
+    return
+  fi
+  MVN_BIN="$(command -v mvn)"
+  if [ "$MVN_BIN" ]; then
+    local MVN_DETECTED_VERSION="$(mvn --version | head -n1 | awk '{print $3}')"
+  fi
+  if [ $(version $MVN_DETECTED_VERSION) -ne $(version $MVN_VERSION) ]; then
+    local MVN_TARBALL="apache-maven-${MVN_VERSION}-bin.tar.gz"
+    local FILE_PATH="maven/maven-3/${MVN_VERSION}/binaries/${MVN_TARBALL}"
+[stderr]
+
+[exit] 0   [at] 2026-08-30T23:30:39.050Z
+
+READING OF THE BRANCH
+
+  install_mvn() returns early when build/apache-maven-<version>/bin/mvn already
+  exists. Otherwise it takes the mvn on PATH, parses its version, and downloads only
+  when version(detected) != version(required). Equality therefore makes the download
+  unreachable, which is what STEP 2 and STEP 4 together establish.
+================================================================================
+STEP 4 - The wrapper's early-return candidate: is a distribution already in build/?
+================================================================================
+$ test -f '/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/build/spark-src/build/apache-maven-3.9.11/bin/mvn' && echo present || echo absent; ls -d '/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/build/spark-src/build/'apache-maven* 2>&1 | head -3
+[stdout]
+absent
+ls: cannot access '/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/build/spark-src/build/apache-maven*': No such file or directory
+[stderr]
+
+[exit] 0   [at] 2026-08-30T23:30:39.054Z
+
+READING
+
+  install_mvn() returns early when build/apache-maven-<version>/bin/mvn exists. No
+  distribution exists under build/ - not of the pinned version and not of any other -
+  so the early return was NOT taken and the version comparison is what decided the
+  outcome. That is the stronger of the two readings: the download branch was reached
+  and evaluated false, rather than being skipped.
+================================================================================
+STEP 5 - The resolvable mvn, and its full banner
+================================================================================
+$ command -v mvn && mvn -version 2>&1 | head -3
+[stdout]
+/usr/local/bin/mvn
+Apache Maven 3.9.11 (3e54c93a704957b63ee3494413a2b544fd3d825b)
+Maven home: /opt/blitzy-tools/apache-maven-3.9.11
+Java version: 17.0.20, vendor: Eclipse Adoptium, runtime: /opt/blitzy-tools/jdk/jdk-17.0.20+8
+[stderr]
+
+[exit] 0   [at] 2026-08-30T23:30:39.463Z
+================================================================================
+STEP 6 - The detected version, by the wrapper's own extraction pipeline
+================================================================================
+$ mvn --version | head -n1 | awk '{print $3}'
+[stdout]
+3.9.11
+[stderr]
+
+[exit] 0   [at] 2026-08-30T23:30:39.770Z
+================================================================================
+STEP 7 - The normalized comparison, using the wrapper's own version() definition
+================================================================================
+$ set -u
+version() { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; }
+MVN_VERSION=$(grep '<maven.version>' '/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/build/spark-src/pom.xml' | head -n1 | awk -F '[<>]' '{print $3}')
+MVN_DETECTED_VERSION=$(mvn --version | head -n1 | awk '{print $3}')
+printf 'required=%s normalized=%s\n' "$MVN_VERSION" "$(version $MVN_VERSION)"
+printf 'detected=%s normalized=%s\n' "$MVN_DETECTED_VERSION" "$(version $MVN_DETECTED_VERSION)"
+if [ $(version $MVN_DETECTED_VERSION) -ne $(version $MVN_VERSION) ]; then
+  echo 'DOWNLOAD_BRANCH_TAKEN=yes -- HALT'
+else
+  echo 'comparison exited 1: DOWNLOAD_BRANCH_TAKEN=no'
+fi
+[stdout]
+required=3.9.11 normalized=003009011
+detected=3.9.11 normalized=003009011
+comparison exited 1: DOWNLOAD_BRANCH_TAKEN=no
+[stderr]
+
+[exit] 0   [at] 2026-08-30T23:30:40.115Z
+================================================================================
+STEP 8 - The JDK the build would run under: must report major 17
+================================================================================
+$ /opt/blitzy-tools/jdk/jdk-17.0.20+8/bin/java -version 2>&1; /opt/blitzy-tools/jdk/jdk-17.0.20+8/bin/java -XshowSettings:properties -version 2>&1 | grep -E 'java.specification.version|java.vm.version|java.home'; mvn -version 2>&1 | tail -2
+[stdout]
+openjdk version "17.0.20" 2026-07-21
+OpenJDK Runtime Environment Temurin-17.0.20+8 (build 17.0.20+8)
+OpenJDK 64-Bit Server VM Temurin-17.0.20+8 (build 17.0.20+8, mixed mode, sharing)
+    java.home = /opt/blitzy-tools/jdk/jdk-17.0.20+8
+    java.specification.version = 17
+    java.vm.version = 17.0.20+8
+Default locale: en_US, platform encoding: UTF-8
+OS name: "linux", version: "6.12.85+", arch: "amd64", family: "unix"
+[stderr]
+
+[exit] 0   [at] 2026-08-30T23:30:40.544Z
+================================================================================
+STEP 9 - The verdict
+================================================================================
+$ python3 - <<'PY'
+pom = open('/tmp/blitzy/scratch/f38258d3-f87d-44f5-bedc-af512c69e0ab/w-005/build/spark-src/pom.xml').read()
+required = pom.split('<maven.version>')[1].split('<')[0]
+import subprocess
+detected = subprocess.run(['mvn','-version'], capture_output=True, text=True).stdout.split()[2]
+print('pom_requires        =', required)
+print('resolvable_detected =', detected)
+print('equal               =', required == detected)
+print('download_branch     =', 'reached and evaluated false' if required == detected else 'REACHABLE - HALT')
+print('verdict             =', 'PASS - no download, nothing installed' if required == detected else 'HALT')
+PY
+[stdout]
+pom_requires        = 3.9.11
+resolvable_detected = 3.9.11
+equal               = True
+download_branch     = reached and evaluated false
+verdict             = PASS - no download, nothing installed
+[stderr]
+
+[exit] 0   [at] 2026-08-30T23:30:40.865Z
+
+FOR COMPLETENESS - THE WORKING CHECKOUT, READ ONCE AS A LABELLED CONTRAST
+
+  The working checkout at the branch tip carries <maven.version> 3.9.12, against 3.9.11
+  at the pin. It is read here as a contrast and used for nothing: the working checkout is
+  neither built nor scanned (AAP 0.3.2).
+$ grep -n '<maven.version>' /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab-w-005_c73c29/pom.xml | head -1
+[stdout]
+123:    <maven.version>3.9.12</maven.version>
+[stderr]
+
+[exit] 0   [at] 2026-08-30T23:30:40.869Z
+
+WHAT THIS FILE DOES NOT CLAIM
+
+  It does not claim Maven 3.9.11 was installed by this run - it was not, and
+  installing anything is prohibited (AAP 0.8.1). It claims only that the version
+  already present is the version the pom requires. It also makes no claim about any
+  other tool's version: those are the gate record's, at
+  harness/artifacts/logs/gate-record.json.
+================================================================================
+END - maven-preflight.log
+================================================================================

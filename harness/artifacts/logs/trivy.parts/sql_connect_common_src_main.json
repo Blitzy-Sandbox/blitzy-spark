@@ -1,0 +1,10 @@
+{
+  "SchemaVersion": 2,
+  "Trivy": {
+    "Version": "0.74.0"
+  },
+  "ReportID": "01a05d5b-e4fc-7627-80e6-517693883b20",
+  "CreatedAt": "2026-09-01T14:24:58.620405529Z",
+  "ArtifactName": "sql/connect/common/src/main",
+  "ArtifactType": "filesystem"
+}

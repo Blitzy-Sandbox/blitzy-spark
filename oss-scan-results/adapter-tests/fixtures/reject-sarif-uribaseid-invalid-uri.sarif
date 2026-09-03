@@ -1,0 +1,206 @@
+{
+  "version": "2.1.0",
+  "runs": [
+    {
+      "invocations": [
+        {
+          "executionSuccessful": true
+        }
+      ],
+      "originalUriBaseIds": {
+        "%PROJECTROOT%": {
+          "uri": "file:///opt/"
+        },
+        "%REMOTEHOST%": {
+          "uri": "file://[not-a-valid-host/"
+        },
+        "%REMOTEROOT%": {
+          "uri": "spark-src/",
+          "uriBaseId": "%REMOTEHOST%"
+        },
+        "%SRCROOT%": {
+          "uri": "spark-src/",
+          "uriBaseId": "%PROJECTROOT%"
+        }
+      },
+      "results": [
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "e1c14f34ed078dcb924c1319156c33dcb03cf17a9c646332135ae6812fb02124d451c967f715fc99bc4cf244acffa9d7735493d3cd1e67615c1737cdb340d430_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "core/src/main/scala/org/apache/spark/storage/DiskStore.scala",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 94,
+                  "endLine": 72,
+                  "snippet": {
+                    "text": "            s\"Block $blockId is already present in the disk store and could not delete it $e\","
+                  },
+                  "startColumn": 13,
+                  "startLine": 72
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "e8270b00e1f615b34e143e7f0803088287b035ab98a09f24db5a6dfe4889167a969008bec4b07d01437007ad380f949883b90e49c3b1e658f10ea6b4078950d0_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "python/pyspark/ml/tests/connect/test_legacy_mode_feature.py",
+                  "uriBaseId": "%REMOTEROOT%"
+                },
+                "region": {
+                  "endColumn": 42,
+                  "endLine": 90,
+                  "snippet": {
+                    "text": "                sk_model = pickle.load(f)"
+                  },
+                  "startColumn": 28,
+                  "startLine": 90
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle"
+        },
+        {
+          "fingerprints": {
+            "matchBasedId/v1": "4640ff242e5f9e18dc00a61863c3c124f7b14b91f77951034d4f4ab9f819c0a105eef3ef722b20faf587b0c9fcdce909d119dc5191c31e5c01c6358fbfee2eba_0"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "resource-managers/yarn/src/main/java/org/apache/spark/deploy/yarn/ProxyUtils.java",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 4,
+                  "endLine": 98,
+                  "snippet": {
+                    "text": "  public static void sendRedirect(HttpServletRequest request,\n      HttpServletResponse response,\n      String target)\n      throws IOException {\n    LOG.debug(\"Redirecting {} {} to {}\",\n          request.getMethod(),\n          request.getRequestURI(),\n          target);\n    String location = response.encodeRedirectURL(target);\n    response.setStatus(HttpServletResponse.SC_FOUND);\n    response.setHeader(LOCATION, location);\n    response.setContentType(MimeType.HTML);\n    PrintWriter writer = response.getWriter();\n    Page p = new Page(writer);\n    p.html()\n      .head().title(\"Moved\").__()\n      .body()\n      .h1(\"Moved\")\n      .div()\n        .__(\"Content has moved \")\n        .a(location, \"here\").__()\n      .__().__();\n    writer.close();\n  }"
+                  },
+                  "startColumn": 3,
+                  "startLine": 75
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties."
+          },
+          "properties": {},
+          "ruleId": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "Opengrep OSS",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties."
+              },
+              "help": {
+                "markdown": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties.\n\n<b>References:</b>\n - [https://owasp.org/Top10/A01_2021-Broken_Access_Control](https://owasp.org/Top10/A01_2021-Broken_Access_Control)\n",
+                "text": "URL rewriting has significant security risks. Since session ID appears in the URL, it may be easily seen by third parties."
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-200: Exposure of Sensitive Information to an Unauthorized Actor",
+                  "LOW CONFIDENCE",
+                  "OWASP-A01:2021 - Broken Access Control",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.java.lang.security.audit.url-rewriting"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "fullDescription": {
+                "text": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format."
+              },
+              "help": {
+                "markdown": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format.\n\n<b>References:</b>\n - [https://docs.python.org/3/library/pickle.html](https://docs.python.org/3/library/pickle.html)\n",
+                "text": "Avoid using `pickle`, which is known to lead to code execution vulnerabilities. When unpickling, the serialized data could be manipulated to run arbitrary code. Instead, consider serializing the relevant data as JSON or a similar text-based serialization format."
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-502: Deserialization of Untrusted Data",
+                  "LOW CONFIDENCE",
+                  "OWASP-A08:2017 - Insecure Deserialization",
+                  "OWASP-A08:2021 - Software and Data Integrity Failures",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.python.lang.security.deserialization.avoid-pickle"
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+              },
+              "help": {
+                "markdown": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library.\n\n<b>References:</b>\n - [https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html](https://docs.oracle.com/javase/7/docs/api/java/sql/PreparedStatement.html)\n",
+                "text": "User data flows into this manually-constructed SQL string. User data can be safely inserted into SQL strings using prepared statements or an object-relational mapper (ORM). Manually-constructed SQL strings is a possible indicator of SQL injection, which could let an attacker steal or manipulate data from the database. Instead, use prepared statements (`connection.PreparedStatement`) or a safe library."
+              },
+              "id": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+              "name": "opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string",
+              "properties": {
+                "precision": "very-high",
+                "tags": [
+                  "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+                  "MEDIUM CONFIDENCE",
+                  "OWASP-A01:2017 - Injection",
+                  "OWASP-A03:2021 - Injection",
+                  "security"
+                ]
+              },
+              "shortDescription": {
+                "text": "Opengrep Finding: opt.blitzy-harness.rules.opengrep-rules.scala.lang.security.audit.tainted-sql-string"
+              }
+            }
+          ],
+          "semanticVersion": "1.27.1"
+        }
+      }
+    }
+  ],
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/schemas/sarif-schema-2.1.0.json"
+}

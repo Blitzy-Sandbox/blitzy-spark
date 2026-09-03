@@ -1,0 +1,196 @@
+{
+ "description": "The hand-verified expected outcome for oss-scan-results/adapter-tests/fixtures/malformed-gitleaks.json -- a document written under a KNOWN artifact name whose content is not that writer's native shape. It states a HALT, not rows, despite the .rows.json suffix this folder's naming convention requires: the suffix names the folder's contract (one expected file per fixture), not the shape of every outcome. Every value below was derived by reading the fixture and the authored tables in harness/lib/normalize/shape.py, and each is asserted programmatically by oss-scan-results/adapter-tests/test_shape_routing_negative.py rather than taken on trust.",
+ "outcome": "halt",
+ "outcome_kind": "shape-detection halt before adapter selection",
+ "tool": "gitleaks",
+ "tool_note": "The tool IS resolved here, which is what distinguishes this fixture from expected/unknown-shape.rows.json: the name routing keys on is one of the nine, so the writer is known and only its document shape is wrong.",
+ "scanner_class": null,
+ "adapter": null,
+ "adapter_invoked": false,
+ "null_field_note": "scanner_class and adapter are null rather than omitted, so a generic loader reads this file with the same keys as the positive expected files in this folder. They are null because the halt precedes adapter selection and row construction; gitleaks rows would otherwise carry the fixed class secret.",
+ "fixture": {
+  "path": "oss-scan-results/adapter-tests/fixtures/malformed-gitleaks.json",
+  "sha256": "1f1ef7450562f3c45ba68dd7df699cd71d8f9f7b09973c7dc6353d3520a33737",
+  "bytes": 137,
+  "json_well_formed": true,
+  "top_level_type": "object",
+  "python_type": "dict",
+  "top_level_length": 4,
+  "top_level_keys": [
+   "schema_version",
+   "generated_at",
+   "scan_root",
+   "leaks"
+  ],
+  "authored_note": "An authored document, not captured tool output. It is the plausible mis-shape for this artifact and the only one available: gitleaks writes a bare JSON array, so the way to get its shape wrong is to wrap the findings in an envelope. This document does exactly that -- an object carrying schema_version, generated_at, scan_root and a leaks array -- which is the shape a reader who assumes every report has a header would expect. Its leaks array is empty, so no secret, credential, token or redacted match value appears anywhere in it; that is deliberate, since this tree is committed to git.",
+  "why_it_is_not_named_gitleaks_json": "This folder already holds fixtures/gitleaks.json, the captured positive fixture, so a second file cannot take that name. The negative test therefore routes this document under the artifact filename its writer uses (see routed_as below) rather than under the fixture's own filename, which resolves to no tool at all."
+ },
+ "routed_as": {
+  "subject": "gitleaks.json",
+  "second_subject": "harness/artifacts/raw/gitleaks.json",
+  "second_subject_note": "Both forms are asserted, because a run resolves the path form (shape.route_artifact over an entry in harness/artifacts/raw/) while a bare filename is what the authored tables hold. Only the filename component is read; neither path is opened, and no absolute path appears in this file or in the test.",
+  "fixture_name_resolves_to_a_tool": false,
+  "fixture_name_resolution_note": "shape.resolve_tool(\"malformed-gitleaks.json\") is None. Asserted by the test so the halt below cannot be passing for the wrong reason: routed under its own name this document would halt with shape.REASON_UNRECOGNIZED_ARTIFACT_NAME, a different condition owned by expected/unknown-shape.rows.json."
+ },
+ "field_order": [
+  "tool",
+  "scanner_class",
+  "rule_id",
+  "message",
+  "severity_native",
+  "severity_norm",
+  "path",
+  "start_line",
+  "cwe",
+  "cve",
+  "package_coordinate",
+  "in_scope"
+ ],
+ "field_order_authority": "harness/lib/normalize/emit.py, the FIELDS constant. Recorded for parity with the positive expected files in this folder; no row below carries it, because rows is empty by expectation.",
+ "shape_detection": {
+  "function": "normalize.shape.is_sarif",
+  "authority": "harness/lib/normalize/shape.py",
+  "conjunction": "isinstance(doc, Mapping) and doc.get(\"version\") == \"2.1.0\" and isinstance(doc.get(\"runs\"), list)",
+  "mapping_condition_met": true,
+  "version_key_present": false,
+  "version_condition_met": false,
+  "version_observed": null,
+  "runs_key_present": false,
+  "runs_condition_met": false,
+  "is_sarif": false,
+  "is_sarif_derivation": "A mapping with no version key and no runs key: None == \"2.1.0\" is False and isinstance(None, list) is False, so both halves fail and the native signature below is the test that decides this document's fate. Note that the mapping half of the SARIF test PASSES here while the native signature requires an array -- the two tests disagree about the top-level type this artifact may carry, which is exactly why the signature is evaluated per writer rather than globally.",
+  "conjunction_authority": "AAP 0.5.4: an artifact is SARIF when it carries version \"2.1.0\" TOGETHER WITH a runs array. Those two together are the whole test, and no third condition is added here."
+ },
+ "native_signature": {
+  "authority": "normalize.shape.NATIVE_SIGNATURES[\"gitleaks\"], derived from AAP 0.5.4's per-shape record-location table",
+  "signature_required": true,
+  "expected": "a JSON array at the top level, each element one finding. An empty array is legitimate: it is what gitleaks writes when it matches nothing",
+  "expected_note": "Recorded verbatim and asserted equal to the signature's own statement string, so this file cannot describe a requirement the implementation does not make.",
+  "accepted_top_level_types": [
+   "array"
+  ],
+  "required_key": null,
+  "required_key_type": null,
+  "required_key_present": null,
+  "observed_key_type": null,
+  "matches": false,
+  "why_it_fails": "gitleaks is the one writer whose signature is the top-level type alone: the document IS the record array, so there is no container key to require and the three required_key fields above are null rather than absent. This document is an object where an array is required, so it fails on the only condition the signature states.",
+  "what_is_deliberately_not_required": "Nothing beyond the array. An EMPTY array is legitimate and must route -- it is what gitleaks writes when it matches nothing, and treating an empty finding set as a mis-shape would halt every clean secret scan. The signature reads no element, so a rule identifier, a description, a File and a StartLine are all the adapter's business, and each has its own reject fixture in this folder."
+ },
+ "counting_traversal": {
+  "function": "normalize.reconcile.count_records(\"gitleaks\", doc)",
+  "would_return": 0,
+  "note": "This is the measured reason the halt has to exist. _count_gitleaks walks the top level as a sequence and an envelope object yields nothing, so it returns zero -- and an adapter reading the same envelope would emit zero rows and zero rejections. Before this fix the identity balanced at 0 = 0 + 0 over a malformed document and parse status read clean, so an envelope-wrapped report was indistinguishable from a scan that found no secrets. AAP 0.5.4 requires a halt rather than a best-effort parse, and AAP 0.9.2 lists the condition among those that stop the run.",
+  "traversal_unchanged": "reconcile.py's traversal is deliberately not hardened into a second shape test: its value is that it shares no code and no judgement with the row builder. The halt belongs one layer up, in shape.py."
+ },
+ "named_halt_requirement": {
+  "requirement": "a deliberate, NAMED halt",
+  "expected_exception": "shape.UnknownArtifactShape",
+  "expected_exception_qualified": "normalize.shape.UnknownArtifactShape",
+  "any_exception_is_a_pass": false,
+  "unnamed_exception_is_a_failure": true,
+  "forbidden_escaping_exceptions": [
+   "KeyError",
+   "TypeError",
+   "AttributeError"
+  ],
+  "statement": "A KeyError, TypeError or AttributeError escaping a half-attempted parse is a FAILURE, not a pass: it carries no reason, names no artifact, quotes no expected signature and cannot be told apart from a defect in the normalizer itself. AttributeError is named for this artifact in particular, because an adapter handed a mapping where it expects a sequence of finding objects is the classic route to one. The test asserts the exact type with assertIs(type(error), shape.UnknownArtifactShape), never Exception.",
+  "raised_by_the_shape_layer": "The exception must come from normalize.shape.route or normalize.shape.route_artifact -- the module that owns the decision -- rather than from an adapter reached with a document whose shape was never established."
+ },
+ "halt": {
+  "expected": true,
+  "expected_exception": "shape.UnknownArtifactShape",
+  "reason": "native-shape-unrecognized",
+  "reason_constant": "shape.REASON_NATIVE_SIGNATURE_MISMATCH",
+  "reason_inventory": "shape.HALT_REASONS, the closed set of four: unrecognized-artifact-name, unsupported-document-type, sarif-producer-artifact-not-sarif, native-shape-unrecognized.",
+  "reason_note": "Not the name reason: the name resolves to gitleaks. Not the container reason: an object top level is a supported container in general -- it is unsupported only for THIS writer, which is a distinction only a per-writer signature can draw. The halt is attributable to the document not being this writer's native shape.",
+  "raised_by": [
+   "normalize.shape.route",
+   "normalize.shape.route_artifact"
+  ],
+  "raised_before": "any adapter module is named, imported or called, and before any record traversal of any kind",
+  "observed_attributes": {
+   "reason": "native-shape-unrecognized",
+   "artifact_path": "gitleaks.json",
+   "stem": "gitleaks",
+   "stem_note": "For this reason the stem carries the canonical tool identifier rather than a filename: the writer is known by the time the signature is tested.",
+   "top_level_type": "object",
+   "python_type": "dict",
+   "version": null,
+   "top_level_keys": [
+    "schema_version",
+    "generated_at",
+    "scan_root",
+    "leaks"
+   ],
+   "top_level_length": 4,
+   "sarif_detected": false,
+   "signature_tool": "gitleaks",
+   "expected_signature_recorded": true,
+   "signature_observation_recorded": true
+  },
+  "message_must_carry": [
+   "the canonical tool identifier",
+   "the expected signature in words",
+   "the observed top-level type against the type the signature requires"
+  ],
+  "details_method": "shape.UnknownArtifactShape.details() returns the same facts as a flat JSON-serialisable mapping, adding expected_artifacts, signature_tool, expected_signature and signature_observation. For this writer the observation carries the two type fields and no key fields, because the signature states no required key. The test asserts json.dumps over it succeeds, because harness/artifacts/logs/normalize-run.json has to carry the halt record.",
+  "not_a_rejection": {
+   "is_reject_class": false,
+   "reject_class": null,
+   "reject_classes_authority": "harness/lib/normalize/paths.py, the REJECT_CLASSES tuple -- a closed set of ten class names, not copied here so the one authority cannot drift into two.",
+   "statement": "The stated outcome is a halt, not a counted rejection: a rejection is a per-record outcome inside an adapter that already owns its artifact, and this document never reaches an adapter. The test asserts the non-membership of the reason and the exception name over paths.REJECT_CLASSES programmatically."
+  },
+  "reason_literal_divergence": "This value was authored as the literal 'native-signature-mismatch' against a tree where the signature check owned a reason of its own. In the delivered tree that constant and shape.REASON_NATIVE_SHAPE_UNRECOGNIZED are ONE literal -- 'native-shape-unrecognized' -- because a known artifact name whose document does not carry that writer's structure is one condition however it is detected, and two literals for it would put a reason outside shape.HALT_REASONS, which the router's own inventory is asserted closed over. reason_constant is unchanged and is what the test compares against; the literal recorded here is the value that constant holds in this tree."
+ },
+ "parse": {
+  "json_load_expected_to_succeed": true,
+  "json_load_error": null,
+  "well_formed_is_essential": true,
+  "why_well_formedness_is_the_point": "A document that fails to parse is stopped by the parser and no shape decision is reached. It is precisely a document that parses perfectly, carries a known artifact name and reads plausibly that tempts a best-effort parse."
+ },
+ "counts": {
+  "raw_finding_records": null,
+  "raw_count_unit": null,
+  "raw_count_unit_note": "Null rather than 0: a count unit is a property of a document of the right shape, and this document has none. What the traversal would return over it anyway is recorded above under counting_traversal.would_return, where it is evidence about the defect rather than a reconciliation figure.",
+  "rows": 0,
+  "rejections": 0,
+  "rejections_by_class": {},
+  "reconciliation_identity": "not applicable -- the halt precedes any record traversal, so no count unit exists to reconcile against"
+ },
+ "rows": [],
+ "rows_note": "Explicitly empty, and empty for a different reason than a clean scan is empty: the pipeline stopped, it did not look and find nothing. The distinction is sharpest for this tool, whose clean scan is literally an empty array.",
+ "row_derivations": [],
+ "guarded_failure": "A permissive shape layer does not raise on this document -- it hands it to the gitleaks adapter, which enumerates nothing from an envelope object where a finding array was expected, emits zero rows and zero rejections and reports success. The independent counting traversal returns zero as well, so the identity balances and parse status reads clean: an envelope-wrapped report and a genuinely clean secret scan produce byte-identical dataset evidence.",
+ "negative_test_contract": {
+  "test": "oss-scan-results/adapter-tests/test_shape_routing_negative.py",
+  "assertions": [
+   "shape.route over this fixture's parsed document under the subject gitleaks.json raises shape.UnknownArtifactShape, and the raised type is exactly that class.",
+   "shape.route_artifact over harness/artifacts/raw/gitleaks.json and the same document raises the same reason, so both entry points halt.",
+   "error.reason equals shape.REASON_NATIVE_SIGNATURE_MISMATCH, and is neither of the other two members of shape.HALT_REASONS.",
+   "error.signature_tool is gitleaks and error.expected_signature equals shape.NATIVE_SIGNATURES[\"gitleaks\"].statement, which this file records verbatim.",
+   "error.signature_observation records the accepted top-level types and the observed top-level type, and carries no required-key fields, matching the null key values recorded here.",
+   "shape.is_sarif over the document is False and shape.matches_native_signature(\"gitleaks\", doc) is False.",
+   "shape.matches_native_signature(\"gitleaks\", []) is True, so the empty array a clean scan writes is not collateral damage of this halt.",
+   "reconcile.count_records(\"gitleaks\", doc) is 0 -- the false-clean this halt prevents, asserted rather than asserted about.",
+   "No adapter module is imported by the halting routing call.",
+   "The rows array is empty, the rejection total is 0, and neither the reason nor the exception name is a member of paths.REJECT_CLASSES.",
+   "shape.resolve_tool over the fixture's own filename is None, so the subject the test routes under is the artifact filename and not the fixture name.",
+   "The fixture's sha256, byte size, top-level type and top-level keys equal the values recorded here, so this file cannot drift from the document it describes."
+  ],
+  "mandated_direction_note": "AAP 0.5.4 mandates a negative test asserting that a native artifact does not route to the SARIF adapter; that assertion is owned by the same test file over the captured native fixtures. This fixture extends it in the direction the review found open: a KNOWN filename whose content is not that writer's native shape must halt rather than become a clean zero-result."
+ },
+ "related_fixtures": {
+  "the_captured_positive": "oss-scan-results/adapter-tests/fixtures/gitleaks.json -- the report this document imitates, whose top level IS the finding array and which routes normally.",
+  "the_legitimate_empty_case": "No fixture file: the legitimate empty document for this writer is the literal [], asserted inline by the test rather than committed, because a file holding two bytes documents nothing a fixture path could not mislead about.",
+  "the_fall_through": "oss-scan-results/adapter-tests/fixtures/unknown-shape.json -- a document under an UNRECOGNISED name, which halts for a different reason.",
+  "the_sibling_malformed_documents": [
+   "oss-scan-results/adapter-tests/fixtures/malformed-checkov.json",
+   "oss-scan-results/adapter-tests/fixtures/malformed-trivy.json",
+   "oss-scan-results/adapter-tests/fixtures/malformed-dependency-check.json",
+   "oss-scan-results/adapter-tests/fixtures/malformed-joern.json"
+  ],
+  "note": "Named so a reader can see which layer owns which failure. No fixture's outcome is inferred from another's, and each expected file states its own."
+ },
+ "prohibitions_observed": "No secret value, credential, token or redacted-secret placeholder appears in any field of this file or its fixture -- its leaks array is empty precisely so that this tree stays free of secret material while still carrying a gitleaks-shaped envelope. No finding is judged, nothing is deduplicated, and no tool's output is characterised against another's: this file describes one document's shape decision and the halt it must produce, and nothing else."
+}

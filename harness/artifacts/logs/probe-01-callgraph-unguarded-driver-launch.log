@@ -1,0 +1,178 @@
+---BLITZY-START---
+[stage] A-paths-and-runtime: repository root, console log target, JDK major and the heap ACTUALLY used
+repository root           : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0 (from HARNESS_REPO_ROOT)
+completion manifest       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.publication.json
+console log target        : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/artifacts/logs/probe-01-callgraph-unguarded-driver-launch.log
+publication root (real)   : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0
+jdk.specification.version : 21 (required major 21)
+java.vm.version           : 21.0.12.1+1-LTS
+heap actually used (bytes): 68719476736
+heap actually used (GiB)  : 64.000
+heap floor (bytes)        : 68719476736
+JVM memory/stack args     : -Xmx64g
+JVM other args (reduced)  : <none>
+JVM args kept / reduced   : 1 logged as written, 0 reduced to their keys, 1 observed
+Joern exposes no --version flag and its REPL blocks on an open stdin, so its
+version is read from the startup banner on the console stream, not from a flag.
+heap floor                : PASS (measured, not requested)
+query source              : queries/joern/01-callgraph-unguarded-driver-launch.sc
+query source bytes        : 307625
+query source sha256       : 79583377ffdc05762226f1437be94d953bf44be1ea94bbc3d9e48f072a27f4ac
+alternative loader        : absent (measured: 0 occurrences in the source text)
+declared bound            : MAX_CALL_DEPTH=12 (agrees with the traversal)
+expansion scopes          : per entry point 200000, per walk 3200000 (= per-entry cap x entry-point cap)
+revision window HEAD      : d933940aa3bb6e3a81fb464114dad922cae76346 on blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab
+query revisions committed : 3 (commits touching this path in HEAD's own history, newest first, every one verified an ancestor of the HEAD published beside this count)
+query revision commits    : 0e3e742a5ad2cb057fd2ebafb6f6a0137c82d21b, 232d0d9cca3f15d33cedb96fa18dac3c6602668b, 1ac5915ed1535ff1ffece11b6b40b0286be74d45
+revision convention       : commits touching queries/joern/01-callgraph-unguarded-driver-launch.sc in the history of the HEAD this run measured at, newest first, counted at run time from the repository's own history. ONE convention, with three parts that make the number reproducible: the range is HEAD's own ancestry, named explicitly rather than defaulted, and the HEAD and the branch it was on are published beside the count; every commit returned is verified to be an ancestor of that HEAD, so a commit reachable only from another ref cannot enter the count - which is what happened to earlier figures once per-clone branches were reconciled and the commits a previous run had listed stopped being ancestors of the branch carrying its files; and the commit that PUBLISHES these result files is necessarily not among them, because it cannot exist while the run that writes them is still in progress. A later reader whose git log shows one more commit than the count reconciles against that window rather than against a bare number
+[stage] B-graph-path: the two names for the graph
+graph path source         : HARNESS_CPG
+graph path (as used)      : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/cpg/spark.cpg
+graph path (AAP name)     : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/harness/cpg/spark.cpg
+[stage] C-identity: the graph's byte size and sha256, symlink-FOLLOWING
+named path is a symlink   : true -> /opt/blitzy-harness/cpg/spark.cpg
+resolved target           : /opt/blitzy-harness/cpg/spark.cpg
+size WITHOUT following    : 33  (recorded to be discarded)
+size WITH following       : 547980224  (the measurement of record)
+private input dir source  : $HARNESS_SCRATCH_DIR
+private input (created)   : /tmp/blitzy-harness-scratch/424/probe-graph-input-c5f2f2b6ce1292ac40424cd9/spark.cpg
+private input mode        : 0400 in a 0500 directory this run created
+bytes copied              : 547980224 in 3840 ms
+private input size        : 547980224
+private input inode       : (dev=10301,ino=112547941)
+sha256 of the copied bytes: 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6  (taken in the copy pass)
+frontend record           : harness/artifacts/logs/cpg-frontend.log present, carries no write-time bytes:/sha256: pair (this checkout's frontend wrote no accepted graph), so it does not own this load's identity
+recorded at write time    : bytes=547980224 sha256=325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+record of account         : provision-log/cpg-identity.txt
+its provenance            : provisioning record of account for the graph this run did not write
+corroborated by           : provision-log/cpg-record.txt, which agree
+byte size matches         : YES
+sha256 matches            : YES
+AAP-named path            : same file (equal resolved target)
+identity check elapsed_ms : 3947
+graph identity            : PASS - re-verified immediately before the load
+graph path label          : $HARNESS_CPG
+resolved target label     : a host-shared read-only file outside the repository root, reached by following the symlink
+[stage] D-load: switchWorkspace then importCpg
+workspace root (AAP name) : queries/joern/.workspace
+workspace root descent    : no-follow, contained in the repository root, by descriptor
+workspace (this run)      : queries/joern/.workspace/run-01-callgraph-unguarded-driver-launch-8fb2e25952854da7290751b1
+workspace freshness       : created by this run with createDirectory (an existing name would have failed), mode 0700
+workspace lock            : exclusive, held on queries/joern/.workspace/run-01-callgraph-unguarded-driver-launch-8fb2e25952854da7290751b1/.lock for the rest of the run
+workspace (resolved real) : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/queries/joern/.workspace/run-01-callgraph-unguarded-driver-launch-8fb2e25952854da7290751b1
+loading the graph with importCpg: /tmp/blitzy-harness-scratch/424/probe-graph-input-c5f2f2b6ce1292ac40424cd9/spark.cpg
+loaded bytes are           : the private copy verified above, not the host-shared path
+load elapsed_ms           : 570738
+graph methods             : 1398964
+graph typeDecls           : 119860
+graph files               : 45037
+private input after load  : 547980224 bytes, inode (dev=10301,ino=112547941), sha256 325887cf6c65377b1c5b9c127b1ea16807463313e82baf14cabb0e5c5aba3dc6
+import binding             : PASS - the imported copy is byte-for-byte and inode-for-inode the input the identity check measured
+private input retained    : true (created by this run and left in place under AAP 0.8.1, so the digest above can be re-measured from the bytes the engine read)
+workspace removal         : registered for JVM exit, confined to the directory this run created; the engine holds project state in it until then
+[stage] E-selection: entry points (BOUNDARY 4) and the sink
+synthetic typeDecls       : 2 matching ^org\.apache\.spark\.deploy\.master\.Master\$\$anonfun\$receiveAndReply\$\d+$
+entry points discovered   : 2
+entry points traversed    : 2 (cap 16)
+entry points truncated    : 0
+  entry: org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)  nodes=2 graph_line=409
+  entry: org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)  nodes=2 graph_line=408
+calls named start scanned : 1233 (cap 200000, truncated=false)
+launch call sites (any host): 52
+launch call sites (sink host): 2
+  sink: org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean) -> org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process() graph_line=240 dispatch=DYNAMIC_DISPATCH
+  sink: org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process() -> java.lang.ProcessBuilder.start:java.lang.Process() graph_line=276 dispatch=DYNAMIC_DISPATCH
+sink host methods         : org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean), org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()
+[stage] F-predicates: the selector, its bytecode collision, and the constraint
+predicate type nodes      : 2
+methods on that type      : 252 nodes, 107 distinct names
+step 1 broad selector     : aclsEnabled, aclsOn, aclsOn_$eq, checkAdminPermissions, checkModifyPermissions, checkUIViewPermissions, isAuthenticationEnabled
+step 2 setters excluded   : aclsOn_$eq
+step 2 remaining          : aclsEnabled, aclsOn, checkAdminPermissions, checkModifyPermissions, checkUIViewPermissions, isAuthenticationEnabled
+step 3 non-predicate residue dropped: aclsOn
+final predicate set       : aclsEnabled, checkAdminPermissions, checkModifyPermissions, checkUIViewPermissions, isAuthenticationEnabled
+predicate selector        : PASS (asserted against the graph, not the source)
+predicate call sites (graph-wide): 18 in 18 distinct callers
+predicate call sites on the route surface (org.apache.spark.deploy.master.Master, org.apache.spark.deploy.worker.Worker, org.apache.spark.deploy.worker.DriverRunner, org.apache.spark.deploy.worker.ProcessBuilderLike): 0
+[stage] G-traversal: two bounded call-graph walks, entry points to the sink
+  walk A-follows-fan-out  entry=org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1) visited=   20122 depth=12 entry_expansions=   19548 walk_expansions=   19548
+  walk A-follows-fan-out  entry=org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) visited=       3 depth= 3 entry_expansions=       3 walk_expansions=   19551
+walk A elapsed_ms         : 383
+  walk B-fan-out-recorded entry=org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1) visited=    2508 depth=12 entry_expansions=    2347 walk_expansions=    2347
+  walk B-fan-out-recorded entry=org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext) visited=       3 depth= 3 entry_expansions=       3 walk_expansions=    2350
+walk B elapsed_ms         : 34
+walk A-follows-fan-out: routes=0 walk_expansions=19551 max_expansions_at_one_entry=19548 call_sites=21476 fanout_seen=48 fanout_not_followed=0 max_depth=12 depth_bound_reached=true entry_expansion_cap_reached=false walk_expansion_budget_exhausted=false route_cap_reached=false alternate_sink_arrivals_not_retained=0
+walk B-fan-out-recorded: routes=0 walk_expansions=2350 max_expansions_at_one_entry=2347 call_sites=4383 fanout_seen=31 fanout_not_followed=31 max_depth=12 depth_bound_reached=true entry_expansion_cap_reached=false walk_expansion_budget_exhausted=false route_cap_reached=false alternate_sink_arrivals_not_retained=0
+route cap reachable max   : 4 (= 2 entry point(s) traversed x 2 sink host(s)), cap 64, can bind on this graph: false
+alternate sink arrivals   : A-follows-fan-out=0, B-fan-out-recorded=0 (counted, not retained)
+distinct routes (both walks, deduplicated): 0
+any bound reached         : true
+[stage] H-boundaries: each of the four hops, measured against the graph
+B1 message producers      : org.apache.spark.deploy.master.Master.launchDriver:void(org.apache.spark.deploy.master.WorkerInfo,org.apache.spark.deploy.master.DriverInfo)
+B1 message consumers      : org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)
+  route end (entry point): org.apache.spark.deploy.master.Master$$anonfun$receiveAndReply$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)
+  route end (entry point): org.apache.spark.deploy.master.Master.receiveAndReply:scala.PartialFunction(org.apache.spark.rpc.RpcCallContext)
+  route end (B1 consumer end (the relay)): org.apache.spark.deploy.worker.Worker$$anonfun$receive$1.applyOrElse:java.lang.Object(java.lang.Object,scala.Function1)
+  route end (sink host): org.apache.spark.deploy.worker.DriverRunner.runCommandWithRetry:int(org.apache.spark.deploy.worker.ProcessBuilderLike,scala.Function1,boolean)
+  route end (sink host): org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()
+route surface coverage    : PASS - all 5 measured route end(s) are owned by one of 4 prefix(es)
+  surface org.apache.spark.deploy.master.Master: typeDecls=217 measured_ends=2 predicate_call_sites=0
+  surface org.apache.spark.deploy.worker.Worker: typeDecls=156 measured_ends=1 predicate_call_sites=0
+  surface org.apache.spark.deploy.worker.DriverRunner: typeDecls=21 measured_ends=1 predicate_call_sites=0
+  surface org.apache.spark.deploy.worker.ProcessBuilderLike: typeDecls=6 measured_ends=1 predicate_call_sites=0
+B1 producer->consumer call edge: false
+B2 Thread.start call sites: 1
+B2 callees of those sites : org.apache.spark.deploy.worker.DriverRunner$$anon$2.start:void()
+B2 thread body methods    : org.apache.spark.deploy.worker.DriverRunner$$anon$2.run:void()
+B2 start->run call edge   : false
+B3 sink call callees      : java.lang.ProcessBuilder.start:java.lang.Process(), org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process(), org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()
+B3 concrete implementations reached: java.lang.ProcessBuilder.start:java.lang.Process(), org.apache.spark.deploy.worker.ProcessBuilderLike$$anon$3.start:java.lang.Process()
+B3 abstract declarations reached   : org.apache.spark.deploy.worker.ProcessBuilderLike.start:java.lang.Process()
+B3 jdk launch method nodes: 1
+B3 interface hop crossed  : true
+B4 source-level handler call sites : 1
+B4 synthetic entry call sites      : 131
+B4 handler body reached from the source-level method: false
+B4 handler body reached from the synthetic method   : true
+boundaries measured       : 4
+boundaries NOT crossed    : B1-rpc, B2-thread, B4-partial-function
+[stage] I-spurious: the mechanical definition, applied to the emitted set
+spurious routes           : 0 of 0
+expected-spurious absent  : true
+absence basis             : structural - no call site of any of the five named predicates exists on the route surface, so no route could have passed one
+[stage] J-records: the returned set, capped and deterministic
+records returned          : 4 (4 boundary, 0 route; cap 256, reached=false)
+duplicate formulation     : partial_duplicate (02-dataflow-unguarded-driver-launch: not_duplicate) (03-parameterized-handler-sink-pairs: duplicate_formulation_on_pair-one)
+  vs 02-dataflow-unguarded-driver-launch: source sha256 902b7ffe8d708d6cb4ddfc057f65b1a2a023fc90c5b55c8d3ba012885dcb3fd1, api only here 4, only there 19, shared 24
+  vs 03-parameterized-handler-sink-pairs: source sha256 8f67126c56185bde3221ad760130295cf9f7f64411be528e9fd578a4fbad631e, api only here 0, only there 0, shared 28
+[stage] K-write: the envelope, the prose report and the console log
+publication id            : efc857cebf2044a130526df24267924e72f70803a5d2f7abebcda3466775c962
+api constructs audited    : 28 of 28 confirmed in the source with the list excised
+absolute host paths       : 0 of 8 searched-for paths occur in the envelope
+envelope staged           : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/queries/joern/results/01-callgraph-unguarded-driver-launch.json (72781 bytes, sha256 80f49183faf24c33c3047743286cef4204ab788bfca8aa376160d6905c435717)
+prose report staged       : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/queries/joern/results/01-callgraph-unguarded-driver-launch.md (392 lines written, 1 trailing blank entr(y/ies) dropped, 28045 bytes, sha256 2ee87f3576a067406881769f9612bff6727bb7d5a8a66386380f9193e7cdd6ee)
+publication members staged: 2 of 3 (the console log is staged last, because it names the other two)
+[stage] L-result: the result region, emitted only now that every stage passed
+total elapsed_ms          : 577899
+---BLITZY-RESULT-BEGIN---
+query_id                  : 01-callgraph-unguarded-driver-launch
+compile_status            : compiled
+run_status                : completed
+returned_record_count     : 4
+distinct_routes           : 0
+spurious_count            : 0
+expected_spurious_absent  : true (structural)
+bound_value               : 12
+bound_reached             : true
+entry_points_traversed    : 2
+entry_points_truncated    : 0
+duplicate_formulation     : partial_duplicate
+query_revisions_committed : 3
+joern_api_constructs      : 28
+boundaries_not_crossed    : B1-rpc, B2-thread, B4-partial-function
+query_source_sha256       : 79583377ffdc05762226f1437be94d953bf44be1ea94bbc3d9e48f072a27f4ac
+publication_id            : efc857cebf2044a130526df24267924e72f70803a5d2f7abebcda3466775c962
+envelope                  : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/queries/joern/results/01-callgraph-unguarded-driver-launch.json
+prose report              : /tmp/blitzy/blitzy-spark/blitzy-f38258d3-f87d-44f5-bedc-af512c69e0ab_a424a0/queries/joern/results/01-callgraph-unguarded-driver-launch.md
+---BLITZY-RESULT-END---
+---BLITZY-OK---
